@@ -549,6 +549,77 @@
     color: #666;
   }
   
+  /* 음악 검색 관련 스타일 */
+  .search-container {
+    position: relative;
+    margin: 15px 0;
+  }
+  
+  .search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 0 0 8px 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    display: none;
+  }
+  
+  .search-result-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .search-result-item:hover {
+    background: #f5f5f5;
+  }
+  
+  .search-result-item:last-child {
+    border-bottom: none;
+  }
+  
+  .search-result-title {
+    font-weight: bold;
+    margin-bottom: 3px;
+  }
+  
+  .search-result-artist {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 3px;
+  }
+  
+  .search-result-album {
+    font-size: 0.8rem;
+    color: #888;
+  }
+  
+  .search-source-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    margin-left: 5px;
+    vertical-align: middle;
+  }
+  
+  .spotify-badge {
+    background: #1DB954;
+    color: white;
+  }
+  
+  .musicbrainz-badge {
+    background: #EB743B;
+    color: white;
+  }
+  
   /* 저작권 관련 스타일 */
   .certified-badge {
     background: #4CAF50;
@@ -641,6 +712,75 @@
   .copyright-creative {
     color: #2196F3;
     font-weight: bold;
+  }
+  
+  /* 음악 정보 카드 */
+  .music-info-card {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 15px 0;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  
+  .music-info-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+  
+  .album-art {
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    background: linear-gradient(45deg, #2196F3, #21CBF3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+  
+  .music-info-details {
+    flex: 1;
+  }
+  
+  .music-info-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+  
+  .music-info-artist {
+    font-size: 1rem;
+    color: #666;
+    margin-bottom: 3px;
+  }
+  
+  .music-info-album {
+    font-size: 0.9rem;
+    color: #888;
+  }
+  
+  /* 검색 로딩 */
+  .search-loading {
+    text-align: center;
+    padding: 15px;
+    color: #666;
+  }
+  
+  .search-loading:after {
+    content: '...';
+    animation: dots 1.5s steps(4, end) infinite;
+  }
+  
+  @keyframes dots {
+    0%, 20% { content: '.'; }
+    40% { content: '..'; }
+    60%, 100% { content: '...'; }
   }
   
   /* 모바일 최적화 */
@@ -760,6 +900,23 @@
     
     .stats-grid {
       grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .music-info-header {
+      flex-direction: column;
+      text-align: center;
+    }
+    
+    .album-art {
+      width: 100px;
+      height: 100px;
+    }
+    
+    .search-results {
+      position: fixed;
+      left: 15px;
+      right: 15px;
+      max-height: 50vh;
     }
   }
   
@@ -888,6 +1045,15 @@
     <div id="market" class="tab-content">
       <h2 class="section-title">TL 마켓 - 음원 구매/판매</h2>
       
+      <div class="card">
+        <h3>음악 검색</h3>
+        <div class="search-container">
+          <input type="text" id="marketSearch" placeholder="음악 제목, 아티스트, 앨범명 검색" 
+                 onkeyup="searchMarketMusic()">
+          <div class="search-results" id="marketSearchResults"></div>
+        </div>
+      </div>
+      
       <div class="grid" id="marketGrid">
         <!-- 마켓 아이템들이 동적으로 로드됩니다 -->
       </div>
@@ -917,10 +1083,48 @@
         </div>
         
         <div style="margin: 15px 0;">
-          <label>파일 정보 입력:</label>
+          <label>음악 정보 검색 (선택사항):</label>
+          <div class="search-container">
+            <input type="text" id="musicSearch" placeholder="음악 제목 또는 아티스트명 검색" 
+                   onkeyup="searchMusicInfo()">
+            <div class="search-results" id="musicSearchResults"></div>
+          </div>
+          <small>Spotify 또는 MusicBrainz에서 음악 정보를 검색하여 자동으로 입력할 수 있습니다.</small>
+        </div>
+        
+        <div id="selectedMusicInfo" class="music-info-card" style="display: none;">
+          <div class="music-info-header">
+            <div class="album-art" id="albumArt">♪</div>
+            <div class="music-info-details">
+              <div class="music-info-title" id="selectedTitle">선택된 음악</div>
+              <div class="music-info-artist" id="selectedArtist">아티스트</div>
+              <div class="music-info-album" id="selectedAlbum">앨범</div>
+            </div>
+          </div>
+          <button onclick="clearMusicSelection()" class="btn-danger" style="width: auto; padding: 8px 15px;">
+            음악 선택 취소
+          </button>
+        </div>
+        
+        <div style="margin: 15px 0;">
+          <label>음악 정보:</label>
           <input type="text" id="mp3Title" placeholder="음악 제목" style="margin-bottom: 10px;">
           <input type="text" id="mp3Artist" placeholder="아티스트 이름" style="margin-bottom: 10px;">
           <input type="text" id="mp3Album" placeholder="앨범명 (선택사항)">
+          <input type="number" id="mp3Year" placeholder="발매년도 (선택사항)" style="margin-top: 10px;">
+          <select id="mp3Genre" style="margin-top: 10px;">
+            <option value="">장르 선택 (선택사항)</option>
+            <option value="pop">팝</option>
+            <option value="rock">락</option>
+            <option value="hiphop">힙합</option>
+            <option value="electronic">일렉트로닉</option>
+            <option value="jazz">재즈</option>
+            <option value="classical">클래식</option>
+            <option value="rnb">R&B</option>
+            <option value="country">컨트리</option>
+            <option value="folk">포크</option>
+            <option value="metal">메탈</option>
+          </select>
         </div>
         
         <div style="margin: 15px 0;">
@@ -929,6 +1133,7 @@
             <option value="unknown">저작권 정보 없음</option>
             <option value="public">퍼블릭 도메인</option>
             <option value="creative">크리에이티브 커먼즈</option>
+            <option value="licensed">라이선스 획득</option>
           </select>
         </div>
         
@@ -956,10 +1161,10 @@
         
         <div style="margin: 15px 0;">
           <label>인증할 음악 검색:</label>
-          <input type="text" id="searchMusic" placeholder="음악 제목 또는 아티스트명 검색" 
-                 onkeyup="searchMusicForAuth()" style="margin-bottom: 10px;">
-          <div class="file-list" id="musicSearchResults" style="max-height: 300px;">
-            <!-- 검색 결과가 표시됩니다 -->
+          <div class="search-container">
+            <input type="text" id="searchMusic" placeholder="음악 제목 또는 아티스트명 검색" 
+                   onkeyup="searchMusicForAuth()">
+            <div class="search-results" id="musicAuthSearchResults"></div>
           </div>
         </div>
         
@@ -1165,6 +1370,15 @@ let uploadedMP3s = [];
 let copyrightAuthRequests = [];
 let selectedMP3ForAuth = null;
 
+// 검색 관련 전역 상태
+let searchTimeout = null;
+let selectedMusicInfo = null;
+
+// API 키 (실제 구현 시 환경 변수로 관리)
+const SPOTIFY_CLIENT_ID = 'YOUR_SPOTIFY_CLIENT_ID';
+const SPOTIFY_CLIENT_SECRET = 'YOUR_SPOTIFY_CLIENT_SECRET';
+const MUSICBRAINZ_USER_AGENT = 'TLPlatform/1.0.0 (your-email@example.com)';
+
 // DOM 로드 시 초기화
 document.addEventListener('DOMContentLoaded', function() {
   initializeApp();
@@ -1180,6 +1394,13 @@ function initializeApp() {
   updateStats();
   loadUploadedMP3s();
   loadCertifiedCopyrights();
+  
+  // 검색 결과 클릭 시 닫기 이벤트
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.search-container')) {
+      hideAllSearchResults();
+    }
+  });
 }
 
 // 이벤트 리스너 설정
@@ -1193,7 +1414,6 @@ function setupEventListeners() {
   document.querySelectorAll('.nav-tab').forEach(tab => {
     tab.addEventListener('click', function() {
       switchTab(this.dataset.tab);
-      // 모바일에서 탭 선택 후 메뉴 닫기
       if (window.innerWidth <= 768) {
         document.querySelector('.nav-tabs').classList.remove('active');
       }
@@ -1207,7 +1427,6 @@ function setupEventListeners() {
       this.classList.add('selected');
       conversionType = this.dataset.type;
       
-      // 파일 입력 accept 속성 변경
       const fileInput = document.getElementById('fileInput');
       if (conversionType === 'tl3') {
         fileInput.accept = 'audio/*';
@@ -1304,33 +1523,430 @@ function setupEventListeners() {
   });
 }
 
-// 재생 종료 처리
-function handlePlaybackEnded() {
-  if (currentPlayingFile) {
-    const file = userFiles.find(f => f.id === currentPlayingFile);
-    if (file) {
-      file.usedTime = file.totalTime;
-      file.playTime = 0;
-      updateLibraryDisplay();
+// 검색 결과 숨기기
+function hideAllSearchResults() {
+  document.querySelectorAll('.search-results').forEach(el => {
+    el.style.display = 'none';
+  });
+}
+
+// 음악 정보 검색 (Spotify + MusicBrainz)
+async function searchMusicInfo() {
+  const searchTerm = document.getElementById('musicSearch').value.trim();
+  const resultsContainer = document.getElementById('musicSearchResults');
+  
+  if (!searchTerm) {
+    resultsContainer.innerHTML = '';
+    resultsContainer.style.display = 'none';
+    return;
+  }
+  
+  resultsContainer.innerHTML = '<div class="search-loading">검색 중</div>';
+  resultsContainer.style.display = 'block';
+  
+  // 디바운싱
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+  
+  searchTimeout = setTimeout(async () => {
+    try {
+      const results = await searchMusicFromAPIs(searchTerm);
+      displayMusicSearchResults(results, resultsContainer, 'musicInfo');
+    } catch (error) {
+      resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">검색 중 오류가 발생했습니다.</div>';
+      console.error('Search error:', error);
+    }
+  }, 500);
+}
+
+// 마켓 음악 검색
+async function searchMarketMusic() {
+  const searchTerm = document.getElementById('marketSearch').value.trim();
+  const resultsContainer = document.getElementById('marketSearchResults');
+  
+  if (!searchTerm) {
+    resultsContainer.innerHTML = '';
+    resultsContainer.style.display = 'none';
+    return;
+  }
+  
+  resultsContainer.innerHTML = '<div class="search-loading">검색 중</div>';
+  resultsContainer.style.display = 'block';
+  
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+  
+  searchTimeout = setTimeout(async () => {
+    try {
+      const results = await searchMusicFromAPIs(searchTerm);
+      displayMusicSearchResults(results, resultsContainer, 'market');
+    } catch (error) {
+      resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">검색 중 오류가 발생했습니다.</div>';
+      console.error('Market search error:', error);
+    }
+  }, 500);
+}
+
+// 저작권 인증 음악 검색
+async function searchMusicForAuth() {
+  const searchTerm = document.getElementById('searchMusic').value.trim();
+  const resultsContainer = document.getElementById('musicAuthSearchResults');
+  
+  if (!searchTerm) {
+    resultsContainer.innerHTML = '';
+    resultsContainer.style.display = 'none';
+    return;
+  }
+  
+  // 로컬 MP3 검색
+  const filteredMP3s = uploadedMP3s.filter(mp3 => 
+    mp3.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    mp3.artist.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  resultsContainer.innerHTML = '';
+  resultsContainer.style.display = 'block';
+  
+  if (filteredMP3s.length === 0) {
+    resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">검색 결과가 없습니다.</div>';
+    return;
+  }
+  
+  filteredMP3s.forEach(mp3 => {
+    const resultItem = document.createElement('div');
+    resultItem.className = 'search-result-item';
+    resultItem.onclick = () => selectMusicForAuth(mp3.id);
+    
+    const copyrightStatus = mp3.isCopyrightCertified ? 
+      `<span class="certified-badge">인증됨</span>` : 
+      `<span class="pending-badge">인증 대기</span>`;
+    
+    resultItem.innerHTML = `
+      <div class="search-result-title">
+        ${mp3.title}
+        ${copyrightStatus}
+      </div>
+      <div class="search-result-artist">${mp3.artist}</div>
+      <div class="search-result-album">${mp3.album || '앨범 정보 없음'} • 업로더: ${mp3.uploaderName}</div>
+    `;
+    resultsContainer.appendChild(resultItem);
+  });
+}
+
+// API에서 음악 검색 (Spotify + MusicBrainz)
+async function searchMusicFromAPIs(query) {
+  const results = [];
+  
+  try {
+    // Spotify API 검색
+    const spotifyResults = await searchSpotify(query);
+    results.push(...spotifyResults.map(item => ({
+      ...item,
+      source: 'spotify'
+    })));
+    
+    // MusicBrainz API 검색
+    const musicbrainzResults = await searchMusicBrainz(query);
+    results.push(...musicbrainzResults.map(item => ({
+      ...item,
+      source: 'musicbrainz'
+    })));
+    
+    // 중복 제거 (제목과 아티스트가 같은 항목)
+    const uniqueResults = [];
+    const seen = new Set();
+    
+    results.forEach(item => {
+      const key = `${item.title.toLowerCase()}-${item.artist.toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueResults.push(item);
+      }
+    });
+    
+    return uniqueResults.slice(0, 10); // 최대 10개 결과 반환
+    
+  } catch (error) {
+    console.error('API search error:', error);
+    return [];
+  }
+}
+
+// Spotify API 검색
+async function searchSpotify(query) {
+  try {
+    // 실제 구현에서는 백엔드를 통해 API 호출
+    // 여기서는 데모용 가상 데이터 반환
+    const mockSpotifyData = [
+      {
+        id: 'spotify_1',
+        title: 'Blinding Lights',
+        artist: 'The Weeknd',
+        album: 'After Hours',
+        year: '2020',
+        genre: 'pop',
+        image: 'https://i.scdn.co/image/ab67616d0000b2738863bc11d2aa12b54f5aeb36'
+      },
+      {
+        id: 'spotify_2',
+        title: 'Shape of You',
+        artist: 'Ed Sheeran',
+        album: '÷ (Divide)',
+        year: '2017',
+        genre: 'pop',
+        image: 'https://i.scdn.co/image/ab67616d0000b273ba5db46f4b838ef6027e6f96'
+      },
+      {
+        id: 'spotify_3',
+        title: 'Bohemian Rhapsody',
+        artist: 'Queen',
+        album: 'A Night at the Opera',
+        year: '1975',
+        genre: 'rock',
+        image: 'https://i.scdn.co/image/ab67616d0000b273ce4f1737bc8a646c8c4bd25a'
+      },
+      {
+        id: 'spotify_4',
+        title: 'Bad Guy',
+        artist: 'Billie Eilish',
+        album: 'When We All Fall Asleep, Where Do We Go?',
+        year: '2019',
+        genre: 'pop',
+        image: 'https://i.scdn.co/image/ab67616d0000b273a91c10fe9472d9bd89802e5a'
+      },
+      {
+        id: 'spotify_5',
+        title: 'Dynamite',
+        artist: 'BTS',
+        album: 'Dynamite (DayTime Version)',
+        year: '2020',
+        genre: 'k-pop',
+        image: 'https://i.scdn.co/image/ab67616d0000b273ed656680927862c84a2f4820'
+      }
+    ];
+    
+    // 쿼리로 필터링
+    const filtered = mockSpotifyData.filter(item => 
+      item.title.toLowerCase().includes(query.toLowerCase()) ||
+      item.artist.toLowerCase().includes(query.toLowerCase()) ||
+      item.album.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    return filtered;
+    
+  } catch (error) {
+    console.error('Spotify search error:', error);
+    return [];
+  }
+}
+
+// MusicBrainz API 검색
+async function searchMusicBrainz(query) {
+  try {
+    // 실제 MusicBrainz API 호출 (CORS 문제로 백엔드 필요)
+    // 데모용 가상 데이터
+    const mockMusicBrainzData = [
+      {
+        id: 'mb_1',
+        title: 'Smells Like Teen Spirit',
+        artist: 'Nirvana',
+        album: 'Nevermind',
+        year: '1991',
+        genre: 'grunge',
+        image: null
+      },
+      {
+        id: 'mb_2',
+        title: 'Hotel California',
+        artist: 'Eagles',
+        album: 'Hotel California',
+        year: '1976',
+        genre: 'rock',
+        image: null
+      },
+      {
+        id: 'mb_3',
+        title: 'Like a Rolling Stone',
+        artist: 'Bob Dylan',
+        album: 'Highway 61 Revisited',
+        year: '1965',
+        genre: 'folk rock',
+        image: null
+      },
+      {
+        id: 'mb_4',
+        title: 'Imagine',
+        artist: 'John Lennon',
+        album: 'Imagine',
+        year: '1971',
+        genre: 'rock',
+        image: null
+      },
+      {
+        id: 'mb_5',
+        title: 'Billie Jean',
+        artist: 'Michael Jackson',
+        album: 'Thriller',
+        year: '1982',
+        genre: 'pop',
+        image: null
+      }
+    ];
+    
+    // 쿼리로 필터링
+    const filtered = mockMusicBrainzData.filter(item => 
+      item.title.toLowerCase().includes(query.toLowerCase()) ||
+      item.artist.toLowerCase().includes(query.toLowerCase()) ||
+      item.album.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    return filtered;
+    
+  } catch (error) {
+    console.error('MusicBrainz search error:', error);
+    return [];
+  }
+}
+
+// 검색 결과 표시
+function displayMusicSearchResults(results, container, context) {
+  container.innerHTML = '';
+  
+  if (results.length === 0) {
+    container.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">검색 결과가 없습니다.</div>';
+    return;
+  }
+  
+  results.forEach(item => {
+    const resultItem = document.createElement('div');
+    resultItem.className = 'search-result-item';
+    
+    const sourceBadge = item.source === 'spotify' ? 
+      '<span class="search-source-badge spotify-badge">Spotify</span>' :
+      '<span class="search-source-badge musicbrainz-badge">MusicBrainz</span>';
+    
+    const albumInfo = item.album ? ` • ${item.album}` : '';
+    const yearInfo = item.year ? ` • ${item.year}` : '';
+    
+    resultItem.innerHTML = `
+      <div class="search-result-title">
+        ${item.title}
+        ${sourceBadge}
+      </div>
+      <div class="search-result-artist">${item.artist}</div>
+      <div class="search-result-album">${albumInfo}${yearInfo}</div>
+    `;
+    
+    resultItem.onclick = () => {
+      if (context === 'musicInfo') {
+        selectMusicInfo(item);
+      } else if (context === 'market') {
+        // 마켓 검색 결과 선택 시 해당 음악 구매 페이지로 이동
+        searchMarketItem(item);
+      }
+      container.style.display = 'none';
+    };
+    
+    container.appendChild(resultItem);
+  });
+}
+
+// 음악 정보 선택
+function selectMusicInfo(musicInfo) {
+  selectedMusicInfo = musicInfo;
+  
+  // UI 업데이트
+  document.getElementById('selectedTitle').textContent = musicInfo.title;
+  document.getElementById('selectedArtist').textContent = musicInfo.artist;
+  document.getElementById('selectedAlbum').textContent = musicInfo.album || '앨범 정보 없음';
+  
+  // 앨범 아트 설정
+  const albumArt = document.getElementById('albumArt');
+  if (musicInfo.image) {
+    albumArt.style.background = `url('${musicInfo.image}') center/cover`;
+    albumArt.textContent = '';
+  } else {
+    albumArt.style.background = 'linear-gradient(45deg, #2196F3, #21CBF3)';
+    albumArt.textContent = '♪';
+  }
+  
+  // 선택된 음악 정보 표시
+  document.getElementById('selectedMusicInfo').style.display = 'block';
+  
+  // 입력 필드 자동 채우기
+  document.getElementById('mp3Title').value = musicInfo.title;
+  document.getElementById('mp3Artist').value = musicInfo.artist;
+  document.getElementById('mp3Album').value = musicInfo.album || '';
+  document.getElementById('mp3Year').value = musicInfo.year || '';
+  
+  if (musicInfo.genre) {
+    document.getElementById('mp3Genre').value = musicInfo.genre;
+  }
+  
+  // 검색 입력 필드 초기화
+  document.getElementById('musicSearch').value = '';
+}
+
+// 음악 선택 취소
+function clearMusicSelection() {
+  selectedMusicInfo = null;
+  document.getElementById('selectedMusicInfo').style.display = 'none';
+  
+  // 입력 필드 초기화
+  document.getElementById('mp3Title').value = '';
+  document.getElementById('mp3Artist').value = '';
+  document.getElementById('mp3Album').value = '';
+  document.getElementById('mp3Year').value = '';
+  document.getElementById('mp3Genre').value = '';
+}
+
+// 마켓 아이템 검색 및 표시
+function searchMarketItem(musicInfo) {
+  // 마켓에서 해당 음악 검색
+  const foundItems = marketFiles.filter(item => 
+    item.title.toLowerCase().includes(musicInfo.title.toLowerCase()) ||
+    item.artist?.toLowerCase().includes(musicInfo.artist.toLowerCase())
+  );
+  
+  if (foundItems.length > 0) {
+    // 검색 결과가 있으면 해당 아이템 강조 표시
+    displayMarketItems(foundItems);
+    alert(`"${musicInfo.title}" 검색 결과 ${foundItems.length}개를 찾았습니다.`);
+  } else {
+    // 검색 결과가 없으면 새 아이템 생성 제안
+    if (confirm(`"${musicInfo.title}"가 마켓에 없습니다. 새로 추가하시겠습니까?`)) {
+      // 새 마켓 아이템 생성 로직
+      const newMarketItem = {
+        marketId: Date.now(),
+        title: musicInfo.title,
+        artist: musicInfo.artist,
+        album: musicInfo.album,
+        description: `${musicInfo.artist}의 인기 음원`,
+        type: 'tl3',
+        owner: 'TL Music',
+        ownerId: 0,
+        purchasePrice: 3000,
+        purchases: 0,
+        totalEarnings: 0
+      };
+      
+      marketFiles.push(newMarketItem);
+      loadMarketItems();
+      alert('새 음원이 마켓에 추가되었습니다.');
     }
   }
 }
 
-// 탭 전환
-function switchTab(tabId) {
-  document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-  
-  document.querySelector(`.nav-tab[data-tab="${tabId}"]`).classList.add('active');
-  document.getElementById(tabId).classList.add('active');
-}
-
-// MP3 업로드 함수
+// MP3 업로드 함수 (검색 정보 포함)
 async function uploadMP3() {
   const mp3FileInput = document.getElementById('mp3FileInput');
   const title = document.getElementById('mp3Title').value;
   const artist = document.getElementById('mp3Artist').value;
   const album = document.getElementById('mp3Album').value;
+  const year = document.getElementById('mp3Year').value;
+  const genre = document.getElementById('mp3Genre').value;
   const statusEl = document.getElementById('mp3UploadStatus');
   
   if (!mp3FileInput.files[0]) {
@@ -1366,6 +1982,8 @@ async function uploadMP3() {
         title: title,
         artist: artist,
         album: album || '',
+        year: year || '',
+        genre: genre || '',
         uploaderId: currentUser.id,
         uploaderName: currentUser.name,
         uploadDate: new Date().toLocaleDateString(),
@@ -1380,7 +1998,9 @@ async function uploadMP3() {
         copyrightOwnerEarnings: 0,
         platformEarnings: 0,
         convertedToTL3: false,
-        tl3FileId: null
+        tl3FileId: null,
+        source: selectedMusicInfo?.source || 'manual',
+        sourceId: selectedMusicInfo?.id || null
       };
       
       uploadedMP3s.push(newMP3);
@@ -1399,7 +2019,11 @@ async function uploadMP3() {
       document.getElementById('mp3Title').value = '';
       document.getElementById('mp3Artist').value = '';
       document.getElementById('mp3Album').value = '';
+      document.getElementById('mp3Year').value = '';
+      document.getElementById('mp3Genre').value = '';
+      document.getElementById('copyrightStatus').value = 'unknown';
       mp3DropZone.querySelector('p').textContent = 'MP3 파일을 여기에 드래그하거나 클릭하여 선택하세요';
+      clearMusicSelection();
       
       // 자동으로 TL3 변환 제안
       setTimeout(() => {
@@ -1417,7 +2041,10 @@ async function uploadMP3() {
   }
 }
 
-// MP3를 TL3로 변환
+// 나머지 함수들은 이전과 동일하게 유지됩니다 (MP3를 TL3로 변환, 저작권 인증 등)
+// 이하 함수들은 이전 코드와 동일하므로 생략합니다. 필요한 부분만 업데이트됩니다.
+
+// MP3를 TL3로 변환 (검색 정보 포함)
 async function convertMP3toTL3(mp3Id) {
   const mp3 = uploadedMP3s.find(m => m.id === mp3Id);
   
@@ -1434,7 +2061,7 @@ async function convertMP3toTL3(mp3Id) {
   try {
     currentUser.tl -= 500;
     
-    // TL3 파일 생성
+    // TL3 파일 생성 (검색 정보 포함)
     const tl3File = {
       id: Date.now(),
       title: mp3.title,
@@ -1454,7 +2081,11 @@ async function convertMP3toTL3(mp3Id) {
       isCopyrightCertified: mp3.isCopyrightCertified,
       copyrightOwner: mp3.copyrightOwner,
       artist: mp3.artist,
-      album: mp3.album
+      album: mp3.album,
+      year: mp3.year,
+      genre: mp3.genre,
+      source: mp3.source,
+      sourceId: mp3.sourceId
     };
     
     userFiles.push(tl3File);
@@ -1479,62 +2110,97 @@ async function convertMP3toTL3(mp3Id) {
   }
 }
 
-// 음악 검색 (저작권 인증용)
-function searchMusicForAuth() {
-  const searchTerm = document.getElementById('searchMusic').value.toLowerCase();
-  const resultsContainer = document.getElementById('musicSearchResults');
+// 업로드한 MP3 목록 표시 (검색 정보 포함)
+function updateUploadedMP3sDisplay() {
+  const listContainer = document.getElementById('uploadedMP3List');
+  listContainer.innerHTML = '';
   
-  if (!searchTerm) {
-    resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">검색어를 입력하세요.</div>';
+  const myUploads = uploadedMP3s.filter(mp3 => mp3.uploaderId === currentUser.id);
+  
+  if (myUploads.length === 0) {
+    listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">업로드한 MP3가 없습니다.</div>';
     return;
   }
   
-  const filteredMP3s = uploadedMP3s.filter(mp3 => 
-    mp3.title.toLowerCase().includes(searchTerm) || 
-    mp3.artist.toLowerCase().includes(searchTerm)
-  );
-  
-  displayMusicSearchResults(filteredMP3s);
-}
-
-function displayMusicSearchResults(mp3s) {
-  const resultsContainer = document.getElementById('musicSearchResults');
-  resultsContainer.innerHTML = '';
-  
-  if (mp3s.length === 0) {
-    resultsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">검색 결과가 없습니다.</div>';
-    return;
-  }
-  
-  mp3s.forEach(mp3 => {
-    const resultItem = document.createElement('div');
-    resultItem.className = 'file-item';
+  myUploads.forEach(mp3 => {
+    const mp3Item = document.createElement('div');
+    mp3Item.className = 'file-item';
     
-    const copyrightStatus = mp3.isCopyrightCertified ? 
-      `<span class="certified-badge">인증됨</span>` : 
-      `<span class="pending-badge">인증 대기</span>`;
+    const earningsInfo = mp3.uploaderEarnings > 0 ? 
+      `<div class="uploader-earnings">
+        내 수익: ${mp3.uploaderEarnings} TL | 총 판매: ${mp3.totalSales} TL
+       </div>` : '';
     
-    resultItem.innerHTML = `
+    const copyrightEarnings = mp3.copyrightOwnerEarnings > 0 && mp3.copyrightOwner !== currentUser.name ?
+      `<div class="copyright-earnings">
+        저작권자 수익: ${mp3.copyrightOwnerEarnings} TL (소유자: ${mp3.copyrightOwner})
+       </div>` : '';
+    
+    const convertButton = !mp3.convertedToTL3 ? 
+      `<button onclick="convertMP3toTL3(${mp3.id})" class="btn-warning" style="margin-top: 5px;">
+         TL3 변환하기 (500TL)
+       </button>` : 
+      `<button disabled style="margin-top: 5px;">TL3 변환 완료</button>`;
+    
+    const copyrightStatusClass = `copyright-${mp3.copyrightStatus}`;
+    
+    const sourceInfo = mp3.source ? 
+      `<div style="font-size: 0.8rem; color: #666; margin-top: 5px;">
+        출처: ${mp3.source === 'spotify' ? 'Spotify' : mp3.source === 'musicbrainz' ? 'MusicBrainz' : '직접 입력'}
+        ${mp3.year ? ` • 발매년도: ${mp3.year}` : ''}
+        ${mp3.genre ? ` • 장르: ${mp3.genre}` : ''}
+      </div>` : '';
+    
+    mp3Item.innerHTML = `
       <div class="file-info">
         <div class="file-title">
           ${mp3.title} - ${mp3.artist}
-          ${copyrightStatus}
+          <span class="mp3-upload-badge">MP3</span>
+          ${mp3.isCopyrightCertified ? 
+            '<span class="certified-badge">저작권 인증됨</span>' : 
+            '<span class="pending-badge">저작권 미인증</span>'}
         </div>
         <div class="file-meta">
-          업로더: ${mp3.uploaderName} | 
-          업로드일: ${mp3.uploadDate} |
-          ${mp3.convertedToTL3 ? 'TL3 변환됨' : 'TL3 미변환'}
+          업로드일: ${mp3.uploadDate} | 
+          파일 크기: ${formatFileSize(mp3.fileSize)} |
+          <span class="${copyrightStatusClass}">${getCopyrightStatusText(mp3.copyrightStatus)}</span>
         </div>
+        ${sourceInfo}
+        ${earningsInfo}
+        ${copyrightEarnings}
       </div>
       <div class="file-actions">
-        <button onclick="selectMusicForAuth(${mp3.id})" 
-                ${mp3.isCopyrightCertified ? 'disabled' : ''}>
-          저작권 인증 요청
+        ${convertButton}
+        <button onclick="playMP3Preview(${mp3.id})" style="margin-top: 5px;">
+          미리 듣기
         </button>
       </div>
     `;
-    resultsContainer.appendChild(resultItem);
+    listContainer.appendChild(mp3Item);
   });
+}
+
+// 나머지 기존 함수들은 그대로 유지합니다...
+
+// 재생 종료 처리
+function handlePlaybackEnded() {
+  if (currentPlayingFile) {
+    const file = userFiles.find(f => f.id === currentPlayingFile);
+    if (file) {
+      file.usedTime = file.totalTime;
+      file.playTime = 0;
+      updateLibraryDisplay();
+    }
+  }
+}
+
+// 탭 전환
+function switchTab(tabId) {
+  document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+  
+  document.querySelector(`.nav-tab[data-tab="${tabId}"]`).classList.add('active');
+  document.getElementById(tabId).classList.add('active');
 }
 
 // 저작권 인증 요청
@@ -1604,7 +2270,7 @@ async function requestCopyrightAuth() {
       document.getElementById('authMessage').value = '';
       selectedMP3ForAuth = null;
       document.getElementById('searchMusic').value = '';
-      document.getElementById('musicSearchResults').innerHTML = '';
+      document.getElementById('musicAuthSearchResults').innerHTML = '';
       
       loadCertifiedCopyrights();
       
@@ -1615,68 +2281,6 @@ async function requestCopyrightAuth() {
     statusEl.className = 'status error';
     console.error('Copyright auth request error:', error);
   }
-}
-
-// 업로드한 MP3 목록 표시
-function updateUploadedMP3sDisplay() {
-  const listContainer = document.getElementById('uploadedMP3List');
-  listContainer.innerHTML = '';
-  
-  const myUploads = uploadedMP3s.filter(mp3 => mp3.uploaderId === currentUser.id);
-  
-  if (myUploads.length === 0) {
-    listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">업로드한 MP3가 없습니다.</div>';
-    return;
-  }
-  
-  myUploads.forEach(mp3 => {
-    const mp3Item = document.createElement('div');
-    mp3Item.className = 'file-item';
-    
-    const earningsInfo = mp3.uploaderEarnings > 0 ? 
-      `<div class="uploader-earnings">
-        내 수익: ${mp3.uploaderEarnings} TL | 총 판매: ${mp3.totalSales} TL
-       </div>` : '';
-    
-    const copyrightEarnings = mp3.copyrightOwnerEarnings > 0 && mp3.copyrightOwner !== currentUser.name ?
-      `<div class="copyright-earnings">
-        저작권자 수익: ${mp3.copyrightOwnerEarnings} TL (소유자: ${mp3.copyrightOwner})
-       </div>` : '';
-    
-    const convertButton = !mp3.convertedToTL3 ? 
-      `<button onclick="convertMP3toTL3(${mp3.id})" class="btn-warning" style="margin-top: 5px;">
-         TL3 변환하기 (500TL)
-       </button>` : 
-      `<button disabled style="margin-top: 5px;">TL3 변환 완료</button>`;
-    
-    const copyrightStatusClass = `copyright-${mp3.copyrightStatus}`;
-    
-    mp3Item.innerHTML = `
-      <div class="file-info">
-        <div class="file-title">
-          ${mp3.title} - ${mp3.artist}
-          <span class="mp3-upload-badge">MP3</span>
-          ${mp3.isCopyrightCertified ? 
-            '<span class="certified-badge">저작권 인증됨</span>' : 
-            '<span class="pending-badge">저작권 미인증</span>'}
-        </div>
-        <div class="file-meta">
-          업로드일: ${mp3.uploadDate} | 
-          파일 크기: ${formatFileSize(mp3.fileSize)} |
-          <span class="${copyrightStatusClass}">${getCopyrightStatusText(mp3.copyrightStatus)}</span>
-        </div>
-        ${earningsInfo}
-        ${copyrightEarnings}
-      </div>
-      <div class="file-actions">
-        ${convertButton}
-        <button onclick="playMP3Preview(${mp3.id})" style="margin-top: 5px;">
-          미리 듣기
-        </button>
-      </div>
-    `;
-    listContainer.appendChild(mp3Item);
-  });
 }
 
 // MP3 미리 듣기
@@ -2169,6 +2773,13 @@ function updateLibraryDisplay() {
     const copyrightInfo = file.isCopyrightCertified ? 
       `<div style="font-size: 0.8rem; color: #4CAF50; margin-top: 5px;">저작권 인증됨 (소유자: ${file.copyrightOwner || file.artist})</div>` : '';
     
+    const metadataInfo = (file.year || file.genre) ? 
+      `<div style="font-size: 0.8rem; color: #666; margin-top: 5px;">
+        ${file.year ? `발매년도: ${file.year}` : ''}
+        ${file.year && file.genre ? ' • ' : ''}
+        ${file.genre ? `장르: ${file.genre}` : ''}
+      </div>` : '';
+    
     fileItem.innerHTML = `
       <div class="file-info">
         <div class="file-title">
@@ -2186,6 +2797,7 @@ function updateLibraryDisplay() {
         ${lastPositionInfo}
         ${mp3SourceInfo}
         ${copyrightInfo}
+        ${metadataInfo}
       </div>
       <div class="file-actions">
         <button onclick="playFile(${file.id})" ${file.playTime <= 0 ? 'disabled' : ''}>재생</button>
@@ -2298,11 +2910,21 @@ function displayMarketItems(items) {
         저작권 인증됨 (소유자: ${mp3Source.copyrightOwner || mp3Source.artist})
       </div>` : '';
     
+    const metadataInfo = (item.year || item.genre || item.artist) ? 
+      `<div style="font-size: 0.9rem; color: #666; margin: 5px 0;">
+        ${item.artist ? `아티스트: ${item.artist}` : ''}
+        ${item.artist && item.year ? ' • ' : ''}
+        ${item.year ? `발매년도: ${item.year}` : ''}
+        ${(item.artist || item.year) && item.genre ? ' • ' : ''}
+        ${item.genre ? `장르: ${item.genre}` : ''}
+      </div>` : '';
+    
     itemEl.innerHTML = `
       <div class="item-content">
         <h3>${item.title}</h3>
         <p>${item.description || '사용자가 업로드한 음원 파일'}</p>
         <div class="item-owner">저작권자: ${item.owner}</div>
+        ${metadataInfo}
         ${copyrightInfo}
         <div class="item-price">${item.purchasePrice.toLocaleString()} TL</div>
         <button onclick="buyMarketItem(${item.marketId || item.id})">구매하기</button>
@@ -2707,7 +3329,8 @@ function getCopyrightStatusText(status) {
   const statusMap = {
     'unknown': '저작권 정보 없음',
     'public': '퍼블릭 도메인',
-    'creative': '크리에이티브 커먼즈'
+    'creative': '크리에이티브 커먼즈',
+    'licensed': '라이선스 획득'
   };
   return statusMap[status] || status;
 }
