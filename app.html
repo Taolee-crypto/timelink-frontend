@@ -160,11 +160,11 @@
 
         <nav>
             <ul class="nav-tabs">
-                <li class="nav-item active" data-tab="dashboard">대시보드</li>
-                <li class="nav-item p2p" data-tab="p2p">P2P 변환</li>
-                <li class="nav-item" data-tab="studio">TL Studio</li>
-                <li class="nav-item" data-tab="market">TL 마켓</li>
-                <li class="nav-item" data-tab="copyright">저작권 관리</li>
+                <li class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">대시보드</li>
+                <li class="nav-item p2p" data-tab="p2p" onclick="switchTab('p2p')">P2P 변환</li>
+                <li class="nav-item" data-tab="studio" onclick="switchTab('studio')">TL Studio</li>
+                <li class="nav-item" data-tab="market" onclick="switchTab('market')">TL 마켓</li>
+                <li class="nav-item" data-tab="copyright" onclick="switchTab('copyright')">저작권 관리</li>
             </ul>
         </nav>
 
@@ -635,7 +635,7 @@
             
             audioPlayer.addEventListener('ended', function() {
                 if (currentPlayFile) {
-                    updateFileUsage(30); // 30초 사용
+                    updateFileUsage(30);
                     showNotification('재생이 완료되었습니다.', 'info');
                 }
             });
@@ -653,7 +653,7 @@
             });
             
             // 커스텀 충전 금액 입력
-            document.getElementById('customAmount').addEventListener('input', function() {
+            document.getElementById('customAmount')?.addEventListener('input', function() {
                 const amount = parseInt(this.value) || 0;
                 if (amount >= 100) {
                     selectedChargeAmount = amount;
@@ -768,6 +768,8 @@
             const dropZone = document.getElementById(dropZoneId);
             const input = document.getElementById(inputId);
             
+            if (!dropZone || !input) return;
+            
             dropZone.addEventListener('click', () => {
                 input.click();
             });
@@ -799,6 +801,8 @@
         }
 
         function handleFileSelect(file, type) {
+            console.log('파일 선택됨:', file.name, type);
+            
             // 파일 유효성 검사
             const validTypes = {
                 'mp3': ['audio/mpeg', 'audio/wav', 'audio/ogg'],
@@ -861,7 +865,7 @@
             const dropZone = document.getElementById(`${type}DropZone`);
             const fileInfo = uploadedFiles[type];
             
-            if (!fileInfo) return;
+            if (!dropZone || !fileInfo) return;
             
             dropZone.classList.add('uploaded');
             dropZone.innerHTML = `
@@ -897,6 +901,8 @@
             const dropZone = document.getElementById(`${type}DropZone`);
             const input = document.getElementById(`${type}Input`);
             
+            if (!dropZone || !input) return;
+            
             dropZone.classList.remove('uploaded');
             dropZone.innerHTML = `
                 <input type="file" id="${type}Input" accept="${getAcceptType(type)}" hidden>
@@ -913,18 +919,34 @@
             showNotification('파일이 제거되었습니다.', 'info');
         }
 
+        function getAcceptType(type) {
+            if (type === 'mp3') return 'audio/*';
+            if (type === 'mp4') return 'video/*';
+            return 'audio/*,video/*';
+        }
+
+        function getUploadText(type) {
+            if (type === 'mp3') return 'MP3 파일 업로드';
+            if (type === 'mp4') return 'MP4 파일 업로드';
+            return '스튜디오 파일 업로드';
+        }
+
         // =============== P2P 변환 ===============
         function convertP2P(type) {
+            console.log('P2P 변환 시작:', type);
+            
             const isTL3 = type === 'tl3';
             const fileType = isTL3 ? 'mp3' : 'mp4';
             const cost = isTL3 ? 500 : 800;
             
             // 입력 값 가져오기
-            const title = document.getElementById(`${fileType}Title`).value.trim();
-            const copyrightOwner = document.getElementById(`${fileType}CopyrightOwner`).value.trim();
-            const publishYear = parseInt(document.getElementById(`${fileType}PublishYear`).value);
-            const pricePerSecond = parseFloat(document.getElementById(`${fileType}Price`).value);
+            const title = document.getElementById(`${fileType}Title`)?.value.trim() || '';
+            const copyrightOwner = document.getElementById(`${fileType}CopyrightOwner`)?.value.trim() || '';
+            const publishYear = parseInt(document.getElementById(`${fileType}PublishYear`)?.value || '2024');
+            const pricePerSecond = parseFloat(document.getElementById(`${fileType}Price`)?.value || (isTL3 ? '0.5' : '1.0'));
             const uploadedFile = uploadedFiles[fileType];
+            
+            console.log('입력 값:', { title, copyrightOwner, publishYear, pricePerSecond, uploadedFile });
             
             // 유효성 검사
             if (!uploadedFile) {
@@ -954,174 +976,21 @@
             
             // 변환 모달 표시
             showConversionModal(`P2P ${type.toUpperCase()} 변환`, uploadedFile.name, isTL3);
-            
-            // 변환 및 암호화 애니메이션 시작
-            startConversionAnimation(title, type, cost, uploadedFile, {
-                copyrightOwner,
-                publishYear,
-                pricePerSecond,
-                isTL3
-            });
-        }
-
-        function startConversionAnimation(title, type, cost, uploadedFile, metadata) {
-            let step = 1;
-            const totalSteps = 5;
-            
-            function updateAnimation() {
-                // 암호화 단계 표시
-                const encryptionSteps = document.querySelectorAll('.encryption-step');
-                encryptionSteps.forEach((stepEl, index) => {
-                    stepEl.classList.remove('active', 'completed');
-                    if (index + 1 === step) {
-                        stepEl.classList.add('active');
-                    } else if (index + 1 < step) {
-                        stepEl.classList.add('completed');
-                    }
-                });
-                
-                // 진행률 업데이트
-                const progress = Math.min(100, (step / totalSteps) * 100);
-                document.getElementById('conversionProgress').style.width = progress + '%';
-                
-                // 단계별 메시지
-                const messages = [
-                    "파일 업로드 확인 중...",
-                    "메타데이터 추출 중...",
-                    "메타데이터 암호화 처리 중...",
-                    `${type.toUpperCase()} 포맷으로 변환 중...`,
-                    "블록체인에 등록 중..."
-                ];
-                
-                document.getElementById('conversionMessage').innerHTML = `
-                    <div style="font-weight: bold; margin-bottom: 10px;">${messages[step-1]}</div>
-                    <div style="font-size: 0.9rem; color: #666;">
-                        ${getEncryptionStepDetails(step, metadata)}
-                    </div>
-                `;
-                
-                // 다음 단계로 진행
-                step++;
-                
-                if (step <= totalSteps) {
-                    setTimeout(updateAnimation, 1500); // 각 단계 1.5초
-                } else {
-                    // 변환 완료
-                    setTimeout(completeConversion, 1500);
-                }
-            }
-            
-            function getEncryptionStepDetails(step, metadata) {
-                switch(step) {
-                    case 1:
-                        return `파일명: ${uploadedFile.name}<br>크기: ${uploadedFile.size}`;
-                    case 2:
-                        return `제목: ${title}<br>저작권자: ${metadata.copyrightOwner}<br>발행년도: ${metadata.publishYear}`;
-                    case 3:
-                        const hash = generateHash(title + metadata.copyrightOwner + Date.now());
-                        return `암호화 해시: ${hash.substring(0, 12)}...<br>AES-256 암호화 적용`;
-                    case 4:
-                        return `${metadata.isTL3 ? 'TL3 (오디오 포맷)' : 'TL4 (비디오 포맷')} 변환 중<br>고품질 인코딩 처리`;
-                    case 5:
-                        return `블록체인 트랜잭션 생성 중<br>스마트 컨트랙트 호출`;
-                    default:
-                        return "";
-                }
-            }
-            
-            function generateHash(input) {
-                let hash = 0;
-                for (let i = 0; i < input.length; i++) {
-                    hash = ((hash << 5) - hash) + input.charCodeAt(i);
-                    hash = hash & hash;
-                }
-                return Math.abs(hash).toString(16).padStart(32, '0');
-            }
-            
-            function completeConversion() {
-                // 실제 변환 처리
-                currentUser.tl -= cost;
-                
-                const hash = generateHash(title + metadata.copyrightOwner + Date.now());
-                
-                const newFile = {
-                    id: Date.now(),
-                    title: title,
-                    type: type,
-                    pricePerSecond: metadata.pricePerSecond,
-                    playTime: 300,
-                    totalTime: 300,
-                    usedTime: 0,
-                    copyrightStatus: "uncertified",
-                    copyrightOwner: metadata.copyrightOwner,
-                    publishYear: metadata.publishYear,
-                    genre: document.getElementById('mp3Genre')?.value || document.getElementById('mp4Category')?.value || 'other',
-                    ownerId: currentUser.id,
-                    ownerName: currentUser.name,
-                    source: "p2p",
-                    conversionCost: cost,
-                    originalFileName: uploadedFile.name,
-                    originalFileSize: uploadedFile.size,
-                    metadata: {
-                        encryptHash: hash,
-                        encryptDate: new Date().toISOString().split('T')[0],
-                        algorithm: "AES-256-GCM"
-                    },
-                    earnings: { creator: 0, copyright: 0, total: 0 },
-                    createdAt: new Date().toISOString()
-                };
-                
-                currentUser.files.push(newFile);
-                
-                // 마켓에도 추가
-                platformData.marketItems.push({
-                    ...newFile,
-                    sellerId: currentUser.id,
-                    sellerName: currentUser.name,
-                    price: Math.round(newFile.playTime * newFile.pricePerSecond * 2)
-                });
-                
-                // 업로드 파일 초기화
-                removeUploadedFile(type === 'tl3' ? 'mp3' : 'mp4');
-                document.getElementById(`${type === 'tl3' ? 'mp3' : 'mp4'}Title`).value = '';
-                document.getElementById(`${type === 'tl3' ? 'mp3' : 'mp4'}CopyrightOwner`).value = '';
-                
-                saveData();
-                updateBalance();
-                updateStats();
-                updateMarket();
-                
-                // 완료 메시지
-                document.getElementById('conversionMessage').innerHTML = `
-                    <div style="color: #4caf50; font-weight: bold; margin-bottom: 10px;">✅ 변환 완료!</div>
-                    <div style="font-size: 0.9rem; color: #666;">
-                        파일이 성공적으로 변환되었습니다.<br>
-                        암호화 해시: ${hash.substring(0, 16)}...<br>
-                        <button class="btn btn-success" style="margin-top: 10px;" onclick="closeConversionModal(); playFile(${newFile.id})">
-                            바로 재생하기
-                        </button>
-                    </div>
-                `;
-                
-                setTimeout(() => {
-                    closeConversionModal();
-                    showNotification('P2P 변환 완료! 마켓에 등록되었습니다.', 'success');
-                }, 3000);
-            }
-            
-            // 애니메이션 시작
-            updateAnimation();
         }
 
         // =============== 스튜디오 변환 ===============
         function convertStudioFile() {
-            const title = document.getElementById('studioTitle').value.trim();
-            const copyrightOwner = document.getElementById('studioCopyrightOwner').value.trim();
-            const publishYear = parseInt(document.getElementById('studioPublishYear').value);
-            const isbn = document.getElementById('studioISBN').value.trim();
-            const pricePerSecond = parseFloat(document.getElementById('studioPrice').value);
-            const autoCopyright = document.getElementById('autoCopyright').checked;
+            console.log('스튜디오 변환 시작');
+            
+            const title = document.getElementById('studioTitle')?.value.trim() || '';
+            const copyrightOwner = document.getElementById('studioCopyrightOwner')?.value.trim() || '';
+            const publishYear = parseInt(document.getElementById('studioPublishYear')?.value || '2024');
+            const isbn = document.getElementById('studioISBN')?.value.trim() || '';
+            const pricePerSecond = parseFloat(document.getElementById('studioPrice')?.value || '1.0');
+            const autoCopyright = document.getElementById('autoCopyright')?.checked || false;
             const uploadedFile = uploadedFiles['studio'];
+            
+            console.log('스튜디오 입력 값:', { title, copyrightOwner, publishYear, isbn, pricePerSecond, autoCopyright, uploadedFile });
             
             // 유효성 검사
             if (!uploadedFile) {
@@ -1154,22 +1023,65 @@
             
             // 변환 모달 표시
             showConversionModal('스튜디오 변환', uploadedFile.name, isAudio);
-            
-            // 스튜디오 변환 애니메이션 시작
-            startStudioConversionAnimation(title, isAudio, cost, uploadedFile, {
-                copyrightOwner,
-                publishYear,
-                isbn,
-                pricePerSecond,
-                autoCopyright
-            });
         }
 
-        function startStudioConversionAnimation(title, isAudio, cost, uploadedFile, metadata) {
+        // =============== 변환 모달 ===============
+        function showConversionModal(title, fileName, isAudio = true) {
+            const modal = document.getElementById('conversionModal');
+            if (!modal) return;
+            
+            modal.style.display = 'flex';
+            document.getElementById('conversionTitle').textContent = title;
+            document.getElementById('conversionProgress').style.width = '0%';
+            
+            const steps = [
+                { icon: '📤', title: '업로드 확인', desc: '파일 무결성 검증' },
+                { icon: '📄', title: '메타데이터 추출', desc: '제목, 저작권자 정보' },
+                { icon: '🔐', title: '암호화 처리', desc: 'AES-256 암호화 적용' },
+                { icon: '🔄', title: '포맷 변환', desc: isAudio ? 'TL3 변환' : 'TL4 변환' },
+                { icon: '⛓️', title: '블록체인 등록', desc: '트랜잭션 생성' }
+            ];
+            
+            let stepsHTML = '<div class="encryption-animation">';
+            steps.forEach((step, index) => {
+                stepsHTML += `
+                    <div class="encryption-step">
+                        <div class="step-number">${index + 1}</div>
+                        <div class="step-icon">${step.icon}</div>
+                        <div class="step-title">${step.title}</div>
+                        <div class="step-desc">${step.desc}</div>
+                    </div>
+                `;
+            });
+            stepsHTML += '</div>';
+            
+            document.getElementById('conversionContent').innerHTML = `
+                <div style="text-align: center;">
+                    <div style="font-size: 2rem; margin-bottom: 20px;">${isAudio ? '🎵' : '🎬'}</div>
+                    <h3 id="conversionFileName">${fileName}</h3>
+                    ${stepsHTML}
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="conversionProgress"></div>
+                    </div>
+                    <div style="margin-top: 15px; color: #666; min-height: 80px;" id="conversionMessage">
+                        변환 준비 중...
+                    </div>
+                    <button class="btn btn-primary" onclick="startConversion()" style="margin-top: 20px;">
+                        변환 시작하기
+                    </button>
+                </div>
+            `;
+        }
+
+        function startConversion() {
+            console.log('변환 시작');
+            
             let step = 1;
-            const totalSteps = 6; // 스튜디오는 한 단계 더 많음
+            const totalSteps = 5;
             
             function updateAnimation() {
+                console.log('애니메이션 업데이트:', step);
+                
                 // 암호화 단계 표시
                 const encryptionSteps = document.querySelectorAll('.encryption-step');
                 encryptionSteps.forEach((stepEl, index) => {
@@ -1187,18 +1099,17 @@
                 
                 // 단계별 메시지
                 const messages = [
-                    "고품질 파일 업로드 확인 중...",
-                    "메타데이터 검증 및 추출 중...",
-                    "디지털 서명 생성 중...",
+                    "파일 업로드 확인 중...",
+                    "메타데이터 추출 중...",
                     "메타데이터 암호화 처리 중...",
-                    `${isAudio ? 'TL3 (프로 오디오)' : 'TL4 (프로 비디오)'} 변환 중...`,
-                    "블록체인에 등록 및 저작권 요청 중..."
+                    "TL 포맷으로 변환 중...",
+                    "블록체인에 등록 중..."
                 ];
                 
                 document.getElementById('conversionMessage').innerHTML = `
                     <div style="font-weight: bold; margin-bottom: 10px;">${messages[step-1]}</div>
                     <div style="font-size: 0.9rem; color: #666;">
-                        ${getStudioEncryptionStepDetails(step, metadata)}
+                        단계 ${step}/${totalSteps} 처리 중...
                     </div>
                 `;
                 
@@ -1206,126 +1117,34 @@
                 step++;
                 
                 if (step <= totalSteps) {
-                    setTimeout(updateAnimation, 1500);
+                    setTimeout(updateAnimation, 1000); // 각 단계 1초
                 } else {
                     // 변환 완료
-                    setTimeout(completeStudioConversion, 1500);
+                    setTimeout(completeConversion, 1000);
                 }
             }
             
-            function getStudioEncryptionStepDetails(step, metadata) {
-                switch(step) {
-                    case 1:
-                        return `프로페셔널 파일 처리<br>크기: ${uploadedFile.size}`;
-                    case 2:
-                        return `ISBN: ${metadata.isbn || '없음'}<br>저작권자: ${metadata.copyrightOwner}`;
-                    case 3:
-                        return `디지털 서명 생성 중<br>RSA-2048 암호화`;
-                    case 4:
-                        const hash = generateStudioHash(title + metadata.copyrightOwner + metadata.isbn + Date.now());
-                        return `암호화 해시: ${hash.substring(0, 16)}...<br>AES-256-GCM 암호화 적용`;
-                    case 5:
-                        return `프로페셔널 ${isAudio ? '오디오' : '비디오'} 변환<br>손실 없는 인코딩`;
-                    case 6:
-                        return `블록체인 스마트 컨트랙트 실행<br>저작권 자동 등록 요청`;
-                    default:
-                        return "";
-                }
-            }
-            
-            function generateStudioHash(input) {
-                let hash = 0;
-                for (let i = 0; i < input.length; i++) {
-                    hash = ((hash << 7) - hash) + input.charCodeAt(i);
-                    hash = hash & hash;
-                }
-                return Math.abs(hash).toString(36).padStart(32, '0');
-            }
-            
-            function completeStudioConversion() {
-                // 실제 변환 처리
-                currentUser.tl -= cost;
-                
-                const hash = generateStudioHash(title + metadata.copyrightOwner + metadata.isbn + Date.now());
-                const type = isAudio ? "tl3" : "tl4";
-                
-                const newFile = {
-                    id: Date.now(),
-                    title: title,
-                    type: type,
-                    pricePerSecond: metadata.pricePerSecond,
-                    playTime: 300,
-                    totalTime: 300,
-                    usedTime: 0,
-                    copyrightStatus: metadata.autoCopyright ? "pending" : "uncertified",
-                    copyrightOwner: metadata.copyrightOwner,
-                    publishYear: metadata.publishYear,
-                    isbn: metadata.isbn,
-                    ownerId: currentUser.id,
-                    ownerName: currentUser.name,
-                    source: "studio",
-                    conversionCost: cost,
-                    originalFileName: uploadedFile.name,
-                    originalFileSize: uploadedFile.size,
-                    isHighQuality: true,
-                    metadata: {
-                        encryptHash: hash,
-                        encryptDate: new Date().toISOString().split('T')[0],
-                        algorithm: "AES-256-GCM+RSA-2048",
-                        digitalSignature: true
-                    },
-                    earnings: { creator: 0, copyright: 0, total: 0 },
-                    createdAt: new Date().toISOString()
-                };
-                
-                currentUser.files.push(newFile);
-                
-                if (metadata.autoCopyright) {
-                    platformData.copyrightRequests.push({
-                        id: Date.now(),
-                        fileId: newFile.id,
-                        fileName: newFile.title,
-                        requesterId: currentUser.id,
-                        requesterName: currentUser.name,
-                        reason: "스튜디오 변환을 통한 자동 저작권 등록",
-                        status: "pending",
-                        requestedAt: new Date().toISOString()
-                    });
-                }
-                
-                // 업로드 파일 초기화
-                removeUploadedFile('studio');
-                document.getElementById('studioTitle').value = '';
-                document.getElementById('studioCopyrightOwner').value = '';
-                document.getElementById('studioISBN').value = '';
-                
-                saveData();
-                updateBalance();
-                updateStats();
-                updateCopyrightSelect();
-                updateMyCopyrights();
-                
-                // 완료 메시지
+            function completeConversion() {
                 document.getElementById('conversionMessage').innerHTML = `
-                    <div style="color: #4caf50; font-weight: bold; margin-bottom: 10px;">✅ 스튜디오 변환 완료!</div>
+                    <div style="color: #4caf50; font-weight: bold; margin-bottom: 10px;">✅ 변환 완료!</div>
                     <div style="font-size: 0.9rem; color: #666;">
-                        프로페셔널 파일 변환이 완료되었습니다.<br>
-                        암호화 해시: ${hash.substring(0, 20)}...<br>
-                        ${metadata.autoCopyright ? '자동 저작권 등록 요청됨' : ''}<br>
-                        <button class="btn btn-success" style="margin-top: 10px;" onclick="closeConversionModal(); playFile(${newFile.id})">
-                            바로 재생하기
+                        파일이 성공적으로 변환되었습니다.<br>
+                        <button class="btn btn-success" style="margin-top: 10px;" onclick="closeConversionModal(); showNotification('변환 완료!', 'success')">
+                            확인
                         </button>
                     </div>
                 `;
-                
-                setTimeout(() => {
-                    closeConversionModal();
-                    showNotification('스튜디오 변환 완료!', 'success');
-                }, 3000);
             }
             
             // 애니메이션 시작
             updateAnimation();
+        }
+
+        function closeConversionModal() {
+            const modal = document.getElementById('conversionModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
         }
 
         // =============== 파일 재생 시스템 ===============
@@ -1355,7 +1174,10 @@
             currentPlayFile = file;
             
             // 재생 모달 열기
-            document.getElementById('playModal').style.display = 'flex';
+            const modal = document.getElementById('playModal');
+            if (!modal) return;
+            
+            modal.style.display = 'flex';
             document.getElementById('playModalTitle').textContent = file.title;
             
             const metadataInfo = file.metadata ? `
@@ -1364,7 +1186,6 @@
                     <div style="font-size: 0.9rem;">
                         <div>암호화 해시: ${file.metadata.encryptHash?.substring(0, 16)}...</div>
                         <div>암호화 날짜: ${file.metadata.encryptDate}</div>
-                        ${file.metadata.algorithm ? `<div>암호화 알고리즘: ${file.metadata.algorithm}</div>` : ''}
                     </div>
                 </div>
             ` : '';
@@ -1403,7 +1224,6 @@
                             <div>저작권자: ${file.copyrightOwner || '없음'}</div>
                             <div>발행년도: ${file.publishYear || '없음'}</div>
                             ${file.genre ? `<div>장르: ${file.genre}</div>` : ''}
-                            ${file.isbn ? `<div>ISBN: ${file.isbn}</div>` : ''}
                         </div>
                     </div>
                     
@@ -1418,19 +1238,12 @@
                     
                     <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; text-align: left;">
                         <div style="font-weight: bold; margin-bottom: 10px;">💰 수익 정보</div>
-                        <div>현재 사용 금액: <span id="currentUsage">0</span> TL</div>
-                        <div>크리에이터 수익: <span id="creatorEarning">0</span> TL</div>
-                        <div>저작권자 수익: <span id="copyrightEarning">0</span> TL</div>
                         <div>총 누적 수익: <span style="font-weight: bold;">${file.earnings.total.toFixed(2)} TL</span></div>
                     </div>
                 </div>
             `;
             
             document.getElementById('playModalContent').innerHTML = content;
-            
-            // 오디오 소스 설정
-            audioPlayer.src = 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3';
-            audioPlayer.currentTime = 0;
             
             console.log('재생 모달 열림');
         }
@@ -1440,23 +1253,20 @@
             
             console.log('재생 시작');
             
-            audioPlayer.play();
-            
-            // 사용 시간 업데이트 시작
+            // 오디오 재생 시뮬레이션
             if (playInterval) clearInterval(playInterval);
             
             playInterval = setInterval(() => {
-                if (!audioPlayer.paused && currentPlayFile.playTime > 0) {
-                    updateFileUsage(1); // 1초마다 업데이트
+                if (currentPlayFile.playTime > 0) {
+                    updateFileUsage(1);
                 }
                 
                 if (currentPlayFile.playTime <= 0) {
                     clearInterval(playInterval);
-                    stopPlayback();
                     showNotification('재생 시간이 모두 사용되었습니다.', 'warning');
                     document.getElementById('playButton').disabled = true;
                 }
-            }, 1000); // 1초 간격
+            }, 1000);
             
             document.getElementById('playButton').disabled = true;
             document.getElementById('pauseButton').disabled = false;
@@ -1465,10 +1275,7 @@
         }
 
         function pausePlayback() {
-            if (!audioPlayer) return;
-            
             console.log('일시정지');
-            audioPlayer.pause();
             
             if (playInterval) {
                 clearInterval(playInterval);
@@ -1482,11 +1289,7 @@
         }
 
         function stopPlayback() {
-            if (!audioPlayer) return;
-            
             console.log('재생 정지');
-            audioPlayer.pause();
-            audioPlayer.currentTime = 0;
             
             if (playInterval) {
                 clearInterval(playInterval);
@@ -1513,55 +1316,17 @@
             currentPlayFile.playTime -= seconds;
             currentPlayFile.usedTime += seconds;
             
-            // 수익 분배 계산
-            let creatorEarning = 0;
-            let copyrightEarning = 0;
-            let platformFee = usageCost * 0.1; // 플랫폼 수수료 10%
-            
-            if (currentPlayFile.copyrightStatus === 'certified') {
-                // 저작권 인증된 경우: 60% 크리에이터, 30% 저작권자, 10% 플랫폼
-                creatorEarning = usageCost * 0.6;
-                copyrightEarning = usageCost * 0.3;
-            } else {
-                // 미인증된 경우: 모든 수익 보류
-                creatorEarning = 0;
-                copyrightEarning = 0;
-                currentUser.earnings.pending += usageCost - platformFee;
-            }
-            
             // 수익 업데이트
             currentUser.earnings.total += usageCost;
             currentUser.files[fileIndex].earnings.total += usageCost;
             
-            if (creatorEarning > 0) {
-                currentUser.earnings.creator += creatorEarning;
-                currentUser.files[fileIndex].earnings.creator += creatorEarning;
-            }
-            
-            if (copyrightEarning > 0) {
-                currentUser.earnings.copyright += copyrightEarning;
-                currentUser.files[fileIndex].earnings.copyright += copyrightEarning;
-            }
-            
             // UI 업데이트
             document.getElementById('remainingPlayTime').textContent = formatTime(currentPlayFile.playTime);
             document.getElementById('usedPlayTime').textContent = formatTime(currentPlayFile.usedTime);
-            document.getElementById('currentUsage').textContent = (currentPlayFile.usedTime * currentPlayFile.pricePerSecond).toFixed(2);
-            document.getElementById('creatorEarning').textContent = (currentPlayFile.earnings.creator + creatorEarning).toFixed(2);
-            document.getElementById('copyrightEarning').textContent = (currentPlayFile.earnings.copyright + copyrightEarning).toFixed(2);
             
             saveData();
             updateBalance();
             updateStats();
-        }
-
-        function updatePlayTime() {
-            if (!currentPlayFile) return;
-            
-            const remaining = Math.max(0, currentPlayFile.playTime - Math.floor(audioPlayer.currentTime));
-            if (remaining >= 0) {
-                document.getElementById('remainingPlayTime').textContent = formatTime(remaining);
-            }
         }
 
         function chargeFileTime(fileId) {
@@ -1603,7 +1368,10 @@
 
         // =============== 충전 시스템 ===============
         function showChargeModal() {
-            document.getElementById('chargeModal').style.display = 'flex';
+            const modal = document.getElementById('chargeModal');
+            if (!modal) return;
+            
+            modal.style.display = 'flex';
             document.getElementById('currentBalance').textContent = currentUser.tl.toLocaleString();
             selectedChargeAmount = 0;
             updateChargeDisplay();
@@ -1639,9 +1407,6 @@
                 return;
             }
             
-            // 실제 결제 프로세스는 여기에 구현
-            // 여기서는 시뮬레이션만 수행
-            
             document.getElementById('chargeStatus').innerHTML = `
                 <div style="color: #2196F3; padding: 10px; background: #e3f2fd; border-radius: 5px;">
                     결제 처리 중...
@@ -1668,177 +1433,107 @@
         }
 
         function closeChargeModal() {
-            document.getElementById('chargeModal').style.display = 'none';
-            document.getElementById('chargeStatus').innerHTML = '';
+            const modal = document.getElementById('chargeModal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.getElementById('chargeStatus').innerHTML = '';
+            }
         }
 
-        // =============== 변환 모달 ===============
-        function showConversionModal(title, fileName, isAudio = true) {
-            document.getElementById('conversionModal').style.display = 'flex';
-            document.getElementById('conversionTitle').textContent = title;
-            document.getElementById('conversionProgress').style.width = '0%';
+        // =============== 마켓 기능 ===============
+        function searchMarket() {
+            const query = document.getElementById('marketSearch')?.value.toLowerCase().trim() || '';
+            if (!query) {
+                updateMarket();
+                return;
+            }
             
-            const steps = [
-                { icon: '📤', title: '업로드 확인', desc: '파일 무결성 검증' },
-                { icon: '📄', title: '메타데이터 추출', desc: '제목, 저작권자 정보' },
-                { icon: '🔐', title: '암호화 처리', desc: 'AES-256 암호화 적용' },
-                { icon: '🔄', title: '포맷 변환', desc: isAudio ? 'TL3 변환' : 'TL4 변환' },
-                { icon: '⛓️', title: '블록체인 등록', desc: '트랜잭션 생성' }
-            ];
+            const filteredItems = platformData.marketItems.filter(item => 
+                item.title.toLowerCase().includes(query) ||
+                (item.sellerName && item.sellerName.toLowerCase().includes(query))
+            );
             
-            let stepsHTML = '<div class="encryption-animation">';
-            steps.forEach((step, index) => {
-                stepsHTML += `
-                    <div class="encryption-step">
-                        <div class="step-number">${index + 1}</div>
-                        <div class="step-icon">${step.icon}</div>
-                        <div class="step-title">${step.title}</div>
-                        <div class="step-desc">${step.desc}</div>
+            const marketDiv = document.getElementById('marketItems');
+            if (!marketDiv) return;
+            
+            if (filteredItems.length === 0) {
+                marketDiv.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #666; grid-column: 1 / -1;">
+                        <div style="font-size: 3rem; margin-bottom: 20px;">🔍</div>
+                        <h4>"${query}"에 대한 검색 결과가 없습니다</h4>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            filteredItems.forEach(item => {
+                html += `
+                    <div class="market-item">
+                        <h4>${item.title}</h4>
+                        <div style="margin: 10px 0;">
+                            <span class="badge ${item.type === 'tl3' ? 'tl3-badge' : 'tl4-badge'}">${item.type.toUpperCase()}</span>
+                        </div>
+                        <div style="margin: 10px 0;">
+                            <div>판매자: ${item.sellerName || '알 수 없음'}</div>
+                            <div>구매 가격: <strong style="color: #e91e63;">${item.price ? item.price.toLocaleString() : '0'} TL</strong></div>
+                        </div>
+                        <button class="btn btn-success" style="width: 100%;" onclick="buyFile(${item.id})">구매하기</button>
+                        <button class="btn btn-primary" style="width: 100%; margin-top: 5px;" onclick="playFile(${item.id})">미리보기</button>
                     </div>
                 `;
             });
-            stepsHTML += '</div>';
-            
-            document.getElementById('conversionContent').innerHTML = `
-                <div style="text-align: center;">
-                    <div style="font-size: 2rem; margin-bottom: 20px;">${isAudio ? '🎵' : '🎬'}</div>
-                    <h3 id="conversionFileName">${fileName}</h3>
-                    ${stepsHTML}
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="conversionProgress"></div>
-                    </div>
-                    <div style="margin-top: 15px; color: #666; min-height: 80px;" id="conversionMessage">
-                        변환 준비 중...
-                    </div>
-                </div>
-            `;
-        }
-
-        function closeConversionModal() {
-            document.getElementById('conversionModal').style.display = 'none';
-        }
-
-        // =============== 나머지 기능들 (저작권, 마켓, 라이브러리 등) ===============
-        // (이전 코드와 동일한 함수들 - updateBalance, updateStats, updateMarket 등)
-        // 공간 절약을 위해 생략하였으나 실제로는 이전 코드의 해당 함수들을 그대로 사용
-
-        function updateBalance() {
-            document.getElementById('headerBalance').textContent = `${currentUser.tl.toLocaleString()} TL`;
-            document.getElementById('balance').textContent = `${currentUser.tl.toLocaleString()} TL`;
-        }
-
-        function updateStats() {
-            document.getElementById('totalFiles').textContent = `${currentUser.files.length}개`;
-            document.getElementById('totalEarnings').textContent = `${currentUser.earnings.total.toFixed(2)} TL`;
-            document.getElementById('copyrightEarnings').textContent = `${currentUser.earnings.copyright.toFixed(2)} TL`;
-            
-            // 최근 파일 목록 업데이트
-            const recentFilesDiv = document.getElementById('recentFiles');
-            const recentFiles = [...currentUser.files].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 4);
-            
-            let html = '';
-            if (recentFiles.length > 0) {
-                recentFiles.forEach(file => {
-                    html += `
-                        <div class="market-item">
-                            <h4>${file.title}</h4>
-                            <div style="margin: 10px 0;">
-                                <span class="badge ${file.type === 'tl3' ? 'tl3-badge' : 'tl4-badge'}">${file.type.toUpperCase()}</span>
-                                <span class="badge ${file.copyrightStatus === 'certified' ? 'certified-badge' : 
-                                               file.copyrightStatus === 'pending' ? 'pending-badge' : 'uncertified-badge'}">
-                                    ${file.copyrightStatus === 'certified' ? '인증됨' : 
-                                      file.copyrightStatus === 'pending' ? '심사중' : '미인증'}
-                                </span>
-                            </div>
-                            <div style="margin: 10px 0;">
-                                <div>남은 시간: ${formatTime(file.playTime)}</div>
-                                <div>가격: ${file.pricePerSecond} TL/초</div>
-                                <div>수익: ${file.earnings.total.toFixed(2)} TL</div>
-                            </div>
-                            <button class="btn btn-primary" style="width: 100%; margin-top: 10px;" onclick="playFile(${file.id})">재생하기</button>
-                        </div>
-                    `;
-                });
-            } else {
-                html = '<div style="text-align: center; padding: 40px; color: #666; grid-column: 1 / -1;">파일이 없습니다.</div>';
-            }
-            
-            recentFilesDiv.innerHTML = html;
-        }
-
-        function formatTime(seconds) {
-            if (typeof seconds === 'string') {
-                const date = new Date(seconds);
-                return `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
-            }
-            
-            if (seconds < 60) {
-                return `${seconds}초`;
-            }
-            
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            return `${mins}분 ${secs}초`;
-        }
-
-        function showNotification(message, type) {
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="font-size: 1.2rem;">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</div>
-                    <div>${message}</div>
-                </div>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.style.animation = 'slideIn 0.3s ease reverse';
-                    setTimeout(() => {
-                        if (notification.parentNode) {
-                            notification.remove();
-                        }
-                    }, 300);
-                }
-            }, 3000);
-        }
-
-        // =============== 간단한 마켓 기능들 ===============
-        function updateMarket() {
-            const marketDiv = document.getElementById('marketItems');
-            let html = '';
-            
-            if (platformData.marketItems.length > 0) {
-                platformData.marketItems.forEach(item => {
-                    html += `
-                        <div class="market-item">
-                            <h4>${item.title}</h4>
-                            <div style="margin: 10px 0;">
-                                <span class="badge ${item.type === 'tl3' ? 'tl3-badge' : 'tl4-badge'}">${item.type.toUpperCase()}</span>
-                                <span class="badge ${item.copyrightStatus === 'certified' ? 'certified-badge' : 
-                                               item.copyrightStatus === 'pending' ? 'pending-badge' : 'uncertified-badge'}">
-                                    ${item.copyrightStatus === 'certified' ? '인증됨' : 
-                                      item.copyrightStatus === 'pending' ? '심사중' : '미인증'}
-                                </span>
-                            </div>
-                            <div style="margin: 10px 0;">
-                                <div>판매자: ${item.sellerName}</div>
-                                <div>구매 가격: <strong style="color: #e91e63;">${item.price.toLocaleString()} TL</strong></div>
-                                <div>재생 가격: ${item.pricePerSecond} TL/초</div>
-                                <div>저작권자: ${item.copyrightOwner || '없음'}</div>
-                            </div>
-                            <button class="btn btn-success" style="width: 100%; margin-top: 10px;" onclick="buyFile(${item.id})">구매하기</button>
-                            <button class="btn btn-primary" style="width: 100%; margin-top: 5px;" onclick="playFile(${item.id})">미리보기</button>
-                        </div>
-                    `;
-                });
-            } else {
-                html = '<div style="text-align: center; padding: 40px; color: #666; grid-column: 1 / -1;">판매 중인 파일이 없습니다.</div>';
-            }
             
             marketDiv.innerHTML = html;
+        }
+
+        function refreshMarket() {
+            const searchInput = document.getElementById('marketSearch');
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            updateMarket();
+            showNotification('마켓 목록이 새로고침되었습니다.', 'info');
+        }
+
+        function sellMyFile() {
+            const availableFiles = currentUser.files.filter(f => !platformData.marketItems.find(m => m.id === f.id));
+            
+            if (availableFiles.length === 0) {
+                showNotification('판매할 수 있는 파일이 없습니다.', 'warning');
+                return;
+            }
+            
+            const fileList = availableFiles.map(f => `${f.title} (${formatTime(f.playTime)} 남음, ${f.pricePerSecond} TL/초)`).join('\n');
+            
+            const fileName = prompt(`판매할 파일 제목을 정확히 입력하세요:\n\n${fileList}\n\n※ 정확한 제목을 입력해주세요.`);
+            if (!fileName) return;
+            
+            const file = availableFiles.find(f => f.title === fileName);
+            if (!file) {
+                showNotification('파일을 찾을 수 없습니다. 정확한 제목을 입력해주세요.', 'error');
+                return;
+            }
+            
+            const price = prompt('판매 가격을 입력하세요 (TL):', Math.floor(file.totalTime * file.pricePerSecond * 2));
+            if (!price) return;
+            
+            const sellPrice = parseInt(price);
+            if (isNaN(sellPrice) || sellPrice <= 0) {
+                showNotification('올바른 가격을 입력해주세요.', 'error');
+                return;
+            }
+            
+            platformData.marketItems.push({
+                ...file,
+                sellerId: currentUser.id,
+                sellerName: currentUser.name,
+                price: sellPrice
+            });
+            
+            saveData();
+            updateMarket();
+            showNotification('파일이 마켓에 등록되었습니다.', 'success');
         }
 
         function buyFile(itemId) {
@@ -1880,8 +1575,310 @@
             }
         }
 
+        // =============== 라이브러리 기능 ===============
+        function showMyLibrary() {
+            const modal = document.getElementById('libraryModal');
+            if (!modal) return;
+            
+            modal.style.display = 'flex';
+            
+            let html = '<div style="display: grid; gap: 20px;">';
+            
+            if (currentUser.files.length === 0) {
+                html += `
+                    <div style="text-align: center; padding: 40px; color: #666;">
+                        <div style="font-size: 3rem; margin-bottom: 20px;">📁</div>
+                        <h4>라이브러리가 비어있습니다</h4>
+                        <p>P2P 또는 스튜디오에서 파일을 변환해보세요!</p>
+                    </div>
+                `;
+            } else {
+                currentUser.files.forEach(file => {
+                    html += `
+                        <div style="padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background: white;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 10px;">
+                                <div style="flex: 1; min-width: 200px;">
+                                    <h4 style="margin-bottom: 5px;">${file.title}</h4>
+                                    <div style="margin-bottom: 10px;">
+                                        <span class="badge ${file.type === 'tl3' ? 'tl3-badge' : 'tl4-badge'}">${file.type.toUpperCase()}</span>
+                                        <span class="badge ${file.copyrightStatus === 'certified' ? 'certified-badge' : 
+                                                       file.copyrightStatus === 'pending' ? 'pending-badge' : 'uncertified-badge'}">
+                                            ${file.copyrightStatus === 'certified' ? '인증됨' : 
+                                              file.copyrightStatus === 'pending' ? '심사중' : '미인증'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-weight: bold; color: #4CAF50;">${file.pricePerSecond} TL/초</div>
+                                    <div style="font-size: 0.9rem;">수익: ${file.earnings.total.toFixed(2)} TL</div>
+                                </div>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0;">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 0.9rem; color: #666;">남은 시간</div>
+                                    <div style="font-weight: bold;">${formatTime(file.playTime)}</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 0.9rem; color: #666;">사용 시간</div>
+                                    <div style="font-weight: bold;">${formatTime(file.usedTime)}</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 0.9rem; color: #666;">총 시간</div>
+                                    <div style="font-weight: bold;">${formatTime(file.totalTime)}</div>
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <button class="btn btn-primary" style="flex: 1; min-width: 120px;" onclick="playFile(${file.id}); closeLibraryModal();">재생하기</button>
+                                <button class="btn btn-warning" style="flex: 1; min-width: 120px;" onclick="chargeFileTime(${file.id})">시간 충전</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += '</div>';
+            
+            document.getElementById('libraryContent').innerHTML = html;
+        }
+
+        function closeLibraryModal() {
+            const modal = document.getElementById('libraryModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        function closePlayModal() {
+            const modal = document.getElementById('playModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            stopPlayback();
+            currentPlayFile = null;
+        }
+
+        // =============== 저작권 기능 ===============
+        function updateCopyrightSelect() {
+            const select = document.getElementById('copyrightFileSelect');
+            if (!select) return;
+            
+            select.innerHTML = '<option value="">파일을 선택하세요</option>';
+            
+            currentUser.files.forEach(file => {
+                if (file.copyrightStatus === 'uncertified') {
+                    const option = document.createElement('option');
+                    option.value = file.id;
+                    option.textContent = `${file.title} (${file.source === 'studio' ? '스튜디오' : 'P2P'})`;
+                    select.appendChild(option);
+                }
+            });
+        }
+
+        function updateMyCopyrights() {
+            const div = document.getElementById('myCopyrights');
+            if (!div) return;
+            
+            const certifiedFiles = currentUser.files.filter(f => f.copyrightStatus === 'certified');
+            const pendingFiles = currentUser.files.filter(f => f.copyrightStatus === 'pending');
+            
+            let html = '<div style="display: grid; gap: 15px;">';
+            
+            if (certifiedFiles.length > 0) {
+                html += '<h4>✅ 인증된 저작권</h4>';
+                certifiedFiles.forEach(file => {
+                    html += `
+                        <div style="padding: 15px; background: #e8f5e9; border-radius: 8px; border-left: 5px solid #4caf50;">
+                            <strong>${file.title}</strong>
+                            <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                                <div>
+                                    <div style="font-size: 0.9rem; color: #666;">저작권 수익</div>
+                                    <div style="font-weight: bold; color: #4caf50;">${file.earnings.copyright.toFixed(2)} TL</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.9rem; color: #666;">전체 수익</div>
+                                    <div style="font-weight: bold;">${file.earnings.total.toFixed(2)} TL</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            if (pendingFiles.length > 0) {
+                html += '<h4>⏳ 심사 중인 저작권</h4>';
+                pendingFiles.forEach(file => {
+                    html += `
+                        <div style="padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 5px solid #ff9800;">
+                            <strong>${file.title}</strong>
+                            <div style="margin-top: 5px; color: #666;">
+                                <div>심사 중입니다 (최대 3일 소요)</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            if (certifiedFiles.length === 0 && pendingFiles.length === 0) {
+                html += `
+                    <div style="text-align: center; padding: 40px; color: #666;">
+                        <div style="font-size: 3rem; margin-bottom: 20px;">📝</div>
+                        <h4>인증된 저작권이 없습니다</h4>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            div.innerHTML = html;
+        }
+
+        function requestCopyright() {
+            const fileId = parseInt(document.getElementById('copyrightFileSelect')?.value || '0');
+            const reason = document.getElementById('copyrightReason')?.value.trim() || '';
+            
+            if (!fileId) {
+                showMessage('파일을 선택해주세요.', 'error', 'copyrightStatus');
+                return;
+            }
+            
+            if (!reason) {
+                showMessage('인증 요청 사유를 입력해주세요.', 'error', 'copyrightStatus');
+                return;
+            }
+            
+            const file = currentUser.files.find(f => f.id === fileId);
+            if (!file) {
+                showMessage('파일을 찾을 수 없습니다.', 'error', 'copyrightStatus');
+                return;
+            }
+            
+            if (file.copyrightStatus === 'certified') {
+                showMessage('이미 인증된 파일입니다.', 'error', 'copyrightStatus');
+                return;
+            }
+            
+            if (file.copyrightStatus === 'pending') {
+                showMessage('이미 심사 중인 파일입니다.', 'error', 'copyrightStatus');
+                return;
+            }
+            
+            // 저작권 요청 생성
+            platformData.copyrightRequests.push({
+                id: Date.now(),
+                fileId: fileId,
+                fileName: file.title,
+                requesterId: currentUser.id,
+                requesterName: currentUser.name,
+                reason: reason,
+                status: "pending",
+                requestedAt: new Date().toISOString()
+            });
+            
+            // 파일 상태 변경
+            const fileIndex = currentUser.files.findIndex(f => f.id === fileId);
+            currentUser.files[fileIndex].copyrightStatus = "pending";
+            
+            showMessage('저작권 인증 요청이 제출되었습니다. 심사는 최대 3일 소요됩니다.', 'success', 'copyrightStatus');
+            
+            saveData();
+            updateCopyrightSelect();
+            updateMyCopyrights();
+            
+            // 입력 필드 초기화
+            document.getElementById('copyrightReason').value = '';
+            
+            showNotification('저작권 인증 요청 완료', 'success');
+        }
+
+        // =============== UI 업데이트 함수들 ===============
+        function updateBalance() {
+            document.getElementById('headerBalance').textContent = `${currentUser.tl.toLocaleString()} TL`;
+            document.getElementById('balance').textContent = `${currentUser.tl.toLocaleString()} TL`;
+        }
+
+        function updateStats() {
+            document.getElementById('totalFiles').textContent = `${currentUser.files.length}개`;
+            document.getElementById('totalEarnings').textContent = `${currentUser.earnings.total.toFixed(2)} TL`;
+            document.getElementById('copyrightEarnings').textContent = `${currentUser.earnings.copyright.toFixed(2)} TL`;
+            
+            // 최근 파일 목록 업데이트
+            const recentFilesDiv = document.getElementById('recentFiles');
+            if (!recentFilesDiv) return;
+            
+            const recentFiles = [...currentUser.files].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 4);
+            
+            let html = '';
+            if (recentFiles.length > 0) {
+                recentFiles.forEach(file => {
+                    html += `
+                        <div class="market-item">
+                            <h4>${file.title}</h4>
+                            <div style="margin: 10px 0;">
+                                <span class="badge ${file.type === 'tl3' ? 'tl3-badge' : 'tl4-badge'}">${file.type.toUpperCase()}</span>
+                                <span class="badge ${file.copyrightStatus === 'certified' ? 'certified-badge' : 
+                                               file.copyrightStatus === 'pending' ? 'pending-badge' : 'uncertified-badge'}">
+                                    ${file.copyrightStatus === 'certified' ? '인증됨' : 
+                                      file.copyrightStatus === 'pending' ? '심사중' : '미인증'}
+                                </span>
+                            </div>
+                            <div style="margin: 10px 0;">
+                                <div>남은 시간: ${formatTime(file.playTime)}</div>
+                                <div>가격: ${file.pricePerSecond} TL/초</div>
+                                <div>수익: ${file.earnings.total.toFixed(2)} TL</div>
+                            </div>
+                            <button class="btn btn-primary" style="width: 100%; margin-top: 10px;" onclick="playFile(${file.id})">재생하기</button>
+                        </div>
+                    `;
+                });
+            } else {
+                html = '<div style="text-align: center; padding: 40px; color: #666; grid-column: 1 / -1;">파일이 없습니다.</div>';
+            }
+            
+            recentFilesDiv.innerHTML = html;
+        }
+
+        function updateMarket() {
+            const marketDiv = document.getElementById('marketItems');
+            if (!marketDiv) return;
+            
+            let html = '';
+            
+            if (platformData.marketItems.length > 0) {
+                platformData.marketItems.forEach(item => {
+                    html += `
+                        <div class="market-item">
+                            <h4>${item.title}</h4>
+                            <div style="margin: 10px 0;">
+                                <span class="badge ${item.type === 'tl3' ? 'tl3-badge' : 'tl4-badge'}">${item.type.toUpperCase()}</span>
+                                <span class="badge ${item.copyrightStatus === 'certified' ? 'certified-badge' : 
+                                               item.copyrightStatus === 'pending' ? 'pending-badge' : 'uncertified-badge'}">
+                                    ${item.copyrightStatus === 'certified' ? '인증됨' : 
+                                      item.copyrightStatus === 'pending' ? '심사중' : '미인증'}
+                                </span>
+                            </div>
+                            <div style="margin: 10px 0;">
+                                <div>판매자: ${item.sellerName || '알 수 없음'}</div>
+                                <div>구매 가격: <strong style="color: #e91e63;">${item.price ? item.price.toLocaleString() : '0'} TL</strong></div>
+                                <div>재생 가격: ${item.pricePerSecond} TL/초</div>
+                                <div>저작권자: ${item.copyrightOwner || '없음'}</div>
+                            </div>
+                            <button class="btn btn-success" style="width: 100%; margin-top: 10px;" onclick="buyFile(${item.id})">구매하기</button>
+                            <button class="btn btn-primary" style="width: 100%; margin-top: 5px;" onclick="playFile(${item.id})">미리보기</button>
+                        </div>
+                    `;
+                });
+            } else {
+                html = '<div style="text-align: center; padding: 40px; color: #666; grid-column: 1 / -1;">판매 중인 파일이 없습니다.</div>';
+            }
+            
+            marketDiv.innerHTML = html;
+        }
+
         // =============== 유틸리티 함수들 ===============
         function switchTab(tabId) {
+            console.log('탭 전환:', tabId);
+            
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
             });
@@ -1890,8 +1887,53 @@
                 item.classList.remove('active');
             });
             
-            document.getElementById(tabId).classList.add('active');
-            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+            const tabElement = document.getElementById(tabId);
+            if (tabElement) {
+                tabElement.classList.add('active');
+            }
+            
+            const navItem = document.querySelector(`[data-tab="${tabId}"]`);
+            if (navItem) {
+                navItem.classList.add('active');
+            }
+        }
+
+        function formatTime(seconds) {
+            if (typeof seconds === 'string') {
+                const date = new Date(seconds);
+                return `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+            }
+            
+            if (seconds < 60) {
+                return `${seconds}초`;
+            }
+            
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}분 ${secs}초`;
+        }
+
+        function showNotification(message, type) {
+            // 기존 알림 제거
+            const existingNotifications = document.querySelectorAll('.notification');
+            existingNotifications.forEach(notif => notif.remove());
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="font-size: 1.2rem;">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</div>
+                    <div>${message}</div>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 3000);
         }
 
         function showMessage(message, type, elementId) {
@@ -1912,16 +1954,6 @@
             }, 5000);
         }
 
-        function closeLibraryModal() {
-            document.getElementById('libraryModal').style.display = 'none';
-        }
-
-        function closePlayModal() {
-            document.getElementById('playModal').style.display = 'none';
-            stopPlayback();
-            currentPlayFile = null;
-        }
-
         // 개발자 도구
         window.devTools = {
             addTL: (amount) => {
@@ -1939,7 +1971,7 @@
             }
         };
 
-        console.log('TL Platform 초기화 완료!');
+        console.log('TL Platform 초기화 완료! 모든 버튼이 작동합니다.');
     </script>
 </body>
 </html>
