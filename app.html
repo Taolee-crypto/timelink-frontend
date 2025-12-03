@@ -2174,39 +2174,66 @@
             }
         }
 
-        // =============== P2P 변환 기능 ===============
-        function convertP2P(type) {
-            const fileInput = type === 'tl3' ? document.getElementById('mp3Input') : document.getElementById('mp4Input');
-            const cost = type === 'tl3' ? 500 : 800;
-            
-            if (currentUser.tl < cost) {
-                showNotification(`TL이 부족합니다. (필요: ${cost} TL)`, 'error');
-                return;
-            }
-            
-            let fileName = "새로운 파일";
-            if (fileInput.files.length > 0) {
-                fileName = fileInput.files[0].name.replace(/\.[^/.]+$/, "");
-            }
-            
-            const title = prompt(`${type === 'tl3' ? '음원' : '영상'} 파일 제목을 입력하세요:`, fileName);
-            if (!title) return;
-            
-            const pricePerSecond = parseFloat(prompt(`초당 가격을 입력하세요 (TL):`, type === 'tl3' ? '0.5' : '1.0'));
-            if (!pricePerSecond || pricePerSecond <= 0) return;
-            
-            // 변환 처리
+     // =============== P2P 변환 기능 ===============
+function convertP2P(type) {
+    const isTL3 = type === 'tl3';
+    const cost = isTL3 ? 500 : 800;
+    
+    if (currentUser.tl < cost) {
+        showNotification(`TL이 부족합니다. (필요: ${cost} TL)`, 'error');
+        return;
+    }
+    
+    const titleId = isTL3 ? 'mp3Title' : 'mp4Title';
+    const genreId = isTL3 ? 'mp3Genre' : 'mp4Genre';
+    const priceId = isTL3 ? 'mp3Price' : 'mp4Price';
+    const statusId = isTL3 ? 'mp3ConvertStatus' : 'mp4ConvertStatus';
+    const btnId = isTL3 ? 'convertTL3Btn' : 'convertTL4Btn';
+    
+    const title = document.getElementById(titleId).value.trim();
+    const genre = document.getElementById(genreId).value;
+    const pricePerSecond = parseFloat(document.getElementById(priceId).value);
+    
+    if (!title) {
+        showNotification('파일 제목을 입력해주세요.', 'error');
+        return;
+    }
+    
+    if (pricePerSecond <= 0) {
+        showNotification('가격은 0보다 커야 합니다.', 'error');
+        return;
+    }
+    
+    const btn = document.getElementById(btnId);
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '변환 중...';
+    
+    const status = document.getElementById(statusId);
+    status.className = 'status info';
+    status.textContent = '파일 변환 중...';
+    
+    // 2초 후 변환 완료 (데모용)
+    setTimeout(() => {
+        try {
+            // TL 차감
             currentUser.tl -= cost;
             
+            // 샘플 오디오 URL 선택
+            let audioUrl = null;
+            if (isTL3) {
+                audioUrl = audioSamples[genre] || audioSamples['pop'];
+            }
+            
+            // 새 파일 생성 (데모 데이터)
             const newFile = {
                 id: Date.now(),
                 title: title,
-                description: `${type === 'tl3' ? '음원' : '영상'} 파일 - P2P 변환`,
+                description: `${isTL3 ? '음원' : '영상'} 파일 - P2P 변환`,
                 type: type,
                 pricePerSecond: pricePerSecond,
-                genre: 'others',
-                tags: [],
-                playTime: 300,
+                genre: genre,
+                playTime: 300, // 5분
                 totalTime: 300,
                 usedTime: 0,
                 createdAt: new Date().toLocaleString(),
@@ -2214,12 +2241,13 @@
                 isOnMarket: false,
                 marketPrice: 0,
                 fileSize: '2.5',
-                audioUrl: type === 'tl3' ? sampleAudioFiles['pop'] : null,
+                audioUrl: audioUrl,
                 ownerId: currentUser.id,
                 ownerName: currentUser.name,
                 isP2P: true
             };
             
+            // 데이터 저장
             currentUser.files.push(newFile);
             platformData.tlBank.files.push(newFile);
             platformData.tlBank.uncertifiedFiles.push(newFile);
@@ -2229,16 +2257,159 @@
                 conversionCost: cost
             });
             
+            // 파일 저장
+            saveUserData();
+            savePlatformData();
+            
+            // UI 업데이트
             updateUI();
+            updateTLBankStats();
             updateRecentConversions();
+            
+            // 성공 메시지
+            status.className = 'status success';
+            status.textContent = `${title} 변환 완료!`;
+            status.innerHTML = `
+                ${title} 변환 완료!<br>
+                <small>${cost} TL이 사용되었습니다.</small>
+            `;
+            
+            showNotification(`${title} P2P 변환 완료!`, 'success');
+            
+            // 입력 필드 초기화 (선택사항 유지)
+            const fileInfoId = isTL3 ? 'mp3FileInfo' : 'mp4FileInfo';
+            document.getElementById(fileInfoId).innerHTML = '';
+            
+        } catch (error) {
+            console.error('변환 오류:', error);
+            status.className = 'status error';
+            status.textContent = '변환 실패: ' + error.message;
+            showNotification('변환 실패', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            
+            // 3초 후 상태 메시지 숨기기
+            setTimeout(() => {
+                status.textContent = '';
+                status.className = 'status';
+            }, 3000);
+        }
+    }, 2000); // 2초 지연 (데모용)
+}
+        // =============== TL Studio 변환 기능 ===============
+function convertStudioFile() {
+    const cost = currentStudioType === 'tl3' ? 500 : 800;
+    
+    if (currentUser.tl < cost) {
+        showNotification(`TL이 부족합니다. (필요: ${cost} TL)`, 'error');
+        return;
+    }
+    
+    const title = document.getElementById('studioTitle').value.trim();
+    const description = document.getElementById('studioDescription').value.trim();
+    const genre = document.getElementById('studioGenre').value;
+    const pricePerSecond = parseFloat(document.getElementById('studioPrice').value);
+    const tags = document.getElementById('studioTags').value.trim();
+    
+    if (!title) {
+        showNotification('파일 제목을 입력해주세요.', 'error');
+        return;
+    }
+    
+    if (pricePerSecond <= 0) {
+        showNotification('가격은 0보다 커야 합니다.', 'error');
+        return;
+    }
+    
+    const btn = document.getElementById('studioConvertBtn');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '변환 중...';
+    
+    const status = document.getElementById('studioConvertStatus');
+    status.className = 'status info';
+    status.textContent = '파일 변환 중...';
+    
+    // 2초 후 변환 완료 (데모용)
+    setTimeout(() => {
+        try {
+            // TL 차감
+            currentUser.tl -= cost;
+            
+            // 샘플 오디오 URL 선택
+            let audioUrl = null;
+            if (currentStudioType === 'tl3') {
+                audioUrl = audioSamples[genre] || audioSamples['pop'];
+            }
+            
+            // 새 파일 생성 (데모 데이터)
+            const newFile = {
+                id: Date.now(),
+                title: title,
+                description: description || `${title} - TL Studio에서 제작`,
+                type: currentStudioType,
+                pricePerSecond: pricePerSecond,
+                genre: genre,
+                tags: tags ? tags.split(',').map(t => t.trim()) : [],
+                playTime: 300,
+                totalTime: 300,
+                usedTime: 0,
+                createdAt: new Date().toLocaleString(),
+                copyrightStatus: "uncertified",
+                isOnMarket: false,
+                marketPrice: 0,
+                fileSize: '3.0',
+                audioUrl: audioUrl || audioSamples['pop'],
+                ownerId: currentUser.id,
+                ownerName: currentUser.name,
+                isStudio: true
+            };
+            
+            // 데이터 저장
+            currentUser.files.push(newFile);
+            platformData.tlBank.files.push(newFile);
+            platformData.tlBank.uncertifiedFiles.push(newFile);
+            
+            saveUserData();
+            savePlatformData();
+            
+            // UI 업데이트
+            updateUI();
             updateTLBankStats();
             
-            showNotification(`${title} P2P 변환 완료! ${cost} TL이 사용되었습니다.`, 'success');
+            // 성공 메시지
+            status.className = 'status success';
+            status.textContent = `${title} 스튜디오 변환 완료!`;
+            status.innerHTML = `
+                ${title} 변환 완료!<br>
+                <small>${cost} TL이 사용되었습니다.</small>
+            `;
             
-            // 파일 입력 초기화
-            fileInput.value = '';
+            showNotification(`${title} 스튜디오 변환 완료!`, 'success');
+            
+            // 입력 필드 초기화 (제목은 유지)
+            document.getElementById('studioDescription').value = '';
+            document.getElementById('studioTags').value = '';
+            document.getElementById('studioFileInfo').innerHTML = '';
+            
+        } catch (error) {
+            console.error('스튜디오 변환 오류:', error);
+            status.className = 'status error';
+            status.textContent = '변환 실패: ' + error.message;
+            showNotification('변환 실패', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            
+            // 3초 후 상태 메시지 숨기기
+            setTimeout(() => {
+                status.textContent = '';
+                status.className = 'status';
+            }, 3000);
         }
-
+    }, 2000); // 2초 지연 (데모용)
+}
         function updateRecentConversions() {
             const recentDiv = document.getElementById('recentConversions');
             
