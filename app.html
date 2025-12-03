@@ -2174,128 +2174,562 @@
             }
         }
 
-     // =============== P2P 변환 기능 ===============
+    // =============== P2P 변환 기능 ===============
+let currentP2PFiles = {
+    mp3: null,
+    mp4: null
+};
+
 function convertP2P(type) {
     const isTL3 = type === 'tl3';
     const cost = isTL3 ? 500 : 800;
+    const fileInput = isTL3 ? 'mp3Input' : 'mp4Input';
+    
+    // 파일 확인
+    const file = document.getElementById(fileInput).files[0];
+    if (!file) {
+        showNotification(`${isTL3 ? 'MP3' : 'MP4'} 파일을 선택해주세요.`, 'error');
+        return;
+    }
+    
+    // 파일 크기 확인 (10MB 제한)
+    const maxSizeMB = 10;
+    if (file.size > maxSizeMB * 1024 * 1024) {
+        showNotification(`파일 크기는 ${maxSizeMB}MB 이하여야 합니다.`, 'error');
+        return;
+    }
+    
+    // 파일 형식 확인
+    const validAudioTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg'];
+    const validVideoTypes = ['video/mp4', 'video/avi', 'video/mkv'];
+    
+    if (isTL3 && !validAudioTypes.includes(file.type)) {
+        showNotification('지원되는 오디오 형식: MP3, WAV, OGG', 'error');
+        return;
+    }
+    
+    if (!isTL3 && !validVideoTypes.includes(file.type)) {
+        showNotification('지원되는 비디오 형식: MP4, AVI, MKV', 'error');
+        return;
+    }
     
     if (currentUser.tl < cost) {
-        showNotification(`TL이 부족합니다. (필요: ${cost} TL)`, 'error');
+        showNotification(`TL이 부족합니다. (필요: ${cost} TL, 보유: ${currentUser.tl} TL)`, 'error');
         return;
     }
     
-    const titleId = isTL3 ? 'mp3Title' : 'mp4Title';
-    const genreId = isTL3 ? 'mp3Genre' : 'mp4Genre';
-    const priceId = isTL3 ? 'mp3Price' : 'mp4Price';
-    const statusId = isTL3 ? 'mp3ConvertStatus' : 'mp4ConvertStatus';
-    const btnId = isTL3 ? 'convertTL3Btn' : 'convertTL4Btn';
+    // 파일 정보 추출
+    const fileName = file.name.replace(/\.[^/.]+$/, "");
+    const fileSize = (file.size / 1024 / 1024).toFixed(2);
     
-    const title = document.getElementById(titleId).value.trim();
-    const genre = document.getElementById(genreId).value;
-    const pricePerSecond = parseFloat(document.getElementById(priceId).value);
-    
-    if (!title) {
-        showNotification('파일 제목을 입력해주세요.', 'error');
-        return;
-    }
-    
-    if (pricePerSecond <= 0) {
-        showNotification('가격은 0보다 커야 합니다.', 'error');
-        return;
-    }
-    
-    const btn = document.getElementById(btnId);
+    // 변환 시작
+    const btn = event.target;
     const originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = '변환 중...';
     
-    const status = document.getElementById(statusId);
-    status.className = 'status info';
-    status.textContent = '파일 변환 중...';
+    // 상태 표시 (새로 추가)
+    const statusDiv = document.createElement('div');
+    statusDiv.className = 'status info';
+    statusDiv.textContent = `${file.name} 변환 중... (${fileSize} MB)`;
+    btn.parentNode.insertBefore(statusDiv, btn.nextSibling);
     
-    // 2초 후 변환 완료 (데모용)
-    setTimeout(() => {
-        try {
-            // TL 차감
-            currentUser.tl -= cost;
-            
-            // 샘플 오디오 URL 선택
-            let audioUrl = null;
-            if (isTL3) {
-                audioUrl = audioSamples[genre] || audioSamples['pop'];
+    // 파일 읽기 (실제 구현시 서버 업로드 필요)
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        // 2초 후 변환 완료 (데모용)
+        setTimeout(() => {
+            try {
+                // TL 차감
+                currentUser.tl -= cost;
+                
+                // 파일 메타데이터 생성
+                const fileHash = 'p2p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                
+                // 샘플 오디오 URL 선택 (데모용)
+                let audioUrl = null;
+                const genres = ['pop', 'rock', 'hiphop', 'electronic', 'jazz', 'classical'];
+                const randomGenre = genres[Math.floor(Math.random() * genres.length)];
+                
+                if (isTL3) {
+                    audioUrl = sampleAudioFiles[randomGenre] || sampleAudioFiles['pop'];
+                }
+                
+                // 새 P2P 파일 생성
+                const newFile = {
+                    id: Date.now(),
+                    title: fileName,
+                    originalFilename: file.name,
+                    description: `${isTL3 ? '음원' : '영상'} 파일 - P2P 변환`,
+                    type: type,
+                    pricePerSecond: isTL3 ? 0.5 : 1.0,
+                    genre: randomGenre,
+                    playTime: 300, // 기본 5분
+                    totalTime: 300,
+                    usedTime: 0,
+                    createdAt: new Date().toISOString(),
+                    createdAtDisplay: new Date().toLocaleString('ko-KR'),
+                    copyrightStatus: "uncertified",
+                    isOnMarket: false,
+                    marketPrice: 0,
+                    fileSize: fileSize,
+                    audioUrl: audioUrl,
+                    fileHash: fileHash,
+                    ownerId: currentUser.id,
+                    ownerName: currentUser.name,
+                    ownerEmail: currentUser.email || 'user@example.com',
+                    isP2P: true,
+                    conversionCost: cost,
+                    originalFileType: file.type,
+                    fileData: e.target.result.slice(0, 100) + '...' // 실제 구현시 전체 데이터 저장
+                };
+                
+                // 데이터 저장
+                currentUser.files.push(newFile);
+                currentP2PFiles[type] = newFile;
+                
+                platformData.tlBank.files.push(newFile);
+                platformData.tlBank.uncertifiedFiles.push(newFile);
+                platformData.p2pConversions.push({
+                    ...newFile,
+                    conversionDate: new Date().toISOString(),
+                    conversionType: 'p2p'
+                });
+                
+                // 파일 저장
+                saveUserData();
+                savePlatformData();
+                
+                // UI 업데이트
+                updateUI();
+                updateTLBankStats();
+                updateRecentConversions();
+                
+                // 성공 메시지
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `
+                    <strong>${fileName} 변환 완료!</strong><br>
+                    <small>${cost} TL이 사용되었습니다. (잔액: ${currentUser.tl} TL)</small><br>
+                    <small>기본 재생시간: 5분 (충전 가능)</small>
+                `;
+                
+                showNotification(`${fileName} P2P 변환 완료! ${cost} TL 사용`, 'success');
+                
+                // 변환 완료 후 재생 버튼 활성화
+                btn.textContent = '재생하기';
+                btn.onclick = function() { playP2PFile(newFile.id); };
+                btn.style.background = isTL3 ? 'var(--tl3-color)' : 'var(--tl4-color)';
+                
+                // 시간 충전 버튼 추가
+                const chargeBtn = document.createElement('button');
+                chargeBtn.className = 'btn btn-warning btn-small';
+                chargeBtn.textContent = '시간 충전';
+                chargeBtn.style.marginLeft = '10px';
+                chargeBtn.onclick = function() { chargeP2PFileTime(newFile.id); };
+                btn.parentNode.insertBefore(chargeBtn, btn.nextSibling);
+                
+                // 파일 정보 표시
+                const fileInfo = document.createElement('div');
+                fileInfo.className = 'status info';
+                fileInfo.style.marginTop = '10px';
+                fileInfo.innerHTML = `
+                    <strong>파일 정보</strong><br>
+                    <small>크기: ${fileSize} MB | 형식: ${file.type}</small><br>
+                    <small>장르: ${randomGenre} | 가격: ${newFile.pricePerSecond} TL/초</small>
+                `;
+                statusDiv.parentNode.insertBefore(fileInfo, statusDiv.nextSibling);
+                
+            } catch (error) {
+                console.error('P2P 변환 오류:', error);
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '변환 실패: ' + error.message;
+                showNotification('변환 실패', 'error');
+                btn.disabled = false;
+                btn.textContent = originalText;
             }
             
-            // 새 파일 생성 (데모 데이터)
-            const newFile = {
-                id: Date.now(),
-                title: title,
-                description: `${isTL3 ? '음원' : '영상'} 파일 - P2P 변환`,
-                type: type,
-                pricePerSecond: pricePerSecond,
-                genre: genre,
-                playTime: 300, // 5분
-                totalTime: 300,
-                usedTime: 0,
-                createdAt: new Date().toLocaleString(),
-                copyrightStatus: "uncertified",
-                isOnMarket: false,
-                marketPrice: 0,
-                fileSize: '2.5',
-                audioUrl: audioUrl,
-                ownerId: currentUser.id,
-                ownerName: currentUser.name,
-                isP2P: true
-            };
-            
-            // 데이터 저장
-            currentUser.files.push(newFile);
-            platformData.tlBank.files.push(newFile);
-            platformData.tlBank.uncertifiedFiles.push(newFile);
-            platformData.p2pConversions.push({
-                ...newFile,
-                conversionDate: new Date().toLocaleString(),
-                conversionCost: cost
-            });
-            
-            // 파일 저장
-            saveUserData();
-            savePlatformData();
-            
-            // UI 업데이트
-            updateUI();
-            updateTLBankStats();
-            updateRecentConversions();
-            
-            // 성공 메시지
-            status.className = 'status success';
-            status.textContent = `${title} 변환 완료!`;
-            status.innerHTML = `
-                ${title} 변환 완료!<br>
-                <small>${cost} TL이 사용되었습니다.</small>
-            `;
-            
-            showNotification(`${title} P2P 변환 완료!`, 'success');
-            
-            // 입력 필드 초기화 (선택사항 유지)
-            const fileInfoId = isTL3 ? 'mp3FileInfo' : 'mp4FileInfo';
-            document.getElementById(fileInfoId).innerHTML = '';
-            
-        } catch (error) {
-            console.error('변환 오류:', error);
-            status.className = 'status error';
-            status.textContent = '변환 실패: ' + error.message;
-            showNotification('변환 실패', 'error');
-        } finally {
-            btn.disabled = false;
-            btn.textContent = originalText;
-            
-            // 3초 후 상태 메시지 숨기기
+            // 10초 후 상태 메시지 숨기기
             setTimeout(() => {
-                status.textContent = '';
-                status.className = 'status';
-            }, 3000);
+                statusDiv.remove();
+            }, 10000);
+            
+        }, 2000); // 2초 지연 (데모용)
+    };
+    
+    reader.readAsDataURL(file); // 실제 구현시 서버 업로드 필요
+}
+
+// =============== P2P 파일 재생 ===============
+function playP2PFile(fileId) {
+    const file = currentUser.files.find(f => f.id === fileId);
+    if (!file) {
+        showNotification('파일을 찾을 수 없습니다.', 'error');
+        return;
+    }
+    
+    if (file.playTime <= 0) {
+        showNotification('재생 시간이 없습니다. 시간을 충전해주세요.', 'warning');
+        chargeP2PFileTime(fileId);
+        return;
+    }
+    
+    // 플레이어에 파일 설정
+    currentPlayFile = file;
+    
+    const audioPlayer = document.getElementById('audioPlayer');
+    
+    // 샘플 오디오 URL 설정 (실제 구현시 변환된 파일 URL 사용)
+    if (file.type === 'tl3' && file.audioUrl) {
+        audioPlayer.src = file.audioUrl;
+    } else {
+        // 데모용 샘플 오디오
+        audioPlayer.src = sampleAudioFiles[file.genre] || sampleAudioFiles['pop'];
+    }
+    
+    // 플레이어 UI 업데이트
+    document.getElementById('playingFileName').textContent = file.title;
+    document.getElementById('playingFileType').textContent = file.type.toUpperCase();
+    document.getElementById('playingFileType').className = 
+        file.type === 'tl3' ? 'tl3-badge' : 'tl4-badge';
+    document.getElementById('playingFileCost').textContent = `${file.pricePerSecond} TL/초`;
+    
+    document.getElementById('noMedia').style.display = 'none';
+    document.getElementById('currentFileInfo').style.display = 'block';
+    
+    // 시간 정보 업데이트
+    updateTimeInfo(file);
+    
+    // 플레이어 컨트롤 활성화
+    document.getElementById('playBtn').disabled = false;
+    document.getElementById('pauseBtn').disabled = false;
+    document.getElementById('stopBtn').disabled = false;
+    document.getElementById('chargeBtn').disabled = false;
+    
+    showNotification(`${file.title} 재생 준비 완료`, 'success');
+}
+
+// =============== P2P 파일 시간 충전 ===============
+function chargeP2PFileTime(fileId) {
+    const file = currentUser.files.find(f => f.id === fileId);
+    if (!file) {
+        showNotification('파일을 찾을 수 없습니다.', 'error');
+        return;
+    }
+    
+    // 충전 모달 열기
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 class="modal-title">${file.title} 시간 충전</h3>
+                <button class="modal-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+            <div style="padding: 20px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <p>현재 재생 시간: <strong>${formatTime(file.playTime)}</strong></p>
+                    <p>사용된 시간: <strong>${formatTime(file.usedTime)}</strong></p>
+                    <p>가격: <strong>${file.pricePerSecond} TL/초</strong></p>
+                </div>
+                
+                <div class="form-group">
+                    <label>충전할 시간 (초):</label>
+                    <input type="number" id="chargeTimeInput" value="300" min="60" max="3600" style="width: 100%; padding: 10px;">
+                    <small>1분(60초) ~ 1시간(3600초)</small>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+                    <strong>충전 비용: </strong>
+                    <span id="chargeCostDisplay" style="font-size: 1.5rem; color: var(--accent-color);">150</span> TL
+                </div>
+                
+                <div class="status" id="chargeStatus"></div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" style="flex: 1;" onclick="processP2PCharge(${fileId})">충전하기</button>
+                    <button class="btn btn-danger" style="flex: 1;" onclick="this.parentElement.parentElement.parentElement.remove()">취소</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 비용 실시간 계산
+    const chargeInput = modal.querySelector('#chargeTimeInput');
+    const costDisplay = modal.querySelector('#chargeCostDisplay');
+    
+    chargeInput.addEventListener('input', function() {
+        const time = parseInt(this.value) || 0;
+        const cost = Math.floor(time * file.pricePerSecond);
+        costDisplay.textContent = cost;
+    });
+    
+    // 초기 비용 계산
+    const initialTime = parseInt(chargeInput.value) || 300;
+    const initialCost = Math.floor(initialTime * file.pricePerSecond);
+    costDisplay.textContent = initialCost;
+}
+
+// =============== P2P 충전 처리 ===============
+function processP2PCharge(fileId) {
+    const modal = document.querySelector('.modal.active');
+    const chargeInput = modal.querySelector('#chargeTimeInput');
+    const costDisplay = modal.querySelector('#chargeCostDisplay');
+    const statusDiv = modal.querySelector('#chargeStatus');
+    
+    const chargeTime = parseInt(chargeInput.value) || 0;
+    const cost = parseInt(costDisplay.textContent) || 0;
+    
+    if (chargeTime < 60) {
+        statusDiv.className = 'status error';
+        statusDiv.textContent = '최소 60초 이상 충전해야 합니다.';
+        return;
+    }
+    
+    if (currentUser.tl < cost) {
+        statusDiv.className = 'status error';
+        statusDiv.textContent = `TL이 부족합니다. (필요: ${cost} TL, 보유: ${currentUser.tl} TL)`;
+        return;
+    }
+    
+    // 충전 처리
+    const fileIndex = currentUser.files.findIndex(f => f.id === fileId);
+    if (fileIndex === -1) {
+        statusDiv.className = 'status error';
+        statusDiv.textContent = '파일을 찾을 수 없습니다.';
+        return;
+    }
+    
+    // TL 차감
+    currentUser.tl -= cost;
+    
+    // 시간 추가
+    currentUser.files[fileIndex].playTime += chargeTime;
+    currentUser.files[fileIndex].totalTime += chargeTime;
+    
+    // 플랫폼 데이터 업데이트
+    const platformFileIndex = platformData.tlBank.files.findIndex(f => f.id === fileId);
+    if (platformFileIndex !== -1) {
+        platformData.tlBank.files[platformFileIndex].playTime += chargeTime;
+        platformData.tlBank.files[platformFileIndex].totalTime += chargeTime;
+    }
+    
+    // 데이터 저장
+    saveUserData();
+    savePlatformData();
+    
+    // 성공 메시지
+    statusDiv.className = 'status success';
+    statusDiv.textContent = `${chargeTime}초 충전 완료! ${cost} TL 사용됨`;
+    
+    // UI 업데이트
+    updateUI();
+    
+    // 2초 후 모달 닫기
+    setTimeout(() => {
+        modal.remove();
+        showNotification(`${currentUser.files[fileIndex].title}에 ${chargeTime}초 충전 완료`, 'success');
+        
+        // 현재 재생 중인 파일이면 시간 정보 업데이트
+        if (currentPlayFile && currentPlayFile.id === fileId) {
+            updateTimeInfo(currentUser.files[fileIndex]);
         }
-    }, 2000); // 2초 지연 (데모용)
+    }, 2000);
+}
+
+// =============== 시간 정보 업데이트 ===============
+function updateTimeInfo(file) {
+    if (!file) return;
+    
+    document.getElementById('remainingTime').textContent = formatTime(file.playTime);
+    document.getElementById('totalTime').textContent = formatTime(file.totalTime);
+    document.getElementById('usedTime').textContent = formatTime(file.usedTime);
+    
+    // 현재 사용 금액 계산
+    const usedCost = file.usedTime * file.pricePerSecond;
+    document.getElementById('currentUsage').textContent = `${usedCost.toFixed(1)} TL`;
+}
+
+// =============== 파일 업로드 영역 이벤트 추가 ===============
+document.addEventListener('DOMContentLoaded', function() {
+    // P2P 파일 업로드 영역 이벤트 추가
+    const p2pDropZones = document.querySelectorAll('.p2p-conversion-card .drop-zone');
+    
+    p2pDropZones.forEach(zone => {
+        // 클릭 이벤트
+        zone.addEventListener('click', function(e) {
+            if (e.target.closest('input')) return;
+            const card = this.closest('.p2p-conversion-card');
+            const isTL3 = card.classList.contains('tl3');
+            const inputId = isTL3 ? 'mp3Input' : 'mp4Input';
+            document.getElementById(inputId).click();
+        });
+        
+        // 드래그 앤 드롭 이벤트
+        zone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('active');
+        });
+        
+        zone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('active');
+        });
+        
+        zone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('active');
+            
+            const card = this.closest('.p2p-conversion-card');
+            const isTL3 = card.classList.contains('tl3');
+            const inputId = isTL3 ? 'mp3Input' : 'mp4Input';
+            const input = document.getElementById(inputId);
+            
+            if (e.dataTransfer.files.length) {
+                input.files = e.dataTransfer.files;
+                
+                // 파일 정보 표시
+                const file = e.dataTransfer.files[0];
+                const fileInfo = document.createElement('div');
+                fileInfo.style.cssText = `
+                    margin-top: 10px;
+                    padding: 10px;
+                    background: #f0f4ff;
+                    border-radius: 5px;
+                    font-size: 0.9rem;
+                `;
+                fileInfo.innerHTML = `
+                    <strong>선택된 파일:</strong> ${file.name}<br>
+                    <small>크기: ${(file.size / 1024 / 1024).toFixed(2)} MB</small>
+                `;
+                
+                // 기존 파일 정보 제거
+                const existingInfo = this.querySelector('.file-info');
+                if (existingInfo) existingInfo.remove();
+                
+                fileInfo.className = 'file-info';
+                this.appendChild(fileInfo);
+                
+                showNotification(`${file.name} 업로드 준비 완료`, 'success');
+            }
+        });
+    });
+    
+    // 파일 선택 시 정보 표시
+    document.getElementById('mp3Input').addEventListener('change', function() {
+        if (this.files.length) {
+            const file = this.files[0];
+            const dropZone = document.querySelector('.p2p-conversion-card.tl3 .drop-zone');
+            updateFileInfoDisplay(dropZone, file);
+        }
+    });
+    
+    document.getElementById('mp4Input').addEventListener('change', function() {
+        if (this.files.length) {
+            const file = this.files[0];
+            const dropZone = document.querySelector('.p2p-conversion-card.tl4 .drop-zone');
+            updateFileInfoDisplay(dropZone, file);
+        }
+    });
+});
+
+function updateFileInfoDisplay(dropZone, file) {
+    // 기존 파일 정보 제거
+    const existingInfo = dropZone.querySelector('.file-info');
+    if (existingInfo) existingInfo.remove();
+    
+    const fileInfo = document.createElement('div');
+    fileInfo.className = 'file-info';
+    fileInfo.style.cssText = `
+        margin-top: 10px;
+        padding: 10px;
+        background: #f0f4ff;
+        border-radius: 5px;
+        font-size: 0.9rem;
+    `;
+    fileInfo.innerHTML = `
+        <strong>선택된 파일:</strong> ${file.name}<br>
+        <small>크기: ${(file.size / 1024 / 1024).toFixed(2)} MB | 형식: ${file.type}</small>
+    `;
+    
+    dropZone.appendChild(fileInfo);
+}
+
+// =============== 업데이트된 updateRecentConversions 함수 ===============
+function updateRecentConversions() {
+    const recentDiv = document.getElementById('recentConversions');
+    
+    if (platformData.p2pConversions.length === 0) {
+        recentDiv.innerHTML = '<div class="status info">최근 변환된 파일이 없습니다.</div>';
+        return;
+    }
+    
+    let html = '';
+    const recent = platformData.p2pConversions.slice(-6).reverse(); // 최근 6개
+    
+    recent.forEach(file => {
+        const timeLeft = file.playTime - file.usedTime;
+        const timePercentage = (timeLeft / file.playTime) * 100;
+        
+        html += `
+            <div class="market-item">
+                <div class="market-item-content">
+                    <div class="market-item-header">
+                        <div>
+                            <h3>${file.title}</h3>
+                            <span class="file-type-badge ${file.type === 'tl3' ? 'tl3-badge' : 'tl4-badge'}">
+                                ${file.type.toUpperCase()}
+                            </span>
+                            <span class="copyright-badge ${file.copyrightStatus === 'certified' ? 'certified-badge' : 
+                               file.copyrightStatus === 'pending' ? 'pending-badge' : 'uncertified-badge'}">
+                                ${file.copyrightStatus === 'certified' ? '인증됨' : 
+                                 file.copyrightStatus === 'pending' ? '심사중' : '미인증'}
+                            </span>
+                        </div>
+                        <span style="font-size: 0.8rem; color: #666;">${file.createdAtDisplay}</span>
+                    </div>
+                    <p style="margin: 10px 0; color: #555;">${file.description}</p>
+                    
+                    <div class="file-info-grid">
+                        <div class="info-item">
+                            <div class="info-label">남은 시간</div>
+                            <div class="info-value">${formatTime(timeLeft)}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">가격</div>
+                            <div class="info-value">${file.pricePerSecond} TL/초</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin: 15px 0;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>사용률</span>
+                            <span>${Math.round(100 - timePercentage)}%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${100 - timePercentage}%;"></div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="btn btn-primary" style="flex: 1;" onclick="playP2PFile(${file.id})">
+                            재생하기
+                        </button>
+                        <button class="btn btn-warning" style="flex: 1;" onclick="chargeP2PFileTime(${file.id})">
+                            시간 충전
+                        </button>
+                    </div>
+                    
+                    <div style="margin-top: 10px; font-size: 0.8rem; color: #666; text-align: center;">
+                        업로더: ${file.ownerName}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    recentDiv.innerHTML = html;
 }
         // =============== TL Studio 변환 기능 ===============
 function convertStudioFile() {
