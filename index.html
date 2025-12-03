@@ -665,6 +665,58 @@
             margin-bottom: 10px;
         }
 
+        /* UUID 테스트 섹션 */
+        .uuid-test-simple {
+            background: #f5f7ff;
+            padding: 60px 0;
+            text-align: center;
+        }
+
+        .uuid-simple-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .uuid-simple-container h2 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+
+        .uuid-simple-result {
+            background: #f8f9ff;
+            border: 2px solid #e0e4ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 1rem;
+            min-height: 60px;
+            word-break: break-all;
+        }
+
+        .uuid-simple-btn {
+            background: var(--gradient-accent);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+
+        .uuid-simple-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(83, 109, 254, 0.3);
+        }
+
         /* 애니메이션 */
         @keyframes fadeInUp {
             from {
@@ -737,6 +789,10 @@
             .demo-cta h2 {
                 font-size: 2.2rem;
             }
+            
+            .uuid-simple-container {
+                padding: 30px 20px;
+            }
         }
 
         /* 로그인 상태 표시 */
@@ -796,6 +852,7 @@
                         <a href="#user-types">사용자 유형</a>
                         <a href="#demo">데모</a>
                         <a href="#preview">미리보기</a>
+                        <a href="#uuid-simple">UUID 테스트</a>
                     </div>
 
                     <div class="user-status" id="userStatus" style="display: none;">
@@ -1059,6 +1116,24 @@
         </div>
     </section>
 
+    <!-- UUID 테스트 (간단한 버전) -->
+    <section id="uuid-simple" class="uuid-test-simple animate-on-scroll">
+        <div class="container">
+            <div class="uuid-simple-container">
+                <h2>TimeLink UUID 테스트</h2>
+                <p>TimeLink API를 사용하여 UUID를 생성해보세요.</p>
+                
+                <div class="uuid-simple-result" id="result">
+                    여기에 생성된 UUID가 표시됩니다.
+                </div>
+                
+                <button class="uuid-simple-btn" id="get-uuid">
+                    UUID 생성하기
+                </button>
+            </div>
+        </div>
+    </section>
+
     <!-- 데모 CTA -->
     <section id="demo" class="demo-cta">
         <div class="container">
@@ -1107,6 +1182,7 @@
                         <li><a href="#user-types">사용자 유형</a></li>
                         <li><a href="#preview">플랫폼 미리보기</a></li>
                         <li><a href="#demo">데모 체험</a></li>
+                        <li><a href="#uuid-simple">UUID 테스트</a></li>
                     </ul>
                 </div>
 
@@ -1146,6 +1222,7 @@
         // =============== 초기화 ===============
         document.addEventListener('DOMContentLoaded', function() {
             initLandingPage();
+            initSimpleUUIDTest();
         });
 
         function initLandingPage() {
@@ -1213,6 +1290,57 @@
                         }
                     }
                 });
+            });
+        }
+
+        // =============== 간단한 UUID 테스트 ===============
+        function initSimpleUUIDTest() {
+            const button = document.getElementById('get-uuid');
+            const result = document.getElementById('result');
+
+            button.addEventListener('click', async () => {
+                try {
+                    // 버튼 상태 변경
+                    button.disabled = true;
+                    button.textContent = '생성 중...';
+                    
+                    // TimeLink API 호출
+                    const res = await fetch('/api/uuid');
+                    
+                    if (!res.ok) {
+                        throw new Error(`API 요청 실패: ${res.status}`);
+                    }
+                    
+                    const data = await res.json();
+                    
+                    // 결과 표시
+                    result.innerHTML = `
+                        <strong>생성된 UUID:</strong><br>
+                        <span style="color: var(--accent-color); font-weight: bold;">${data.uuid}</span><br><br>
+                        <strong>생성 시간:</strong> ${new Date().toLocaleString()}
+                    `;
+                    
+                } catch (err) {
+                    console.error('UUID 생성 실패:', err);
+                    
+                    // fallback: 로컬 UUID 생성
+                    const fallbackUuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                        const r = Math.random() * 16 | 0;
+                        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                        return v.toString(16);
+                    });
+                    
+                    result.innerHTML = `
+                        <strong>API 연결 실패 (로컬 생성):</strong><br>
+                        <span style="color: var(--warning-color);">${err.message}</span><br><br>
+                        <strong>대체 UUID:</strong><br>
+                        <span style="color: var(--accent-color); font-weight: bold;">${fallbackUuid}</span>
+                    `;
+                } finally {
+                    // 버튼 상태 복원
+                    button.disabled = false;
+                    button.textContent = 'UUID 생성하기';
+                }
             });
         }
 
@@ -1410,25 +1538,25 @@
                 }, 300);
             }
         });
+
+        // =============== 간단한 UUID 생성 함수 (요청한 스크립트) ===============
+        // 이미 initSimpleUUIDTest()에서 구현되어 있음
     </script>
 
+    <!-- 요청하신 스크립트 추가 -->
     <script>
-        // UUID 생성 함수 추가
-        async function generateUUID() {
+        const button = document.getElementById('get-uuid');
+        const result = document.getElementById('result');
+
+        button.addEventListener('click', async () => {
             try {
-                const res = await fetch("https://timelink-api-worker.timelink-api.workers.dev/api/uuid");
+                const res = await fetch('/api/uuid');
                 const data = await res.json();
-                return data.uuid;
-            } catch (error) {
-                console.error('UUID 생성 실패:', error);
-                // fallback: 로컬 UUID 생성
-                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                    const r = Math.random() * 16 | 0;
-                    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-                    return v.toString(16);
-                });
+                result.innerText = data.uuid;
+            } catch (err) {
+                result.innerText = 'Error: ' + err.message;
             }
-        }
+        });
     </script>
 </body>
 </html>
