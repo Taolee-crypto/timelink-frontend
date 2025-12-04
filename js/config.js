@@ -1,12 +1,11 @@
 // TL Platform API 설정
 const BACKEND_URL = 'https://timelink-backend.timelink-api.workers.dev';
-const API_VERSION = 'v1';
 
-// API 요청 함수
+// API 요청 함수 (강화된 버전)
 async function apiRequest(endpoint, options = {}) {
-    const url = `${BACKEND_URL}${endpoint}`;
+    const url = BACKEND_URL + endpoint;
     
-    console.log(`📡 API 요청: ${endpoint}`);
+    console.log(`📡 API 요청: ${endpoint}`, url);
     
     const defaultHeaders = {
         'Content-Type': 'application/json',
@@ -22,176 +21,178 @@ async function apiRequest(endpoint, options = {}) {
     
     try {
         const response = await fetch(url, config);
-        console.log(`📥 응답 상태: ${response.status}`);
+        console.log(`📥 응답 상태: ${response.status} ${response.statusText}`);
         
-        // 404가 아닌 경우 JSON 파싱 시도
-        if (response.status === 404) {
-            return { error: 'Not Found', status: 404 };
-        }
+        // 먼저 텍스트로 읽어서 확인
+        const text = await response.text();
+        console.log(`📄 응답 텍스트 (처음 200자):`, text.substring(0, 200));
         
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            return await response.json();
+        // JSON 파싱 시도
+        if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+            try {
+                const json = JSON.parse(text);
+                return json;
+            } catch (e) {
+                console.warn('JSON 파싱 실패:', e.message);
+                return { text, status: response.status, error: 'Invalid JSON' };
+            }
         } else {
-            const text = await response.text();
-            console.warn('⚠️ JSON이 아닌 응답:', text.substring(0, 100));
             return { text, status: response.status };
         }
     } catch (error) {
-        console.error('❌ API 오류:', error);
-        return { error: error.message, status: 0 };
+        console.error('❌ 네트워크 오류:', error);
+        return { 
+            error: error.message, 
+            status: 0,
+            offline: true 
+        };
     }
 }
 
-// 시스템 건강 상태 확인
+// 시스템 건강 상태 확인 (강화된 버전)
 async function checkSystemHealth() {
-    try {
-        console.log('🩺 시스템 건강 상태 확인...');
+    console.log('🩺 시스템 건강 상태 확인 시작...');
+    console.log('백엔드 URL:', BACKEND_URL);
+    
+    // 여러 경로 시도
+    const testEndpoints = [
+        '/health',
+        '/',
+        '/api',
+        '/api/health'
+    ];
+    
+    for (const endpoint of testEndpoints) {
+        console.log(`테스트 중: ${endpoint}`);
+        const result = await apiRequest(endpoint);
         
-        // 먼저 /health 시도
-        let healthResponse = await apiRequest('/health');
-        
-        // 404면 /api/health 시도
-        if (healthResponse.status === 404) {
-            healthResponse = await apiRequest('/api/health');
-        }
-        
-        // 그래도 404면 루트 경로 확인
-        if (healthResponse.status === 404) {
-            const rootResponse = await apiRequest('/');
-            if (rootResponse && !rootResponse.error) {
-                return { 
-                    healthy: true, 
-                    backend: BACKEND_URL,
-                    message: '백엔드 연결 성공 (루트)'
-                };
-            }
-        }
-        
-        if (healthResponse && healthResponse.status === 'healthy') {
-            return { 
-                healthy: true, 
-                backend: BACKEND_URL,
-                message: '백엔드 연결 성공'
+        if (result && !result.error && result.status !== 404) {
+            console.log(`✅ 성공: ${endpoint}`, result);
+            return {
+                healthy: true,
+                endpoint: endpoint,
+                data: result,
+                backend: BACKEND_URL
             };
         }
         
-        return { 
-            healthy: false, 
-            backend: BACKEND_URL,
-            error: '백엔드 상태 확인 실패',
-            details: healthResponse
-        };
-    } catch (error) {
-        console.error('💔 건강 상태 확인 오류:', error);
-        return { 
-            healthy: false, 
-            backend: BACKEND_URL,
-            error: error.message
-        };
+        if (result.status === 404) {
+            console.log(`⚠️ 404: ${endpoint}`);
+            continue;
+        }
     }
+    
+    console.error('❌ 모든 경로 테스트 실패');
+    return {
+        healthy: false,
+        backend: BACKEND_URL,
+        error: '모든 API 경로 실패',
+        lastTested: testEndpoints
+    };
 }
 
-// 인증 API
+// 인증 API (간단한 버전)
 const authAPI = {
-    login: (email, password) => 
-        apiRequest('/api/auth/login', {
+    login: async (email, password) => {
+        console.log('로그인 시도:', email);
+        const result = await apiRequest('/api/auth/login', {
             method: 'POST',
             body: JSON.stringify({ email, password })
-        }),
+        });
+        console.log('로그인 결과:', result);
+        return result;
+    },
     
     register: (userData) => 
         apiRequest('/api/auth/register', {
             method: 'POST',
             body: JSON.stringify(userData)
-        }),
-    
-    verify: (token) => 
-        apiRequest('/api/auth/verify', {
-            headers: { 'Authorization': `Bearer ${token}` }
         })
 };
 
-// STUDIO API
-const studioAPI = {
-    getProjects: () => apiRequest('/api/studio/projects'),
-    createProject: (projectData) => 
-        apiRequest('/api/studio/create', {
-            method: 'POST',
-            body: JSON.stringify(projectData)
-        })
-};
-
-// Music API
-const musicAPI = {
-    getTracks: () => apiRequest('/api/music/tracks')
-};
-
-// Tube API
-const tubeAPI = {
-    getVideos: () => apiRequest('/api/tube/videos')
-};
-
-// 초기화
+// 초기화 함수
 async function initAPI() {
-    console.log('🚀 TLAPI 초기화 시작...');
+    console.log('🚀 TLAPI 초기화 시작');
     
-    // 건강 상태 확인
     const health = await checkSystemHealth();
     
     if (health.healthy) {
-        console.log('✅ 백엔드 연결 성공:', BACKEND_URL);
+        console.log('✅ 백엔드 연결 성공');
+        showStatus('success', '시스템 정상');
+        
         return {
             healthy: true,
             url: BACKEND_URL,
-            apis: { authAPI, studioAPI, musicAPI, tubeAPI },
-            request: apiRequest
+            health: health,
+            auth: authAPI
         };
     } else {
-        console.error('❌ 백엔드 연결 실패:', health.error);
+        console.error('❌ 백엔드 연결 실패');
+        showStatus('error', '백엔드 연결 실패');
+        
+        // 모의 API 반환
         return {
             healthy: false,
             url: BACKEND_URL,
             error: health.error,
-            // 오프라인 모드용 더미 API
-            apis: createMockAPIs(),
-            request: apiRequest
+            mockMode: true,
+            auth: {
+                login: () => Promise.resolve({
+                    success: true,
+                    token: 'mock_token',
+                    user: { name: '테스트 사용자' }
+                })
+            }
         };
     }
 }
 
-// 오프라인 모드를 위한 모의 API
-function createMockAPIs() {
-    return {
-        authAPI: {
-            login: () => Promise.resolve({
-                success: true,
-                token: 'mock_token',
-                user: { id: 'mock_user', name: '테스트사용자' }
-            }),
-            register: () => Promise.resolve({
-                success: true,
-                message: '모의 회원가입 성공'
-            })
-        },
-        studioAPI: {
-            getProjects: () => Promise.resolve({
-                success: true,
-                projects: [
-                    { id: 1, name: '모의 프로젝트', type: 'video' }
-                ]
-            })
-        }
-    };
+// 상태 표시 함수
+function showStatus(type, message) {
+    const statusEl = document.getElementById('system-status') || createStatusElement();
+    statusEl.className = `system-status system-status-${type}`;
+    statusEl.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i> ${message}`;
+    document.body.appendChild(statusEl);
+    
+    setTimeout(() => {
+        statusEl.style.opacity = '0';
+        setTimeout(() => statusEl.remove(), 1000);
+    }, 3000);
 }
 
-// 글로벌로 노출
+function createStatusElement() {
+    const el = document.createElement('div');
+    el.id = 'system-status';
+    el.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        border-radius: 8px;
+        color: white;
+        z-index: 10000;
+        font-weight: bold;
+        transition: opacity 0.5s;
+    `;
+    return el;
+}
+
+// 글로벌 노출
 window.TLAPI = {
     init: initAPI,
     request: apiRequest,
     checkHealth: checkSystemHealth,
-    url: BACKEND_URL
+    url: BACKEND_URL,
+    auth: authAPI
 };
 
-console.log('📱 TL Platform API 설정 완료');
-export { apiRequest, checkSystemHealth, authAPI, studioAPI, musicAPI, tubeAPI, initAPI };
+console.log('📱 TL Platform API 설정 로드됨');
+
+// 스타일 추가
+const style = document.createElement('style');
+style.textContent = `
+.system-status-success { background: #10b981; }
+.system-status-error { background: #ef4444; }
+.system-status-warning { background: #f59e0b; }
+`;
+document.head.appendChild(style);
