@@ -1,0 +1,133 @@
+name: Purge GitHub Pages Cache
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  purge-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        
+      - name: Purge Cloudflare Cache
+        run: |
+          echo "GitHub Pages 캐시 퍼지를 위해 새 버전 태그 추가"
+          date > .cache-buster
+          echo "CACHE_BUSTER=$(date +%s)" >> $GITHUB_ENV
+          
+      - name: Create new index with cache buster
+        run: |
+          # 완전히 새로운 index.html 생성
+          cat > index.html << 'HTML'
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TL Platform :: 캐시 퍼지 버전 ${{ github.run_id }}</title>
+    <script>
+    // TL Platform 백엔드
+    const BACKEND_URL = 'https://timelink-backend.timelink-api.workers.dev';
+    const DEPLOY_ID = '${{ github.run_id }}';
+    const DEPLOY_TIME = '$(date -Iseconds)';
+    
+    console.log('🚀 DEPLOY ID:', DEPLOY_ID);
+    console.log('🔗 Backend:', BACKEND_URL);
+    console.log('🕒 Deploy Time:', DEPLOY_TIME);
+    
+    // 강제로 캐시 방지
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        for (let name of names) caches.delete(name);
+      });
+    }
+    
+    async function testBackend() {
+        try {
+            const response = await fetch(BACKEND_URL + '/');
+            const data = await response.json();
+            document.getElementById('result').innerHTML = `
+                <h3 style="color:green">✅ 백엔드 연결 성공!</h3>
+                <p><strong>백엔드:</strong> ${BACKEND_URL}</p>
+                <p><strong>상태:</strong> ${data.status || 'OK'}</p>
+                <p><strong>응답:</strong> ${JSON.stringify(data)}</p>
+                <p><strong>배포 ID:</strong> ${DEPLOY_ID}</p>
+                <p><strong>테스트 시간:</strong> ${new Date().toLocaleString()}</p>
+            `;
+        } catch (error) {
+            document.getElementById('result').innerHTML = `
+                <h3 style="color:red">❌ 연결 실패</h3>
+                <p><strong>오류:</strong> ${error.message}</p>
+            `;
+        }
+    }
+    
+    window.onload = function() {
+        console.log('페이지 로드 완료');
+        document.getElementById('deployInfo').textContent = 
+            `배포: ${DEPLOY_ID} | 시간: ${DEPLOY_TIME}`;
+        testBackend();
+    };
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 { color: #2563eb; }
+        .info-box {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        #result {
+            padding: 20px;
+            background: #1f2937;
+            color: white;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>TL Platform - GitHub Actions 배포</h1>
+    <div class="info-box">
+        <p><strong>배포 ID:</strong> <span id="deployInfo">${{ github.run_id }}</span></p>
+        <p><strong>백엔드 URL:</strong> https://timelink-backend.timelink-api.workers.dev</p>
+        <p><strong>목표:</strong> GitHub Pages 캐시 완전 무효화</p>
+    </div>
+    
+    <button onclick="testBackend()" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">
+        🔄 다시 테스트
+    </button>
+    
+    <div id="result">
+        테스트 결과가 여기에 표시됩니다...
+    </div>
+    
+    <div style="margin-top: 40px; padding: 20px; background: #fef3c7; border-radius: 10px;">
+        <h3>📋 캐시 문제 해결 체크리스트:</h3>
+        <ol>
+            <li>이 페이지는 GitHub Actions로 자동 배포되었습니다</li>
+            <li>매 배포마다 고유한 ID가 생성됩니다</li>
+            <li>브라우저 캐시를 무시하기 위한 코드가 포함되었습니다</li>
+            <li>서비스 워커 캐시도 강제로 삭제합니다</li>
+        </ol>
+    </div>
+</body>
+</html>
+HTML
+          
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
+          force_orphan: true  # 히스토리 무시하고 새로 배포
+          cname: taolee-crypto.github.io
