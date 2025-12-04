@@ -1,134 +1,197 @@
-// TL Platform API 설정 - Cloudflare Workers
-const API_CONFIG = {
-    BASE_URL: '',
-    ENDPOINTS: {
-        ROOT: '/',
-        HEALTH: '/health',
-        MARKET: {
-            LIST: '/market/list'
-        },
-        AUTH: {
-            LOGIN: '/auth/login',
-            REGISTER: '/auth/register'
-        },
-        CONTENT: {
-            UPLOAD: '/content/upload'
-        }
-    }
-};
+// TL Platform API 설정
+const BACKEND_URL = 'https://timelink-backend.timelink-api.workers.dev';
+const API_VERSION = 'v1';
 
-// API 호출 클래스
-class TLAPI {
-    constructor() {
-        this.baseURL = API_CONFIG.BASE_URL;
-        this.token = localStorage.getItem('tl_token');
-        console.log('🚀 TLAPI 초기화 완료:', this.baseURL);
-    }
-
-    async request(endpoint, options = {}) {
-        const url = `${this.baseURL}${endpoint}`;
-        console.log('📡 API 요청:', url);
+// API 요청 함수
+async function apiRequest(endpoint, options = {}) {
+    const url = `${BACKEND_URL}${endpoint}`;
+    
+    console.log(`📡 API 요청: ${endpoint}`);
+    
+    const defaultHeaders = {
+        'Content-Type': 'application/json',
+    };
+    
+    const config = {
+        ...options,
+        headers: {
+            ...defaultHeaders,
+            ...options.headers,
+        },
+    };
+    
+    try {
+        const response = await fetch(url, config);
+        console.log(`📥 응답 상태: ${response.status}`);
         
-        const headers = {
-            'Content-Type': 'application/json',
-            ...options.headers
-        };
-
-        if (this.token) {
-            headers['Authorization'] = `Bearer ${this.token}`;
+        // 404가 아닌 경우 JSON 파싱 시도
+        if (response.status === 404) {
+            return { error: 'Not Found', status: 404 };
         }
-
-        try {
-            const response = await fetch(url, {
-                ...options,
-                headers
-            });
-
-            console.log('📥 응답 상태:', response.status);
-            
-            if (response.status === 401) {
-                localStorage.removeItem('tl_token');
-                localStorage.removeItem('tl_user');
-                window.location.href = 'auth.html';
-                throw new Error('인증이 만료되었습니다.');
-            }
-
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || data.message || 'API 요청 실패');
-            }
-
-            console.log('✅ API 성공:', data);
-            return data;
-        } catch (error) {
-            console.error('❌ API 오류:', error);
-            throw error;
+        
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return await response.json();
+        } else {
+            const text = await response.text();
+            console.warn('⚠️ JSON이 아닌 응답:', text.substring(0, 100));
+            return { text, status: response.status };
         }
-    }
-
-    // 시스템 상태 확인
-    async checkHealth() {
-        return this.request(API_CONFIG.ENDPOINTS.HEALTH);
-    }
-
-    // 마켓 아이템 가져오기
-    async getMarketItems() {
-        return this.request('/market/list');
-    }
-
-    // 로그인
-    async login(email, password) {
-        const data = await this.request(API_CONFIG.ENDPOINTS.AUTH.LOGIN, {
-            method: 'POST',
-            body: JSON.stringify({ email, password })
-        });
-
-        if (data.token) {
-            this.token = data.token;
-            localStorage.setItem('tl_token', data.token);
-            localStorage.setItem('tl_user', JSON.stringify(data.user));
-        }
-
-        return data;
-    }
-
-    // 회원가입
-    async register(userData) {
-        return this.request(API_CONFIG.ENDPOINTS.AUTH.REGISTER, {
-            method: 'POST',
-            body: JSON.stringify(userData)
-        });
-    }
-
-    // 파일 업로드
-    async uploadFile(fileData) {
-        return this.request(API_CONFIG.ENDPOINTS.CONTENT.UPLOAD, {
-            method: 'POST',
-            body: JSON.stringify(fileData)
-        });
+    } catch (error) {
+        console.error('❌ API 오류:', error);
+        return { error: error.message, status: 0 };
     }
 }
 
-// 글로벌 인스턴스 생성
-const api = new TLAPI();
-window.TLAPI = api;
-
-// 페이지 로드 시 API 상태 확인
-window.addEventListener('DOMContentLoaded', async () => {
-    console.log('📱 TL Platform 프론트엔드 로드됨');
-    
+// 시스템 건강 상태 확인
+async function checkSystemHealth() {
     try {
-        const health = await api.checkHealth();
-        console.log('💚 백엔드 상태:', health);
+        console.log('🩺 시스템 건강 상태 확인...');
         
-        // 상태 표시 업데이트
-        const statusElement = document.getElementById('backendStatus');
-        if (statusElement) {
-            statusElement.textContent = '✅ 온라인';
-            statusElement.className = 'status-value online';
+        // 먼저 /health 시도
+        let healthResponse = await apiRequest('/health');
+        
+        // 404면 /api/health 시도
+        if (healthResponse.status === 404) {
+            healthResponse = await apiRequest('/api/health');
         }
+        
+        // 그래도 404면 루트 경로 확인
+        if (healthResponse.status === 404) {
+            const rootResponse = await apiRequest('/');
+            if (rootResponse && !rootResponse.error) {
+                return { 
+                    healthy: true, 
+                    backend: BACKEND_URL,
+                    message: '백엔드 연결 성공 (루트)'
+                };
+            }
+        }
+        
+        if (healthResponse && healthResponse.status === 'healthy') {
+            return { 
+                healthy: true, 
+                backend: BACKEND_URL,
+                message: '백엔드 연결 성공'
+            };
+        }
+        
+        return { 
+            healthy: false, 
+            backend: BACKEND_URL,
+            error: '백엔드 상태 확인 실패',
+            details: healthResponse
+        };
     } catch (error) {
-        console.error('💔 백엔드 연결 실패:', error);
+        console.error('💔 건강 상태 확인 오류:', error);
+        return { 
+            healthy: false, 
+            backend: BACKEND_URL,
+            error: error.message
+        };
     }
-});
+}
+
+// 인증 API
+const authAPI = {
+    login: (email, password) => 
+        apiRequest('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password })
+        }),
+    
+    register: (userData) => 
+        apiRequest('/api/auth/register', {
+            method: 'POST',
+            body: JSON.stringify(userData)
+        }),
+    
+    verify: (token) => 
+        apiRequest('/api/auth/verify', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+};
+
+// STUDIO API
+const studioAPI = {
+    getProjects: () => apiRequest('/api/studio/projects'),
+    createProject: (projectData) => 
+        apiRequest('/api/studio/create', {
+            method: 'POST',
+            body: JSON.stringify(projectData)
+        })
+};
+
+// Music API
+const musicAPI = {
+    getTracks: () => apiRequest('/api/music/tracks')
+};
+
+// Tube API
+const tubeAPI = {
+    getVideos: () => apiRequest('/api/tube/videos')
+};
+
+// 초기화
+async function initAPI() {
+    console.log('🚀 TLAPI 초기화 시작...');
+    
+    // 건강 상태 확인
+    const health = await checkSystemHealth();
+    
+    if (health.healthy) {
+        console.log('✅ 백엔드 연결 성공:', BACKEND_URL);
+        return {
+            healthy: true,
+            url: BACKEND_URL,
+            apis: { authAPI, studioAPI, musicAPI, tubeAPI },
+            request: apiRequest
+        };
+    } else {
+        console.error('❌ 백엔드 연결 실패:', health.error);
+        return {
+            healthy: false,
+            url: BACKEND_URL,
+            error: health.error,
+            // 오프라인 모드용 더미 API
+            apis: createMockAPIs(),
+            request: apiRequest
+        };
+    }
+}
+
+// 오프라인 모드를 위한 모의 API
+function createMockAPIs() {
+    return {
+        authAPI: {
+            login: () => Promise.resolve({
+                success: true,
+                token: 'mock_token',
+                user: { id: 'mock_user', name: '테스트사용자' }
+            }),
+            register: () => Promise.resolve({
+                success: true,
+                message: '모의 회원가입 성공'
+            })
+        },
+        studioAPI: {
+            getProjects: () => Promise.resolve({
+                success: true,
+                projects: [
+                    { id: 1, name: '모의 프로젝트', type: 'video' }
+                ]
+            })
+        }
+    };
+}
+
+// 글로벌로 노출
+window.TLAPI = {
+    init: initAPI,
+    request: apiRequest,
+    checkHealth: checkSystemHealth,
+    url: BACKEND_URL
+};
+
+console.log('📱 TL Platform API 설정 완료');
+export { apiRequest, checkSystemHealth, authAPI, studioAPI, musicAPI, tubeAPI, initAPI };

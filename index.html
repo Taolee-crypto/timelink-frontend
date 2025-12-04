@@ -326,3 +326,72 @@
     </script>
 </body>
 </html>
+<script>
+// TL Platform 초기화
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('🚀 TL Platform 초기화 시작...');
+    
+    // API 초기화
+    const api = await TLAPI.init();
+    
+    if (api.healthy) {
+        console.log('✅ 시스템 준비 완료');
+        document.body.classList.add('system-ready');
+        
+        // 사용자 인증 상태 확인
+        const token = localStorage.getItem('tl_token');
+        if (token) {
+            try {
+                const userData = await TLAPI.request('/api/auth/verify', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (userData && userData.success) {
+                    console.log('👤 자동 로그인:', userData.user.name);
+                    window.currentUser = userData.user;
+                    updateAuthUI(true);
+                }
+            } catch (error) {
+                console.warn('자동 로그인 실패:', error);
+                localStorage.removeItem('tl_token');
+            }
+        }
+    } else {
+        console.warn('⚠️ 오프라인 모드로 전환');
+        document.body.classList.add('offline-mode');
+        
+        // 오프라인 알림
+        showNotification('백엔드에 연결할 수 없습니다. 오프라인 모드로 전환됩니다.', 'warning');
+    }
+    
+    // 언어 설정 적용
+    const savedLang = localStorage.getItem('tl_language') || 'ko';
+    applyLanguage(savedLang);
+});
+
+function updateAuthUI(isLoggedIn) {
+    const authButtons = document.querySelector('.auth-buttons');
+    if (!authButtons) return;
+    
+    if (isLoggedIn && window.currentUser) {
+        authButtons.innerHTML = `
+            <button class="btn btn-primary" onclick="window.location.href='auth.html'">
+                <i class="fas fa-user-circle"></i> ${window.currentUser.name}
+            </button>
+            <button class="btn btn-secondary" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i> 로그아웃
+            </button>
+        `;
+    }
+}
+
+function logout() {
+    localStorage.removeItem('tl_token');
+    window.currentUser = null;
+    location.reload();
+}
+
+function showNotification(message, type = 'info') {
+    // 알림 표시 로직
+    console.log(`[${type}] ${message}`);
+}
+</script>
