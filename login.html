@@ -84,26 +84,6 @@
             border-color: #667eea;
         }
         
-        .error-message {
-            background: #ff4757;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            text-align: center;
-            margin-bottom: 15px;
-            display: none;
-        }
-        
-        .success-message {
-            background: #4cd964;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            text-align: center;
-            margin-bottom: 15px;
-            display: none;
-        }
-        
         .btn-primary {
             width: 100%;
             padding: 14px;
@@ -162,9 +142,75 @@
         .register-link a:hover {
             text-decoration: underline;
         }
+        
+        .status-message {
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 15px;
+            display: none;
+            font-weight: 500;
+        }
+        
+        .status-success {
+            background: #4cd964;
+            color: white;
+        }
+        
+        .status-error {
+            background: #ff4757;
+            color: white;
+        }
+        
+        .status-info {
+            background: #3498db;
+            color: white;
+        }
+        
+        .debug-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.9);
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-width: 400px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 9999;
+            border: 1px solid #00ff00;
+        }
+        
+        .debug-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .debug-toggle {
+            background: #00ff00;
+            color: black;
+            border: none;
+            padding: 2px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+        }
     </style>
 </head>
 <body>
+    <!-- 디버그 패널 -->
+    <div class="debug-panel" id="debugPanel">
+        <div class="debug-header">
+            <strong>TimeLink 디버그</strong>
+            <button class="debug-toggle" onclick="toggleDebug()">숨기기</button>
+        </div>
+        <div id="debugLog"></div>
+    </div>
+    
     <div class="container">
         <div class="logo">
             <h1>TimeLink</h1>
@@ -174,12 +220,8 @@
         <div class="login-card">
             <h2>로그인</h2>
             
-            <div id="success-message" class="success-message">
-                ✓ 로그인 성공! 대시보드로 이동합니다...
-            </div>
-            
-            <div id="error-message" class="error-message">
-                ✗ 에러 메시지
+            <div id="status-message" class="status-message">
+                메시지
             </div>
             
             <form id="loginForm">
@@ -199,7 +241,7 @@
             </form>
             
             <button type="button" class="btn-secondary" id="test-login-btn">
-                🔥 테스트 계정으로 로그인
+                🔥 테스트 계정으로 로그인 (오프라인 모드)
             </button>
             
             <div class="register-link">
@@ -209,193 +251,277 @@
     </div>
 
     <script>
-        // 백엔드 서버 URL - 로컬 개발 서버 사용
+        // 디버그 기능
+        function logDebug(message, type = 'info') {
+            const now = new Date();
+            const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            const logEntry = `<div style="color: ${type === 'error' ? '#ff4757' : type === 'success' ? '#4cd964' : '#3498db'}; margin-bottom: 3px;">[${timestamp}] ${message}</div>`;
+            
+            const debugLog = document.getElementById('debugLog');
+            if (debugLog) {
+                debugLog.innerHTML += logEntry;
+                debugLog.scrollTop = debugLog.scrollHeight;
+            }
+            
+            console.log(`[${timestamp}] ${message}`);
+        }
+        
+        function toggleDebug() {
+            const panel = document.getElementById('debugPanel');
+            const button = panel.querySelector('.debug-toggle');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                button.textContent = '숨기기';
+            } else {
+                panel.style.display = 'none';
+                button.textContent = '보이기';
+            }
+        }
+        
+        // 백엔드 서버 URL
         const API_BASE = 'http://localhost:8787';
         
-        console.log('TimeLink 로그인 페이지 시작');
-        console.log('백엔드 서버:', API_BASE);
+        // 상태 표시 함수
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status-message');
+            statusEl.textContent = message;
+            statusEl.className = `status-message status-${type}`;
+            statusEl.style.display = 'block';
+        }
         
-        // 간단한 API 함수들
-        async function login(email, password) {
-            console.log('로그인 시도:', email);
+        function hideStatus() {
+            document.getElementById('status-message').style.display = 'none';
+        }
+        
+        // 타임아웃이 있는 fetch 함수
+        async function fetchWithTimeout(url, options = {}, timeout = 5000) {
+            logDebug(`API 요청: ${url}`);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                controller.abort();
+                logDebug(`요청 타임아웃: ${timeout}ms`, 'error');
+            }, timeout);
             
             try {
-                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                const response = await fetch(url, {
+                    ...options,
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                logDebug(`응답 상태: ${response.status}`);
+                
+                return response;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                throw error;
+            }
+        }
+        
+        // 로그인 함수
+        async function loginUser(email, password) {
+            logDebug(`로그인 시도: ${email}`);
+            
+            try {
+                // 백엔드 서버 상태 먼저 확인
+                logDebug('백엔드 서버 상태 확인 중...');
+                const healthResponse = await fetchWithTimeout(`${API_BASE}/api/health`, {}, 3000);
+                
+                if (!healthResponse.ok) {
+                    throw new Error(`백엔드 서버 상태 이상: ${healthResponse.status}`);
+                }
+                
+                const healthData = await healthResponse.json();
+                logDebug(`백엔드 상태: ${healthData.status}`);
+                
+                // 로그인 요청
+                const response = await fetchWithTimeout(`${API_BASE}/api/auth/login`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ email, password })
-                });
-                
-                console.log('응답 상태:', response.status);
+                }, 5000);
                 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`서버 오류: ${response.status} - ${errorText}`);
+                    throw new Error(`로그인 실패: ${response.status} - ${errorText}`);
                 }
                 
                 const data = await response.json();
-                console.log('응답 데이터:', data);
-                
-                // 토큰 저장
-                if (data.success && data.token) {
-                    localStorage.setItem('timelink_token', data.token);
-                    localStorage.setItem('timelink_user', JSON.stringify(data.user));
-                    console.log('로그인 성공, 토큰 저장됨');
-                }
+                logDebug(`로그인 응답: ${JSON.stringify(data)}`, 'success');
                 
                 return data;
                 
             } catch (error) {
-                console.error('로그인 오류:', error);
-                
-                // 백엔드가 응답하지 않으면 더미 데이터 반환 (개발용)
-                console.log('백엔드 응답 없음, 더미 데이터 사용');
-                return {
-                    success: true,
-                    token: 'dev-token-' + Date.now(),
-                    user: {
-                        id: 1,
-                        email: email,
-                        name: email.split('@')[0],
-                        balance: 50000
-                    }
-                };
+                if (error.name === 'AbortError') {
+                    logDebug('백엔드 서버 응답 시간 초과', 'error');
+                    throw new Error('서버 응답 시간이 초과되었습니다. 인터넷 연결을 확인해주세요.');
+                } else {
+                    logDebug(`로그인 오류: ${error.message}`, 'error');
+                    throw error;
+                }
             }
         }
         
-        function isLoggedIn() {
-            return !!localStorage.getItem('timelink_token');
+        // 오프라인 모드 로그인 (백엔드 없이)
+        function offlineLogin(email, password) {
+            logDebug('오프라인 모드 로그인', 'info');
+            
+            // 더미 데이터 생성
+            const dummyData = {
+                success: true,
+                token: 'offline-token-' + Date.now(),
+                user: {
+                    id: Math.floor(Math.random() * 1000),
+                    email: email,
+                    name: email.split('@')[0] || '사용자',
+                    balance: 10000 + Math.floor(Math.random() * 90000)
+                }
+            };
+            
+            logDebug(`오프라인 로그인 성공: ${dummyData.user.name}`, 'success');
+            
+            // 로컬 스토리지에 저장
+            localStorage.setItem('timelink_token', dummyData.token);
+            localStorage.setItem('timelink_user', JSON.stringify(dummyData.user));
+            
+            return dummyData;
         }
         
         // 메인 실행
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM 로드 완료');
+            logDebug('=== TimeLink 로그인 페이지 시작 ===');
+            logDebug(`백엔드 서버: ${API_BASE}`);
             
             // 이미 로그인된 상태면 대시보드로 이동
-            if (isLoggedIn()) {
-                console.log('이미 로그인됨, 대시보드로 이동');
-                window.location.href = 'index.html';
+            if (localStorage.getItem('timelink_token')) {
+                logDebug('이미 로그인된 상태, 대시보드로 이동', 'info');
+                showStatus('이미 로그인되었습니다. 대시보드로 이동합니다...', 'info');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1000);
                 return;
             }
             
-            // 백엔드 서버 상태 확인
-            checkBackendStatus();
-            
-            // 폼 요소 가져오기
+            // 폼 요소
             const loginForm = document.getElementById('loginForm');
             const emailInput = document.getElementById('email');
             const passwordInput = document.getElementById('password');
             const loginBtn = document.getElementById('login-btn');
             const testLoginBtn = document.getElementById('test-login-btn');
-            const successMessage = document.getElementById('success-message');
-            const errorMessage = document.getElementById('error-message');
             
-            // 테스트 계정 정보 자동 입력
+            // 테스트 데이터 자동 입력
             emailInput.value = 'test@timelink.com';
             passwordInput.value = 'test1234';
             
             // 로그인 폼 제출 처리
             loginForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                console.log('폼 제출됨');
                 
                 const email = emailInput.value.trim();
                 const password = passwordInput.value;
                 
                 if (!email || !password) {
-                    showError('이메일과 비밀번호를 입력해주세요.');
+                    showStatus('이메일과 비밀번호를 입력해주세요.', 'error');
                     return;
                 }
                 
                 // 버튼 상태 변경
+                const originalText = loginBtn.textContent;
                 loginBtn.disabled = true;
                 loginBtn.textContent = '로그인 중...';
-                hideMessages();
+                hideStatus();
                 
                 try {
-                    const result = await login(email, password);
+                    // 온라인 로그인 시도
+                    const result = await loginUser(email, password);
                     
                     if (result.success) {
-                        showSuccess('로그인 성공! 대시보드로 이동합니다...');
+                        // 토큰 저장
+                        localStorage.setItem('timelink_token', result.token);
+                        localStorage.setItem('timelink_user', JSON.stringify(result.user));
+                        
+                        showStatus('로그인 성공! 대시보드로 이동합니다...', 'success');
                         loginBtn.textContent = '✓ 성공!';
                         loginBtn.style.background = '#4cd964';
                         
-                        // 1초 후 대시보드로 이동
+                        // 1.5초 후 이동
                         setTimeout(() => {
-                            console.log('대시보드로 이동');
                             window.location.href = 'index.html';
-                        }, 1000);
+                        }, 1500);
                         
                     } else {
-                        showError(result.message || '로그인 실패. 이메일이나 비밀번호를 확인해주세요.');
+                        showStatus(result.message || '로그인 실패', 'error');
                         loginBtn.disabled = false;
-                        loginBtn.textContent = '로그인';
+                        loginBtn.textContent = originalText;
                     }
                     
                 } catch (error) {
-                    showError('로그인 중 오류가 발생했습니다. 콘솔을 확인해주세요.');
-                    console.error('로그인 오류 상세:', error);
-                    loginBtn.disabled = false;
-                    loginBtn.textContent = '로그인';
+                    logDebug(`로그인 실패: ${error.message}`, 'error');
+                    
+                    // 온라인 로그인 실패 시 오프라인 모드 사용자에게 안내
+                    showStatus('서버 연결 실패. 오프라인 모드로 로그인합니다...', 'info');
+                    
+                    // 2초 후 오프라인 로그인
+                    setTimeout(() => {
+                        const offlineResult = offlineLogin(email, password);
+                        
+                        if (offlineResult.success) {
+                            showStatus('오프라인 모드 로그인 성공!', 'success');
+                            loginBtn.textContent = '✓ 오프라인 모드';
+                            loginBtn.style.background = '#ffa502';
+                            
+                            // 2초 후 대시보드로 이동
+                            setTimeout(() => {
+                                window.location.href = 'index.html';
+                            }, 2000);
+                        }
+                    }, 2000);
                 }
             });
             
-            // 테스트 로그인 버튼
+            // 테스트 로그인 버튼 (바로 오프라인 모드)
             testLoginBtn.addEventListener('click', function() {
-                console.log('테스트 계정 로그인 버튼 클릭');
-                emailInput.value = 'test@timelink.com';
-                passwordInput.value = 'test1234';
-                loginForm.dispatchEvent(new Event('submit'));
+                logDebug('테스트 로그인 버튼 클릭', 'info');
+                
+                const email = emailInput.value.trim() || 'test@timelink.com';
+                const password = passwordInput.value || 'test1234';
+                
+                // 버튼 상태 변경
+                loginBtn.disabled = true;
+                loginBtn.textContent = '오프라인 로그인 중...';
+                showStatus('오프라인 모드로 로그인합니다...', 'info');
+                
+                // 즉시 오프라인 로그인
+                setTimeout(() => {
+                    const result = offlineLogin(email, password);
+                    
+                    if (result.success) {
+                        showStatus('오프라인 모드 로그인 성공!', 'success');
+                        loginBtn.textContent = '✓ 오프라인 성공!';
+                        loginBtn.style.background = '#ffa502';
+                        
+                        // 1초 후 이동
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 1000);
+                    }
+                }, 500);
             });
             
-            // 엔터 키 이벤트
+            // 엔터 키 지원
             document.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     loginForm.dispatchEvent(new Event('submit'));
                 }
             });
             
-            // 메시지 표시 함수
-            function showError(message) {
-                errorMessage.textContent = `✗ ${message}`;
-                errorMessage.style.display = 'block';
-                successMessage.style.display = 'none';
-            }
-            
-            function showSuccess(message) {
-                successMessage.textContent = `✓ ${message}`;
-                successMessage.style.display = 'block';
-                errorMessage.style.display = 'none';
-            }
-            
-            function hideMessages() {
-                errorMessage.style.display = 'none';
-                successMessage.style.display = 'none';
-            }
-            
-            console.log('로그인 페이지 준비 완료');
-            console.log('테스트 계정:', emailInput.value, '/', passwordInput.value);
+            logDebug('로그인 페이지 초기화 완료', 'success');
+            logDebug('테스트 계정이 자동으로 입력되었습니다', 'info');
+            logDebug('백엔드 연결 실패 시 "오프라인 모드" 버튼을 사용하세요', 'info');
         });
-        
-        // 백엔드 상태 확인 함수
-        async function checkBackendStatus() {
-            try {
-                console.log('백엔드 서버 상태 확인 중...');
-                const response = await fetch(`${API_BASE}/api/health`);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('백엔드 서버 상태:', data.status, '-', data.timestamp);
-                } else {
-                    console.warn('백엔드 서버 응답 오류:', response.status);
-                }
-            } catch (error) {
-                console.warn('백엔드 서버 연결 실패:', error.message);
-                console.log('백엔드가 실행되지 않았지만 더미 데이터로 테스트 가능합니다.');
-            }
-        }
     </script>
 </body>
 </html>
