@@ -1,11 +1,20 @@
 // TL Platform API 설정
 const BACKEND_URL = 'https://timelink-backend.timelink-api.workers.dev';
 
-// API 요청 함수 (강화된 버전)
+console.log('🔧 BACKEND_URL 설정:', BACKEND_URL);
+
+// API 요청 함수 (개선된 버전)
 async function apiRequest(endpoint, options = {}) {
-    const url = BACKEND_URL + endpoint;
+    // 절대 경로인지 확인
+    let url;
+    if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+        url = endpoint;
+    } else {
+        url = BACKEND_URL + endpoint;
+    }
     
-    console.log(`📡 API 요청: ${endpoint}`, url);
+    console.log(`📡 API 요청: ${endpoint}`);
+    console.log(`🔗 전체 URL: ${url}`);
     
     const defaultHeaders = {
         'Content-Type': 'application/json',
@@ -23,24 +32,40 @@ async function apiRequest(endpoint, options = {}) {
         const response = await fetch(url, config);
         console.log(`📥 응답 상태: ${response.status} ${response.statusText}`);
         
-        // 먼저 텍스트로 읽어서 확인
+        // 응답이 JSON인지 확인
+        const contentType = response.headers.get('content-type');
         const text = await response.text();
-        console.log(`📄 응답 텍스트 (처음 200자):`, text.substring(0, 200));
         
-        // JSON 파싱 시도
-        if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+        if (response.status === 404) {
+            console.warn(`⚠️ 404 오류: ${url}`);
+            return { 
+                error: 'Not Found', 
+                status: 404,
+                url: url 
+            };
+        }
+        
+        if (contentType && contentType.includes('application/json')) {
             try {
-                const json = JSON.parse(text);
-                return json;
+                return JSON.parse(text);
             } catch (e) {
-                console.warn('JSON 파싱 실패:', e.message);
-                return { text, status: response.status, error: 'Invalid JSON' };
+                console.error('❌ JSON 파싱 오류:', e.message);
+                return { 
+                    text: text.substring(0, 200), 
+                    error: 'Invalid JSON',
+                    status: response.status 
+                };
             }
         } else {
-            return { text, status: response.status };
+            console.warn('⚠️ JSON이 아닌 응답:', text.substring(0, 100));
+            return { 
+                text: text.substring(0, 200), 
+                status: response.status,
+                contentType: contentType 
+            };
         }
     } catch (error) {
-        console.error('❌ 네트워크 오류:', error);
+        console.error('❌ 네트워크 오류:', error.message);
         return { 
             error: error.message, 
             status: 0,
@@ -49,10 +74,10 @@ async function apiRequest(endpoint, options = {}) {
     }
 }
 
-// 시스템 건강 상태 확인 (강화된 버전)
+// 시스템 건강 상태 확인 (개선된 버전)
 async function checkSystemHealth() {
     console.log('🩺 시스템 건강 상태 확인 시작...');
-    console.log('백엔드 URL:', BACKEND_URL);
+    console.log('🔗 백엔드 URL:', BACKEND_URL);
     
     // 여러 경로 시도
     const testEndpoints = [
@@ -63,72 +88,100 @@ async function checkSystemHealth() {
     ];
     
     for (const endpoint of testEndpoints) {
-        console.log(`테스트 중: ${endpoint}`);
+        console.log(`🔍 테스트 중: ${endpoint}`);
         const result = await apiRequest(endpoint);
         
-        if (result && !result.error && result.status !== 404) {
-            console.log(`✅ 성공: ${endpoint}`, result);
+        // 성공적인 응답 확인
+        if (result && result.status === 'healthy') {
+            console.log(`✅ ${endpoint} 성공:`, result);
             return {
                 healthy: true,
                 endpoint: endpoint,
                 data: result,
-                backend: BACKEND_URL
+                backend: BACKEND_URL,
+                timestamp: new Date().toISOString()
             };
         }
         
-        if (result.status === 404) {
-            console.log(`⚠️ 404: ${endpoint}`);
-            continue;
+        // 일반적인 성공 응답
+        if (result && !result.error && result.status !== 404) {
+            console.log(`✅ ${endpoint} 연결 성공:`, result);
+            return {
+                healthy: true,
+                endpoint: endpoint,
+                data: result,
+                backend: BACKEND_URL,
+                timestamp: new Date().toISOString()
+            };
         }
+        
+        console.log(`⚠️ ${endpoint} 실패:`, result?.error || result?.status);
     }
     
-    console.error('❌ 모든 경로 테스트 실패');
+    // 모든 경로 실패
+    console.error('❌ 모든 API 경로 테스트 실패');
     return {
         healthy: false,
         backend: BACKEND_URL,
-        error: '모든 API 경로 실패',
-        lastTested: testEndpoints
+        error: '모든 API 경로 연결 실패',
+        lastTested: testEndpoints,
+        timestamp: new Date().toISOString()
     };
 }
 
-// 인증 API (간단한 버전)
+// 인증 API
 const authAPI = {
     login: async (email, password) => {
-        console.log('로그인 시도:', email);
+        console.log('🔐 로그인 시도:', email);
         const result = await apiRequest('/api/auth/login', {
             method: 'POST',
             body: JSON.stringify({ email, password })
         });
-        console.log('로그인 결과:', result);
+        console.log('📝 로그인 결과:', result);
         return result;
     },
     
-    register: (userData) => 
-        apiRequest('/api/auth/register', {
+    register: async (userData) => {
+        console.log('📝 회원가입 시도:', userData.email);
+        const result = await apiRequest('/api/auth/register', {
             method: 'POST',
             body: JSON.stringify(userData)
-        })
+        });
+        console.log('📝 회원가입 결과:', result);
+        return result;
+    }
 };
 
 // 초기화 함수
 async function initAPI() {
     console.log('🚀 TLAPI 초기화 시작');
+    console.log('🌐 프론트엔드 URL:', window.location.origin);
+    console.log('🔗 백엔드 URL:', BACKEND_URL);
     
     const health = await checkSystemHealth();
     
     if (health.healthy) {
         console.log('✅ 백엔드 연결 성공');
-        showStatus('success', '시스템 정상');
+        console.log('📊 건강 상태:', health);
+        
+        if (typeof showNotification === 'function') {
+            showNotification('시스템 정상 작동 중', 'success');
+        }
         
         return {
             healthy: true,
             url: BACKEND_URL,
             health: health,
-            auth: authAPI
+            auth: authAPI,
+            timestamp: new Date().toISOString()
         };
     } else {
         console.error('❌ 백엔드 연결 실패');
-        showStatus('error', '백엔드 연결 실패');
+        console.error('📊 실패 정보:', health);
+        
+        if (typeof showNotification === 'function') {
+            showNotification('백엔드 서버에 연결할 수 없습니다. 오프라인 모드로 전환됩니다.', 'warning');
+        }
         
         // 모의 API 반환
         return {
@@ -136,45 +189,33 @@ async function initAPI() {
             url: BACKEND_URL,
             error: health.error,
             mockMode: true,
+            timestamp: new Date().toISOString(),
             auth: {
-                login: () => Promise.resolve({
+                login: (email, password) => Promise.resolve({
                     success: true,
-                    token: 'mock_token',
-                    user: { name: '테스트 사용자' }
+                    message: '오프라인 모드 로그인',
+                    token: 'mock_token_' + Date.now(),
+                    user: {
+                        id: 'mock_user',
+                        name: email.split('@')[0] || '사용자',
+                        email: email,
+                        language: 'ko'
+                    }
+                }),
+                register: (userData) => Promise.resolve({
+                    success: true,
+                    message: '오프라인 모드 회원가입',
+                    token: 'mock_token_' + Date.now(),
+                    user: {
+                        id: 'mock_user_' + Date.now(),
+                        name: userData.name,
+                        email: userData.email,
+                        language: userData.language || 'ko'
+                    }
                 })
             }
         };
     }
-}
-
-// 상태 표시 함수
-function showStatus(type, message) {
-    const statusEl = document.getElementById('system-status') || createStatusElement();
-    statusEl.className = `system-status system-status-${type}`;
-    statusEl.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i> ${message}`;
-    document.body.appendChild(statusEl);
-    
-    setTimeout(() => {
-        statusEl.style.opacity = '0';
-        setTimeout(() => statusEl.remove(), 1000);
-    }, 3000);
-}
-
-function createStatusElement() {
-    const el = document.createElement('div');
-    el.id = 'system-status';
-    el.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 10px 20px;
-        border-radius: 8px;
-        color: white;
-        z-index: 10000;
-        font-weight: bold;
-        transition: opacity 0.5s;
-    `;
-    return el;
 }
 
 // 글로벌 노출
@@ -186,13 +227,4 @@ window.TLAPI = {
     auth: authAPI
 };
 
-console.log('📱 TL Platform API 설정 로드됨');
-
-// 스타일 추가
-const style = document.createElement('style');
-style.textContent = `
-.system-status-success { background: #10b981; }
-.system-status-error { background: #ef4444; }
-.system-status-warning { background: #f59e0b; }
-`;
-document.head.appendChild(style);
+console.log('📱 TL Platform API 설정 완료');
