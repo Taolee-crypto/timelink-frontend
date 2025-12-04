@@ -1,30 +1,16 @@
 timelink/ (프론트엔드)
-├── index.html                      # 메인 앱 (기존 파일)
-├── assets/
-│   ├── css/                       # 스타일 분리
-│   │   ├── main.css
-│   │   ├── components.css
-│   │   ├── auth.css
-│   │   └── responsive.css
-│   └── js/                        # JS 모듈화
-│       ├── modules/               # 기능별 모듈
-│       │   ├── api.js            # API 통신 (fetch)
-│       │   ├── auth.js           # 인증 관리
-│       │   ├── wallet.js         # 지갑 기능
-│       │   ├── converter.js      # 파일 변환 UI
-│       │   ├── market.js         # 마켓플레이스 UI
-│       │   ├── studio.js         # 스튜디오 UI
-│       │   ├── copyright.js      # 저작권 관리 UI
-│       │   ├── player.js         # 미디어 플레이어
-│       │   └── utils.js          # 유틸리티
-│       ├── app/                  # 앱 코어
-│       │   ├── main.js           # 앱 초기화
-│       │   ├── router.js         # 탭 라우팅
-│       │   └── state.js          # 상태 관리
-│       └── config.js             # 환경 설정
-├── login.html                    # (필요시) 로그인 페이지
-└── register.html                 # (필요시) 회원가입 페이지
-
+├── src/                        # 소스 코드
+│   ├── index.html             # 템플릿
+│   ├── css/
+│   │   └── styles.css        # SCSS/Sass 가능
+│   └── js/
+│       └── modules/          # ES6 모듈
+├── public/                    # 빌드 결과물 (Cloudflare Pages에 배포)
+│   ├── index.html
+│   └── assets/
+├── package.json              # 프론트엔드 빌드 도구
+├── vite.config.js           # Vite 빌드 설정
+└── README.md
 # TL Platform - Complete Economic System
 
 TL Platform은 음원 및 영상 콘텐츠의 저작권 보호와 공정한 수익 분배를 위한 통합 경제 시스템 플랫폼입니다.
