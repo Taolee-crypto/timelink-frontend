@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TL Platform 디버그</title>
+    <script>
+    async function runTests() {
+        const results = document.getElementById('results');
+        results.innerHTML = '<h3>테스트 시작...</h3>';
+        
+        // 테스트 1: config.js 로드 확인
+        const configUrl = 'js/config.js?v=' + Date.now();
+        try {
+            const configResp = await fetch(configUrl);
+            const configText = await configResp.text();
+            const backendUrlMatch = configText.match(/BACKEND_URL\s*=\s*['"]([^'"]+)['"]/);
+            
+            if (backendUrlMatch) {
+                results.innerHTML += `<p>✅ config.js BACKEND_URL: ${backendUrlMatch[1]}</p>`;
+                window.BACKEND_URL = backendUrlMatch[1];
+            } else {
+                results.innerHTML += `<p>❌ config.js에서 BACKEND_URL을 찾을 수 없음</p>`;
+                window.BACKEND_URL = 'https://timelink-backend.timelink-api.workers.dev';
+            }
+        } catch (e) {
+            results.innerHTML += `<p>❌ config.js 로드 실패: ${e.message}</p>`;
+        }
+        
+        // 테스트 2: 백엔드 연결 테스트
+        if (window.BACKEND_URL) {
+            results.innerHTML += `<p>🔗 백엔드 테스트: ${window.BACKEND_URL}</p>`;
+            
+            const endpoints = ['/', '/health', '/api'];
+            for (const endpoint of endpoints) {
+                const url = window.BACKEND_URL + endpoint;
+                try {
+                    const resp = await fetch(url);
+                    const text = await resp.text();
+                    results.innerHTML += `<p>${endpoint}: ${resp.status} - ${text.substring(0, 100)}</p>`;
+                } catch (e) {
+                    results.innerHTML += `<p>${endpoint}: ❌ ${e.message}</p>`;
+                }
+            }
+        }
+        
+        results.innerHTML += '<h3>테스트 완료</h3>';
+    }
+    
+    window.onload = runTests;
+    </script>
+</head>
+<body>
+    <h1>TL Platform 디버그 페이지</h1>
+    <div id="results"></div>
+    <button onclick="runTests()">다시 테스트</button>
+</body>
+</html>

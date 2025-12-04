@@ -1,11 +1,15 @@
-// TL Platform API 설정
+// TL Platform API 설정 - 버전: 20251204.1
 const BACKEND_URL = 'https://timelink-backend.timelink-api.workers.dev';
+const CONFIG_VERSION = '20251204.1';
 
-console.log('🔧 BACKEND_URL 설정:', BACKEND_URL);
+console.log('🚀 TL Platform API 설정 로드됨');
+console.log('🔧 버전:', CONFIG_VERSION);
+console.log('🔗 백엔드 URL:', BACKEND_URL);
+console.log('🌐 현재 URL:', window.location.href);
 
-// API 요청 함수 (개선된 버전)
+// API 요청 함수
 async function apiRequest(endpoint, options = {}) {
-    // 절대 경로인지 확인
+    // 절대 경로가 아니면 백엔드 URL 추가
     let url;
     if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
         url = endpoint;
@@ -13,8 +17,7 @@ async function apiRequest(endpoint, options = {}) {
         url = BACKEND_URL + endpoint;
     }
     
-    console.log(`📡 API 요청: ${endpoint}`);
-    console.log(`🔗 전체 URL: ${url}`);
+    console.log(`📡 API 요청: ${endpoint} → ${url}`);
     
     const defaultHeaders = {
         'Content-Type': 'application/json',
@@ -30,26 +33,16 @@ async function apiRequest(endpoint, options = {}) {
     
     try {
         const response = await fetch(url, config);
-        console.log(`📥 응답 상태: ${response.status} ${response.statusText}`);
+        console.log(`📥 응답: ${response.status} ${response.statusText}`);
         
-        // 응답이 JSON인지 확인
-        const contentType = response.headers.get('content-type');
         const text = await response.text();
         
-        if (response.status === 404) {
-            console.warn(`⚠️ 404 오류: ${url}`);
-            return { 
-                error: 'Not Found', 
-                status: 404,
-                url: url 
-            };
-        }
-        
-        if (contentType && contentType.includes('application/json')) {
+        // JSON 파싱 시도
+        if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
             try {
                 return JSON.parse(text);
             } catch (e) {
-                console.error('❌ JSON 파싱 오류:', e.message);
+                console.warn('JSON 파싱 실패:', e.message);
                 return { 
                     text: text.substring(0, 200), 
                     error: 'Invalid JSON',
@@ -57,163 +50,82 @@ async function apiRequest(endpoint, options = {}) {
                 };
             }
         } else {
-            console.warn('⚠️ JSON이 아닌 응답:', text.substring(0, 100));
-            return { 
-                text: text.substring(0, 200), 
-                status: response.status,
-                contentType: contentType 
-            };
+            // HTML 응답 (404 페이지 등)
+            if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+                console.warn('HTML 응답 받음 - 잘못된 URL일 수 있음');
+                return {
+                    error: 'HTML response received',
+                    status: response.status,
+                    isHtml: true,
+                    url: url
+                };
+            }
+            return { text: text, status: response.status };
         }
     } catch (error) {
         console.error('❌ 네트워크 오류:', error.message);
         return { 
             error: error.message, 
             status: 0,
-            offline: true 
+            url: url
         };
     }
 }
 
-// 시스템 건강 상태 확인 (개선된 버전)
+// 건강 상태 확인 (단순화된 버전)
 async function checkSystemHealth() {
-    console.log('🩺 시스템 건강 상태 확인 시작...');
-    console.log('🔗 백엔드 URL:', BACKEND_URL);
+    console.log('🩺 건강 상태 확인 시작');
     
     // 여러 경로 시도
-    const testEndpoints = [
-        '/health',
-        '/',
-        '/api',
-        '/api/health'
-    ];
+    const endpoints = ['/', '/health', '/api/health', '/api'];
     
-    for (const endpoint of testEndpoints) {
-        console.log(`🔍 테스트 중: ${endpoint}`);
+    for (const endpoint of endpoints) {
+        console.log(`테스트: ${endpoint}`);
         const result = await apiRequest(endpoint);
         
-        // 성공적인 응답 확인
-        if (result && result.status === 'healthy') {
-            console.log(`✅ ${endpoint} 성공:`, result);
+        if (result && !result.isHtml && !result.error) {
+            console.log(`✅ 성공: ${endpoint}`);
             return {
                 healthy: true,
                 endpoint: endpoint,
                 data: result,
-                backend: BACKEND_URL,
-                timestamp: new Date().toISOString()
+                backend: BACKEND_URL
             };
         }
         
-        // 일반적인 성공 응답
-        if (result && !result.error && result.status !== 404) {
-            console.log(`✅ ${endpoint} 연결 성공:`, result);
-            return {
-                healthy: true,
-                endpoint: endpoint,
-                data: result,
-                backend: BACKEND_URL,
-                timestamp: new Date().toISOString()
-            };
+        if (result && result.status === 404) {
+            console.log(`⚠️ 404: ${endpoint}`);
+            continue;
         }
-        
-        console.log(`⚠️ ${endpoint} 실패:`, result?.error || result?.status);
     }
     
-    // 모든 경로 실패
-    console.error('❌ 모든 API 경로 테스트 실패');
+    console.error('❌ 모든 경로 실패');
     return {
         healthy: false,
         backend: BACKEND_URL,
-        error: '모든 API 경로 연결 실패',
-        lastTested: testEndpoints,
-        timestamp: new Date().toISOString()
+        error: 'Connection failed'
     };
 }
 
-// 인증 API
-const authAPI = {
-    login: async (email, password) => {
-        console.log('🔐 로그인 시도:', email);
-        const result = await apiRequest('/api/auth/login', {
-            method: 'POST',
-            body: JSON.stringify({ email, password })
-        });
-        console.log('📝 로그인 결과:', result);
-        return result;
-    },
-    
-    register: async (userData) => {
-        console.log('📝 회원가입 시도:', userData.email);
-        const result = await apiRequest('/api/auth/register', {
-            method: 'POST',
-            body: JSON.stringify(userData)
-        });
-        console.log('📝 회원가입 결과:', result);
-        return result;
-    }
-};
-
-// 초기화 함수
+// API 초기화
 async function initAPI() {
-    console.log('🚀 TLAPI 초기화 시작');
-    console.log('🌐 프론트엔드 URL:', window.location.origin);
-    console.log('🔗 백엔드 URL:', BACKEND_URL);
+    console.log('🚀 API 초기화 시작');
     
     const health = await checkSystemHealth();
     
     if (health.healthy) {
         console.log('✅ 백엔드 연결 성공');
-        console.log('📊 건강 상태:', health);
-        
-        if (typeof showNotification === 'function') {
-            showNotification('시스템 정상 작동 중', 'success');
-        }
-        
         return {
             healthy: true,
             url: BACKEND_URL,
-            health: health,
-            auth: authAPI,
-            timestamp: new Date().toISOString()
+            health: health
         };
     } else {
         console.error('❌ 백엔드 연결 실패');
-        console.error('📊 실패 정보:', health);
-        
-        if (typeof showNotification === 'function') {
-            showNotification('백엔드 서버에 연결할 수 없습니다. 오프라인 모드로 전환됩니다.', 'warning');
-        }
-        
-        // 모의 API 반환
         return {
             healthy: false,
             url: BACKEND_URL,
-            error: health.error,
-            mockMode: true,
-            timestamp: new Date().toISOString(),
-            auth: {
-                login: (email, password) => Promise.resolve({
-                    success: true,
-                    message: '오프라인 모드 로그인',
-                    token: 'mock_token_' + Date.now(),
-                    user: {
-                        id: 'mock_user',
-                        name: email.split('@')[0] || '사용자',
-                        email: email,
-                        language: 'ko'
-                    }
-                }),
-                register: (userData) => Promise.resolve({
-                    success: true,
-                    message: '오프라인 모드 회원가입',
-                    token: 'mock_token_' + Date.now(),
-                    user: {
-                        id: 'mock_user_' + Date.now(),
-                        name: userData.name,
-                        email: userData.email,
-                        language: userData.language || 'ko'
-                    }
-                })
-            }
+            error: health.error
         };
     }
 }
@@ -224,7 +136,7 @@ window.TLAPI = {
     request: apiRequest,
     checkHealth: checkSystemHealth,
     url: BACKEND_URL,
-    auth: authAPI
+    version: CONFIG_VERSION
 };
 
-console.log('📱 TL Platform API 설정 완료');
+console.log('📱 TL Platform API 설정 완료 - 캐시 방지 버전');
