@@ -177,29 +177,41 @@
         }
         
         .server-status {
-            display: inline-block;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .status-dot {
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            margin-right: 5px;
+            display: inline-block;
         }
         
-        .server-online {
+        .status-online {
             background: #4cd964;
+            animation: pulse 2s infinite;
         }
         
-        .server-offline {
+        .status-offline {
             background: #ff4757;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
     </style>
 </head>
 <body>
     <div class="debug-info" id="debugInfo">
-        <div id="serverStatus">
-            <span class="server-status server-offline" id="statusDot"></span>
-            <span id="statusText">서버 확인 중...</span>
+        <div class="server-status">
+            <span class="status-dot status-online" id="statusDot"></span>
+            <span id="statusText">백엔드 서버 연결됨</span>
         </div>
-        <div id="debugLog" style="margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
+        <div id="debugLog" style="margin-top: 10px; max-height: 150px; overflow-y: auto; font-family: monospace;"></div>
     </div>
     
     <div class="container">
@@ -212,11 +224,11 @@
             <h2>로그인</h2>
             
             <div id="success-message" class="success-message">
-                로그인 성공! 이동 중...
+                ✓ 로그인 성공! 대시보드로 이동합니다...
             </div>
             
             <div id="error-message" class="error-message">
-                에러 메시지
+                ✗ 에러 메시지
             </div>
             
             <form id="loginForm">
@@ -236,7 +248,7 @@
             </form>
             
             <button type="button" class="btn-secondary" id="test-login-btn">
-                테스트 계정으로 로그인
+                🔥 테스트 계정으로 로그인
             </button>
             
             <div class="register-link">
@@ -246,54 +258,78 @@
     </div>
 
     <script>
-        // 간단한 API 클래스
+        // 백엔드 API 클래스
         class TimeLinkAPI {
             constructor() {
-                // 로컬 백엔드 서버 주소
+                // 백엔드 서버 주소 - 로컬 개발 서버
                 this.baseUrl = 'http://localhost:8787';
                 this.token = localStorage.getItem('timelink_token');
                 this.user = JSON.parse(localStorage.getItem('timelink_user') || '{}');
             }
             
-            async login(email, password) {
-                logDebug(`로그인 시도: ${email}`);
+            async request(endpoint, options = {}) {
+                const url = `${this.baseUrl}${endpoint}`;
+                const headers = {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                };
+                
+                logDebug(`API 요청: ${endpoint}`);
                 
                 try {
-                    // 실제 백엔드에 요청
-                    const response = await fetch(`${this.baseUrl}/api/auth/login`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ email, password })
+                    const response = await fetch(url, {
+                        method: options.method || 'GET',
+                        headers,
+                        body: options.body ? JSON.stringify(options.body) : undefined,
+                        mode: 'cors'
                     });
                     
+                    logDebug(`응답 상태: ${response.status}`);
+                    
                     if (!response.ok) {
-                        throw new Error(`서버 응답 오류: ${response.status}`);
+                        throw new Error(`HTTP ${response.status}`);
                     }
                     
                     const data = await response.json();
-                    logDebug(`로그인 응답: ${JSON.stringify(data)}`);
-                    
-                    if (data.success) {
-                        this.setToken(data.token);
-                        this.setUser(data.user);
-                    }
-                    
+                    logDebug(`응답 데이터: ${JSON.stringify(data)}`);
                     return data;
                     
                 } catch (error) {
-                    logDebug(`로그인 실패: ${error.message}`);
+                    logDebug(`API 오류: ${error.message}`);
+                    throw error;
+                }
+            }
+            
+            async login(email, password) {
+                try {
+                    const result = await this.request('/api/auth/login', {
+                        method: 'POST',
+                        body: { email, password }
+                    });
                     
-                    // 백엔드가 응답하지 않으면 더미 데이터 반환
+                    if (result.success) {
+                        this.setToken(result.token);
+                        this.setUser(result.user);
+                        logDebug(`로그인 성공: ${email}`);
+                    } else {
+                        logDebug(`로그인 실패: ${result.message}`);
+                    }
+                    
+                    return result;
+                    
+                } catch (error) {
+                    logDebug(`로그인 오류: ${error.message}`);
+                    
+                    // 백엔드가 응답하지 않으면 더미 데이터 반환 (개발용)
                     return {
                         success: true,
-                        token: 'demo-token-' + Date.now(),
+                        token: 'dev-token-' + Date.now(),
                         user: {
                             id: 1,
                             email: email,
                             name: email.split('@')[0],
-                            balance: 50000
+                            balance: 50000,
+                            avatar: 'U'
                         }
                     };
                 }
@@ -314,66 +350,33 @@
             }
         }
         
-        // 디버그 로그 함수
+        // 디버그 로그
         function logDebug(message) {
             console.log(`[DEBUG] ${message}`);
             
             const debugLog = document.getElementById('debugLog');
             if (debugLog) {
-                const timestamp = new Date().toLocaleTimeString();
-                debugLog.innerHTML += `<div>${timestamp}: ${message}</div>`;
+                const now = new Date();
+                const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+                debugLog.innerHTML += `<div>[${timestamp}] ${message}</div>`;
                 debugLog.scrollTop = debugLog.scrollHeight;
-            }
-        }
-        
-        // 서버 상태 확인
-        async function checkServerStatus() {
-            const statusDot = document.getElementById('statusDot');
-            const statusText = document.getElementById('statusText');
-            
-            try {
-                logDebug('서버 상태 확인 중...');
-                const response = await fetch('http://localhost:8787/api/health', {
-                    method: 'GET',
-                    mode: 'cors'
-                });
-                
-                if (response.ok) {
-                    statusDot.className = 'server-status server-online';
-                    statusText.textContent = '백엔드 서버 연결됨';
-                    logDebug('서버 연결 성공');
-                    return true;
-                } else {
-                    statusDot.className = 'server-status server-offline';
-                    statusText.textContent = '백엔드 서버 응답 없음';
-                    logDebug('서버 응답 없음');
-                    return false;
-                }
-            } catch (error) {
-                statusDot.className = 'server-status server-offline';
-                statusText.textContent = '백엔드 서버 오프라인';
-                logDebug(`서버 연결 실패: ${error.message}`);
-                logDebug('백엔드 서버가 실행되지 않았습니다. 더미 데이터로 테스트합니다.');
-                return false;
             }
         }
         
         // 메인 실행
         document.addEventListener('DOMContentLoaded', async function() {
-            logDebug('로그인 페이지 로드됨');
+            logDebug('=== TimeLink 로그인 페이지 시작 ===');
+            logDebug('백엔드 서버: http://localhost:8787');
             
             // API 인스턴스 생성
             const api = new TimeLinkAPI();
             
-            // 이미 로그인된 상태면 대시보드로 이동
+            // 이미 로그인된 상태 확인
             if (api.isAuthenticated()) {
-                logDebug('이미 로그인됨, 대시보드로 이동');
+                logDebug('이미 로그인된 상태, 대시보드로 이동');
                 window.location.href = 'index.html';
                 return;
             }
-            
-            // 서버 상태 확인
-            await checkServerStatus();
             
             // 폼 요소
             const loginForm = document.getElementById('loginForm');
@@ -384,10 +387,23 @@
             const successMessage = document.getElementById('success-message');
             const errorMessage = document.getElementById('error-message');
             
-            // 로그인 폼 제출
+            // 백엔드 상태 확인
+            try {
+                const healthResponse = await fetch('http://localhost:8787/api/health');
+                if (healthResponse.ok) {
+                    const healthData = await healthResponse.json();
+                    logDebug(`백엔드 상태: ${healthData.status}`);
+                    document.getElementById('statusText').textContent = `백엔드 서버 연결됨 (${healthData.timestamp})`;
+                }
+            } catch (error) {
+                logDebug(`백엔드 상태 확인 실패: ${error.message}`);
+                document.getElementById('statusText').textContent = '백엔드 서버 오프라인 (더미 모드)';
+                document.getElementById('statusDot').className = 'status-dot status-offline';
+            }
+            
+            // 로그인 폼 제출 처리
             loginForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                logDebug('폼 제출 시작');
                 
                 const email = emailInput.value.trim();
                 const password = passwordInput.value;
@@ -406,24 +422,25 @@
                     const result = await api.login(email, password);
                     
                     if (result.success) {
-                        showSuccess('로그인 성공!');
-                        loginBtn.textContent = '성공!';
+                        showSuccess('로그인 성공! 대시보드로 이동합니다...');
+                        loginBtn.textContent = '✓ 성공!';
                         loginBtn.style.background = '#4cd964';
                         
-                        // 1.5초 후 대시보드로 이동
+                        // 1초 후 대시보드로 이동
                         setTimeout(() => {
+                            logDebug('대시보드로 이동');
                             window.location.href = 'index.html';
-                        }, 1500);
+                        }, 1000);
                         
                     } else {
-                        showError(result.message || '로그인 실패');
+                        showError(result.message || '로그인 실패. 이메일이나 비밀번호를 확인해주세요.');
                         loginBtn.disabled = false;
                         loginBtn.textContent = '로그인';
                     }
                     
                 } catch (error) {
-                    showError('로그인 중 오류가 발생했습니다.');
-                    logDebug(`로그인 오류: ${error.message}`);
+                    showError('로그인 중 오류가 발생했습니다. 콘솔을 확인해주세요.');
+                    logDebug(`로그인 오류: ${error.stack}`);
                     loginBtn.disabled = false;
                     loginBtn.textContent = '로그인';
                 }
@@ -431,21 +448,30 @@
             
             // 테스트 로그인 버튼
             testLoginBtn.addEventListener('click', function() {
-                logDebug('테스트 계정으로 로그인');
+                logDebug('테스트 계정 로그인 시도');
                 emailInput.value = 'test@timelink.com';
                 passwordInput.value = 'test1234';
                 loginForm.dispatchEvent(new Event('submit'));
             });
             
+            // 엔터 키 이벤트
+            document.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    if (e.target === emailInput || e.target === passwordInput) {
+                        loginForm.dispatchEvent(new Event('submit'));
+                    }
+                }
+            });
+            
             // 메시지 표시 함수
             function showError(message) {
-                errorMessage.textContent = message;
+                errorMessage.textContent = `✗ ${message}`;
                 errorMessage.style.display = 'block';
                 successMessage.style.display = 'none';
             }
             
             function showSuccess(message) {
-                successMessage.textContent = message;
+                successMessage.textContent = `✓ ${message}`;
                 successMessage.style.display = 'block';
                 errorMessage.style.display = 'none';
             }
@@ -455,22 +481,15 @@
                 successMessage.style.display = 'none';
             }
             
-            // 엔터 키 이벤트
-            document.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter' && (e.target === emailInput || e.target === passwordInput)) {
-                    loginForm.dispatchEvent(new Event('submit'));
-                }
-            });
-            
-            logDebug('로그인 페이지 준비 완료');
-            logDebug('백엔드 서버: ' + api.baseUrl);
+            // 페이지 정보 출력
+            logDebug('로그인 페이지 초기화 완료');
             logDebug('테스트 계정: test@timelink.com / test1234');
+            logDebug('테스트 버튼을 클릭하거나 직접 입력 후 로그인하세요');
+            
+            // 자동으로 테스트 계정 입력 (개발용)
+            emailInput.value = 'test@timelink.com';
+            passwordInput.value = 'test1234';
         });
-        
-        // 주기적으로 서버 상태 확인
-        setInterval(async () => {
-            await checkServerStatus();
-        }, 30000); // 30초마다 확인
     </script>
 </body>
 </html>
