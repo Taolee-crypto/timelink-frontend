@@ -1,8 +1,8 @@
 // TL Platform API 설정
-// 배포된 백엔드 URL: https://timelink-api.YOUR_SUBDOMAIN.workers.dev
+// 배포된 백엔드 URL: cd ~/timelink-backend
 
 const API_CONFIG = {
-    BASE_URL: 'https://timelink-api.YOUR_SUBDOMAIN.workers.dev',
+    BASE_URL: 'cd ~/timelink-backend',
     ENDPOINTS: {
         AUTH: {
             LOGIN: '/auth/login',
@@ -133,13 +133,19 @@ class TLAPI {
     // 시스템 상태 확인
     async checkHealth() {
         try {
+            console.log('건강 상태 확인 요청:', this.baseURL);
             const response = await fetch(this.baseURL);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
             return await response.json();
         } catch (error) {
+            console.error('건강 상태 확인 실패:', error);
             return {
                 status: 'error',
                 message: '백엔드 서버에 연결할 수 없습니다',
-                error: error.message
+                error: error.message,
+                url: this.baseURL
             };
         }
     }
@@ -152,20 +158,11 @@ window.TLAPI = api;
 // 초기화 시 백엔드 상태 확인
 window.addEventListener('DOMContentLoaded', async () => {
     console.log('TL Platform 프론트엔드 로드됨');
+    console.log('API Base URL:', api.baseURL);
     
-    // 백엔드 상태 확인
-    const health = await api.checkHealth();
-    console.log('백엔드 상태:', health);
-    
-    // 상태 표시 (선택사항)
-    const statusElement = document.getElementById('backendStatus');
-    if (statusElement) {
-        if (health.status === 'ok') {
-            statusElement.innerHTML = `✅ 백엔드 연결 성공: ${health.message}`;
-            statusElement.style.color = '#4CAF50';
-        } else {
-            statusElement.innerHTML = `❌ 백엔드 연결 실패: ${health.message}`;
-            statusElement.style.color = '#f44336';
-        }
-    }
+    // 페이지에 API URL 표시 (선택사항)
+    const apiUrlElements = document.querySelectorAll('.api-url');
+    apiUrlElements.forEach(el => {
+        el.textContent = api.baseURL;
+    });
 });
