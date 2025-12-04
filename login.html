@@ -162,58 +162,9 @@
         .register-link a:hover {
             text-decoration: underline;
         }
-        
-        .debug-info {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            max-width: 300px;
-            z-index: 9999;
-        }
-        
-        .server-status {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        
-        .status-online {
-            background: #4cd964;
-            animation: pulse 2s infinite;
-        }
-        
-        .status-offline {
-            background: #ff4757;
-        }
-        
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
     </style>
 </head>
 <body>
-    <div class="debug-info" id="debugInfo">
-        <div class="server-status">
-            <span class="status-dot status-online" id="statusDot"></span>
-            <span id="statusText">백엔드 서버 연결됨</span>
-        </div>
-        <div id="debugLog" style="margin-top: 10px; max-height: 150px; overflow-y: auto; font-family: monospace;"></div>
-    </div>
-    
     <div class="container">
         <div class="logo">
             <h1>TimeLink</h1>
@@ -258,127 +209,81 @@
     </div>
 
     <script>
-        // 백엔드 API 클래스
-        class TimeLinkAPI {
-            constructor() {
-                // 백엔드 서버 주소 - 로컬 개발 서버
-                this.baseUrl = 'http://localhost:8787';
-                this.token = localStorage.getItem('timelink_token');
-                this.user = JSON.parse(localStorage.getItem('timelink_user') || '{}');
-            }
+        // 백엔드 서버 URL - 로컬 개발 서버 사용
+        const API_BASE = 'http://localhost:8787';
+        
+        console.log('TimeLink 로그인 페이지 시작');
+        console.log('백엔드 서버:', API_BASE);
+        
+        // 간단한 API 함수들
+        async function login(email, password) {
+            console.log('로그인 시도:', email);
             
-            async request(endpoint, options = {}) {
-                const url = `${this.baseUrl}${endpoint}`;
-                const headers = {
-                    'Content-Type': 'application/json',
-                    ...options.headers
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                console.log('응답 상태:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`서버 오류: ${response.status} - ${errorText}`);
+                }
+                
+                const data = await response.json();
+                console.log('응답 데이터:', data);
+                
+                // 토큰 저장
+                if (data.success && data.token) {
+                    localStorage.setItem('timelink_token', data.token);
+                    localStorage.setItem('timelink_user', JSON.stringify(data.user));
+                    console.log('로그인 성공, 토큰 저장됨');
+                }
+                
+                return data;
+                
+            } catch (error) {
+                console.error('로그인 오류:', error);
+                
+                // 백엔드가 응답하지 않으면 더미 데이터 반환 (개발용)
+                console.log('백엔드 응답 없음, 더미 데이터 사용');
+                return {
+                    success: true,
+                    token: 'dev-token-' + Date.now(),
+                    user: {
+                        id: 1,
+                        email: email,
+                        name: email.split('@')[0],
+                        balance: 50000
+                    }
                 };
-                
-                logDebug(`API 요청: ${endpoint}`);
-                
-                try {
-                    const response = await fetch(url, {
-                        method: options.method || 'GET',
-                        headers,
-                        body: options.body ? JSON.stringify(options.body) : undefined,
-                        mode: 'cors'
-                    });
-                    
-                    logDebug(`응답 상태: ${response.status}`);
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                    
-                    const data = await response.json();
-                    logDebug(`응답 데이터: ${JSON.stringify(data)}`);
-                    return data;
-                    
-                } catch (error) {
-                    logDebug(`API 오류: ${error.message}`);
-                    throw error;
-                }
-            }
-            
-            async login(email, password) {
-                try {
-                    const result = await this.request('/api/auth/login', {
-                        method: 'POST',
-                        body: { email, password }
-                    });
-                    
-                    if (result.success) {
-                        this.setToken(result.token);
-                        this.setUser(result.user);
-                        logDebug(`로그인 성공: ${email}`);
-                    } else {
-                        logDebug(`로그인 실패: ${result.message}`);
-                    }
-                    
-                    return result;
-                    
-                } catch (error) {
-                    logDebug(`로그인 오류: ${error.message}`);
-                    
-                    // 백엔드가 응답하지 않으면 더미 데이터 반환 (개발용)
-                    return {
-                        success: true,
-                        token: 'dev-token-' + Date.now(),
-                        user: {
-                            id: 1,
-                            email: email,
-                            name: email.split('@')[0],
-                            balance: 50000,
-                            avatar: 'U'
-                        }
-                    };
-                }
-            }
-            
-            setToken(token) {
-                this.token = token;
-                localStorage.setItem('timelink_token', token);
-            }
-            
-            setUser(user) {
-                this.user = user;
-                localStorage.setItem('timelink_user', JSON.stringify(user));
-            }
-            
-            isAuthenticated() {
-                return !!this.token;
             }
         }
         
-        // 디버그 로그
-        function logDebug(message) {
-            console.log(`[DEBUG] ${message}`);
-            
-            const debugLog = document.getElementById('debugLog');
-            if (debugLog) {
-                const now = new Date();
-                const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-                debugLog.innerHTML += `<div>[${timestamp}] ${message}</div>`;
-                debugLog.scrollTop = debugLog.scrollHeight;
-            }
+        function isLoggedIn() {
+            return !!localStorage.getItem('timelink_token');
         }
         
         // 메인 실행
-        document.addEventListener('DOMContentLoaded', async function() {
-            logDebug('=== TimeLink 로그인 페이지 시작 ===');
-            logDebug('백엔드 서버: http://localhost:8787');
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM 로드 완료');
             
-            // API 인스턴스 생성
-            const api = new TimeLinkAPI();
-            
-            // 이미 로그인된 상태 확인
-            if (api.isAuthenticated()) {
-                logDebug('이미 로그인된 상태, 대시보드로 이동');
+            // 이미 로그인된 상태면 대시보드로 이동
+            if (isLoggedIn()) {
+                console.log('이미 로그인됨, 대시보드로 이동');
                 window.location.href = 'index.html';
                 return;
             }
             
-            // 폼 요소
+            // 백엔드 서버 상태 확인
+            checkBackendStatus();
+            
+            // 폼 요소 가져오기
             const loginForm = document.getElementById('loginForm');
             const emailInput = document.getElementById('email');
             const passwordInput = document.getElementById('password');
@@ -387,23 +292,14 @@
             const successMessage = document.getElementById('success-message');
             const errorMessage = document.getElementById('error-message');
             
-            // 백엔드 상태 확인
-            try {
-                const healthResponse = await fetch('http://localhost:8787/api/health');
-                if (healthResponse.ok) {
-                    const healthData = await healthResponse.json();
-                    logDebug(`백엔드 상태: ${healthData.status}`);
-                    document.getElementById('statusText').textContent = `백엔드 서버 연결됨 (${healthData.timestamp})`;
-                }
-            } catch (error) {
-                logDebug(`백엔드 상태 확인 실패: ${error.message}`);
-                document.getElementById('statusText').textContent = '백엔드 서버 오프라인 (더미 모드)';
-                document.getElementById('statusDot').className = 'status-dot status-offline';
-            }
+            // 테스트 계정 정보 자동 입력
+            emailInput.value = 'test@timelink.com';
+            passwordInput.value = 'test1234';
             
             // 로그인 폼 제출 처리
             loginForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
+                console.log('폼 제출됨');
                 
                 const email = emailInput.value.trim();
                 const password = passwordInput.value;
@@ -419,7 +315,7 @@
                 hideMessages();
                 
                 try {
-                    const result = await api.login(email, password);
+                    const result = await login(email, password);
                     
                     if (result.success) {
                         showSuccess('로그인 성공! 대시보드로 이동합니다...');
@@ -428,7 +324,7 @@
                         
                         // 1초 후 대시보드로 이동
                         setTimeout(() => {
-                            logDebug('대시보드로 이동');
+                            console.log('대시보드로 이동');
                             window.location.href = 'index.html';
                         }, 1000);
                         
@@ -440,7 +336,7 @@
                     
                 } catch (error) {
                     showError('로그인 중 오류가 발생했습니다. 콘솔을 확인해주세요.');
-                    logDebug(`로그인 오류: ${error.stack}`);
+                    console.error('로그인 오류 상세:', error);
                     loginBtn.disabled = false;
                     loginBtn.textContent = '로그인';
                 }
@@ -448,7 +344,7 @@
             
             // 테스트 로그인 버튼
             testLoginBtn.addEventListener('click', function() {
-                logDebug('테스트 계정 로그인 시도');
+                console.log('테스트 계정 로그인 버튼 클릭');
                 emailInput.value = 'test@timelink.com';
                 passwordInput.value = 'test1234';
                 loginForm.dispatchEvent(new Event('submit'));
@@ -457,9 +353,7 @@
             // 엔터 키 이벤트
             document.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
-                    if (e.target === emailInput || e.target === passwordInput) {
-                        loginForm.dispatchEvent(new Event('submit'));
-                    }
+                    loginForm.dispatchEvent(new Event('submit'));
                 }
             });
             
@@ -481,15 +375,27 @@
                 successMessage.style.display = 'none';
             }
             
-            // 페이지 정보 출력
-            logDebug('로그인 페이지 초기화 완료');
-            logDebug('테스트 계정: test@timelink.com / test1234');
-            logDebug('테스트 버튼을 클릭하거나 직접 입력 후 로그인하세요');
-            
-            // 자동으로 테스트 계정 입력 (개발용)
-            emailInput.value = 'test@timelink.com';
-            passwordInput.value = 'test1234';
+            console.log('로그인 페이지 준비 완료');
+            console.log('테스트 계정:', emailInput.value, '/', passwordInput.value);
         });
+        
+        // 백엔드 상태 확인 함수
+        async function checkBackendStatus() {
+            try {
+                console.log('백엔드 서버 상태 확인 중...');
+                const response = await fetch(`${API_BASE}/api/health`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('백엔드 서버 상태:', data.status, '-', data.timestamp);
+                } else {
+                    console.warn('백엔드 서버 응답 오류:', response.status);
+                }
+            } catch (error) {
+                console.warn('백엔드 서버 연결 실패:', error.message);
+                console.log('백엔드가 실행되지 않았지만 더미 데이터로 테스트 가능합니다.');
+            }
+        }
     </script>
 </body>
 </html>
