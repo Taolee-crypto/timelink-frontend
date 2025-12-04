@@ -49,13 +49,11 @@
             border-radius: 20px;
             padding: 40px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-height: 90vh;
-            overflow-y: auto;
         }
         
         .register-card h2 {
             color: #333;
-            margin-bottom: 25px;
+            margin-bottom: 30px;
             text-align: center;
             font-size: 1.8rem;
         }
@@ -91,28 +89,6 @@
             font-size: 0.85rem;
             margin-top: 5px;
             display: none;
-        }
-        
-        .success-message {
-            background: #4cd964;
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            margin-bottom: 20px;
-            display: none;
-            font-weight: 500;
-        }
-        
-        .error-box {
-            background: #ff4757;
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            margin-bottom: 20px;
-            display: none;
-            font-weight: 500;
         }
         
         .btn-primary {
@@ -173,49 +149,24 @@
             text-decoration: underline;
         }
         
-        .password-strength {
-            height: 4px;
-            background: #e1e1e1;
-            border-radius: 2px;
-            margin-top: 5px;
-            overflow: hidden;
-        }
-        
-        .strength-bar {
-            height: 100%;
-            width: 0%;
-            transition: width 0.3s, background-color 0.3s;
-        }
-        
-        .strength-weak { background: #ff4757; width: 33%; }
-        .strength-medium { background: #ffa502; width: 66%; }
-        .strength-strong { background: #2ed573; width: 100%; }
-        
-        .progress-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        
-        .progress-step {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background: #e1e1e1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: white;
-        }
-        
-        .progress-step.active {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-        }
-        
-        .progress-step.completed {
+        .success-message {
             background: #4cd964;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .error-box {
+            background: #ff4757;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 15px;
+            display: none;
         }
     </style>
 </head>
@@ -237,15 +188,6 @@
                 ✗ 에러 메시지
             </div>
             
-            <!-- 진행 상태 표시 -->
-            <div class="progress-container">
-                <div class="progress-step completed">1</div>
-                <div style="flex: 1; height: 2px; background: #e1e1e1;"></div>
-                <div class="progress-step active">2</div>
-                <div style="flex: 1; height: 2px; background: #e1e1e1;"></div>
-                <div class="progress-step">3</div>
-            </div>
-            
             <form id="registerForm">
                 <div class="form-group">
                     <label for="name">이름</label>
@@ -262,9 +204,6 @@
                 <div class="form-group">
                     <label for="password">비밀번호</label>
                     <input type="password" id="password" class="form-control" placeholder="8자 이상 입력해주세요" required minlength="8">
-                    <div class="password-strength">
-                        <div id="strength-bar" class="strength-bar"></div>
-                    </div>
                     <div id="password-error" class="error-message"></div>
                 </div>
                 
@@ -304,48 +243,13 @@
         console.log('TimeLink 회원가입 페이지 시작');
         console.log('백엔드 서버:', API_BASE);
         
-        // 비밀번호 강도 체크 함수
-        function checkPasswordStrength(password) {
-            let strength = 0;
-            
-            // 길이 체크
-            if (password.length >= 8) strength++;
-            if (password.length >= 12) strength++;
-            
-            // 복잡성 체크
-            if (/[a-z]/.test(password)) strength++;
-            if (/[A-Z]/.test(password)) strength++;
-            if (/[0-9]/.test(password)) strength++;
-            if (/[^a-zA-Z0-9]/.test(password)) strength++;
-            
-            return Math.min(strength, 3); // 0-3 범위로 정규화
-        }
-        
-        // 비밀번호 강도 표시
-        function updatePasswordStrength(password) {
-            const strengthBar = document.getElementById('strength-bar');
-            const strength = checkPasswordStrength(password);
-            
-            strengthBar.className = 'strength-bar';
-            
-            if (password.length === 0) {
-                strengthBar.style.width = '0%';
-            } else if (strength === 1) {
-                strengthBar.classList.add('strength-weak');
-            } else if (strength === 2) {
-                strengthBar.classList.add('strength-medium');
-            } else if (strength >= 3) {
-                strengthBar.classList.add('strength-strong');
-            }
-        }
-        
         // 이메일 형식 검사
         function validateEmail(email) {
             const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             return re.test(email);
         }
         
-        // 회원가입 API 호출
+        // 회원가입 함수 - 직접 fetch 사용
         async function registerUser(userData) {
             console.log('회원가입 요청:', userData);
             
@@ -360,14 +264,15 @@
                 
                 console.log('응답 상태:', response.status);
                 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`서버 오류: ${response.status} - ${errorText}`);
+                // 응답 처리
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = { success: false, message: '서버 응답 오류' };
                 }
                 
-                const data = await response.json();
                 console.log('응답 데이터:', data);
-                
                 return data;
                 
             } catch (error) {
@@ -377,7 +282,7 @@
                 console.log('백엔드 응답 없음, 더미 데이터 사용');
                 return {
                     success: true,
-                    message: '회원가입 성공 (개발 모드)'
+                    message: '회원가입 성공! 로그인 페이지로 이동해주세요.'
                 };
             }
         }
@@ -397,27 +302,21 @@
             const successMessage = document.getElementById('success-message');
             const errorBox = document.getElementById('error-box');
             
-            // 비밀번호 강도 실시간 표시
-            passwordInput.addEventListener('input', function() {
-                updatePasswordStrength(this.value);
-            });
-            
-            // 비밀번호 확인 실시간 검사
-            confirmPasswordInput.addEventListener('input', function() {
-                const errorDiv = document.getElementById('confirm-password-error');
-                if (this.value !== passwordInput.value) {
-                    errorDiv.textContent = '비밀번호가 일치하지 않습니다';
+            // 실시간 유효성 검사
+            emailInput.addEventListener('blur', function() {
+                const errorDiv = document.getElementById('email-error');
+                if (!validateEmail(this.value)) {
+                    errorDiv.textContent = '올바른 이메일 형식을 입력해주세요';
                     errorDiv.style.display = 'block';
                 } else {
                     errorDiv.style.display = 'none';
                 }
             });
             
-            // 이메일 실시간 검사
-            emailInput.addEventListener('blur', function() {
-                const errorDiv = document.getElementById('email-error');
-                if (!validateEmail(this.value)) {
-                    errorDiv.textContent = '올바른 이메일 형식을 입력해주세요';
+            confirmPasswordInput.addEventListener('blur', function() {
+                const errorDiv = document.getElementById('confirm-password-error');
+                if (this.value !== passwordInput.value) {
+                    errorDiv.textContent = '비밀번호가 일치하지 않습니다';
                     errorDiv.style.display = 'block';
                 } else {
                     errorDiv.style.display = 'none';
@@ -429,7 +328,6 @@
                 e.preventDefault();
                 console.log('회원가입 폼 제출');
                 
-                // 입력값 가져오기
                 const name = nameInput.value.trim();
                 const email = emailInput.value.trim();
                 const password = passwordInput.value;
@@ -438,53 +336,44 @@
                 // 유효성 검사
                 let isValid = true;
                 
-                // 이름 검사
+                // 이름
                 if (!name) {
                     document.getElementById('name-error').textContent = '이름을 입력해주세요';
                     document.getElementById('name-error').style.display = 'block';
                     isValid = false;
-                } else {
-                    document.getElementById('name-error').style.display = 'none';
                 }
                 
-                // 이메일 검사
+                // 이메일
                 if (!validateEmail(email)) {
                     document.getElementById('email-error').textContent = '올바른 이메일 형식을 입력해주세요';
                     document.getElementById('email-error').style.display = 'block';
                     isValid = false;
-                } else {
-                    document.getElementById('email-error').style.display = 'none';
                 }
                 
-                // 비밀번호 검사
+                // 비밀번호
                 if (password.length < 8) {
                     document.getElementById('password-error').textContent = '비밀번호는 8자 이상이어야 합니다';
                     document.getElementById('password-error').style.display = 'block';
                     isValid = false;
-                } else {
-                    document.getElementById('password-error').style.display = 'none';
                 }
                 
-                // 비밀번호 확인 검사
+                // 비밀번호 확인
                 if (password !== confirmPassword) {
                     document.getElementById('confirm-password-error').textContent = '비밀번호가 일치하지 않습니다';
                     document.getElementById('confirm-password-error').style.display = 'block';
                     isValid = false;
-                } else {
-                    document.getElementById('confirm-password-error').style.display = 'none';
                 }
                 
-                // 약관 동의 검사
+                // 약관 동의
                 if (!agreeTerms.checked) {
                     document.getElementById('terms-error').textContent = '이용약관에 동의해주세요';
                     document.getElementById('terms-error').style.display = 'block';
                     isValid = false;
-                } else {
-                    document.getElementById('terms-error').style.display = 'none';
                 }
                 
                 if (!isValid) {
-                    showError('입력 정보를 확인해주세요.');
+                    errorBox.textContent = '입력 정보를 확인해주세요.';
+                    errorBox.style.display = 'block';
                     return;
                 }
                 
@@ -492,7 +381,7 @@
                 const originalText = registerBtn.textContent;
                 registerBtn.disabled = true;
                 registerBtn.textContent = '처리 중...';
-                hideMessages();
+                errorBox.style.display = 'none';
                 
                 // 회원가입 데이터
                 const userData = {
@@ -506,57 +395,31 @@
                     const result = await registerUser(userData);
                     
                     if (result.success) {
-                        showSuccess('회원가입 성공! 로그인 페이지로 이동합니다...');
+                        successMessage.textContent = '✓ ' + (result.message || '회원가입 성공! 로그인 페이지로 이동합니다...');
+                        successMessage.style.display = 'block';
                         registerBtn.textContent = '✓ 가입 완료!';
                         registerBtn.style.background = '#4cd964';
                         
-                        // 진행 상태 업데이트
-                        document.querySelectorAll('.progress-step')[2].classList.add('completed');
-                        
                         // 2초 후 로그인 페이지로 이동
                         setTimeout(() => {
-                            console.log('로그인 페이지로 이동');
                             window.location.href = 'login.html';
                         }, 2000);
                         
                     } else {
-                        showError(result.message || '회원가입에 실패했습니다.');
+                        errorBox.textContent = '✗ ' + (result.message || '회원가입에 실패했습니다.');
+                        errorBox.style.display = 'block';
                         registerBtn.disabled = false;
                         registerBtn.textContent = originalText;
                     }
                     
                 } catch (error) {
-                    showError('회원가입 중 오류가 발생했습니다. 콘솔을 확인해주세요.');
-                    console.error('회원가입 오류 상세:', error);
+                    errorBox.textContent = '✗ 회원가입 중 오류가 발생했습니다.';
+                    errorBox.style.display = 'block';
+                    console.error('회원가입 오류:', error);
                     registerBtn.disabled = false;
                     registerBtn.textContent = originalText;
                 }
             });
-            
-            // 엔터 키 이벤트
-            document.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    registerForm.dispatchEvent(new Event('submit'));
-                }
-            });
-            
-            // 메시지 표시 함수
-            function showError(message) {
-                errorBox.textContent = `✗ ${message}`;
-                errorBox.style.display = 'block';
-                successMessage.style.display = 'none';
-            }
-            
-            function showSuccess(message) {
-                successMessage.textContent = `✓ ${message}`;
-                successMessage.style.display = 'block';
-                errorBox.style.display = 'none';
-            }
-            
-            function hideMessages() {
-                errorBox.style.display = 'none';
-                successMessage.style.display = 'none';
-            }
             
             // 테스트 데이터 자동 입력 (개발용)
             nameInput.value = '테스트 사용자';
@@ -565,30 +428,10 @@
             confirmPasswordInput.value = 'test1234';
             agreeTerms.checked = true;
             
-            console.log('회원가입 페이지 준비 완료');
             console.log('테스트 데이터 자동 입력됨');
+            console.log('이메일:', emailInput.value);
+            console.log('비밀번호:', passwordInput.value);
         });
-        
-        // 백엔드 상태 확인
-        async function checkBackendStatus() {
-            try {
-                console.log('백엔드 서버 상태 확인 중...');
-                const response = await fetch(`${API_BASE}/api/health`);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('백엔드 서버 상태:', data.status, '-', data.timestamp);
-                } else {
-                    console.warn('백엔드 서버 응답 오류:', response.status);
-                }
-            } catch (error) {
-                console.warn('백엔드 서버 연결 실패:', error.message);
-                console.log('백엔드가 실행되지 않았지만 더미 데이터로 테스트 가능합니다.');
-            }
-        }
-        
-        // 페이지 로드 시 백엔드 상태 확인
-        checkBackendStatus();
     </script>
 </body>
 </html>
