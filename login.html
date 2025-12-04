@@ -1,37 +1,49 @@
 <!-- 기존 코드에 추가 -->
 <script type="module">
-  import { TimeLinkAPI } from './api.js';
-
-  document.addEventListener('DOMContentLoaded', function() {
-    const loginForm = document.getElementById('loginForm');
+    import api from './api.js';
+    import { updateUserInfo } from './auth.js';
     
-    if (loginForm) {
-      loginForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        const errorDiv = document.getElementById('error-message');
-        
-        try {
-          const result = await TimeLinkAPI.login(email, password);
-          
-          if (result.success) {
-            TimeLinkAPI.setToken(result.token);
-            // 프로필 정보 저장
-            localStorage.setItem('timelink_user', JSON.stringify(result.user));
-            alert('로그인 성공!');
+    document.addEventListener('DOMContentLoaded', function() {
+        // 이미 로그인된 상태면 대시보드로 이동
+        if (api.isAuthenticated()) {
             window.location.href = 'index.html';
-          } else {
-            errorDiv.textContent = result.message;
-            errorDiv.style.display = 'block';
-          }
-        } catch (error) {
-          errorDiv.textContent = '로그인 중 오류가 발생했습니다.';
-          errorDiv.style.display = 'block';
-          console.error(error);
+            return;
         }
-      });
-    }
-  });
+        
+        // 로그인 폼 처리
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                const errorDiv = document.getElementById('error-message');
+                
+                try {
+                    const result = await api.login(email, password);
+                    
+                    if (result.success) {
+                        updateUserInfo();
+                        window.location.href = 'index.html';
+                    } else {
+                        if (errorDiv) {
+                            errorDiv.textContent = result.message || '로그인 실패';
+                            errorDiv.style.display = 'block';
+                        } else {
+                            alert(result.message || '로그인 실패');
+                        }
+                    }
+                } catch (error) {
+                    if (errorDiv) {
+                        errorDiv.textContent = '서버 연결 실패. 잠시 후 다시 시도해주세요.';
+                        errorDiv.style.display = 'block';
+                    } else {
+                        alert('서버 연결 실패. 잠시 후 다시 시도해주세요.');
+                    }
+                    console.error('로그인 오류:', error);
+                }
+            });
+        }
+    });
 </script>
