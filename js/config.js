@@ -1,47 +1,33 @@
-// TL Platform API 설정
-// 배포된 백엔드 URL: cd ~/timelink-backend
-
+// TL Platform API 설정 - Cloudflare Workers
 const API_CONFIG = {
-    BASE_URL: 'cd ~/timelink-backend',
+    BASE_URL: '',
     ENDPOINTS: {
+        ROOT: '/',
+        HEALTH: '/health',
+        MARKET: {
+            LIST: '/market/list'
+        },
         AUTH: {
             LOGIN: '/auth/login',
-            REGISTER: '/auth/register',
-            LOGOUT: '/auth/logout',
-            TEST: '/auth/test'
+            REGISTER: '/auth/register'
         },
         CONTENT: {
-            UPLOAD: '/content/upload',
-            LIST: '/content/list',
-            PLAY: '/content/play'
-        },
-        MARKET: {
-            LIST: '/market/list',
-            BUY: '/market/buy',
-            SELL: '/market/sell'
-        },
-        STUDIO: {
-            PROJECTS: '/studio/projects',
-            SAVE: '/studio/save'
-        },
-        COPYRIGHT: {
-            REQUEST: '/copyright/request',
-            STATUS: '/copyright/status'
+            UPLOAD: '/content/upload'
         }
     }
 };
 
-// API 호출 헬퍼 함수
+// API 호출 클래스
 class TLAPI {
     constructor() {
         this.baseURL = API_CONFIG.BASE_URL;
         this.token = localStorage.getItem('tl_token');
-        console.log('TLAPI 초기화 - Base URL:', this.baseURL);
+        console.log('🚀 TLAPI 초기화 완료:', this.baseURL);
     }
 
     async request(endpoint, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
-        console.log('API 요청:', url, options.method || 'GET');
+        console.log('📡 API 요청:', url);
         
         const headers = {
             'Content-Type': 'application/json',
@@ -58,32 +44,40 @@ class TLAPI {
                 headers
             });
 
-            console.log('API 응답 상태:', response.status);
+            console.log('📥 응답 상태:', response.status);
             
             if (response.status === 401) {
-                console.warn('인증 만료됨');
                 localStorage.removeItem('tl_token');
                 localStorage.removeItem('tl_user');
                 window.location.href = 'auth.html';
-                throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
+                throw new Error('인증이 만료되었습니다.');
             }
 
             const data = await response.json();
             
             if (!response.ok) {
-                console.error('API 오류:', data);
                 throw new Error(data.error || data.message || 'API 요청 실패');
             }
 
-            console.log('API 성공:', data);
+            console.log('✅ API 성공:', data);
             return data;
         } catch (error) {
-            console.error('API 요청 실패:', error);
+            console.error('❌ API 오류:', error);
             throw error;
         }
     }
 
-    // 인증 관련 메서드
+    // 시스템 상태 확인
+    async checkHealth() {
+        return this.request(API_CONFIG.ENDPOINTS.HEALTH);
+    }
+
+    // 마켓 아이템 가져오기
+    async getMarketItems() {
+        return this.request('/market/list');
+    }
+
+    // 로그인
     async login(email, password) {
         const data = await this.request(API_CONFIG.ENDPOINTS.AUTH.LOGIN, {
             method: 'POST',
@@ -94,12 +88,12 @@ class TLAPI {
             this.token = data.token;
             localStorage.setItem('tl_token', data.token);
             localStorage.setItem('tl_user', JSON.stringify(data.user));
-            console.log('로그인 성공, 토큰 저장됨');
         }
 
         return data;
     }
 
+    // 회원가입
     async register(userData) {
         return this.request(API_CONFIG.ENDPOINTS.AUTH.REGISTER, {
             method: 'POST',
@@ -107,62 +101,34 @@ class TLAPI {
         });
     }
 
-    async testAuth() {
-        return this.request(API_CONFIG.ENDPOINTS.AUTH.TEST);
-    }
-
-    // 콘텐츠 관련 메서드
+    // 파일 업로드
     async uploadFile(fileData) {
         return this.request(API_CONFIG.ENDPOINTS.CONTENT.UPLOAD, {
             method: 'POST',
             body: JSON.stringify(fileData)
         });
     }
-
-    // 마켓 관련 메서드
-    async getMarketItems() {
-        return this.request(API_CONFIG.ENDPOINTS.MARKET.LIST);
-    }
-
-    async buyItem(itemId) {
-        return this.request(`${API_CONFIG.ENDPOINTS.MARKET.BUY}/${itemId}`, {
-            method: 'POST'
-        });
-    }
-
-    // 시스템 상태 확인
-    async checkHealth() {
-        try {
-            console.log('건강 상태 확인 요청:', this.baseURL);
-            const response = await fetch(this.baseURL);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('건강 상태 확인 실패:', error);
-            return {
-                status: 'error',
-                message: '백엔드 서버에 연결할 수 없습니다',
-                error: error.message,
-                url: this.baseURL
-            };
-        }
-    }
 }
 
-// 글로벌 API 인스턴스 생성
+// 글로벌 인스턴스 생성
 const api = new TLAPI();
 window.TLAPI = api;
 
-// 초기화 시 백엔드 상태 확인
+// 페이지 로드 시 API 상태 확인
 window.addEventListener('DOMContentLoaded', async () => {
-    console.log('TL Platform 프론트엔드 로드됨');
-    console.log('API Base URL:', api.baseURL);
+    console.log('📱 TL Platform 프론트엔드 로드됨');
     
-    // 페이지에 API URL 표시 (선택사항)
-    const apiUrlElements = document.querySelectorAll('.api-url');
-    apiUrlElements.forEach(el => {
-        el.textContent = api.baseURL;
-    });
+    try {
+        const health = await api.checkHealth();
+        console.log('💚 백엔드 상태:', health);
+        
+        // 상태 표시 업데이트
+        const statusElement = document.getElementById('backendStatus');
+        if (statusElement) {
+            statusElement.textContent = '✅ 온라인';
+            statusElement.className = 'status-value online';
+        }
+    } catch (error) {
+        console.error('💔 백엔드 연결 실패:', error);
+    }
 });
