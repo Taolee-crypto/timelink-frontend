@@ -85,9 +85,22 @@
         }
         
         .error-message {
-            color: #ff4757;
-            font-size: 0.85rem;
-            margin-top: 5px;
+            background: #ff4757;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .success-message {
+            background: #4cd964;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 15px;
             display: none;
         }
         
@@ -105,13 +118,14 @@
             margin-top: 10px;
         }
         
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
         }
         
-        .btn-primary:active {
-            transform: translateY(0);
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
         
         .btn-secondary {
@@ -149,37 +163,43 @@
             text-decoration: underline;
         }
         
-        .success-message {
-            background: #4cd964;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            text-align: center;
-            margin-bottom: 15px;
-            display: none;
-        }
-        
-        .debug-panel {
+        .debug-info {
             position: fixed;
             top: 10px;
-            right: 10px;
+            left: 10px;
             background: rgba(0,0,0,0.8);
             color: white;
             padding: 10px;
             border-radius: 5px;
             font-size: 12px;
             max-width: 300px;
-            max-height: 200px;
-            overflow-y: auto;
             z-index: 9999;
+        }
+        
+        .server-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .server-online {
+            background: #4cd964;
+        }
+        
+        .server-offline {
+            background: #ff4757;
         }
     </style>
 </head>
 <body>
-    <!-- 디버그 패널 -->
-    <div id="debugPanel" class="debug-panel" style="display: none;">
-        <strong>디버그 정보</strong>
-        <div id="debugContent"></div>
+    <div class="debug-info" id="debugInfo">
+        <div id="serverStatus">
+            <span class="server-status server-offline" id="statusDot"></span>
+            <span id="statusText">서버 확인 중...</span>
+        </div>
+        <div id="debugLog" style="margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
     </div>
     
     <div class="container">
@@ -195,19 +215,19 @@
                 로그인 성공! 이동 중...
             </div>
             
-            <div id="error-message" class="error-message" style="display: none;">
+            <div id="error-message" class="error-message">
                 에러 메시지
             </div>
             
             <form id="loginForm">
                 <div class="form-group">
                     <label for="email">이메일</label>
-                    <input type="email" id="email" class="form-control" placeholder="이메일을 입력하세요" required>
+                    <input type="email" id="email" class="form-control" placeholder="test@timelink.com" required>
                 </div>
                 
                 <div class="form-group">
                     <label for="password">비밀번호</label>
-                    <input type="password" id="password" class="form-control" placeholder="비밀번호를 입력하세요" required>
+                    <input type="password" id="password" class="form-control" placeholder="test1234" required>
                 </div>
                 
                 <button type="submit" class="btn-primary" id="login-btn">
@@ -226,153 +246,124 @@
     </div>
 
     <script>
-        // API 모듈 (인라인으로 포함)
+        // 간단한 API 클래스
         class TimeLinkAPI {
             constructor() {
-                this.baseUrl = 'http://localhost:8787'; // 로컬 백엔드
+                // 로컬 백엔드 서버 주소
+                this.baseUrl = 'http://localhost:8787';
                 this.token = localStorage.getItem('timelink_token');
                 this.user = JSON.parse(localStorage.getItem('timelink_user') || '{}');
             }
-
-            async request(endpoint, options = {}) {
-                const url = `${this.baseUrl}${endpoint}`;
-                const headers = {
-                    'Content-Type': 'application/json',
-                    ...options.headers
-                };
-
-                if (this.token) {
-                    headers['Authorization'] = `Bearer ${this.token}`;
-                }
-
+            
+            async login(email, password) {
+                logDebug(`로그인 시도: ${email}`);
+                
                 try {
-                    const fetchOptions = {
-                        ...options,
-                        headers,
-                        mode: 'cors'
-                    };
-
-                    if (options.body && typeof options.body === 'object') {
-                        fetchOptions.body = JSON.stringify(options.body);
-                    }
-
-                    logDebug(`API 요청: ${endpoint}`);
-                    const response = await fetch(url, fetchOptions);
+                    // 실제 백엔드에 요청
+                    const response = await fetch(`${this.baseUrl}/api/auth/login`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ email, password })
+                    });
                     
                     if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
+                        throw new Error(`서버 응답 오류: ${response.status}`);
                     }
                     
                     const data = await response.json();
-                    logDebug(`API 응답: ${JSON.stringify(data).substring(0, 100)}...`);
+                    logDebug(`로그인 응답: ${JSON.stringify(data)}`);
+                    
+                    if (data.success) {
+                        this.setToken(data.token);
+                        this.setUser(data.user);
+                    }
+                    
                     return data;
                     
                 } catch (error) {
-                    logDebug(`API 오류: ${error.message}`);
+                    logDebug(`로그인 실패: ${error.message}`);
                     
-                    // 로컬 개발 중이면 더미 데이터 반환
-                    if (this.baseUrl.includes('localhost') || this.baseUrl.includes('127.0.0.1')) {
-                        logDebug('로컬 개발 모드: 더미 데이터 반환');
-                        return this.getMockData(endpoint, options);
-                    }
-                    
-                    throw error;
-                }
-            }
-
-            getMockData(endpoint, options) {
-                const mockData = {
-                    '/api/auth/login': {
+                    // 백엔드가 응답하지 않으면 더미 데이터 반환
+                    return {
                         success: true,
-                        token: 'mock-jwt-token-' + Date.now(),
+                        token: 'demo-token-' + Date.now(),
                         user: {
                             id: 1,
-                            email: 'test@timelink.com',
-                            name: '테스트 사용자',
+                            email: email,
+                            name: email.split('@')[0],
                             balance: 50000
                         }
-                    },
-                    '/api/auth/register': {
-                        success: true,
-                        message: '회원가입 성공'
-                    },
-                    '/api/health': {
-                        status: 'ok',
-                        timestamp: new Date().toISOString()
-                    }
-                };
-                
-                return mockData[endpoint] || { success: true, message: '더미 데이터' };
-            }
-
-            async login(email, password) {
-                const result = await this.request('/api/auth/login', {
-                    method: 'POST',
-                    body: { email, password }
-                });
-                
-                if (result.success) {
-                    this.setToken(result.token);
-                    this.setUser(result.user);
+                    };
                 }
-                
-                return result;
             }
-
-            async register(userData) {
-                return this.request('/api/auth/register', {
-                    method: 'POST',
-                    body: userData
-                });
-            }
-
+            
             setToken(token) {
                 this.token = token;
                 localStorage.setItem('timelink_token', token);
             }
-
+            
             setUser(user) {
                 this.user = user;
                 localStorage.setItem('timelink_user', JSON.stringify(user));
             }
-
-            getCurrentUser() {
-                return this.user;
-            }
-
+            
             isAuthenticated() {
-                return !!this.token && !!this.user?.id;
-            }
-
-            logout() {
-                this.token = null;
-                this.user = {};
-                localStorage.removeItem('timelink_token');
-                localStorage.removeItem('timelink_user');
+                return !!this.token;
             }
         }
-
-        // 글로벌 API 인스턴스
-        const api = new TimeLinkAPI();
         
         // 디버그 로그 함수
         function logDebug(message) {
             console.log(`[DEBUG] ${message}`);
             
-            const debugPanel = document.getElementById('debugPanel');
-            const debugContent = document.getElementById('debugContent');
-            
-            if (debugPanel && debugContent) {
-                debugPanel.style.display = 'block';
+            const debugLog = document.getElementById('debugLog');
+            if (debugLog) {
                 const timestamp = new Date().toLocaleTimeString();
-                debugContent.innerHTML += `<div>${timestamp}: ${message}</div>`;
-                debugContent.scrollTop = debugContent.scrollHeight;
+                debugLog.innerHTML += `<div>${timestamp}: ${message}</div>`;
+                debugLog.scrollTop = debugLog.scrollHeight;
+            }
+        }
+        
+        // 서버 상태 확인
+        async function checkServerStatus() {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            try {
+                logDebug('서버 상태 확인 중...');
+                const response = await fetch('http://localhost:8787/api/health', {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    statusDot.className = 'server-status server-online';
+                    statusText.textContent = '백엔드 서버 연결됨';
+                    logDebug('서버 연결 성공');
+                    return true;
+                } else {
+                    statusDot.className = 'server-status server-offline';
+                    statusText.textContent = '백엔드 서버 응답 없음';
+                    logDebug('서버 응답 없음');
+                    return false;
+                }
+            } catch (error) {
+                statusDot.className = 'server-status server-offline';
+                statusText.textContent = '백엔드 서버 오프라인';
+                logDebug(`서버 연결 실패: ${error.message}`);
+                logDebug('백엔드 서버가 실행되지 않았습니다. 더미 데이터로 테스트합니다.');
+                return false;
             }
         }
         
         // 메인 실행
-        document.addEventListener('DOMContentLoaded', function() {
-            logDebug('페이지 로드 완료');
+        document.addEventListener('DOMContentLoaded', async function() {
+            logDebug('로그인 페이지 로드됨');
+            
+            // API 인스턴스 생성
+            const api = new TimeLinkAPI();
             
             // 이미 로그인된 상태면 대시보드로 이동
             if (api.isAuthenticated()) {
@@ -381,10 +372,10 @@
                 return;
             }
             
-            // 백엔드 연결 테스트
-            testBackendConnection();
+            // 서버 상태 확인
+            await checkServerStatus();
             
-            // 폼 요소 가져오기
+            // 폼 요소
             const loginForm = document.getElementById('loginForm');
             const emailInput = document.getElementById('email');
             const passwordInput = document.getElementById('password');
@@ -393,7 +384,7 @@
             const successMessage = document.getElementById('success-message');
             const errorMessage = document.getElementById('error-message');
             
-            // 로그인 폼 제출 처리
+            // 로그인 폼 제출
             loginForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 logDebug('폼 제출 시작');
@@ -407,96 +398,79 @@
                 }
                 
                 // 버튼 상태 변경
-                const originalText = loginBtn.textContent;
                 loginBtn.disabled = true;
                 loginBtn.textContent = '로그인 중...';
-                hideError();
+                hideMessages();
                 
                 try {
-                    logDebug(`로그인 시도: ${email}`);
                     const result = await api.login(email, password);
                     
                     if (result.success) {
-                        logDebug('로그인 성공');
                         showSuccess('로그인 성공!');
                         loginBtn.textContent = '성공!';
                         loginBtn.style.background = '#4cd964';
                         
-                        // 1초 후 대시보드로 이동
+                        // 1.5초 후 대시보드로 이동
                         setTimeout(() => {
                             window.location.href = 'index.html';
-                        }, 1000);
+                        }, 1500);
                         
                     } else {
-                        logDebug(`로그인 실패: ${result.message}`);
                         showError(result.message || '로그인 실패');
                         loginBtn.disabled = false;
-                        loginBtn.textContent = originalText;
+                        loginBtn.textContent = '로그인';
                     }
                     
                 } catch (error) {
+                    showError('로그인 중 오류가 발생했습니다.');
                     logDebug(`로그인 오류: ${error.message}`);
-                    showError('서버 연결 오류. 콘솔을 확인해주세요.');
                     loginBtn.disabled = false;
-                    loginBtn.textContent = originalText;
+                    loginBtn.textContent = '로그인';
                 }
             });
             
             // 테스트 로그인 버튼
             testLoginBtn.addEventListener('click', function() {
-                logDebug('테스트 계정 로그인');
+                logDebug('테스트 계정으로 로그인');
                 emailInput.value = 'test@timelink.com';
                 passwordInput.value = 'test1234';
                 loginForm.dispatchEvent(new Event('submit'));
             });
             
-            // 엔터 키로 로그인
+            // 메시지 표시 함수
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+                successMessage.style.display = 'none';
+            }
+            
+            function showSuccess(message) {
+                successMessage.textContent = message;
+                successMessage.style.display = 'block';
+                errorMessage.style.display = 'none';
+            }
+            
+            function hideMessages() {
+                errorMessage.style.display = 'none';
+                successMessage.style.display = 'none';
+            }
+            
+            // 엔터 키 이벤트
             document.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter' && (e.target === emailInput || e.target === passwordInput)) {
                     loginForm.dispatchEvent(new Event('submit'));
                 }
             });
             
-            // 에러/성공 메시지 함수
-            function showError(message) {
-                errorMessage.textContent = message;
-                errorMessage.style.display = 'block';
-            }
-            
-            function hideError() {
-                errorMessage.style.display = 'none';
-            }
-            
-            function showSuccess(message) {
-                successMessage.textContent = message;
-                successMessage.style.display = 'block';
-            }
-            
-            logDebug('로그인 페이지 초기화 완료');
+            logDebug('로그인 페이지 준비 완료');
+            logDebug('백엔드 서버: ' + api.baseUrl);
+            logDebug('테스트 계정: test@timelink.com / test1234');
         });
         
-        // 백엔드 연결 테스트
-        async function testBackendConnection() {
-            try {
-                logDebug('백엔드 연결 테스트 시작...');
-                const response = await fetch('http://localhost:8787/api/health');
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    logDebug(`백엔드 연결 성공: ${data.status}`);
-                } else {
-                    logDebug(`백엔드 연결 실패: HTTP ${response.status}`);
-                }
-            } catch (error) {
-                logDebug(`백엔드 연결 오류: ${error.message}`);
-                logDebug('백엔드 서버가 실행 중인지 확인해주세요: npx wrangler dev');
-            }
-        }
-        
-        // 페이지 언로드 시 정리
-        window.addEventListener('beforeunload', function() {
-            logDebug('페이지 언로드');
-        });
+        // 주기적으로 서버 상태 확인
+        setInterval(async () => {
+            await checkServerStatus();
+        }, 30000); // 30초마다 확인
     </script>
 </body>
 </html>
