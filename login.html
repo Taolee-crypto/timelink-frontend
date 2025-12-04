@@ -1,261 +1,502 @@
-<!-- login.html 파일에 아래 스크립트를 </body> 태그 바로 앞에 추가하세요 -->
-
-<script type="module">
-// api.js 임포트
-import api from './api.js';
-
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('로그인 페이지 로드됨');
-    
-    // 이미 로그인된 상태면 대시보드로 이동
-    if (api.isAuthenticated()) {
-        window.location.href = 'index.html';
-        return;
-    }
-    
-    // 로그인 폼 찾기 - 여러 방법으로 시도
-    let loginForm = document.querySelector('form');
-    
-    if (!loginForm) {
-        // 폼이 없으면 생성
-        console.log('폼이 없어서 생성합니다');
-        
-        // 기존 컨테이너 찾기
-        const container = document.querySelector('.container') || 
-                         document.querySelector('.login-card') || 
-                         document.body;
-        
-        // 이메일과 비밀번호 입력창 찾기
-        const emailInput = document.querySelector('input[type="email"]') || 
-                          document.querySelector('input[name="email"]') ||
-                          document.querySelector('#email');
-        
-        const passwordInput = document.querySelector('input[type="password"]') || 
-                             document.querySelector('input[name="password"]') ||
-                             document.querySelector('#password');
-        
-        // 버튼 찾기
-        const submitButton = document.querySelector('button[type="submit"]') || 
-                            document.querySelector('.btn-primary') ||
-                            document.querySelector('button');
-        
-        if (emailInput && passwordInput && submitButton) {
-            // 기존 요소들로 폼 생성
-            loginForm = document.createElement('form');
-            loginForm.id = 'loginForm';
-            loginForm.appendChild(emailInput.parentNode || emailInput);
-            loginForm.appendChild(passwordInput.parentNode || passwordInput);
-            loginForm.appendChild(submitButton.parentNode || submitButton);
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 - TimeLink</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-    }
-    
-    if (loginForm) {
-        console.log('로그인 폼 찾음:', loginForm);
         
-        // 폼 제출 이벤트 리스너 추가
-        loginForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            console.log('폼 제출됨');
-            
-            // 입력값 가져오기
-            const emailInput = this.querySelector('input[type="email"]') || 
-                             this.querySelector('input[name="email"]') ||
-                             document.querySelector('input[type="email"]');
-            
-            const passwordInput = this.querySelector('input[type="password"]') || 
-                                this.querySelector('input[name="password"]') ||
-                                document.querySelector('input[type="password"]');
-            
-            if (!emailInput || !passwordInput) {
-                console.error('이메일 또는 비밀번호 입력창을 찾을 수 없음');
-                alert('입력창을 찾을 수 없습니다. 페이지를 새로고침해주세요.');
-                return;
-            }
-            
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
-            
-            if (!email || !password) {
-                alert('이메일과 비밀번호를 입력해주세요.');
-                return;
-            }
-            
-            // 버튼 상태 변경
-            const submitButton = this.querySelector('button[type="submit"]') || 
-                               this.querySelector('.btn-primary') ||
-                               this.querySelector('button');
-            
-            let originalText = '로그인';
-            if (submitButton) {
-                originalText = submitButton.textContent;
-                submitButton.disabled = true;
-                submitButton.textContent = '로그인 중...';
-            }
-            
-            // 로그인 시도
-            try {
-                console.log('로그인 시도:', email);
-                const result = await api.login(email, password);
-                console.log('로그인 결과:', result);
-                
-                if (result.success) {
-                    console.log('로그인 성공, 토큰:', result.token);
-                    
-                    // 로그인 성공 메시지
-                    if (submitButton) {
-                        submitButton.textContent = '로그인 성공!';
-                        submitButton.style.background = '#4CAF50';
-                    }
-                    
-                    // 1초 후 대시보드로 이동
-                    setTimeout(() => {
-                        window.location.href = 'index.html';
-                    }, 1000);
-                    
-                } else {
-                    alert(result.message || '로그인 실패. 이메일 또는 비밀번호를 확인해주세요.');
-                    if (submitButton) {
-                        submitButton.disabled = false;
-                        submitButton.textContent = originalText;
-                    }
-                }
-                
-            } catch (error) {
-                console.error('로그인 오류:', error);
-                alert('로그인 중 오류가 발생했습니다: ' + error.message);
-                if (submitButton) {
-                    submitButton.disabled = false;
-                    submitButton.textContent = originalText;
-                }
-            }
-        });
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
         
-        // 개발용 테스트 버튼 추가
-        const testButton = document.createElement('button');
-        testButton.textContent = '테스트 계정으로 로그인';
-        testButton.type = 'button';
-        testButton.style.cssText = `
+        .container {
             width: 100%;
-            padding: 12px;
+            max-width: 400px;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo h1 {
+            color: white;
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .logo .tagline {
+            color: rgba(255,255,255,0.8);
+            font-size: 1rem;
+            margin-top: 5px;
+        }
+        
+        .login-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .login-card h2 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 1.8rem;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e1e1;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .error-message {
+            color: #ff4757;
+            font-size: 0.85rem;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
             margin-top: 10px;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            width: 100%;
+            padding: 14px;
             background: #2196F3;
             color: white;
             border: none;
-            border-radius: 8px;
-            font-size: 14px;
+            border-radius: 10px;
+            font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
             transition: background 0.3s;
-        `;
-        
-        testButton.onmouseover = function() {
-            this.style.background = '#1976D2';
-        };
-        
-        testButton.onmouseout = function() {
-            this.style.background = '#2196F3';
-        };
-        
-        testButton.onclick = async function() {
-            // 테스트 계정 정보 자동 입력
-            const emailInput = document.querySelector('input[type="email"]') || 
-                             document.querySelector('input[name="email"]');
-            const passwordInput = document.querySelector('input[type="password"]') || 
-                                document.querySelector('input[name="password"]');
-            
-            if (emailInput) emailInput.value = 'test@timelink.com';
-            if (passwordInput) passwordInput.value = 'test1234';
-            
-            // 폼 제출
-            if (loginForm) {
-                loginForm.dispatchEvent(new Event('submit'));
-            }
-        };
-        
-        // 테스트 버튼을 폼이나 컨테이너에 추가
-        if (loginForm.parentNode) {
-            loginForm.parentNode.insertBefore(testButton, loginForm.nextSibling);
-        } else {
-            document.body.appendChild(testButton);
+            margin-top: 10px;
         }
         
-        // 로그인 상태 체크를 위한 주기적 검사
-        setInterval(() => {
-            if (api.isAuthenticated() && window.location.pathname.includes('login.html')) {
-                window.location.href = 'index.html';
-            }
-        }, 5000);
+        .btn-secondary:hover {
+            background: #1976D2;
+        }
         
-    } else {
-        console.error('로그인 폼을 찾을 수 없습니다. HTML 구조를 확인해주세요.');
+        .register-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 0.9rem;
+        }
         
-        // 폼이 아예 없으면 간단한 로그인 폼 생성
-        const container = document.querySelector('.container') || 
-                         document.querySelector('.login-card') || 
-                         document.body;
+        .register-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
         
-        const simpleForm = document.createElement('div');
-        simpleForm.innerHTML = `
-            <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto;">
-                <h2 style="text-align: center; margin-bottom: 20px; color: #333;">로그인</h2>
-                <form id="simpleLoginForm">
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; color: #555;">이메일</label>
-                        <input type="email" id="simpleEmail" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" placeholder="이메일을 입력하세요">
-                    </div>
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 5px; color: #555;">비밀번호</label>
-                        <input type="password" id="simplePassword" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" placeholder="비밀번호를 입력하세요">
-                    </div>
-                    <button type="submit" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
-                        로그인
-                    </button>
-                </form>
-                <button id="simpleTestBtn" style="width: 100%; padding: 12px; margin-top: 10px; background: #2196F3; color: white; border: none; border-radius: 5px; font-size: 14px; cursor: pointer;">
-                    테스트 계정으로 로그인
-                </button>
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+        
+        .success-message {
+            background: #4cd964;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .debug-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            max-width: 300px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+    <!-- 디버그 패널 -->
+    <div id="debugPanel" class="debug-panel" style="display: none;">
+        <strong>디버그 정보</strong>
+        <div id="debugContent"></div>
+    </div>
+    
+    <div class="container">
+        <div class="logo">
+            <h1>TimeLink</h1>
+            <div class="tagline">음악의 미래를 연결하다</div>
+        </div>
+        
+        <div class="login-card">
+            <h2>로그인</h2>
+            
+            <div id="success-message" class="success-message">
+                로그인 성공! 이동 중...
             </div>
-        `;
-        
-        container.appendChild(simpleForm);
-        
-        // 간단 폼 이벤트 처리
-        document.getElementById('simpleLoginForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const email = document.getElementById('simpleEmail').value;
-            const password = document.getElementById('simplePassword').value;
             
-            const btn = this.querySelector('button');
-            const originalText = btn.textContent;
-            btn.disabled = true;
-            btn.textContent = '로그인 중...';
+            <div id="error-message" class="error-message" style="display: none;">
+                에러 메시지
+            </div>
             
-            try {
-                const result = await api.login(email, password);
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">이메일</label>
+                    <input type="email" id="email" class="form-control" placeholder="이메일을 입력하세요" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">비밀번호</label>
+                    <input type="password" id="password" class="form-control" placeholder="비밀번호를 입력하세요" required>
+                </div>
+                
+                <button type="submit" class="btn-primary" id="login-btn">
+                    로그인
+                </button>
+            </form>
+            
+            <button type="button" class="btn-secondary" id="test-login-btn">
+                테스트 계정으로 로그인
+            </button>
+            
+            <div class="register-link">
+                계정이 없으신가요? <a href="register.html">회원가입</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API 모듈 (인라인으로 포함)
+        class TimeLinkAPI {
+            constructor() {
+                this.baseUrl = 'http://localhost:8787'; // 로컬 백엔드
+                this.token = localStorage.getItem('timelink_token');
+                this.user = JSON.parse(localStorage.getItem('timelink_user') || '{}');
+            }
+
+            async request(endpoint, options = {}) {
+                const url = `${this.baseUrl}${endpoint}`;
+                const headers = {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                };
+
+                if (this.token) {
+                    headers['Authorization'] = `Bearer ${this.token}`;
+                }
+
+                try {
+                    const fetchOptions = {
+                        ...options,
+                        headers,
+                        mode: 'cors'
+                    };
+
+                    if (options.body && typeof options.body === 'object') {
+                        fetchOptions.body = JSON.stringify(options.body);
+                    }
+
+                    logDebug(`API 요청: ${endpoint}`);
+                    const response = await fetch(url, fetchOptions);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    logDebug(`API 응답: ${JSON.stringify(data).substring(0, 100)}...`);
+                    return data;
+                    
+                } catch (error) {
+                    logDebug(`API 오류: ${error.message}`);
+                    
+                    // 로컬 개발 중이면 더미 데이터 반환
+                    if (this.baseUrl.includes('localhost') || this.baseUrl.includes('127.0.0.1')) {
+                        logDebug('로컬 개발 모드: 더미 데이터 반환');
+                        return this.getMockData(endpoint, options);
+                    }
+                    
+                    throw error;
+                }
+            }
+
+            getMockData(endpoint, options) {
+                const mockData = {
+                    '/api/auth/login': {
+                        success: true,
+                        token: 'mock-jwt-token-' + Date.now(),
+                        user: {
+                            id: 1,
+                            email: 'test@timelink.com',
+                            name: '테스트 사용자',
+                            balance: 50000
+                        }
+                    },
+                    '/api/auth/register': {
+                        success: true,
+                        message: '회원가입 성공'
+                    },
+                    '/api/health': {
+                        status: 'ok',
+                        timestamp: new Date().toISOString()
+                    }
+                };
+                
+                return mockData[endpoint] || { success: true, message: '더미 데이터' };
+            }
+
+            async login(email, password) {
+                const result = await this.request('/api/auth/login', {
+                    method: 'POST',
+                    body: { email, password }
+                });
+                
                 if (result.success) {
-                    btn.textContent = '로그인 성공!';
-                    btn.style.background = '#4CAF50';
-                    setTimeout(() => window.location.href = 'index.html', 1000);
+                    this.setToken(result.token);
+                    this.setUser(result.user);
+                }
+                
+                return result;
+            }
+
+            async register(userData) {
+                return this.request('/api/auth/register', {
+                    method: 'POST',
+                    body: userData
+                });
+            }
+
+            setToken(token) {
+                this.token = token;
+                localStorage.setItem('timelink_token', token);
+            }
+
+            setUser(user) {
+                this.user = user;
+                localStorage.setItem('timelink_user', JSON.stringify(user));
+            }
+
+            getCurrentUser() {
+                return this.user;
+            }
+
+            isAuthenticated() {
+                return !!this.token && !!this.user?.id;
+            }
+
+            logout() {
+                this.token = null;
+                this.user = {};
+                localStorage.removeItem('timelink_token');
+                localStorage.removeItem('timelink_user');
+            }
+        }
+
+        // 글로벌 API 인스턴스
+        const api = new TimeLinkAPI();
+        
+        // 디버그 로그 함수
+        function logDebug(message) {
+            console.log(`[DEBUG] ${message}`);
+            
+            const debugPanel = document.getElementById('debugPanel');
+            const debugContent = document.getElementById('debugContent');
+            
+            if (debugPanel && debugContent) {
+                debugPanel.style.display = 'block';
+                const timestamp = new Date().toLocaleTimeString();
+                debugContent.innerHTML += `<div>${timestamp}: ${message}</div>`;
+                debugContent.scrollTop = debugContent.scrollHeight;
+            }
+        }
+        
+        // 메인 실행
+        document.addEventListener('DOMContentLoaded', function() {
+            logDebug('페이지 로드 완료');
+            
+            // 이미 로그인된 상태면 대시보드로 이동
+            if (api.isAuthenticated()) {
+                logDebug('이미 로그인됨, 대시보드로 이동');
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            // 백엔드 연결 테스트
+            testBackendConnection();
+            
+            // 폼 요소 가져오기
+            const loginForm = document.getElementById('loginForm');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const loginBtn = document.getElementById('login-btn');
+            const testLoginBtn = document.getElementById('test-login-btn');
+            const successMessage = document.getElementById('success-message');
+            const errorMessage = document.getElementById('error-message');
+            
+            // 로그인 폼 제출 처리
+            loginForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                logDebug('폼 제출 시작');
+                
+                const email = emailInput.value.trim();
+                const password = passwordInput.value;
+                
+                if (!email || !password) {
+                    showError('이메일과 비밀번호를 입력해주세요.');
+                    return;
+                }
+                
+                // 버튼 상태 변경
+                const originalText = loginBtn.textContent;
+                loginBtn.disabled = true;
+                loginBtn.textContent = '로그인 중...';
+                hideError();
+                
+                try {
+                    logDebug(`로그인 시도: ${email}`);
+                    const result = await api.login(email, password);
+                    
+                    if (result.success) {
+                        logDebug('로그인 성공');
+                        showSuccess('로그인 성공!');
+                        loginBtn.textContent = '성공!';
+                        loginBtn.style.background = '#4cd964';
+                        
+                        // 1초 후 대시보드로 이동
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 1000);
+                        
+                    } else {
+                        logDebug(`로그인 실패: ${result.message}`);
+                        showError(result.message || '로그인 실패');
+                        loginBtn.disabled = false;
+                        loginBtn.textContent = originalText;
+                    }
+                    
+                } catch (error) {
+                    logDebug(`로그인 오류: ${error.message}`);
+                    showError('서버 연결 오류. 콘솔을 확인해주세요.');
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = originalText;
+                }
+            });
+            
+            // 테스트 로그인 버튼
+            testLoginBtn.addEventListener('click', function() {
+                logDebug('테스트 계정 로그인');
+                emailInput.value = 'test@timelink.com';
+                passwordInput.value = 'test1234';
+                loginForm.dispatchEvent(new Event('submit'));
+            });
+            
+            // 엔터 키로 로그인
+            document.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && (e.target === emailInput || e.target === passwordInput)) {
+                    loginForm.dispatchEvent(new Event('submit'));
+                }
+            });
+            
+            // 에러/성공 메시지 함수
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+            }
+            
+            function hideError() {
+                errorMessage.style.display = 'none';
+            }
+            
+            function showSuccess(message) {
+                successMessage.textContent = message;
+                successMessage.style.display = 'block';
+            }
+            
+            logDebug('로그인 페이지 초기화 완료');
+        });
+        
+        // 백엔드 연결 테스트
+        async function testBackendConnection() {
+            try {
+                logDebug('백엔드 연결 테스트 시작...');
+                const response = await fetch('http://localhost:8787/api/health');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    logDebug(`백엔드 연결 성공: ${data.status}`);
                 } else {
-                    alert(result.message);
-                    btn.disabled = false;
-                    btn.textContent = originalText;
+                    logDebug(`백엔드 연결 실패: HTTP ${response.status}`);
                 }
             } catch (error) {
-                alert('로그인 오류: ' + error.message);
-                btn.disabled = false;
-                btn.textContent = originalText;
+                logDebug(`백엔드 연결 오류: ${error.message}`);
+                logDebug('백엔드 서버가 실행 중인지 확인해주세요: npx wrangler dev');
             }
-        });
+        }
         
-        document.getElementById('simpleTestBtn').addEventListener('click', function() {
-            document.getElementById('simpleEmail').value = 'test@timelink.com';
-            document.getElementById('simplePassword').value = 'test1234';
-            document.getElementById('simpleLoginForm').dispatchEvent(new Event('submit'));
+        // 페이지 언로드 시 정리
+        window.addEventListener('beforeunload', function() {
+            logDebug('페이지 언로드');
         });
-    }
-    
-    // 페이지 로드 완료 메시지
-    console.log('로그인 페이지 초기화 완료');
-});
-</script>
+    </script>
+</body>
+</html>
