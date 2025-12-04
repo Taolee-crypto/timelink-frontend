@@ -1,3 +1,8 @@
+#!/bin/bash
+echo "=== 정상적인 TL Platform 복원 ==="
+
+# index.html을 정상 버전으로 복원
+cat > index.html << 'HTML'
 <!DOCTYPE html>
 <html lang="ko" data-theme="light">
 <head>
@@ -645,3 +650,6 @@
     </script>
 </body>
 </html>
+HTML
+
+echo "✅ 정상적인 TL Platform으로 복원 완료"
