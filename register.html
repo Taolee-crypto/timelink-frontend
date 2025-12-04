@@ -240,8 +240,7 @@
         // 백엔드 서버 URL
         const API_BASE = 'http://localhost:8787';
         
-        console.log('TimeLink 회원가입 페이지 시작');
-        console.log('백엔드 서버:', API_BASE);
+        console.log('=== TimeLink 회원가입 페이지 시작 ===');
         
         // 이메일 형식 검사
         function validateEmail(email) {
@@ -249,7 +248,7 @@
             return re.test(email);
         }
         
-        // 회원가입 함수 - 직접 fetch 사용
+        // 회원가입 함수
         async function registerUser(userData) {
             console.log('회원가입 요청:', userData);
             
@@ -264,11 +263,12 @@
                 
                 console.log('응답 상태:', response.status);
                 
-                // 응답 처리
+                // 응답 데이터 파싱
                 let data;
                 try {
                     data = await response.json();
                 } catch (e) {
+                    console.log('JSON 파싱 실패, 텍스트 응답:', await response.text());
                     data = { success: false, message: '서버 응답 오류' };
                 }
                 
@@ -276,13 +276,13 @@
                 return data;
                 
             } catch (error) {
-                console.error('회원가입 오류:', error);
+                console.error('회원가입 네트워크 오류:', error);
                 
-                // 백엔드가 응답하지 않으면 더미 데이터 반환 (개발용)
-                console.log('백엔드 응답 없음, 더미 데이터 사용');
+                // 백엔드가 응답하지 않으면 더미 데이터 반환
+                console.log('백엔드 응답 없음, 더미 데이터 반환');
                 return {
                     success: true,
-                    message: '회원가입 성공! 로그인 페이지로 이동해주세요.'
+                    message: '회원가입 성공 (개발 모드)'
                 };
             }
         }
@@ -313,7 +313,7 @@
                 }
             });
             
-            confirmPasswordInput.addEventListener('blur', function() {
+            confirmPasswordInput.addEventListener('input', function() {
                 const errorDiv = document.getElementById('confirm-password-error');
                 if (this.value !== passwordInput.value) {
                     errorDiv.textContent = '비밀번호가 일치하지 않습니다';
@@ -326,45 +326,51 @@
             // 폼 제출 처리
             registerForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                console.log('회원가입 폼 제출');
+                console.log('회원가입 폼 제출됨');
                 
+                // 입력값 가져오기
                 const name = nameInput.value.trim();
                 const email = emailInput.value.trim();
                 const password = passwordInput.value;
                 const confirmPassword = confirmPasswordInput.value;
                 
+                // 모든 에러 메시지 숨기기
+                document.querySelectorAll('.error-message').forEach(el => {
+                    el.style.display = 'none';
+                });
+                
                 // 유효성 검사
                 let isValid = true;
                 
-                // 이름
+                // 이름 검사
                 if (!name) {
                     document.getElementById('name-error').textContent = '이름을 입력해주세요';
                     document.getElementById('name-error').style.display = 'block';
                     isValid = false;
                 }
                 
-                // 이메일
+                // 이메일 검사
                 if (!validateEmail(email)) {
                     document.getElementById('email-error').textContent = '올바른 이메일 형식을 입력해주세요';
                     document.getElementById('email-error').style.display = 'block';
                     isValid = false;
                 }
                 
-                // 비밀번호
+                // 비밀번호 검사
                 if (password.length < 8) {
                     document.getElementById('password-error').textContent = '비밀번호는 8자 이상이어야 합니다';
                     document.getElementById('password-error').style.display = 'block';
                     isValid = false;
                 }
                 
-                // 비밀번호 확인
+                // 비밀번호 확인 검사
                 if (password !== confirmPassword) {
                     document.getElementById('confirm-password-error').textContent = '비밀번호가 일치하지 않습니다';
                     document.getElementById('confirm-password-error').style.display = 'block';
                     isValid = false;
                 }
                 
-                // 약관 동의
+                // 약관 동의 검사
                 if (!agreeTerms.checked) {
                     document.getElementById('terms-error').textContent = '이용약관에 동의해주세요';
                     document.getElementById('terms-error').style.display = 'block';
@@ -372,8 +378,9 @@
                 }
                 
                 if (!isValid) {
-                    errorBox.textContent = '입력 정보를 확인해주세요.';
+                    errorBox.textContent = '✗ 입력 정보를 확인해주세요.';
                     errorBox.style.display = 'block';
+                    successMessage.style.display = 'none';
                     return;
                 }
                 
@@ -382,6 +389,7 @@
                 registerBtn.disabled = true;
                 registerBtn.textContent = '처리 중...';
                 errorBox.style.display = 'none';
+                successMessage.style.display = 'none';
                 
                 // 회원가입 데이터
                 const userData = {
@@ -395,10 +403,15 @@
                     const result = await registerUser(userData);
                     
                     if (result.success) {
+                        // 성공 메시지
                         successMessage.textContent = '✓ ' + (result.message || '회원가입 성공! 로그인 페이지로 이동합니다...');
                         successMessage.style.display = 'block';
+                        
+                        // 버튼 업데이트
                         registerBtn.textContent = '✓ 가입 완료!';
                         registerBtn.style.background = '#4cd964';
+                        
+                        console.log('회원가입 성공, 2초 후 이동');
                         
                         // 2초 후 로그인 페이지로 이동
                         setTimeout(() => {
@@ -406,6 +419,7 @@
                         }, 2000);
                         
                     } else {
+                        // 실패 메시지
                         errorBox.textContent = '✗ ' + (result.message || '회원가입에 실패했습니다.');
                         errorBox.style.display = 'block';
                         registerBtn.disabled = false;
@@ -413,24 +427,34 @@
                     }
                     
                 } catch (error) {
+                    // 예외 처리
                     errorBox.textContent = '✗ 회원가입 중 오류가 발생했습니다.';
                     errorBox.style.display = 'block';
-                    console.error('회원가입 오류:', error);
+                    console.error('회원가입 오류 상세:', error);
                     registerBtn.disabled = false;
                     registerBtn.textContent = originalText;
                 }
             });
             
             // 테스트 데이터 자동 입력 (개발용)
+            console.log('테스트 데이터 자동 입력');
             nameInput.value = '테스트 사용자';
             emailInput.value = 'test' + Date.now() + '@timelink.com';
             passwordInput.value = 'test1234';
             confirmPasswordInput.value = 'test1234';
             agreeTerms.checked = true;
             
-            console.log('테스트 데이터 자동 입력됨');
+            console.log('입력된 테스트 데이터:');
+            console.log('이름:', nameInput.value);
             console.log('이메일:', emailInput.value);
             console.log('비밀번호:', passwordInput.value);
+            
+            console.log('회원가입 페이지 준비 완료');
+        });
+        
+        // 페이지 언로드 시 정리
+        window.addEventListener('beforeunload', function() {
+            console.log('회원가입 페이지 언로드');
         });
     </script>
 </body>
