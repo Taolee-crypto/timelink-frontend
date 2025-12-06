@@ -1,8 +1,3 @@
-#!/bin/bash
-echo "=== 정상적인 TL Platform 복원 ==="
-
-# index.html을 정상 버전으로 복원
-cat > index.html << 'HTML'
 <!DOCTYPE html>
 <html lang="ko" data-theme="light">
 <head>
@@ -326,6 +321,7 @@ cat > index.html << 'HTML'
             }
         }
     </style>
+    <link rel="stylesheet" href="css/api-styles.css">
 </head>
 <body>
     <!-- 네비게이션 바 -->
@@ -489,167 +485,103 @@ cat > index.html << 'HTML'
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     
-    <script>
-    // TL Platform 메인 JavaScript
-    const BACKEND_URL = 'https://timelink-backend.timelink-api.workers.dev';
-    const PLATFORM_VERSION = '2.0.0';
+    <script type="module">
+    import { checkAuth, updateUserInfo } from './auth.js';
     
-    console.log('🚀 TL Platform 시작');
-    console.log('🔗 백엔드:', BACKEND_URL);
-    console.log('📅 버전:', PLATFORM_VERSION);
-    
-    // 토스트 설정
-    toastr.options = {
-        positionClass: 'toast-top-right',
-        progressBar: true,
-        closeButton: true,
-        timeOut: 3000
-    };
-    
-    // 백엔드 연결 확인
-    async function checkBackendConnection() {
-        const statusEl = document.getElementById('connectionStatus');
+    document.addEventListener('DOMContentLoaded', function() {
+        // 인증 체크
+        if (!checkAuth()) return;
         
-        try {
-            const response = await fetch(BACKEND_URL + '/');
-            const data = await response.json();
-            
-            statusEl.innerHTML = '<i class="fas fa-check-circle"></i> <span>시스템 정상</span>';
-            statusEl.style.background = '#10b981';
-            
-            console.log('✅ 백엔드 연결 성공:', data);
-            return true;
-        } catch (error) {
-            statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span>연결 실패</span>';
-            statusEl.style.background = '#ef4444';
-            
-            console.error('❌ 백엔드 연결 실패:', error);
-            return false;
-        }
-    }
-    
-    // 언어 관리
-    let currentLanguage = localStorage.getItem('tl_language') || 'ko';
-    
-    function toggleLanguageDropdown() {
-        const dropdown = document.getElementById('languageDropdown');
-        dropdown.classList.toggle('show');
-    }
-    
-    function changeLanguage(lang) {
-        currentLanguage = lang;
-        localStorage.setItem('tl_language', lang);
+        // 사용자 정보 업데이트
+        updateUserInfo();
         
-        const langNames = {
-            'ko': '한국어',
-            'en': 'English', 
-            'ja': '日本語',
-            'zh': '中文'
-        };
-        
-        document.getElementById('current-language').textContent = langNames[lang];
-        toggleLanguageDropdown();
-        
-        toastr.success('언어가 변경되었습니다: ' + langNames[lang]);
-    }
-    
-    // 플랫폼 열기 함수
-    function openStudio() {
-        toastr.info('TL STUDIO 페이지로 이동합니다...');
-        // 실제 구현시: window.location.href = 'studio.html';
-    }
-    
-    function openMusicMarket() {
-        toastr.info('TL 뮤직마켓 페이지로 이동합니다...');
-        // 실제 구현시: window.location.href = 'music-market.html';
-    }
-    
-    function openTube() {
-        toastr.info('TL 튜브 페이지로 이동합니다...');
-        // 실제 구현시: window.location.href = 'tube.html';
-    }
-    
-    function showDemo() {
-        toastr.info('시스템 데모를 시작합니다...');
-        // 데모 기능 구현
-    }
-    
-    // 페이지 로드 시 초기화
-    document.addEventListener('DOMContentLoaded', async function() {
-        console.log('📱 TL Platform 초기화 시작');
-        
-        // 언어 설정 적용
-        changeLanguage(currentLanguage);
-        
-        // 백엔드 연결 확인
-        const isConnected = await checkBackendConnection();
-        
-        if (isConnected) {
-            toastr.success('TL Platform이 준비되었습니다!');
-            
-            // 로그인 상태 확인
-            const token = localStorage.getItem('tl_token');
-            if (token) {
-                // 로그인 상태면 UI 업데이트
-                const authButtons = document.querySelector('.auth-buttons');
-                authButtons.innerHTML = \`
-                    <button class="btn btn-primary" onclick="window.location.href='auth.html'">
-                        <i class="fas fa-user-circle"></i> 마이페이지
-                    </button>
-                    <button class="btn btn-secondary" onclick="logout()">
-                        <i class="fas fa-sign-out-alt"></i> 로그아웃
-                    </button>
-                \`;
-            }
-        } else {
-            toastr.warning('백엔드에 연결할 수 없습니다. 오프라인 모드로 실행됩니다.');
-        }
-        
-        console.log('✅ TL Platform 초기화 완료');
+        // 페이지별 데이터 로딩
+        loadPageData();
     });
     
-    // 로그아웃 함수
-    function logout() {
-        localStorage.removeItem('tl_token');
-        localStorage.removeItem('tl_user');
-        toastr.success('로그아웃되었습니다');
-        location.reload();
+    async function loadPageData() {
+        // 페이지별 데이터 로딩 로직
+        const currentPage = window.location.pathname.split('/').pop();
+        
+        switch(currentPage) {
+            case 'index.html':
+                await loadDashboardData();
+                break;
+            case 'studio.html':
+                await loadStudioData();
+                break;
+            case 'music-market.html':
+                await loadMarketData();
+                break;
+            case 'tube.html':
+                await loadTubeData();
+                break;
+            case 'advertiser-dashboard.html':
+                await loadAdData();
+                break;
+        }
     }
     
-    // 외부 클릭 시 언어 드롭다운 닫기
-    document.addEventListener('click', function(event) {
-        const dropdown = document.getElementById('languageDropdown');
-        const langBtn = document.querySelector('.lang-btn');
-        
-        if (!langBtn.contains(event.target) && !dropdown.contains(event.target)) {
-            dropdown.classList.remove('show');
-        }
-    });
-    
-    // API 테스트 함수 (개발용)
-    window.testAPI = async function() {
+    async function loadDashboardData() {
         try {
-            const response = await fetch(BACKEND_URL + '/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: 'test@tlplatform.com',
-                    password: 'test123'
-                })
-            });
+            // 대시보드 데이터 로드
+            const [profile, content, stats] = await Promise.all([
+                api.getUserProfile(),
+                api.getContentList(1, 4),
+                api.getAdStats()
+            ]);
             
-            const data = await response.json();
-            console.log('API 테스트 결과:', data);
-            toastr.info('API 테스트 완료');
-            return data;
+            // DOM 업데이트
+            updateDashboardUI(profile, content, stats);
         } catch (error) {
-            console.error('API 테스트 오류:', error);
-            toastr.error('API 테스트 실패');
+            console.error('대시보드 데이터 로드 실패:', error);
         }
-    };
-    </script>
+    }
+    
+    function updateDashboardUI(profile, content, stats) {
+        // 실제 데이터로 UI 업데이트
+        document.getElementById('total-tracks').textContent = stats?.totalTracks || 0;
+        document.getElementById('total-views').textContent = stats?.totalViews || 0;
+        document.getElementById('total-earnings').textContent = `₩ ${(stats?.totalEarnings || 0).toLocaleString()}`;
+        document.getElementById('avg-rating').textContent = stats?.avgRating?.toFixed(1) || '0.0';
+        
+        // 최신 트랙 목록 업데이트
+        updateRecentTracks(content?.data || []);
+    }
+    
+    function updateRecentTracks(tracks) {
+        const container = document.getElementById('recent-tracks');
+        if (!container) return;
+        
+        if (!tracks || tracks.length === 0) {
+            container.innerHTML = '<div class="no-content">아직 업로드한 트랙이 없습니다.</div>';
+            return;
+        }
+        
+        container.innerHTML = tracks.map(track => `
+            <div class="content-card">
+                <div class="content-thumbnail" style="background: linear-gradient(135deg, #${Math.floor(Math.random()*16777215).toString(16)}, #${Math.floor(Math.random()*16777215).toString(16)})">
+                    <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">
+                        ${track.duration ? formatDuration(track.duration) : '--:--'}
+                    </div>
+                </div>
+                <div class="content-info">
+                    <div class="content-title">${track.title || '무제'}</div>
+                    <div class="content-author">${track.author || '알 수 없음'}</div>
+                    <div class="content-meta">
+                        <span>👁️ ${track.views || 0}</span>
+                        <span>${new Date(track.created_at).toLocaleDateString()}</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    function formatDuration(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+</script>
 </body>
 </html>
-HTML
-
-echo "✅ 정상적인 TL Platform으로 복원 완료"
