@@ -48,10 +48,6 @@
             text-decoration: none;
         }
         .btn:hover { transform: translateY(-2px); }
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
         #api-status {
             margin-top: 15px;
             padding: 15px;
@@ -64,6 +60,10 @@
             word-break: break-all;
             text-align: left;
         }
+        .loading { color: #fbbf24; }
+        .success { color: #4ade80; }
+        .error { color: #f87171; }
+        .warning { color: #fbbf24; }
         .service-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -76,18 +76,11 @@
             border-radius: 10px;
             text-align: center;
         }
-        .service-card h4 {
-            margin-bottom: 10px;
-            color: #c7d2fe;
-        }
         footer {
             margin-top: 30px;
             font-size: 12px;
             opacity: 0.7;
         }
-        .error { color: #f87171; }
-        .success { color: #4ade80; }
-        .warning { color: #fbbf24; }
     </style>
 </head>
 <body>
@@ -105,14 +98,15 @@
         
         <div class="status-box">
             <h3>백엔드 연결 테스트</h3>
-            <button class="btn" onclick="window.TimeLinkAPI.testConnection()">
+            <button class="btn" id="test-btn">
                 연결 테스트 실행
             </button>
             <div id="api-status">
                 버튼을 클릭하여 백엔드 연결을 테스트하세요
             </div>
-            <div id="login-test" style="margin-top: 20px;"></div>
         </div>
+        
+        <div id="additional-tests"></div>
         
         <div class="status-box">
             <h3>서비스 메뉴 (개발 중)</h3>
@@ -155,7 +149,7 @@
         </footer>
     </div>
     
-    <!-- API 테스트 스크립트 -->
+    <!-- API 테스트 스크립트 (먼저 로드) -->
     <script src="js/api-test.js"></script>
     
     <script>
@@ -175,45 +169,60 @@
             }
         }
         
-        // 초기화
-        updateTime();
-        setInterval(updateTime, 1000);
-        showPageInfo();
-        
-        // 페이지 로드 시 자동 테스트 (5초 후)
-        setTimeout(() => {
-            console.log('TimeLink.digital 자동 테스트 시작...');
-            if (window.TimeLinkAPI && typeof window.TimeLinkAPI.testConnection === 'function') {
-                window.TimeLinkAPI.testConnection();
-            } else {
-                console.error('TimeLinkAPI가 로드되지 않았습니다.');
-                document.getElementById('api-status').innerHTML = 
-                    '<span class="error">❌ API 모듈 로드 실패</span>';
+        // 버튼 이벤트 바인딩
+        function setupEventListeners() {
+            const testBtn = document.getElementById('test-btn');
+            if (testBtn) {
+                testBtn.onclick = function() {
+                    console.log('테스트 버튼 클릭됨');
+                    if (window.TimeLinkAPI && typeof window.TimeLinkAPI.testConnection === 'function') {
+                        console.log('TimeLinkAPI.testConnection 호출');
+                        window.TimeLinkAPI.testConnection();
+                    } else {
+                        console.error('TimeLinkAPI가 로드되지 않았습니다');
+                        document.getElementById('api-status').innerHTML = 
+                            '<span class="error">❌ API 모듈 로드 실패. 페이지를 새로고침하세요.</span>';
+                    }
+                };
             }
-        }, 3000);
+        }
         
-        console.log('TimeLink.digital 로드됨:', {
-            url: window.location.href,
-            time: new Date().toISOString(),
-            api: typeof window.TimeLinkAPI
+        // 초기화 함수
+        function init() {
+            console.log('페이지 초기화 시작');
+            updateTime();
+            showPageInfo();
+            setupEventListeners();
+            
+            // 3초 후 자동 테스트
+            setTimeout(function() {
+                console.log('자동 테스트 시도...');
+                console.log('window.TimeLinkAPI:', window.TimeLinkAPI);
+                if (window.TimeLinkAPI && typeof window.TimeLinkAPI.testConnection === 'function') {
+                    console.log('자동 연결 테스트 시작');
+                    window.TimeLinkAPI.testConnection();
+                } else {
+                    console.warn('TimeLinkAPI가 아직 로드되지 않았습니다. 수동 테스트 필요');
+                }
+            }, 3000);
+            
+            // 1초마다 시간 업데이트
+            setInterval(updateTime, 1000);
+            
+            console.log('페이지 초기화 완료');
+        }
+        
+        // DOM 로드 완료 후 초기화
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+        
+        // 글로벌 에러 핸들러
+        window.addEventListener('error', function(event) {
+            console.error('전역 오류:', event.error);
         });
     </script>
 </body>
 </html>
-
-<div id="additional-tests" style="margin-top: 20px;"></div>
-
-<script>
-  // 페이지 로드 시 자동 테스트
-  document.addEventListener('DOMContentLoaded', function() {
-    console.log('TimeLink.digital 로드 완료');
-    
-    // 3초 후 자동 테스트
-    setTimeout(function() {
-      if (window.TimeLinkAPI && typeof window.TimeLinkAPI.testConnection === 'function') {
-        console.log('자동 연결 테스트 시작...');
-        window.TimeLinkAPI.testConnection();
-      }
-    }, 3000);
-  });
-</script>
