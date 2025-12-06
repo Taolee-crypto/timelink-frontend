@@ -317,3 +317,117 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 console.log('✅ TimeLinkAPI 초기화 완료');
+
+// Apple Music 스타일 응답 포맷팅
+TimeLinkAPI.prototype.formatResponse = function(data, isSuccess) {
+  if (isSuccess) {
+    return `
+      <div class="status-success" style="background: rgba(48, 209, 88, 0.1); padding: 16px; border-radius: 8px; margin: 12px 0;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <span style="font-size: 20px;">✅</span>
+          <strong>${data.service || 'TimeLink 백엔드'}</strong>
+        </div>
+        <div style="font-size: 13px; line-height: 1.6;">
+          <div>상태: <span style="color: #30d158;">${data.status}</span></div>
+          <div>환경: ${data.environment}</div>
+          <div>시간: ${new Date(data.timestamp).toLocaleString('ko-KR')}</div>
+          <div>도메인: ${data.frontend}</div>
+        </div>
+      </div>
+    `;
+  } else {
+    return `
+      <div class="status-error" style="background: rgba(255, 69, 58, 0.1); padding: 16px; border-radius: 8px; margin: 12px 0;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <span style="font-size: 20px;">❌</span>
+          <strong>연결 실패</strong>
+        </div>
+        <div style="font-size: 13px; line-height: 1.6;">
+          <div>오류: ${data.error}</div>
+          <div>상세: ${data.details}</div>
+          <div>URL: ${data.url}</div>
+          <div>시간: ${new Date(data.timestamp).toLocaleString('ko-KR')}</div>
+        </div>
+      </div>
+    `;
+  }
+};
+
+// Apple Music 스타일로 테스트 결과 표시
+TimeLinkAPI.prototype.showAppleMusicResult = function(data, elementId) {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+  
+  if (data.status === 'healthy') {
+    element.innerHTML = this.formatResponse(data, true);
+    
+    // 시스템 상태 업데이트
+    const backendStatus = document.getElementById('backend-status-text');
+    if (backendStatus) {
+      backendStatus.textContent = '✓ 온라인';
+      backendStatus.className = 'status-success';
+    }
+    
+    const systemStatus = document.getElementById('system-status');
+    if (systemStatus) {
+      systemStatus.textContent = '정상';
+      systemStatus.style.background = 'linear-gradient(135deg, #30d158, #34c759)';
+    }
+    
+  } else {
+    element.innerHTML = this.formatResponse(data, false);
+    
+    const backendStatus = document.getElementById('backend-status-text');
+    if (backendStatus) {
+      backendStatus.textContent = '✗ 오류';
+      backendStatus.className = 'status-error';
+    }
+  }
+};
+
+// 기존 testConnection 메서드 수정
+const originalTestConnection = TimeLinkAPI.prototype.testConnection;
+TimeLinkAPI.prototype.testConnection = function() {
+  const statusElement = document.getElementById('api-status');
+  if (statusElement) {
+    statusElement.innerHTML = `
+      <div class="status-loading" style="text-align: center; padding: 20px;">
+        <div style="margin-bottom: 8px;">🔍</div>
+        <div>백엔드 연결 확인 중...</div>
+        <div style="font-size: 11px; margin-top: 8px; color: #98989d;">
+          ${this.currentURL}
+        </div>
+      </div>
+    `;
+  }
+  
+  // 원래 메서드 호출
+  return originalTestConnection.call(this);
+};
+
+// 추가 테스트 표시
+TimeLinkAPI.prototype.showAppleMusicTests = function() {
+  const additionalDiv = document.getElementById('additional-tests');
+  if (additionalDiv) {
+    additionalDiv.innerHTML = `
+      <div style="margin-top: 24px;">
+        <h4 style="font-size: 16px; margin-bottom: 12px; color: #fff;">추가 테스트</h4>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="am-btn am-btn-secondary" style="font-size: 13px; padding: 8px 16px;" 
+                  onclick="window.TimeLinkAPI.testLogin()">
+            로그인 테스트
+          </button>
+          <button class="am-btn am-btn-secondary" style="font-size: 13px; padding: 8px 16px;" 
+                  onclick="window.TimeLinkAPI.testContent()">
+            콘텐츠 테스트
+          </button>
+          <button class="am-btn am-btn-secondary" style="font-size: 13px; padding: 8px 16px;" 
+                  onclick="window.TimeLinkAPI.testEndpoint('/test')">
+            테스트 API
+          </button>
+        </div>
+        <div id="test-results" style="margin-top: 16px;"></div>
+      </div>
+    `;
+  }
+};
