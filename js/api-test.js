@@ -1,21 +1,24 @@
+// TimeLink API 클라이언트
 class TimeLinkAPI {
   constructor() {
-    // 프로덕션 백엔드 URL
-    this.baseURL = 'https://timelink-backend.taolee-crypto.workers.dev';
+    // 실제 배포된 Cloudflare Worker URL
+    this.baseURL = 'https://timelink-backend.timelink-api.workers.dev';
     
     // 현재 사용할 URL
     this.currentURL = this.baseURL;
     
     // 상태 관리
     this.connectionStatus = 'unknown';
+    
+    console.log('TimeLinkAPI 초기화됨, URL:', this.baseURL);
   }
 
   async healthCheck() {
     try {
+      console.log('Health check to:', `${this.currentURL}/health`);
       const response = await fetch(`${this.currentURL}/health`, {
         method: 'GET',
         mode: 'cors',
-        credentials: 'include',
         headers: {
           'Accept': 'application/json'
         }
@@ -26,25 +29,30 @@ class TimeLinkAPI {
       }
       
       const data = await response.json();
+      console.log('Health check 성공:', data);
       return data;
     } catch (error) {
-      console.error('Health check failed:', error);
+      console.error('Health check 실패:', error);
       return { 
         error: '백엔드 연결 실패', 
         details: error.message,
         url: this.currentURL,
-        solution: 'Cloudflare Worker 상태를 확인하세요'
+        solution: '1. Cloudflare Worker 상태 확인\n2. 네트워크 연결 확인'
       };
     }
   }
 
   async testConnection() {
+    console.log('연결 테스트 시작...');
     const statusElement = document.getElementById('api-status');
     const backendStatusText = document.getElementById('backend-status-text');
     
-    if (!statusElement) return;
+    if (!statusElement) {
+      console.error('api-status element 없음');
+      return;
+    }
 
-    statusElement.innerHTML = '백엔드 연결 테스트 중...<br><small>' + this.currentURL + '</small>';
+    statusElement.innerHTML = '백엔드 연결 테스트 중...<br><small>URL: ' + this.currentURL + '</small>';
     statusElement.className = 'loading';
     
     if (backendStatusText) {
@@ -67,7 +75,6 @@ class TimeLinkAPI {
           환경: ${health.environment || 'unknown'}<br>
           도메인: ${health.frontend || 'timelink.digital'}<br>
           시간: ${new Date(health.timestamp).toLocaleString()}<br>
-          CORS: ${health.cors?.allowedOrigin || '설정됨'}<br>
           <small>URL: ${this.currentURL}</small>
         `;
         statusElement.className = 'success';
@@ -77,10 +84,7 @@ class TimeLinkAPI {
           backendStatusText.className = 'success';
         }
         
-        // 성공 시 로그인 테스트 버튼 활성화
-        this.showLoginTest();
-        
-        // 추가 테스트 옵션 표시
+        // 성공 시 추가 테스트 옵션 표시
         this.showAdditionalTests();
         
       } else if (health.error) {
@@ -90,7 +94,6 @@ class TimeLinkAPI {
           ⚠️ <strong>백엔드 연결 문제</strong><br>
           오류: ${health.error}<br>
           상세: ${health.details || '알 수 없음'}<br>
-          해결책: ${health.solution || '백엔드 배포 확인 필요'}<br>
           <small>URL: ${this.currentURL}</small>
         `;
         statusElement.className = 'error';
@@ -121,13 +124,6 @@ class TimeLinkAPI {
         ❌ <strong>백엔드 연결 실패</strong><br>
         오류: ${error.message}<br>
         <small>URL: ${this.currentURL}</small>
-        <p><strong>해결 방법:</strong></p>
-        <ol>
-          <li>Cloudflare Worker가 배포되었는지 확인</li>
-          <li>Worker URL이 올바른지 확인</li>
-          <li>브라우저 개발자 도구(F12) → Network 탭에서 확인</li>
-          <li>CORS 설정 확인</li>
-        </ol>
       `;
       statusElement.className = 'error';
       
@@ -138,37 +134,34 @@ class TimeLinkAPI {
     }
   }
 
-  showLoginTest() {
-    const loginTestDiv = document.getElementById('login-test');
-    if (loginTestDiv) {
-      loginTestDiv.innerHTML = `
-        <h4>인증 테스트</h4>
-        <button onclick="TimeLinkAPI.testLogin()" class="btn">
-          로그인 테스트 실행
-        </button>
-        <button onclick="TimeLinkAPI.testContent()" class="btn">
-          콘텐츠 목록 테스트
-        </button>
-        <div id="login-result" style="margin-top: 10px;"></div>
-      `;
-    }
-  }
-  
   showAdditionalTests() {
     const additionalDiv = document.getElementById('additional-tests');
     if (additionalDiv) {
       additionalDiv.innerHTML = `
-        <h4>추가 API 테스트</h4>
-        <button onclick="TimeLinkAPI.testEndpoint('/test')" class="btn">테스트 엔드포인트</button>
-        <button onclick="TimeLinkAPI.testEndpoint('/api/test')" class="btn">API 테스트</button>
-        <button onclick="TimeLinkAPI.testEndpoint('/')" class="btn">루트 엔드포인트</button>
-        <div id="additional-result" style="margin-top: 10px;"></div>
+        <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin-top: 20px;">
+          <h4>추가 API 테스트</h4>
+          <button onclick="window.TimeLinkAPI.testEndpoint('/test')" class="btn">
+            테스트 엔드포인트
+          </button>
+          <button onclick="window.TimeLinkAPI.testEndpoint('/api/test')" class="btn">
+            API 테스트
+          </button>
+          <button onclick="window.TimeLinkAPI.testLogin()" class="btn">
+            로그인 테스트
+          </button>
+          <button onclick="window.TimeLinkAPI.testContent()" class="btn">
+            콘텐츠 테스트
+          </button>
+          <div id="test-results" style="margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 5px; min-height: 100px;">
+            테스트 결과가 여기에 표시됩니다
+          </div>
+        </div>
       `;
     }
   }
 
   async testLogin() {
-    const resultEl = document.getElementById('login-result');
+    const resultEl = document.getElementById('test-results');
     if (!resultEl) return;
     
     resultEl.innerHTML = '<div class="loading">로그인 테스트 중...</div>';
@@ -177,7 +170,6 @@ class TimeLinkAPI {
       const response = await fetch(`${this.currentURL}/api/auth/login`, {
         method: 'POST',
         mode: 'cors',
-        credentials: 'include',
         headers: { 
           'Content-Type': 'application/json',
           'Accept': 'application/json'
@@ -200,7 +192,6 @@ class TimeLinkAPI {
           메시지: ${data.message}<br>
           사용자: ${data.user?.name} (${data.user?.email})<br>
           토큰: ${data.token ? data.token.substring(0, 30) + '...' : '없음'}<br>
-          CORS: ${data.cors || '설정됨'}
         </div>
       `;
     } catch (error) {
@@ -208,14 +199,13 @@ class TimeLinkAPI {
         <div class="error">
           ❌ <strong>로그인 실패</strong><br>
           오류: ${error.message}<br>
-          <small>백엔드 CORS 설정을 확인하세요</small>
         </div>
       `;
     }
   }
   
   async testContent() {
-    const resultEl = document.getElementById('login-result');
+    const resultEl = document.getElementById('test-results');
     if (!resultEl) return;
     
     resultEl.innerHTML = '<div class="loading">콘텐츠 목록 로드 중...</div>';
@@ -224,7 +214,6 @@ class TimeLinkAPI {
       const response = await fetch(`${this.currentURL}/api/content/list`, {
         method: 'GET',
         mode: 'cors',
-        credentials: 'include',
         headers: {
           'Accept': 'application/json'
         }
@@ -270,7 +259,7 @@ class TimeLinkAPI {
   }
   
   async testEndpoint(endpoint) {
-    const resultEl = document.getElementById('additional-result') || document.getElementById('login-result');
+    const resultEl = document.getElementById('test-results');
     if (!resultEl) return;
     
     resultEl.innerHTML = `<div class="loading">${endpoint} 테스트 중...</div>`;
@@ -279,7 +268,6 @@ class TimeLinkAPI {
       const response = await fetch(`${this.currentURL}${endpoint}`, {
         method: 'GET',
         mode: 'cors',
-        credentials: 'include',
         headers: {
           'Accept': 'application/json'
         }
@@ -294,7 +282,7 @@ class TimeLinkAPI {
       resultEl.innerHTML = `
         <div class="success">
           ✅ <strong>${endpoint} 테스트 성공!</strong><br>
-          <pre style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; overflow: auto; max-height: 300px;">
+          <pre style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; overflow: auto; max-height: 300px; font-size: 12px;">
 ${JSON.stringify(data, null, 2)}
           </pre>
         </div>
@@ -311,8 +299,12 @@ ${JSON.stringify(data, null, 2)}
 }
 
 // 글로벌 객체로 노출
+console.log('TimeLinkAPI 모듈 로드 중... URL:', 'https://timelink-backend.timelink-api.workers.dev');
 if (typeof window !== 'undefined') {
   window.TimeLinkAPI = new TimeLinkAPI();
+  console.log('✅ TimeLinkAPI가 window 객체에 등록됨');
+} else {
+  console.error('❌ window 객체를 찾을 수 없음');
 }
 
 // CSS 클래스 정의
@@ -324,3 +316,4 @@ style.textContent = `
   .warning { color: #fbbf24; }
 `;
 document.head.appendChild(style);
+console.log('✅ TimeLinkAPI 초기화 완료');
