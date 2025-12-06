@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeLink - AI Time-based Content Platform</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+        }
+        h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        .status {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-family: monospace;
+        }
+        .btn {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 12px 24px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 10px;
+        }
+        .api-test { margin-top: 30px; }
+        .result {
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            text-align: left;
+            font-size: 0.9rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⏰ TimeLink</h1>
+        <p>AI Time-based Content Platform</p>
+        
+        <div class="status">
+            <p><strong>도메인:</strong> timelink.kr</p>
+            <p><strong>프론트엔드:</strong> GitHub Pages</p>
+            <p><strong>백엔드:</strong> Cloudflare Workers</p>
+            <p><strong>상태:</strong> <span id="status">확인 중...</span></p>
+        </div>
+        
+        <div class="api-test">
+            <button onclick="testBackend()" class="btn">백엔드 연결 테스트</button>
+            <div id="result" class="result"></div>
+        </div>
+        
+        <div style="margin-top: 30px;">
+            <p>새로운 TimeLink 개발 시작!</p>
+        </div>
+    </div>
+    
+    <script>
+        const BACKEND_URL = 'https://timelink-backend.taolee-crypto.workers.dev';
+        
+        async function testBackend() {
+            const resultEl = document.getElementById('result');
+            resultEl.innerHTML = '테스트 중...';
+            
+            try {
+                // 헬스 체크
+                const healthRes = await fetch(BACKEND_URL + '/api/health');
+                const healthData = await healthRes.json();
+                
+                // 로그인 테스트
+                const loginRes = await fetch(BACKEND_URL + '/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'test@timelink.kr', password: 'test' })
+                });
+                const loginData = await loginRes.json();
+                
+                resultEl.innerHTML = `
+                    <strong>✅ 백엔드 연결 성공!</strong><br>
+                    <strong>헬스 체크:</strong><br>
+                    ${JSON.stringify(healthData, null, 2)}<br><br>
+                    <strong>로그인 테스트:</strong><br>
+                    ${JSON.stringify(loginData, null, 2)}
+                `;
+                
+                document.getElementById('status').textContent = '연결됨';
+            } catch (error) {
+                resultEl.innerHTML = `<strong>❌ 연결 실패:</strong><br>${error}`;
+                document.getElementById('status').textContent = '연결 실패';
+            }
+        }
+        
+        // 페이지 로드 시 자동 테스트
+        window.onload = testBackend;
+    </script>
+</body>
+</html>
