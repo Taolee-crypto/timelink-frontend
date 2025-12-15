@@ -145,4 +145,78 @@ class TimeLinkConfig {
             }
 
             return isJson ? await response.json() : await response.text();
-       
+        } catch (error) {
+            console.error('API 요청 실패:', error);
+            throw error;
+        }
+    }
+
+    // 파일 업로드 요청
+    static async uploadFile(endpoint, formData) {
+        const token = this.getToken();
+        const headers = {};
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers,
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`업로드 실패: ${response.status}`);
+            }
+
+            return response.json();
+        } catch (error) {
+            console.error('파일 업로드 실패:', error);
+            throw error;
+        }
+    }
+
+    // API 상태 확인
+    static async checkHealth() {
+        try {
+            const response = await fetch(`${this.API_BASE_URL}/api`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            return {
+                online: response.ok,
+                status: response.status,
+                message: response.ok ? 'API 연결됨' : 'API 연결 실패'
+            };
+        } catch (error) {
+            return {
+                online: false,
+                status: 0,
+                message: error.message
+            };
+        }
+    }
+}
+
+// 전역에서 사용 가능하도록
+window.TimeLinkConfig = TimeLinkConfig;
+
+// 페이지 로드 시 API 상태 확인
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const health = await TimeLinkConfig.checkHealth();
+        console.log('API 상태:', health);
+        
+        if (!health.online && window.location.pathname !== '/login.html') {
+            console.warn('API 서버에 연결할 수 없습니다.');
+        }
+    } catch (error) {
+        console.warn('API 상태 확인 실패:', error);
+    }
+});
+EOF
