@@ -257,4 +257,92 @@ cat > p2p-music.html << 'EOF'
                             </div>
                             <div class="d-flex justify-content-between align-items-center">
                                 <span class="text-warning">
-                                    <i class="bi bi-star-fill
+                                    <i class="bi bi-star-fill"></i> ${music.rating}
+                                </span>
+                                <span class="text-muted">
+                                    <i class="bi bi-download"></i> ${music.downloads}
+                                </span>
+                            </div>
+                            <button class="btn btn-primary w-100 mt-3" onclick="purchaseMusic(${music.id})">
+                                <i class="bi bi-cart"></i> 구매하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 음원 미리듣기
+        function playMusicPreview(musicId) {
+            const music = allMusic.find(m => m.id === musicId);
+            if (music) {
+                alert(`🎵 ${music.title} 미리듣기\n(실제 구현에는 오디오 플레이어가 연결됩니다)`);
+            }
+        }
+        
+        // 음원 구매
+        function purchaseMusic(musicId) {
+            if (!TimeLinkComponents.checkAuth()) {
+                alert('로그인이 필요합니다.');
+                window.location.href = 'login.html?redirect=p2p-music';
+                return;
+            }
+            
+            const music = allMusic.find(m => m.id === musicId);
+            if (music) {
+                if (confirm(`${music.title}을(를) ${music.price} TL에 구매하시겠습니까?`)) {
+                    // 실제 구매 로직
+                    alert('구매가 완료되었습니다!');
+                }
+            }
+        }
+        
+        // 필터 적용
+        function applyFilters() {
+            const genre = document.getElementById('genreFilter').value;
+            const price = document.getElementById('priceFilter').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            
+            let filtered = allMusic;
+            
+            // 장르 필터
+            if (genre) {
+                filtered = filtered.filter(music => music.genre.toLowerCase() === genre);
+            }
+            
+            // 가격 필터
+            if (price) {
+                const [min, max] = price.split('-').map(Number);
+                if (max) {
+                    filtered = filtered.filter(music => music.price >= min && music.price <= max);
+                } else {
+                    filtered = filtered.filter(music => music.price >= min);
+                }
+            }
+            
+            // 검색 필터
+            if (search) {
+                filtered = filtered.filter(music => 
+                    music.title.toLowerCase().includes(search) ||
+                    music.artist.toLowerCase().includes(search) ||
+                    music.description.toLowerCase().includes(search)
+                );
+            }
+            
+            renderMusicList(filtered);
+        }
+        
+        // 이벤트 리스너 설정
+        document.addEventListener('DOMContentLoaded', () => {
+            // 음원 목록 로드
+            loadMusicList();
+            
+            // 필터 이벤트 리스너
+            document.getElementById('genreFilter').addEventListener('change', applyFilters);
+            document.getElementById('priceFilter').addEventListener('change', applyFilters);
+            document.getElementById('searchInput').addEventListener('input', applyFilters);
+        });
+    </script>
+</body>
+</html>
+EOF
