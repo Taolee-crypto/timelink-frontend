@@ -114,33 +114,76 @@ function createNavigation() {
     `;
 }
 
-// 사용자 섹션 생성 (로그인 상태에 따라 다름)
+// 사용자 섹션 생성 (가상 로그인 통합)
 function getUserSection() {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    const tlSum = localStorage.getItem('tlSum') || '0.00';
+    // 모든 로그인 방식 체크
+    const isLoggedInOld = localStorage.getItem('isLoggedIn') === 'true';
+    const userStr = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    
+    let user = null;
+    let tlSum = '0.00';
+    let isVirtual = false;
+    let username = '사용자';
+    
+    if (userStr && token) {
+        try {
+            user = JSON.parse(userStr);
+            tlSum = user.balance ? user.balance.toFixed(2) + ' TL' : '1,000.00 TL';
+            isVirtual = user.isVirtual || false;
+            username = user.username || user.displayName || '사용자';
+        } catch (e) {
+            console.error('사용자 데이터 파싱 오류:', e);
+        }
+    } else if (isLoggedInOld) {
+        // 기존 방식 지원
+        tlSum = localStorage.getItem('tlSum') || '1,000.00 TL';
+        username = localStorage.getItem('userEmail') || '사용자';
+    }
+    
+    const isLoggedIn = isLoggedInOld || (user && token);
     
     if (isLoggedIn) {
         return `
-            <div style="display: flex; align-items: center; gap: 20px;">
+            <div class="user-area">
                 <div class="tl-sum-display">
                     <span class="tl-sum-label">TL SUM:</span>
-                    <span class="tl-sum-value">${tlSum} TL</span>
+                    <span class="tl-sum-value">${tlSum}</span>
+                    ${isVirtual ? '<span class="demo-badge">DEMO</span>' : ''}
                 </div>
-                <a href="dashboard.html" class="menu-link" style="padding: 8px 15px;">
-                    <span>👤</span> 대시보드
-                </a>
-                <button onclick="logout()" class="menu-link" style="padding: 8px 15px; cursor: pointer; border: none;">
-                    로그아웃
-                </button>
+                <div class="user-dropdown">
+                    <button class="user-menu-btn">
+                        <span>👤</span> ${username}
+                        <i class="dropdown-arrow">▼</i>
+                    </button>
+                    <div class="user-dropdown-menu">
+                        <a href="dashboard.html" class="dropdown-item">
+                            <i class="menu-icon">📊</i> 대시보드
+                        </a>
+                        <a href="studio.html" class="dropdown-item">
+                            <i class="menu-icon">🎵</i> 스튜디오
+                        </a>
+                        <a href="musicplace.html" class="dropdown-item">
+                            <i class="menu-icon">🎧</i> 마켓플레이스
+                        </a>
+                        <a href="tltube.html" class="dropdown-item">
+                            <i class="menu-icon">🎬</i> TL Tube
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <button onclick="logoutAll()" class="dropdown-item logout">
+                            <i class="menu-icon">🚪</i> 로그아웃
+                        </button>
+                    </div>
+                </div>
             </div>
         `;
     } else {
         return `
-            <div style="display: flex; gap: 10px;">
-                <a href="login.html" class="menu-link" style="padding: 8px 15px;">
+            <div class="auth-buttons">
+                <a href="login.html" class="auth-btn login-btn">
                     로그인
                 </a>
-                <a href="signup.html" class="menu-link" style="padding: 8px 15px; background: var(--accent-color); color: var(--dark-bg);">
+                <a href="signup.html" class="auth-btn signup-btn">
                     회원가입
                 </a>
             </div>
@@ -148,22 +191,64 @@ function getUserSection() {
     }
 }
 
-// 로그아웃 함수
-function logout() {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('tlSum');
-    window.location.href = 'index.html';
+// 통합 로그아웃 함수
+function logoutAll() {
+    if (confirm('정말 로그아웃하시겠습니까?')) {
+        // 모든 로그인 데이터 삭제
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('tlSum');
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        localStorage.removeItem('virtual_login');
+        localStorage.removeItem('demoDashboardData');
+        
+        // 가상 사용자 배지 제거
+        const badge = document.getElementById('virtualUserBadge');
+        if (badge) badge.remove();
+        
+        // 메인 페이지로 이동
+        window.location.href = 'index.html';
+    }
+}
+
+// 가상 사용자 배지 표시
+function showVirtualUserBadge(user) {
+    if (!user || !user.isVirtual) return;
+    
+    // 배지가 이미 있으면 업데이트
+    let badge = document.getElementById('virtualUserBadge');
+    
+    if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'virtualUserBadge';
+        badge.className = 'virtual-user-badge';
+        document.body.appendChild(badge);
+    }
+    
+    const username = user.username || 'User';
+    badge.innerHTML = \`
+        <span>🚀 데모 모드: \${username}</span>
+        <button onclick="hideVirtualBadge()" class="badge-close">×</button>
+    \`;
+    badge.style.display = 'flex';
+}
+
+function hideVirtualBadge() {
+    const badge = document.getElementById('virtualUserBadge');
+    if (badge) {
+        badge.style.display = 'none';
+    }
 }
 
 // 각 페이지의 헤더 배너 내용 커스터마이징
 function setBannerContent(title, subtitle = '') {
     const bannerContent = document.querySelector('.banner-content');
     if (bannerContent) {
-        bannerContent.innerHTML = `
-            <h1 class="banner-title">${title}</h1>
-            ${subtitle ? `<p class="banner-subtitle">${subtitle}</p>` : ''}
-        `;
+        bannerContent.innerHTML = \`
+            <h1 class="banner-title">\${title}</h1>
+            \${subtitle ? \`<p class="banner-subtitle">\${subtitle}</p>\` : ''}
+        \`;
     }
 }
 
@@ -180,6 +265,38 @@ document.addEventListener('DOMContentLoaded', function() {
     if (pageBannerContent) {
         setBannerContent(pageBannerContent.title, pageBannerContent.subtitle);
     }
+    
+    // 가상 사용자 배지 표시
+    const userStr = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    if (userStr && token) {
+        try {
+            const user = JSON.parse(userStr);
+            if (user.isVirtual) {
+                showVirtualUserBadge(user);
+            }
+        } catch (e) {
+            console.error('가상 사용자 배지 표시 오류:', e);
+        }
+    }
+    
+    // 드롭다운 메뉴 이벤트 추가
+    setTimeout(() => {
+        const userMenuBtn = document.querySelector('.user-menu-btn');
+        const dropdownMenu = document.querySelector('.user-dropdown-menu');
+        
+        if (userMenuBtn && dropdownMenu) {
+            userMenuBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                dropdownMenu.classList.toggle('show');
+            });
+            
+            // 바깥 클릭 시 닫기
+            document.addEventListener('click', function() {
+                dropdownMenu.classList.remove('show');
+            });
+        }
+    }, 100);
 });
 
 // 각 페이지별 배너 내용
@@ -226,3 +343,8 @@ function getPageBannerContent(pageTitle) {
         subtitle: '보고, 듣고, 읽고, 벌고하는 미래형 시간 경제 플랫폼'
     };
 }
+
+// 전역 함수 노출
+window.logoutAll = logoutAll;
+window.showVirtualUserBadge = showVirtualUserBadge;
+window.hideVirtualBadge = hideVirtualBadge;

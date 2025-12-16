@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원가입 | TimeLink</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #4a1e8a 0%, #1a237e 100%);
+            --dark-bg: #0a0a1a;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --text-light: #ffffff;
+            --text-gray: #b8b8d1;
+            --glass-border: rgba(255, 255, 255, 0.08);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--dark-bg);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(74, 30, 138, 0.15) 0%, transparent 25%),
+                radial-gradient(circle at 80% 70%, rgba(26, 35, 126, 0.15) 0%, transparent 25%);
+        }
+        
+        .signup-container {
+            max-width: 400px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        .signup-card {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .logo p {
+            color: var(--text-gray);
+            font-size: 0.9rem;
+        }
+        
+        .form-label {
+            color: var(--text-light);
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .form-control {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-light);
+            border-radius: 10px;
+            padding: 12px 15px;
+        }
+        
+        .form-control:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #7c4dff;
+            color: var(--text-light);
+            box-shadow: 0 0 0 3px rgba(124, 77, 255, 0.1);
+        }
+        
+        .btn-primary {
+            background: var(--primary-gradient);
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 30, 138, 0.3);
+        }
+        
+        .login-link {
+            text-align: center;
+            margin-top: 25px;
+            color: var(--text-gray);
+            font-size: 0.9rem;
+        }
+        
+        .login-link a {
+            color: #7c4dff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+        
+        .verification-section {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .verification-code {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .verification-code input {
+            flex: 1;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+        }
+        
+        .timer {
+            color: #ff4081;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-align: center;
+            margin-top: 10px;
+        }
+        
+        .resend-link {
+            color: #7c4dff;
+            text-decoration: none;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        
+        .resend-link:hover {
+            text-decoration: underline;
+        }
+        
+        .alert {
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .alert-success {
+            background: rgba(0, 200, 83, 0.1);
+            border: 1px solid rgba(0, 200, 83, 0.3);
+            color: #00c853;
+        }
+        
+        .alert-error {
+            background: rgba(255, 64, 129, 0.1);
+            border: 1px solid rgba(255, 64, 129, 0.3);
+            color: #ff4081;
+        }
+    </style>
+</head>
+<body>
+    <div class="signup-container">
+        <div class="signup-card">
+            <!-- 로고 -->
+            <div class="logo">
+                <h1><i class="bi bi-infinity"></i> TimeLink</h1>
+                <p>이메일 인증으로 간편 가입</p>
+            </div>
+            
+            <!-- 알림 메시지 -->
+            <div class="alert" id="messageAlert"></div>
+            
+            <!-- 이메일 입력 폼 -->
+            <div id="emailForm">
+                <div class="mb-3">
+                    <label class="form-label">이메일 주소</label>
+                    <input type="email" class="form-control" id="email" placeholder="your@email.com" required>
+                </div>
+                
+                <button class="btn btn-primary" onclick="sendVerificationCode()">
+                    <i class="bi bi-envelope-check me-2"></i>인증 코드 받기
+                </button>
+            </div>
+            
+            <!-- 인증 코드 입력 폼 -->
+            <div class="verification-section" id="verificationForm">
+                <p class="text-center text-gray mb-3">
+                    <span id="targetEmail"></span>로<br>
+                    6자리 인증 코드를 발송했습니다
+                </p>
+                
+                <div class="verification-code">
+                    <input type="text" class="form-control" id="code1" maxlength="1" oninput="moveToNext(1)">
+                    <input type="text" class="form-control" id="code2" maxlength="1" oninput="moveToNext(2)">
+                    <input type="text" class="form-control" id="code3" maxlength="1" oninput="moveToNext(3)">
+                    <input type="text" class="form-control" id="code4" maxlength="1" oninput="moveToNext(4)">
+                    <input type="text" class="form-control" id="code5" maxlength="1" oninput="moveToNext(5)">
+                    <input type="text" class="form-control" id="code6" maxlength="1" oninput="moveToNext(6)">
+                </div>
+                
+                <div class="timer" id="timer">03:00</div>
+                
+                <button class="btn btn-primary" onclick="verifyCode()" id="verifyBtn">
+                    <i class="bi bi-check-circle me-2"></i>인증 완료
+                </button>
+                
+                <div class="text-center mt-3">
+                    <a class="resend-link" onclick="resendCode()" id="resendLink">
+                        <i class="bi bi-arrow-clockwise me-1"></i>코드 재전송
+                    </a>
+                    <span class="text-gray"> | </span>
+                    <a class="resend-link" onclick="changeEmail()">
+                        <i class="bi bi-pencil me-1"></i>이메일 변경
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 로그인 링크 -->
+            <div class="login-link">
+                이미 계정이 있으신가요? <a href="/login.html">로그인하기</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let verificationCode = '';
+        let timerInterval = null;
+        let timeLeft = 180; // 3분
+        
+        // 인증 코드 전송
+        function sendVerificationCode() {
+            const email = document.getElementById('email').value;
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            
+            // 이메일 유효성 검사
+            if (!email || !emailRegex.test(email)) {
+                showMessage('유효한 이메일 주소를 입력해주세요.', 'error');
+                return;
+            }
+            
+            // 6자리 인증 코드 생성
+            verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+            console.log(`생성된 인증 코드: ${verificationCode}`); // 개발용
+            
+            // 이메일 폼 숨기고 인증 폼 표시
+            document.getElementById('emailForm').style.display = 'none';
+            document.getElementById('verificationForm').style.display = 'block';
+            document.getElementById('targetEmail').textContent = email;
+            
+            // 인증 코드 입력 필드 초기화
+            for (let i = 1; i <= 6; i++) {
+                document.getElementById(`code${i}`).value = '';
+            }
+            
+            // 첫 번째 입력 필드에 포커스
+            setTimeout(() => {
+                document.getElementById('code1').focus();
+            }, 100);
+            
+            // 타이머 시작
+            startTimer();
+            
+            // SendGrid API 호출 시뮬레이션
+            setTimeout(() => {
+                showMessage('인증 코드가 이메일로 전송되었습니다.', 'success');
+            }, 1000);
+        }
+        
+        // 타이머 시작
+        function startTimer() {
+            timeLeft = 180;
+            updateTimerDisplay();
+            
+            if (timerInterval) clearInterval(timerInterval);
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    showMessage('인증 시간이 만료되었습니다.', 'error');
+                    document.getElementById('verifyBtn').disabled = true;
+                }
+            }, 1000);
+        }
+        
+        // 타이머 표시 업데이트
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            document.getElementById('timer').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // 다음 입력 필드로 이동
+        function moveToNext(current) {
+            const currentInput = document.getElementById(`code${current}`);
+            const nextInput = document.getElementById(`code${current + 1}`);
+            
+            // 숫자만 입력 허용
+            currentInput.value = currentInput.value.replace(/[^0-9]/g, '');
+            
+            // 입력이 있으면 다음 필드로 이동
+            if (currentInput.value.length === 1 && nextInput) {
+                nextInput.focus();
+            }
+            
+            // 6자리 모두 입력되었는지 확인
+            checkCodeCompletion();
+        }
+        
+        // 코드 완성 여부 확인
+        function checkCodeCompletion() {
+            let code = '';
+            for (let i = 1; i <= 6; i++) {
+                code += document.getElementById(`code${i}`).value;
+            }
+            
+            if (code.length === 6) {
+                document.getElementById('verifyBtn').disabled = false;
+            }
+        }
+        
+        // 인증 코드 확인
+        function verifyCode() {
+            let enteredCode = '';
+            for (let i = 1; i <= 6; i++) {
+                enteredCode += document.getElementById(`code${i}`).value;
+            }
+            
+            if (enteredCode === verificationCode) {
+                showMessage('인증이 완료되었습니다! 계정이 생성되었습니다.', 'success');
+                
+                // Cloudflare Worker API 호출 (실제 구현 시)
+                // fetch('https://your-worker.timelink.workers.dev/signup', {
+                //     method: 'POST',
+                //     body: JSON.stringify({ email: document.getElementById('email').value })
+                // });
+                
+                // 2초 후 대시보드로 이동
+                setTimeout(() => {
+                    window.location.href = '/dashboard.html';
+                }, 2000);
+            } else {
+                showMessage('인증 코드가 일치하지 않습니다.', 'error');
+                
+                // 입력 필드 흔들기 효과
+                for (let i = 1; i <= 6; i++) {
+                    const input = document.getElementById(`code${i}`);
+                    input.classList.add('shake');
+                    setTimeout(() => input.classList.remove('shake'), 500);
+                }
+            }
+        }
+        
+        // 코드 재전송
+        function resendCode() {
+            if (timeLeft > 150) { // 30초 이내에는 재전송 불가
+                showMessage('30초 후에 다시 시도해주세요.', 'error');
+                return;
+            }
+            
+            // 새 인증 코드 생성
+            verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+            console.log(`새 인증 코드: ${verificationCode}`); // 개발용
+            
+            // 입력 필드 초기화
+            for (let i = 1; i <= 6; i++) {
+                document.getElementById(`code${i}`).value = '';
+            }
+            
+            document.getElementById('code1').focus();
+            document.getElementById('verifyBtn').disabled = true;
+            
+            // 타이머 재시작
+            startTimer();
+            
+            showMessage('새 인증 코드가 전송되었습니다.', 'success');
+        }
+        
+        // 이메일 변경
+        function changeEmail() {
+            document.getElementById('verificationForm').style.display = 'none';
+            document.getElementById('emailForm').style.display = 'block';
+            document.getElementById('email').value = '';
+            document.getElementById('email').focus();
+            
+            clearInterval(timerInterval);
+            showMessage('이메일 주소를 변경해주세요.', 'info');
+        }
+        
+        // 메시지 표시
+        function showMessage(message, type = 'info') {
+            const alert = document.getElementById('messageAlert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type}`;
+            alert.style.display = 'block';
+            
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Enter 키로 인증 코드 전송
+        document.getElementById('email').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendVerificationCode();
+            }
+        });
+        
+        // Enter 키로 인증 완료
+        document.getElementById('code6').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                verifyCode();
+            }
+        });
+        
+        // 흔들기 애니메이션 CSS 추가
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+                20%, 40%, 60%, 80% { transform: translateX(5px); }
+            }
+            .shake { animation: shake 0.5s ease; }
+        `;
+        document.head.appendChild(style);
+        
+        // 페이지 로드 시 이메일 입력 필드에 포커스
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('email').focus();
+        });
+    </script>
+</body>
+</html>
