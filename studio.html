@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TL Studio | 음원 업로드 & 편집 - TimeLink</title>
+    <title>TL Studio | 음원 TL 변환 & 충전 - TimeLink</title>
     <!-- 공통 스타일 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/src/styles/common.css">
+    <link rel="stylesheet" href="./src/styles/common.css">
     <style>
         /* 스튜디오 전용 스타일 */
         .studio-header {
@@ -16,298 +16,525 @@
             background: linear-gradient(135deg, rgba(74, 30, 138, 0.3), rgba(26, 35, 126, 0.3));
         }
         
-        .studio-upload-area {
+        /* TL 변환 프로세스 카드 */
+        .tl-conversion-process {
             background: var(--card-bg);
-            border: 3px dashed var(--glass-border);
             border-radius: 25px;
-            padding: 80px 40px;
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            margin-bottom: 40px;
-        }
-        
-        .studio-upload-area:hover {
-            border-color: var(--accent-purple);
-            background: var(--card-bg-hover);
-            transform: translateY(-5px);
-        }
-        
-        .upload-icon {
-            font-size: 4rem;
-            color: var(--accent-purple);
-            margin-bottom: 20px;
-            display: block;
-        }
-        
-        .file-list {
-            max-height: 400px;
-            overflow-y: auto;
-            border-radius: 15px;
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-        }
-        
-        .file-item {
-            display: flex;
-            align-items: center;
-            padding: 15px 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            transition: background 0.3s ease;
-        }
-        
-        .file-item:hover {
-            background: rgba(255, 255, 255, 0.03);
-        }
-        
-        .file-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #4a1e8a, #1a237e);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 15px;
-            color: white;
-            font-size: 1.5rem;
-        }
-        
-        .file-progress {
-            width: 100%;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 10px;
-        }
-        
-        .file-progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, #7c4dff, #00e5ff);
-            border-radius: 3px;
-            transition: width 0.3s ease;
-        }
-        
-        .metadata-form {
-            background: var(--card-bg);
-            border-radius: 20px;
             padding: 30px;
             border: 1px solid var(--glass-border);
+            margin-bottom: 30px;
         }
         
-        .waveform-editor {
-            height: 150px;
-            background: linear-gradient(180deg, 
-                rgba(10, 10, 26, 0.8) 0%,
-                rgba(26, 35, 126, 0.6) 50%,
-                rgba(10, 10, 26, 0.8) 100%
-            );
-            border-radius: 15px;
-            position: relative;
-            overflow: hidden;
-            margin: 20px 0;
-        }
-        
-        .waveform-bars {
+        .process-step {
             display: flex;
-            align-items: flex-end;
-            justify-content: space-around;
-            height: 100%;
-            padding: 20px;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
         
-        .waveform-bar {
-            width: 4px;
-            background: linear-gradient(to top, #7c4dff, #00e5ff);
-            border-radius: 2px;
-            animation: barPulse 2s ease-in-out infinite;
-            animation-delay: calc(var(--i) * 0.1s);
-        }
-        
-        @keyframes barPulse {
-            0%, 100% { height: 20%; }
-            50% { height: 80%; }
-        }
-        
-        .editor-timeline {
-            display: flex;
-            align-items: center;
-            margin: 20px 0;
-        }
-        
-        .timeline-track {
-            flex: 1;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
-            position: relative;
-        }
-        
-        .timeline-handle {
-            width: 16px;
-            height: 16px;
-            background: #7c4dff;
-            border-radius: 50%;
-            position: absolute;
-            left: 30%;
-            transform: translate(-50%, -50%);
-            cursor: pointer;
-            box-shadow: 0 0 10px rgba(124, 77, 255, 0.5);
-        }
-        
-        .editor-controls {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        
-        .control-btn {
-            width: 50px;
-            height: 50px;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--glass-border);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .control-btn:hover {
-            background: var(--accent-purple);
-            transform: scale(1.1);
-        }
-        
-        .control-btn.active {
-            background: var(--accent-purple);
-            box-shadow: 0 0 15px rgba(124, 77, 255, 0.5);
-        }
-        
-        .format-badge {
-            padding: 8px 15px;
-            border-radius: 10px;
-            background: rgba(124, 77, 255, 0.2);
-            border: 1px solid rgba(124, 77, 255, 0.3);
-            color: #7c4dff;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            margin: 5px;
-        }
-        
-        .format-badge i {
-            margin-right: 8px;
-        }
-        
-        .processing-status {
-            padding: 15px;
-            border-radius: 12px;
-            margin: 10px 0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .processing-status.success {
-            background: rgba(0, 200, 83, 0.1);
-            border: 1px solid rgba(0, 200, 83, 0.3);
-        }
-        
-        .processing-status.processing {
-            background: rgba(255, 193, 7, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.3);
-        }
-        
-        .processing-status.error {
-            background: rgba(244, 67, 54, 0.1);
-            border: 1px solid rgba(244, 67, 54, 0.3);
-        }
-        
-        .upload-steps {
-            display: flex;
-            justify-content: space-between;
-            margin: 40px 0;
-            position: relative;
-        }
-        
-        .upload-steps::before {
-            content: '';
-            position: absolute;
-            top: 20px;
-            left: 10%;
-            right: 10%;
-            height: 3px;
-            background: rgba(255, 255, 255, 0.1);
-            z-index: 1;
-        }
-        
-        .step {
-            position: relative;
-            z-index: 2;
-            text-align: center;
-            flex: 1;
+        .process-step:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
         }
         
         .step-number {
             width: 40px;
             height: 40px;
             border-radius: 50%;
+            background: linear-gradient(135deg, #7c4dff, #00e5ff);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        
+        /* 양자내성암호화 표시 */
+        .quantum-badge {
+            background: linear-gradient(135deg, #ff4081, #e91e63);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px 0;
+        }
+        
+        /* TL 충전 시스템 */
+        .tl-charge-system {
+            background: linear-gradient(135deg, 
+                rgba(124, 77, 255, 0.1), 
+                rgba(0, 229, 255, 0.1));
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(124, 77, 255, 0.2);
+        }
+        
+        .tl-rate-display {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #7c4dff, #00e5ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin: 10px 0;
+        }
+        
+        .charge-multiplier {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .multiplier-btn {
+            padding: 8px 15px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .multiplier-btn.active {
+            background: var(--accent-purple);
+            border-color: var(--accent-purple);
+        }
+        
+        /* 파일 변환 상태 */
+        .conversion-status {
+            position: relative;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 15px 0;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        .status-progress {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        
+        .status-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #7c4dff, #00e5ff);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+        
+        /* TL 파일 정보 */
+        .tl-file-info {
             background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        
+        .tl-file-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 10px;
+            background: rgba(124, 77, 255, 0.2);
+            border: 1px solid rgba(124, 77, 255, 0.3);
+            color: #7c4dff;
+            font-weight: 500;
+            margin: 2px;
+        }
+        
+        /* 오프라인 충전 시스템 */
+        .offline-charge {
+            background: linear-gradient(135deg, 
+                rgba(33, 150, 243, 0.1), 
+                rgba(3, 169, 244, 0.1));
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(33, 150, 243, 0.2);
+            margin: 20px 0;
+        }
+        
+        /* 콘버터와 플레이어 통합 레이아웃 */
+        .studio-main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+        
+        @media (max-width: 992px) {
+            .studio-main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* 타임코드 표시 */
+        .timecode-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2rem;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            display: inline-block;
+        }
+        
+        /* TL 소모량 계산기 */
+        .tl-consumption-calc {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        
+        .consumption-result {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #00e5ff;
+            margin: 10px 0;
+        }
+        
+        /* TL 포인트 표시기 */
+        .tl-points-display {
+            background: linear-gradient(135deg, #1a237e, #4a148c);
+            border-radius: 15px;
+            padding: 15px 20px;
+            margin: 15px 0;
+            border: 1px solid rgba(124, 77, 255, 0.3);
+        }
+        
+        .tl-points-amount {
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffd600, #ffab00);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-align: center;
+        }
+        
+        .tl-points-label {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #b39ddb;
+        }
+        
+        /* TL 차감 내역 */
+        .tl-deduction-history {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .deduction-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .deduction-item:last-child {
+            border-bottom: none;
+        }
+        
+        .deduction-amount {
+            font-weight: 600;
+        }
+        
+        .deduction-amount.negative {
+            color: #ff4081;
+        }
+        
+        .deduction-amount.positive {
+            color: #00c853;
+        }
+        
+        /* 충전 옵션 */
+        .charge-option {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        
+        .charge-option:hover {
+            background: rgba(124, 77, 255, 0.1);
+            border-color: rgba(124, 77, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .charge-option.selected {
+            background: rgba(124, 77, 255, 0.2);
+            border-color: #7c4dff;
+        }
+        
+        .charge-amount {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #7c4dff;
+        }
+        
+        .charge-time {
+            font-size: 0.9rem;
+            color: #b39ddb;
+        }
+        
+        /* 저장된 파일 목록 */
+        .saved-files-list {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .saved-file-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .saved-file-item:hover {
+            background: rgba(124, 77, 255, 0.1);
+        }
+        
+        .saved-file-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #7c4dff, #00e5ff);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            margin-right: 15px;
+        }
+        
+        .saved-file-info {
+            flex: 1;
+        }
+        
+        .saved-file-name {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+        
+        .saved-file-meta {
+            font-size: 0.8rem;
+            color: #b39ddb;
+        }
+        
+        /* 지갑 충전 모달 */
+        .wallet-charge-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .wallet-charge-modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .wallet-charge-content {
+            background: var(--card-bg);
+            border-radius: 25px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid var(--glass-border);
+            position: relative;
+        }
+        
+        .wallet-close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        /* 지갑 충전 금액 버튼 */
+        .wallet-amount-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .wallet-amount-btn {
+            background: rgba(255, 255, 255, 0.05);
             border: 2px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .wallet-amount-btn:hover {
+            background: rgba(124, 77, 255, 0.1);
+            border-color: #7c4dff;
+        }
+        
+        .wallet-amount-btn.selected {
+            background: rgba(124, 77, 255, 0.2);
+            border-color: #7c4dff;
+            transform: scale(1.05);
+        }
+        
+        .wallet-amount {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .wallet-amount-label {
+            font-size: 0.9rem;
+            color: #b39ddb;
+        }
+        
+        /* 파일 충전 프로그레스 */
+        .file-charge-progress {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .file-charge-steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .file-charge-step {
+            text-align: center;
+            flex: 1;
+            position: relative;
+        }
+        
+        .file-charge-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .file-charge-step.completed:not(:last-child)::after {
+            background: #00c853;
+        }
+        
+        .step-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 10px;
-            font-weight: 600;
             transition: all 0.3s ease;
         }
         
-        .step.active .step-number {
-            background: var(--accent-purple);
-            border-color: var(--accent-purple);
-            color: white;
-        }
-        
-        .step.completed .step-number {
+        .file-charge-step.completed .step-icon {
             background: #00c853;
-            border-color: #00c853;
-            color: white;
         }
         
-        .audio-visualizer {
-            width: 100%;
-            height: 100px;
+        .file-charge-step.active .step-icon {
+            background: #7c4dff;
+            animation: pulse 1.5s infinite;
+        }
+        
+        /* 파일 업로드 영역 */
+        .studio-upload-area {
+            border: 2px dashed var(--glass-border);
+            border-radius: 20px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .studio-upload-area:hover {
+            border-color: var(--accent-purple);
+            background: rgba(124, 77, 255, 0.05);
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--accent-purple);
+            margin-bottom: 15px;
+        }
+        
+        /* 파일 충전 상태 */
+        .file-charge-status {
             position: relative;
-            overflow: hidden;
-        }
-        
-        .visualizer-bar {
-            position: absolute;
-            bottom: 0;
-            width: 3px;
-            background: linear-gradient(to top, #7c4dff, #00e5ff);
-            animation: visualizerPulse 1.5s ease-in-out infinite;
-        }
-        
-        @keyframes visualizerPulse {
-            0%, 100% { height: 20px; }
-            50% { height: 80px; }
-        }
-        
-        .preview-player {
+            padding: 15px;
+            border-radius: 10px;
             background: rgba(0, 0, 0, 0.3);
-            border-radius: 15px;
-            padding: 20px;
-            margin-top: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #7c4dff;
+        }
+        
+        .file-charge-status.success {
+            border-left-color: #00c853;
+            background: rgba(0, 200, 83, 0.1);
+        }
+        
+        .file-charge-status.error {
+            border-left-color: #ff4081;
+            background: rgba(255, 64, 129, 0.1);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
     </style>
 </head>
 <body>
-    <!-- 히어로 이미지 섹션 (음악 스튜디오 이미지) -->
+    <!-- 히어로 이미지 섹션 -->
     <section class="hero-image-section">
         <div class="hero-image-wrapper">
             <img src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80" 
@@ -316,15 +543,15 @@
                 <div class="hero-content">
                     <h1 class="hero-title">TL Studio</h1>
                     <p class="hero-subtitle">
-                        전문가급 음원 편집, 변환, 관리 솔루션<br>
-                        당신의 음악을 완벽하게 준비하고 TimeLink에 업로드하세요
+                        지갑에서 직접 파일 충전 시스템<br>
+                        TL 포인트 → 파일 시간으로 직접 변환
                     </p>
                     <div class="hero-buttons">
-                        <button id="startUploadBtn" class="btn btn-primary btn-lg">
-                            <i class="bi bi-cloud-upload me-2"></i>지금 업로드 시작
+                        <button id="startConversionBtn" class="btn btn-primary btn-lg">
+                            <i class="bi bi-lightning-charge me-2"></i>TL 변환 시작
                         </button>
-                        <a href="#features" class="btn btn-outline-light btn-lg">
-                            <i class="bi bi-info-circle me-2"></i>기능 알아보기
+                        <a href="#converter" class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-gear me-2"></i>변환기 바로가기
                         </a>
                     </div>
                 </div>
@@ -332,270 +559,62 @@
         </div>
     </section>
 
-    <!-- 업로드 영역 -->
+    <!-- TL 변환 프로세스 안내 -->
     <section class="content-section">
         <div class="container">
-            <div class="upload-steps">
-                <div class="step active" data-step="1">
-                    <div class="step-number">1</div>
-                    <small class="text-gray">파일 업로드</small>
-                </div>
-                <div class="step" data-step="2">
-                    <div class="step-number">2</div>
-                    <small class="text-gray">정보 입력</small>
-                </div>
-                <div class="step" data-step="3">
-                    <div class="step-number">3</div>
-                    <small class="text-gray">변환 처리</small>
-                </div>
-                <div class="step" data-step="4">
-                    <div class="step-number">4</div>
-                    <small class="text-gray">업로드 완료</small>
-                </div>
-            </div>
-            
-            <!-- 드래그 앤 드롭 업로드 영역 -->
-            <div id="uploadArea" class="studio-upload-area">
-                <i class="bi bi-cloud-arrow-up upload-icon"></i>
-                <h3 class="text-white mb-3">음원 파일을 여기에 드롭하세요</h3>
-                <p class="text-gray mb-4">
-                    MP3, WAV, FLAC, M4A 파일 지원 (최대 500MB)<br>
-                    또는 클릭해서 파일을 선택하세요
-                </p>
-                <div class="mb-3">
-                    <span class="format-badge"><i class="bi bi-file-music"></i>MP3</span>
-                    <span class="format-badge"><i class="bi bi-file-music"></i>WAV</span>
-                    <span class="format-badge"><i class="bi bi-file-music"></i>FLAC</span>
-                    <span class="format-badge"><i class="bi bi-file-music"></i>M4A</span>
-                    <span class="format-badge"><i class="bi bi-file-music"></i>AAC</span>
-                </div>
-                <button class="btn btn-primary">
-                    <i class="bi bi-folder2-open me-2"></i>파일 선택
-                </button>
-                <input type="file" id="fileInput" multiple accept="audio/*" style="display: none;">
-            </div>
-            
-            <!-- 파일 목록 -->
-            <div id="fileList" class="file-list" style="display: none;">
-                <div class="p-3 border-bottom">
-                    <h5 class="mb-0">업로드 대기 파일 (3)</h5>
-                </div>
-                <div class="file-item">
-                    <div class="file-icon">
-                        <i class="bi bi-file-earmark-music"></i>
-                    </div>
-                    <div style="flex: 1;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1">Midnight_Dreams.mp3</h6>
-                                <small class="text-gray">128 MB · 320kbps · 4:32</small>
-                            </div>
-                            <div class="text-end">
-                                <span class="badge badge-success">대기 중</span>
-                            </div>
-                        </div>
-                        <div class="file-progress">
-                            <div class="file-progress-bar" style="width: 0%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 메타데이터 입력 폼 -->
-            <div id="metadataForm" class="metadata-form mt-4" style="display: none;">
-                <h4 class="mb-4">음원 정보 입력</h4>
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label">음원 제목 *</label>
-                            <input type="text" class="form-control" placeholder="예: Midnight Dreams" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">아티스트 이름 *</label>
-                            <input type="text" class="form-control" placeholder="예: Luna Star" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">앨범명 (선택사항)</label>
-                            <input type="text" class="form-control" placeholder="예: Starlight Collection">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label">장르 *</label>
-                            <select class="form-select">
-                                <option value="">장르 선택</option>
-                                <option value="pop">팝</option>
-                                <option value="rock">락</option>
-                                <option value="hiphop">힙합</option>
-                                <option value="electronic">일렉트로닉</option>
-                                <option value="jazz">재즈</option>
-                                <option value="classical">클래식</option>
-                                <option value="rnb">R&B</option>
-                                <option value="indie">인디</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">가격 (TL) *</label>
-                            <input type="number" class="form-control" placeholder="예: 50" min="1" value="50">
-                            <div class="form-text">권장 가격: 10-500 TL</div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">저작권자 여부 *</label>
-                            <div class="form-check mt-2">
-                                <input class="form-check-input" type="radio" name="copyrightOwner" id="ownerYes" checked>
-                                <label class="form-check-label" for="ownerYes">
-                                    네, 제가 이 음원의 창작자입니다 (70% 수익)
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="copyrightOwner" id="ownerNo">
-                                <label class="form-check-label" for="ownerNo">
-                                    아니요, 일반 소유자입니다 (50% 수익)
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-12">
-                        <div class="mb-3">
-                            <label class="form-label">음원 설명</label>
-                            <textarea class="form-control" rows="3" placeholder="이 음원에 대한 설명을 입력해주세요..."></textarea>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="d-flex justify-content-between mt-4">
-                    <button class="btn btn-secondary" onclick="previousStep()">
-                        <i class="bi bi-arrow-left me-2"></i>이전
-                    </button>
-                    <button class="btn btn-primary" onclick="nextStep()">
-                        다음 <i class="bi bi-arrow-right ms-2"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- 음원 편집기 -->
-            <div id="audioEditor" class="mt-5" style="display: none;">
-                <h4 class="mb-4">음원 편집 및 미리듣기</h4>
-                
-                <div class="waveform-editor">
-                    <div class="waveform-bars">
-                        <!-- 음파형 바들 -->
-                        <div class="waveform-bar" style="--i: 0;"></div>
-                        <div class="waveform-bar" style="--i: 1;"></div>
-                        <div class="waveform-bar" style="--i: 2;"></div>
-                        <div class="waveform-bar" style="--i: 3;"></div>
-                        <div class="waveform-bar" style="--i: 4;"></div>
-                        <div class="waveform-bar" style="--i: 5;"></div>
-                        <div class="waveform-bar" style="--i: 6;"></div>
-                        <div class="waveform-bar" style="--i: 7;"></div>
-                        <div class="waveform-bar" style="--i: 8;"></div>
-                        <div class="waveform-bar" style="--i: 9;"></div>
-                        <div class="waveform-bar" style="--i: 10;"></div>
-                        <div class="waveform-bar" style="--i: 11;"></div>
-                        <div class="waveform-bar" style="--i: 12;"></div>
-                        <div class="waveform-bar" style="--i: 13;"></div>
-                        <div class="waveform-bar" style="--i: 14;"></div>
-                        <div class="waveform-bar" style="--i: 15;"></div>
-                    </div>
-                </div>
-                
-                <div class="editor-timeline">
-                    <div class="timeline-track">
-                        <div class="timeline-handle"></div>
-                    </div>
-                </div>
-                
-                <div class="editor-controls">
-                    <button class="control-btn active" title="재생">
-                        <i class="bi bi-play-fill"></i>
-                    </button>
-                    <button class="control-btn" title="일시정지">
-                        <i class="bi bi-pause-fill"></i>
-                    </button>
-                    <button class="control-btn" title="정지">
-                        <i class="bi bi-stop-fill"></i>
-                    </button>
-                    <button class="control-btn" title="되감기">
-                        <i class="bi bi-skip-backward-fill"></i>
-                    </button>
-                    <button class="control-btn" title="빨리감기">
-                        <i class="bi bi-skip-forward-fill"></i>
-                    </button>
-                    <div style="flex: 1;"></div>
-                    <button class="control-btn" title="볼륨">
-                        <i class="bi bi-volume-up-fill"></i>
-                    </button>
-                </div>
-                
-                <div class="preview-player">
-                    <div class="audio-visualizer">
-                        <!-- 오디오 시각화 바들 -->
-                    </div>
-                    <div class="d-flex justify-content-between mt-3">
-                        <small class="text-gray">0:00</small>
-                        <small class="text-gray">4:32</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- TL3 포맷 변환 -->
-    <section id="features" class="content-section bg-dark">
-        <div class="container">
-            <h2 class="section-title">TL3 포맷 변환</h2>
+            <h2 class="section-title">지갑 → 파일 직접 충전 시스템</h2>
             <p class="section-subtitle">
-                TimeLink 전용 TL3 포맷으로 변환하여 안전하게 거래하세요
+                3단계로 완료되는 간편한 파일 충전 프로세스
             </p>
             
-            <div class="row g-4">
-                <div class="col-lg-6">
-                    <div class="card-glass h-100">
-                        <div class="feature-icon-wrapper mb-4">
-                            <i class="bi bi-shield-lock feature-icon"></i>
-                        </div>
-                        <h3>보안 강화 포맷</h3>
+            <div class="tl-conversion-process">
+                <div class="process-step">
+                    <div class="step-number">1</div>
+                    <div>
+                        <h4 class="text-white">지갑에서 TL 선택</h4>
                         <p class="text-gray">
-                            TL3 포맷은 TimeLink 전용 암호화 기술로 보호됩니다.<br>
-                            무단 복제 및 배포를 방지하고 저작권을 보호합니다.
+                            TimeLink 지갑에서 충전할 TL 포인트 선택<br>
+                            다양한 결제 수단 지원 (카드, 계좌이체, 암호화폐)
                         </p>
-                        <ul class="text-gray mt-3">
-                            <li>256비트 AES 암호화</li>
-                            <li>디지털 워터마킹</li>
-                            <li>사용자별 고유 키</li>
-                            <li>재생 제한 설정 가능</li>
-                        </ul>
+                        <div class="mt-2">
+                            <span class="badge bg-primary me-2">다중 결제</span>
+                            <span class="badge bg-success">실시간 처리</span>
+                        </div>
                     </div>
                 </div>
                 
-                <div class="col-lg-6">
-                    <div class="card-glass h-100">
-                        <div class="feature-icon-wrapper mb-4">
-                            <i class="bi bi-lightning-charge feature-icon"></i>
-                        </div>
-                        <h3>빠른 변환 처리</h3>
+                <div class="process-step">
+                    <div class="step-number">2</div>
+                    <div>
+                        <h4 class="text-white">파일 선택 및 충전량 설정</h4>
                         <p class="text-gray">
-                            클라우드 기반 변환 시스템으로 빠르게 처리됩니다.<br>
-                            고품질 오디오를 유지하면서 최적화합니다.
+                            충전할 TL 파일을 선택하고 원하는 시간 설정<br>
+                            파일 포맷과 승수에 따라 필요한 TL 자동 계산
                         </p>
-                        <div class="processing-status processing mt-4">
-                            <div>
-                                <i class="bi bi-hourglass-split me-2"></i>
-                                <span>변환 중: Midnight_Dreams.mp3</span>
-                            </div>
-                            <div class="spinner-border spinner-border-sm" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
+                        <div class="tl-rate-display">1초 = 1TL</div>
+                        <div class="charge-multiplier">
+                            <button class="multiplier-btn active" data-multiplier="1">1x (기본)</button>
+                            <button class="multiplier-btn" data-multiplier="2">2x (프리미엄)</button>
+                            <button class="multiplier-btn" data-multiplier="3">3x (하이엔드)</button>
                         </div>
-                        <div class="processing-status success mt-2">
-                            <div>
-                                <i class="bi bi-check-circle me-2"></i>
-                                <span>변환 완료: Summer_Vibes.wav</span>
-                            </div>
-                            <small class="text-success">2분 전</small>
+                    </div>
+                </div>
+                
+                <div class="process-step">
+                    <div class="step-number">3</div>
+                    <div>
+                        <h4 class="text-white">직접 파일 충전 및 암호화</h4>
+                        <p class="text-gray">
+                            지갑에서 직접 파일 데이터에 TL 시간 기록<br>
+                            블록체인 트랜잭션으로 안전하게 처리
+                        </p>
+                        <div class="quantum-badge">
+                            <i class="bi bi-shield-check"></i>
+                            CRYSTALS-Dilithium 보안 충전
+                        </div>
+                        <div class="quantum-badge mt-2">
+                            <i class="bi bi-link-45deg"></i>
+                            블록체인 기록
                         </div>
                     </div>
                 </div>
@@ -603,274 +622,1405 @@
         </div>
     </section>
 
-    <!-- 배치 업로드 -->
-    <section class="content-section">
+    <!-- 메인 콘버터 & 플레이어 -->
+    <section id="converter" class="content-section bg-dark">
         <div class="container">
-            <h2 class="section-title">배치 업로드 기능</h2>
-            
-            <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="card-glass text-center h-100">
-                        <div class="feature-icon-wrapper mx-auto mb-4">
-                            <i class="bi bi-folder2-open feature-icon"></i>
-                        </div>
-                        <h4>폴더 업로드</h4>
-                        <p class="text-gray">
-                            전체 폴더를 한 번에 업로드하고<br>
-                            자동으로 태그를 추출합니다.
-                        </p>
-                    </div>
-                </div>
-                
-                <div class="col-md-4">
-                    <div class="card-glass text-center h-100">
-                        <div class="feature-icon-wrapper mx-auto mb-4">
-                            <i class="bi bi-tags feature-icon"></i>
-                        </div>
-                        <h4>자동 태깅</h4>
-                        <p class="text-gray">
-                            AI 기반 음원 분석으로<br>
-                            자동으로 장르와 태그를 생성합니다.
-                        </p>
-                    </div>
-                </div>
-                
-                <div class="col-md-4">
-                    <div class="card-glass text-center h-100">
-                        <div class="feature-icon-wrapper mx-auto mb-4">
-                            <i class="bi bi-cloud-arrow-up feature-icon"></i>
-                        </div>
-                        <h4>예약 업로드</h4>
-                        <p class="text-gray">
-                            원하는 시간에 자동 업로드<br>
-                            여러 플랫폼에 동시 공유.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- 업로드 통계 -->
-    <section class="content-section" style="background: linear-gradient(135deg, #4a1e8a 0%, #1a237e 100%);">
-        <div class="container">
-            <div class="row text-center">
-                <div class="col-md-3 col-6 mb-4">
-                    <h2 class="text-white display-4 fw-bold">98.7%</h2>
-                    <p class="text-white-50">변환 성공률</p>
-                </div>
-                <div class="col-md-3 col-6 mb-4">
-                    <h2 class="text-white display-4 fw-bold">24/7</h2>
-                    <p class="text-white-50">지원 가능</p>
-                </div>
-                <div class="col-md-3 col-6 mb-4">
-                    <h2 class="text-white display-4 fw-bold">500MB</h2>
-                    <p class="text-white-50">최대 파일 크기</p>
-                </div>
-                <div class="col-md-3 col-6 mb-4">
-                    <h2 class="text-white display-4 fw-bold">5+</h2>
-                    <p class="text-white-50">지원 포맷</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- CTA -->
-    <section class="content-section">
-        <div class="container text-center">
-            <h2 class="mb-4">지금 바로 음원을 업로드하세요</h2>
-            <p class="text-gray mb-5 fs-5">
-                첫 5개 음원 업로드 시 추가 50 TL 보너스!<br>
-                TL3 포맷으로 변환되어 안전하게 거래됩니다.
+            <h2 class="section-title">TL 변환기 & 파일 충전 시스템</h2>
+            <p class="section-subtitle">
+                지갑에서 직접 파일 충전, 실시간 재생 시스템
             </p>
             
-            <div class="d-flex flex-wrap justify-content-center gap-3">
-                <button onclick="startUpload()" class="btn btn-primary btn-lg px-5">
-                    <i class="bi bi-cloud-upload me-2"></i>업로드 시작하기
+            <div class="studio-main-grid">
+                <!-- 왼쪽: 변환기 -->
+                <div>
+                    <div class="card-glass h-100">
+                        <h3 class="mb-4">
+                            <i class="bi bi-file-earmark-arrow-up me-2"></i>
+                            파일 변환기
+                        </h3>
+                        
+                        <!-- 파일 업로드 영역 -->
+                        <div id="converterUpload" class="studio-upload-area" onclick="selectFileForConversion()">
+                            <i class="bi bi-cloud-arrow-up upload-icon"></i>
+                            <h4 class="text-white mb-3">변환할 파일 업로드</h4>
+                            <p class="text-gray mb-4">
+                                지원 포맷: MP3, WAV, FLAC, M4A, AAC<br>
+                                최대 500MB
+                            </p>
+                            <button class="btn btn-primary">
+                                <i class="bi bi-folder2-open me-2"></i>파일 선택
+                            </button>
+                            <input type="file" id="conversionFileInput" accept="audio/*" style="display: none;">
+                        </div>
+                        
+                        <!-- 선택된 파일 정보 -->
+                        <div id="selectedFileInfo" class="mt-4" style="display: none;">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="file-icon">
+                                    <i class="bi bi-file-earmark-music"></i>
+                                </div>
+                                <div style="flex: 1;">
+                                    <h5 id="fileName" class="mb-1">파일명.mp3</h5>
+                                    <div class="d-flex gap-3">
+                                        <small class="text-gray" id="fileSize">0 MB</small>
+                                        <small class="text-gray" id="fileDuration">0:00</small>
+                                        <small class="text-gray" id="fileFormat">포맷</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- TL 변환 옵션 -->
+                            <div class="tl-conversion-options mt-4">
+                                <h5 class="mb-3">TL 변환 설정</h5>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">출력 포맷</label>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-outline-primary active" data-format="tl3">
+                                            TL3 (표준 품질)
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-primary" data-format="tl4">
+                                            TL4 (고화질)
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">TL 소모율 승수</label>
+                                    <div class="charge-multiplier">
+                                        <button class="multiplier-btn active" data-multiplier="1">1x (1초/1TL)</button>
+                                        <button class="multiplier-btn" data-multiplier="2">2x (1초/2TL)</button>
+                                        <button class="multiplier-btn" data-multiplier="3">3x (1초/3TL)</button>
+                                    </div>
+                                    <small class="text-gray">재생 시 초당 소모되는 TL량</small>
+                                </div>
+                            </div>
+                            
+                            <!-- 변환 시작 버튼 -->
+                            <div class="text-center mt-4">
+                                <button class="btn btn-primary btn-lg" onclick="startTLConversion()">
+                                    <i class="bi bi-lightning-charge me-2"></i>
+                                    TL 변환 시작
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 변환 진행 상태 -->
+                        <div id="conversionProgress" class="mt-4" style="display: none;">
+                            <h5 class="mb-3">TL 변환 진행 중</h5>
+                            <div class="conversion-status">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>파일 분석</span>
+                                    <span class="text-success">완료</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>시간 충전 시스템 통합</span>
+                                    <span class="text-success">완료</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>CRYSTALS-Dilithium 암호화</span>
+                                    <span id="encryptionStatus">진행 중...</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>TL3 포맷 변환</span>
+                                    <span id="formatStatus">대기 중</span>
+                                </div>
+                                
+                                <div class="status-progress">
+                                    <div id="conversionProgressBar" class="status-progress-bar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 저장된 파일 목록 -->
+                    <div class="card-glass mt-4">
+                        <h4 class="mb-3">
+                            <i class="bi bi-folder me-2"></i>
+                            저장된 TL 파일 목록
+                        </h4>
+                        
+                        <div class="saved-files-list" id="savedFilesList">
+                            <!-- 저장된 파일 목록이 여기에 표시됩니다 -->
+                            <div class="text-center py-4">
+                                <i class="bi bi-inbox" style="font-size: 2rem; color: var(--glass-border);"></i>
+                                <p class="text-gray mt-2">저장된 파일이 없습니다</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 오른쪽: 플레이어 -->
+                <div>
+                    <div class="card-glass h-100">
+                        <h3 class="mb-4">
+                            <i class="bi bi-play-circle me-2"></i>
+                            TL 플레이어 & 충전 시스템
+                        </h3>
+                        
+                        <!-- TL 포인트 표시 -->
+                        <div class="tl-points-display">
+                            <div class="tl-points-amount" id="userTLPoints">10,000 TL</div>
+                            <div class="tl-points-label">보유 TL 포인트</div>
+                            <div class="text-center mt-2">
+                                <small class="text-gray">1초 재생 = <span id="tlRateDisplay">1</span> TL 소모</small>
+                            </div>
+                        </div>
+                        
+                        <!-- TL 파일 정보 -->
+                        <div id="tlFilePreview" style="display: none;">
+                            <div class="d-flex align-items-center mb-4">
+                                <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #4a1e8a, #1a237e); 
+                                         border-radius: 15px; display: flex; align-items: center; justify-content: center; 
+                                         color: white; font-size: 2rem; margin-right: 15px;">
+                                    <i class="bi bi-file-earmark-lock"></i>
+                                </div>
+                                <div>
+                                    <h4 id="tlFileName" class="mb-1">Midnight_Dreams.tl3</h4>
+                                    <div class="d-flex gap-2">
+                                        <span class="badge bg-primary">TL3</span>
+                                        <span class="badge bg-info" id="tlDuration">4:32</span>
+                                        <span class="badge bg-warning" id="tlRate">1초/1TL</span>
+                                        <span class="badge bg-success" id="fileChargeStatus">0초 충전됨</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 파일 정보 상세 -->
+                            <div class="tl-file-info">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-gray">파일 ID</small>
+                                        <div id="fileId">TL_2024_000001</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-gray">총 충전 시간</small>
+                                        <div id="fileTotalCharge">0초 / 272초</div>
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-12">
+                                        <small class="text-gray">최근 충전</small>
+                                        <div id="lastChargeTime">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- TL 충전 상태 -->
+                            <div class="tl-charge-system">
+                                <h5 class="mb-3">파일 직접 충전 시스템</h5>
+                                
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>현재 충전량</span>
+                                    <span class="timecode-display" id="currentCharge">00:00</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span>필요 충전량</span>
+                                    <span class="timecode-display" id="requiredCharge">04:32</span>
+                                </div>
+                                
+                                <div class="progress mb-3" style="height: 10px;">
+                                    <div id="chargeProgress" class="progress-bar bg-success" 
+                                         role="progressbar" style="width: 0%"></div>
+                                </div>
+                                
+                                <!-- TL 소모량 계산 -->
+                                <div class="tl-consumption-calc">
+                                    <h6>예상 TL 소모량</h6>
+                                    <div class="consumption-result" id="tlConsumption">0 TL</div>
+                                    <small class="text-gray">
+                                        <span id="consumptionRate">1초당 1TL</span> × 
+                                        <span id="totalSeconds">272초</span> = 
+                                        <span id="totalTL">272 TL</span>
+                                    </small>
+                                </div>
+                                
+                                <!-- 파일 충전 옵션 -->
+                                <h6 class="mt-4">파일 충전 옵션</h6>
+                                <div class="row g-2 mt-2">
+                                    <div class="col-4">
+                                        <div class="charge-option" onclick="setFileChargeOption(60, 60)">
+                                            <div class="charge-amount">60 TL</div>
+                                            <div class="charge-time">60초</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="charge-option" onclick="setFileChargeOption(120, 120)">
+                                            <div class="charge-amount">120 TL</div>
+                                            <div class="charge-time">120초</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="charge-option" onclick="setFileChargeOption(300, 300)">
+                                            <div class="charge-amount">300 TL</div>
+                                            <div class="charge-time">300초</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 지갑에서 직접 충전 버튼 -->
+                                <div class="d-grid gap-2 mt-4">
+                                    <button class="btn btn-success" onclick="chargeFileFromWallet()" id="fileChargeBtn">
+                                        <i class="bi bi-lightning-charge me-2"></i>
+                                        <span id="fileChargeBtnText">지갑에서 60초 충전</span>
+                                    </button>
+                                    <button class="btn btn-primary" onclick="openWalletDirectCharge()">
+                                        <i class="bi bi-wallet2 me-2"></i>
+                                        지갑에서 직접 충전 설정
+                                    </button>
+                                    <button class="btn btn-outline-warning" onclick="showAutoChargeSettings()">
+                                        <i class="bi bi-gear me-2"></i>
+                                        자동 충전 설정
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 파일 충전 내역 -->
+                            <div class="tl-deduction-history" id="fileChargeHistory">
+                                <h6>파일 충전 내역</h6>
+                                <div class="deduction-item">
+                                    <span>초기 생성</span>
+                                    <span class="deduction-amount">0초</span>
+                                </div>
+                            </div>
+                            
+                            <!-- 오프라인 충전 -->
+                            <div class="offline-charge mt-4">
+                                <h6><i class="bi bi-wifi-off me-2"></i>오프라인 파일 충전</h6>
+                                <small class="text-gray">인터넷 없이도 지갑에서 직접 충전</small>
+                                
+                                <div class="form-check mt-3">
+                                    <input class="form-check-input" type="checkbox" id="enableOfflineCharge" checked>
+                                    <label class="form-check-label text-gray" for="enableOfflineCharge">
+                                        오프라인 충전 모드 활성화
+                                    </label>
+                                </div>
+                                
+                                <button class="btn btn-outline-light btn-sm mt-2" onclick="generateFileChargeQR()">
+                                    <i class="bi bi-qr-code me-1"></i>
+                                    파일 충전 QR 생성
+                                </button>
+                            </div>
+                            
+                            <!-- 플레이어 컨트롤 -->
+                            <div class="mt-4">
+                                <div class="waveform-editor">
+                                    <div class="waveform-bars">
+                                        <!-- 음파형 바들 -->
+                                        <div class="waveform-bar" style="--i: 0;"></div>
+                                        <div class="waveform-bar" style="--i: 1;"></div>
+                                        <div class="waveform-bar" style="--i: 2;"></div>
+                                        <div class="waveform-bar" style="--i: 3;"></div>
+                                        <div class="waveform-bar" style="--i: 4;"></div>
+                                        <div class="waveform-bar" style="--i: 5;"></div>
+                                        <div class="waveform-bar" style="--i: 6;"></div>
+                                        <div class="waveform-bar" style="--i: 7;"></div>
+                                        <div class="waveform-bar" style="--i: 8;"></div>
+                                        <div class="waveform-bar" style="--i: 9;"></div>
+                                        <div class="waveform-bar" style="--i: 10;"></div>
+                                        <div class="waveform-bar" style="--i: 11;"></div>
+                                        <div class="waveform-bar" style="--i: 12;"></div>
+                                        <div class="waveform-bar" style="--i: 13;"></div>
+                                        <div class="waveform-bar" style="--i: 14;"></div>
+                                        <div class="waveform-bar" style="--i: 15;"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="editor-controls mt-3">
+                                    <button class="control-btn" onclick="playTLFile()" title="재생">
+                                        <i class="bi bi-play-fill"></i>
+                                    </button>
+                                    <button class="control-btn" onclick="pauseTLFile()" title="일시정지">
+                                        <i class="bi bi-pause-fill"></i>
+                                    </button>
+                                    <button class="control-btn" onclick="stopTLFile()" title="정지">
+                                        <i class="bi bi-stop-fill"></i>
+                                    </button>
+                                    <div style="flex: 1;"></div>
+                                    <small class="text-gray me-3" id="currentTime">0:00</small>
+                                    <small class="text-gray" id="totalTime">4:32</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- TL 파일이 없을 때 -->
+                        <div id="noTLFile" class="text-center py-5">
+                            <i class="bi bi-file-earmark-lock" style="font-size: 3rem; color: var(--glass-border);"></i>
+                            <h5 class="mt-3 text-gray">TL 파일이 없습니다</h5>
+                            <p class="text-gray">왼쪽에서 파일을 변환하거나 저장된 파일을 선택하세요</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 지갑 직접 충전 모달 -->
+    <div id="walletChargeModal" class="wallet-charge-modal">
+        <div class="wallet-charge-content">
+            <button class="wallet-close-btn" onclick="closeWalletModal()">
+                <i class="bi bi-x"></i>
+            </button>
+            
+            <h3 class="text-center mb-4">
+                <i class="bi bi-wallet2 me-2"></i>
+                지갑에서 파일 직접 충전
+            </h3>
+            
+            <!-- 현재 파일 정보 -->
+            <div class="file-charge-status">
+                <div class="d-flex justify-content-between">
+                    <span>충전할 파일:</span>
+                    <strong id="walletFileName">파일명.tl3</strong>
+                </div>
+                <div class="d-flex justify-content-between mt-2">
+                    <span>충전할 시간:</span>
+                    <strong id="walletChargeTime">60초</strong>
+                </div>
+                <div class="d-flex justify-content-between mt-2">
+                    <span>필요 TL:</span>
+                    <strong id="walletRequiredTL">60 TL</strong>
+                </div>
+            </div>
+            
+            <!-- 지갑 잔액 -->
+            <div class="tl-points-display mt-4">
+                <div class="tl-points-amount" id="walletBalance">10,000 TL</div>
+                <div class="tl-points-label">지갑 잔액</div>
+            </div>
+            
+            <!-- 충전 금액 선택 -->
+            <h6 class="mt-4">충전 금액 선택</h6>
+            <div class="wallet-amount-grid">
+                <div class="wallet-amount-btn" onclick="selectWalletAmount(60)">
+                    <div class="wallet-amount">60 TL</div>
+                    <div class="wallet-amount-label">60초</div>
+                </div>
+                <div class="wallet-amount-btn" onclick="selectWalletAmount(120)">
+                    <div class="wallet-amount">120 TL</div>
+                    <div class="wallet-amount-label">120초</div>
+                </div>
+                <div class="wallet-amount-btn" onclick="selectWalletAmount(300)">
+                    <div class="wallet-amount">300 TL</div>
+                    <div class="wallet-amount-label">300초</div>
+                </div>
+                <div class="wallet-amount-btn" onclick="selectWalletAmount(600)">
+                    <div class="wallet-amount">600 TL</div>
+                    <div class="wallet-amount-label">600초</div>
+                </div>
+                <div class="wallet-amount-btn" onclick="selectWalletAmount(1000)">
+                    <div class="wallet-amount">1,000 TL</div>
+                    <div class="wallet-amount-label">1000초</div>
+                </div>
+                <div class="wallet-amount-btn" onclick="selectWalletAmount(2000)">
+                    <div class="wallet-amount">2,000 TL</div>
+                    <div class="wallet-amount-label">2000초</div>
+                </div>
+            </div>
+            
+            <!-- 직접 입력 -->
+            <div class="mt-3">
+                <label class="form-label">직접 입력 (TL 단위)</label>
+                <div class="input-group">
+                    <input type="number" class="form-control bg-dark text-white border-secondary" 
+                           id="customWalletAmount" placeholder="충전할 TL 입력" min="1" max="10000">
+                    <span class="input-group-text bg-dark text-white border-secondary">TL</span>
+                    <button class="btn btn-outline-primary" onclick="useCustomAmount()">
+                        적용
+                    </button>
+                </div>
+                <small class="text-gray">
+                    <span id="customChargeTime">0초</span> 충전 가능
+                </small>
+            </div>
+            
+            <!-- 파일 충전 진행 상태 -->
+            <div id="fileChargeProgress" class="file-charge-progress" style="display: none;">
+                <h6 class="text-center mb-3">파일 충전 진행 중</h6>
+                
+                <div class="file-charge-steps">
+                    <div class="file-charge-step completed" id="step1">
+                        <div class="step-icon">
+                            <i class="bi bi-check-lg"></i>
+                        </div>
+                        <div class="text-gray">지갑 확인</div>
+                    </div>
+                    
+                    <div class="file-charge-step active" id="step2">
+                        <div class="step-icon">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </div>
+                        <div class="text-gray">파일 암호화</div>
+                    </div>
+                    
+                    <div class="file-charge-step" id="step3">
+                        <div class="step-icon">
+                            <i class="bi bi-lightning-charge"></i>
+                        </div>
+                        <div class="text-gray">충전 완료</div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-4">
+                    <div class="timecode-display" id="chargeProgressText">파일 데이터 업데이트 중...</div>
+                </div>
+            </div>
+            
+            <!-- 충전 버튼 -->
+            <div class="d-grid gap-2 mt-4">
+                <button class="btn btn-success btn-lg" onclick="processFileChargeFromWallet()" id="processChargeBtn">
+                    <i class="bi bi-lightning-charge me-2"></i>
+                    파일에 직접 충전 시작
                 </button>
-                <a href="/dashboard.html" class="btn btn-outline-light btn-lg px-5">
-                    <i class="bi bi-speedometer2 me-2"></i>대시보드로 이동
-                </a>
+                <button class="btn btn-outline-light" onclick="closeWalletModal()">
+                    취소
+                </button>
+            </div>
+            
+            <!-- 보안 정보 -->
+            <div class="text-center mt-4">
+                <small class="text-gray">
+                    <i class="bi bi-shield-check me-1"></i>
+                    CRYSTALS-Dilithium 보안으로 파일에 안전하게 충전됩니다
+                </small>
             </div>
         </div>
-    </section>
+    </div>
+
+    <!-- 자동 충전 설정 모달 -->
+    <div id="autoChargeModal" class="wallet-charge-modal">
+        <div class="wallet-charge-content">
+            <button class="wallet-close-btn" onclick="closeAutoChargeModal()">
+                <i class="bi bi-x"></i>
+            </button>
+            
+            <h3 class="text-center mb-4">
+                <i class="bi bi-gear me-2"></i>
+                자동 파일 충전 설정
+            </h3>
+            
+            <div class="file-charge-status">
+                <p class="text-gray">
+                    파일 재생 시 TL이 부족하면 자동으로 지갑에서 충전합니다
+                </p>
+            </div>
+            
+            <!-- 자동 충전 설정 -->
+            <div class="mt-4">
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="enableAutoCharge" checked>
+                    <label class="form-check-label text-gray" for="enableAutoCharge">
+                        자동 충전 활성화
+                    </label>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">자동 충전 임계값</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control bg-dark text-white border-secondary" 
+                               id="autoChargeThreshold" value="30" min="1" max="300">
+                        <span class="input-group-text bg-dark text-white border-secondary">초 이하</span>
+                    </div>
+                    <small class="text-gray">남은 시간이 이 값보다 적으면 자동 충전</small>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">자동 충전량</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control bg-dark text-white border-secondary" 
+                               id="autoChargeAmount" value="300" min="1" max="10000">
+                        <span class="input-group-text bg-dark text-white border-secondary">TL</span>
+                    </div>
+                    <small class="text-gray">자동 충전 시 추가할 TL량</small>
+                </div>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="askBeforeAutoCharge">
+                    <label class="form-check-label text-gray" for="askBeforeAutoCharge">
+                        충전 전 확인 요청
+                    </label>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 mt-4">
+                <button class="btn btn-primary" onclick="saveAutoChargeSettings()">
+                    설정 저장
+                </button>
+                <button class="btn btn-outline-light" onclick="closeAutoChargeModal()">
+                    취소
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- 스크립트 -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/src/script/common-components.js"></script>
+    <script src="./src/script/common-components.js"></script>
+    
+    <!-- TL Studio 전용 스크립트 -->
     <script>
-        // 스튜디오 전용 기능
-        let currentStep = 1;
+        // TL 변환 시스템 데이터
+        const tlStudio = {
+            currentFile: null,
+            tlFile: null,
+            currentCharge: 0,
+            isPlaying: false,
+            playTimer: null,
+            multiplier: 1,
+            format: 'tl3',
+            userTLPoints: 10000,
+            deductionHistory: [],
+            fileChargeHistory: [],
+            selectedFileChargeOption: { seconds: 60, tlCost: 60 },
+            savedFiles: [],
+            currentFileId: null,
+            walletSelectedAmount: 60,
+            autoChargeSettings: {
+                enabled: true,
+                threshold: 30, // 초
+                amount: 300, // TL
+                askBeforeCharge: true
+            }
+        };
         
-        function startUpload() {
-            document.getElementById('fileInput').click();
+        // 지갑 모달 열기
+        function openWalletDirectCharge() {
+            if (!tlStudio.tlFile) {
+                showToast('먼저 TL 파일을 선택해주세요', 'warning');
+                return;
+            }
+            
+            // 모달 정보 업데이트
+            document.getElementById('walletFileName').textContent = tlStudio.tlFile.name;
+            document.getElementById('walletChargeTime').textContent = 
+                `${tlStudio.selectedFileChargeOption.seconds}초`;
+            document.getElementById('walletRequiredTL').textContent = 
+                `${tlStudio.selectedFileChargeOption.tlCost} TL`;
+            document.getElementById('walletBalance').textContent = 
+                `${tlStudio.userTLPoints.toLocaleString()} TL`;
+            
+            // 선택된 금액 업데이트
+            selectWalletAmount(tlStudio.selectedFileChargeOption.tlCost);
+            
+            // 모달 표시
+            document.getElementById('walletChargeModal').classList.add('active');
         }
         
-        function nextStep() {
-            const steps = document.querySelectorAll('.step');
-            steps.forEach(step => {
-                const stepNum = parseInt(step.dataset.step);
-                step.classList.remove('active');
-                if (stepNum === currentStep) {
-                    step.classList.add('completed');
-                }
-                if (stepNum === currentStep + 1) {
-                    step.classList.add('active');
+        // 지갑 모달 닫기
+        function closeWalletModal() {
+            document.getElementById('walletChargeModal').classList.remove('active');
+            document.getElementById('fileChargeProgress').style.display = 'none';
+            document.getElementById('processChargeBtn').style.display = 'block';
+        }
+        
+        // 자동 충전 모달 열기
+        function showAutoChargeSettings() {
+            // 설정값 로드
+            const settings = tlStudio.autoChargeSettings;
+            document.getElementById('enableAutoCharge').checked = settings.enabled;
+            document.getElementById('autoChargeThreshold').value = settings.threshold;
+            document.getElementById('autoChargeAmount').value = settings.amount;
+            document.getElementById('askBeforeAutoCharge').checked = settings.askBeforeCharge;
+            
+            document.getElementById('autoChargeModal').classList.add('active');
+        }
+        
+        // 자동 충전 모달 닫기
+        function closeAutoChargeModal() {
+            document.getElementById('autoChargeModal').classList.remove('active');
+        }
+        
+        // 자동 충전 설정 저장
+        function saveAutoChargeSettings() {
+            tlStudio.autoChargeSettings = {
+                enabled: document.getElementById('enableAutoCharge').checked,
+                threshold: parseInt(document.getElementById('autoChargeThreshold').value),
+                amount: parseInt(document.getElementById('autoChargeAmount').value),
+                askBeforeCharge: document.getElementById('askBeforeAutoCharge').checked
+            };
+            
+            localStorage.setItem('tl_auto_charge_settings', JSON.stringify(tlStudio.autoChargeSettings));
+            showToast('자동 충전 설정이 저장되었습니다', 'success');
+            closeAutoChargeModal();
+        }
+        
+        // 지갑 금액 선택
+        function selectWalletAmount(amount) {
+            // 모든 버튼에서 selected 클래스 제거
+            document.querySelectorAll('.wallet-amount-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // 선택한 버튼 찾기
+            document.querySelectorAll('.wallet-amount-btn').forEach(btn => {
+                const btnAmount = btn.querySelector('.wallet-amount').textContent;
+                if (btnAmount.includes(amount)) {
+                    btn.classList.add('selected');
                 }
             });
             
-            // UI 업데이트
-            if (currentStep === 1) {
-                document.getElementById('fileList').style.display = 'block';
-                document.getElementById('metadataForm').style.display = 'block';
-                document.getElementById('uploadArea').style.display = 'none';
-            } else if (currentStep === 2) {
-                document.getElementById('audioEditor').style.display = 'block';
+            tlStudio.walletSelectedAmount = amount;
+            
+            // 충전 시간 계산 (승수 고려)
+            const seconds = Math.floor(amount / tlStudio.multiplier);
+            document.getElementById('walletChargeTime').textContent = `${seconds}초`;
+            document.getElementById('walletRequiredTL').textContent = `${amount} TL`;
+            
+            // 파일 충전 옵션도 업데이트
+            setFileChargeOption(seconds, amount);
+        }
+        
+        // 사용자 정의 금액 적용
+        function useCustomAmount() {
+            const customAmount = parseInt(document.getElementById('customWalletAmount').value);
+            
+            if (!customAmount || customAmount < 1) {
+                showToast('유효한 금액을 입력해주세요', 'warning');
+                return;
             }
             
-            currentStep++;
+            if (customAmount > tlStudio.userTLPoints) {
+                showToast('지갑 잔액이 부족합니다', 'error');
+                return;
+            }
+            
+            selectWalletAmount(customAmount);
+            
+            // 충전 시간 표시 업데이트
+            const seconds = Math.floor(customAmount / tlStudio.multiplier);
+            document.getElementById('customChargeTime').textContent = `${seconds}초`;
         }
         
-        function previousStep() {
-            if (currentStep > 1) {
-                currentStep--;
-                const steps = document.querySelectorAll('.step');
-                steps.forEach(step => {
-                    const stepNum = parseInt(step.dataset.step);
-                    step.classList.remove('active', 'completed');
-                    if (stepNum === currentStep) {
-                        step.classList.add('active');
-                    }
-                    if (stepNum < currentStep) {
-                        step.classList.add('completed');
-                    }
-                });
+        // 파일 충전 옵션 설정
+        function setFileChargeOption(seconds, tlCost) {
+            tlStudio.selectedFileChargeOption = { seconds, tlCost };
+            
+            // 모든 옵션에서 selected 클래스 제거
+            document.querySelectorAll('.charge-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // 선택한 옵션 찾기
+            document.querySelectorAll('.charge-option').forEach(option => {
+                const amount = option.querySelector('.charge-amount').textContent;
+                if (amount.includes(tlCost)) {
+                    option.classList.add('selected');
+                }
+            });
+            
+            // 버튼 텍스트 업데이트
+            document.getElementById('fileChargeBtnText').textContent = 
+                `지갑에서 ${seconds}초 충전`;
+        }
+        
+        // 지갑에서 파일 직접 충전 처리
+        async function processFileChargeFromWallet() {
+            const { seconds, tlCost } = tlStudio.selectedFileChargeOption;
+            
+            // 잔액 확인
+            if (tlStudio.userTLPoints < tlCost) {
+                showToast(`지갑 잔액이 부족합니다. 필요: ${tlCost} TL, 현재: ${tlStudio.userTLPoints} TL`, 'error');
+                return;
+            }
+            
+            // 충전 진행 UI 표시
+            document.getElementById('fileChargeProgress').style.display = 'block';
+            document.getElementById('processChargeBtn').style.display = 'none';
+            
+            // 단계 1: 지갑 확인 (완료)
+            document.getElementById('step1').classList.add('completed');
+            document.getElementById('chargeProgressText').textContent = '지갑 인증 확인 중...';
+            
+            await sleep(1000);
+            
+            // 단계 2: 파일 암호화 및 업데이트
+            document.getElementById('step2').classList.add('active');
+            document.getElementById('chargeProgressText').textContent = '파일 데이터 암호화 중...';
+            
+            // 파일 데이터 암호화 시뮬레이션
+            await sleep(2000);
+            
+            // 실제 파일 충전 처리
+            const success = await chargeFileDirectly(seconds, tlCost);
+            
+            if (!success) {
+                document.getElementById('chargeProgressText').textContent = '충전 실패';
+                document.getElementById('step2').classList.remove('active');
+                await sleep(1000);
+                closeWalletModal();
+                return;
+            }
+            
+            // 단계 3: 충전 완료
+            document.getElementById('step2').classList.remove('active');
+            document.getElementById('step2').classList.add('completed');
+            document.getElementById('step3').classList.add('active');
+            document.getElementById('chargeProgressText').textContent = '파일 업데이트 완료!';
+            
+            await sleep(1000);
+            
+            document.getElementById('step3').classList.remove('active');
+            document.getElementById('step3').classList.add('completed');
+            document.getElementById('chargeProgressText').textContent = '충전 완료!';
+            
+            await sleep(500);
+            
+            // 모달 닫기 및 UI 업데이트
+            closeWalletModal();
+            updateFileAfterCharge(seconds);
+            
+            showToast(`파일이 ${seconds}초 충전되었습니다 (${tlCost} TL 사용)`, 'success');
+        }
+        
+        // 파일 직접 충전 처리 (가상)
+        async function chargeFileDirectly(seconds, tlCost) {
+            // 여기서 실제로는:
+            // 1. 파일 데이터 읽기
+            // 2. CRYSTALS-Dilithium으로 암호화된 시간 데이터 업데이트
+            // 3. 파일 헤더에 충전 정보 기록
+            // 4. 블록체인에 트랜잭션 기록
+            
+            try {
+                // TL 포인트 차감 (지갑에서)
+                if (!deductWalletTLPoints(tlCost, `파일 직접 충전: ${seconds}초`)) {
+                    return false;
+                }
+                
+                // 파일 충전 기록 추가
+                addFileChargeRecord(seconds, tlCost);
+                
+                // 백엔드에 파일 업데이트 요청 (실제 구현 시)
+                // await updateFileInBackend(tlStudio.currentFileId, seconds);
+                
+                return true;
+            } catch (error) {
+                console.error('파일 충전 실패:', error);
+                return false;
             }
         }
         
-        // 파일 업로드 시뮬레이션
-        document.getElementById('startUploadBtn').addEventListener('click', function() {
-            const uploadArea = document.getElementById('uploadArea');
-            uploadArea.innerHTML = `
-                <div class="text-center">
-                    <div class="spinner-border text-primary mb-3" role="status">
-                        <span class="visually-hidden">Loading...</span>
+        // 지갑 TL 포인트 차감
+        function deductWalletTLPoints(amount, description) {
+            if (tlStudio.userTLPoints < amount) {
+                return false;
+            }
+            
+            tlStudio.userTLPoints -= amount;
+            updateTLPointsDisplay();
+            
+            const deduction = {
+                timestamp: new Date().toLocaleTimeString(),
+                amount: -amount,
+                description: description,
+                balance: tlStudio.userTLPoints
+            };
+            
+            tlStudio.deductionHistory.unshift(deduction);
+            updateDeductionHistory();
+            
+            return true;
+        }
+        
+        // 파일 충전 기록 추가
+        function addFileChargeRecord(seconds, tlCost) {
+            const chargeRecord = {
+                timestamp: new Date().toISOString(),
+                date: new Date().toLocaleDateString(),
+                time: new Date().toLocaleTimeString(),
+                seconds: seconds,
+                tlCost: tlCost,
+                multiplier: tlStudio.multiplier,
+                beforeCharge: tlStudio.currentCharge,
+                afterCharge: tlStudio.currentCharge + seconds
+            };
+            
+            tlStudio.fileChargeHistory.unshift(chargeRecord);
+            updateFileChargeHistory();
+            
+            // 로컬 저장소에 파일 충전 상태 저장
+            if (tlStudio.tlFile) {
+                tlStudio.tlFile.lastCharge = chargeRecord;
+                tlStudio.tlFile.totalCharged = (tlStudio.tlFile.totalCharged || 0) + seconds;
+                saveFileChargeState();
+            }
+        }
+        
+        // 파일 충전 상태 저장
+        function saveFileChargeState() {
+            if (!tlStudio.currentFileId || !tlStudio.tlFile) return;
+            
+            const fileState = {
+                fileId: tlStudio.currentFileId,
+                currentCharge: tlStudio.currentCharge,
+                totalCharged: tlStudio.tlFile.totalCharged || 0,
+                lastCharge: tlStudio.tlFile.lastCharge,
+                chargeHistory: tlStudio.fileChargeHistory.slice(0, 10) // 최근 10개만 저장
+            };
+            
+            localStorage.setItem(`tl_file_${tlStudio.currentFileId}`, JSON.stringify(fileState));
+        }
+        
+        // 파일 충전 후 UI 업데이트
+        function updateFileAfterCharge(seconds) {
+            if (!tlStudio.tlFile) return;
+            
+            // 현재 충전량 업데이트
+            tlStudio.currentCharge = Math.min(
+                tlStudio.currentCharge + seconds,
+                tlStudio.tlFile.duration
+            );
+            
+            // 파일 총 충전량 업데이트
+            tlStudio.tlFile.totalCharged = (tlStudio.tlFile.totalCharged || 0) + seconds;
+            
+            // UI 업데이트
+            updateChargeInfo();
+            updateFileChargeStatus();
+        }
+        
+        // 파일 충전 상태 표시 업데이트
+        function updateFileChargeStatus() {
+            if (!tlStudio.tlFile) return;
+            
+            const totalCharged = tlStudio.tlFile.totalCharged || 0;
+            const maxDuration = tlStudio.tlFile.duration;
+            
+            document.getElementById('fileChargeStatus').textContent = 
+                `${totalCharged}초 충전됨`;
+            document.getElementById('fileTotalCharge').textContent = 
+                `${totalCharged}초 / ${maxDuration}초`;
+            
+            // 최근 충전 시간 업데이트
+            if (tlStudio.tlFile.lastCharge) {
+                document.getElementById('lastChargeTime').textContent = 
+                    `${tlStudio.tlFile.lastCharge.date} ${tlStudio.tlFile.lastCharge.time}`;
+            }
+        }
+        
+        // 파일 충전 내역 업데이트
+        function updateFileChargeHistory() {
+            const historyElement = document.getElementById('fileChargeHistory');
+            let historyHTML = '<h6>파일 충전 내역</h6>';
+            
+            if (tlStudio.fileChargeHistory.length === 0) {
+                historyHTML += `
+                    <div class="deduction-item">
+                        <span>초기 생성</span>
+                        <span class="deduction-amount">0초</span>
                     </div>
-                    <h4 class="text-white mb-2">파일 업로드 중...</h4>
-                    <p class="text-gray">잠시만 기다려주세요</p>
+                `;
+            } else {
+                // 최근 5개 충전 내역 표시
+                const recentHistory = tlStudio.fileChargeHistory.slice(0, 5);
+                
+                recentHistory.forEach(record => {
+                    historyHTML += `
+                        <div class="deduction-item">
+                            <div>
+                                <div>${record.date} ${record.time}</div>
+                                <small class="text-gray">${record.multiplier}x 승수</small>
+                            </div>
+                            <div class="text-end">
+                                <div class="deduction-amount positive">+${record.seconds}초</div>
+                                <small class="text-gray">${record.tlCost} TL</small>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            historyElement.innerHTML = historyHTML;
+        }
+        
+        // 파일에서 직접 충전 (간단한 버전)
+        function chargeFileFromWallet() {
+            if (!tlStudio.tlFile) {
+                showToast('먼저 TL 파일을 선택해주세요', 'warning');
+                return;
+            }
+            
+            const { seconds, tlCost } = tlStudio.selectedFileChargeOption;
+            
+            // 간단한 충전 처리 (모달 없이)
+            if (!deductWalletTLPoints(tlCost, `파일 직접 충전: ${seconds}초`)) {
+                showToast(`지갑 잔액이 부족합니다. 필요: ${tlCost} TL`, 'error');
+                return;
+            }
+            
+            addFileChargeRecord(seconds, tlCost);
+            updateFileAfterCharge(seconds);
+            
+            showToast(`파일이 ${seconds}초 충전되었습니다`, 'success');
+        }
+        
+        // 파일 충전 QR 생성
+        function generateFileChargeQR() {
+            if (!tlStudio.tlFile || !tlStudio.currentFileId) {
+                showToast('파일을 먼저 선택해주세요', 'warning');
+                return;
+            }
+            
+            const qrData = {
+                fileId: tlStudio.currentFileId,
+                fileName: tlStudio.tlFile.name,
+                multiplier: tlStudio.multiplier,
+                timestamp: Date.now()
+            };
+            
+            const qrCode = btoa(JSON.stringify(qrData));
+            
+            const modal = document.createElement('div');
+            modal.className = 'purchase-modal active';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <button class="modal-close" onclick="this.parentElement.parentElement.remove()">
+                        <i class="bi bi-x"></i>
+                    </button>
+                    
+                    <div class="text-center">
+                        <div style="background: white; padding: 20px; border-radius: 10px; display: inline-block;">
+                            <div style="font-family: monospace; font-size: 1.2rem; letter-spacing: 2px;">
+                                TLFILE:${qrCode.substr(0, 20)}...
+                            </div>
+                        </div>
+                        <h4 class="text-white mt-3">파일 충전 QR 코드</h4>
+                        <p class="text-gray">
+                            이 QR 코드를 다른 기기에서 스캔하여<br>
+                            동일한 파일을 충전할 수 있습니다
+                        </p>
+                        
+                        <div class="mt-4">
+                            <small class="text-gray">유효기간: 24시간</small><br>
+                            <small class="text-gray">파일: ${tlStudio.tlFile.name}</small>
+                        </div>
+                        
+                        <button class="btn btn-primary mt-3" onclick="navigator.clipboard.writeText('TLFILE:${qrCode}'); showToast('QR 코드 복사됨', 'success')">
+                            <i class="bi bi-clipboard me-2"></i>
+                            코드 복사
+                        </button>
+                    </div>
                 </div>
             `;
             
-            setTimeout(() => {
-                uploadArea.style.display = 'none';
-                document.getElementById('fileList').style.display = 'block';
-                document.getElementById('metadataForm').style.display = 'block';
-                
-                // 프로그레스 바 애니메이션
-                const progressBar = document.querySelector('.file-progress-bar');
-                let width = 0;
-                const interval = setInterval(() => {
-                    if (width >= 100) {
-                        clearInterval(interval);
-                        document.querySelector('.file-item .badge').className = 'badge badge-success';
-                        document.querySelector('.file-item .badge').textContent = '업로드 완료';
-                        setTimeout(nextStep, 500);
-                    } else {
-                        width += 5;
-                        progressBar.style.width = width + '%';
-                    }
-                }, 100);
-            }, 1500);
-        });
+            document.body.appendChild(modal);
+        }
         
-        // 드래그 앤 드롭
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-        
-        uploadArea.addEventListener('click', () => fileInput.click());
-        
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.style.borderColor = '#7c4dff';
-            uploadArea.style.transform = 'scale(1.02)';
-        });
-        
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.style.borderColor = 'var(--glass-border)';
-            uploadArea.style.transform = 'scale(1)';
-        });
-        
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.style.borderColor = '#00c853';
-            uploadArea.style.transform = 'scale(1)';
-            
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                startUploadBtn.click();
+        // 자동 충전 체크 (재생 중 TL 부족 시)
+        function checkAutoCharge() {
+            if (!tlStudio.autoChargeSettings.enabled || !tlStudio.tlFile) {
+                return false;
             }
-        });
-        
-        // 오디오 시각화 생성
-        function createAudioVisualizer() {
-            const visualizer = document.querySelector('.audio-visualizer');
-            visualizer.innerHTML = '';
             
-            for (let i = 0; i < 50; i++) {
-                const bar = document.createElement('div');
-                bar.className = 'visualizer-bar';
-                bar.style.left = `${i * (100 / 50)}%`;
-                bar.style.width = `${(100 / 50) - 1}%`;
-                bar.style.animationDelay = `${i * 0.05}s`;
-                visualizer.appendChild(bar);
+            // 남은 충전량이 임계값보다 적으면
+            const remainingSeconds = tlStudio.tlFile.duration - tlStudio.currentCharge;
+            
+            if (remainingSeconds <= tlStudio.autoChargeSettings.threshold) {
+                if (tlStudio.autoChargeSettings.askBeforeCharge) {
+                    if (confirm(`남은 재생 시간이 ${remainingSeconds}초입니다.\n자동으로 ${tlStudio.autoChargeSettings.amount}TL 충전하시겠습니까?`)) {
+                        performAutoCharge();
+                    }
+                } else {
+                    performAutoCharge();
+                }
+                return true;
+            }
+            
+            return false;
+        }
+        
+        // 자동 충전 수행
+        function performAutoCharge() {
+            const amount = tlStudio.autoChargeSettings.amount;
+            const seconds = Math.floor(amount / tlStudio.multiplier);
+            
+            if (tlStudio.userTLPoints >= amount) {
+                deductWalletTLPoints(amount, `자동 충전: ${seconds}초`);
+                addFileChargeRecord(seconds, amount);
+                updateFileAfterCharge(seconds);
+                showToast(`자동 충전 완료: ${seconds}초 추가`, 'info');
+            } else {
+                showToast('자동 충전 실패: 지갑 잔액 부족', 'warning');
             }
         }
         
-        // 페이지별 초기화 함수
-        function initPageSpecific() {
-            console.log('TL Studio 페이지 초기화');
-            createAudioVisualizer();
+        // TL 포인트 관리
+        function updateTLPointsDisplay() {
+            const pointsElement = document.getElementById('userTLPoints');
+            const points = tlStudio.userTLPoints.toLocaleString();
+            pointsElement.textContent = `${points} TL`;
+        }
+        
+        function updateDeductionHistory() {
+            const historyElement = document.getElementById('deductionHistory');
+            let historyHTML = '<h6>최근 TL 차감 내역</h6>';
             
-            // 컨트롤 버튼 이벤트
-            document.querySelectorAll('.control-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    document.querySelectorAll('.control-btn').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
+            historyHTML += `
+                <div class="deduction-item">
+                    <span>초기 보유량</span>
+                    <span class="deduction-amount positive">+10,000 TL</span>
+                </div>
+            `;
+            
+            const recentHistory = tlStudio.deductionHistory.slice(0, 5);
+            
+            recentHistory.forEach(item => {
+                const amountClass = item.amount < 0 ? 'negative' : 'positive';
+                const amountSign = item.amount > 0 ? '+' : '';
+                
+                historyHTML += `
+                    <div class="deduction-item">
+                        <span>${item.description}</span>
+                        <span class="deduction-amount ${amountClass}">
+                            ${amountSign}${item.amount} TL
+                        </span>
+                    </div>
+                `;
+            });
+            
+            historyElement.innerHTML = historyHTML;
+        }
+        
+        // 파일 선택 함수
+        function selectFileForConversion() {
+            document.getElementById('conversionFileInput').click();
+        }
+        
+        // 파일 선택 이벤트
+        document.getElementById('conversionFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                tlStudio.currentFile = file;
+                showSelectedFileInfo(file);
+            }
+        });
+        
+        // 선택된 파일 정보 표시
+        function showSelectedFileInfo(file) {
+            document.getElementById('converterUpload').style.display = 'none';
+            document.getElementById('selectedFileInfo').style.display = 'block';
+            
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            document.getElementById('fileFormat').textContent = getFileExtension(file.name).toUpperCase();
+            
+            const duration = Math.floor(Math.random() * 300) + 120;
+            document.getElementById('fileDuration').textContent = formatTime(duration);
+            
+            updateTLConsumption(duration);
+        }
+        
+        // TL 변환 시작
+        function startTLConversion() {
+            if (!tlStudio.currentFile) {
+                alert('먼저 파일을 선택해주세요.');
+                return;
+            }
+            
+            document.getElementById('selectedFileInfo').style.display = 'none';
+            document.getElementById('conversionProgress').style.display = 'block';
+            
+            simulateConversionProcess();
+        }
+        
+        // 변환 프로세스 시뮬레이션
+        function simulateConversionProcess() {
+            let progress = 0;
+            const progressBar = document.getElementById('conversionProgressBar');
+            const steps = [
+                { name: '파일 분석', duration: 1000 },
+                { name: '시간 충전 시스템 통합', duration: 1500 },
+                { name: 'CRYSTALS-Dilithium 암호화', duration: 2000 },
+                { name: 'TL3 포맷 변환', duration: 1500 }
+            ];
+            
+            steps.forEach((step, index) => {
+                setTimeout(() => {
+                    progress = ((index + 1) / steps.length) * 100;
+                    progressBar.style.width = `${progress}%`;
                     
-                    if (this.querySelector('.bi-play-fill')) {
-                        // 재생 시뮬레이션
-                        document.querySelectorAll('.waveform-bar').forEach(bar => {
-                            bar.style.animationDuration = '1s';
-                        });
+                    if (index === 2) {
+                        document.getElementById('encryptionStatus').innerHTML = 
+                            '<span class="text-success">완료</span>';
+                    } else if (index === 3) {
+                        document.getElementById('formatStatus').innerHTML = 
+                            '<span class="text-success">완료</span>';
+                        
+                        setTimeout(createTLFile, 500);
+                    }
+                }, step.duration);
+            });
+        }
+        
+        // TL 파일 생성
+        function createTLFile() {
+            const duration = 272;
+            const fileId = 'TL_' + new Date().getFullYear() + '_' + 
+                         Math.random().toString(36).substr(2, 9).toUpperCase();
+            
+            tlStudio.tlFile = {
+                id: fileId,
+                name: tlStudio.currentFile.name.replace(/\.[^/.]+$/, "") + '.tl3',
+                duration: duration,
+                format: tlStudio.format,
+                multiplier: tlStudio.multiplier,
+                size: tlStudio.currentFile.size,
+                createdAt: new Date().toISOString(),
+                totalCharged: 0,
+                lastCharge: null
+            };
+            
+            tlStudio.currentFileId = fileId;
+            
+            // 파일 충전 기록 초기화
+            tlStudio.fileChargeHistory = [];
+            
+            // 저장된 파일 목록에 추가
+            tlStudio.savedFiles.push(tlStudio.tlFile);
+            localStorage.setItem('tl_saved_files', JSON.stringify(tlStudio.savedFiles));
+            
+            document.getElementById('conversionProgress').innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                    <h4 class="text-white mt-3">TL 변환 완료!</h4>
+                    <p class="text-gray">${tlStudio.tlFile.name}</p>
+                    <button class="btn btn-primary mt-3" onclick="loadTLFileToPlayer()">
+                        <i class="bi bi-play-circle me-2"></i>
+                        플레이어에서 열기
+                    </button>
+                </div>
+            `;
+        }
+        
+        // TL 파일을 플레이어에 로드
+        function loadTLFileToPlayer() {
+            if (!tlStudio.tlFile) return;
+            
+            displayTLFile();
+        }
+        
+        // TL 파일 표시
+        function displayTLFile() {
+            document.getElementById('noTLFile').style.display = 'none';
+            document.getElementById('tlFilePreview').style.display = 'block';
+            
+            document.getElementById('tlFileName').textContent = tlStudio.tlFile.name;
+            document.getElementById('tlDuration').textContent = formatTime(tlStudio.tlFile.duration);
+            document.getElementById('tlRate').textContent = `${tlStudio.tlFile.multiplier}초/1TL`;
+            document.getElementById('tlRateDisplay').textContent = tlStudio.tlFile.multiplier;
+            document.getElementById('fileId').textContent = tlStudio.tlFile.id;
+            
+            // 저장된 충전 상태 로드
+            loadFileChargeState();
+            
+            updateChargeInfo();
+            updateTLConsumption(tlStudio.tlFile.duration);
+            updateFileChargeStatus();
+            updateFileChargeHistory();
+            setFileChargeOption(60, 60);
+        }
+        
+        // 파일 충전 상태 로드
+        function loadFileChargeState() {
+            if (!tlStudio.currentFileId) return;
+            
+            const savedState = localStorage.getItem(`tl_file_${tlStudio.currentFileId}`);
+            
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                tlStudio.currentCharge = state.currentCharge || 0;
+                tlStudio.tlFile.totalCharged = state.totalCharged || 0;
+                tlStudio.tlFile.lastCharge = state.lastCharge || null;
+                tlStudio.fileChargeHistory = state.chargeHistory || [];
+            }
+        }
+        
+        // TL 충전 정보 업데이트
+        function updateChargeInfo() {
+            if (!tlStudio.tlFile) return;
+            
+            const currentCharge = formatTime(tlStudio.currentCharge);
+            const requiredCharge = formatTime(tlStudio.tlFile.duration);
+            const progress = (tlStudio.currentCharge / tlStudio.tlFile.duration) * 100;
+            
+            document.getElementById('currentCharge').textContent = currentCharge;
+            document.getElementById('requiredCharge').textContent = requiredCharge;
+            document.getElementById('chargeProgress').style.width = `${progress}%`;
+            
+            document.getElementById('currentTime').textContent = formatTime(tlStudio.currentCharge);
+            document.getElementById('totalTime').textContent = formatTime(tlStudio.tlFile.duration);
+        }
+        
+        // TL 소모량 계산 업데이트
+        function updateTLConsumption(duration) {
+            const consumption = duration * tlStudio.multiplier;
+            
+            document.getElementById('tlConsumption').textContent = `${consumption} TL`;
+            document.getElementById('consumptionRate').textContent = `1초당 ${tlStudio.multiplier}TL`;
+            document.getElementById('totalSeconds').textContent = `${duration}초`;
+            document.getElementById('totalTL').textContent = `${consumption} TL`;
+        }
+        
+        // TL 파일 재생
+        function playTLFile() {
+            if (!tlStudio.tlFile || tlStudio.isPlaying) return;
+            
+            if (tlStudio.currentCharge <= 0) {
+                // 자동 충전 체크
+                if (!checkAutoCharge()) {
+                    alert('TL이 부족합니다. 먼저 충전해주세요.');
+                    openWalletDirectCharge();
+                }
+                return;
+            }
+            
+            tlStudio.isPlaying = true;
+            
+            document.querySelectorAll('.waveform-bar').forEach(bar => {
+                bar.style.animationDuration = '0.5s';
+            });
+            
+            let secondsPlayed = 0;
+            
+            tlStudio.playTimer = setInterval(() => {
+                secondsPlayed++;
+                tlStudio.currentCharge--;
+                
+                if (secondsPlayed % 1 === 0) {
+                    // 자동 충전 체크
+                    checkAutoCharge();
+                }
+                
+                if (tlStudio.currentCharge <= 0 || secondsPlayed >= tlStudio.tlFile.duration) {
+                    stopTLFile();
+                    return;
+                }
+                
+                updateChargeInfo();
+                document.getElementById('currentTime').textContent = formatTime(secondsPlayed);
+            }, 1000);
+        }
+        
+        function pauseTLFile() {
+            if (!tlStudio.isPlaying) return;
+            
+            tlStudio.isPlaying = false;
+            clearInterval(tlStudio.playTimer);
+            
+            document.querySelectorAll('.waveform-bar').forEach(bar => {
+                bar.style.animationPlayState = 'paused';
+            });
+        }
+        
+        function stopTLFile() {
+            tlStudio.isPlaying = false;
+            clearInterval(tlStudio.playTimer);
+            
+            document.querySelectorAll('.waveform-bar').forEach(bar => {
+                bar.style.animation = 'none';
+            });
+            
+            document.getElementById('currentTime').textContent = '0:00';
+        }
+        
+        // 유틸리티 함수들
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function getFileExtension(filename) {
+            return filename.slice((filename.lastIndexOf(".") - 1 >>> 0) + 2);
+        }
+        
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                background: ${type === 'success' ? '#00c853' : type === 'error' ? '#f44336' : type === 'warning' ? '#ff9800' : '#2196f3'};
+                color: white;
+                border-radius: 10px;
+                z-index: 10000;
+                font-weight: 500;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+        
+        // 페이지 초기화
+        function initStudioPage() {
+            console.log('TL Studio 페이지 초기화');
+            
+            // 자동 충전 설정 로드
+            const savedSettings = localStorage.getItem('tl_auto_charge_settings');
+            if (savedSettings) {
+                tlStudio.autoChargeSettings = JSON.parse(savedSettings);
+            }
+            
+            updateTLPointsDisplay();
+            updateDeductionHistory();
+            
+            // 저장된 파일 목록 로드
+            const savedFiles = localStorage.getItem('tl_saved_files');
+            if (savedFiles) {
+                tlStudio.savedFiles = JSON.parse(savedFiles);
+            }
+            
+            document.querySelectorAll('.multiplier-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.multiplier-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    tlStudio.multiplier = parseInt(this.dataset.multiplier);
+                    
+                    if (tlStudio.tlFile) {
+                        updateTLConsumption(tlStudio.tlFile.duration);
+                        document.getElementById('tlRateDisplay').textContent = tlStudio.multiplier;
                     }
                 });
             });
             
-            // 타임라인 핸들 드래그
-            const timelineHandle = document.querySelector('.timeline-handle');
-            const timelineTrack = document.querySelector('.timeline-track');
+            document.querySelectorAll('[data-format]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('[data-format]').forEach(b => {
+                        b.classList.remove('active', 'btn-primary');
+                        b.classList.add('btn-outline-primary');
+                    });
+                    this.classList.remove('btn-outline-primary');
+                    this.classList.add('active', 'btn-primary');
+                    tlStudio.format = this.dataset.format;
+                });
+            });
             
-            timelineHandle.addEventListener('mousedown', startDrag);
-            
-            function startDrag(e) {
-                e.preventDefault();
-                document.addEventListener('mousemove', onDrag);
-                document.addEventListener('mouseup', stopDrag);
-            }
-            
-            function onDrag(e) {
-                const trackRect = timelineTrack.getBoundingClientRect();
-                let x = e.clientX - trackRect.left;
-                x = Math.max(0, Math.min(x, trackRect.width));
-                const percent = (x / trackRect.width) * 100;
-                timelineHandle.style.left = `${percent}%`;
-            }
-            
-            function stopDrag() {
-                document.removeEventListener('mousemove', onDrag);
-                document.removeEventListener('mouseup', stopDrag);
-            }
+            // 사용자 정의 금액 입력 시 실시간 계산
+            document.getElementById('customWalletAmount').addEventListener('input', function() {
+                const amount = parseInt(this.value) || 0;
+                const seconds = Math.floor(amount / (tlStudio.multiplier || 1));
+                document.getElementById('customChargeTime').textContent = `${seconds}초`;
+            });
         }
+        
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', initStudioPage);
     </script>
 </body>
 </html>
