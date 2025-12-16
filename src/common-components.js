@@ -1,300 +1,152 @@
-cat > common-components.js << 'EOF'
-// TimeLink 공통 컴포넌트
-
-class TimeLinkComponents {
-    // 현재 페이지 이름 가져오기
-    static getCurrentPage() {
-        const path = window.location.pathname;
-        const page = path.split('/').pop() || 'index.html';
-        return page.replace('.html', '');
-    }
-
-    // 헤더 렌더링
-    static renderHeader() {
-        const currentPage = this.getCurrentPage();
-        
-        const navItems = [
-            { id: 'index', name: '홈', icon: 'house', href: 'index.html' },
-            { id: 'p2p-marketplace', name: 'P2P 마켓', icon: 'shop', href: 'p2p-marketplace.html' },
-            { id: 'p2p-music', name: 'TL MUSICPLACE', icon: 'music-note-beamed', href: 'p2p-music.html' },
-            { id: 'studio', name: 'TL STUDIO', icon: 'palette', href: 'studio.html' },
-            { id: 'tltube', name: 'TL TUBE', icon: 'play-btn', href: 'tltube.html' },
-            { id: 'dashboard', name: '대시보드', icon: 'graph-up', href: 'dashboard.html' },
-            { id: 'charge', name: 'TL 충전', icon: 'lightning-charge', href: 'charge.html' },
-            { id: 'guide', name: '이용방법', icon: 'question-circle', href: 'guide.html' }
-        ];
-
-        const navLinks = navItems.map(item => `
-            <a href="${item.href}" class="nav-link ${currentPage === item.id ? 'active' : ''}">
-                <i class="bi bi-${item.icon}"></i> ${item.name}
-            </a>
-        `).join('');
-
-        return `
-        <header class="header fade-in">
-            <div class="container">
-                <div class="nav-container">
-                    <a href="index.html" class="logo">
-                        <i class="bi bi-infinity"></i> TIMELINK
+// 공통 네비게이션 메뉴 생성
+function createNavigation() {
+    return `
+        <header class="main-header">
+            <div class="nav-container">
+                <!-- 로고 -->
+                <div class="logo">
+                    <a href="index.html" style="color: #00b0ff; font-size: 24px; font-weight: bold; text-decoration: none;">
+                        TIMELINK
                     </a>
-                    
-                    <nav class="nav-menu">
-                        ${navLinks}
-                    </nav>
-                    
-                    <div class="user-menu">
-                        <a href="login.html" class="btn btn-secondary btn-sm">
-                            <i class="bi bi-box-arrow-in-right"></i> 로그인
-                        </a>
-                        <a href="signup.html" class="btn btn-primary btn-sm">
-                            <i class="bi bi-person-plus"></i> 회원가입
-                        </a>
-                    </div>
+                </div>
+                
+                <!-- 메인 메뉴 -->
+                <nav>
+                    <ul class="main-menu">
+                        <!-- HOME -->
+                        <li class="menu-item">
+                            <a href="index.html" class="menu-link">
+                                <span>🏠</span> HOME
+                            </a>
+                        </li>
+                        
+                        <!-- TL STUDIO / MUSIC PLACE -->
+                        <li class="menu-item">
+                            <a href="#" class="menu-link">
+                                <span>🎵</span> TL STUDIO / MUSIC PLACE
+                            </a>
+                            <div class="submenu">
+                                <!-- TL STUDIO -->
+                                <div class="submenu-section">
+                                    <div class="submenu-title">🎵 TL STUDIO</div>
+                                    <a href="studio.html" class="submenu-link">• 스튜디오 메인</a>
+                                    <a href="studio.html#converter" class="submenu-link">• 파일 변환기</a>
+                                    <a href="studio.html#player" class="submenu-link">• 미리보기 플레이어</a>
+                                </div>
+                                <!-- MUSIC PLACE -->
+                                <div class="submenu-section">
+                                    <div class="submenu-title">🎧 MUSIC PLACE</div>
+                                    <a href="p2p-marketplace.html" class="submenu-link">• P2P</a>
+                                    <a href="#" class="submenu-link">• ARTIST</a>
+                                </div>
+                            </div>
+                        </li>
+                        
+                        <!-- TUBE PLACE -->
+                        <li class="menu-item">
+                            <a href="tltube.html" class="menu-link">
+                                <span>🎬</span> TUBE PLACE
+                            </a>
+                            <div class="submenu">
+                                <a href="tltube.html" class="submenu-link">• TLTube 메인</a>
+                                <a href="tltube_preview.html" class="submenu-link">• 영상 미리보기</a>
+                                <a href="#" class="submenu-link">• 영상 자산화</a>
+                            </div>
+                        </li>
+                        
+                        <!-- TL CHARGE -->
+                        <li class="menu-item">
+                            <a href="charge.html" class="menu-link">
+                                <span>⚡</span> TL CHARGE
+                            </a>
+                            <div class="submenu">
+                                <div class="submenu-section">
+                                    <div class="submenu-title">충전</div>
+                                    <a href="charge.html#purchase" class="submenu-link">• TL 구매</a>
+                                    <a href="charge.html#wallet" class="submenu-link">• 지갑 관리</a>
+                                </div>
+                                <div class="submenu-section">
+                                    <div class="submenu-title">광고 수익</div>
+                                    <a href="charge.html#audio-ads" class="submenu-link">• 오디오 광고</a>
+                                    <a href="charge.html#video-ads" class="submenu-link">• 비디오 광고</a>
+                                </div>
+                            </div>
+                        </li>
+                        
+                        <!-- 커뮤니티 -->
+                        <li class="menu-item">
+                            <a href="#" class="menu-link">
+                                <span>👥</span> 커뮤니티
+                            </a>
+                            <div class="submenu">
+                                <a href="guide.html" class="submenu-link">• 이용방법</a>
+                                <a href="faq.html" class="submenu-link">• FAQ</a>
+                            </div>
+                        </li>
+                        
+                        <!-- 광고MARKET -->
+                        <li class="menu-item">
+                            <a href="#" class="menu-link">
+                                <span>📢</span> 광고MARKET
+                            </a>
+                            <div class="submenu">
+                                <a href="#" class="submenu-link">• 광고주</a>
+                                <a href="charge.html#audio-ads" class="submenu-link">• 광고시청(오디오)</a>
+                                <a href="charge.html#video-ads" class="submenu-link">• 광고시청(비디오)</a>
+                            </div>
+                        </li>
+                    </ul>
+                </nav>
+                
+                <!-- 로그인/회원가입/TL SUM -->
+                <div class="user-section">
+                    ${getUserSection()}
                 </div>
             </div>
         </header>
-        `;
-    }
-
-    // 푸터 렌더링
-    static renderFooter() {
-        return `
-        <footer class="footer fade-in">
-            <div class="container">
-                <div class="row">
-                    <div class="col-lg-4 mb-5">
-                        <div class="footer-logo">
-                            <i class="bi bi-music-note-beamed"></i> TimeLink
-                        </div>
-                        <p class="text-muted">
-                            개인 음원 소유자와 창작자를 연결하는<br>
-                            혁신적인 P2P 음악 플랫폼입니다.
-                        </p>
-                        <div class="mt-3">
-                            <a href="#" class="btn btn-sm btn-secondary me-2">
-                                <i class="bi bi-twitter"></i>
-                            </a>
-                            <a href="#" class="btn btn-sm btn-secondary me-2">
-                                <i class="bi bi-facebook"></i>
-                            </a>
-                            <a href="#" class="btn btn-sm btn-secondary">
-                                <i class="bi bi-instagram"></i>
-                            </a>
-                        </div>
-                    </div>
-                    
-                    <div class="col-lg-2 col-md-4 mb-5">
-                        <h6>서비스</h6>
-                        <ul class="list-unstyled">
-                            <li class="mb-2"><a href="p2p-marketplace.html">P2P 마켓</a></li>
-                            <li class="mb-2"><a href="studio.html">TL Studio</a></li>
-                            <li class="mb-2"><a href="tltube.html">TL Tube</a></li>
-                            <li class="mb-2"><a href="dashboard.html">대시보드</a></li>
-                        </ul>
-                    </div>
-                    
-                    <div class="col-lg-3 col-md-4 mb-5">
-                        <h6>지원</h6>
-                        <ul class="list-unstyled">
-                            <li class="mb-2"><a href="faq.html">자주 묻는 질문</a></li>
-                            <li class="mb-2"><a href="guide.html">이용방법</a></li>
-                            <li class="mb-2"><a href="copyright-guide.html">저작권 가이드</a></li>
-                            <li class="mb-2"><a href="revenue-policy.html">수익 정책</a></li>
-                        </ul>
-                    </div>
-                    
-                    <div class="col-lg-3 col-md-4 mb-5">
-                        <h6>연락처</h6>
-                        <ul class="list-unstyled">
-                            <li class="mb-2">
-                                <i class="bi bi-envelope me-2"></i>
-                                support@timelink.digital
-                            </li>
-                            <li class="mb-2">
-                                <i class="bi bi-globe me-2"></i>
-                                timelink.digital
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-                
-                <hr class="opacity-25 my-4">
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <p class="small text-muted mb-0">
-                            © 2024 TimeLink. All rights reserved.
-                        </p>
-                    </div>
-                    <div class="col-md-6 text-md-end">
-                        <p class="small text-muted mb-0">
-                            v2.0 • P2P Music Marketplace
-                        </p>
-                    </div>
-                </div>
+        
+        <!-- 헤더 배너 -->
+        <div class="header-banner">
+            <div class="banner-overlay"></div>
+            <div class="banner-content">
+                <h1 class="banner-title">TimeLink</h1>
+                <p class="banner-subtitle">보고, 듣고, 읽고, 벌고하는 미래형 시간 경제 플랫폼</p>
+                <p class="banner-subtitle">유휴 디지털 파일 자산화 플랫폼</p>
             </div>
-        </footer>
-        `;
-    }
-
-    // 플로팅 액션 버튼
-    static renderFloatingAction() {
-        return `
-        <div class="floating-action">
-            <a href="studio.html" class="btn btn-primary btn-lg shadow-lg">
-                <i class="bi bi-plus-lg me-2"></i>음원 업로드
-            </a>
         </div>
-        `;
-    }
-
-    // 로딩 스피너
-    static renderLoadingSpinner(text = '로딩 중...') {
-        return `
-        <div class="text-center p-4">
-            <div class="spinner mx-auto"></div>
-            <p class="mt-3 text-muted">${text}</p>
-        </div>
-        `;
-    }
-
-    // API 오류 메시지
-    static renderApiError(message = 'API 연결에 실패했습니다.') {
-        return `
-        <div class="alert alert-error">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            ${message}
-            <button class="btn btn-sm btn-secondary float-end" onclick="location.reload()">
-                다시 시도
-            </button>
-        </div>
-        `;
-    }
-
-    // 빈 상태 메시지
-    static renderEmptyState(icon = 'inbox', title = '내용이 없습니다', message = '데이터를 찾을 수 없습니다.') {
-        return `
-        <div class="text-center p-5">
-            <i class="bi bi-${icon} fs-1 text-muted mb-3"></i>
-            <h5 class="mb-2">${title}</h5>
-            <p class="text-muted">${message}</p>
-        </div>
-        `;
-    }
-
-    // 페이지 초기화
-    static async initializePage() {
-        // 헤더와 푸터 삽입
-        document.getElementById('header-container').innerHTML = this.renderHeader();
-        document.getElementById('footer-container').innerHTML = this.renderFooter();
-        
-        // 플로팅 액션 버튼 추가 (특정 페이지에서만)
-        if (['studio', 'p2p-music', 'p2p-marketplace'].includes(this.getCurrentPage())) {
-            document.body.insertAdjacentHTML('beforeend', this.renderFloatingAction());
-        }
-
-        // 모바일 네비게이션 이벤트 리스너 추가
-        this.setupMobileNavigation();
-        
-        // API 상태 확인
-        await this.checkApiStatus();
-    }
-
-    // 모바일 네비게이션 설정
-    static setupMobileNavigation() {
-        const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
-        const navMenu = document.querySelector('.nav-menu');
-        
-        if (mobileMenuToggle && navMenu) {
-            mobileMenuToggle.addEventListener('click', () => {
-                navMenu.classList.toggle('show');
-            });
-        }
-    }
-
-    // API 상태 확인
-    static async checkApiStatus() {
-        try {
-            const apiConfig = window.TimeLinkConfig || window.TimeLinkAPI;
-            if (!apiConfig) return;
-            
-            const response = await fetch(apiConfig.API_BASE_URL + '/api');
-            if (!response.ok) {
-                console.warn('API 서버 연결 상태 불안정');
-            }
-        } catch (error) {
-            console.warn('API 서버 확인 실패:', error.message);
-        }
-    }
-
-    // 토큰 확인
-    static checkAuth() {
-        const token = localStorage.getItem('timelink_token');
-        const currentPage = this.getCurrentPage();
-        
-        // 로그인이 필요한 페이지들
-        const protectedPages = ['dashboard', 'studio', 'p2p-music'];
-        
-        if (protectedPages.includes(currentPage) && !token) {
-            window.location.href = 'login.html?redirect=' + currentPage;
-            return false;
-        }
-        
-        return !!token;
-    }
-
-    // 로그아웃
-    static logout() {
-        localStorage.removeItem('timelink_token');
-        window.location.href = 'index.html';
-    }
-
-    // 사용자 정보 가져오기
-    static getUserInfo() {
-        const token = localStorage.getItem('timelink_token');
-        if (!token) return null;
-        
-        try {
-            // JWT 토큰 디코딩 (Base64)
-            const payload = token.split('.')[1];
-            return JSON.parse(atob(payload));
-        } catch (error) {
-            console.error('토큰 디코딩 실패:', error);
-            return null;
-        }
-    }
-
-    // 포맷터
-    static formatPrice(amount) {
-        return new Intl.NumberFormat('ko-KR', {
-            style: 'currency',
-            currency: 'KRW'
-        }).format(amount).replace('₩', '') + ' TL';
-    }
-
-    static formatDate(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('ko-KR', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    }
-
-    static formatTime(seconds) {
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
+    `;
 }
 
-// 전역 등록
-window.TimeLinkComponents = TimeLinkComponents;
-
-// 페이지 로드 시 자동 초기화
-document.addEventListener('DOMContentLoaded', () => {
-    if (window.TimeLinkComponents) {
-        TimeLinkComponents.initializePage();
+// 사용자 섹션 생성 (로그인 상태에 따라 다름)
+function getUserSection() {
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const tlSum = localStorage.getItem('tlSum') || '0.00';
+    
+    if (isLoggedIn) {
+        return `
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div class="tl-sum-display">
+                    <span class="tl-sum-label">TL SUM:</span>
+                    <span class="tl-sum-value">${tlSum} TL</span>
+                </div>
+                <a href="dashboard.html" class="menu-link" style="padding: 8px 15px;">
+                    <span>👤</span> 대시보드
+                </a>
+                <button onclick="logout()" class="menu-link" style="padding: 8px 15px; cursor: pointer; border: none;">
+                    로그아웃
+                </button>
+            </div>
+        `;
+    } else {
+        return `
+            <div style="display: flex; gap: 10px;">
+                <a href="login.html" class="menu-link" style="padding: 8px 15px;">
+                    로그인
+                </a>
+                <a href="signup.html" class="menu-link" style="padding: 8px 15px; background: var(--accent-color); color: var(--dark-bg);">
+                    회원가입
+                </a>
+            </div>
+        `;
     }
-});
-EOF
+}
