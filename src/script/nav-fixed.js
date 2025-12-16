@@ -157,4 +157,3 @@ if (document.readyState === 'loading') {
 // 전역 함수
 window.createNavigation = createNavigation;
 window.initNavigation = initNavigation;
-
