@@ -150,3 +150,49 @@ function getUserSection() {
         `;
     }
 }
+// 모바일 메뉴 토글
+function toggleMobileMenu() {
+    const mainMenu = document.querySelector('.main-menu');
+    mainMenu.classList.toggle('active');
+}
+
+// 서브메뉴 토글 (모바일용)
+function toggleSubmenu(menuItem) {
+    if (window.innerWidth <= 1024) {
+        menuItem.classList.toggle('active');
+    }
+}
+
+// 페이지 로드 시 공통 컴포넌트 추가 (수정된 버전)
+document.addEventListener('DOMContentLoaded', function() {
+    // 네비게이션 추가
+    const navContainer = document.createElement('div');
+    navContainer.innerHTML = createNavigation();
+    document.body.insertBefore(navContainer, document.body.firstChild);
+    
+    // 모바일 메뉴 토글 버튼 추가
+    const navContainerEl = document.querySelector('.nav-container');
+    const mobileToggleBtn = document.createElement('button');
+    mobileToggleBtn.className = 'mobile-menu-toggle';
+    mobileToggleBtn.innerHTML = '☰';
+    mobileToggleBtn.onclick = toggleMobileMenu;
+    navContainerEl.appendChild(mobileToggleBtn);
+    
+    // 모바일에서 메뉴 클릭 시 서브메뉴 토글
+    document.querySelectorAll('.menu-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            if (window.innerWidth <= 1024) {
+                e.preventDefault();
+                const menuItem = this.parentElement;
+                toggleSubmenu(menuItem);
+            }
+        });
+    });
+    
+    // 현재 페이지에 맞는 배너 내용 설정
+    const pageTitle = document.title;
+    const pageBannerContent = getPageBannerContent(pageTitle);
+    if (pageBannerContent) {
+        setBannerContent(pageBannerContent.title, pageBannerContent.subtitle);
+    }
+});
