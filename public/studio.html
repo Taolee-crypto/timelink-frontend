@@ -3,231 +3,874 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TL STUDIO - TimeLink</title>
-    <!-- 공통 CSS -->
-    <link rel="stylesheet" href="../src/styles/common.css">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <!-- 페이지별 CSS -->
+    <title>TL Studio | 음원 업로드 & 편집 - TimeLink</title>
+    <!-- 공통 스타일 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/src/styles/common.css">
     <style>
-        .studio-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-top: 40px;
+        /* 스튜디오 전용 스타일 */
+        .studio-header {
+            padding: 140px 0 60px;
+            background: linear-gradient(135deg, rgba(74, 30, 138, 0.3), rgba(26, 35, 126, 0.3));
         }
         
-        .converter-section, .player-section {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
-            padding: 25px;
-            border: 1px solid rgba(0, 176, 255, 0.2);
-        }
-        
-        .section-title {
-            color: var(--accent-color);
-            margin-bottom: 20px;
-            font-size: 1.5rem;
-        }
-        
-        .upload-area {
-            border: 2px dashed var(--accent-color);
-            border-radius: 10px;
-            padding: 40px;
+        .studio-upload-area {
+            background: var(--card-bg);
+            border: 3px dashed var(--glass-border);
+            border-radius: 25px;
+            padding: 80px 40px;
             text-align: center;
-            margin: 20px 0;
-            cursor: pointer;
             transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 40px;
         }
         
-        .upload-area:hover {
-            background: rgba(0, 176, 255, 0.1);
+        .studio-upload-area:hover {
+            border-color: var(--accent-purple);
+            background: var(--card-bg-hover);
+            transform: translateY(-5px);
         }
         
-        .file-info {
-            margin: 20px 0;
-            padding: 15px;
-            background: rgba(0, 176, 255, 0.05);
-            border-radius: 8px;
-            display: none;
-        }
-        
-        .conversion-steps {
-            margin-top: 30px;
-        }
-        
-        .step {
-            margin-bottom: 15px;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            border-left: 4px solid var(--accent-color);
-        }
-        
-        .video-player {
-            width: 100%;
-            aspect-ratio: 16/9;
-            background: #000;
-            border-radius: 10px;
+        .upload-icon {
+            font-size: 4rem;
+            color: var(--accent-purple);
             margin-bottom: 20px;
+            display: block;
+        }
+        
+        .file-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 15px;
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: background 0.3s ease;
+        }
+        
+        .file-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        
+        .file-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #4a1e8a, #1a237e);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--text-secondary);
+            margin-right: 15px;
+            color: white;
+            font-size: 1.5rem;
         }
         
-        .player-controls {
+        .file-progress {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .file-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #7c4dff, #00e5ff);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        
+        .metadata-form {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid var(--glass-border);
+        }
+        
+        .waveform-editor {
+            height: 150px;
+            background: linear-gradient(180deg, 
+                rgba(10, 10, 26, 0.8) 0%,
+                rgba(26, 35, 126, 0.6) 50%,
+                rgba(10, 10, 26, 0.8) 100%
+            );
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .waveform-bars {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: 100%;
+            padding: 20px;
+        }
+        
+        .waveform-bar {
+            width: 4px;
+            background: linear-gradient(to top, #7c4dff, #00e5ff);
+            border-radius: 2px;
+            animation: barPulse 2s ease-in-out infinite;
+            animation-delay: calc(var(--i) * 0.1s);
+        }
+        
+        @keyframes barPulse {
+            0%, 100% { height: 20%; }
+            50% { height: 80%; }
+        }
+        
+        .editor-timeline {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+        }
+        
+        .timeline-track {
+            flex: 1;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            position: relative;
+        }
+        
+        .timeline-handle {
+            width: 16px;
+            height: 16px;
+            background: #7c4dff;
+            border-radius: 50%;
+            position: absolute;
+            left: 30%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(124, 77, 255, 0.5);
+        }
+        
+        .editor-controls {
             display: flex;
             gap: 10px;
             margin-top: 20px;
         }
         
         .control-btn {
-            padding: 10px 20px;
-            background: var(--secondary-color);
-            border: none;
-            border-radius: 5px;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
             color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
             cursor: pointer;
             transition: all 0.3s ease;
         }
         
         .control-btn:hover {
-            background: var(--accent-color);
-            transform: translateY(-2px);
+            background: var(--accent-purple);
+            transform: scale(1.1);
         }
         
-        .tl-encryption-info {
-            margin-top: 30px;
-            padding: 20px;
-            background: rgba(0, 176, 255, 0.1);
+        .control-btn.active {
+            background: var(--accent-purple);
+            box-shadow: 0 0 15px rgba(124, 77, 255, 0.5);
+        }
+        
+        .format-badge {
+            padding: 8px 15px;
             border-radius: 10px;
-            border: 1px solid var(--accent-color);
+            background: rgba(124, 77, 255, 0.2);
+            border: 1px solid rgba(124, 77, 255, 0.3);
+            color: #7c4dff;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            margin: 5px;
+        }
+        
+        .format-badge i {
+            margin-right: 8px;
+        }
+        
+        .processing-status {
+            padding: 15px;
+            border-radius: 12px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .processing-status.success {
+            background: rgba(0, 200, 83, 0.1);
+            border: 1px solid rgba(0, 200, 83, 0.3);
+        }
+        
+        .processing-status.processing {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+        
+        .processing-status.error {
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+        
+        .upload-steps {
+            display: flex;
+            justify-content: space-between;
+            margin: 40px 0;
+            position: relative;
+        }
+        
+        .upload-steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 10%;
+            right: 10%;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 1;
+        }
+        
+        .step {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            flex: 1;
+        }
+        
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--card-bg);
+            border: 2px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .step.active .step-number {
+            background: var(--accent-purple);
+            border-color: var(--accent-purple);
+            color: white;
+        }
+        
+        .step.completed .step-number {
+            background: #00c853;
+            border-color: #00c853;
+            color: white;
+        }
+        
+        .audio-visualizer {
+            width: 100%;
+            height: 100px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .visualizer-bar {
+            position: absolute;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(to top, #7c4dff, #00e5ff);
+            animation: visualizerPulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes visualizerPulse {
+            0%, 100% { height: 20px; }
+            50% { height: 80px; }
+        }
+        
+        .preview-player {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <!-- 공통 네비게이션은 common-components.js에서 자동 추가 -->
-    
-    <main class="main-content">
-        <div class="studio-container">
-            <!-- 변환기 섹션 -->
-            <div class="converter-section" id="converter">
-                <h2 class="section-title">🎵 TL 파일 변환기</h2>
-                <p>디지털 파일을 TL 자산으로 변환하세요</p>
-                
-                <div class="conversion-steps">
-                    <div class="step">
-                        <h3>1단계: 파일 업로드</h3>
-                        <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-                            <p>파일을 드래그하거나 클릭하여 업로드</p>
-                            <p><small>음원, 영상, 문서 파일 지원</small></p>
-                        </div>
-                        <input type="file" id="fileInput" style="display: none;">
-                        <div class="file-info" id="fileInfo">
-                            <p>선택된 파일: <span id="fileName"></span></p>
-                            <p>파일 크기: <span id="fileSize"></span></p>
-                        </div>
+    <!-- 히어로 이미지 섹션 (음악 스튜디오 이미지) -->
+    <section class="hero-image-section">
+        <div class="hero-image-wrapper">
+            <img src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80" 
+                 alt="전문 음악 제작 스튜디오" class="hero-image">
+            <div class="hero-overlay">
+                <div class="hero-content">
+                    <h1 class="hero-title">TL Studio</h1>
+                    <p class="hero-subtitle">
+                        전문가급 음원 편집, 변환, 관리 솔루션<br>
+                        당신의 음악을 완벽하게 준비하고 TimeLink에 업로드하세요
+                    </p>
+                    <div class="hero-buttons">
+                        <button id="startUploadBtn" class="btn btn-primary btn-lg">
+                            <i class="bi bi-cloud-upload me-2"></i>지금 업로드 시작
+                        </button>
+                        <a href="#features" class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-info-circle me-2"></i>기능 알아보기
+                        </a>
                     </div>
-                    
-                    <div class="step">
-                        <h3>2단계: 메타데이터 입력</h3>
-                        <div>
-                            <input type="text" placeholder="제목" style="width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid var(--accent-color); background: rgba(255,255,255,0.1); color: white;">
-                            <textarea placeholder="설명" style="width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid var(--accent-color); background: rgba(255,255,255,0.1); color: white; height: 100px;"></textarea>
-                            <select style="width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid var(--accent-color); background: rgba(255,255,255,0.1); color: white;">
-                                <option value="p2p">P2P 섹션에 업로드</option>
-                                <option value="artist">ARTIST 섹션에 업로드</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="step">
-                        <h3>3단계: TL 암호화 및 저장</h3>
-                        <p>2중 암호화를 통해 TL 파일로 변환됩니다.</p>
-                        <button class="control-btn" style="width: 100%;" onclick="convertToTL()">TL 파일로 변환하기</button>
-                    </div>
-                </div>
-                
-                <div class="tl-encryption-info">
-                    <h4>🔒 TL 파일 암호화 시스템</h4>
-                    <p>• 1단계 암호화: 콘텐츠 보호 암호화</p>
-                    <p>• 2단계 암호화: 시간 기반 접근 제어 암호화</p>
-                    <p>• TL 충전 기능 내장</p>
-                    <p>• 디지털 자산으로 변환 완료</p>
-                </div>
-            </div>
-            
-            <!-- 플레이어 섹션 -->
-            <div class="player-section" id="player">
-                <h2 class="section-title">🎬 TL 미리보기 플레이어</h2>
-                <p>변환된 TL 파일을 미리 확인하세요</p>
-                
-                <div class="video-player" id="videoPlayer">
-                    <p>업로드된 파일이 여기에 표시됩니다</p>
-                </div>
-                
-                <div class="player-controls">
-                    <button class="control-btn" onclick="playVideo()">▶ 재생</button>
-                    <button class="control-btn" onclick="pauseVideo()">⏸ 정지</button>
-                    <button class="control-btn" onclick="testEncryption()">🔒 암호화 테스트</button>
-                </div>
-                
-                <div style="margin-top: 30px;">
-                    <h4>TL 파일 정보</h4>
-                    <p>• 파일 상태: <span id="fileStatus">대기 중</span></p>
-                    <p>• 암호화 레벨: <span id="encryptionLevel">-</span></p>
-                    <p>• TL 충전량: <span id="tlCharge">0 TL</span></p>
-                    <p>• 자산 가치: <span id="assetValue">-</span></p>
                 </div>
             </div>
         </div>
-    </main>
-    
-    <script>
-        // 파일 업로드 처리
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                document.getElementById('fileName').textContent = file.name;
-                document.getElementById('fileSize').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
-                document.getElementById('fileInfo').style.display = 'block';
+    </section>
+
+    <!-- 업로드 영역 -->
+    <section class="content-section">
+        <div class="container">
+            <div class="upload-steps">
+                <div class="step active" data-step="1">
+                    <div class="step-number">1</div>
+                    <small class="text-gray">파일 업로드</small>
+                </div>
+                <div class="step" data-step="2">
+                    <div class="step-number">2</div>
+                    <small class="text-gray">정보 입력</small>
+                </div>
+                <div class="step" data-step="3">
+                    <div class="step-number">3</div>
+                    <small class="text-gray">변환 처리</small>
+                </div>
+                <div class="step" data-step="4">
+                    <div class="step-number">4</div>
+                    <small class="text-gray">업로드 완료</small>
+                </div>
+            </div>
+            
+            <!-- 드래그 앤 드롭 업로드 영역 -->
+            <div id="uploadArea" class="studio-upload-area">
+                <i class="bi bi-cloud-arrow-up upload-icon"></i>
+                <h3 class="text-white mb-3">음원 파일을 여기에 드롭하세요</h3>
+                <p class="text-gray mb-4">
+                    MP3, WAV, FLAC, M4A 파일 지원 (최대 500MB)<br>
+                    또는 클릭해서 파일을 선택하세요
+                </p>
+                <div class="mb-3">
+                    <span class="format-badge"><i class="bi bi-file-music"></i>MP3</span>
+                    <span class="format-badge"><i class="bi bi-file-music"></i>WAV</span>
+                    <span class="format-badge"><i class="bi bi-file-music"></i>FLAC</span>
+                    <span class="format-badge"><i class="bi bi-file-music"></i>M4A</span>
+                    <span class="format-badge"><i class="bi bi-file-music"></i>AAC</span>
+                </div>
+                <button class="btn btn-primary">
+                    <i class="bi bi-folder2-open me-2"></i>파일 선택
+                </button>
+                <input type="file" id="fileInput" multiple accept="audio/*" style="display: none;">
+            </div>
+            
+            <!-- 파일 목록 -->
+            <div id="fileList" class="file-list" style="display: none;">
+                <div class="p-3 border-bottom">
+                    <h5 class="mb-0">업로드 대기 파일 (3)</h5>
+                </div>
+                <div class="file-item">
+                    <div class="file-icon">
+                        <i class="bi bi-file-earmark-music"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">Midnight_Dreams.mp3</h6>
+                                <small class="text-gray">128 MB · 320kbps · 4:32</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge badge-success">대기 중</span>
+                            </div>
+                        </div>
+                        <div class="file-progress">
+                            <div class="file-progress-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 메타데이터 입력 폼 -->
+            <div id="metadataForm" class="metadata-form mt-4" style="display: none;">
+                <h4 class="mb-4">음원 정보 입력</h4>
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">음원 제목 *</label>
+                            <input type="text" class="form-control" placeholder="예: Midnight Dreams" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">아티스트 이름 *</label>
+                            <input type="text" class="form-control" placeholder="예: Luna Star" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">앨범명 (선택사항)</label>
+                            <input type="text" class="form-control" placeholder="예: Starlight Collection">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">장르 *</label>
+                            <select class="form-select">
+                                <option value="">장르 선택</option>
+                                <option value="pop">팝</option>
+                                <option value="rock">락</option>
+                                <option value="hiphop">힙합</option>
+                                <option value="electronic">일렉트로닉</option>
+                                <option value="jazz">재즈</option>
+                                <option value="classical">클래식</option>
+                                <option value="rnb">R&B</option>
+                                <option value="indie">인디</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">가격 (TL) *</label>
+                            <input type="number" class="form-control" placeholder="예: 50" min="1" value="50">
+                            <div class="form-text">권장 가격: 10-500 TL</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">저작권자 여부 *</label>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="radio" name="copyrightOwner" id="ownerYes" checked>
+                                <label class="form-check-label" for="ownerYes">
+                                    네, 제가 이 음원의 창작자입니다 (70% 수익)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="copyrightOwner" id="ownerNo">
+                                <label class="form-check-label" for="ownerNo">
+                                    아니요, 일반 소유자입니다 (50% 수익)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
-                // 플레이어 업데이트
-                const player = document.getElementById('videoPlayer');
-                if (file.type.includes('video')) {
-                    player.innerHTML = '<p>비디오 파일: ' + file.name + '</p>';
-                } else if (file.type.includes('audio')) {
-                    player.innerHTML = '<p>오디오 파일: ' + file.name + '</p>';
+                <div class="row">
+                    <div class="col-12">
+                        <div class="mb-3">
+                            <label class="form-label">음원 설명</label>
+                            <textarea class="form-control" rows="3" placeholder="이 음원에 대한 설명을 입력해주세요..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <button class="btn btn-secondary" onclick="previousStep()">
+                        <i class="bi bi-arrow-left me-2"></i>이전
+                    </button>
+                    <button class="btn btn-primary" onclick="nextStep()">
+                        다음 <i class="bi bi-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 음원 편집기 -->
+            <div id="audioEditor" class="mt-5" style="display: none;">
+                <h4 class="mb-4">음원 편집 및 미리듣기</h4>
+                
+                <div class="waveform-editor">
+                    <div class="waveform-bars">
+                        <!-- 음파형 바들 -->
+                        <div class="waveform-bar" style="--i: 0;"></div>
+                        <div class="waveform-bar" style="--i: 1;"></div>
+                        <div class="waveform-bar" style="--i: 2;"></div>
+                        <div class="waveform-bar" style="--i: 3;"></div>
+                        <div class="waveform-bar" style="--i: 4;"></div>
+                        <div class="waveform-bar" style="--i: 5;"></div>
+                        <div class="waveform-bar" style="--i: 6;"></div>
+                        <div class="waveform-bar" style="--i: 7;"></div>
+                        <div class="waveform-bar" style="--i: 8;"></div>
+                        <div class="waveform-bar" style="--i: 9;"></div>
+                        <div class="waveform-bar" style="--i: 10;"></div>
+                        <div class="waveform-bar" style="--i: 11;"></div>
+                        <div class="waveform-bar" style="--i: 12;"></div>
+                        <div class="waveform-bar" style="--i: 13;"></div>
+                        <div class="waveform-bar" style="--i: 14;"></div>
+                        <div class="waveform-bar" style="--i: 15;"></div>
+                    </div>
+                </div>
+                
+                <div class="editor-timeline">
+                    <div class="timeline-track">
+                        <div class="timeline-handle"></div>
+                    </div>
+                </div>
+                
+                <div class="editor-controls">
+                    <button class="control-btn active" title="재생">
+                        <i class="bi bi-play-fill"></i>
+                    </button>
+                    <button class="control-btn" title="일시정지">
+                        <i class="bi bi-pause-fill"></i>
+                    </button>
+                    <button class="control-btn" title="정지">
+                        <i class="bi bi-stop-fill"></i>
+                    </button>
+                    <button class="control-btn" title="되감기">
+                        <i class="bi bi-skip-backward-fill"></i>
+                    </button>
+                    <button class="control-btn" title="빨리감기">
+                        <i class="bi bi-skip-forward-fill"></i>
+                    </button>
+                    <div style="flex: 1;"></div>
+                    <button class="control-btn" title="볼륨">
+                        <i class="bi bi-volume-up-fill"></i>
+                    </button>
+                </div>
+                
+                <div class="preview-player">
+                    <div class="audio-visualizer">
+                        <!-- 오디오 시각화 바들 -->
+                    </div>
+                    <div class="d-flex justify-content-between mt-3">
+                        <small class="text-gray">0:00</small>
+                        <small class="text-gray">4:32</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TL3 포맷 변환 -->
+    <section id="features" class="content-section bg-dark">
+        <div class="container">
+            <h2 class="section-title">TL3 포맷 변환</h2>
+            <p class="section-subtitle">
+                TimeLink 전용 TL3 포맷으로 변환하여 안전하게 거래하세요
+            </p>
+            
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="card-glass h-100">
+                        <div class="feature-icon-wrapper mb-4">
+                            <i class="bi bi-shield-lock feature-icon"></i>
+                        </div>
+                        <h3>보안 강화 포맷</h3>
+                        <p class="text-gray">
+                            TL3 포맷은 TimeLink 전용 암호화 기술로 보호됩니다.<br>
+                            무단 복제 및 배포를 방지하고 저작권을 보호합니다.
+                        </p>
+                        <ul class="text-gray mt-3">
+                            <li>256비트 AES 암호화</li>
+                            <li>디지털 워터마킹</li>
+                            <li>사용자별 고유 키</li>
+                            <li>재생 제한 설정 가능</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="col-lg-6">
+                    <div class="card-glass h-100">
+                        <div class="feature-icon-wrapper mb-4">
+                            <i class="bi bi-lightning-charge feature-icon"></i>
+                        </div>
+                        <h3>빠른 변환 처리</h3>
+                        <p class="text-gray">
+                            클라우드 기반 변환 시스템으로 빠르게 처리됩니다.<br>
+                            고품질 오디오를 유지하면서 최적화합니다.
+                        </p>
+                        <div class="processing-status processing mt-4">
+                            <div>
+                                <i class="bi bi-hourglass-split me-2"></i>
+                                <span>변환 중: Midnight_Dreams.mp3</span>
+                            </div>
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="processing-status success mt-2">
+                            <div>
+                                <i class="bi bi-check-circle me-2"></i>
+                                <span>변환 완료: Summer_Vibes.wav</span>
+                            </div>
+                            <small class="text-success">2분 전</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 배치 업로드 -->
+    <section class="content-section">
+        <div class="container">
+            <h2 class="section-title">배치 업로드 기능</h2>
+            
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card-glass text-center h-100">
+                        <div class="feature-icon-wrapper mx-auto mb-4">
+                            <i class="bi bi-folder2-open feature-icon"></i>
+                        </div>
+                        <h4>폴더 업로드</h4>
+                        <p class="text-gray">
+                            전체 폴더를 한 번에 업로드하고<br>
+                            자동으로 태그를 추출합니다.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card-glass text-center h-100">
+                        <div class="feature-icon-wrapper mx-auto mb-4">
+                            <i class="bi bi-tags feature-icon"></i>
+                        </div>
+                        <h4>자동 태깅</h4>
+                        <p class="text-gray">
+                            AI 기반 음원 분석으로<br>
+                            자동으로 장르와 태그를 생성합니다.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card-glass text-center h-100">
+                        <div class="feature-icon-wrapper mx-auto mb-4">
+                            <i class="bi bi-cloud-arrow-up feature-icon"></i>
+                        </div>
+                        <h4>예약 업로드</h4>
+                        <p class="text-gray">
+                            원하는 시간에 자동 업로드<br>
+                            여러 플랫폼에 동시 공유.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 업로드 통계 -->
+    <section class="content-section" style="background: linear-gradient(135deg, #4a1e8a 0%, #1a237e 100%);">
+        <div class="container">
+            <div class="row text-center">
+                <div class="col-md-3 col-6 mb-4">
+                    <h2 class="text-white display-4 fw-bold">98.7%</h2>
+                    <p class="text-white-50">변환 성공률</p>
+                </div>
+                <div class="col-md-3 col-6 mb-4">
+                    <h2 class="text-white display-4 fw-bold">24/7</h2>
+                    <p class="text-white-50">지원 가능</p>
+                </div>
+                <div class="col-md-3 col-6 mb-4">
+                    <h2 class="text-white display-4 fw-bold">500MB</h2>
+                    <p class="text-white-50">최대 파일 크기</p>
+                </div>
+                <div class="col-md-3 col-6 mb-4">
+                    <h2 class="text-white display-4 fw-bold">5+</h2>
+                    <p class="text-white-50">지원 포맷</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="content-section">
+        <div class="container text-center">
+            <h2 class="mb-4">지금 바로 음원을 업로드하세요</h2>
+            <p class="text-gray mb-5 fs-5">
+                첫 5개 음원 업로드 시 추가 50 TL 보너스!<br>
+                TL3 포맷으로 변환되어 안전하게 거래됩니다.
+            </p>
+            
+            <div class="d-flex flex-wrap justify-content-center gap-3">
+                <button onclick="startUpload()" class="btn btn-primary btn-lg px-5">
+                    <i class="bi bi-cloud-upload me-2"></i>업로드 시작하기
+                </button>
+                <a href="/dashboard.html" class="btn btn-outline-light btn-lg px-5">
+                    <i class="bi bi-speedometer2 me-2"></i>대시보드로 이동
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- 스크립트 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/src/script/common-components.js"></script>
+    <script>
+        // 스튜디오 전용 기능
+        let currentStep = 1;
+        
+        function startUpload() {
+            document.getElementById('fileInput').click();
+        }
+        
+        function nextStep() {
+            const steps = document.querySelectorAll('.step');
+            steps.forEach(step => {
+                const stepNum = parseInt(step.dataset.step);
+                step.classList.remove('active');
+                if (stepNum === currentStep) {
+                    step.classList.add('completed');
                 }
+                if (stepNum === currentStep + 1) {
+                    step.classList.add('active');
+                }
+            });
+            
+            // UI 업데이트
+            if (currentStep === 1) {
+                document.getElementById('fileList').style.display = 'block';
+                document.getElementById('metadataForm').style.display = 'block';
+                document.getElementById('uploadArea').style.display = 'none';
+            } else if (currentStep === 2) {
+                document.getElementById('audioEditor').style.display = 'block';
+            }
+            
+            currentStep++;
+        }
+        
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                const steps = document.querySelectorAll('.step');
+                steps.forEach(step => {
+                    const stepNum = parseInt(step.dataset.step);
+                    step.classList.remove('active', 'completed');
+                    if (stepNum === currentStep) {
+                        step.classList.add('active');
+                    }
+                    if (stepNum < currentStep) {
+                        step.classList.add('completed');
+                    }
+                });
+            }
+        }
+        
+        // 파일 업로드 시뮬레이션
+        document.getElementById('startUploadBtn').addEventListener('click', function() {
+            const uploadArea = document.getElementById('uploadArea');
+            uploadArea.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h4 class="text-white mb-2">파일 업로드 중...</h4>
+                    <p class="text-gray">잠시만 기다려주세요</p>
+                </div>
+            `;
+            
+            setTimeout(() => {
+                uploadArea.style.display = 'none';
+                document.getElementById('fileList').style.display = 'block';
+                document.getElementById('metadataForm').style.display = 'block';
+                
+                // 프로그레스 바 애니메이션
+                const progressBar = document.querySelector('.file-progress-bar');
+                let width = 0;
+                const interval = setInterval(() => {
+                    if (width >= 100) {
+                        clearInterval(interval);
+                        document.querySelector('.file-item .badge').className = 'badge badge-success';
+                        document.querySelector('.file-item .badge').textContent = '업로드 완료';
+                        setTimeout(nextStep, 500);
+                    } else {
+                        width += 5;
+                        progressBar.style.width = width + '%';
+                    }
+                }, 100);
+            }, 1500);
+        });
+        
+        // 드래그 앤 드롭
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#7c4dff';
+            uploadArea.style.transform = 'scale(1.02)';
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.borderColor = 'var(--glass-border)';
+            uploadArea.style.transform = 'scale(1)';
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#00c853';
+            uploadArea.style.transform = 'scale(1)';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                startUploadBtn.click();
             }
         });
         
-        function convertToTL() {
-            document.getElementById('fileStatus').textContent = '변환 중...';
-            document.getElementById('encryptionLevel').textContent = '2중 암호화 적용';
-            document.getElementById('tlCharge').textContent = '50 TL';
-            document.getElementById('assetValue').textContent = '100 TL';
+        // 오디오 시각화 생성
+        function createAudioVisualizer() {
+            const visualizer = document.querySelector('.audio-visualizer');
+            visualizer.innerHTML = '';
             
-            setTimeout(() => {
-                alert('TL 파일 변환 완료! P2P/ARTIST 섹션으로 업로드되었습니다.');
-                document.getElementById('fileStatus').textContent = '변환 완료';
-            }, 2000);
+            for (let i = 0; i < 50; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'visualizer-bar';
+                bar.style.left = `${i * (100 / 50)}%`;
+                bar.style.width = `${(100 / 50) - 1}%`;
+                bar.style.animationDelay = `${i * 0.05}s`;
+                visualizer.appendChild(bar);
+            }
         }
         
-        function playVideo() {
-            alert('TL 파일 재생 시작 (암호화된 콘텐츠)');
-        }
-        
-        function pauseVideo() {
-            alert('재생 정지');
-        }
-        
-        function testEncryption() {
-            alert('암호화 테스트: TL 파일은 2중 암호화로 보호됩니다.\n1. 콘텐츠 암호화\n2. 시간 기반 접근 제어');
+        // 페이지별 초기화 함수
+        function initPageSpecific() {
+            console.log('TL Studio 페이지 초기화');
+            createAudioVisualizer();
+            
+            // 컨트롤 버튼 이벤트
+            document.querySelectorAll('.control-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.control-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    if (this.querySelector('.bi-play-fill')) {
+                        // 재생 시뮬레이션
+                        document.querySelectorAll('.waveform-bar').forEach(bar => {
+                            bar.style.animationDuration = '1s';
+                        });
+                    }
+                });
+            });
+            
+            // 타임라인 핸들 드래그
+            const timelineHandle = document.querySelector('.timeline-handle');
+            const timelineTrack = document.querySelector('.timeline-track');
+            
+            timelineHandle.addEventListener('mousedown', startDrag);
+            
+            function startDrag(e) {
+                e.preventDefault();
+                document.addEventListener('mousemove', onDrag);
+                document.addEventListener('mouseup', stopDrag);
+            }
+            
+            function onDrag(e) {
+                const trackRect = timelineTrack.getBoundingClientRect();
+                let x = e.clientX - trackRect.left;
+                x = Math.max(0, Math.min(x, trackRect.width));
+                const percent = (x / trackRect.width) * 100;
+                timelineHandle.style.left = `${percent}%`;
+            }
+            
+            function stopDrag() {
+                document.removeEventListener('mousemove', onDrag);
+                document.removeEventListener('mouseup', stopDrag);
+            }
         }
     </script>
-    
-    <!-- 공통 컴포넌트 JS -->
-    <script src="../src/scripts/common-components.js" defer></script>
 </body>
 </html>
