@@ -278,6 +278,97 @@
             color: #00e5ff;
             margin: 10px 0;
         }
+        
+        /* TL 포인트 표시기 */
+        .tl-points-display {
+            background: linear-gradient(135deg, #1a237e, #4a148c);
+            border-radius: 15px;
+            padding: 15px 20px;
+            margin: 15px 0;
+            border: 1px solid rgba(124, 77, 255, 0.3);
+        }
+        
+        .tl-points-amount {
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffd600, #ffab00);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-align: center;
+        }
+        
+        .tl-points-label {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #b39ddb;
+        }
+        
+        /* TL 차감 내역 */
+        .tl-deduction-history {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .deduction-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .deduction-item:last-child {
+            border-bottom: none;
+        }
+        
+        .deduction-amount {
+            font-weight: 600;
+        }
+        
+        .deduction-amount.negative {
+            color: #ff4081;
+        }
+        
+        .deduction-amount.positive {
+            color: #00c853;
+        }
+        
+        /* 충전 옵션 */
+        .charge-option {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        
+        .charge-option:hover {
+            background: rgba(124, 77, 255, 0.1);
+            border-color: rgba(124, 77, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .charge-option.selected {
+            background: rgba(124, 77, 255, 0.2);
+            border-color: #7c4dff;
+        }
+        
+        .charge-amount {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #7c4dff;
+        }
+        
+        .charge-time {
+            font-size: 0.9rem;
+            color: #b39ddb;
+        }
     </style>
 </head>
 <body>
@@ -573,6 +664,15 @@
                             TL 플레이어
                         </h3>
                         
+                        <!-- TL 포인트 표시 -->
+                        <div class="tl-points-display">
+                            <div class="tl-points-amount" id="userTLPoints">10,000 TL</div>
+                            <div class="tl-points-label">보유 TL 포인트</div>
+                            <div class="text-center mt-2">
+                                <small class="text-gray">1초 재생 = <span id="tlRateDisplay">1</span> TL 소모</small>
+                            </div>
+                        </div>
+                        
                         <!-- TL 파일 정보 -->
                         <div id="tlFilePreview" style="display: none;">
                             <div class="d-flex align-items-center mb-4">
@@ -619,11 +719,43 @@
                                     </small>
                                 </div>
                                 
+                                <!-- TL 차감 내역 -->
+                                <div class="tl-deduction-history" id="deductionHistory">
+                                    <h6>최근 TL 차감 내역</h6>
+                                    <div class="deduction-item">
+                                        <span>초기 보유량</span>
+                                        <span class="deduction-amount positive">+10,000 TL</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- 충전 옵션 -->
+                                <h6 class="mt-4">충전 옵션 선택</h6>
+                                <div class="row g-2 mt-2">
+                                    <div class="col-4">
+                                        <div class="charge-option" onclick="selectChargeOption(60, 60)">
+                                            <div class="charge-amount">60 TL</div>
+                                            <div class="charge-time">60초</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="charge-option" onclick="selectChargeOption(120, 120)">
+                                            <div class="charge-amount">120 TL</div>
+                                            <div class="charge-time">120초</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="charge-option" onclick="selectChargeOption(300, 300)">
+                                            <div class="charge-amount">300 TL</div>
+                                            <div class="charge-time">300초</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
                                 <!-- 충전 버튼 -->
                                 <div class="d-grid gap-2 mt-4">
-                                    <button class="btn btn-success" onclick="chargeTLFile(60)">
+                                    <button class="btn btn-success" onclick="chargeTLFile()" id="chargeBtn">
                                         <i class="bi bi-lightning-charge me-2"></i>
-                                        60초 충전 (60 TL)
+                                        <span id="chargeBtnText">60초 충전 (60 TL)</span>
                                     </button>
                                     <button class="btn btn-warning" onclick="showAdsForCharge()">
                                         <i class="bi bi-megaphone me-2"></i>
@@ -823,8 +955,91 @@
             multiplier: 1,
             format: 'tl3',
             adType: 'audio',
-            copyrightType: 'creator'
+            copyrightType: 'creator',
+            userTLPoints: 10000, // 초기 TL 포인트 10,000
+            deductionHistory: [],
+            selectedChargeOption: { seconds: 60, tlCost: 60 }
         };
+        
+        // TL 포인트 관리
+        function updateTLPointsDisplay() {
+            const pointsElement = document.getElementById('userTLPoints');
+            const points = tlStudio.userTLPoints.toLocaleString();
+            pointsElement.textContent = `${points} TL`;
+        }
+        
+        // TL 포인트 차감
+        function deductTLPoints(amount, description) {
+            if (tlStudio.userTLPoints < amount) {
+                return false; // 포인트 부족
+            }
+            
+            tlStudio.userTLPoints -= amount;
+            updateTLPointsDisplay();
+            
+            // 차감 내역 추가
+            const deduction = {
+                timestamp: new Date().toLocaleTimeString(),
+                amount: -amount,
+                description: description,
+                balance: tlStudio.userTLPoints
+            };
+            
+            tlStudio.deductionHistory.unshift(deduction);
+            updateDeductionHistory();
+            
+            return true;
+        }
+        
+        // TL 포인트 추가 (광고 시청 등)
+        function addTLPoints(amount, description) {
+            tlStudio.userTLPoints += amount;
+            updateTLPointsDisplay();
+            
+            // 추가 내역 추가
+            const addition = {
+                timestamp: new Date().toLocaleTimeString(),
+                amount: +amount,
+                description: description,
+                balance: tlStudio.userTLPoints
+            };
+            
+            tlStudio.deductionHistory.unshift(addition);
+            updateDeductionHistory();
+        }
+        
+        // 차감 내역 업데이트
+        function updateDeductionHistory() {
+            const historyElement = document.getElementById('deductionHistory');
+            let historyHTML = '<h6>최근 TL 차감 내역</h6>';
+            
+            // 초기 보유량 표시
+            historyHTML += `
+                <div class="deduction-item">
+                    <span>초기 보유량</span>
+                    <span class="deduction-amount positive">+10,000 TL</span>
+                </div>
+            `;
+            
+            // 최근 5개 내역만 표시
+            const recentHistory = tlStudio.deductionHistory.slice(0, 5);
+            
+            recentHistory.forEach(item => {
+                const amountClass = item.amount < 0 ? 'negative' : 'positive';
+                const amountSign = item.amount > 0 ? '+' : '';
+                
+                historyHTML += `
+                    <div class="deduction-item">
+                        <span>${item.description}</span>
+                        <span class="deduction-amount ${amountClass}">
+                            ${amountSign}${item.amount} TL
+                        </span>
+                    </div>
+                `;
+            });
+            
+            historyElement.innerHTML = historyHTML;
+        }
         
         // 파일 선택 함수
         function selectFileForConversion() {
@@ -862,6 +1077,12 @@
         function startTLConversion() {
             if (!tlStudio.currentFile) {
                 alert('먼저 파일을 선택해주세요.');
+                return;
+            }
+            
+            // 변환 비용 차감 (50 TL)
+            if (!deductTLPoints(50, 'TL 파일 변환 비용')) {
+                alert('TL 포인트가 부족합니다. 변환 비용: 50 TL');
                 return;
             }
             
@@ -944,12 +1165,16 @@
             document.getElementById('tlFileName').textContent = tlStudio.tlFile.name;
             document.getElementById('tlDuration').textContent = formatTime(tlStudio.tlFile.duration);
             document.getElementById('tlRate').textContent = `${tlStudio.tlFile.multiplier}초/1TL`;
+            document.getElementById('tlRateDisplay').textContent = tlStudio.tlFile.multiplier;
             
             // TL 충전 정보 업데이트
             updateChargeInfo();
             
             // TL 소모량 계산
             updateTLConsumption(tlStudio.tlFile.duration);
+            
+            // 기본 충전 옵션 선택
+            selectChargeOption(60, 60);
         }
         
         // TL 충전 정보 업데이트
@@ -979,23 +1204,40 @@
             document.getElementById('totalTL').textContent = `${consumption} TL`;
         }
         
+        // 충전 옵션 선택
+        function selectChargeOption(seconds, tlCost) {
+            tlStudio.selectedChargeOption = { seconds, tlCost };
+            
+            // 모든 옵션에서 selected 클래스 제거
+            document.querySelectorAll('.charge-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // 선택한 옵션 찾기 (부모 요소에서 selected 클래스 추가)
+            document.querySelectorAll('.charge-option').forEach(option => {
+                const amount = option.querySelector('.charge-amount').textContent;
+                if (amount.includes(tlCost)) {
+                    option.classList.add('selected');
+                }
+            });
+            
+            // 충전 버튼 텍스트 업데이트
+            document.getElementById('chargeBtnText').textContent = 
+                `${seconds}초 충전 (${tlCost} TL)`;
+        }
+        
         // TL 파일 충전
-        function chargeTLFile(seconds) {
+        function chargeTLFile() {
             if (!tlStudio.tlFile) return;
             
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            const currentBalance = user.balance || 0;
-            const requiredTL = seconds * tlStudio.multiplier;
+            const { seconds, tlCost } = tlStudio.selectedChargeOption;
             
-            if (currentBalance < requiredTL) {
-                alert(`TL이 부족합니다. 필요: ${requiredTL} TL, 현재: ${currentBalance} TL`);
+            // TL 포인트 차감
+            if (!deductTLPoints(tlCost, `${seconds}초 음원 충전`)) {
+                alert(`TL이 부족합니다. 필요: ${tlCost} TL, 현재: ${tlStudio.userTLPoints} TL`);
                 showAdsForCharge();
                 return;
             }
-            
-            // 잔액 차감
-            user.balance = currentBalance - requiredTL;
-            localStorage.setItem('user', JSON.stringify(user));
             
             // 충전량 추가
             tlStudio.currentCharge = Math.min(
@@ -1007,12 +1249,7 @@
             updateChargeInfo();
             
             // 충전 성공 메시지
-            showToast(`${seconds}초 충전 완료 (${requiredTL} TL 사용)`, 'success');
-            
-            // 네비게이션 업데이트
-            if (window.updateNavForLoggedInUser) {
-                window.updateNavForLoggedInUser(user);
-            }
+            showToast(`${seconds}초 충전 완료 (${tlCost} TL 사용)`, 'success');
         }
         
         // 광고 시청으로 충전
@@ -1072,13 +1309,19 @@
                     
                     // 광고 시청 완료
                     const earnedTL = tlStudio.adType === 'audio' ? 60 : 50;
-                    const user = JSON.parse(localStorage.getItem('user') || '{}');
-                    user.balance = (user.balance || 0) + earnedTL;
-                    localStorage.setItem('user', JSON.stringify(user));
+                    
+                    // TL 포인트 추가
+                    addTLPoints(earnedTL, `${tlStudio.adType} 광고 시청`);
                     
                     // TL 자동 충전
                     const chargeSeconds = Math.floor(earnedTL / tlStudio.multiplier);
-                    chargeTLFile(chargeSeconds);
+                    tlStudio.currentCharge = Math.min(
+                        tlStudio.currentCharge + chargeSeconds,
+                        tlStudio.tlFile.duration
+                    );
+                    
+                    // UI 업데이트
+                    updateChargeInfo();
                     
                     // 모달 닫기
                     document.querySelector('.purchase-modal').remove();
@@ -1145,12 +1388,28 @@
             });
             
             // 재생 타이머 시작
-            let seconds = 0;
+            let secondsPlayed = 0;
+            let tlDeducted = 0;
+            
             tlStudio.playTimer = setInterval(() => {
-                seconds++;
+                secondsPlayed++;
                 tlStudio.currentCharge--;
                 
-                if (tlStudio.currentCharge <= 0 || seconds >= tlStudio.tlFile.duration) {
+                // 매 초마다 TL 포인트 차감
+                if (secondsPlayed % 1 === 0) {
+                    const tlCost = tlStudio.multiplier; // 초당 TL 비용
+                    if (deductTLPoints(tlCost, '음원 재생 중 TL 소모')) {
+                        tlDeducted += tlCost;
+                    } else {
+                        // TL 포인트 부족 시 정지
+                        stopTLFile();
+                        alert('TL 포인트가 부족하여 재생이 중지되었습니다.');
+                        showAdsForCharge();
+                        return;
+                    }
+                }
+                
+                if (tlStudio.currentCharge <= 0 || secondsPlayed >= tlStudio.tlFile.duration) {
                     stopTLFile();
                     return;
                 }
@@ -1158,7 +1417,7 @@
                 updateChargeInfo();
                 
                 // 현재 재생 시간 업데이트
-                document.getElementById('currentTime').textContent = formatTime(seconds);
+                document.getElementById('currentTime').textContent = formatTime(secondsPlayed);
             }, 1000);
         }
         
@@ -1223,13 +1482,36 @@
             if (window.showToast) {
                 window.showToast(message, type);
             } else {
-                alert(message);
+                // 간단한 알림으로 대체
+                const toast = document.createElement('div');
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 15px 20px;
+                    background: ${type === 'success' ? '#00c853' : type === 'warning' ? '#ff9800' : '#2196f3'};
+                    color: white;
+                    border-radius: 10px;
+                    z-index: 10000;
+                    font-weight: 500;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                `;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.remove();
+                }, 3000);
             }
         }
         
         // 페이지 초기화
         function initStudioPage() {
             console.log('TL Studio 페이지 초기화');
+            
+            // 초기 TL 포인트 표시
+            updateTLPointsDisplay();
+            updateDeductionHistory();
             
             // 승수 버튼 이벤트
             document.querySelectorAll('.multiplier-btn').forEach(btn => {
@@ -1240,6 +1522,7 @@
                     
                     if (tlStudio.tlFile) {
                         updateTLConsumption(tlStudio.tlFile.duration);
+                        document.getElementById('tlRateDisplay').textContent = tlStudio.multiplier;
                     }
                 });
             });
