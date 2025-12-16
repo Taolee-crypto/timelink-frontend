@@ -1,126 +1,259 @@
-// TimeLink 공통 컴포넌트 (PATCHED)
-(function () {
-  'use strict';
+// styles/common-components.js
+// 공통 스타일 및 컴포넌트 정의
 
-  /* ===============================
-     공통 헤더 생성 (CSS 구조에 맞춤)
-  =============================== */
-  function createHeader() {
-    return `
-<header class="main-header">
-  <div class="nav-container">
-
-    <a href="./index.html" class="logo">
-      <i class="bi bi-music-note-beamed"></i>
-      TIMELINK
-    </a>
-
-    <button class="mobile-menu-toggle" id="mobileMenuBtn">☰</button>
-
-    <ul class="main-menu" id="mainMenu">
-
-      <li class="menu-item">
-        <a href="./index.html" class="menu-link">홈</a>
-      </li>
-
-      <li class="menu-item">
-        <a href="./studio.html" class="menu-link">Studio</a>
-      </li>
-
-      <li class="menu-item">
-        <a href="./tltube.html" class="menu-link">TL Tube</a>
-      </li>
-
-      <li class="menu-item">
-        <a href="./dashboard.html" class="menu-link">대시보드</a>
-      </li>
-
-      <li class="menu-item">
-        <a href="./charge.html" class="menu-link">TL 충전</a>
-      </li>
-
-      <li class="menu-item">
-        <a href="./faq.html" class="menu-link">FAQ</a>
-      </li>
-
-    </ul>
-
-  </div>
-</header>`;
+// 전체 페이지 공통 스타일
+export const commonStyles = `
+  :root {
+    --primary-color: #6366f1;
+    --primary-hover: #4f46e5;
+    --secondary-color: #8b5cf6;
+    --background-color: #0f172a;
+    --surface-color: #1e293b;
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --border-color: #334155;
+    --success-color: #10b981;
+    --error-color: #ef4444;
   }
 
-  /* ===============================
-     공통 푸터 (경로만 수정)
-  =============================== */
-  function createFooter() {
-    return `
-<footer class="footer">
-  <div class="container">
-    <p>© 2024 TimeLink. All rights reserved.</p>
-  </div>
-</footer>`;
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
 
-  /* ===============================
-     현재 페이지 active 처리
-  =============================== */
-  function setActiveMenu() {
-    const current =
-      location.pathname.split('/').pop() || 'index.html';
-
-    document.querySelectorAll('.menu-link').forEach(link => {
-      const page = link.getAttribute('href').replace('./', '');
-      link.classList.toggle('active', page === current);
-    });
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-primary);
+    min-height: 100vh;
+    line-height: 1.6;
   }
 
-  /* ===============================
-     헤더 스크롤 효과 (클래스명 수정)
-  =============================== */
-  function initHeaderScroll() {
-    const header = document.querySelector('.main-header');
-    if (!header) return;
-
-    window.addEventListener('scroll', () => {
-      header.style.backgroundColor =
-        window.scrollY > 50
-          ? 'rgba(26,35,126,0.98)'
-          : 'rgba(26,35,126,0.95)';
-    });
+  a {
+    text-decoration: none;
+    color: inherit;
   }
 
-  /* ===============================
-     모바일 메뉴 토글
-  =============================== */
-  function initMobileMenu() {
-    const btn = document.getElementById('mobileMenuBtn');
-    const menu = document.getElementById('mainMenu');
-    if (!btn || !menu) return;
-
-    btn.addEventListener('click', () => {
-      menu.classList.toggle('active');
-    });
+  button {
+    cursor: pointer;
+    font-family: inherit;
   }
+`;
 
-  /* ===============================
-     초기화
-  =============================== */
-  document.addEventListener('DOMContentLoaded', () => {
-    // header 위치 고정 삽입
-    const headerTarget = document.getElementById('header');
-    if (headerTarget) {
-      headerTarget.innerHTML = createHeader();
-    }
+// 상단 네비게이션 컴포넌트
+export const createNavbar = (currentPage = 'home') => {
+  const pages = {
+    home: { name: 'Home', url: 'index.html' },
+    studio: { name: 'Studio', url: 'studio.html' },
+    tltube: { name: 'TLTube', url: 'tltube.html' },
+    musicplace: { name: 'MusicPlace', url: 'musicplace.html' },
+    dashboard: { name: 'Dashboard', url: 'dashboard.html' },
+    charge: { name: 'Charge', url: 'charge.html' }
+  };
 
-    // footer 하단 삽입
-    document.body.insertAdjacentHTML(
-      'beforeend',
-      createFooter()
-    );
+  return `
+    <nav class="navbar">
+      <div class="nav-container">
+        <!-- 로고 -->
+        <div class="nav-logo">
+          <a href="index.html">TimeLink</a>
+        </div>
 
-    setActiveMenu();
-    initHeaderScroll();
-    initMobileMenu();
-  });
+        <!-- 메뉴 항목 -->
+        <div class="nav-menu">
+          ${Object.entries(pages)
+            .map(([key, page]) => `
+              <a href="${page.url}" class="nav-item ${currentPage === key ? 'active' : ''}">
+                ${page.name}
+              </a>
+            `).join('')}
+        </div>
 
-})();
+        <!-- 우측 메뉴 -->
+        <div class="nav-actions">
+          <a href="guide.html" class="nav-link">Guide</a>
+          <a href="faq.html" class="nav-link">FAQ</a>
+          ${localStorage.getItem('isLoggedIn') === 'true' 
+            ? `
+              <button class="btn-logout" onclick="handleLogout()">Logout</button>
+              <a href="dashboard.html" class="btn-primary">Dashboard</a>
+            `
+            : `
+              <a href="login.html" class="nav-link">Login</a>
+              <a href="signup.html" class="btn-primary">Sign Up</a>
+            `
+          }
+        </div>
+
+        <!-- 모바일 메뉴 토글 -->
+        <button class="mobile-menu-toggle" aria-label="Toggle menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </nav>
+
+    <style>
+      .navbar {
+        background-color: var(--surface-color);
+        border-bottom: 1px solid var(--border-color);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        padding: 0.75rem 0;
+      }
+
+      .nav-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .nav-logo a {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: var(--primary-color);
+      }
+
+      .nav-menu {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+      }
+
+      .nav-item {
+        color: var(--text-secondary);
+        padding: 0.5rem 0;
+        position: relative;
+        transition: color 0.3s ease;
+        font-size: 0.95rem;
+        font-weight: 500;
+        white-space: nowrap; /* 버튼 글씨 줄바꿈 방지 */
+      }
+
+      .nav-item:hover {
+        color: var(--text-primary);
+      }
+
+      .nav-item.active {
+        color: var(--primary-color);
+      }
+
+      .nav-item.active::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background-color: var(--primary-color);
+      }
+
+      .nav-actions {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+      }
+
+      .nav-link {
+        color: var(--text-secondary);
+        transition: color 0.3s ease;
+        font-size: 0.95rem;
+        font-weight: 500;
+        white-space: nowrap; /* 버튼 글씨 줄바꿈 방지 */
+      }
+
+      .nav-link:hover {
+        color: var(--text-primary);
+      }
+
+      .btn-primary {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 0.5rem 1.25rem;
+        border-radius: 0.375rem;
+        font-weight: 500;
+        transition: background-color 0.3s ease;
+        font-size: 0.95rem;
+        white-space: nowrap; /* 버튼 글씨 줄바꿈 방지 */
+      }
+
+      .btn-primary:hover {
+        background-color: var(--primary-hover);
+      }
+
+      .btn-logout {
+        background: none;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        font-size: 0.95rem;
+        white-space: nowrap; /* 버튼 글씨 줄바꿈 방지 */
+      }
+
+      .btn-logout:hover {
+        background-color: rgba(239, 68, 68, 0.1);
+        color: var(--error-color);
+        border-color: var(--error-color);
+      }
+
+      .mobile-menu-toggle {
+        display: none;
+        flex-direction: column;
+        gap: 4px;
+        background: none;
+        border: none;
+        padding: 0.5rem;
+      }
+
+      .mobile-menu-toggle span {
+        width: 24px;
+        height: 2px;
+        background-color: var(--text-primary);
+        transition: 0.3s;
+      }
+
+      /* 반응형 디자인 */
+      @media (max-width: 768px) {
+        .nav-menu,
+        .nav-actions {
+          display: none;
+        }
+
+        .mobile-menu-toggle {
+          display: flex;
+        }
+
+        .nav-menu.active {
+          display: flex;
+          flex-direction: column;
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          background-color: var(--surface-color);
+          padding: 1rem;
+          border-top: 1px solid var(--border-color);
+        }
+
+        .nav-actions.active {
+          display: flex;
+          flex-direction: column;
+          position: absolute;
+          top: calc(100% + 200px);
+          left: 0;
+          right: 0;
+          background-color: var(--surface-color);
+          padding: 1rem;
+          border-top: 1px solid var(--border-color);
+        }
+      }
+    </style>
+  `;
+};
