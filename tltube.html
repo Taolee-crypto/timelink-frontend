@@ -445,6 +445,84 @@
             transform: translateY(-2px);
         }
         
+        /* 알림 스타일 */
+        .notification {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: var(--bg-card);
+            border-left: 4px solid var(--accent-color);
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            z-index: 1001;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            max-width: 300px;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification-success {
+            border-left-color: var(--accent-green);
+        }
+        
+        .notification-error {
+            border-left-color: var(--accent-red);
+        }
+        
+        .notification-warning {
+            border-left-color: var(--accent-yellow);
+        }
+        
+        /* 광고 플레이어 */
+        .ad-player-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .ad-video {
+            width: 100%;
+            max-width: 800px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .ad-reward-info {
+            margin-top: 30px;
+            text-align: center;
+            max-width: 800px;
+        }
+        
+        .ad-countdown {
+            font-size: 1.2rem;
+            color: var(--accent-yellow);
+            margin: 15px 0;
+        }
+        
+        .ad-skip-button {
+            margin-top: 20px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
         /* 반응형 디자인 */
         @media (max-width: 768px) {
             body {
@@ -486,6 +564,16 @@
             #tubeVideoPlayer {
                 height: 250px;
             }
+            
+            .notification {
+                max-width: 90%;
+                left: 50%;
+                transform: translateX(-50%) translateY(-100px);
+            }
+            
+            .notification.show {
+                transform: translateX(-50%) translateY(0);
+            }
         }
     </style>
 </head>
@@ -505,37 +593,37 @@
             <div class="nav-menu-container">
                 <ul class="main-menu">
                     <li class="menu-item">
-                        <a href="#" class="menu-link active">
+                        <a href="javascript:void(0)" class="menu-link" data-page="home">
                             <i class="bi bi-house-door menu-icon"></i>
                             <span class="menu-text">HOME</span>
                         </a>
                     </li>
                     <li class="menu-item">
-                        <a href="#" class="menu-link">
+                        <a href="javascript:void(0)" class="menu-link" data-page="studio">
                             <i class="bi bi-display menu-icon"></i>
                             <span class="menu-text">STUDIO</span>
                         </a>
                     </li>
                     <li class="menu-item">
-                        <a href="#" class="menu-link">
+                        <a href="javascript:void(0)" class="menu-link" data-page="music">
                             <i class="bi bi-music-note-beamed menu-icon"></i>
                             <span class="menu-text">MUSIC</span>
                         </a>
                     </li>
                     <li class="menu-item">
-                        <a href="#" class="menu-link">
+                        <a href="javascript:void(0)" class="menu-link active" data-page="tube">
                             <i class="bi bi-camera-reels menu-icon"></i>
                             <span class="menu-text">TUBE</span>
                         </a>
                     </li>
                     <li class="menu-item">
-                        <a href="#" class="menu-link">
+                        <a href="javascript:void(0)" class="menu-link" data-page="dash">
                             <i class="bi bi-speedometer2 menu-icon"></i>
                             <span class="menu-text">DASH</span>
                         </a>
                     </li>
                     <li class="menu-item">
-                        <a href="#" class="menu-link">
+                        <a href="javascript:void(0)" class="menu-link" data-page="charge">
                             <i class="bi bi-lightning-charge menu-icon"></i>
                             <span class="menu-text">CHARGE</span>
                         </a>
@@ -547,10 +635,10 @@
             <div class="user-section">
                 <div class="tl-points-display">
                     <i class="bi bi-lightning-charge"></i>
-                    <span>1,000.00 TL DEMO</span>
+                    <span id="tlPointsDisplay">1,000.00 TL DEMO</span>
                 </div>
                 <div class="user-dropdown">
-                    <button class="user-menu-btn">
+                    <button class="user-menu-btn" id="userMenuBtn">
                         <i class="bi bi-person-circle"></i>
                         <span>moUser</span>
                     </button>
@@ -632,13 +720,13 @@
                         <div class="mb-4">
                             <label class="form-label mb-2">화질 설정</label>
                             <div class="d-flex gap-2 flex-wrap">
-                                <button class="tube-btn btn-sm active" data-quality="720p" style="background: var(--accent-color); color: white;">
+                                <button class="quality-btn tube-btn btn-sm active" data-quality="720p">
                                     720p (HD)
                                 </button>
-                                <button class="tube-btn btn-sm" data-quality="1080p" style="background: rgba(255,255,255,0.1); color: white;">
+                                <button class="quality-btn tube-btn btn-sm" data-quality="1080p">
                                     1080p (FHD)
                                 </button>
-                                <button class="tube-btn btn-sm" data-quality="4k" style="background: rgba(255,255,255,0.1); color: white;">
+                                <button class="quality-btn tube-btn btn-sm" data-quality="4k">
                                     4K (UHD)
                                 </button>
                             </div>
@@ -647,13 +735,13 @@
                         <div class="mb-4">
                             <label class="form-label mb-2">광고 간격</label>
                             <div class="d-flex gap-2 flex-wrap">
-                                <button class="tube-btn btn-sm active" data-ad-interval="5" style="background: var(--accent-color); color: white;">
+                                <button class="ad-interval-btn tube-btn btn-sm active" data-ad-interval="5">
                                     5분당 1광고
                                 </button>
-                                <button class="tube-btn btn-sm" data-ad-interval="10" style="background: rgba(124,77,255,0.2); color: white;">
+                                <button class="ad-interval-btn tube-btn btn-sm" data-ad-interval="10">
                                     10분당 1광고
                                 </button>
-                                <button class="tube-btn btn-sm" data-ad-interval="15" style="background: rgba(124,77,255,0.2); color: white;">
+                                <button class="ad-interval-btn tube-btn btn-sm" data-ad-interval="15">
                                     15분당 1광고
                                 </button>
                             </div>
@@ -663,7 +751,7 @@
                         <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px; margin: 10px 0;">
                             <div class="d-flex justify-content-between">
                                 <span>TL4 변환 비용:</span>
-                                <span style="color: var(--accent-yellow); font-weight: bold;">100 TL</span>
+                                <span style="color: var(--accent-yellow); font-weight: bold;" id="conversionCost">100 TL</span>
                             </div>
                             <small style="color: #aaa;">변환 시 광고 지원 및 TL 소모 시스템 적용</small>
                         </div>
@@ -760,6 +848,9 @@
                             <div style="min-width: 100px; font-family: 'Courier New', monospace; color: white; margin-left: 10px;">
                                 <span id="currentTimeDisplay">0:00</span> / <span id="durationDisplay">0:00</span>
                             </div>
+                            <button class="video-control-btn" id="volumeBtn">
+                                <i class="bi bi-volume-up-fill"></i>
+                            </button>
                         </div>
                     </div>
                     
@@ -778,6 +869,18 @@
                             테스트 재생 (무료)
                         </button>
                     </div>
+                    
+                    <!-- TL 소모 정보 -->
+                    <div id="tlConsumptionInfo" style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px; display: none;">
+                        <div class="d-flex justify-content-between">
+                            <span>소모된 TL:</span>
+                            <span style="color: var(--accent-yellow); font-weight: bold;" id="consumedTL">0.0 TL</span>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2">
+                            <span>남은 TL:</span>
+                            <span style="color: var(--accent-green); font-weight: bold;" id="remainingTL">1,000.00 TL</span>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- TL4 영상이 없을 때 -->
@@ -790,15 +893,40 @@
         </div>
     </main>
 
+    <!-- 알림 영역 -->
+    <div id="notificationArea"></div>
+    
+    <!-- 광고 플레이어 -->
+    <div id="adPlayer" class="ad-player-container" style="display: none;">
+        <div style="max-width: 800px; width: 100%;">
+            <h3 class="text-center mb-4" style="color: var(--accent-yellow);">TL 포인트 광고 시청 중</h3>
+            
+            <div class="ad-video">
+                <video id="adVideoPlayer" width="100%" controls playsinline>
+                    <source src="" type="video/mp4">
+                    광고 영상을 재생할 수 없습니다.
+                </video>
+            </div>
+            
+            <div class="ad-reward-info">
+                <h4 class="mb-3">광고 시청 후 <span style="color: var(--accent-yellow);">+100 TL</span>을 획득하세요!</h4>
+                <div class="ad-countdown" id="adCountdown">남은 시간: 30초</div>
+                <p style="color: #aaa; margin-bottom: 20px;">광고를 끝까지 시청하시면 TL 포인트가 지급됩니다.</p>
+                <button class="ad-skip-button" id="skipAdBtn" style="display: none;">건너뛰기 (10초 후)</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- TL Tube 스크립트 -->
+    <!-- TL Tube 완전한 스크립트 -->
     <script>
-        // TL Tube 시스템
+        // TL Tube 시스템 - 완전한 버전
         const tlTube = {
             currentFile: null,
             videoPlayer: null,
+            adVideoPlayer: null,
             isPlaying: false,
             userTLPoints: 1000.00,
             videoBlobUrl: null,
@@ -809,46 +937,87 @@
             consumedTL: 0,
             selectedQuality: '720p',
             selectedAdInterval: 5,
-            hasChargedTL: false
+            hasChargedTL: false,
+            volume: 1.0,
+            isMuted: false
         };
+
+        // 샘플 비디오 파일 (온라인에서 사용 가능한 샘플)
+        const sampleVideos = [
+            {name: "sample1.mp4", url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"},
+            {name: "sample2.mp4", url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"},
+            {name: "sample3.mp4", url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"}
+        ];
+
+        // 샘플 광고 비디오
+        const sampleAds = [
+            {name: "ad1.mp4", url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4", duration: 30},
+            {name: "ad2.mp4", url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4", duration: 25},
+            {name: "ad3.mp4", url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", duration: 20}
+        ];
 
         // 초기화
         document.addEventListener('DOMContentLoaded', function() {
-            console.log("TL Tube 초기화 시작");
-            initTLTube();
-            setupEventListeners();
+            console.log("TL Tube 완전한 초기화 시작");
+            initCompleteTLTube();
+            setupCompleteEventListeners();
+            setupNavigation();
+            setupSampleVideos();
+            
+            // 시작 알림
+            showNotification("TL Tube에 오신 것을 환영합니다!", "success");
+            
+            // 무음 모드 해제 (소리가 나도록)
+            document.addEventListener('click', function() {
+                if (tlTube.videoPlayer) {
+                    tlTube.videoPlayer.muted = false;
+                    tlTube.videoPlayer.volume = 1.0;
+                }
+            });
         });
 
-        function initTLTube() {
+        function initCompleteTLTube() {
+            // TL 포인트 업데이트
             updateTLPointsDisplay();
             
-            // 비디오 플레이어 초기화 - 오류 방지를 위해 src를 설정하지 않음
+            // 비디오 플레이어 초기화
             tlTube.videoPlayer = document.getElementById('tubeVideoPlayer');
+            tlTube.adVideoPlayer = document.getElementById('adVideoPlayer');
+            
             console.log("비디오 플레이어 초기화 완료");
             
             if (tlTube.videoPlayer) {
-                // 이벤트 리스너만 추가하고 src는 나중에 설정
+                // 기본 볼륨 설정 (소리 나게)
+                tlTube.videoPlayer.volume = 1.0;
+                tlTube.videoPlayer.muted = false;
+                
+                // 이벤트 리스너
                 tlTube.videoPlayer.addEventListener('timeupdate', updateVideoProgress);
                 tlTube.videoPlayer.addEventListener('loadedmetadata', updateVideoDuration);
                 tlTube.videoPlayer.addEventListener('play', handleVideoPlay);
                 tlTube.videoPlayer.addEventListener('pause', handleVideoPause);
                 tlTube.videoPlayer.addEventListener('ended', handleVideoEnded);
                 tlTube.videoPlayer.addEventListener('canplay', handleVideoCanPlay);
+                
+                // 오류 처리
+                tlTube.videoPlayer.addEventListener('error', function(e) {
+                    console.error("비디오 플레이어 오류:", e);
+                    showNotification("비디오 재생 중 오류가 발생했습니다.", "error");
+                });
             }
         }
 
-        function handleVideoCanPlay() {
-            console.log("비디오 재생 가능");
-        }
-
-        function setupEventListeners() {
-            console.log("이벤트 리스너 설정 시작");
+        function setupCompleteEventListeners() {
+            console.log("완전한 이벤트 리스너 설정 시작");
             
-            // 파일 선택
+            // 파일 선택 관련
             document.getElementById('selectVideoBtn').addEventListener('click', selectVideo);
             document.getElementById('videoFileInput').addEventListener('change', handleVideoSelect);
+            document.getElementById('uploadArea').addEventListener('click', function() {
+                document.getElementById('videoFileInput').click();
+            });
             
-            // TL4 변환 버튼
+            // 변환 버튼
             document.getElementById('convertToTL4Btn').addEventListener('click', convertToTL4);
             document.getElementById('directPlayBtn').addEventListener('click', directPlay);
             
@@ -860,6 +1029,7 @@
             
             // 비디오 플레이어 컨트롤
             document.getElementById('playPauseBtn').addEventListener('click', toggleVideoPlayback);
+            document.getElementById('volumeBtn').addEventListener('click', toggleVolume);
             
             document.getElementById('videoProgressContainer').addEventListener('click', function(e) {
                 const rect = this.getBoundingClientRect();
@@ -870,32 +1040,147 @@
             });
             
             // 화질 버튼
-            document.querySelectorAll('[data-quality]').forEach(btn => {
+            document.querySelectorAll('.quality-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
-                    document.querySelectorAll('[data-quality]').forEach(b => {
+                    document.querySelectorAll('.quality-btn').forEach(b => {
                         b.style.background = 'rgba(255,255,255,0.1)';
                         b.style.color = 'white';
                     });
                     this.style.background = 'var(--accent-color)';
                     this.style.color = 'white';
                     tlTube.selectedQuality = this.getAttribute('data-quality');
+                    updateConversionCost();
                 });
             });
             
             // 광고 간격 버튼
-            document.querySelectorAll('[data-ad-interval]').forEach(btn => {
+            document.querySelectorAll('.ad-interval-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
-                    document.querySelectorAll('[data-ad-interval]').forEach(b => {
+                    document.querySelectorAll('.ad-interval-btn').forEach(b => {
                         b.style.background = 'rgba(124,77,255,0.2)';
                         b.style.color = 'white';
                     });
                     this.style.background = 'var(--accent-color)';
                     this.style.color = 'white';
                     tlTube.selectedAdInterval = parseInt(this.getAttribute('data-ad-interval'));
+                    updateConversionCost();
                 });
             });
             
+            // 광고 플레이어 컨트롤
+            document.getElementById('skipAdBtn').addEventListener('click', skipAd);
+            tlTube.adVideoPlayer.addEventListener('ended', finishAd);
+            
+            // 사용자 메뉴
+            document.getElementById('userMenuBtn').addEventListener('click', toggleUserMenu);
+            
             console.log("이벤트 리스너 설정 완료");
+        }
+
+        function setupNavigation() {
+            console.log("네비게이션 설정");
+            
+            // 네비게이션 메뉴 클릭
+            document.querySelectorAll('.menu-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // 모든 메뉴에서 active 제거
+                    document.querySelectorAll('.menu-link').forEach(l => {
+                        l.classList.remove('active');
+                    });
+                    
+                    // 현재 메뉴에 active 추가
+                    this.classList.add('active');
+                    
+                    const page = this.getAttribute('data-page');
+                    handlePageNavigation(page);
+                });
+            });
+            
+            // 로고 클릭
+            document.querySelector('.logo a').addEventListener('click', function(e) {
+                e.preventDefault();
+                showNotification("홈페이지로 이동합니다!", "success");
+                // 실제로는 window.location.href = 'index.html';
+            });
+        }
+
+        function handlePageNavigation(page) {
+            const messages = {
+                'home': '홈페이지로 이동합니다!',
+                'studio': '스튜디오 페이지로 이동합니다!',
+                'music': '음악 페이지로 이동합니다!',
+                'tube': 'TL Tube 페이지입니다!',
+                'dash': '대시보드 페이지로 이동합니다!',
+                'charge': '충전 페이지로 이동합니다!'
+            };
+            
+            if (messages[page]) {
+                showNotification(messages[page], "success");
+            }
+            
+            // 실제 페이지 이동은 여기서 구현
+            // window.location.href = page + '.html';
+        }
+
+        function toggleUserMenu() {
+            showNotification("사용자 메뉴가 곧 제공됩니다!", "warning");
+        }
+
+        function setupSampleVideos() {
+            // 업로드 영역에 샘플 비디오 드롭다운 추가
+            const uploadArea = document.getElementById('uploadArea');
+            const sampleSelect = document.createElement('div');
+            sampleSelect.className = 'mt-3';
+            sampleSelect.innerHTML = `
+                <div class="dropdown">
+                    <button class="tube-btn tube-btn-warning btn-sm" type="button" id="sampleVideoDropdown" data-bs-toggle="dropdown">
+                        <i class="bi bi-download me-1"></i>샘플 영상 사용하기
+                    </button>
+                    <ul class="dropdown-menu" style="background: var(--bg-card); border: 1px solid var(--border-color);">
+                        ${sampleVideos.map((video, index) => `
+                            <li><a class="dropdown-item" href="#" data-video-index="${index}" style="color: white;">${video.name}</a></li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+            
+            uploadArea.appendChild(sampleSelect);
+            
+            // 샘플 비디오 선택 이벤트
+            document.querySelectorAll('[data-video-index]').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const index = parseInt(this.getAttribute('data-video-index'));
+                    loadSampleVideo(index);
+                });
+            });
+        }
+
+        function loadSampleVideo(index) {
+            const video = sampleVideos[index];
+            console.log("샘플 비디오 로드:", video.name);
+            
+            // 파일 객체 시뮬레이션
+            tlTube.currentFile = {
+                name: video.name,
+                size: 1024 * 1024 * 50, // 50MB
+                type: 'video/mp4'
+            };
+            
+            // 파일 정보 표시
+            document.getElementById('selectedFileInfo').style.display = 'block';
+            document.getElementById('fileName').textContent = video.name;
+            document.getElementById('fileSize').textContent = '50 MB';
+            document.getElementById('fileFormat').textContent = 'MP4';
+            
+            // 임의의 재생 시간 설정
+            const duration = 600; // 10분
+            tlTube.currentVideoDuration = duration;
+            document.getElementById('fileDuration').textContent = formatTime(duration);
+            
+            showNotification(`샘플 영상 "${video.name}"이 선택되었습니다!`, "success");
         }
 
         function selectVideo() {
@@ -909,7 +1194,12 @@
             if (!file) return;
             
             if (!file.type.startsWith('video/')) {
-                alert('동영상 파일을 선택해주세요. (MP4, MOV, AVI, MKV, WEBM)');
+                showNotification('동영상 파일을 선택해주세요. (MP4, MOV, AVI, MKV, WEBM)', "error");
+                return;
+            }
+            
+            if (file.size > 2 * 1024 * 1024 * 1024) { // 2GB
+                showNotification('파일 크기는 2GB를 초과할 수 없습니다.', "error");
                 return;
             }
             
@@ -931,25 +1221,48 @@
                 const duration = video.duration;
                 document.getElementById('fileDuration').textContent = formatTime(duration);
                 tlTube.currentVideoDuration = duration;
+                updateConversionCost();
+            };
+            
+            video.onerror = function() {
+                showNotification("비디오 파일을 분석할 수 없습니다.", "error");
             };
             
             video.src = URL.createObjectURL(file);
+            
+            showNotification(`"${file.name}" 파일이 선택되었습니다!`, "success");
+        }
+
+        function updateConversionCost() {
+            let cost = 100; // 기본 비용
+            
+            // 화질에 따른 추가 비용
+            if (tlTube.selectedQuality === '1080p') cost += 50;
+            if (tlTube.selectedQuality === '4k') cost += 100;
+            
+            // 광고 간격에 따른 할인
+            if (tlTube.selectedAdInterval === 5) cost -= 20;
+            if (tlTube.selectedAdInterval === 15) cost += 20;
+            
+            document.getElementById('conversionCost').textContent = cost + ' TL';
         }
 
         function convertToTL4() {
             console.log("TL4 변환 버튼 클릭");
             if (!tlTube.currentFile) {
-                alert('TL4로 변환할 영상을 먼저 선택해주세요.');
+                showNotification('TL4로 변환할 영상을 먼저 선택해주세요.', "error");
                 return;
             }
             
-            if (tlTube.userTLPoints < 100) {
-                alert('TL4 변환에 필요한 TL 포인트가 부족합니다. (100 TL 필요)');
+            const cost = parseInt(document.getElementById('conversionCost').textContent);
+            
+            if (tlTube.userTLPoints < cost) {
+                showNotification(`TL4 변환에 필요한 TL 포인트가 부족합니다. (${cost} TL 필요)`, "error");
                 return;
             }
             
             // TL 포인트 차감
-            tlTube.userTLPoints -= 100;
+            tlTube.userTLPoints -= cost;
             updateTLPointsDisplay();
             
             // 변환 진행 상태 표시
@@ -959,10 +1272,10 @@
             document.getElementById('conversionStatus').textContent = 'TL4 포맷 변환 중...';
             
             // TL4 변환 시뮬레이션 시작
-            simulateTL4Conversion();
+            simulateTL4Conversion(cost);
         }
 
-        function simulateTL4Conversion() {
+        function simulateTL4Conversion(cost) {
             console.log("TL4 변환 시뮬레이션 시작");
             let progress = 0;
             const steps = [
@@ -992,9 +1305,9 @@
                     // 변환 완료 처리
                     setTimeout(() => {
                         document.getElementById('conversionProgress').style.display = 'none';
-                        loadSelectedVideoToPlayer(true);
+                        loadSelectedVideoToPlayer(true, cost);
                         
-                        alert(`TL4 변환 완료!\n화질: ${tlTube.selectedQuality}\n광고 간격: ${tlTube.selectedAdInterval}분당 1개\n소모 TL: 100 TL`);
+                        showNotification(`TL4 변환 완료!\n화질: ${tlTube.selectedQuality}\n광고 간격: ${tlTube.selectedAdInterval}분당 1개\n소모 TL: ${cost} TL`, "success");
                     }, 500);
                 }
             }, 300);
@@ -1003,16 +1316,16 @@
         function directPlay() {
             console.log("바로 재생 버튼 클릭");
             if (!tlTube.currentFile) {
-                alert('재생할 영상을 먼저 선택해주세요.');
+                showNotification('재생할 영상을 먼저 선택해주세요.', "error");
                 return;
             }
             
             tlTube.isTL4Mode = false;
             tlTube.hasChargedTL = false;
-            loadSelectedVideoToPlayer(false);
+            loadSelectedVideoToPlayer(false, 0);
         }
 
-        function loadSelectedVideoToPlayer(isTL4) {
+        function loadSelectedVideoToPlayer(isTL4, cost) {
             console.log("비디오 플레이어에 로드 시작", isTL4 ? "TL4 모드" : "일반 모드");
             
             // 기존 Blob URL 정리
@@ -1021,15 +1334,31 @@
             }
             
             try {
-                // 새 Blob URL 생성
-                tlTube.videoBlobUrl = URL.createObjectURL(tlTube.currentFile);
-                console.log("Blob URL 생성됨");
+                // 샘플 비디오 URL 사용 또는 Blob URL 생성
+                if (tlTube.currentFile && tlTube.currentFile.url) {
+                    // 샘플 비디오인 경우
+                    tlTube.videoBlobUrl = tlTube.currentFile.url;
+                } else if (tlTube.currentFile && tlTube.currentFile instanceof File) {
+                    // 실제 업로드 파일인 경우
+                    tlTube.videoBlobUrl = URL.createObjectURL(tlTube.currentFile);
+                } else {
+                    // 샘플 비디오 중 하나 사용
+                    tlTube.videoBlobUrl = sampleVideos[0].url;
+                }
+                
+                console.log("비디오 URL 설정:", tlTube.videoBlobUrl);
                 
                 // 비디오 소스 설정
                 tlTube.videoPlayer.src = tlTube.videoBlobUrl;
                 
+                // 소리 설정 (중요!)
+                tlTube.videoPlayer.muted = false;
+                tlTube.videoPlayer.volume = 1.0;
+                tlTube.isMuted = false;
+                
                 // TL4 모드 설정
                 tlTube.isTL4Mode = isTL4;
+                tlTube.consumedTL = 0;
                 
                 // UI 업데이트
                 document.getElementById('tl4VideoPreview').style.display = 'block';
@@ -1050,36 +1379,39 @@
                     document.getElementById('currentVideoStatus').style.background = 'var(--accent-yellow)';
                     document.getElementById('currentVideoStatus').style.color = '#121212';
                     document.getElementById('testPlayBtn').style.display = 'none';
+                    document.getElementById('tlConsumptionInfo').style.display = 'none';
                 } else {
                     document.getElementById('startPlayBtn').style.display = 'none';
                     document.getElementById('currentVideoStatus').style.background = 'var(--accent-green)';
+                    document.getElementById('currentVideoStatus').style.color = '#121212';
                     document.getElementById('testPlayBtn').style.display = 'block';
+                    document.getElementById('tlConsumptionInfo').style.display = 'none';
                 }
                 
                 console.log("비디오 로드 완료");
-                alert('영상이 준비되었습니다! 재생 버튼을 클릭하세요.');
+                showNotification('영상이 준비되었습니다! 재생 버튼을 클릭하세요.', "success");
             } catch (error) {
                 console.error("비디오 로드 오류:", error);
-                alert('비디오 로드 중 오류가 발생했습니다. 다른 파일을 시도해보세요.');
+                showNotification('비디오 로드 중 오류가 발생했습니다. 다른 파일을 시도해보세요.', "error");
             }
         }
 
         function startPlayWithTL() {
             console.log("TL 충전 재생 시작");
             if (!tlTube.videoPlayer.src || tlTube.videoPlayer.src === '') {
-                alert('먼저 TL4 영상을 변환해주세요.');
+                showNotification('먼저 TL4 영상을 변환해주세요.', "error");
                 return;
             }
             
             if (!tlTube.isTL4Mode) {
-                alert('이 영상은 TL4 모드가 아닙니다.');
+                showNotification('이 영상은 TL4 모드가 아닙니다.', "error");
                 return;
             }
             
             // TL 차감 (10분 재생 기준)
             const tlCost = 60; // 10분 = 60 TL
             if (tlTube.userTLPoints < tlCost) {
-                alert(`TL 포인트가 부족합니다. 필요: ${tlCost} TL`);
+                showNotification(`TL 포인트가 부족합니다. 필요: ${tlCost} TL`, "error");
                 return;
             }
             
@@ -1087,22 +1419,27 @@
             updateTLPointsDisplay();
             tlTube.hasChargedTL = true;
             
+            // TL 소모 정보 표시
+            document.getElementById('tlConsumptionInfo').style.display = 'block';
+            document.getElementById('consumedTL').textContent = '0.0 TL';
+            document.getElementById('remainingTL').textContent = tlTube.userTLPoints.toFixed(2) + ' TL';
+            
             // 재생 시작
             playVideo();
             
-            alert(`10분 충전 완료! ${tlCost} TL이 차감되었습니다.`);
+            showNotification(`10분 충전 완료! ${tlCost} TL이 차감되었습니다.`, "success");
         }
 
         function testPlay() {
             console.log("테스트 재생 시작");
             if (!tlTube.videoPlayer.src || tlTube.videoPlayer.src === '') {
-                alert('먼저 영상을 업로드해주세요.');
+                showNotification('먼저 영상을 업로드해주세요.', "error");
                 return;
             }
             
             // 일반 모드에서만 테스트 재생 가능
             if (tlTube.isTL4Mode) {
-                alert('TL4 모드에서는 테스트 재생이 불가능합니다.');
+                showNotification('TL4 모드에서는 테스트 재생이 불가능합니다.', "error");
                 return;
             }
             
@@ -1110,21 +1447,106 @@
         }
 
         function watchAd() {
-            const reward = 100;
-            tlTube.userTLPoints += reward;
-            updateTLPointsDisplay();
-            alert(`광고 시청 완료! ${reward} TL을 획득했습니다.`);
+            startAdPlayback(100); // 100 TL 보상
         }
 
         function watchAdForTL() {
-            const reward = 100;
+            startAdPlayback(100); // 100 TL 보상
+        }
+
+        function startAdPlayback(reward) {
+            console.log("광고 재생 시작, 보상:", reward);
+            
+            // 무작위 광고 선택
+            const randomAd = sampleAds[Math.floor(Math.random() * sampleAds.length)];
+            
+            // 광고 플레이어 설정
+            tlTube.adVideoPlayer.src = randomAd.url;
+            tlTube.adVideoPlayer.muted = false;
+            tlTube.adVideoPlayer.volume = 1.0;
+            
+            // 광고 플레이어 표시
+            document.getElementById('adPlayer').style.display = 'flex';
+            
+            // 카운트다운 설정
+            let countdown = randomAd.duration;
+            const countdownElement = document.getElementById('adCountdown');
+            countdownElement.textContent = `남은 시간: ${countdown}초`;
+            
+            // 건너뛰기 버튼 설정 (10초 후에 표시)
+            const skipButton = document.getElementById('skipAdBtn');
+            skipButton.style.display = 'none';
+            
+            setTimeout(() => {
+                skipButton.style.display = 'block';
+                skipButton.disabled = true;
+                skipButton.textContent = '건너뛰기 (10초 후)';
+                
+                let skipCountdown = 10;
+                const skipInterval = setInterval(() => {
+                    skipCountdown--;
+                    skipButton.textContent = `건너뛰기 (${skipCountdown}초 후)`;
+                    
+                    if (skipCountdown <= 0) {
+                        clearInterval(skipInterval);
+                        skipButton.textContent = '광고 건너뛰기';
+                        skipButton.disabled = false;
+                    }
+                }, 1000);
+            }, (randomAd.duration - 10) * 1000);
+            
+            // 카운트다운 업데이트
+            tlTube.adTimer = setInterval(() => {
+                countdown--;
+                countdownElement.textContent = `남은 시간: ${countdown}초`;
+                
+                if (countdown <= 0) {
+                    clearInterval(tlTube.adTimer);
+                }
+            }, 1000);
+            
+            // 광고 재생 시작
+            const playPromise = tlTube.adVideoPlayer.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.error("광고 재생 실패:", error);
+                    showNotification("광고 재생에 실패했습니다.", "error");
+                });
+            }
+        }
+
+        function skipAd() {
+            console.log("광고 건너뛰기");
+            clearInterval(tlTube.adTimer);
+            finishAd();
+            showNotification("광고를 건너뛰었습니다. 보상이 감소합니다.", "warning");
+        }
+
+        function finishAd() {
+            console.log("광고 시청 완료");
+            
+            // 광고 플레이어 숨기기
+            document.getElementById('adPlayer').style.display = 'none';
+            
+            // TL 포인트 지급 (건너뛰면 50% 감소)
+            const reward = document.getElementById('skipAdBtn').style.display === 'none' ? 100 : 50;
             tlTube.userTLPoints += reward;
             updateTLPointsDisplay();
-            alert(`광고 시청 완료! ${reward} TL을 획득했습니다.`);
+            
+            // 카운트다운 정리
+            clearInterval(tlTube.adTimer);
+            
+            showNotification(`광고 시청 완료! ${reward} TL을 획득했습니다.`, "success");
         }
 
         function playVideo() {
             console.log("비디오 재생 시도");
+            
+            // 소리 확인 (중요!)
+            tlTube.videoPlayer.muted = false;
+            tlTube.videoPlayer.volume = 1.0;
+            
             const playPromise = tlTube.videoPlayer.play();
             
             if (playPromise !== undefined) {
@@ -1132,7 +1554,12 @@
                     console.log("비디오 재생 성공");
                 }).catch(error => {
                     console.error("비디오 재생 실패:", error);
-                    alert('비디오 재생에 실패했습니다. 브라우저 설정을 확인해주세요.');
+                    showNotification('비디오 재생에 실패했습니다. 브라우저 설정을 확인해주세요.', "error");
+                    
+                    // 사용자 상호작용이 필요할 수 있으므로 안내
+                    if (error.name === 'NotAllowedError') {
+                        showNotification('브라우저가 자동 재생을 차단했습니다. 재생 버튼을 다시 클릭해주세요.', "warning");
+                    }
                 });
             }
         }
@@ -1141,13 +1568,13 @@
             console.log("재생/일시정지 토글", tlTube.videoPlayer.paused ? "재생" : "일시정지");
             
             if (!tlTube.videoPlayer.src || tlTube.videoPlayer.src === '') {
-                alert('먼저 영상을 업로드해주세요.');
+                showNotification('먼저 영상을 업로드해주세요.', "error");
                 return;
             }
             
             // TL4 모드 체크
             if (tlTube.isTL4Mode && !tlTube.hasChargedTL) {
-                alert('TL4 모드에서는 먼저 TL을 충전해야 재생할 수 있습니다.');
+                showNotification('TL4 모드에서는 먼저 TL을 충전해야 재생할 수 있습니다.', "error");
                 return;
             }
             
@@ -1155,6 +1582,26 @@
                 playVideo();
             } else {
                 tlTube.videoPlayer.pause();
+            }
+        }
+
+        function toggleVolume() {
+            const volumeBtn = document.getElementById('volumeBtn');
+            
+            if (tlTube.isMuted) {
+                // 음소거 해제
+                tlTube.videoPlayer.muted = false;
+                tlTube.videoPlayer.volume = tlTube.volume;
+                volumeBtn.innerHTML = '<i class="bi bi-volume-up-fill"></i>';
+                tlTube.isMuted = false;
+                showNotification("소리 켜짐", "success");
+            } else {
+                // 음소거
+                tlTube.volume = tlTube.videoPlayer.volume;
+                tlTube.videoPlayer.muted = true;
+                volumeBtn.innerHTML = '<i class="bi bi-volume-mute-fill"></i>';
+                tlTube.isMuted = true;
+                showNotification("소리 꺼짐", "warning");
             }
         }
 
@@ -1183,27 +1630,41 @@
             
             stopTLConsumption();
             
-            alert('영상 재생이 완료되었습니다.');
+            showNotification('영상 재생이 완료되었습니다.', "success");
+        }
+
+        function handleVideoCanPlay() {
+            console.log("비디오 재생 가능");
         }
 
         function startTLConsumption() {
             console.log("TL 소모 시작");
-            // 1초마다 TL 포인트 차감
-            tlTube.tlConsumptionTimer = setInterval(() => {
+            
+            // 소모 정보 업데이트 함수
+            const updateConsumption = () => {
                 if (tlTube.videoPlayer && !tlTube.videoPlayer.paused && tlTube.isTL4Mode && tlTube.hasChargedTL) {
                     tlTube.userTLPoints -= 0.1; // 10초당 1TL
                     tlTube.consumedTL += 0.1;
                     
                     if (tlTube.userTLPoints < 0) tlTube.userTLPoints = 0;
                     
+                    // 화면 업데이트
                     updateTLPointsDisplay();
+                    document.getElementById('consumedTL').textContent = tlTube.consumedTL.toFixed(1) + ' TL';
+                    document.getElementById('remainingTL').textContent = tlTube.userTLPoints.toFixed(2) + ' TL';
                     
                     if (tlTube.userTLPoints <= 0) {
                         tlTube.videoPlayer.pause();
-                        alert('TL 포인트가 모두 소진되었습니다.');
+                        showNotification('TL 포인트가 모두 소진되었습니다.', "error");
                     }
                 }
-            }, 1000);
+            };
+            
+            // 1초마다 TL 포인트 차감
+            tlTube.tlConsumptionTimer = setInterval(updateConsumption, 1000);
+            
+            // 즉시 한 번 업데이트
+            updateConsumption();
         }
 
         function stopTLConsumption() {
@@ -1236,8 +1697,49 @@
         }
 
         function updateTLPointsDisplay() {
-            document.getElementById('userTLPointsDisplay').textContent = 
-                tlTube.userTLPoints.toFixed(2) + ' TL';
+            const points = tlTube.userTLPoints.toFixed(2);
+            document.getElementById('userTLPointsDisplay').textContent = points + ' TL';
+            document.getElementById('tlPointsDisplay').textContent = points + ' TL DEMO';
+        }
+
+        // 알림 시스템
+        function showNotification(message, type = "success") {
+            console.log("알림:", message, type);
+            
+            // 알림 요소 생성
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.innerHTML = `
+                <div style="display: flex; align-items: flex-start; gap: 10px;">
+                    <div style="font-size: 1.2rem;">
+                        ${type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️'}
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; margin-bottom: 5px;">
+                            ${type === 'success' ? '성공' : type === 'error' ? '오류' : '알림'}
+                        </div>
+                        <div style="color: #ccc; font-size: 0.9rem;">${message}</div>
+                    </div>
+                </div>
+            `;
+            
+            // 알림 영역에 추가
+            document.getElementById('notificationArea').appendChild(notification);
+            
+            // 애니메이션 적용
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+            
+            // 5초 후 제거
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 5000);
         }
 
         // 유틸리티 함수
@@ -1255,6 +1757,17 @@
             const secs = Math.floor(seconds % 60);
             return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
+
+        // 페이지 언로드 시 정리
+        window.addEventListener('beforeunload', function() {
+            if (tlTube.videoBlobUrl) {
+                URL.revokeObjectURL(tlTube.videoBlobUrl);
+            }
+            stopTLConsumption();
+            if (tlTube.adTimer) {
+                clearInterval(tlTube.adTimer);
+            }
+        });
     </script>
 </body>
 </html>
