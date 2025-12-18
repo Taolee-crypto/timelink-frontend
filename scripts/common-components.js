@@ -1,160 +1,112 @@
-// 단순화된 네비게이션 생성
-function createNavigation() {
-    console.log("단순화된 네비게이션 생성");
-    
-    // 로그인 상태
-    const userStr = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-    let userHtml = '';
-    
-    if (userStr && token) {
-        try {
-            const user = JSON.parse(userStr);
-            const username = user.username || '사용자';
-            const balance = user.balance ? user.balance.toFixed(2) + ' TL' : '1,000 TL';
-            const isVirtual = user.isVirtual ? '<span class="demo-badge">DEMO</span>' : '';
-            
-            userHtml = `
-                <div class="user-area">
-                    <div class="tl-sum-display">
-                        <span class="tl-sum-label">TL:</span>
-                        <span class="tl-sum-value">${balance}</span>
-                        ${isVirtual}
+// common-components.js - 헤더 로그인/회원가입 버튼 추가
+
+// 헤더 생성 함수 (common-components.js에 추가)
+function createHeader() {
+    const headerHTML = `
+        <nav class="navbar navbar-expand-lg navbar-dark fixed-top" style="background: rgba(10, 10, 26, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+            <div class="container">
+                <!-- 로고 -->
+                <a class="navbar-brand" href="./index.html">
+                    <div class="d-flex align-items-center">
+                        <div class="logo-icon me-2" style="width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #7c4dff, #536dfe); display: flex; align-items: center; justify-content: center;">
+                            <i class="bi bi-infinity text-white"></i>
+                        </div>
+                        <span class="fw-bold fs-4" style="background: linear-gradient(135deg, #7c4dff, #00e5ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">TimeLink</span>
                     </div>
-                    <div class="user-dropdown">
-                        <button class="user-menu-btn" onclick="toggleUserMenu()">
-                            <span>👤</span> ${username}
-                        </button>
+                </a>
+                
+                <!-- 모바일 토글 버튼 -->
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                
+                <!-- 네비게이션 메뉴 -->
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="./index.html">홈</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="./music.html">음원</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="./artists.html">아티스트</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="./guide.html">이용방법</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="./about.html">소개</a>
+                        </li>
+                    </ul>
+                    
+                    <!-- 로그인/회원가입 버튼 (비로그인 상태) -->
+                    <div class="auth-buttons d-flex gap-2">
+                        <a href="./login.html" class="btn btn-login auth-btn">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>로그인
+                        </a>
+                        <a href="./signup.html" class="btn btn-signup auth-btn">
+                            <i class="bi bi-person-plus me-1"></i>회원가입
+                        </a>
                     </div>
                 </div>
-            `;
-        } catch (e) {
-            userHtml = `
-                <div class="auth-buttons">
-                    <a href="login.html" class="auth-btn login-btn">로그인</a>
-                    <a href="signup.html" class="auth-btn signup-btn">회원가입</a>
+            </div>
+        </nav>
+    `;
+    
+    document.body.insertAdjacentHTML('afterbegin', headerHTML);
+    
+    // 로그인 상태 확인
+    checkAuthState();
+}
+
+// 인증 상태 확인 및 UI 업데이트
+function checkAuthState() {
+    const authToken = localStorage.getItem('auth_token');
+    const userData = JSON.parse(localStorage.getItem('user_data') || 'null');
+    
+    if (authToken && userData) {
+        // 로그인된 상태: 로그인/회원가입 버튼 대신 사용자 정보 표시
+        const authButtons = document.querySelector('.auth-buttons');
+        if (authButtons) {
+            authButtons.innerHTML = `
+                <div class="d-flex align-items-center gap-3">
+                    <div class="user-info d-flex align-items-center gap-2">
+                        <div class="user-avatar" style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #7c4dff, #536dfe); display: flex; align-items: center; justify-content: center; font-weight: 600; color: white;">
+                            ${userData.name ? userData.name.charAt(0).toUpperCase() : 'U'}
+                        </div>
+                        <div class="user-details d-none d-md-block">
+                            <div class="user-name" style="font-size: 0.9rem; font-weight: 600;">${userData.name || '사용자'}</div>
+                            <div class="user-balance" style="font-size: 0.8rem; color: #00e5ff; font-weight: 600;">
+                                <i class="bi bi-currency-exchange"></i>
+                                ${userData.balance ? userData.balance.toLocaleString() : '0'} TL
+                            </div>
+                        </div>
+                    </div>
+                    <a href="./dashboard.html" class="btn btn-primary auth-btn" style="padding: 6px 16px;">
+                        <i class="bi bi-speedometer2 me-1"></i>대시보드
+                    </a>
+                    <a href="#" class="btn btn-outline-light auth-btn" onclick="logoutUser()" style="padding: 6px 16px;">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </a>
                 </div>
             `;
         }
-    } else {
-        userHtml = `
-            <div class="auth-buttons">
-                <a href="login.html" class="auth-btn login-btn">로그인</a>
-                <a href="signup.html" class="auth-btn signup-btn">회원가입</a>
-            </div>
-        `;
-    }
-    
-    // 네비게이션 HTML
-    return `
-        <div style="width: 100%;">
-            <header class="main-header">
-                <div class="nav-container">
-                    <!-- 로고 -->
-                    <div class="logo">
-                        <a href="index.html">TIMELINK</a>
-                    </div>
-                    
-                    <!-- 모바일 메뉴 토글 -->
-                    <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
-                    
-                    <!-- 메인 메뉴 -->
-                    <div class="nav-menu-container">
-                        <nav>
-                            <ul class="main-menu">
-                                <li class="menu-item">
-                                    <a href="index.html" class="menu-link">
-                                        <span>🏠</span><span class="menu-text">HOME</span>
-                                    </a>
-                                </li>
-                                <li class="menu-item">
-                                    <a href="studio.html" class="menu-link">
-                                        <span>🎵</span><span class="menu-text">STUDIO</span>
-                                    </a>
-                                </li>
-                                <li class="menu-item">
-                                    <a href="musicplace.html" class="menu-link">
-                                        <span>🎧</span><span class="menu-text">MUSIC</span>
-                                    </a>
-                                </li>
-                                <li class="menu-item">
-                                    <a href="tltube.html" class="menu-link">
-                                        <span>🎬</span><span class="menu-text">TUBE</span>
-                                    </a>
-                                </li>
-                                <li class="menu-item">
-                                    <a href="dashboard.html" class="menu-link">
-                                        <span>📊</span><span class="menu-text">DASH</span>
-                                    </a>
-                                </li>
-                                <li class="menu-item">
-                                    <a href="charge.html" class="menu-link">
-                                        <span>⚡</span><span class="menu-text">CHARGE</span>
-                                    </a>
-                                </li>
-                            </ul>
-                        </nav>
-                    </div>
-                    
-                    <!-- 사용자 섹션 -->
-                    <div class="user-section">
-                        ${userHtml}
-                    </div>
-                </div>
-            </header>
-            <div class="header-banner">
-                <div class="banner-content">
-                    <h1 class="banner-title">TimeLink</h1>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// 드롭다운 메뉴 토글
-function toggleUserMenu() {
-    const menu = document.querySelector('.user-dropdown-menu');
-    if (menu) {
-        menu.classList.toggle('show');
     }
 }
 
-// 모바일 메뉴 토글
-function toggleMobileMenu() {
-    const mobileMenu = document.querySelector('.mobile-menu');
-    if (mobileMenu) {
-        mobileMenu.classList.toggle('active');
-    }
+// 로그아웃 함수
+function logoutUser() {
+    // 로컬 스토리지 정리
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user_data');
+    localStorage.removeItem('user_email');
+    localStorage.removeItem('remember_me');
+    localStorage.removeItem('saved_email');
+    
+    // 페이지 새로고침
+    window.location.reload();
 }
 
-// 페이지 초기화
-function initNavigation() {
-    console.log("네비게이션 초기화 시작");
-    
-    // 네비게이션 생성
-    const navHTML = createNavigation();
-    
-    // body 시작 부분에 삽입
-    const container = document.createElement('div');
-    container.innerHTML = navHTML;
-    
-    if (document.body.firstChild) {
-        document.body.insertBefore(container, document.body.firstChild);
-    } else {
-        document.body.appendChild(container);
-    }
-    
-    console.log("네비게이션 추가 완료");
-}
-
-// DOM 로드 시 실행
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initNavigation);
-} else {
-    setTimeout(initNavigation, 100);
-}
-
-// 전역 함수
-window.createNavigation = createNavigation;
-window.initNavigation = initNavigation;
-
+// DOM이 로드되면 헤더 생성
+document.addEventListener('DOMContentLoaded', createHeader);
