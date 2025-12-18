@@ -24,19 +24,22 @@ function createHeader() {
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav me-auto">
                         <li class="nav-item">
-                            <a class="nav-link active" href="./index.html">홈</a>
+                            <a class="nav-link active" href="./index.html">HOME</a>
+                       </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="./studio.html">STUDIO</a>
+                       </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="./musicplace.html">MUSIC</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="./music.html">음원</a>
+                            <a class="nav-link" href="./tltube.html">TUBE</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="./artists.html">아티스트</a>
+                            <a class="nav-link" href="./dashboard.html">DASHBOARD</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="./guide.html">이용방법</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="./about.html">소개</a>
+                            <a class="nav-link" href="./charge.html">CHARGE</a>
                         </li>
                     </ul>
                     
