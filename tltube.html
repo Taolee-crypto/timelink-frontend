@@ -1077,34 +1077,76 @@
             console.log("이벤트 리스너 설정 완료");
         }
 
-        function setupNavigation() {
-            console.log("네비게이션 설정");
-            
-            // 네비게이션 메뉴 클릭
-            document.querySelectorAll('.menu-link').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    // 모든 메뉴에서 active 제거
-                    document.querySelectorAll('.menu-link').forEach(l => {
-                        l.classList.remove('active');
-                    });
-                    
-                    // 현재 메뉴에 active 추가
-                    this.classList.add('active');
-                    
-                    const page = this.getAttribute('data-page');
-                    handlePageNavigation(page);
-                });
-            });
-            
-            // 로고 클릭
-            document.querySelector('.logo a').addEventListener('click', function(e) {
+     function setupNavigation() {
+    console.log("네비게이션 설정 - 페이지 이동 허용");
+    
+    // 현재 페이지 하이라이트 설정
+    setActiveMenu();
+    
+    // 네비게이션 메뉴 클릭 - 페이지 이동 허용
+    document.querySelectorAll('.menu-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            // 현재 페이지면 이동 막기
+            if (this.classList.contains('active')) {
                 e.preventDefault();
-                showNotification("홈페이지로 이동합니다!", "success");
-                // 실제로는 window.location.href = 'index.html';
-            });
+                console.log("현재 페이지입니다.");
+                return;
+            }
+            
+            // href 확인
+            const href = this.getAttribute('href');
+            if (!href || href === 'javascript:void(0)' || href === '#') {
+                e.preventDefault();
+                console.log("유효한 링크가 없습니다.");
+                showNotification("해당 페이지는 준비 중입니다.", "warning");
+            } else {
+                console.log(href + " 로 이동합니다.");
+                // 브라우저가 자동으로 이동 처리
+            }
+        });
+    });
+    
+    // 로고 클릭
+    document.querySelector('.logo a').addEventListener('click', function(e) {
+        // TUBE 페이지에서 홈으로 가려는 경우
+        if (this.getAttribute('href') === 'index.html') {
+            console.log("홈페이지로 이동합니다.");
+            // 브라우저가 자동으로 처리
         }
+    });
+}
+
+// 현재 페이지 하이라이트 함수
+function setActiveMenu() {
+    const currentPage = window.location.pathname.split('/').pop() || 'tltube.html';
+    console.log("현재 페이지:", currentPage);
+    
+    // 모든 메뉴에서 active 클래스 제거
+    document.querySelectorAll('.menu-link').forEach(link => {
+        link.classList.remove('active');
+    });
+    
+    // 현재 페이지에 맞는 메뉴 활성화
+    let activeMenu = null;
+    
+    if (currentPage.includes('index')) {
+        activeMenu = document.querySelector('[href="index.html"]');
+    } else if (currentPage.includes('tltube') || currentPage.includes('tube')) {
+        activeMenu = document.querySelector('[href="tltube.html"]');
+    } else if (currentPage.includes('studio')) {
+        activeMenu = document.querySelector('[href="studio.html"]');
+    } else if (currentPage.includes('music')) {
+        activeMenu = document.querySelector('[href="music.html"]');
+    } else if (currentPage.includes('dashboard')) {
+        activeMenu = document.querySelector('[href="dashboard.html"]');
+    } else if (currentPage.includes('charge')) {
+        activeMenu = document.querySelector('[href="charge.html"]');
+    }
+    
+    if (activeMenu) {
+        activeMenu.classList.add('active');
+    }
+}
 
         function handlePageNavigation(page) {
             const messages = {
