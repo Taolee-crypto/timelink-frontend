@@ -1,268 +1,108 @@
-// TimeLink 인증 모듈
-const API_BASE_URL = 'http://localhost:3003';
+// 인증 관련 JavaScript
+const API_BASE_URL = 'https://timelink-backend.timelink-api.workers.dev';
 
-// 이메일 유효성 검사
-function validateEmail(email) {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-}
-
-// 비밀번호 강도 검사
-function checkPasswordStrength(password) {
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (/[A-Z]/.test(password)) strength++;
-    if (/[0-9]/.test(password)) strength++;
-    if (/[^A-Za-z0-9]/.test(password)) strength++;
-    
-    return {
-        score: strength,
-        level: strength < 2 ? 'weak' : strength < 4 ? 'medium' : 'strong'
-    };
-}
-
-// 회원가입 함수
-export async function signup(userData) {
+// 이메일 인증
+async function verifyEmail(email, verificationCode) {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
+        const response = await fetch(API_BASE_URL + '/api/verify-email', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(userData)
+            body: JSON.stringify({
+                email: email,
+                verificationCode: verificationCode
+            })
         });
         
         const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || '회원가입에 실패했습니다.');
-        }
-        
-        return {
-            success: true,
-            data: data,
-            email: userData.email
-        };
+        return { response, data };
         
     } catch (error) {
-        return {
-            success: false,
-            error: error.message
-        };
+        console.error('이메일 인증 에러:', error);
+        throw error;
     }
 }
 
-// 이메일 인증 확인 함수
-export async function verifyEmail(email, code) {
+// 인증번호 재발송
+async function resendVerification(email) {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/verify-email`, {
+        const response = await fetch(API_BASE_URL + '/api/resend-verification', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ email, code })
+            body: JSON.stringify({ email: email })
         });
         
         const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || '인증에 실패했습니다.');
-        }
-        
-        return {
-            success: true,
-            data: data
-        };
+        return { response, data };
         
     } catch (error) {
-        return {
-            success: false,
-            error: error.message
-        };
+        console.error('인증번호 재발송 에러:', error);
+        throw error;
     }
 }
 
-// 로그인 함수
-export async function login(email, password) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email, password })
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || '로그인에 실패했습니다.');
+// 페이지 로드 시 인증 처리
+document.addEventListener('DOMContentLoaded', function() {
+    // verify.html 페이지에서 실행
+    if (window.location.pathname.includes('verify.html')) {
+        const verifyForm = document.getElementById('verifyForm');
+        if (verifyForm) {
+            verifyForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const email = localStorage.getItem('pending_email');
+                const authCode = document.getElementById('authCode').value;
+                
+                if (!email || !authCode) {
+                    alert('이메일과 인증번호를 입력해주세요.');
+                    return;
+                }
+                
+                // 로딩 상태
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalHTML = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 인증 중...';
+                
+                try {
+                    const { response, data } = await verifyEmail(email, authCode);
+                    
+                    if (response.ok && data.success) {
+                        alert('이메일 인증이 완료되었습니다!');
+                        localStorage.removeItem('pending_email');
+                        
+                        // 로그인 페이지로 이동
+                        setTimeout(() => {
+                            window.location.href = 'login.html?verified=true';
+                        }, 1000);
+                        
+                    } else {
+                        alert(data.error || '인증에 실패했습니다.');
+                    }
+                    
+                } catch (error) {
+                    alert('서버 연결에 실패했습니다.');
+                    console.error('인증 에러:', error);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalHTML;
+                }
+            });
         }
         
-        // 로컬 스토리지에 인증 정보 저장
-        if (data.token) {
-            localStorage.setItem('timelink_token', data.token);
-            localStorage.setItem('timelink_user', JSON.stringify(data.user));
-            localStorage.setItem('timelink_auth', 'true');
+        // 자동으로 테스트용 인증번호 입력 (개발 모드)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('dev') === 'true') {
+            document.getElementById('authCode').value = '123456';
         }
-        
-        return {
-            success: true,
-            data: data
-        };
-        
-    } catch (error) {
-        return {
-            success: false,
-            error: error.message
-        };
     }
-}
+});
 
-// 로그아웃 함수
-export function logout() {
-    localStorage.removeItem('timelink_token');
-    localStorage.removeItem('timelink_user');
-    localStorage.removeItem('timelink_auth');
-    window.location.href = 'login.html';
-}
-
-// 인증 상태 확인
-export function checkAuth() {
-    const token = localStorage.getItem('timelink_token');
-    const auth = localStorage.getItem('timelink_auth');
-    const user = localStorage.getItem('timelink_user');
-    
-    return {
-        isAuthenticated: !!(token && auth === 'true'),
-        user: user ? JSON.parse(user) : null,
-        token: token
-    };
-}
-
-// 인증이 필요한 페이지에서 호출
-export function requireAuth(redirectUrl = 'login.html') {
-    const auth = checkAuth();
-    if (!auth.isAuthenticated) {
-        window.location.href = redirectUrl;
-        return false;
-    }
-    return true;
-}
-
-// 사용자 정보 가져오기
-export function getUserInfo() {
-    const user = localStorage.getItem('timelink_user');
-    return user ? JSON.parse(user) : null;
-}
-
-// 토큰 가져오기
-export function getToken() {
-    return localStorage.getItem('timelink_token');
-}
-
-// 이메일 재전송 함수
-export async function resendVerificationEmail(email) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/resend-verification`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email })
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || '이메일 재전송에 실패했습니다.');
-        }
-        
-        return {
-            success: true,
-            data: data
-        };
-        
-    } catch (error) {
-        return {
-            success: false,
-            error: error.message
-        };
-    }
-}
-
-// 비밀번호 재설정 요청
-export async function requestPasswordReset(email) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/request-password-reset`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email })
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || '비밀번호 재설정 요청에 실패했습니다.');
-        }
-        
-        return {
-            success: true,
-            data: data
-        };
-        
-    } catch (error) {
-        return {
-            success: false,
-            error: error.message
-        };
-    }
-}
-
-// 비밀번호 재설정 확인
-export async function resetPassword(token, newPassword) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ token, newPassword })
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || '비밀번호 재설정에 실패했습니다.');
-        }
-        
-        return {
-            success: true,
-            data: data
-        };
-        
-    } catch (error) {
-        return {
-            success: false,
-            error: error.message
-        };
-    }
-}
-
-export default {
-    validateEmail,
-    checkPasswordStrength,
-    signup,
+// 전역에 노출
+window.auth = {
     verifyEmail,
-    login,
-    logout,
-    checkAuth,
-    requireAuth,
-    getUserInfo,
-    getToken,
-    resendVerificationEmail,
-    requestPasswordReset,
-    resetPassword
+    resendVerification
 };
