@@ -51,82 +51,113 @@
     </div>
 
     <script>
-        // 전역 변수 제거 - 완전 독립
-        const loginForm = document.getElementById('loginForm');
-        const alertDiv = document.getElementById('alert');
+    // API 설정
+    const API_BASE_URL = 'https://timelink-backend.timelink-api.workers.dev';
+    
+    // DOM 요소
+    const loginForm = document.getElementById('loginForm');
+    const alertDiv = document.getElementById('alert');
+    
+    // 페이지 로드 시
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('email').focus();
+    });
+    
+    // 로그인 폼 제출
+    loginForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
         
-        loginForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const submitBtn = this.querySelector('button[type="submit"]');
+        
+        // 유효성 검사
+        if (!validateEmail(email)) {
+            showAlert('유효한 이메일을 입력해주세요.', 'error');
+            return;
+        }
+        
+        if (password.length < 6) {
+            showAlert('비밀번호는 6자 이상이어야 합니다.', 'error');
+            return;
+        }
+        
+        // 로딩 상태
+        submitBtn.disabled = true;
+        const originalHTML = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="bi bi-arrow-repeat spinner"></i> 로그인 중...';
+        
+        showAlert('로그인 중입니다...', 'info');
+        
+        try {
+            // 진짜 API 호출
+            const response = await fetch(API_BASE_URL + '/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: password
+                })
+            });
             
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
+            const data = await response.json();
             
-            // 유효성 검사
-            if (!validateEmail(email)) {
-                showAlert('유효한 이메일 주소를 입력해주세요.', 'error');
-                return;
-            }
-            
-            if (password.length < 6) {
-                showAlert('비밀번호는 6자 이상이어야 합니다.', 'error');
-                return;
-            }
-            
-            // 로그인 처리
-            showAlert('로그인 중입니다...', 'success');
-            
-            try {
-                // 실제 API 호출 (테스트용 가짜)
-                await fakeLoginAPI(email, password);
+            if (response.ok && data.success) {
+                showAlert('로그인 성공!', 'success');
                 
-                showAlert('로그인 성공! 대시보드로 이동합니다.', 'success');
+                // 사용자 정보 저장
+                if (data.token) {
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('user_email', email);
+                    localStorage.setItem('user_nickname', data.user?.nickname || '');
+                }
                 
                 // 1초 후 대시보드로 이동
                 setTimeout(() => {
                     window.location.href = 'dashboard.html';
                 }, 1000);
                 
-            } catch (error) {
-                showAlert(error.message, 'error');
+            } else {
+                showAlert(data.error || '로그인에 실패했습니다.', 'error');
             }
-        });
-        
-        function validateEmail(email) {
-            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return re.test(email);
-        }
-        
-        function showAlert(message, type) {
-            alertDiv.textContent = message;
-            alertDiv.className = `alert alert-${type} show`;
             
-            // 3초 후 알림 제거
-            setTimeout(() => {
-                alertDiv.classList.remove('show');
-            }, 3000);
+        } catch (error) {
+            console.error('로그인 오류:', error);
+            showAlert('서버 연결에 실패했습니다.', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalHTML;
         }
+    });
+    
+    // 유효성 검사 함수
+    function validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+    
+    // 알림 표시 함수
+    function showAlert(message, type) {
+        alertDiv.textContent = message;
+        alertDiv.className = `alert alert-${type} show`;
         
-        async function fakeLoginAPI(email, password) {
-            // 가짜 API 응답 (테스트용)
-            return new Promise((resolve, reject) => {
-                setTimeout(() => {
-                    // 테스트용 - 특정 이메일/비밀번호 허용
-                    if (email === 'test@timelink.com' && password === 'password123') {
-                        resolve({ success: true, token: 'fake-jwt-token' });
-                    } else {
-                        reject(new Error('이메일 또는 비밀번호가 잘못되었습니다.'));
-                    }
-                }, 500);
-            });
+        setTimeout(() => {
+            alertDiv.classList.remove('show');
+        }, 3000);
+    }
+    
+    // 엔터키 지원
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && document.activeElement.id === 'password') {
+            loginForm.requestSubmit();
         }
-        
-        // 페이지 로드 시 포커스
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('email').focus();
-        });
-    </script>
+    });
+</script>
 </body>
 </html>
+
 
 
 
