@@ -92,6 +92,116 @@
             cursor: pointer !important;
         }
     </style>
+    <script>
+        // 페이지 로드 시 사용자 정보 설정
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('대시보드 로드됨');
+            
+            // localStorage에서 사용자 정보 가져오기
+            const userEmail = localStorage.getItem('user_email') || 'ceo@timelink.digital';
+            const userNickname = localStorage.getItem('user_nickname') || 'CEO';
+            
+            // 사용자 정보 표시
+            const navUserName = document.getElementById('navUserName');
+            const profileName = document.getElementById('profileName');
+            const profileEmail = document.getElementById('profileEmail');
+            
+            if (navUserName) navUserName.textContent = userNickname + '님';
+            if (profileName) profileName.textContent = userNickname + '님';
+            if (profileEmail) profileEmail.textContent = userEmail;
+            
+            // 아바타 이니셜 설정
+            const avatarInitial = userNickname.charAt(0).toUpperCase();
+            const avatarIcons = document.querySelectorAll('.user-avatar, .profile-avatar');
+            avatarIcons.forEach(icon => {
+                icon.innerHTML = '<span style="font-size:24px;font-weight:bold;">' + avatarInitial + '</span>';
+            });
+            
+            // 드롭다운 토글 - 수정된 버전
+            const userToggle = document.getElementById('userToggle');
+            const userDropdown = document.getElementById('userDropdown');
+            
+            if (userToggle && userDropdown) {
+                console.log('드롭다운 요소 찾음');
+                
+                // 토글 클릭 이벤트
+                userToggle.addEventListener('click', function(e) {
+                    console.log('토글 클릭됨');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // 다른 드롭다운 닫기
+                    document.querySelectorAll('.user-dropdown').forEach(dropdown => {
+                        if (dropdown !== userDropdown) {
+                            dropdown.style.display = 'none';
+                        }
+                    });
+                    
+                    // 현재 드롭다운 토글
+                    userDropdown.style.display = userDropdown.style.display === 'block' ? 'none' : 'block';
+                });
+                
+                // 문서 클릭 시 드롭다운 닫기 (수정)
+                document.addEventListener('click', function(e) {
+                    if (userDropdown && userDropdown.style.display === 'block') {
+                        // 클릭된 요소가 드롭다운이나 토글 내부가 아닌 경우에만 닫기
+                        if (!userToggle.contains(e.target) && !userDropdown.contains(e.target)) {
+                            console.log('외부 클릭 - 드롭다운 닫기');
+                            userDropdown.style.display = 'none';
+                        }
+                    }
+                });
+                
+                // 드롭다운 항목 클릭 시 드롭다운 닫기
+                userDropdown.addEventListener('click', function(e) {
+                    if (e.target.tagName === 'A' || e.target.closest('a')) {
+                        console.log('드롭다운 항목 클릭 - 드롭다운 닫기');
+                        setTimeout(() => {
+                            userDropdown.style.display = 'none';
+                        }, 100);
+                    }
+                });
+            }
+            
+            // 강력한 로그아웃 기능
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    if (confirm('정말 로그아웃 하시겠습니까?')) {
+                        console.log('로그아웃 실행');
+                        
+                        // 모든 저장소 클리어
+                        localStorage.clear();
+                        sessionStorage.clear();
+                        
+                        // 쿠키 삭제
+                        document.cookie.split(";").forEach(function(c) {
+                            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                        });
+                        
+                        // 캐시 방지를 위한 랜덤 파라미터
+                        const nocache = Date.now();
+                        
+                        // 로그인 페이지로 강제 이동
+                        window.location.href = 'login.html?logout=true&nocache=' + nocache;
+                    }
+                });
+            }
+            
+            // 인증 체크 (토큰이 없으면 로그인 페이지로)
+            const authToken = localStorage.getItem('auth_token');
+            const storedEmail = localStorage.getItem('user_email');
+            
+            if (!authToken || !storedEmail) {
+                console.log('인증 토큰 없음 - 로그인 페이지로 이동');
+                window.location.href = 'login.html?error=no_auth';
+                return;
+            }
+        });
+    </script>
 </head>
 <body>
     <!-- 네비게이션 -->
@@ -359,6 +469,7 @@
     <script type='module' src="src/scripts/dashboard.js"></script>
 </body>
 </html>
+
 
 
 
