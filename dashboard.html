@@ -300,18 +300,50 @@
                 }
             });
             
-            // 로그아웃 기능
+                        // 강력한 로그아웃 기능
             const logoutBtn = document.getElementById('logoutBtn');
             logoutBtn.addEventListener('click', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 
-                if (confirm('로그아웃 하시겠습니까?')) {
-                    // localStorage 클리어
+                if (confirm('정말 로그아웃 하시겠습니까?')) {
+                    // 모든 저장소 클리어
                     localStorage.clear();
+                    sessionStorage.clear();
                     
-                    // 로그인 페이지로 이동
-                    window.location.href = 'login.html?logout=true';
+                    // 쿠키 삭제
+                    document.cookie.split(";").forEach(function(c) {
+                        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                    });
+                    
+                    // 캐시 방지를 위한 랜덤 파라미터
+                    const nocache = Date.now();
+                    
+                    // 로그인 페이지로 강제 이동 (히스토리 클리어)
+                    window.location.replace('login.html?logout=true&nocache=' + nocache);
                 }
+            });
+            
+            // 인증 강력 체크
+            const authToken = localStorage.getItem('auth_token');
+            const userEmail = localStorage.getItem('user_email');
+            
+            if (!authToken || !userEmail) {
+                // 토큰이 없으면 즉시 로그인 페이지로
+                window.location.href = 'login.html?error=no_auth';
+                return;
+            }
+            
+            // 토큰 만료 체크 (간단한 버전)
+            const tokenTime = localStorage.getItem('token_time');
+            if (tokenTime) {
+                const tokenAge = Date.now() - parseInt(tokenTime);
+                if (tokenAge > 24 * 60 * 60 * 1000) { // 24시간 이상
+                    localStorage.clear();
+                    window.location.href = 'login.html?error=token_expired';
+                    return;
+                }
+            }
             });
             
             // 인증 체크 (토큰이 없으면 로그인 페이지로)
@@ -327,5 +359,6 @@
     <script type='module' src="src/scripts/dashboard.js"></script>
 </body>
 </html>
+
 
 
