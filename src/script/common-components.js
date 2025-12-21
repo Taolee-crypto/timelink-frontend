@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+=======
+# common-components.js 파일 생성
+$commonJS = @'
+>>>>>>> e624bb6efad0e779cacc6f07c2f7aa6837a6e1f0
 // TimeLink 통합 네비게이션 시스템
 (function() {
     console.log("TimeLink 네비게이션 시스템 로드 중...");
@@ -203,3 +208,9 @@
     // 리사이즈 시 콘텐츠 여백 조정
     window.addEventListener('resize', adjustContentMargin);
 })();
+'@
+
+# common-components.js 파일 저장
+New-Item -Path "src/script" -ItemType Directory -Force
+$commonJS | Set-Content -Path "src/script/common-components.js" -Encoding UTF8
+Write-Host "✓ common-components.js 파일 생성 완료" -ForegroundColor Green
