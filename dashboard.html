@@ -9,35 +9,92 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
  <!-- dashboard.html의 스크립트 부분에 이 코드 추가 -->
-<script>
-// 강력한 로그아웃 함수
-function forceLogout() {
-    // 1. 모든 로컬 데이터 삭제
-    localStorage.clear();
-    sessionStorage.clear();
-    
-    // 2. 쿠키 삭제
-    document.cookie.split(";").forEach(function(c) {
-        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-    });
-    
-    // 3. 캐시 무시하고 로그인 페이지로 이동
-    window.location.href = 'login.html?logout=true&t=' + Date.now();
-    window.location.replace('login.html'); // 히스토리 제거
+<!-- dashboard.html의 head에 추가 -->
+<style>
+/* 사용자 인터페이스 고정 */
+.user-toggle-container {
+    display: flex !important;
+    align-items: center !important;
+    min-width: 150px !important;
+    max-width: 200px !important;
 }
 
-// 로그아웃 버튼에 연결
-document.getElementById('logoutBtn').addEventListener('click', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
+.user-display {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 0 !important; /* flexbox에서 넘침 허용 */
+}
+
+.user-name-text {
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 80px !important;
+    display: block !important;
+    line-height: 1.3 !important;
+}
+
+.user-avatar-box {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 50% !important;
+    background: #29C4A9 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 13px !important;
+    flex-shrink: 0 !important;
+}
+</style>
+
+<!-- HTML 구조 수정 -->
+<div class="nav-user user-menu-container">
+    <div class="user-toggle" id="userToggle">
+        <div class="user-display">
+            <span class="user-name-text" id="navUserName">사용자님</span>
+            <div class="user-avatar-box">
+                <span id="avatarInitial">U</span>
+            </div>
+            <i class="bi bi-chevron-down" style="font-size: 11px;"></i>
+        </div>
+    </div>
     
-    if (confirm('로그아웃 하시겠습니까?')) {
-        // 드롭다운 닫기
-        document.getElementById('userDropdown').style.display = 'none';
-        // 로그아웃 실행
-        forceLogout();
+    <div class="user-dropdown" id="userDropdown">
+        <!-- 드롭다운 내용 -->
+    </div>
+</div>
+
+<script>
+// 사용자 정보 업데이트
+function updateUserDisplay() {
+    const userEmail = localStorage.getItem('user_email');
+    const userNickname = localStorage.getItem('user_nickname');
+    
+    // 캐시가 남아있으면 강제 삭제
+    if (!userEmail || userEmail === 'ceo@timelink.digital') {
+        localStorage.removeItem('user_email');
+        localStorage.removeItem('user_nickname');
+        localStorage.removeItem('auth_token');
+        
+        // 기본값 설정
+        document.getElementById('navUserName').textContent = '로그인하세요';
+        document.getElementById('avatarInitial').textContent = '?';
+        return;
     }
-});
+    
+    // 정상적인 사용자 정보 표시
+    if (userNickname) {
+        const displayName = userNickname.length > 5 ? 
+            userNickname.substring(0, 5) + '...' : userNickname;
+        document.getElementById('navUserName').textContent = displayName + '님';
+        document.getElementById('avatarInitial').textContent = userNickname.charAt(0).toUpperCase();
+    }
+}
 </script>
 </head>
 <body>
