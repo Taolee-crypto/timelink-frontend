@@ -2639,9 +2639,330 @@
     <script src="src/script/auth.js"></script>
     <script src="src/script/common-components.js"></script>
     <script src="src/script/auth.js"></script>
+<!-- Deconomic 업로드 옵션 -->
+<div class="deconomic-option" style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #7C3AED, #06B6D4); border-radius: 15px; color: white;">
+    <h3 style="margin-top: 0;">🚀 Deconomic으로 업그레이드</h3>
+    <p>파일을 TL 자산으로 변환하고 수익을 창출하세요!</p>
+    
+    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px; margin: 15px 0;">
+        <h4>📁 파일 정보</h4>
+        <input type="text" id="deco-title" placeholder="자산 제목" style="width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none;">
+        
+        <select id="deco-type" style="width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none;">
+            <option value="audio">🎵 음악 파일 (TL3)</option>
+            <option value="video">🎥 영상 파일 (TL4)</option>
+            <option value="document">📄 문서 파일 (TLD)</option>
+            <option value="image">🖼️ 이미지 파일 (TLI)</option>
+            <option value="ebook">📚 E-Book 파일 (TLE)</option>
+        </select>
+        
+        <input type="email" id="deco-email" placeholder="등록할 이메일" style="width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none;">
+    </div>
+    
+    <button onclick="uploadToDeconomic()" style="background: white; color: #7C3AED; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%;">
+        ⚡ Deconomic 자산으로 변환하기
+    </button>
+    
+    <div id="deco-result" style="margin-top: 15px; display: none;"></div>
+</div>
+
+<script>
+// Deconomic API
+const DECONOMIC_API = 'https://deconomic-api.timelink-api.workers.dev';
+
+async function uploadToDeconomic() {
+    const title = document.getElementById('deco-title').value;
+    const fileType = document.getElementById('deco-type').value;
+    const email = document.getElementById('deco-email').value;
+    
+    if (!title || !email) {
+        alert('제목과 이메일을 입력해주세요');
+        return;
+    }
+    
+    const resultDiv = document.getElementById('deco-result');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<p>⏳ 처리 중...</p>';
+    
+    try {
+        // 1. 사용자 확인 또는 생성
+        const signupResponse = await fetch(`${DECONOMIC_API}/api/auth/signup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                email: email, 
+                username: email.split('@')[0] 
+            })
+        });
+        
+        const signupData = await signupResponse.json();
+        
+        if (!signupData.success && signupData.error !== '이미 존재하는 사용자입니다') {
+            throw new Error('사용자 등록 실패: ' + signupData.error);
+        }
+        
+        // 2. 자산 생성
+        const assetResponse = await fetch(`${DECONOMIC_API}/api/assets`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                title: title, 
+                fileType: fileType, 
+                uploaderEmail: email 
+            })
+        });
+        
+        const assetData = await assetResponse.json();
+        
+        if (assetData.success) {
+            resultDiv.innerHTML = `
+                <div style="background: rgba(255,255,255,0.9); color: #333; padding: 15px; border-radius: 10px;">
+                    <h4 style="color: #7C3AED; margin-top: 0;">✅ 변환 완료!</h4>
+                    <p><strong>자산 ID:</strong> ${assetData.asset.id}</p>
+                    <p><strong>TL 타입:</strong> ${assetData.asset.tlType}</p>
+                    <p><strong>상태:</strong> ${assetData.asset.status}</p>
+                    <p><strong>다음 단계:</strong> TL을 충전하여 자산을 활성화하세요!</p>
+                    
+                    <div style="margin-top: 15px;">
+                        <input type="number" id="tl-amount" placeholder="충전할 TL 수량" value="1000" style="padding: 8px; width: 60%; margin-right: 10px;">
+                        <button onclick="chargeAsset('${email}', '${assetData.asset.id}')" style="background: #EC4899; color: white; border: none; padding: 8px 15px; border-radius: 5px;">
+                            💰 TL 충전하기
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // TL 잔액 정보 저장
+            if (signupData.success && signupData.user) {
+                localStorage.setItem('deconomic_user', JSON.stringify(signupData.user));
+                localStorage.setItem('deconomic_session', signupData.sessionId);
+                localStorage.setItem('tl_balance', signupData.user.tlBalance);
+            }
+            
+        } else {
+            throw new Error('자산 생성 실패: ' + assetData.error);
+        }
+        
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div style="background: rgba(255,0,0,0.1); color: #d00; padding: 15px; border-radius: 10px;">
+                <p>❌ 오류 발생</p>
+                <p>${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+async function chargeAsset(email, assetId) {
+    const amount = document.getElementById('tl-amount').value;
+    
+    if (!amount || amount < 1) {
+        alert('충전할 TL 수량을 입력해주세요');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${DECONOMIC_API}/api/tl/charge`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                email: email, 
+                amount: parseInt(amount), 
+                assetId: assetId 
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`🎉 ${amount} TL 충전 완료!\n자산이 활성화되어 수익 창출이 가능합니다!`);
+            
+            // TL 잔액 업데이트
+            if (data.user && data.user.tlBalance !== undefined) {
+                localStorage.setItem('tl_balance', data.user.tlBalance);
+                
+                const userStr = localStorage.getItem('deconomic_user');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    user.tlBalance = data.user.tlBalance;
+                    localStorage.setItem('deconomic_user', JSON.stringify(user));
+                }
+            }
+            
+            // 페이지 새로고침 또는 리다이렉트
+            window.location.href = 'dashboard.html';
+        } else {
+            alert('TL 충전 실패: ' + data.error);
+        }
+    } catch (error) {
+        alert('충전 중 오류: ' + error.message);
+    }
+}
+</script>
 </body>
 
     <script type="module" src="./src/script/common-components.js"></script>
+<!-- Deconomic 업로드 옵션 -->
+<div class="deconomic-option" style="margin: 20px 0; padding: 20px; background: linear-gradient(135deg, #7C3AED, #06B6D4); border-radius: 15px; color: white;">
+    <h3 style="margin-top: 0;">🚀 Deconomic으로 업그레이드</h3>
+    <p>파일을 TL 자산으로 변환하고 수익을 창출하세요!</p>
+    
+    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px; margin: 15px 0;">
+        <h4>📁 파일 정보</h4>
+        <input type="text" id="deco-title" placeholder="자산 제목" style="width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none;">
+        
+        <select id="deco-type" style="width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none;">
+            <option value="audio">🎵 음악 파일 (TL3)</option>
+            <option value="video">🎥 영상 파일 (TL4)</option>
+            <option value="document">📄 문서 파일 (TLD)</option>
+            <option value="image">🖼️ 이미지 파일 (TLI)</option>
+            <option value="ebook">📚 E-Book 파일 (TLE)</option>
+        </select>
+        
+        <input type="email" id="deco-email" placeholder="등록할 이메일" style="width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none;">
+    </div>
+    
+    <button onclick="uploadToDeconomic()" style="background: white; color: #7C3AED; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%;">
+        ⚡ Deconomic 자산으로 변환하기
+    </button>
+    
+    <div id="deco-result" style="margin-top: 15px; display: none;"></div>
+</div>
+
+<script>
+// Deconomic API
+const DECONOMIC_API = 'https://deconomic-api.timelink-api.workers.dev';
+
+async function uploadToDeconomic() {
+    const title = document.getElementById('deco-title').value;
+    const fileType = document.getElementById('deco-type').value;
+    const email = document.getElementById('deco-email').value;
+    
+    if (!title || !email) {
+        alert('제목과 이메일을 입력해주세요');
+        return;
+    }
+    
+    const resultDiv = document.getElementById('deco-result');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<p>⏳ 처리 중...</p>';
+    
+    try {
+        // 1. 사용자 확인 또는 생성
+        const signupResponse = await fetch(`${DECONOMIC_API}/api/auth/signup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                email: email, 
+                username: email.split('@')[0] 
+            })
+        });
+        
+        const signupData = await signupResponse.json();
+        
+        if (!signupData.success && signupData.error !== '이미 존재하는 사용자입니다') {
+            throw new Error('사용자 등록 실패: ' + signupData.error);
+        }
+        
+        // 2. 자산 생성
+        const assetResponse = await fetch(`${DECONOMIC_API}/api/assets`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                title: title, 
+                fileType: fileType, 
+                uploaderEmail: email 
+            })
+        });
+        
+        const assetData = await assetResponse.json();
+        
+        if (assetData.success) {
+            resultDiv.innerHTML = `
+                <div style="background: rgba(255,255,255,0.9); color: #333; padding: 15px; border-radius: 10px;">
+                    <h4 style="color: #7C3AED; margin-top: 0;">✅ 변환 완료!</h4>
+                    <p><strong>자산 ID:</strong> ${assetData.asset.id}</p>
+                    <p><strong>TL 타입:</strong> ${assetData.asset.tlType}</p>
+                    <p><strong>상태:</strong> ${assetData.asset.status}</p>
+                    <p><strong>다음 단계:</strong> TL을 충전하여 자산을 활성화하세요!</p>
+                    
+                    <div style="margin-top: 15px;">
+                        <input type="number" id="tl-amount" placeholder="충전할 TL 수량" value="1000" style="padding: 8px; width: 60%; margin-right: 10px;">
+                        <button onclick="chargeAsset('${email}', '${assetData.asset.id}')" style="background: #EC4899; color: white; border: none; padding: 8px 15px; border-radius: 5px;">
+                            💰 TL 충전하기
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // TL 잔액 정보 저장
+            if (signupData.success && signupData.user) {
+                localStorage.setItem('deconomic_user', JSON.stringify(signupData.user));
+                localStorage.setItem('deconomic_session', signupData.sessionId);
+                localStorage.setItem('tl_balance', signupData.user.tlBalance);
+            }
+            
+        } else {
+            throw new Error('자산 생성 실패: ' + assetData.error);
+        }
+        
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div style="background: rgba(255,0,0,0.1); color: #d00; padding: 15px; border-radius: 10px;">
+                <p>❌ 오류 발생</p>
+                <p>${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+async function chargeAsset(email, assetId) {
+    const amount = document.getElementById('tl-amount').value;
+    
+    if (!amount || amount < 1) {
+        alert('충전할 TL 수량을 입력해주세요');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${DECONOMIC_API}/api/tl/charge`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                email: email, 
+                amount: parseInt(amount), 
+                assetId: assetId 
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`🎉 ${amount} TL 충전 완료!\n자산이 활성화되어 수익 창출이 가능합니다!`);
+            
+            // TL 잔액 업데이트
+            if (data.user && data.user.tlBalance !== undefined) {
+                localStorage.setItem('tl_balance', data.user.tlBalance);
+                
+                const userStr = localStorage.getItem('deconomic_user');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    user.tlBalance = data.user.tlBalance;
+                    localStorage.setItem('deconomic_user', JSON.stringify(user));
+                }
+            }
+            
+            // 페이지 새로고침 또는 리다이렉트
+            window.location.href = 'dashboard.html';
+        } else {
+            alert('TL 충전 실패: ' + data.error);
+        }
+    } catch (error) {
+        alert('충전 중 오류: ' + error.message);
+    }
+}
+</script>
 </html>
+
 
 

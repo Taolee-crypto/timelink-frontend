@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Deconomic API 테스트</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+        .card { background: white; padding: 20px; border-radius: 10px; margin: 10px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        button { background: linear-gradient(135deg, #7C3AED, #06B6D4); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Deconomic API 테스트</h1>
+    
+    <div class="card">
+        <h3>1. 헬스 체크</h3>
+        <button onclick="testHealth()">테스트</button>
+        <div id="healthResult"></div>
+    </div>
+    
+    <div class="card">
+        <h3>2. 사용자 등록</h3>
+        <input type="email" id="email" placeholder="이메일" value="test@deconomic.com">
+        <input type="text" id="username" placeholder="사용자명" value="테스트유저">
+        <button onclick="testSignup()">가입 테스트</button>
+        <div id="signupResult"></div>
+    </div>
+    
+    <script>
+        const DECONOMIC_API = 'https://deconomic-api.timelink-api.workers.dev';
+        
+        async function testHealth() {
+            try {
+                const response = await fetch(DECONOMIC_API + '/health');
+                const data = await response.json();
+                document.getElementById('healthResult').innerHTML = 
+                    `<p class="success">✅ API 정상: ${data.status}</p>
+                     <pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (e) {
+                document.getElementById('healthResult').innerHTML = 
+                    `<p class="error">❌ 오류: ${e.message}</p>`;
+            }
+        }
+        
+        async function testSignup() {
+            const email = document.getElementById('email').value;
+            const username = document.getElementById('username').value;
+            
+            try {
+                const response = await fetch(DECONOMIC_API + '/api/auth/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, username })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('signupResult').innerHTML = 
+                        `<p class="success">✅ 가입 성공!</p>
+                         <p>사용자: ${data.user.username}</p>
+                         <p>TL 잔액: ${data.user.tlBalance} TL</p>`;
+                } else {
+                    document.getElementById('signupResult').innerHTML = 
+                        `<p class="error">❌ 가입 실패: ${data.error}</p>`;
+                }
+            } catch (e) {
+                document.getElementById('signupResult').innerHTML = 
+                    `<p class="error">❌ 오류: ${e.message}</p>`;
+            }
+        }
+        
+        // 페이지 로드시 헬스 체크
+        testHealth();
+    </script>
+</body>
+</html>
