@@ -1886,92 +1886,182 @@
     <script src="src/script/auth.js"></script>
     <script src="src/script/common-components.js"></script>
 <script>
-// 실제 마켓플레이스 데이터 로드
+// 실제 마켓플레이스 데이터 (현재 API에 marketplace/list가 없으므로 로컬+가상 데이터)
 async function loadRealMarketplaceData() {
-    const genre = Marketplace.currentGenre === 'all' ? '' : Marketplace.currentGenre;
-    const search = document.getElementById('searchInput').value;
+    // 1. 로컬 TL 파일들 로드
+    const localFiles = JSON.parse(localStorage.getItem('timelink_tl_files') || '[]');
     
-    try {
-        const result = await window.RealTL.getMarketplaceFiles(genre, search);
-        
-        if (result.success && result.files) {
-            Marketplace.allFiles = result.files;
-            Marketplace.totalItems = result.files.length;
-            filterAndDisplayFiles();
-            updateStatistics();
-        } else {
-            showToast('마켓플레이스 데이터 로드 실패', 'error');
-            loadSampleData(); // 샘플 데이터 폴백
+    // 2. 사용자 정보로 TL 잔액 확인
+    const userEmail = localStorage.getItem('timelink_userEmail');
+    let userTLBalance = 10000;
+    
+    if (userEmail) {
+        try {
+            const userResponse = await fetch(\`https://deconomic-api.timelink-api.workers.dev/api/user?email=\${encodeURIComponent(userEmail)}\`);
+            const userData = await userResponse.json();
+            if (userData.success) {
+                userTLBalance = userData.user.tlBalance;
+                localStorage.setItem('timelink_tlBalance', userTLBalance);
+            }
+        } catch (error) {
+            console.log('사용자 정보 로드 실패, 기본값 사용');
         }
-    } catch (error) {
-        showToast('데이터 로드 실패: ' + error.message, 'error');
-        loadSampleData();
     }
+    
+    // 3. 마켓플레이스 데이터 구성 (로컬 + 샘플)
+    const marketplaceData = {
+        files: [],
+        stats: {
+            totalFiles: localFiles.length + 8,
+            activeListeners: Math.floor(Math.random() * 100) + 50,
+            totalEarnings: localFiles.length * 1000 + 50000,
+            todayEarnings: Math.floor(Math.random() * 5000) + 1000
+        },
+        userBalance: userTLBalance
+    };
+    
+    // 로컬 파일들을 마켓플레이스 형식으로 변환
+    localFiles.forEach(file => {
+        if (file.status === 'marketplace_registered') {
+            marketplaceData.files.push({
+                id: file.assetId,
+                assetId: file.assetId,
+                title: file.title || file.name,
+                artist: localStorage.getItem('timelink_nickname') || '로컬 사용자',
+                description: \`\${file.fileType} 파일 • TL\${file.tlType}\`,
+                fileType: file.fileType,
+                tlFormat: 'TL' + file.tlType.charAt(file.tlType.length-1),
+                duration: file.duration || 180,
+                tlPerSecond: file.tlPerSecond || 1,
+                genre: file.genre || 'general',
+                tags: file.tags || [file.fileType],
+                plays: Math.floor(Math.random() * 1000),
+                rating: 4.5 + Math.random() * 0.5,
+                thumbnail: file.thumbnail || '📁',
+                copyrightOwner: '로컬 사용자',
+                uploader: localStorage.getItem('timelink_nickname') || '로컬 사용자'
+            });
+        }
+    });
+    
+    // 샘플 데이터 추가 (로컬 파일이 없을 경우)
+    if (marketplaceData.files.length === 0) {
+        marketplaceData.files = getSampleMarketplaceData();
+    }
+    
+    return marketplaceData;
 }
 
-// 실제 TL로 재생
-async function playWithRealTL(fileId) {
-    const file = Marketplace.filteredFiles.find(f => f.id === fileId);
-    if (!file) return;
-    
-    // TL 잔액 확인
-    const balance = await window.RealTL.getBalance();
-    const totalCost = file.duration * (file.tlPerSecond || 1);
-    
-    if (balance < totalCost) {
-        alert(\`TL이 부족합니다. 필요: \${totalCost}TL, 보유: \${balance}TL\`);
-        return;
+// 실제 TL 충전
+async function realChargeTL(amount, paymentMethod = 'credit') {
+    const userEmail = localStorage.getItem('timelink_userEmail');
+    if (!userEmail) {
+        alert('먼저 로그인해주세요!');
+        return { success: false, error: '로그인 필요' };
     }
     
-    // 재생 처리 (실제 API 호출)
     try {
-        const token = localStorage.getItem('timelink_token');
-        const response = await fetch(\`\${REAL_TIMELINK_API}/api/playback/start\`, {
+        const response = await fetch('https://deconomic-api.timelink-api.workers.dev/api/tl/charge', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': \`Bearer \${token}\`
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                assetId: file.assetId,
-                userId: localStorage.getItem('timelink_userEmail'),
-                duration: file.duration
+                email: userEmail,
+                amount: amount,
+                paymentMethod: paymentMethod
             })
         });
         
-        const result = await response.json();
+        const data = await response.json();
         
-        if (result.success) {
-            // 재생 시작
-            openPlayer(fileId);
-        } else {
-            showToast('재생 실패: ' + result.error, 'error');
+        if (data.success) {
+            // TL 잔액 업데이트
+            localStorage.setItem('timelink_tlBalance', data.user.tlBalance);
+            updateTLBalanceDisplay();
+            
+            // 충전 기록 저장
+            saveChargeHistory(amount, paymentMethod);
+            
+            showToast(\`✅ \${amount.toLocaleString()} TL 충전 완료!\`, 'success');
         }
+        
+        return data;
     } catch (error) {
-        showToast('재생 실패: ' + error.message, 'error');
+        showToast('충전 실패: ' + error.message, 'error');
+        return { success: false, error: error.message };
     }
 }
 
-// 기존 함수들 업데이트
-document.addEventListener('DOMContentLoaded', function() {
-    // 마켓플레이스 데이터 로드
-    setTimeout(loadRealMarketplaceData, 1000);
+// 실제 파일 재생 (TL 소모)
+async function realPlayFile(file) {
+    const userEmail = localStorage.getItem('timelink_userEmail');
+    const tlBalance = parseInt(localStorage.getItem('timelink_tlBalance') || '0');
+    const cost = file.duration * (file.tlPerSecond || 1);
     
-    // 재생 버튼 이벤트 업데이트
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('.btn-play') && !e.target.closest('.btn-play').disabled) {
-            e.preventDefault();
-            const fileCard = e.target.closest('[data-file-id]');
-            if (fileCard) {
-                const fileId = fileCard.getAttribute('data-file-id');
-                playWithRealTL(fileId);
-            }
+    if (!userEmail) {
+        alert('먼저 로그인해주세요!');
+        return false;
+    }
+    
+    if (tlBalance < cost) {
+        alert(\`TL이 부족합니다. 필요: \${cost}TL, 보유: \${tlBalance}TL\`);
+        return false;
+    }
+    
+    // TL 차감 시뮬레이션 (실제 API에 playback이 없으므로)
+    const newBalance = tlBalance - cost;
+    localStorage.setItem('timelink_tlBalance', newBalance.toString());
+    
+    // 재생 기록 저장
+    savePlayHistory(file, cost);
+    
+    // 수익 분배 기록 (저작권자 50%, 업로더 20%, 플랫폼 30%)
+    const royaltyLog = {
+        fileId: file.id,
+        fileTitle: file.title,
+        tlSpent: cost,
+        copyrightEarn: cost * 0.5,
+        uploaderEarn: cost * 0.2,
+        platformEarn: cost * 0.3,
+        playedAt: new Date().toISOString()
+    };
+    
+    console.log('수익 분배:', royaltyLog);
+    
+    return true;
+}
+
+// 초기화 시 실제 데이터 로드
+document.addEventListener('DOMContentLoaded', async function() {
+    // 약간의 지연 후 데이터 로드
+    setTimeout(async () => {
+        const marketplaceData = await loadRealMarketplaceData();
+        
+        // 마켓플레이스 데이터 설정
+        if (window.Marketplace) {
+            Marketplace.allFiles = marketplaceData.files;
+            Marketplace.userTLBalance = marketplaceData.userBalance;
+            Marketplace.totalItems = marketplaceData.files.length;
+            
+            // UI 업데이트
+            filterAndDisplayFiles();
+            updateTLBalanceDisplay();
+            
+            // 통계 업데이트
+            document.getElementById('totalFiles').textContent = marketplaceData.stats.totalFiles.toLocaleString();
+            document.getElementById('activeListeners').textContent = marketplaceData.stats.activeListeners.toLocaleString();
+            document.getElementById('totalEarnings').textContent = marketplaceData.stats.totalEarnings.toLocaleString() + ' TL';
+            document.getElementById('todayEarnings').textContent = marketplaceData.stats.todayEarnings.toLocaleString() + ' TL';
         }
-    });
+    }, 1000);
 });
+
+// 기존 함수들에 실제 API 연동
+window.realChargeTL = realChargeTL;
+window.realPlayFile = realPlayFile;
 </script>
 </body>
 </html>
+
 
 
 

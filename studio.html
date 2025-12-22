@@ -1349,6 +1349,214 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+<script>
+// 실제 Deconomic API 연동
+const DeconomicAPI = {
+    baseUrl: 'https://deconomic-api.timelink-api.workers.dev',
+    
+    // 1. 자산 생성 (파일 TL 변환)
+    async createAsset(title, fileType, uploaderEmail) {
+        try {
+            const response = await fetch(\`\${this.baseUrl}/api/assets\`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: title,
+                    fileType: fileType,
+                    uploaderEmail: uploaderEmail
+                })
+            });
+            
+            const data = await response.json();
+            console.log('자산 생성 결과:', data);
+            return data;
+        } catch (error) {
+            console.error('자산 생성 실패:', error);
+            return { success: false, error: error.message };
+        }
+    },
+    
+    // 2. TL 충전
+    async chargeTL(email, amount, assetId = null) {
+        try {
+            const payload = { email: email, amount: amount };
+            if (assetId) payload.assetId = assetId;
+            
+            const response = await fetch(\`\${this.baseUrl}/api/tl/charge\`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await response.json();
+            console.log('TL 충전 결과:', data);
+            return data;
+        } catch (error) {
+            console.error('TL 충전 실패:', error);
+            return { success: false, error: error.message };
+        }
+    },
+    
+    // 3. 사용자 정보 조회
+    async getUser(email) {
+        try {
+            const response = await fetch(\`\${this.baseUrl}/api/user?email=\${encodeURIComponent(email)}\`);
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('사용자 조회 실패:', error);
+            return { success: false, error: error.message };
+        }
+    },
+    
+    // 4. 회원가입
+    async signup(email, username) {
+        try {
+            const response = await fetch(\`\${this.baseUrl}/api/auth/signup\`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email, username: username })
+            });
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('회원가입 실패:', error);
+            return { success: false, error: error.message };
+        }
+    }
+};
+
+// 실제 파일 변환 함수
+async function realConvertToTL(file) {
+    const userEmail = localStorage.getItem('timelink_userEmail');
+    if (!userEmail) {
+        alert('먼저 로그인해주세요!');
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    const title = file.name.replace(/\.[^/.]+$/, ""); // 확장자 제거
+    const fileType = detectFileType(file.name);
+    
+    showToast('파일 변환 중...', 'info');
+    
+    const result = await DeconomicAPI.createAsset(title, fileType, userEmail);
+    
+    if (result.success) {
+        // 변환 성공
+        const asset = result.asset;
+        
+        // 로컬에 저장
+        const convertedFile = {
+            id: 'asset_' + asset.id,
+            name: file.name,
+            title: title,
+            tlType: asset.tlType,
+            fileType: fileType,
+            assetId: asset.id,
+            status: asset.status,
+            createdAt: new Date().toISOString(),
+            thumbnail: getFileIcon(fileType),
+            duration: 180, // 기본값 (실제로는 파일 분석 필요)
+            tlPerSecond: 1
+        };
+        
+        // TL 파일 목록에 추가
+        saveToTLFiles(convertedFile);
+        
+        showToast(\`✅ "\${title}" TL\${asset.tlType} 변환 완료!\`, 'success');
+        return convertedFile;
+    } else {
+        showToast(\`변환 실패: \${result.error}\`, 'error');
+        return null;
+    }
+}
+
+// 실제 마켓플레이스 등록 함수
+async function realRegisterToMarketplace(assetId, metadata) {
+    const userEmail = localStorage.getItem('timelink_userEmail');
+    if (!userEmail) {
+        alert('먼저 로그인해주세요!');
+        return;
+    }
+    
+    // TL을 충전해야 마켓플레이스에 등록됨
+    showToast('마켓플레이스 등록 중...', 'info');
+    
+    // 기본 1000 TL 충전 (파일 활성화)
+    const chargeResult = await DeconomicAPI.chargeTL(userEmail, 1000, assetId);
+    
+    if (chargeResult.success) {
+        // 충전 성공 = 마켓플레이스 등록 완료
+        showToast('✅ 마켓플레이스 등록 완료! (1000 TL 충전됨)', 'success');
+        
+        // 로컬 상태 업데이트
+        updateFileStatus(assetId, 'marketplace_registered');
+        
+        // 사용자 정보 업데이트
+        const userResult = await DeconomicAPI.getUser(userEmail);
+        if (userResult.success) {
+            localStorage.setItem('timelink_tlBalance', userResult.user.tlBalance);
+        }
+        
+        return { success: true, assetId: assetId };
+    } else {
+        showToast(\`마켓플레이스 등록 실패: \${chargeResult.error}\`, 'error');
+        return { success: false, error: chargeResult.error };
+    }
+}
+
+// 파일 타입 감지
+function detectFileType(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    
+    if (['mp3', 'wav', 'flac', 'm4a', 'aac', 'ogg'].includes(ext)) return 'audio';
+    if (['mp4', 'avi', 'mov', 'wmv', 'mkv', 'webm'].includes(ext)) return 'video';
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) return 'image';
+    if (['pdf', 'doc', 'docx', 'txt', 'ppt', 'pptx'].includes(ext)) return 'document';
+    if (['epub', 'mobi', 'azw3'].includes(ext)) return 'ebook';
+    
+    return 'document';
+}
+
+// 파일 아이콘
+function getFileIcon(fileType) {
+    const icons = {
+        audio: '🎵',
+        video: '🎬',
+        image: '🖼️',
+        document: '📄',
+        ebook: '📚'
+    };
+    return icons[fileType] || '📁';
+}
+
+// TL 파일 저장
+function saveToTLFiles(fileData) {
+    const tlFiles = JSON.parse(localStorage.getItem('timelink_tl_files') || '[]');
+    tlFiles.push(fileData);
+    localStorage.setItem('timelink_tl_files', JSON.stringify(tlFiles));
+    return tlFiles;
+}
+
+// 파일 상태 업데이트
+function updateFileStatus(assetId, status) {
+    const tlFiles = JSON.parse(localStorage.getItem('timelink_tl_files') || '[]');
+    const updatedFiles = tlFiles.map(file => {
+        if (file.assetId === assetId) {
+            return { ...file, status: status };
+        }
+        return file;
+    });
+    localStorage.setItem('timelink_tl_files', JSON.stringify(updatedFiles));
+}
+
+// 글로벌 등록
+window.DeconomicAPI = DeconomicAPI;
+window.realConvertToTL = realConvertToTL;
+window.realRegisterToMarketplace = realRegisterToMarketplace;
+</script>
 </body>
 
     <script type="module" src="./src/script/common-components.js"></script>
@@ -1763,9 +1971,218 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+<script>
+// 실제 Deconomic API 연동
+const DeconomicAPI = {
+    baseUrl: 'https://deconomic-api.timelink-api.workers.dev',
+    
+    // 1. 자산 생성 (파일 TL 변환)
+    async createAsset(title, fileType, uploaderEmail) {
+        try {
+            const response = await fetch(\`\${this.baseUrl}/api/assets\`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: title,
+                    fileType: fileType,
+                    uploaderEmail: uploaderEmail
+                })
+            });
+            
+            const data = await response.json();
+            console.log('자산 생성 결과:', data);
+            return data;
+        } catch (error) {
+            console.error('자산 생성 실패:', error);
+            return { success: false, error: error.message };
+        }
+    },
+    
+    // 2. TL 충전
+    async chargeTL(email, amount, assetId = null) {
+        try {
+            const payload = { email: email, amount: amount };
+            if (assetId) payload.assetId = assetId;
+            
+            const response = await fetch(\`\${this.baseUrl}/api/tl/charge\`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await response.json();
+            console.log('TL 충전 결과:', data);
+            return data;
+        } catch (error) {
+            console.error('TL 충전 실패:', error);
+            return { success: false, error: error.message };
+        }
+    },
+    
+    // 3. 사용자 정보 조회
+    async getUser(email) {
+        try {
+            const response = await fetch(\`\${this.baseUrl}/api/user?email=\${encodeURIComponent(email)}\`);
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('사용자 조회 실패:', error);
+            return { success: false, error: error.message };
+        }
+    },
+    
+    // 4. 회원가입
+    async signup(email, username) {
+        try {
+            const response = await fetch(\`\${this.baseUrl}/api/auth/signup\`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email, username: username })
+            });
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('회원가입 실패:', error);
+            return { success: false, error: error.message };
+        }
+    }
+};
+
+// 실제 파일 변환 함수
+async function realConvertToTL(file) {
+    const userEmail = localStorage.getItem('timelink_userEmail');
+    if (!userEmail) {
+        alert('먼저 로그인해주세요!');
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    const title = file.name.replace(/\.[^/.]+$/, ""); // 확장자 제거
+    const fileType = detectFileType(file.name);
+    
+    showToast('파일 변환 중...', 'info');
+    
+    const result = await DeconomicAPI.createAsset(title, fileType, userEmail);
+    
+    if (result.success) {
+        // 변환 성공
+        const asset = result.asset;
+        
+        // 로컬에 저장
+        const convertedFile = {
+            id: 'asset_' + asset.id,
+            name: file.name,
+            title: title,
+            tlType: asset.tlType,
+            fileType: fileType,
+            assetId: asset.id,
+            status: asset.status,
+            createdAt: new Date().toISOString(),
+            thumbnail: getFileIcon(fileType),
+            duration: 180, // 기본값 (실제로는 파일 분석 필요)
+            tlPerSecond: 1
+        };
+        
+        // TL 파일 목록에 추가
+        saveToTLFiles(convertedFile);
+        
+        showToast(\`✅ "\${title}" TL\${asset.tlType} 변환 완료!\`, 'success');
+        return convertedFile;
+    } else {
+        showToast(\`변환 실패: \${result.error}\`, 'error');
+        return null;
+    }
+}
+
+// 실제 마켓플레이스 등록 함수
+async function realRegisterToMarketplace(assetId, metadata) {
+    const userEmail = localStorage.getItem('timelink_userEmail');
+    if (!userEmail) {
+        alert('먼저 로그인해주세요!');
+        return;
+    }
+    
+    // TL을 충전해야 마켓플레이스에 등록됨
+    showToast('마켓플레이스 등록 중...', 'info');
+    
+    // 기본 1000 TL 충전 (파일 활성화)
+    const chargeResult = await DeconomicAPI.chargeTL(userEmail, 1000, assetId);
+    
+    if (chargeResult.success) {
+        // 충전 성공 = 마켓플레이스 등록 완료
+        showToast('✅ 마켓플레이스 등록 완료! (1000 TL 충전됨)', 'success');
+        
+        // 로컬 상태 업데이트
+        updateFileStatus(assetId, 'marketplace_registered');
+        
+        // 사용자 정보 업데이트
+        const userResult = await DeconomicAPI.getUser(userEmail);
+        if (userResult.success) {
+            localStorage.setItem('timelink_tlBalance', userResult.user.tlBalance);
+        }
+        
+        return { success: true, assetId: assetId };
+    } else {
+        showToast(\`마켓플레이스 등록 실패: \${chargeResult.error}\`, 'error');
+        return { success: false, error: chargeResult.error };
+    }
+}
+
+// 파일 타입 감지
+function detectFileType(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    
+    if (['mp3', 'wav', 'flac', 'm4a', 'aac', 'ogg'].includes(ext)) return 'audio';
+    if (['mp4', 'avi', 'mov', 'wmv', 'mkv', 'webm'].includes(ext)) return 'video';
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) return 'image';
+    if (['pdf', 'doc', 'docx', 'txt', 'ppt', 'pptx'].includes(ext)) return 'document';
+    if (['epub', 'mobi', 'azw3'].includes(ext)) return 'ebook';
+    
+    return 'document';
+}
+
+// 파일 아이콘
+function getFileIcon(fileType) {
+    const icons = {
+        audio: '🎵',
+        video: '🎬',
+        image: '🖼️',
+        document: '📄',
+        ebook: '📚'
+    };
+    return icons[fileType] || '📁';
+}
+
+// TL 파일 저장
+function saveToTLFiles(fileData) {
+    const tlFiles = JSON.parse(localStorage.getItem('timelink_tl_files') || '[]');
+    tlFiles.push(fileData);
+    localStorage.setItem('timelink_tl_files', JSON.stringify(tlFiles));
+    return tlFiles;
+}
+
+// 파일 상태 업데이트
+function updateFileStatus(assetId, status) {
+    const tlFiles = JSON.parse(localStorage.getItem('timelink_tl_files') || '[]');
+    const updatedFiles = tlFiles.map(file => {
+        if (file.assetId === assetId) {
+            return { ...file, status: status };
+        }
+        return file;
+    });
+    localStorage.setItem('timelink_tl_files', JSON.stringify(updatedFiles));
+}
+
+// 글로벌 등록
+window.DeconomicAPI = DeconomicAPI;
+window.realConvertToTL = realConvertToTL;
+window.realRegisterToMarketplace = realRegisterToMarketplace;
+</script>
 </body>
 </html>
 >>>>>>> 6f5f03aa54a385fddfe7d17ca4293f2e7a4ee0bc
+
 
 
 
