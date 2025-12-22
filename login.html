@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeLink - 로그인</title>
+    <style>
+        body { background: #121212; color: white; padding: 50px; font-family: Arial; }
+        .login-box { background: #1E1E1E; padding: 30px; border-radius: 10px; max-width: 400px; margin: 0 auto; }
+        input { width: 100%; padding: 10px; margin: 10px 0; background: #2A2A2A; border: 1px solid #444; color: white; }
+        button { width: 100%; padding: 12px; background: #29C4A8; color: white; border: none; cursor: pointer; }
+        #result {  padding: 15px; background: #222; }
+    </style>
+
+    <link rel="stylesheet" href="src/styles/common.css">
+</head>
+<body>
+    <div class="login-box">
+        <h2>TimeLink 로그인</h2>
+        <input id="email" value="realuser@test.com" placeholder="이메일">
+        <input id="password" type="password" value="realpass123" placeholder="비밀번호">
+        <button onclick="login()">로그인</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+    // login.html에 추가할 스크립트
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('로그인 페이지 로드됨');
+        
+        // URL 파라미터 확인
+        const urlParams = new URLSearchParams(window.location.search);
+        const logoutParam = urlParams.get('logout');
+        const forceLogout = urlParams.get('force_logout');
+        
+        // 로그아웃 요청이 있으면 모든 인증 데이터 삭제
+        if (logoutParam === 'true' || forceLogout === 'true') {
+            console.log('로그아웃 처리');
+            
+            // 모든 저장소 클리어
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // 쿠키 삭제
+            document.cookie.split(";").forEach(function(c) {
+                document.cookie = c
+                    .replace(/^ +/, "")
+                    .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+            });
+            
+            // 로그인 폼 리셋
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.reset();
+            }
+            
+            // 로그아웃 메시지 표시
+            setTimeout(() => {
+                const logoutMsg = document.getElementById('logoutMessage');
+                if (logoutMsg) {
+                    logoutMsg.style.display = 'block';
+                    setTimeout(() => {
+                        logoutMsg.style.display = 'none';
+                    }, 3000);
+                }
+            }, 100);
+        }
+        
+        // 이미 로그인된 상태인지 확인
+        const authToken = localStorage.getItem('auth_token');
+        if (authToken) {
+            console.log('이미 로그인된 상태 - 대시보드로 이동');
+            
+            // 로그인 페이지에서 바로 대시보드로 이동 방지
+            // (실제로는 인증 체크 후 이동)
+            const fromLogout = urlParams.get('logout');
+            if (!fromLogout) {
+                window.location.href = 'dashboard.html';
+            }
+        }
+    });
+</script>
+</body>
+
+    <script type="module" src="./src/script/common-components.js"></script>
+</html>
+
+
+
