@@ -106,3 +106,4 @@ window.auth = {
     verifyEmail,
     resendVerification
 };
+

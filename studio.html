@@ -2667,137 +2667,280 @@
 </div>
 
 <script>
-// Deconomic API
-const DECONOMIC_API = 'https://deconomic-api.timelink-api.workers.dev';
-
-async function uploadToDeconomic() {
-    const title = document.getElementById('deco-title').value;
-    const fileType = document.getElementById('deco-type').value;
-    const email = document.getElementById('deco-email').value;
+    // Deconomic API 설정
+    const TIMELINK_API = 'https://timelink-backend.timelink-api.workers.dev';
     
-    if (!title || !email) {
-        alert('제목과 이메일을 입력해주세요');
-        return;
-    }
-    
-    const resultDiv = document.getElementById('deco-result');
-    resultDiv.style.display = 'block';
-    resultDiv.innerHTML = '<p>⏳ 처리 중...</p>';
-    
-    try {
-        // 1. 사용자 확인 또는 생성
-        const signupResponse = await fetch(`${DECONOMIC_API}/api/auth/signup`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                email: email, 
-                username: email.split('@')[0] 
-            })
-        });
+    // TL Studio 상태 관리
+    const TLStudio = {
+        currentStep: 1,
+        uploadedFiles: [],
+        selectedFiles: [],
+        convertedFiles: [],
+        copyrightInfo: {},
+        marketplaceSettings: {
+            primaryGenre: '',
+            subGenre: '',
+            tags: [],
+            description: ''
+        },
         
-        const signupData = await signupResponse.json();
-        
-        if (!signupData.success && signupData.error !== '이미 존재하는 사용자입니다') {
-            throw new Error('사용자 등록 실패: ' + signupData.error);
-        }
-        
-        // 2. 자산 생성
-        const assetResponse = await fetch(`${DECONOMIC_API}/api/assets`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                title: title, 
-                fileType: fileType, 
-                uploaderEmail: email 
-            })
-        });
-        
-        const assetData = await assetResponse.json();
-        
-        if (assetData.success) {
-            resultDiv.innerHTML = `
-                <div style="background: rgba(255,255,255,0.9); color: #333; padding: 15px; border-radius: 10px;">
-                    <h4 style="color: #7C3AED; margin-top: 0;">✅ 변환 완료!</h4>
-                    <p><strong>자산 ID:</strong> ${assetData.asset.id}</p>
-                    <p><strong>TL 타입:</strong> ${assetData.asset.tlType}</p>
-                    <p><strong>상태:</strong> ${assetData.asset.status}</p>
-                    <p><strong>다음 단계:</strong> TL을 충전하여 자산을 활성화하세요!</p>
-                    
-                    <div style="margin-top: 15px;">
-                        <input type="number" id="tl-amount" placeholder="충전할 TL 수량" value="1000" style="padding: 8px; width: 60%; margin-right: 10px;">
-                        <button onclick="chargeAsset('${email}', '${assetData.asset.id}')" style="background: #EC4899; color: white; border: none; padding: 8px 15px; border-radius: 5px;">
-                            💰 TL 충전하기
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            // TL 잔액 정보 저장
-            if (signupData.success && signupData.user) {
-                localStorage.setItem('deconomic_user', JSON.stringify(signupData.user));
-                localStorage.setItem('deconomic_session', signupData.sessionId);
-                localStorage.setItem('tl_balance', signupData.user.tlBalance);
-            }
-            
-        } else {
-            throw new Error('자산 생성 실패: ' + assetData.error);
-        }
-        
-    } catch (error) {
-        resultDiv.innerHTML = `
-            <div style="background: rgba(255,0,0,0.1); color: #d00; padding: 15px; border-radius: 10px;">
-                <p>❌ 오류 발생</p>
-                <p>${error.message}</p>
-            </div>
-        `;
-    }
-}
-
-async function chargeAsset(email, assetId) {
-    const amount = document.getElementById('tl-amount').value;
-    
-    if (!amount || amount < 1) {
-        alert('충전할 TL 수량을 입력해주세요');
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${DECONOMIC_API}/api/tl/charge`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                email: email, 
-                amount: parseInt(amount), 
-                assetId: assetId 
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            alert(`🎉 ${amount} TL 충전 완료!\n자산이 활성화되어 수익 창출이 가능합니다!`);
-            
-            // TL 잔액 업데이트
-            if (data.user && data.user.tlBalance !== undefined) {
-                localStorage.setItem('tl_balance', data.user.tlBalance);
+        // 실제 파일 업로드
+        async uploadFiles(files) {
+            for (let file of files) {
+                const fileData = {
+                    id: 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                    originalFile: file,
+                    name: file.name,
+                    size: file.size,
+                    type: this.detectFileType(file.name),
+                    status: 'uploaded',
+                    progress: 0
+                };
                 
-                const userStr = localStorage.getItem('deconomic_user');
-                if (userStr) {
-                    const user = JSON.parse(userStr);
-                    user.tlBalance = data.user.tlBalance;
-                    localStorage.setItem('deconomic_user', JSON.stringify(user));
-                }
+                this.uploadedFiles.push(fileData);
             }
             
-            // 페이지 새로고침 또는 리다이렉트
-            window.location.href = 'dashboard.html';
-        } else {
-            alert('TL 충전 실패: ' + data.error);
+            this.updateFileListUI();
+            showToast(\`\${files.length}개 파일 업로드 완료\`, 'success');
+        },
+        
+        // 실제 파일 변환
+        async convertFileToTL(fileId) {
+            const file = this.uploadedFiles.find(f => f.id === fileId);
+            if (!file) return;
+            
+            file.status = 'converting';
+            file.progress = 0;
+            this.updateFileListUI();
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file.originalFile);
+                formData.append('fileName', file.name);
+                formData.append('fileType', file.type);
+                formData.append('userId', localStorage.getItem('timelink_userEmail'));
+                
+                const token = localStorage.getItem('timelink_token');
+                
+                // 변환 요청
+                const response = await fetch(\`\${TIMELINK_API}/api/studio/convert\`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': \`Bearer \${token}\`
+                    },
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    file.status = 'converted';
+                    file.tlFormat = result.tlFormat;
+                    file.convertedFileId = result.fileId;
+                    file.tlAssetId = result.assetId;
+                    file.originalDuration = result.duration;
+                    file.tlPerSecond = result.tlPerSecond || 1;
+                    file.maxCharge = result.maxCharge || result.duration * (result.tlPerSecond || 1);
+                    file.currentCharge = 0;
+                    
+                    // 변환된 파일 저장
+                    this.saveConvertedFile(file);
+                    
+                    showToast(\`\${file.name} TL 변환 완료!\`, 'success');
+                } else {
+                    file.status = 'error';
+                    showToast(\`변환 실패: \${result.error}\`, 'error');
+                }
+            } catch (error) {
+                file.status = 'error';
+                showToast(\`변환 실패: \${error.message}\`, 'error');
+            }
+            
+            this.updateFileListUI();
+        },
+        
+        // 변환된 파일 저장
+        saveConvertedFile(file) {
+            const convertedFiles = JSON.parse(localStorage.getItem('timelink_converted_files') || '[]');
+            convertedFiles.push({
+                id: file.id,
+                assetId: file.tlAssetId,
+                name: file.name,
+                tlFormat: file.tlFormat,
+                fileType: file.type,
+                duration: file.originalDuration,
+                tlPerSecond: file.tlPerSecond,
+                currentCharge: file.currentCharge,
+                maxCharge: file.maxCharge,
+                convertedAt: new Date().toISOString()
+            });
+            
+            localStorage.setItem('timelink_converted_files', JSON.stringify(convertedFiles));
+            this.convertedFiles = convertedFiles;
+        },
+        
+        // TL 파일 충전
+        async chargeTLFile(fileId, tlAmount) {
+            const file = this.uploadedFiles.find(f => f.id === fileId);
+            if (!file || !file.tlAssetId) return;
+            
+            try {
+                const token = localStorage.getItem('timelink_token');
+                const userEmail = localStorage.getItem('timelink_userEmail');
+                
+                const response = await fetch(\`\${TIMELINK_API}/api/studio/file/charge\`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': \`Bearer \${token}\`
+                    },
+                    body: JSON.stringify({
+                        assetId: file.tlAssetId,
+                        userId: userEmail,
+                        amount: tlAmount
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    file.currentCharge = result.newCharge;
+                    
+                    // TL 잔액 업데이트
+                    const currentBalance = parseInt(localStorage.getItem('timelink_tlBalance') || '0');
+                    const newBalance = currentBalance - tlAmount;
+                    localStorage.setItem('timelink_tlBalance', newBalance.toString());
+                    
+                    if (typeof updateTLBalanceUI === 'function') {
+                        updateTLBalanceUI();
+                    }
+                    
+                    showToast(\`\${tlAmount} TL 충전 완료!\`, 'success');
+                    return true;
+                }
+            } catch (error) {
+                showToast(\`충전 실패: \${error.message}\`, 'error');
+                return false;
+            }
+        },
+        
+        // 마켓플레이스 등록
+        async registerToMarketplace() {
+            if (this.selectedFiles.length === 0) {
+                showToast('등록할 파일을 선택해주세요', 'warning');
+                return;
+            }
+            
+            // 저작권 정보 수집
+            const copyrightType = document.getElementById('copyrightType').value;
+            this.copyrightInfo = {
+                type: copyrightType,
+                ownerName: copyrightType === 'self' ? 
+                    localStorage.getItem('timelink_nickname') || 
+                    localStorage.getItem('timelink_userEmail')?.split('@')[0] :
+                    document.getElementById('copyrightOwnerName').value,
+                ownerEmail: copyrightType === 'self' ? 
+                    localStorage.getItem('timelink_userEmail') :
+                    document.getElementById('copyrightOwnerEmail').value,
+                ownerWallet: copyrightType === 'self' ? 
+                    localStorage.getItem('timelink_wallet') || '' :
+                    document.getElementById('copyrightOwnerWallet').value
+            };
+            
+            // 마켓플레이스 설정
+            this.marketplaceSettings = {
+                primaryGenre: document.getElementById('primaryGenre').value,
+                subGenre: this.marketplaceSettings.subGenre,
+                tags: document.getElementById('fileTags').value.split(',').map(t => t.trim()).filter(t => t),
+                description: document.getElementById('fileDescription').value
+            };
+            
+            try {
+                const token = localStorage.getItem('timelink_token');
+                
+                const registrationData = {
+                    files: this.selectedFiles.map(file => ({
+                        assetId: file.tlAssetId,
+                        tlFormat: file.tlFormat,
+                        title: file.name.replace(/\\.[^/.]+$/, ""),
+                        fileType: file.type,
+                        duration: file.originalDuration,
+                        tlPerSecond: file.tlPerSecond,
+                        copyright: {
+                            ...this.copyrightInfo,
+                            royaltyPercentage: 50
+                        },
+                        marketplace: {
+                            ...this.marketplaceSettings
+                        }
+                    })),
+                    uploader: {
+                        email: localStorage.getItem('timelink_userEmail'),
+                        name: localStorage.getItem('timelink_nickname'),
+                        wallet: localStorage.getItem('timelink_wallet') || ''
+                    }
+                };
+                
+                const response = await fetch(\`\${TIMELINK_API}/api/marketplace/register\`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': \`Bearer \${token}\`
+                    },
+                    body: JSON.stringify(registrationData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 성공 처리
+                    this.selectedFiles.forEach(file => {
+                        file.status = 'marketplace_registered';
+                        file.marketplaceListingId = result.listingIds[file.tlAssetId];
+                    });
+                    
+                    showToast(\`\${this.selectedFiles.length}개 파일 마켓플레이스 등록 완료!\`, 'success');
+                    
+                    // 페이지 리로드
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    showToast(\`등록 실패: \${result.error}\`, 'error');
+                }
+            } catch (error) {
+                showToast(\`등록 실패: \${error.message}\`, 'error');
+            }
+        },
+        
+        // 파일 타입 감지
+        detectFileType(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            
+            if (['mp3', 'wav', 'flac', 'm4a', 'aac', 'ogg'].includes(ext)) return 'audio';
+            if (['mp4', 'avi', 'mov', 'wmv', 'mkv', 'webm'].includes(ext)) return 'video';
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) return 'image';
+            if (['pdf', 'doc', 'docx', 'txt', 'ppt', 'pptx'].includes(ext)) return 'document';
+            if (['epub', 'mobi', 'azw3'].includes(ext)) return 'ebook';
+            
+            return 'document';
+        },
+        
+        // 기존 함수들 유지...
+    };
+
+    // 초기화 시 TL 잔액 로드
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🎵 TL Studio 초기화');
+        
+        // TL 잔액 초기화
+        if (typeof initTLBalance === 'function') {
+            initTLBalance();
         }
-    } catch (error) {
-        alert('충전 중 오류: ' + error.message);
-    }
-}
+        
+        loadConvertedFiles();
+        setupEventListeners();
+    });
 </script>
 </body>
 
@@ -2830,139 +2973,283 @@ async function chargeAsset(email, assetId) {
 </div>
 
 <script>
-// Deconomic API
-const DECONOMIC_API = 'https://deconomic-api.timelink-api.workers.dev';
-
-async function uploadToDeconomic() {
-    const title = document.getElementById('deco-title').value;
-    const fileType = document.getElementById('deco-type').value;
-    const email = document.getElementById('deco-email').value;
+    // Deconomic API 설정
+    const TIMELINK_API = 'https://timelink-backend.timelink-api.workers.dev';
     
-    if (!title || !email) {
-        alert('제목과 이메일을 입력해주세요');
-        return;
-    }
-    
-    const resultDiv = document.getElementById('deco-result');
-    resultDiv.style.display = 'block';
-    resultDiv.innerHTML = '<p>⏳ 처리 중...</p>';
-    
-    try {
-        // 1. 사용자 확인 또는 생성
-        const signupResponse = await fetch(`${DECONOMIC_API}/api/auth/signup`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                email: email, 
-                username: email.split('@')[0] 
-            })
-        });
+    // TL Studio 상태 관리
+    const TLStudio = {
+        currentStep: 1,
+        uploadedFiles: [],
+        selectedFiles: [],
+        convertedFiles: [],
+        copyrightInfo: {},
+        marketplaceSettings: {
+            primaryGenre: '',
+            subGenre: '',
+            tags: [],
+            description: ''
+        },
         
-        const signupData = await signupResponse.json();
-        
-        if (!signupData.success && signupData.error !== '이미 존재하는 사용자입니다') {
-            throw new Error('사용자 등록 실패: ' + signupData.error);
-        }
-        
-        // 2. 자산 생성
-        const assetResponse = await fetch(`${DECONOMIC_API}/api/assets`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                title: title, 
-                fileType: fileType, 
-                uploaderEmail: email 
-            })
-        });
-        
-        const assetData = await assetResponse.json();
-        
-        if (assetData.success) {
-            resultDiv.innerHTML = `
-                <div style="background: rgba(255,255,255,0.9); color: #333; padding: 15px; border-radius: 10px;">
-                    <h4 style="color: #7C3AED; margin-top: 0;">✅ 변환 완료!</h4>
-                    <p><strong>자산 ID:</strong> ${assetData.asset.id}</p>
-                    <p><strong>TL 타입:</strong> ${assetData.asset.tlType}</p>
-                    <p><strong>상태:</strong> ${assetData.asset.status}</p>
-                    <p><strong>다음 단계:</strong> TL을 충전하여 자산을 활성화하세요!</p>
-                    
-                    <div style="margin-top: 15px;">
-                        <input type="number" id="tl-amount" placeholder="충전할 TL 수량" value="1000" style="padding: 8px; width: 60%; margin-right: 10px;">
-                        <button onclick="chargeAsset('${email}', '${assetData.asset.id}')" style="background: #EC4899; color: white; border: none; padding: 8px 15px; border-radius: 5px;">
-                            💰 TL 충전하기
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            // TL 잔액 정보 저장
-            if (signupData.success && signupData.user) {
-                localStorage.setItem('deconomic_user', JSON.stringify(signupData.user));
-                localStorage.setItem('deconomic_session', signupData.sessionId);
-                localStorage.setItem('tl_balance', signupData.user.tlBalance);
-            }
-            
-        } else {
-            throw new Error('자산 생성 실패: ' + assetData.error);
-        }
-        
-    } catch (error) {
-        resultDiv.innerHTML = `
-            <div style="background: rgba(255,0,0,0.1); color: #d00; padding: 15px; border-radius: 10px;">
-                <p>❌ 오류 발생</p>
-                <p>${error.message}</p>
-            </div>
-        `;
-    }
-}
-
-async function chargeAsset(email, assetId) {
-    const amount = document.getElementById('tl-amount').value;
-    
-    if (!amount || amount < 1) {
-        alert('충전할 TL 수량을 입력해주세요');
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${DECONOMIC_API}/api/tl/charge`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                email: email, 
-                amount: parseInt(amount), 
-                assetId: assetId 
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            alert(`🎉 ${amount} TL 충전 완료!\n자산이 활성화되어 수익 창출이 가능합니다!`);
-            
-            // TL 잔액 업데이트
-            if (data.user && data.user.tlBalance !== undefined) {
-                localStorage.setItem('tl_balance', data.user.tlBalance);
+        // 실제 파일 업로드
+        async uploadFiles(files) {
+            for (let file of files) {
+                const fileData = {
+                    id: 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                    originalFile: file,
+                    name: file.name,
+                    size: file.size,
+                    type: this.detectFileType(file.name),
+                    status: 'uploaded',
+                    progress: 0
+                };
                 
-                const userStr = localStorage.getItem('deconomic_user');
-                if (userStr) {
-                    const user = JSON.parse(userStr);
-                    user.tlBalance = data.user.tlBalance;
-                    localStorage.setItem('deconomic_user', JSON.stringify(user));
-                }
+                this.uploadedFiles.push(fileData);
             }
             
-            // 페이지 새로고침 또는 리다이렉트
-            window.location.href = 'dashboard.html';
-        } else {
-            alert('TL 충전 실패: ' + data.error);
+            this.updateFileListUI();
+            showToast(\`\${files.length}개 파일 업로드 완료\`, 'success');
+        },
+        
+        // 실제 파일 변환
+        async convertFileToTL(fileId) {
+            const file = this.uploadedFiles.find(f => f.id === fileId);
+            if (!file) return;
+            
+            file.status = 'converting';
+            file.progress = 0;
+            this.updateFileListUI();
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file.originalFile);
+                formData.append('fileName', file.name);
+                formData.append('fileType', file.type);
+                formData.append('userId', localStorage.getItem('timelink_userEmail'));
+                
+                const token = localStorage.getItem('timelink_token');
+                
+                // 변환 요청
+                const response = await fetch(\`\${TIMELINK_API}/api/studio/convert\`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': \`Bearer \${token}\`
+                    },
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    file.status = 'converted';
+                    file.tlFormat = result.tlFormat;
+                    file.convertedFileId = result.fileId;
+                    file.tlAssetId = result.assetId;
+                    file.originalDuration = result.duration;
+                    file.tlPerSecond = result.tlPerSecond || 1;
+                    file.maxCharge = result.maxCharge || result.duration * (result.tlPerSecond || 1);
+                    file.currentCharge = 0;
+                    
+                    // 변환된 파일 저장
+                    this.saveConvertedFile(file);
+                    
+                    showToast(\`\${file.name} TL 변환 완료!\`, 'success');
+                } else {
+                    file.status = 'error';
+                    showToast(\`변환 실패: \${result.error}\`, 'error');
+                }
+            } catch (error) {
+                file.status = 'error';
+                showToast(\`변환 실패: \${error.message}\`, 'error');
+            }
+            
+            this.updateFileListUI();
+        },
+        
+        // 변환된 파일 저장
+        saveConvertedFile(file) {
+            const convertedFiles = JSON.parse(localStorage.getItem('timelink_converted_files') || '[]');
+            convertedFiles.push({
+                id: file.id,
+                assetId: file.tlAssetId,
+                name: file.name,
+                tlFormat: file.tlFormat,
+                fileType: file.type,
+                duration: file.originalDuration,
+                tlPerSecond: file.tlPerSecond,
+                currentCharge: file.currentCharge,
+                maxCharge: file.maxCharge,
+                convertedAt: new Date().toISOString()
+            });
+            
+            localStorage.setItem('timelink_converted_files', JSON.stringify(convertedFiles));
+            this.convertedFiles = convertedFiles;
+        },
+        
+        // TL 파일 충전
+        async chargeTLFile(fileId, tlAmount) {
+            const file = this.uploadedFiles.find(f => f.id === fileId);
+            if (!file || !file.tlAssetId) return;
+            
+            try {
+                const token = localStorage.getItem('timelink_token');
+                const userEmail = localStorage.getItem('timelink_userEmail');
+                
+                const response = await fetch(\`\${TIMELINK_API}/api/studio/file/charge\`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': \`Bearer \${token}\`
+                    },
+                    body: JSON.stringify({
+                        assetId: file.tlAssetId,
+                        userId: userEmail,
+                        amount: tlAmount
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    file.currentCharge = result.newCharge;
+                    
+                    // TL 잔액 업데이트
+                    const currentBalance = parseInt(localStorage.getItem('timelink_tlBalance') || '0');
+                    const newBalance = currentBalance - tlAmount;
+                    localStorage.setItem('timelink_tlBalance', newBalance.toString());
+                    
+                    if (typeof updateTLBalanceUI === 'function') {
+                        updateTLBalanceUI();
+                    }
+                    
+                    showToast(\`\${tlAmount} TL 충전 완료!\`, 'success');
+                    return true;
+                }
+            } catch (error) {
+                showToast(\`충전 실패: \${error.message}\`, 'error');
+                return false;
+            }
+        },
+        
+        // 마켓플레이스 등록
+        async registerToMarketplace() {
+            if (this.selectedFiles.length === 0) {
+                showToast('등록할 파일을 선택해주세요', 'warning');
+                return;
+            }
+            
+            // 저작권 정보 수집
+            const copyrightType = document.getElementById('copyrightType').value;
+            this.copyrightInfo = {
+                type: copyrightType,
+                ownerName: copyrightType === 'self' ? 
+                    localStorage.getItem('timelink_nickname') || 
+                    localStorage.getItem('timelink_userEmail')?.split('@')[0] :
+                    document.getElementById('copyrightOwnerName').value,
+                ownerEmail: copyrightType === 'self' ? 
+                    localStorage.getItem('timelink_userEmail') :
+                    document.getElementById('copyrightOwnerEmail').value,
+                ownerWallet: copyrightType === 'self' ? 
+                    localStorage.getItem('timelink_wallet') || '' :
+                    document.getElementById('copyrightOwnerWallet').value
+            };
+            
+            // 마켓플레이스 설정
+            this.marketplaceSettings = {
+                primaryGenre: document.getElementById('primaryGenre').value,
+                subGenre: this.marketplaceSettings.subGenre,
+                tags: document.getElementById('fileTags').value.split(',').map(t => t.trim()).filter(t => t),
+                description: document.getElementById('fileDescription').value
+            };
+            
+            try {
+                const token = localStorage.getItem('timelink_token');
+                
+                const registrationData = {
+                    files: this.selectedFiles.map(file => ({
+                        assetId: file.tlAssetId,
+                        tlFormat: file.tlFormat,
+                        title: file.name.replace(/\\.[^/.]+$/, ""),
+                        fileType: file.type,
+                        duration: file.originalDuration,
+                        tlPerSecond: file.tlPerSecond,
+                        copyright: {
+                            ...this.copyrightInfo,
+                            royaltyPercentage: 50
+                        },
+                        marketplace: {
+                            ...this.marketplaceSettings
+                        }
+                    })),
+                    uploader: {
+                        email: localStorage.getItem('timelink_userEmail'),
+                        name: localStorage.getItem('timelink_nickname'),
+                        wallet: localStorage.getItem('timelink_wallet') || ''
+                    }
+                };
+                
+                const response = await fetch(\`\${TIMELINK_API}/api/marketplace/register\`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': \`Bearer \${token}\`
+                    },
+                    body: JSON.stringify(registrationData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 성공 처리
+                    this.selectedFiles.forEach(file => {
+                        file.status = 'marketplace_registered';
+                        file.marketplaceListingId = result.listingIds[file.tlAssetId];
+                    });
+                    
+                    showToast(\`\${this.selectedFiles.length}개 파일 마켓플레이스 등록 완료!\`, 'success');
+                    
+                    // 페이지 리로드
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    showToast(\`등록 실패: \${result.error}\`, 'error');
+                }
+            } catch (error) {
+                showToast(\`등록 실패: \${error.message}\`, 'error');
+            }
+        },
+        
+        // 파일 타입 감지
+        detectFileType(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            
+            if (['mp3', 'wav', 'flac', 'm4a', 'aac', 'ogg'].includes(ext)) return 'audio';
+            if (['mp4', 'avi', 'mov', 'wmv', 'mkv', 'webm'].includes(ext)) return 'video';
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) return 'image';
+            if (['pdf', 'doc', 'docx', 'txt', 'ppt', 'pptx'].includes(ext)) return 'document';
+            if (['epub', 'mobi', 'azw3'].includes(ext)) return 'ebook';
+            
+            return 'document';
+        },
+        
+        // 기존 함수들 유지...
+    };
+
+    // 초기화 시 TL 잔액 로드
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🎵 TL Studio 초기화');
+        
+        // TL 잔액 초기화
+        if (typeof initTLBalance === 'function') {
+            initTLBalance();
         }
-    } catch (error) {
-        alert('충전 중 오류: ' + error.message);
-    }
-}
+        
+        loadConvertedFiles();
+        setupEventListeners();
+    });
 </script>
 </html>
+
 
 
 
