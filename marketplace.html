@@ -1885,7 +1885,93 @@
     <!-- 공통 컴포넌트 -->
     <script src="src/script/auth.js"></script>
     <script src="src/script/common-components.js"></script>
+<script>
+// 실제 마켓플레이스 데이터 로드
+async function loadRealMarketplaceData() {
+    const genre = Marketplace.currentGenre === 'all' ? '' : Marketplace.currentGenre;
+    const search = document.getElementById('searchInput').value;
+    
+    try {
+        const result = await window.RealTL.getMarketplaceFiles(genre, search);
+        
+        if (result.success && result.files) {
+            Marketplace.allFiles = result.files;
+            Marketplace.totalItems = result.files.length;
+            filterAndDisplayFiles();
+            updateStatistics();
+        } else {
+            showToast('마켓플레이스 데이터 로드 실패', 'error');
+            loadSampleData(); // 샘플 데이터 폴백
+        }
+    } catch (error) {
+        showToast('데이터 로드 실패: ' + error.message, 'error');
+        loadSampleData();
+    }
+}
+
+// 실제 TL로 재생
+async function playWithRealTL(fileId) {
+    const file = Marketplace.filteredFiles.find(f => f.id === fileId);
+    if (!file) return;
+    
+    // TL 잔액 확인
+    const balance = await window.RealTL.getBalance();
+    const totalCost = file.duration * (file.tlPerSecond || 1);
+    
+    if (balance < totalCost) {
+        alert(\`TL이 부족합니다. 필요: \${totalCost}TL, 보유: \${balance}TL\`);
+        return;
+    }
+    
+    // 재생 처리 (실제 API 호출)
+    try {
+        const token = localStorage.getItem('timelink_token');
+        const response = await fetch(\`\${REAL_TIMELINK_API}/api/playback/start\`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': \`Bearer \${token}\`
+            },
+            body: JSON.stringify({
+                assetId: file.assetId,
+                userId: localStorage.getItem('timelink_userEmail'),
+                duration: file.duration
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // 재생 시작
+            openPlayer(fileId);
+        } else {
+            showToast('재생 실패: ' + result.error, 'error');
+        }
+    } catch (error) {
+        showToast('재생 실패: ' + error.message, 'error');
+    }
+}
+
+// 기존 함수들 업데이트
+document.addEventListener('DOMContentLoaded', function() {
+    // 마켓플레이스 데이터 로드
+    setTimeout(loadRealMarketplaceData, 1000);
+    
+    // 재생 버튼 이벤트 업데이트
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.btn-play') && !e.target.closest('.btn-play').disabled) {
+            e.preventDefault();
+            const fileCard = e.target.closest('[data-file-id]');
+            if (fileCard) {
+                const fileId = fileCard.getAttribute('data-file-id');
+                playWithRealTL(fileId);
+            }
+        }
+    });
+});
+</script>
 </body>
 </html>
+
 
 

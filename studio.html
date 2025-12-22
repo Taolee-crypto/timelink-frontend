@@ -1248,6 +1248,107 @@ const TIMELINK_API = {
         setupEventListeners();
     });
 </script>
+<script>
+// 실제 API 설정
+const REAL_TIMELINK_API = 'https://deconomic-api.timelink-api.workers.dev';
+
+// 실제 파일 변환 함수
+async function realConvertToTL(fileId) {
+    const file = TLStudio.uploadedFiles.find(f => f.id === fileId);
+    if (!file) return;
+    
+    file.status = 'converting';
+    updateFileListUI();
+    
+    try {
+        // 실제 API 호출
+        const result = await window.RealTL.convertFile(file.originalFile, file.type);
+        
+        if (result.success) {
+            file.status = 'converted';
+            file.tlAssetId = result.assetId;
+            file.tlFormat = result.format;
+            file.duration = result.duration;
+            
+            // 로컬에 저장
+            saveConvertedFileToLocal(file);
+            
+            showToast('✅ 파일 변환 완료! 마켓플레이스에 등록할 수 있습니다.', 'success');
+        } else {
+            file.status = 'error';
+            showToast('변환 실패: ' + result.error, 'error');
+        }
+    } catch (error) {
+        file.status = 'error';
+        showToast('변환 실패: ' + error.message, 'error');
+    }
+    
+    updateFileListUI();
+}
+
+// 실제 마켓플레이스 등록
+async function realRegisterToMarketplace() {
+    if (TLStudio.selectedFiles.length === 0) {
+        showToast('등록할 파일을 선택해주세요', 'warning');
+        return;
+    }
+    
+    const genre = document.getElementById('primaryGenre').value;
+    const tags = document.getElementById('fileTags').value;
+    const description = document.getElementById('fileDescription').value;
+    
+    // 선택된 파일들 등록
+    for (const file of TLStudio.selectedFiles) {
+        if (!file.tlAssetId) continue;
+        
+        const metadata = {
+            title: file.name.replace(/\.[^/.]+$/, ""),
+            genre: genre,
+            tags: tags.split(',').map(t => t.trim()),
+            description: description,
+            copyrightInfo: {
+                type: document.getElementById('copyrightType').value,
+                ownerName: document.getElementById('copyrightOwnerName').value || localStorage.getItem('timelink_nickname'),
+                ownerEmail: document.getElementById('copyrightOwnerEmail').value || localStorage.getItem('timelink_userEmail')
+            }
+        };
+        
+        try {
+            const result = await window.RealTL.registerToMarketplace(file.tlAssetId, metadata);
+            
+            if (result.success) {
+                file.status = 'marketplace_registered';
+                file.marketplaceId = result.marketplaceId;
+                showToast(\`\${file.name} 마켓플레이스 등록 완료!\`, 'success');
+            } else {
+                showToast(\`\${file.name} 등록 실패: \${result.error}\`, 'error');
+            }
+        } catch (error) {
+            showToast(\`\${file.name} 등록 실패: \${error.message}\`, 'error');
+        }
+    }
+    
+    // UI 업데이트
+    updateFileListUI();
+}
+
+// 기존 함수들을 실제 API 버전으로 교체
+document.addEventListener('DOMContentLoaded', function() {
+    // 변환 버튼 이벤트 리스너 업데이트
+    document.addEventListener('click', function(e) {
+        if (e.target.matches('[onclick*="convertFile"]')) {
+            e.preventDefault();
+            const fileId = e.target.getAttribute('onclick').match(/'([^']+)'/)[1];
+            realConvertToTL(fileId);
+        }
+        
+        if (e.target.matches('[onclick*="registerToMarketplace"]')) {
+            e.preventDefault();
+            realRegisterToMarketplace();
+        }
+    });
+});
+</script>
 </body>
 
     <script type="module" src="./src/script/common-components.js"></script>
@@ -1561,9 +1662,111 @@ const TIMELINK_API = {
 
 
 =======
+<script>
+// 실제 API 설정
+const REAL_TIMELINK_API = 'https://deconomic-api.timelink-api.workers.dev';
+
+// 실제 파일 변환 함수
+async function realConvertToTL(fileId) {
+    const file = TLStudio.uploadedFiles.find(f => f.id === fileId);
+    if (!file) return;
+    
+    file.status = 'converting';
+    updateFileListUI();
+    
+    try {
+        // 실제 API 호출
+        const result = await window.RealTL.convertFile(file.originalFile, file.type);
+        
+        if (result.success) {
+            file.status = 'converted';
+            file.tlAssetId = result.assetId;
+            file.tlFormat = result.format;
+            file.duration = result.duration;
+            
+            // 로컬에 저장
+            saveConvertedFileToLocal(file);
+            
+            showToast('✅ 파일 변환 완료! 마켓플레이스에 등록할 수 있습니다.', 'success');
+        } else {
+            file.status = 'error';
+            showToast('변환 실패: ' + result.error, 'error');
+        }
+    } catch (error) {
+        file.status = 'error';
+        showToast('변환 실패: ' + error.message, 'error');
+    }
+    
+    updateFileListUI();
+}
+
+// 실제 마켓플레이스 등록
+async function realRegisterToMarketplace() {
+    if (TLStudio.selectedFiles.length === 0) {
+        showToast('등록할 파일을 선택해주세요', 'warning');
+        return;
+    }
+    
+    const genre = document.getElementById('primaryGenre').value;
+    const tags = document.getElementById('fileTags').value;
+    const description = document.getElementById('fileDescription').value;
+    
+    // 선택된 파일들 등록
+    for (const file of TLStudio.selectedFiles) {
+        if (!file.tlAssetId) continue;
+        
+        const metadata = {
+            title: file.name.replace(/\.[^/.]+$/, ""),
+            genre: genre,
+            tags: tags.split(',').map(t => t.trim()),
+            description: description,
+            copyrightInfo: {
+                type: document.getElementById('copyrightType').value,
+                ownerName: document.getElementById('copyrightOwnerName').value || localStorage.getItem('timelink_nickname'),
+                ownerEmail: document.getElementById('copyrightOwnerEmail').value || localStorage.getItem('timelink_userEmail')
+            }
+        };
+        
+        try {
+            const result = await window.RealTL.registerToMarketplace(file.tlAssetId, metadata);
+            
+            if (result.success) {
+                file.status = 'marketplace_registered';
+                file.marketplaceId = result.marketplaceId;
+                showToast(\`\${file.name} 마켓플레이스 등록 완료!\`, 'success');
+            } else {
+                showToast(\`\${file.name} 등록 실패: \${result.error}\`, 'error');
+            }
+        } catch (error) {
+            showToast(\`\${file.name} 등록 실패: \${error.message}\`, 'error');
+        }
+    }
+    
+    // UI 업데이트
+    updateFileListUI();
+}
+
+// 기존 함수들을 실제 API 버전으로 교체
+document.addEventListener('DOMContentLoaded', function() {
+    // 변환 버튼 이벤트 리스너 업데이트
+    document.addEventListener('click', function(e) {
+        if (e.target.matches('[onclick*="convertFile"]')) {
+            e.preventDefault();
+            const fileId = e.target.getAttribute('onclick').match(/'([^']+)'/)[1];
+            realConvertToTL(fileId);
+        }
+        
+        if (e.target.matches('[onclick*="registerToMarketplace"]')) {
+            e.preventDefault();
+            realRegisterToMarketplace();
+        }
+    });
+});
+</script>
 </body>
 </html>
 >>>>>>> 6f5f03aa54a385fddfe7d17ca4293f2e7a4ee0bc
+
 
 
 
