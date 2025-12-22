@@ -107,3 +107,68 @@ window.auth = {
     resendVerification
 };
 
+
+
+
+
+// ================ TL TIME LINK 시스템 ================
+const TLSystem = {
+    balance: 10000,
+    
+    init() {
+        const saved = localStorage.getItem('timelink_tlBalance');
+        if (saved) this.balance = parseInt(saved);
+        else {
+            this.balance = 10000;
+            localStorage.setItem('timelink_tlBalance', this.balance);
+        }
+        this.updateAllDisplays();
+    },
+    
+    updateAllDisplays() {
+        // 모든 TL 표시 요소 업데이트
+        document.querySelectorAll('[data-tl-balance]').forEach(el => {
+            el.textContent = this.balance.toLocaleString() + ' TL';
+        });
+    },
+    
+    charge(amount) {
+        this.balance += amount;
+        localStorage.setItem('timelink_tlBalance', this.balance);
+        this.updateAllDisplays();
+        alert(amount.toLocaleString() + ' TL 충전 완료!');
+        return this.balance;
+    },
+    
+    consume(amount, description = '') {
+        if (this.balance >= amount) {
+            this.balance -= amount;
+            localStorage.setItem('timelink_tlBalance', this.balance);
+            this.updateAllDisplays();
+            
+            // 수익 분배 (저작권자 50%, 업로더 20%, 플랫폼 30%)
+            const copyrightEarn = amount * 0.5;
+            const uploaderEarn = amount * 0.2;
+            const platformEarn = amount * 0.3;
+            
+            console.log(\`수익분배: 저작권자 \${copyrightEarn}TL, 업로더 \${uploaderEarn}TL, 플랫폼 \${platformEarn}TL\`);
+            return true;
+        }
+        alert('TL이 부족합니다!');
+        return false;
+    },
+    
+    getBalance() {
+        return this.balance;
+    }
+};
+
+// 글로벌 등록
+window.TL = TLSystem;
+
+// 페이지 로드 시 초기화
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => TLSystem.init());
+} else {
+    TLSystem.init();
+}
