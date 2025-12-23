@@ -93,8 +93,10 @@ function checkExistingLogin() {
     const isLoggedIn = localStorage.getItem('tl_loggedIn') === 'true';
     if (isLoggedIn) {
         // 이미 로그인된 경우 홈페이지로 리다이렉트
-        alert('이미 로그인된 상태입니다. 홈페이지로 이동합니다.');
-        window.location.href = '../index.html';
+        showAlert('이미 로그인된 상태입니다. 홈페이지로 이동합니다.', 'info');
+        setTimeout(() => {
+            window.location.href = '../index.html';
+        }, 1500);
     }
 }
 
