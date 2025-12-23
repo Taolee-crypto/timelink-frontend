@@ -1,1 +1,736 @@
+// tlmusic.js - TL MUSIC 페이지 JavaScript
 
+// 음악 데이터베이스
+const musicLibrary = [
+    {
+        id: 1,
+        title: "Quantum Beats",
+        artist: "Neural Nexus",
+        genre: "electronic",
+        type: "tl3",
+        price: 5,
+        originalPrice: 8,
+        duration: 45,
+        tracks: 12,
+        plays: 12450,
+        likes: 890,
+        cover: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
+        badge: "hot",
+        description: "양자 컴퓨팅에서 영감을 받은 실험적 일렉트로닉"
+    },
+    {
+        id: 2,
+        title: "Digital Dreams",
+        artist: "Cyber Symphony",
+        genre: "ambient",
+        type: "tl3",
+        price: 7,
+        originalPrice: 10,
+        duration: 60,
+        tracks: 15,
+        plays: 8920,
+        likes: 654,
+        cover: "https://images.unsplash.com/photo-1511379938547-c1f69419868d?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
+        badge: "new",
+        description: "디지털 시대의 꿈을 음악으로 표현"
+    },
+    {
+        id: 3,
+        title: "Neo Seoul Nights",
+        artist: "Hologram",
+        genre: "indie",
+        type: "tl4",
+        price: 6,
+        originalPrice: 9,
+        duration: 50,
+        tracks: 10,
+        plays: 15670,
+        likes: 1234,
+        cover: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
+        badge: "popular",
+        description: "미래 서울의 밤을 담은 시티팝 뮤직비디오"
+    },
+    {
+        id: 4,
+        title: "Crypto Waves",
+        artist: "Blockchain Beats",
+        genre: "experimental",
+        type: "tl3",
+        price: 8,
+        originalPrice: 12,
+        duration: 40,
+        tracks: 8,
+        plays: 5670,
+        likes: 432,
+        cover: "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
+        badge: "exclusive",
+        description: "블록체인 기술에서 영감을 받은 실험적 음악"
+    },
+    {
+        id: 5,
+        title: "Midnight Guitar",
+        artist: "Luna Strings",
+        genre: "folk",
+        type: "tl3",
+        price: 3,
+        originalPrice: 5,
+        duration: 30,
+        tracks: 6,
+        plays: 7890,
+        likes: 567,
+        cover: "https://images.unsplash.com/photo-1519281682544-5f37c4dca08a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
+        badge: null,
+        description: "고요한 밤의 기타 선율"
+    },
+    {
+        id: 6,
+        title: "Urban Flow",
+        artist: "City Poets",
+        genre: "hiphop",
+        type: "tl4",
+        price: 9,
+        originalPrice: 15,
+        duration: 55,
+        tracks: 12,
+        plays: 11230,
+        likes: 890,
+        cover: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
+        badge: "hot",
+        description: "도시의 리듬을 담은 힙합 뮤직비디오"
+    },
+    {
+        id: 7,
+        title: "Echoes of Silence",
+        artist: "Soul Whisper",
+        genre: "ambient",
+        type: "tl3",
+        price: 4,
+        originalPrice: 7,
+        duration: 45,
+        tracks: 9,
+        plays: 6540,
+        likes: 489,
+        cover: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
+        badge: "new",
+        description: "고요함 속에서 찾은 평화의 음악"
+    },
+    {
+        id: 8,
+        title: "Neon Dreams",
+        artist: "Synthwave Collective",
+        genre: "electronic",
+        type: "tl4",
+        price: 10,
+        originalPrice: 18,
+        duration: 65,
+        tracks: 14,
+        plays: 18760,
+        likes: 1456,
+        cover: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
+        badge: "popular",
+        description: "네온 불빛 아래의 사이버펑크 뮤직비디오"
+    }
+];
+
+// 현재 재생 중인 음악
+let currentMusic = null;
+let isPlaying = false;
+let progressInterval = null;
+let currentTime = 0;
+let totalTime = 225; // 3분 45초
+let tlDeductionInterval = null;
+
+// DOM이 로드되면 실행
+document.addEventListener('DOMContentLoaded', function() {
+    initializePage();
+    loadMusicGrid();
+    
+    // 로컬스토리지에서 사용자 정보 확인
+    checkUserStatus();
+});
+
+// 페이지 초기화
+function initializePage() {
+    // 네비게이션 스크롤
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href').substring(1);
+            const targetSection = document.getElementById(targetId);
+            if (targetSection) {
+                window.scrollTo({
+                    top: targetSection.offsetTop - 80,
+                    behavior: 'smooth'
+                });
+            }
+        });
+    });
+    
+    // 파일 업로드 이벤트
+    const fileInput = document.getElementById('fileInput');
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    
+    fileInput.addEventListener('change', function(e) {
+        if (this.files.length > 0) {
+            const file = this.files[0];
+            const fileType = file.type;
+            const fileSize = (file.size / (1024 * 1024)).toFixed(2); // MB
+            
+            let typeText = '';
+            if (fileType.includes('audio')) {
+                typeText = '오디오 파일';
+            } else if (fileType.includes('video')) {
+                typeText = '비디오 파일';
+            } else {
+                typeText = '파일';
+            }
+            
+            document.getElementById('fileInfo').textContent = 
+                `${typeText} 선택됨: ${file.name} (${fileSize} MB)`;
+            
+            fileUploadArea.style.borderColor = '#00D4AA';
+            fileUploadArea.style.backgroundColor = 'rgba(0, 212, 170, 0.05)';
+        }
+    });
+    
+    // 드래그 앤 드롭
+    fileUploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.style.borderColor = '#8A2BE2';
+        this.style.backgroundColor = 'rgba(138, 43, 226, 0.05)';
+    });
+    
+    fileUploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.style.borderColor = 'rgba(138, 43, 226, 0.3)';
+        this.style.backgroundColor = 'transparent';
+    });
+    
+    fileUploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.style.borderColor = '#00D4AA';
+        this.style.backgroundColor = 'rgba(0, 212, 170, 0.05)';
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            
+            const file = files[0];
+            const fileType = file.type;
+            const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+            
+            let typeText = '';
+            if (fileType.includes('audio')) {
+                typeText = '오디오 파일';
+            } else if (fileType.includes('video')) {
+                typeText = '비디오 파일';
+            } else {
+                typeText = '파일';
+            }
+            
+            document.getElementById('fileInfo').textContent = 
+                `${typeText} 선택됨: ${file.name} (${fileSize} MB)`;
+        }
+    });
+}
+
+// 음악 그리드 로드
+function loadMusicGrid(filter = 'all') {
+    const musicGrid = document.getElementById('musicGrid');
+    musicGrid.innerHTML = '';
+    
+    let filteredMusic = musicLibrary;
+    
+    if (filter === 'tl3') {
+        filteredMusic = musicLibrary.filter(music => music.type === 'tl3');
+    } else if (filter === 'tl4') {
+        filteredMusic = musicLibrary.filter(music => music.type === 'tl4');
+    } else if (filter === 'trending') {
+        filteredMusic = [...musicLibrary].sort((a, b) => b.plays - a.plays);
+    } else if (filter === 'new') {
+        filteredMusic = musicLibrary.filter(music => music.badge === 'new');
+    }
+    
+    filteredMusic.forEach(music => {
+        const musicCard = createMusicCard(music);
+        musicGrid.appendChild(musicCard);
+    });
+}
+
+// 음악 카드 생성
+function createMusicCard(music) {
+    const card = document.createElement('div');
+    card.className = 'music-card';
+    card.dataset.id = music.id;
+    card.dataset.type = music.type;
+    card.dataset.genre = music.genre;
+    
+    // 뱃지 텍스트 변환
+    let badgeText = '';
+    let badgeClass = 'music-badge';
+    if (music.badge === 'hot') {
+        badgeText = 'HOT';
+        badgeClass += ' hot';
+    } else if (music.badge === 'new') {
+        badgeText = 'NEW';
+        badgeClass += ' new';
+    } else if (music.badge === 'popular') {
+        badgeText = '인기';
+        badgeClass += ' popular';
+    } else if (music.badge === 'exclusive') {
+        badgeText = 'EXCLUSIVE';
+        badgeClass += ' exclusive';
+    }
+    
+    // 타입 뱃지
+    const typeBadgeClass = music.type === 'tl3' ? 'music-badge tl3' : 'music-badge tl4';
+    const typeBadgeText = music.type === 'tl3' ? 'TL3' : 'TL4';
+    
+    card.innerHTML = `
+        <div class="music-cover">
+            <img src="${music.cover}" alt="${music.title}">
+            ${badgeText ? `<div class="${badgeClass}">${badgeText}</div>` : ''}
+            <div class="${typeBadgeClass}">${typeBadgeText}</div>
+            <div class="play-overlay">
+                <button class="play-btn" onclick="playMusic(${music.id})">
+                    <i class="fas fa-play"></i>
+                </button>
+            </div>
+        </div>
+        <div class="music-info">
+            <h3 class="music-title">${music.title}</h3>
+            <div class="music-artist">
+                <div class="artist-avatar"></div>
+                ${music.artist}
+            </div>
+            <div class="music-stats">
+                <span class="stat"><i class="fas fa-clock"></i> ${music.duration}분</span>
+                <span class="stat"><i class="fas fa-music"></i> ${music.tracks}곡</span>
+                <span class="stat"><i class="fas fa-headphones"></i> ${music.plays.toLocaleString()}</span>
+            </div>
+            <div class="music-price">
+                <div class="price">
+                    <span class="current-price">${music.price}</span>
+                    <span class="price-unit">TL/분</span>
+                    ${music.originalPrice ? `<span class="original-price">${music.originalPrice} TL/분</span>` : ''}
+                </div>
+            </div>
+            <button class="btn-buy" onclick="buyMusic(${music.id})">
+                <i class="fas fa-shopping-cart"></i> 구매하기
+            </button>
+        </div>
+    `;
+    
+    return card;
+}
+
+// 음악 필터링
+function filterMusic(filterType) {
+    // 탭 활성화
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    // 음악 그리드 로드
+    loadMusicGrid(filterType);
+}
+
+// 업로드 폼 열기
+function openUploadForm(type) {
+    const formOverlay = document.getElementById('uploadFormOverlay');
+    const formTitle = document.getElementById('formTitle');
+    const fileInfo = document.getElementById('fileInfo');
+    
+    if (type === 'tl3') {
+        formTitle.textContent = 'TL3 음악 업로드';
+        fileInfo.textContent = 'MP3, WAV, FLAC 파일 (최대 500MB)';
+        document.getElementById('pricePerMinute').value = 5;
+    } else {
+        formTitle.textContent = 'TL4 뮤직비디오 업로드';
+        fileInfo.textContent = 'MP4, MOV, AVI 파일 (최대 2GB)';
+        document.getElementById('pricePerMinute').value = 8;
+    }
+    
+    formOverlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+// 업로드 폼 닫기
+function closeUploadForm() {
+    const formOverlay = document.getElementById('uploadFormOverlay');
+    formOverlay.classList.remove('active');
+    document.body.style.overflow = 'auto';
+    
+    // 폼 초기화
+    document.getElementById('musicTitle').value = '';
+    document.getElementById('artistName').value = '';
+    document.getElementById('musicGenre').value = '';
+    document.getElementById('fileInput').value = '';
+    document.getElementById('pricePerMinute').value = '5';
+    document.getElementById('musicDescription').value = '';
+    document.getElementById('fileInfo').textContent = 'MP3, WAV, FLAC 파일 (최대 500MB)';
+    
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    fileUploadArea.style.borderColor = 'rgba(138, 43, 226, 0.3)';
+    fileUploadArea.style.backgroundColor = 'transparent';
+}
+
+// 파일 업로드 트리거
+function triggerFileUpload() {
+    document.getElementById('fileInput').click();
+}
+
+// 음악 업로드 제출
+function submitMusic() {
+    const title = document.getElementById('musicTitle').value;
+    const artist = document.getElementById('artistName').value;
+    const genre = document.getElementById('musicGenre').value;
+    const price = document.getElementById('pricePerMinute').value;
+    const description = document.getElementById('musicDescription').value;
+    const fileInput = document.getElementById('fileInput');
+    
+    if (!title || !artist || !genre || !price || fileInput.files.length === 0) {
+        alert('모든 필수 항목을 입력해주세요.');
+        return;
+    }
+    
+    // 업로드 시뮬레이션
+    showUploadProgress();
+    
+    // 3초 후 완료
+    setTimeout(() => {
+        alert(`"${title}" 음악이 성공적으로 업로드되었습니다!\nTL MUSIC 마켓플레이스에 등록되었습니다.`);
+        closeUploadForm();
+        
+        // 새 음악을 그리드에 추가 (시뮬레이션)
+        const newMusic = {
+            id: musicLibrary.length + 1,
+            title: title,
+            artist: artist,
+            genre: genre,
+            type: fileInput.files[0].type.includes('audio') ? 'tl3' : 'tl4',
+            price: parseInt(price),
+            originalPrice: null,
+            duration: Math.floor(Math.random() * 60) + 20,
+            tracks: Math.floor(Math.random() * 15) + 5,
+            plays: 0,
+            likes: 0,
+            cover: getRandomCoverImage(),
+            badge: 'new',
+            description: description
+        };
+        
+        musicLibrary.unshift(newMusic);
+        loadMusicGrid();
+    }, 3000);
+}
+
+// 업로드 진행상황 표시
+function showUploadProgress() {
+    // 간단한 로딩 표시
+    const submitBtn = document.querySelector('.btn-submit');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 업로드 중...';
+    submitBtn.disabled = true;
+    
+    // 3초 후 원래대로
+    setTimeout(() => {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }, 3000);
+}
+
+// 랜덤 커버 이미지
+function getRandomCoverImage() {
+    const covers = [
+        'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+        'https://images.unsplash.com/photo-1511379938547-c1f69419868d?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+        'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+        'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+        'https://images.unsplash.com/photo-1519281682544-5f37c4dca08a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+        'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80'
+    ];
+    return covers[Math.floor(Math.random() * covers.length)];
+}
+
+// 음악 재생
+function playMusic(musicId) {
+    const music = musicLibrary.find(m => m.id === musicId);
+    if (!music) return;
+    
+    currentMusic = music;
+    
+    // 플레이어 UI 업데이트
+    document.getElementById('playerAlbumArt').src = music.cover;
+    document.getElementById('playerTitle').textContent = music.title;
+    document.getElementById('playerArtist').textContent = music.artist;
+    
+    // 재생 시작
+    togglePlayPause(true);
+    
+    // 스크롤
+    document.querySelector('.music-player').scrollIntoView({ behavior: 'smooth' });
+}
+
+// 재생/일시정지 토글
+function togglePlayPause(forcePlay = false) {
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const icon = playPauseBtn.querySelector('i');
+    
+    if (forcePlay || !isPlaying) {
+        // 재생 시작
+        isPlaying = true;
+        icon.className = 'fas fa-pause';
+        
+        // 프로그레스 시작
+        startProgress();
+        
+        // TL 차감 시작
+        startTLDeduction();
+        
+        // 재생 횟수 증가 (시뮬레이션)
+        if (currentMusic) {
+            currentMusic.plays++;
+            updateMusicCard(currentMusic.id);
+        }
+    } else {
+        // 일시정지
+        isPlaying = false;
+        icon.className = 'fas fa-play';
+        
+        // 인터벌 정지
+        stopProgress();
+        stopTLDeduction();
+    }
+}
+
+// 프로그레스 시작
+function startProgress() {
+    currentTime = 0;
+    updateProgressBar();
+    
+    progressInterval = setInterval(() => {
+        currentTime++;
+        if (currentTime >= totalTime) {
+            currentTime = 0;
+            skipTrack(1); // 다음 트랙
+        }
+        updateProgressBar();
+    }, 1000);
+}
+
+// 프로그레스 정지
+function stopProgress() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+    }
+}
+
+// 프로그레스 바 업데이트
+function updateProgressBar() {
+    const progressPercent = (currentTime / totalTime) * 100;
+    document.getElementById('progressBar').style.width = `${progressPercent}%`;
+    
+    // 시간 표시 업데이트
+    document.getElementById('currentTime').textContent = formatTime(currentTime);
+    document.getElementById('totalTime').textContent = formatTime(totalTime);
+}
+
+// 시간 포맷팅
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+// TL 차감 시작
+function startTLDeduction() {
+    if (!currentMusic) return;
+    
+    const tlPerSecond = currentMusic.price / 60; // 분당 가격을 초당으로 변환
+    let totalDeducted = 0;
+    
+    tlDeductionInterval = setInterval(() => {
+        totalDeducted += tlPerSecond;
+        document.getElementById('playerTLConsumption').textContent = 
+            `${tlPerSecond.toFixed(2)} TL/초 (총 ${totalDeducted.toFixed(2)} TL)`;
+        
+        // 잔액 업데이트 (시뮬레이션)
+        updateBalance(-tlPerSecond);
+    }, 1000);
+}
+
+// TL 차감 정지
+function stopTLDeduction() {
+    if (tlDeductionInterval) {
+        clearInterval(tlDeductionInterval);
+        tlDeductionInterval = null;
+    }
+}
+
+// 트랙 스킵
+function skipTrack(direction) {
+    if (!currentMusic) return;
+    
+    // 간단한 구현: 랜덤한 다음 음악 재생
+    const currentIndex = musicLibrary.findIndex(m => m.id === currentMusic.id);
+    let nextIndex = currentIndex + direction;
+    
+    if (nextIndex < 0) nextIndex = musicLibrary.length - 1;
+    if (nextIndex >= musicLibrary.length) nextIndex = 0;
+    
+    playMusic(musicLibrary[nextIndex].id);
+}
+
+// 음악 구매
+function buyMusic(musicId) {
+    const music = musicLibrary.find(m => m.id === musicId);
+    if (!music) return;
+    
+    const confirmBuy = confirm(
+        `"${music.title}" - ${music.artist}\n\n` +
+        `가격: ${music.price} TL/분\n` +
+        `장르: ${getGenreText(music.genre)}\n` +
+        `형식: ${music.type === 'tl3' ? 'TL3 음악 파일' : 'TL4 뮤직비디오'}\n\n` +
+        `이 음악을 구매하시겠습니까?\n\n` +
+        `구매 후 시간 단위로 청취 가능하며, 아티스트에게 70%의 수익이 돌아갑니다.`
+    );
+    
+    if (confirmBuy) {
+        // 구매 처리 (시뮬레이션)
+        alert(`"${music.title}" 구매가 완료되었습니다!\n\n이제 이 음악을 자유롭게 재생할 수 있습니다.`);
+        
+        // 재생 시작
+        playMusic(musicId);
+    }
+}
+
+// 장르 텍스트 변환
+function getGenreText(genre) {
+    const genreMap = {
+        'rock': '록',
+        'hiphop': '힙합',
+        'electronic': '일렉트로닉',
+        'jazz': '재즈',
+        'indie': '인디',
+        'pop': '팝',
+        'rnb': 'R&B',
+        'folk': '포크',
+        'classical': '클래식',
+        'ambient': '앰비언트',
+        'experimental': '실험 음악'
+    };
+    return genreMap[genre] || genre;
+}
+
+// 잔액 업데이트
+function updateBalance(amount) {
+    const balanceElement = document.getElementById('balanceAmount');
+    let currentBalance = parseFloat(balanceElement.textContent.replace(/,/g, ''));
+    
+    currentBalance += amount;
+    if (currentBalance < 0) currentBalance = 0;
+    
+    balanceElement.textContent = Math.floor(currentBalance).toLocaleString();
+    
+    // 로컬스토리지 저장
+    localStorage.setItem('tl_music_balance', currentBalance.toString());
+}
+
+// 사용자 상태 확인
+function checkUserStatus() {
+    const isLoggedIn = localStorage.getItem('tl_loggedIn') === 'true';
+    
+    if (isLoggedIn) {
+        document.querySelector('.user-avatar i').className = 'fas fa-user-check';
+        
+        // 잔액 불러오기
+        const savedBalance = localStorage.getItem('tl_music_balance');
+        if (savedBalance) {
+            document.getElementById('balanceAmount').textContent = 
+                parseInt(savedBalance).toLocaleString();
+        }
+    } else {
+        document.querySelector('.user-avatar').title = '로그인하기';
+    }
+}
+
+// 사용자 메뉴 토글
+function toggleUserMenu() {
+    const isLoggedIn = localStorage.getItem('tl_loggedIn') === 'true';
+    
+    if (!isLoggedIn) {
+        alert('TL MUSIC을 이용하려면 로그인이 필요합니다.');
+        window.location.href = 'login.html?return=tlmusic';
+        return;
+    }
+    
+    // 간단한 사용자 메뉴 (실제로는 드롭다운 메뉴 구현)
+    const actions = [
+        '내 음악 관리',
+        '판매 통계 보기',
+        '수익 출금하기',
+        '계정 설정',
+        '로그아웃'
+    ];
+    
+    const selected = prompt(
+        '사용자 메뉴:\n\n' + 
+        actions.map((action, index) => `${index + 1}. ${action}`).join('\n') +
+        '\n\n번호를 선택하세요:'
+    );
+    
+    if (selected === '5') {
+        localStorage.removeItem('tl_loggedIn');
+        localStorage.removeItem('tl_music_balance');
+        alert('로그아웃되었습니다.');
+        location.reload();
+    }
+}
+
+// 음악 카드 업데이트
+function updateMusicCard(musicId) {
+    const card = document.querySelector(`.music-card[data-id="${musicId}"]`);
+    if (card) {
+        const playsElement = card.querySelector('.stat:nth-child(3)');
+        if (playsElement) {
+            const music = musicLibrary.find(m => m.id === musicId);
+            if (music) {
+                playsElement.innerHTML = `<i class="fas fa-headphones"></i> ${music.plays.toLocaleString()}`;
+            }
+        }
+    }
+}
+
+// 샘플 데이터 추가 (페이지 로드시)
+setTimeout(() => {
+    if (musicLibrary.length === 8) {
+        // 샘플 데이터 더 추가
+        for (let i = 0; i < 4; i++) {
+            const genres = ['rock', 'hiphop', 'electronic', 'indie', 'pop', 'folk'];
+            const types = ['tl3', 'tl4'];
+            const badges = [null, 'new', 'hot', null];
+            
+            musicLibrary.push({
+                id: musicLibrary.length + 1,
+                title: `Sample Track ${musicLibrary.length + 1}`,
+                artist: `Indie Artist ${Math.floor(Math.random() * 100) + 1}`,
+                genre: genres[Math.floor(Math.random() * genres.length)],
+                type: types[Math.floor(Math.random() * types.length)],
+                price: Math.floor(Math.random() * 10) + 2,
+                originalPrice: Math.random() > 0.5 ? Math.floor(Math.random() * 15) + 5 : null,
+                duration: Math.floor(Math.random() * 60) + 20,
+                tracks: Math.floor(Math.random() * 15) + 5,
+                plays: Math.floor(Math.random() * 10000),
+                likes: Math.floor(Math.random() * 1000),
+                cover: getRandomCoverImage(),
+                badge: badges[Math.floor(Math.random() * badges.length)],
+                description: '인디 아티스트의 독창적인 작품'
+            });
+        }
+        
+        loadMusicGrid();
+    }
+}, 1000);
