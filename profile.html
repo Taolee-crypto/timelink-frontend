@@ -225,6 +225,130 @@
             transform: scale(1.05);
         }
 
+        /* ====== 사용자 드롭다운 메뉴 ====== */
+        .user-dropdown {
+            position: absolute;
+            top: 60px;
+            right: 0;
+            background: var(--dark-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 1001;
+            min-width: 220px;
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .user-dropdown.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .dropdown-user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .dropdown-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-blue), var(--secondary-teal));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: white;
+        }
+
+        .dropdown-user-text h4 {
+            font-size: 1rem;
+            margin-bottom: 4px;
+            color: white;
+        }
+
+        .dropdown-user-text p {
+            font-size: 0.85rem;
+            color: var(--gray-text);
+        }
+
+        .dropdown-balance {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 102, 255, 0.1);
+            border: 1px solid rgba(0, 102, 255, 0.3);
+            border-radius: 20px;
+            padding: 6px 12px;
+            margin-top: 10px;
+            color: var(--primary-blue);
+            font-weight: 600;
+            font-size: 0.9rem;
+            width: fit-content;
+        }
+
+        .dropdown-menu {
+            padding: 10px 0;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: var(--gray-text);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+        }
+
+        .dropdown-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 5px 0;
+        }
+
+        .dropdown-item.logout {
+            color: var(--error);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 5px;
+        }
+
+        .dropdown-item.logout:hover {
+            background: rgba(244, 67, 54, 0.1);
+            color: var(--error);
+        }
+
+        .dropdown-footer {
+            padding: 15px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.8rem;
+            color: var(--gray-text);
+            text-align: center;
+        }
+
         /* 모바일 메뉴 버튼 */
         .mobile-menu-btn {
             display: none;
@@ -922,6 +1046,14 @@
             
             .user-section {
                 min-width: auto;
+                position: relative;
+            }
+            
+            .user-dropdown {
+                position: fixed;
+                top: 70px;
+                right: 20px;
+                left: auto;
             }
             
             .stats-grid {
@@ -1011,6 +1143,11 @@
                 </div>
                 <div class="user-avatar" id="headerAvatar">
                     <i class="fas fa-user"></i>
+                </div>
+                
+                <!-- 사용자 드롭다운 메뉴 -->
+                <div class="user-dropdown" id="userDropdown">
+                    <!-- 드롭다운 내용은 JavaScript로 동적 생성 -->
                 </div>
             </div>
         </div>
@@ -1371,6 +1508,105 @@
                         mobileMenuBtn.querySelector('i').classList.add('fa-bars');
                     });
                 });
+            }
+        }
+
+        // ========== 드롭다운 메뉴 관리 ==========
+        function setupDropdown() {
+            const userAvatar = document.getElementById('headerAvatar');
+            const userDropdown = document.getElementById('userDropdown');
+            
+            if (userAvatar && userDropdown) {
+                userAvatar.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    createDropdownContent();
+                    userDropdown.classList.toggle('active');
+                });
+                
+                document.addEventListener('click', (e) => {
+                    if (!userDropdown.contains(e.target) && !userAvatar.contains(e.target)) {
+                        userDropdown.classList.remove('active');
+                    }
+                });
+            }
+        }
+        
+        function createDropdownContent() {
+            const userDropdown = document.getElementById('userDropdown');
+            const userInfo = getUserInfo();
+            const isLoggedIn = checkLoginStatus();
+            
+            if (!userDropdown) return;
+            
+            if (isLoggedIn && userInfo) {
+                const initials = userInfo.name ? userInfo.name.charAt(0).toUpperCase() : 'U';
+                const balance = userInfo.balance ? userInfo.balance.toLocaleString() : '10,000';
+                
+                userDropdown.innerHTML = `
+                    <div class="dropdown-header">
+                        <div class="dropdown-user-info">
+                            <div class="dropdown-avatar">${initials}</div>
+                            <div class="dropdown-user-text">
+                                <h4>${userInfo.name || '사용자'}</h4>
+                                <p>${userInfo.email || 'user@timelink.digital'}</p>
+                            </div>
+                        </div>
+                        <div class="dropdown-balance">
+                            <div class="tl-icon" style="width: 20px; height: 20px; font-size: 0.7rem;">TL</div>
+                            <span>${balance} TL</span>
+                        </div>
+                    </div>
+                    
+                    <div class="dropdown-menu">
+                        <a href="profile.html#dashboard" class="dropdown-item">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>대시보드</span>
+                        </a>
+                        <a href="profile.html#profile" class="dropdown-item">
+                            <i class="fas fa-user-edit"></i>
+                            <span>개인정보</span>
+                        </a>
+                        <a href="profile.html#wallet" class="dropdown-item">
+                            <i class="fas fa-wallet"></i>
+                            <span>TL 지갑</span>
+                        </a>
+                        <a href="profile.html#uploads" class="dropdown-item">
+                            <i class="fas fa-folder-open"></i>
+                            <span>업로드 관리</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="studio.html" class="dropdown-item">
+                            <i class="fas fa-plus"></i>
+                            <span>새 콘텐츠 업로드</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item logout" id="dropdownLogoutBtn">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>로그아웃</span>
+                        </div>
+                    </div>
+                    
+                    <div class="dropdown-footer">
+                        TIMELINK v1.0
+                    </div>
+                `;
+                
+                // 로그아웃 버튼 이벤트 추가
+                const logoutBtn = document.getElementById('dropdownLogoutBtn');
+                if (logoutBtn) {
+                    logoutBtn.addEventListener('click', handleLogout);
+                }
+            }
+        }
+
+        // ========== 로그아웃 처리 ==========
+        function handleLogout() {
+            if (confirm('정말 로그아웃하시겠습니까?')) {
+                localStorage.removeItem('timelink_token');
+                localStorage.removeItem('timelink_user');
+                localStorage.removeItem('timelink_settings');
+                alert('로그아웃되었습니다.');
+                window.location.href = 'index.html';
             }
         }
 
@@ -1770,6 +2006,7 @@
                     // UI 업데이트
                     loadUserProfile();
                     updateHeaderUI();
+                    createDropdownContent();
                     
                     // 성공 메시지
                     alert('프로필 정보가 업데이트되었습니다.');
@@ -1792,15 +2029,11 @@
                 });
             }
             
-            // 로그아웃
+            // 프로필 페이지 내 로그아웃
             const logoutBtn = document.getElementById('logoutBtn');
             if (logoutBtn) {
                 logoutBtn.addEventListener('click', function() {
-                    if (confirm('정말 로그아웃하시겠습니까?')) {
-                        localStorage.removeItem('timelink_token');
-                        localStorage.removeItem('timelink_user');
-                        window.location.href = 'index.html';
-                    }
+                    handleLogout();
                 });
             }
             
@@ -1812,6 +2045,7 @@
                         // API 호출 후
                         localStorage.removeItem('timelink_token');
                         localStorage.removeItem('timelink_user');
+                        localStorage.removeItem('timelink_settings');
                         alert('계정이 삭제되었습니다.');
                         window.location.href = 'index.html';
                     }
@@ -1845,16 +2079,7 @@
 
         // ========== 모달 관리 ==========
         function openModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.style.display = 'flex';
-                alert(`${modalId.replace('Modal', '')} 기능은 준비 중입니다.`);
-            }
-        }
-        
-        function closeModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) modal.style.display = 'none';
+            alert(`${modalId.replace('Modal', '')} 기능은 준비 중입니다.`);
         }
 
         // ========== Google 번역 ==========
@@ -1876,6 +2101,9 @@
             
             // 모바일 메뉴 설정
             setupMobileMenu();
+            
+            // 드롭다운 설정
+            setupDropdown();
             
             // 로그인 상태 확인
             const isLoggedIn = checkLoginStatus();
