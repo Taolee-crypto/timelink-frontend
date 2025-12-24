@@ -485,14 +485,9 @@
             overflow: hidden;
         }
         
-        .upload-zone:hover {
+        .upload-zone.dragover {
             border-color: var(--tl-secondary);
             background: rgba(54, 209, 220, 0.05);
-        }
-        
-        .upload-zone.dragover {
-            border-color: var(--tl-primary);
-            background: rgba(0, 102, 255, 0.05);
         }
         
         .upload-icon {
@@ -872,6 +867,13 @@
             display: block;
         }
         
+        .status-info {
+            background: rgba(0, 102, 255, 0.1);
+            color: var(--tl-primary);
+            border: 1px solid rgba(0, 102, 255, 0.3);
+            display: block;
+        }
+        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -1090,10 +1092,10 @@
     </style>
 </head>
 <body>
-    <!-- Google 번역 위젯 (TLTUBE와 동일) -->
+    <!-- Google 번역 위젯 -->
     <div id="google_translate_element"></div>
 
-    <!-- TLTUBE 스타일 헤더 (완전 동일) -->
+    <!-- 헤더 -->
     <header class="main-header">
         <div class="header-content">
             <!-- Logo -->
@@ -1107,7 +1109,7 @@
                 <i class="fas fa-bars"></i>
             </button>
 
-            <!-- Navigation - TLTUBE와 완전히 동일한 메뉴 구조 -->
+            <!-- Navigation -->
             <nav class="main-nav" id="mainNav">
                 <a href="index.html" class="nav-link">
                     <i class="fas fa-home"></i> HOME
@@ -1146,7 +1148,7 @@
         </div>
     </header>
 
-    <!-- 스튜디오 상단 섹션 (중앙 정렬) -->
+    <!-- 스튜디오 상단 섹션 -->
     <section class="studio-top-section">
         <div class="container">
             <div class="studio-top-content">
@@ -1162,7 +1164,7 @@
                     CRYSTALS-DILITHIUM 양자내성 암호화로 보호되는 최고의 콘텐츠 변환 플랫폼
                 </p>
                 
-                <!-- 기능 태그 라인 (가로 정렬) -->
+                <!-- 기능 태그 라인 -->
                 <div class="feature-tags-line">
                     <div class="feature-tag">
                         <i class="fas fa-music"></i> 음악 (TL3)
@@ -1184,7 +1186,7 @@
                     </div>
                 </div>
                 
-                <!-- 액션 버튼 라인 (가로 정렬) -->
+                <!-- 액션 버튼 라인 -->
                 <div class="action-buttons-line">
                     <button class="btn btn-primary" id="startConversion">
                         <i class="fas fa-play"></i> 변환 시작하기
@@ -1420,7 +1422,7 @@
                         <div class="format-desc">이미지 파일</div>
                     </div>
                     
-                    <div class="format-card" data-format="TLD">
+                    <div class="format-card active" data-format="TLD">
                         <div class="format-icon">
                             <i class="fas fa-file-alt"></i>
                         </div>
@@ -1441,7 +1443,7 @@
                     <label class="form-label">
                         <i class="fas fa-file-signature"></i> 파일 이름
                     </label>
-                    <input type="text" class="form-control" id="tlFileName" placeholder="my-file">
+                    <input type="text" class="form-control" id="tlFileName" placeholder="my-file" value="my-tl-file">
                 </div>
                 
                 <div class="status-message" id="saveStatus"></div>
@@ -1455,7 +1457,7 @@
         </div>
     </div>
 
-    <!-- TLTUBE 스타일 푸터 -->
+    <!-- 푸터 -->
     <footer class="main-footer">
         <div class="container">
             <div class="footer-content">
@@ -1488,9 +1490,8 @@
         </div>
     </footer>
 
-    <!-- JavaScript -->
     <script>
-        // Google 번역 초기화 (TLTUBE와 동일)
+        // Google 번역 초기화
         function googleTranslateElementInit() {
             if (typeof google !== 'undefined' && google.translate) {
                 new google.translate.TranslateElement({
@@ -1501,7 +1502,7 @@
                 }, 'google_translate_element');
             }
         }
-        
+
         // 스튜디오 상태 관리
         const StudioState = {
             currentStep: 1,
@@ -1526,15 +1527,45 @@
                 privateKey: null,
                 status: 'pending'
             },
-            saveFormat: 'TL3',
-            tlFileName: ''
+            saveFormat: 'TLD',  // 기본값을 TLD로 설정
+            tlFileName: 'my-tl-file',
+            encryptionAgreed: false
         };
-        
+
         // DOM 로드 완료 시 초기화
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🎵 STUDIO 페이지 초기화');
             
+            // 초기화 함수들 호출
+            initStudio();
+        });
+
+        // 스튜디오 초기화
+        function initStudio() {
             // 모바일 메뉴 초기화
+            initMobileMenu();
+            
+            // 이벤트 리스너 설정
+            initEventListeners();
+            
+            // 드래그 앤 드롭 설정
+            initDragAndDrop();
+            
+            // 초기 UI 상태 설정
+            updateUI();
+            
+            // TL 잔액 업데이트
+            updateBalance();
+            
+            // 사용자 이벤트 설정
+            initUserEvents();
+            
+            // 기본 파일 이름 설정
+            StudioState.tlFileName = document.getElementById('tlFileName').value;
+        }
+
+        // 모바일 메뉴 초기화
+        function initMobileMenu() {
             const mobileMenuBtn = document.getElementById('mobileMenuBtn');
             const mainNav = document.getElementById('mainNav');
             
@@ -1546,108 +1577,144 @@
                         : '<i class="fas fa-bars"></i>';
                 });
             }
+        }
+
+        // 이벤트 리스너 초기화
+        function initEventListeners() {
+            // 시작 버튼
+            const startConversionBtn = document.getElementById('startConversion');
+            if (startConversionBtn) {
+                startConversionBtn.addEventListener('click', startConversion);
+            }
             
-            // 이벤트 리스너 설정
-            initializeEventListeners();
+            const viewTutorialBtn = document.getElementById('viewTutorial');
+            if (viewTutorialBtn) {
+                viewTutorialBtn.addEventListener('click', viewTutorial);
+            }
             
-            // 드래그 앤 드롭 설정
-            setupDragAndDrop();
+            // 파일 업로드
+            const uploadBtn = document.getElementById('uploadBtn');
+            const fileInput = document.getElementById('fileInput');
             
-            // 초기 UI 상태 설정
-            updateUI();
+            if (uploadBtn && fileInput) {
+                uploadBtn.addEventListener('click', () => fileInput.click());
+                fileInput.addEventListener('change', handleFileUpload);
+            }
             
-            // TL 잔액 업데이트
-            document.getElementById('balanceAmount').textContent = '1,500';
+            // 저작권자 체크박스
+            const isCopyrightOwner = document.getElementById('isCopyrightOwner');
+            if (isCopyrightOwner) {
+                isCopyrightOwner.addEventListener('change', toggleCopyrightDetails);
+            }
             
-            // 사용자 아바타 클릭 이벤트
-            document.getElementById('userAvatar').addEventListener('click', function() {
-                alert('사용자 메뉴 (추가 기능 필요)');
+            // 시간 설정
+            const multiplierSlider = document.getElementById('multiplierSlider');
+            if (multiplierSlider) {
+                multiplierSlider.addEventListener('input', updateMultiplier);
+            }
+            
+            const chargeSeconds = document.getElementById('chargeSeconds');
+            if (chargeSeconds) {
+                chargeSeconds.addEventListener('input', updateChargeTime);
+            }
+            
+            // 암호화 동의
+            const agreeEncryption = document.getElementById('agreeEncryption');
+            if (agreeEncryption) {
+                agreeEncryption.addEventListener('change', handleEncryptionAgreement);
+            }
+            
+            // TL 형식 선택
+            document.querySelectorAll('.format-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    selectTLFormat(this);
+                });
             });
             
-            // TL 잔액 클릭 이벤트
-            document.getElementById('tlBalance').addEventListener('click', function() {
-                alert('지갑 페이지로 이동합니다.\n현재 잔액: 1,500 TL');
-            });
+            // 파일 이름 입력
+            const tlFileName = document.getElementById('tlFileName');
+            if (tlFileName) {
+                tlFileName.addEventListener('input', updateFileName);
+            }
+            
+            // 저장 버튼
+            const saveTLFileBtn = document.getElementById('saveTLFile');
+            if (saveTLFileBtn) {
+                saveTLFileBtn.addEventListener('click', saveTLFile);
+            }
+        }
+
+        // 드래그 앤 드롭 초기화
+        function initDragAndDrop() {
+            const uploadZone = document.getElementById('uploadZone');
+            
+            if (uploadZone) {
+                uploadZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadZone.classList.add('dragover');
+                });
+                
+                uploadZone.addEventListener('dragleave', () => {
+                    uploadZone.classList.remove('dragover');
+                });
+                
+                uploadZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadZone.classList.remove('dragover');
+                    
+                    if (e.dataTransfer.files.length) {
+                        const files = Array.from(e.dataTransfer.files);
+                        processUploadedFiles(files);
+                    }
+                });
+            }
+        }
+
+        // 사용자 이벤트 초기화
+        function initUserEvents() {
+            const userAvatar = document.getElementById('userAvatar');
+            if (userAvatar) {
+                userAvatar.addEventListener('click', function() {
+                    alert('사용자 메뉴 (추가 기능 필요)');
+                });
+            }
+            
+            const tlBalance = document.getElementById('tlBalance');
+            if (tlBalance) {
+                tlBalance.addEventListener('click', function() {
+                    alert('지갑 페이지로 이동합니다.\n현재 잔액: 1,500 TL');
+                });
+            }
             
             // 페이지 스크롤 시 헤더 색상 변경
             window.addEventListener('scroll', function() {
                 const header = document.querySelector('.main-header');
-                if (window.scrollY > 50) {
-                    header.style.background = 'rgba(10, 15, 43, 0.98)';
-                    header.style.boxShadow = '0 5px 20px rgba(0, 0, 0, 0.3)';
-                } else {
-                    header.style.background = 'rgba(10, 15, 43, 0.95)';
-                    header.style.boxShadow = 'none';
-                }
-            });
-        });
-        
-        // 이벤트 리스너 초기화
-        function initializeEventListeners() {
-            // 시작 버튼
-            document.getElementById('startConversion').addEventListener('click', startConversion);
-            document.getElementById('viewTutorial').addEventListener('click', viewTutorial);
-            
-            // 파일 업로드
-            document.getElementById('uploadBtn').addEventListener('click', () => {
-                document.getElementById('fileInput').click();
-            });
-            document.getElementById('fileInput').addEventListener('change', handleFileUpload);
-            
-            // 저작권자 체크박스
-            document.getElementById('isCopyrightOwner').addEventListener('change', toggleCopyrightDetails);
-            
-            // 시간 설정
-            document.getElementById('multiplierSlider').addEventListener('input', updateMultiplier);
-            document.getElementById('chargeSeconds').addEventListener('input', updateChargeTime);
-            
-            // 암호화 동의
-            document.getElementById('agreeEncryption').addEventListener('change', handleEncryptionAgreement);
-            
-            // TL 형식 선택
-            document.querySelectorAll('.format-card').forEach(card => {
-                card.addEventListener('click', () => selectTLFormat(card));
-            });
-            
-            // 파일 이름 입력
-            document.getElementById('tlFileName').addEventListener('input', updateFileName);
-            
-            // 저장 버튼
-            document.getElementById('saveTLFile').addEventListener('click', saveTLFile);
-        }
-        
-        // 드래그 앤 드롭 설정
-        function setupDragAndDrop() {
-            const uploadZone = document.getElementById('uploadZone');
-            const fileInput = document.getElementById('fileInput');
-            
-            uploadZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadZone.classList.add('dragover');
-            });
-            
-            uploadZone.addEventListener('dragleave', () => {
-                uploadZone.classList.remove('dragover');
-            });
-            
-            uploadZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadZone.classList.remove('dragover');
-                
-                if (e.dataTransfer.files.length) {
-                    // FileList를 Array로 변환하여 처리
-                    const files = Array.from(e.dataTransfer.files);
-                    processUploadedFiles(files);
+                if (header) {
+                    if (window.scrollY > 50) {
+                        header.style.background = 'rgba(10, 15, 43, 0.98)';
+                        header.style.boxShadow = '0 5px 20px rgba(0, 0, 0, 0.3)';
+                    } else {
+                        header.style.background = 'rgba(10, 15, 43, 0.95)';
+                        header.style.boxShadow = 'none';
+                    }
                 }
             });
         }
-        
+
+        // TL 잔액 업데이트
+        function updateBalance() {
+            const balanceElement = document.getElementById('balanceAmount');
+            if (balanceElement) {
+                balanceElement.textContent = '1,500';
+            }
+        }
+
         // 파일 업로드 처리
         function handleFileUpload(e) {
             const files = Array.from(e.target.files);
             processUploadedFiles(files);
         }
-        
+
         // 업로드된 파일 처리
         function processUploadedFiles(files) {
             if (!files.length) return;
@@ -1656,8 +1723,10 @@
             const uploadStatus = document.getElementById('uploadStatus');
             
             // 상태 메시지 초기화
-            uploadStatus.className = 'status-message';
-            uploadStatus.textContent = '';
+            if (uploadStatus) {
+                uploadStatus.className = 'status-message';
+                uploadStatus.textContent = '';
+            }
             
             // 각 파일 처리
             files.forEach((file, index) => {
@@ -1669,16 +1738,26 @@
                     processed: false
                 });
                 
-                fileList.appendChild(fileItem);
+                if (fileList) {
+                    fileList.appendChild(fileItem);
+                }
             });
             
             // 성공 메시지
-            uploadStatus.textContent = `✅ ${files.length}개 파일이 업로드되었습니다.`;
-            uploadStatus.className = 'status-message status-success';
+            if (uploadStatus) {
+                uploadStatus.textContent = `✅ ${files.length}개 파일이 업로드되었습니다.`;
+                uploadStatus.className = 'status-message status-success';
+            }
             
             showStatus('파일 업로드 완료! 다음 단계로 진행하세요.', 'success', 'copyrightStatus');
+            
+            // 첫 번째 파일을 자동으로 선택
+            if (StudioState.uploadedFiles.length > 0 && !StudioState.selectedFile) {
+                StudioState.selectedFile = StudioState.uploadedFiles[0];
+                selectFile(StudioState.uploadedFiles[0].file.name);
+            }
         }
-        
+
         // 파일 아이템 생성
         function createFileItem(file) {
             const item = document.createElement('div');
@@ -1705,10 +1784,10 @@
                     </div>
                 </div>
                 <div class="file-actions">
-                    <button class="action-btn select" onclick="selectFile('${file.name}')">
+                    <button class="action-btn select" onclick="selectFile('${file.name.replace(/'/g, "\\'")}')">
                         <i class="fas fa-check"></i> 선택
                     </button>
-                    <button class="action-btn convert" onclick="processFile('${file.name}')">
+                    <button class="action-btn convert" onclick="processFile('${file.name.replace(/'/g, "\\'")}')">
                         <i class="fas fa-sync-alt"></i> 변환
                     </button>
                 </div>
@@ -1716,9 +1795,9 @@
             
             return item;
         }
-        
-        // 파일 선택
-        function selectFile(fileName) {
+
+        // 파일 선택 (전역 함수)
+        window.selectFile = function(fileName) {
             const file = StudioState.uploadedFiles.find(f => f.file.name === fileName);
             if (file) {
                 StudioState.selectedFile = file;
@@ -1734,11 +1813,19 @@
                 file.element.style.borderColor = 'var(--tl-primary)';
                 
                 showStatus('파일이 선택되었습니다: ' + fileName, 'success', 'uploadStatus');
+                
+                // 파일 이름 자동 설정
+                const baseName = fileName.split('.').slice(0, -1).join('.');
+                const tlFileNameInput = document.getElementById('tlFileName');
+                if (tlFileNameInput && !tlFileNameInput.value) {
+                    tlFileNameInput.value = baseName + '_tl';
+                    StudioState.tlFileName = baseName + '_tl';
+                }
             }
-        }
-        
-        // 파일 처리
-        function processFile(fileName) {
+        };
+
+        // 파일 처리 (전역 함수)
+        window.processFile = function(fileName) {
             const file = StudioState.uploadedFiles.find(f => f.file.name === fileName);
             if (!file) return;
             
@@ -1748,14 +1835,16 @@
             setTimeout(() => {
                 file.processed = true;
                 const convertBtn = file.element.querySelector('.convert');
-                convertBtn.innerHTML = '<i class="fas fa-check"></i> 완료';
-                convertBtn.className = 'action-btn';
-                convertBtn.style.background = 'var(--tl-success)';
+                if (convertBtn) {
+                    convertBtn.innerHTML = '<i class="fas fa-check"></i> 완료';
+                    convertBtn.className = 'action-btn';
+                    convertBtn.style.background = 'var(--tl-success)';
+                }
                 
                 showStatus('파일 변환이 완료되었습니다.', 'success', 'uploadStatus');
             }, 1500);
-        }
-        
+        };
+
         // 저작권자 상세 정보 토글
         function toggleCopyrightDetails(e) {
             StudioState.copyrightInfo.isOwner = e.target.checked;
@@ -1766,17 +1855,21 @@
                 showStatus('일반 업로더 모드로 전환되었습니다.', 'info', 'copyrightStatus');
             }
         }
-        
+
         // 승수 업데이트
         function updateMultiplier(e) {
             const value = parseFloat(e.target.value);
             StudioState.timeSettings.multiplier = value;
             
-            document.getElementById('multiplierValue').textContent = value.toFixed(1);
+            const multiplierValue = document.getElementById('multiplierValue');
+            if (multiplierValue) {
+                multiplierValue.textContent = value.toFixed(1);
+            }
+            
             updateTimeDisplay();
             updateRequiredTL();
         }
-        
+
         // 충전 시간 업데이트
         function updateChargeTime(e) {
             const seconds = parseInt(e.target.value) || 0;
@@ -1785,26 +1878,32 @@
             updateTimeDisplay();
             updateRequiredTL();
         }
-        
+
         // 시간 표시 업데이트
         function updateTimeDisplay() {
             const timeDisplay = document.getElementById('timeDisplay');
-            const multiplier = StudioState.timeSettings.multiplier;
-            const timeText = formatTime(StudioState.timeSettings.chargeSeconds);
-            
-            timeDisplay.textContent = `1초 = ${multiplier.toFixed(1)}TL (승수: ${multiplier.toFixed(1)}x) | 총 ${timeText}`;
+            if (timeDisplay) {
+                const multiplier = StudioState.timeSettings.multiplier;
+                const timeText = formatTime(StudioState.timeSettings.chargeSeconds);
+                
+                timeDisplay.textContent = `1초 = ${multiplier.toFixed(1)}TL (승수: ${multiplier.toFixed(1)}x) | 총 ${timeText}`;
+            }
         }
-        
+
         // 필요 TL 업데이트
         function updateRequiredTL() {
             const requiredTL = document.getElementById('requiredTL');
-            const totalTL = Math.round(StudioState.timeSettings.chargeSeconds * StudioState.timeSettings.multiplier);
-            
-            requiredTL.textContent = `${totalTL} TL (${StudioState.timeSettings.chargeSeconds}초 × ${StudioState.timeSettings.multiplier.toFixed(1)}x)`;
+            if (requiredTL) {
+                const totalTL = Math.round(StudioState.timeSettings.chargeSeconds * StudioState.timeSettings.multiplier);
+                
+                requiredTL.textContent = `${totalTL} TL (${StudioState.timeSettings.chargeSeconds}초 × ${StudioState.timeSettings.multiplier.toFixed(1)}x)`;
+            }
         }
-        
+
         // 암호화 동의 처리
         function handleEncryptionAgreement(e) {
+            StudioState.encryptionAgreed = e.target.checked;
+            
             if (e.target.checked) {
                 showStatus('암호화 키 생성을 시작합니다...', 'info', 'cryptoStatus');
                 
@@ -1813,9 +1912,21 @@
                     generateEncryptionKeys();
                     showStatus('✅ 양자내성 암호화 키가 생성되었습니다.', 'success', 'cryptoStatus');
                 }, 2000);
+            } else {
+                StudioState.encryptionKeys.publicKey = null;
+                StudioState.encryptionKeys.privateKey = null;
+                StudioState.encryptionKeys.status = 'pending';
+                
+                const publicKeyHash = document.getElementById('publicKeyHash');
+                const privateKeyStatus = document.getElementById('privateKeyStatus');
+                
+                if (publicKeyHash) publicKeyHash.textContent = '생성 대기 중...';
+                if (privateKeyStatus) privateKeyStatus.textContent = '암호화 저장 준비';
+                
+                showStatus('암호화가 취소되었습니다.', 'info', 'cryptoStatus');
             }
         }
-        
+
         // 암호화 키 생성
         function generateEncryptionKeys() {
             // 시뮬레이션: 키 생성
@@ -1824,17 +1935,24 @@
                               Math.random().toString(36).substring(2, 15);
             
             StudioState.encryptionKeys = {
-                publicKey: 'dilithium_pub_' + randomHash,
+                publicKey: 'dilithium_pub_' + randomHash + '_' + timestamp,
                 privateKey: 'dilithium_priv_' + randomHash + '_' + timestamp,
                 status: 'generated'
             };
             
             // UI 업데이트
-            document.getElementById('publicKeyHash').textContent = 
-                StudioState.encryptionKeys.publicKey.substring(0, 32) + '...';
-            document.getElementById('privateKeyStatus').textContent = '암호화 저장 완료';
+            const publicKeyHash = document.getElementById('publicKeyHash');
+            const privateKeyStatus = document.getElementById('privateKeyStatus');
+            
+            if (publicKeyHash) {
+                publicKeyHash.textContent = StudioState.encryptionKeys.publicKey.substring(0, 32) + '...';
+            }
+            
+            if (privateKeyStatus) {
+                privateKeyStatus.textContent = '암호화 저장 완료';
+            }
         }
-        
+
         // TL 형식 선택
         function selectTLFormat(card) {
             // 모든 카드에서 active 클래스 제거
@@ -1848,12 +1966,12 @@
             
             showStatus(`${StudioState.saveFormat} 형식이 선택되었습니다.`, 'success', 'saveStatus');
         }
-        
+
         // 파일 이름 업데이트
         function updateFileName(e) {
             StudioState.tlFileName = e.target.value.trim();
         }
-        
+
         // TL 파일 저장
         function saveTLFile() {
             const saveStatus = document.getElementById('saveStatus');
@@ -1861,7 +1979,10 @@
             // 유효성 검사
             if (!StudioState.tlFileName) {
                 showStatus('파일 이름을 입력해주세요.', 'error', 'saveStatus');
-                document.getElementById('tlFileName').focus();
+                const tlFileName = document.getElementById('tlFileName');
+                if (tlFileName) {
+                    tlFileName.focus();
+                }
                 return;
             }
             
@@ -1870,8 +1991,17 @@
                 return;
             }
             
+            if (!StudioState.encryptionAgreed) {
+                showStatus('암호화 동의를 체크해주세요.', 'error', 'saveStatus');
+                const agreeEncryption = document.getElementById('agreeEncryption');
+                if (agreeEncryption) {
+                    agreeEncryption.focus();
+                }
+                return;
+            }
+            
             if (!StudioState.encryptionKeys.publicKey) {
-                showStatus('암호화 키가 생성되지 않았습니다.', 'error', 'saveStatus');
+                showStatus('암호화 키를 생성해주세요. 암호화 동의를 체크하면 자동으로 생성됩니다.', 'error', 'saveStatus');
                 return;
             }
             
@@ -1888,7 +2018,7 @@
                     timeSettings: StudioState.timeSettings,
                     encryptionKeys: StudioState.encryptionKeys,
                     createdAt: new Date().toISOString(),
-                    hash: 'tl_' + Math.random().toString(36).substring(2, 15)
+                    hash: 'tl_' + Math.random().toString(36).substring(2, 15) + Date.now()
                 };
                 
                 // 다운로드 시뮬레이션
@@ -1912,24 +2042,36 @@
                 }, 1500);
             }, 3000);
         }
-        
+
         // 변환 시작
         function startConversion() {
             if (StudioState.uploadedFiles.length === 0) {
                 showStatus('먼저 파일을 업로드해주세요.', 'error', 'uploadStatus');
+                const uploadZone = document.getElementById('uploadZone');
+                if (uploadZone) {
+                    uploadZone.style.borderColor = 'var(--tl-danger)';
+                    setTimeout(() => {
+                        uploadZone.style.borderColor = '';
+                    }, 2000);
+                }
                 return;
             }
             
             showStatus('파일 변환을 시작합니다...', 'success', 'uploadStatus');
             StudioState.currentStep = 1;
             updateUI();
+            
+            // 첫 번째 파일을 자동으로 처리
+            if (StudioState.selectedFile) {
+                processFile(StudioState.selectedFile.file.name);
+            }
         }
-        
+
         // 튜토리얼 보기
         function viewTutorial() {
-            alert('STUDIO 튜토리얼 페이지는 현재 준비 중입니다.');
+            alert('STUDIO 튜토리얼:\n\n1. 파일 업로드 - 변환할 파일을 선택하세요\n2. 저작권 정보 - 저작권자 정보를 입력하세요\n3. 시간 설정 - 재생 시간과 TL 승수를 설정하세요\n4. 암호화 - 양자내성 암호화를 적용하세요\n5. 저장 - TL 파일 형식을 선택하고 저장하세요');
         }
-        
+
         // UI 상태 업데이트
         function updateUI() {
             console.log(`현재 단계: ${StudioState.currentStep}`);
@@ -1937,15 +2079,8 @@
             // 시간 표시 초기화
             updateTimeDisplay();
             updateRequiredTL();
-            
-            // 파일 이름 기본값 설정
-            if (StudioState.selectedFile && !StudioState.tlFileName) {
-                const baseName = StudioState.selectedFile.file.name.split('.')[0];
-                document.getElementById('tlFileName').value = baseName + '_tl';
-                StudioState.tlFileName = baseName + '_tl';
-            }
         }
-        
+
         // 상태 메시지 표시
         function showStatus(message, type, elementId) {
             const element = document.getElementById(elementId);
@@ -1958,17 +2093,19 @@
                 element.classList.add('status-success');
             } else if (type === 'error') {
                 element.classList.add('status-error');
+            } else if (type === 'info') {
+                element.classList.add('status-info');
             }
             
             // 5초 후 메시지 제거 (에러만)
-            if (type === 'error') {
+            if (type === 'error' || type === 'info') {
                 setTimeout(() => {
                     element.className = 'status-message';
                     element.textContent = '';
                 }, 5000);
             }
         }
-        
+
         // 유틸리티 함수들
         function formatFileSize(bytes) {
             if (bytes < 1024) return bytes + ' B';
@@ -1976,7 +2113,7 @@
             if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
             return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
         }
-        
+
         function formatTime(seconds) {
             const hrs = Math.floor(seconds / 3600);
             const mins = Math.floor((seconds % 3600) / 60);
@@ -1990,10 +2127,6 @@
                 return `${secs}초`;
             }
         }
-        
-        // 전역 함수로 노출
-        window.selectFile = selectFile;
-        window.processFile = processFile;
     </script>
 </body>
 </html>
