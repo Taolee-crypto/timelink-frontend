@@ -90,7 +90,7 @@ bash
 curl https://timelink-backend.timelink-api.workers.dev/api/health
 # 응답: {"status":"ok","message":"TimeLink API - COMPLETE"}
 curl https://timelink-api.timelink-api.workers.dev
-
+# 응답: {"service":"TimeLink API v3.0","message":"디지털 시대의 시간 경제","endpoints":["/api/auth/signup","/api/auth/login","/api/auth/verify"]}
 ✅ 데이터베이스 연동 확인
 사용자 데이터 정상 저장 확인
 
