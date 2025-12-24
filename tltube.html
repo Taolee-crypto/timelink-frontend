@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TLTUBE - TIMELINK</title>
     
+    <!-- auth-manager.js 추가 -->
+    <script src="auth-manager.js"></script>
+    
     <!-- Google Translate -->
     <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
     
@@ -193,6 +196,42 @@
             transform: scale(1.05);
         }
 
+        /* 로그인/회원가입 버튼 */
+        .auth-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-login, .btn-signup {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            border: 1px solid transparent;
+        }
+
+        .btn-login {
+            color: #0066FF;
+            border-color: #0066FF;
+            background: transparent;
+        }
+
+        .btn-login:hover {
+            background: rgba(0, 102, 255, 0.1);
+        }
+
+        .btn-signup {
+            background: #0066FF;
+            color: white;
+        }
+
+        .btn-signup:hover {
+            background: #0052cc;
+            transform: translateY(-1px);
+        }
+
         /* 모바일 메뉴 버튼 */
         .mobile-menu-btn {
             display: none;
@@ -267,6 +306,16 @@
             
             .user-section {
                 min-width: auto;
+            }
+
+            .auth-buttons {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+
+            .btn-login, .btn-signup {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.8rem;
             }
         }
         
@@ -873,6 +922,44 @@
         .icon-views::before { content: "👁️ "; }
         .icon-ad::before { content: "📢 "; }
         .icon-music::before { content: "🎵 "; }
+
+        /* 인증 관련 스타일 */
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: white;
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .logout-btn {
+            background: rgba(255, 59, 48, 0.1);
+            border: 1px solid rgba(255, 59, 48, 0.3);
+            color: #FF3B30;
+            padding: 0.3rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 59, 48, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .user-name {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -918,11 +1005,12 @@
                 </a>
             </nav>
 
-            <!-- User Section -->
-            <div class="user-section">
+            <!-- User Section (auth-manager.js에서 업데이트됨) -->
+            <div class="user-section" id="userSection">
+                <!-- 로그인 상태에 따라 auth-manager.js에서 동적 생성 -->
                 <div class="tl-balance" id="walletBtn">
                     <div class="tl-icon">TL</div>
-                    <span id="balanceAmount">10,000</span>
+                    <span id="balanceAmount">0</span>
                 </div>
                 
                 <div class="user-avatar" id="userMenuBtn">
@@ -1227,34 +1315,59 @@
                 
                 setupEventListeners() {
                     // 검색 기능
-                    document.getElementById('tltube-search-btn').addEventListener('click', () => {
-                        this.searchVideos();
-                    });
+                    const searchBtn = document.getElementById('tltube-search-btn');
+                    const searchInput = document.getElementById('tltube-search');
                     
-                    document.getElementById('tltube-search').addEventListener('keypress', (e) => {
-                        if (e.key === 'Enter') this.searchVideos();
-                    });
+                    if (searchBtn) {
+                        searchBtn.addEventListener('click', () => {
+                            this.searchVideos();
+                        });
+                    }
+                    
+                    if (searchInput) {
+                        searchInput.addEventListener('keypress', (e) => {
+                            if (e.key === 'Enter') this.searchVideos();
+                        });
+                    }
                     
                     // 필터 기능
-                    document.getElementById('category-filter').addEventListener('change', (e) => {
-                        this.filterByCategory(e.target.value);
-                    });
+                    const categoryFilter = document.getElementById('category-filter');
+                    const sortFilter = document.getElementById('sort-filter');
                     
-                    document.getElementById('sort-filter').addEventListener('change', (e) => {
-                        this.sortVideos(e.target.value);
-                    });
+                    if (categoryFilter) {
+                        categoryFilter.addEventListener('change', (e) => {
+                            this.filterByCategory(e.target.value);
+                        });
+                    }
+                    
+                    if (sortFilter) {
+                        sortFilter.addEventListener('change', (e) => {
+                            this.sortVideos(e.target.value);
+                        });
+                    }
                     
                     // 업로드 버튼
-                    document.getElementById('upload-video-btn').addEventListener('click', () => {
-                        window.location.href = 'studio.html?type=video';
-                    });
+                    const uploadBtn = document.getElementById('upload-video-btn');
+                    if (uploadBtn) {
+                        uploadBtn.addEventListener('click', () => {
+                            // 인증 체크
+                            if (window.timelinkAuth && window.timelinkAuth.isLoggedIn()) {
+                                window.location.href = 'studio.html?type=video';
+                            } else {
+                                alert('동영상 업로드를 하려면 로그인이 필요합니다.');
+                                window.location.href = 'login.html';
+                            }
+                        });
+                    }
                     
                     // 카테고리 태그
                     document.querySelectorAll('.category-tag').forEach(tag => {
                         tag.addEventListener('click', (e) => {
                             const category = e.target.dataset.category;
                             this.filterByCategory(category);
-                            document.getElementById('category-filter').value = category;
+                            if (categoryFilter) {
+                                categoryFilter.value = category;
+                            }
                         });
                     });
                     
@@ -1262,7 +1375,14 @@
                     const userMenuBtn = document.getElementById('userMenuBtn');
                     if (userMenuBtn) {
                         userMenuBtn.addEventListener('click', () => {
-                            alert('사용자 메뉴가 표시됩니다.\n프로필, 대시보드, 설정, 로그아웃 등의 옵션이 있습니다.');
+                            if (window.timelinkAuth && window.timelinkAuth.isLoggedIn()) {
+                                // 로그인된 경우 프로필 페이지로 이동
+                                window.location.href = 'profile.html';
+                            } else {
+                                // 로그인되지 않은 경우 로그인 페이지로 이동
+                                alert('로그인이 필요합니다.');
+                                window.location.href = 'login.html';
+                            }
                         });
                     }
                     
@@ -1270,7 +1390,16 @@
                     const walletBtn = document.getElementById('walletBtn');
                     if (walletBtn) {
                         walletBtn.addEventListener('click', () => {
-                            alert('지갑 페이지로 이동합니다.\n현재 잔액: 10,000 TL');
+                            if (window.timelinkAuth && window.timelinkAuth.isLoggedIn()) {
+                                // 로그인된 경우 지갑 정보 표시
+                                const userData = window.timelinkAuth.getUserData();
+                                const balance = userData ? userData.tlBalance : 0;
+                                alert(`지갑 페이지로 이동합니다.\n현재 잔액: ${balance.toLocaleString()} TL`);
+                            } else {
+                                // 로그인되지 않은 경우 로그인 유도
+                                alert('지갑 기능을 사용하려면 로그인이 필요합니다.');
+                                window.location.href = 'login.html';
+                            }
                         });
                     }
                 }
@@ -1374,8 +1503,10 @@
                         this.renderVideos(filtered.slice(0, 6), 'trending-videos');
                         this.renderVideos(filtered.slice(0, 6), 'new-uploads');
                         
-                        document.querySelector('#featured-videos').previousElementSibling.querySelector('h2').innerHTML = 
-                            `<i class="icon-featured"></i> 검색 결과 (${filtered.length}개)`;
+                        const featuredHeader = document.querySelector('#featured-videos').previousElementSibling.querySelector('h2');
+                        if (featuredHeader) {
+                            featuredHeader.innerHTML = `<i class="icon-featured"></i> 검색 결과 (${filtered.length}개)`;
+                        }
                     }
                 }
                 
@@ -1383,13 +1514,15 @@
                     const sections = ['featured-videos', 'trending-videos', 'new-uploads'];
                     sections.forEach(sectionId => {
                         const container = document.getElementById(sectionId);
-                        container.innerHTML = `
-                            <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #94a3b8;">
-                                <div style="font-size: 3rem; margin-bottom: 20px;">🔍</div>
-                                <h3>검색 결과가 없습니다</h3>
-                                <p>다른 검색어로 시도해보세요.</p>
-                            </div>
-                        `;
+                        if (container) {
+                            container.innerHTML = `
+                                <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #94a3b8;">
+                                    <div style="font-size: 3rem; margin-bottom: 20px;">🔍</div>
+                                    <h3>검색 결과가 없습니다</h3>
+                                    <p>다른 검색어로 시도해보세요.</p>
+                                </div>
+                            `;
+                        }
                     });
                 }
                 
@@ -1472,12 +1605,49 @@
                 }
                 
                 openVideoPlayer(videoId) {
-                    alert(`비디오 ID ${videoId} 재생 페이지로 이동합니다.\n실제 구현에서는 video-player.html?id=${videoId}로 이동합니다.`);
+                    // 인증 체크
+                    if (!window.timelinkAuth || !window.telinkAuth.isLoggedIn()) {
+                        alert('동영상을 시청하려면 로그인이 필요합니다.');
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    
+                    // TL 잔액 체크 (가정: 최소 10TL 필요)
+                    const userData = window.timelinkAuth.getUserData();
+                    if (!userData || userData.tlBalance < 10) {
+                        alert('TL 잔액이 부족합니다. 충전 후 이용해주세요.');
+                        return;
+                    }
+                    
+                    alert(`비디오 ID ${videoId} 재생 페이지로 이동합니다.\nTL이 차감됩니다.`);
+                    // 실제 구현에서는 video-player.html?id=${videoId}로 이동
                 }
             }
             
             // 페이지 로드 시 초기화
             window.tltube = new TLTube();
+        });
+    </script>
+
+    <!-- 인증 관련 스크립트 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 인증 상태 업데이트
+            if (window.timelinkAuth) {
+                window.timelinkAuth.updateAllPages();
+            }
+            
+            // 페이지별 인증 체크 (필요시)
+            const protectedPages = ['studio.html', 'shareplace.html', 'profile.html'];
+            const currentPage = window.location.pathname.split('/').pop();
+            
+            if (protectedPages.includes(currentPage)) {
+                if (!window.timelinkAuth || !window.timelinkAuth.isLoggedIn()) {
+                    // alert('로그인이 필요한 페이지입니다.');
+                    // window.location.href = 'login.html';
+                    // 실제 서비스에서는 주석 해제
+                }
+            }
         });
     </script>
 </body>
