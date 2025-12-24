@@ -17,6 +17,9 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <!-- auth-manager.js 추가 -->
+    <script src="auth-manager.js"></script>
+    
     <style>
         * {
             margin: 0;
@@ -1137,11 +1140,11 @@
             </nav>
 
             <div class="user-section">
-                <div class="tl-balance" id="headerBalance">
+                <div class="tl-balance" id="walletBtn">
                     <div class="tl-icon">TL</div>
                     <span id="headerBalanceAmount">0</span>
                 </div>
-                <div class="user-avatar" id="headerAvatar">
+                <div class="user-avatar" id="userMenuBtn">
                     <i class="fas fa-user"></i>
                 </div>
                 
@@ -1513,18 +1516,18 @@
 
         // ========== 드롭다운 메뉴 관리 ==========
         function setupDropdown() {
-            const userAvatar = document.getElementById('headerAvatar');
+            const userMenuBtn = document.getElementById('userMenuBtn');
             const userDropdown = document.getElementById('userDropdown');
             
-            if (userAvatar && userDropdown) {
-                userAvatar.addEventListener('click', (e) => {
+            if (userMenuBtn && userDropdown) {
+                userMenuBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     createDropdownContent();
                     userDropdown.classList.toggle('active');
                 });
                 
                 document.addEventListener('click', (e) => {
-                    if (!userDropdown.contains(e.target) && !userAvatar.contains(e.target)) {
+                    if (!userDropdown.contains(e.target) && !userMenuBtn.contains(e.target)) {
                         userDropdown.classList.remove('active');
                     }
                 });
@@ -1533,22 +1536,26 @@
         
         function createDropdownContent() {
             const userDropdown = document.getElementById('userDropdown');
-            const userInfo = getUserInfo();
-            const isLoggedIn = checkLoginStatus();
             
             if (!userDropdown) return;
             
-            if (isLoggedIn && userInfo) {
-                const initials = userInfo.name ? userInfo.name.charAt(0).toUpperCase() : 'U';
-                const balance = userInfo.balance ? userInfo.balance.toLocaleString() : '10,000';
+            // 인증 시스템에서 사용자 정보 가져오기
+            const isLoggedIn = window.timelinkAuth && window.timelinkAuth.isLoggedIn();
+            const userData = isLoggedIn ? window.timelinkAuth.getUserData() : null;
+            
+            if (isLoggedIn && userData) {
+                const initials = userData.name ? userData.name.charAt(0).toUpperCase() : 'U';
+                const balance = userData.tlBalance ? userData.tlBalance.toLocaleString() : '10,000';
+                const name = userData.name || userData.nickname || '사용자';
+                const email = userData.email || 'user@timelink.digital';
                 
                 userDropdown.innerHTML = `
                     <div class="dropdown-header">
                         <div class="dropdown-user-info">
                             <div class="dropdown-avatar">${initials}</div>
                             <div class="dropdown-user-text">
-                                <h4>${userInfo.name || '사용자'}</h4>
-                                <p>${userInfo.email || 'user@timelink.digital'}</p>
+                                <h4>${name}</h4>
+                                <p>${email}</p>
                             </div>
                         </div>
                         <div class="dropdown-balance">
@@ -1596,12 +1603,39 @@
                 if (logoutBtn) {
                     logoutBtn.addEventListener('click', handleLogout);
                 }
+            } else {
+                // 로그인되지 않은 경우
+                userDropdown.innerHTML = `
+                    <div class="dropdown-header">
+                        <div class="dropdown-user-info">
+                            <div class="dropdown-avatar">?</div>
+                            <div class="dropdown-user-text">
+                                <h4>로그인이 필요합니다</h4>
+                                <p>로그인하여 모든 기능을 이용하세요</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="dropdown-menu">
+                        <a href="login.html" class="dropdown-item">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>로그인</span>
+                        </a>
+                        <a href="register.html" class="dropdown-item">
+                            <i class="fas fa-user-plus"></i>
+                            <span>회원가입</span>
+                        </a>
+                    </div>
+                `;
             }
         }
 
         // ========== 로그아웃 처리 ==========
         function handleLogout() {
-            if (confirm('정말 로그아웃하시겠습니까?')) {
+            if (window.timelinkAuth) {
+                window.timelinkAuth.logout();
+            } else {
+                // 대체 로그아웃 로직
                 localStorage.removeItem('timelink_token');
                 localStorage.removeItem('timelink_user');
                 localStorage.removeItem('timelink_settings');
@@ -1610,70 +1644,55 @@
             }
         }
 
-        // ========== 유틸리티 함수 ==========
-        function checkLoginStatus() {
-            const token = localStorage.getItem('timelink_token');
-            const userData = localStorage.getItem('timelink_user');
-            return token !== null && userData !== null;
-        }
-        
-        function getUserInfo() {
-            const userData = localStorage.getItem('timelink_user');
-            if (userData) {
-                try {
-                    return JSON.parse(userData);
-                } catch (e) {
-                    return null;
-                }
-            }
-            return null;
-        }
-        
-        function saveUserInfo(userInfo) {
-            localStorage.setItem('timelink_user', JSON.stringify(userInfo));
-        }
-
         // ========== 헤더 관리 ==========
         function updateHeaderUI() {
-            const userInfo = getUserInfo();
             const headerBalance = document.getElementById('headerBalanceAmount');
-            const headerAvatar = document.getElementById('headerAvatar');
+            const userMenuBtn = document.getElementById('userMenuBtn');
             
-            if (userInfo) {
-                headerBalance.textContent = userInfo.balance ? userInfo.balance.toLocaleString() : '0';
+            // 인증 시스템 사용자 정보 가져오기
+            const userData = window.timelinkAuth ? window.timelinkAuth.getUserData() : null;
+            
+            if (userData) {
+                // TL 잔액 업데이트
+                headerBalance.textContent = userData.tlBalance ? userData.tlBalance.toLocaleString() : '0';
                 
                 // 아바타에 이니셜 표시
-                const initials = userInfo.name ? userInfo.name.charAt(0).toUpperCase() : 'U';
-                headerAvatar.innerHTML = initials;
-                headerAvatar.title = userInfo.name || '사용자';
-                
-                // TL 잔액 클릭 이벤트
-                document.getElementById('headerBalance').addEventListener('click', () => {
-                    showSection('wallet');
-                });
+                const initials = userData.name ? userData.name.charAt(0).toUpperCase() : 'U';
+                if (userMenuBtn) {
+                    userMenuBtn.innerHTML = initials;
+                    userMenuBtn.title = userData.name || '사용자';
+                }
             }
         }
 
         // ========== 사용자 정보 로드 ==========
         function loadUserProfile() {
-            const userInfo = getUserInfo();
-            if (!userInfo) return;
+            // 인증 시스템에서 사용자 정보 가져오기
+            const userData = window.timelinkAuth ? window.timelinkAuth.getUserData() : null;
             
-            // 기본 정보 설정 (임시 데이터)
-            if (!userInfo.name) userInfo.name = '타임링크 사용자';
-            if (!userInfo.email) userInfo.email = 'user@timelink.digital';
-            if (!userInfo.nickname) userInfo.nickname = userInfo.email.split('@')[0];
-            if (!userInfo.balance) userInfo.balance = 10000;
-            if (!userInfo.joinedAt) userInfo.joinedAt = new Date().toISOString();
-            if (!userInfo.stats) {
-                userInfo.stats = {
+            if (!userData) {
+                // 로그인되지 않은 경우 로그인 페이지로 리다이렉트
+                alert('로그인이 필요합니다.');
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // 기본 정보 설정
+            const userInfo = {
+                name: userData.name || '타임링크 사용자',
+                email: userData.email || 'user@timelink.digital',
+                nickname: userData.nickname || userData.email?.split('@')[0] || '사용자',
+                balance: userData.tlBalance || 10000,
+                joinedAt: userData.joinedAt || new Date().toISOString(),
+                bio: userData.bio || '',
+                stats: userData.stats || {
                     uploads: 5,
                     earnings: 4835,
                     views: 1250,
                     likes: 85,
                     comments: 23
-                };
-            }
+                }
+            };
             
             // 사이드바 프로필 업데이트
             const initials = userInfo.name ? userInfo.name.charAt(0).toUpperCase() : 'U';
@@ -1700,9 +1719,6 @@
             
             // 지갑 잔액
             document.getElementById('walletBalance').textContent = userInfo.balance.toLocaleString() + ' TL';
-            
-            // 저장
-            saveUserInfo(userInfo);
         }
 
         // ========== 메뉴 관리 ==========
@@ -1992,16 +2008,22 @@
                 profileForm.addEventListener('submit', function(e) {
                     e.preventDefault();
                     
-                    const userInfo = getUserInfo();
-                    if (!userInfo) return;
+                    // 인증 시스템에서 사용자 정보 가져오기
+                    const userData = window.timelinkAuth ? window.timelinkAuth.getUserData() : null;
+                    if (!userData) return;
                     
                     // 정보 업데이트
-                    userInfo.name = document.getElementById('profileName').value;
-                    userInfo.nickname = document.getElementById('profileNickname').value;
-                    userInfo.bio = document.getElementById('profileBio').value;
+                    const updatedUserData = {
+                        ...userData,
+                        name: document.getElementById('profileName').value,
+                        nickname: document.getElementById('profileNickname').value,
+                        bio: document.getElementById('profileBio').value
+                    };
                     
-                    // 저장
-                    saveUserInfo(userInfo);
+                    // 인증 시스템에 저장
+                    if (window.timelinkAuth) {
+                        window.timelinkAuth.updateUserData(updatedUserData);
+                    }
                     
                     // UI 업데이트
                     loadUserProfile();
@@ -2043,9 +2065,9 @@
                 deleteAccountBtn.addEventListener('click', function() {
                     if (confirm('정말 계정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
                         // API 호출 후
-                        localStorage.removeItem('timelink_token');
-                        localStorage.removeItem('timelink_user');
-                        localStorage.removeItem('timelink_settings');
+                        if (window.timelinkAuth) {
+                            window.timelinkAuth.logout();
+                        }
                         alert('계정이 삭제되었습니다.');
                         window.location.href = 'index.html';
                     }
@@ -2105,12 +2127,9 @@
             // 드롭다운 설정
             setupDropdown();
             
-            // 로그인 상태 확인
-            const isLoggedIn = checkLoginStatus();
-            if (!isLoggedIn) {
-                alert('로그인이 필요합니다.');
-                window.location.href = 'login.html';
-                return;
+            // 인증 상태 업데이트
+            if (window.timelinkAuth) {
+                window.timelinkAuth.updateAllPages();
             }
             
             // 사용자 정보 로드
@@ -2142,7 +2161,59 @@
             
             // 설정 로드
             loadSettings();
+            
+            // 사용자 메뉴 버튼 이벤트 추가
+            const userMenuBtn = document.getElementById('userMenuBtn');
+            if (userMenuBtn) {
+                userMenuBtn.addEventListener('click', () => {
+                    if (window.timelinkAuth && window.timelinkAuth.isLoggedIn()) {
+                        // 로그인된 경우 드롭다운 메뉴 표시 (기존 드롭다운 로직)
+                        createDropdownContent();
+                        document.getElementById('userDropdown').classList.toggle('active');
+                    } else {
+                        // 로그인되지 않은 경우 로그인 페이지로 이동
+                        alert('로그인이 필요합니다.');
+                        window.location.href = 'login.html';
+                    }
+                });
+            }
+
+            // 지갑 버튼 이벤트 추가
+            const walletBtn = document.getElementById('walletBtn');
+            if (walletBtn) {
+                walletBtn.addEventListener('click', () => {
+                    if (window.timelinkAuth && window.timelinkAuth.isLoggedIn()) {
+                        // 로그인된 경우 지갑 섹션으로 이동
+                        showSection('wallet');
+                    } else {
+                        // 로그인되지 않은 경우 로그인 유도
+                        alert('지갑 기능을 사용하려면 로그인이 필요합니다.');
+                        window.location.href = 'login.html';
+                    }
+                });
+            }
         });
+    </script>
+    
+    <!-- 인증 관련 스크립트 -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 인증 상태 업데이트
+        if (window.timelinkAuth) {
+            window.timelinkAuth.updateAllPages();
+        }
+        
+        // 페이지별 인증 체크 (필요시)
+        const protectedPages = ['studio.html', 'shareplace.html', 'profile.html'];
+        const currentPage = window.location.pathname.split('/').pop();
+        
+        if (protectedPages.includes(currentPage)) {
+            if (!window.timelinkAuth || !window.timelinkAuth.isLoggedIn()) {
+                alert('로그인이 필요한 페이지입니다.');
+                window.location.href = 'login.html';
+            }
+        }
+    });
     </script>
 </body>
 </html>
