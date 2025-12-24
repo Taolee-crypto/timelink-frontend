@@ -51,7 +51,7 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        /* ====== 헤더 스타일 ====== */
+        /* ====== 헤더 스타일 (TLTUBE와 동일) ====== */
         .main-header {
             background: rgba(10, 15, 43, 0.95);
             backdrop-filter: blur(10px);
@@ -109,7 +109,7 @@
             white-space: nowrap;
         }
 
-        /* Navigation */
+        /* Navigation - TLTUBE와 동일 */
         .main-nav {
             flex: 1;
             display: flex;
@@ -150,7 +150,7 @@
             font-size: 1rem;
         }
 
-        /* User Section - 중요: position: relative 추가 */
+        /* User Section */
         .user-section {
             flex: 0 0 auto;
             display: flex;
@@ -158,7 +158,7 @@
             gap: 1.5rem;
             min-width: 150px;
             justify-content: flex-end;
-            position: relative; /* 드롭다운 위치 기준점 */
+            position: relative;
         }
 
         .tl-balance {
@@ -208,7 +208,6 @@
             transition: all 0.3s ease;
             flex-shrink: 0;
             position: relative;
-            z-index: 1002; /* 드롭다운보다 위에 표시 */
         }
 
         .user-avatar:hover {
@@ -233,7 +232,7 @@
             color: white;
         }
 
-        /* ====== 사용자 드롭다운 메뉴 - 중요: user-section 내부에 배치 ====== */
+        /* ====== 사용자 드롭다운 메뉴 ====== */
         .user-dropdown {
             position: absolute;
             top: 60px;
@@ -243,18 +242,14 @@
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             z-index: 1001;
-            min-width: 220px;
+            min-width: 280px;
+            display: none;
             backdrop-filter: blur(10px);
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-10px);
-            transition: all 0.3s ease;
+            animation: fadeIn 0.3s ease;
         }
 
         .user-dropdown.active {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
+            display: block;
         }
 
         .dropdown-header {
@@ -1001,7 +996,6 @@
             
             .user-section {
                 min-width: auto;
-                position: relative;
             }
             
             .user-dropdown {
@@ -1064,10 +1058,10 @@
     </style>
 </head>
 <body>
-    <!-- Google 번역 위젯 -->
+    <!-- Google 번역 위젯 (TLTUBE와 동일) -->
     <div id="google_translate_element"></div>
 
-    <!-- Header -->
+    <!-- Header (TLTUBE와 동일한 구조) -->
     <header class="main-header">
         <div class="header-content">
             <!-- Logo -->
@@ -1081,7 +1075,7 @@
                 <i class="fas fa-bars"></i>
             </button>
 
-            <!-- Navigation -->
+            <!-- Navigation - TLTUBE와 동일한 메뉴 -->
             <nav class="main-nav" id="mainNav">
                 <a href="index.html" class="nav-link active">
                     <i class="fas fa-home"></i> HOME
@@ -1106,7 +1100,7 @@
                 </a>
             </nav>
 
-            <!-- User Section -->
+            <!-- User Section (TLTUBE와 동일) -->
             <div class="user-section">
                 <div class="tl-balance" id="tlBalance" style="display: none;">
                     <div class="tl-icon">TL</div>
@@ -1116,8 +1110,8 @@
                 <div class="user-avatar" id="userAvatar">
                     <i class="fas fa-user"></i>
                 </div>
-                
-                <!-- 중요: user-dropdown을 user-section 안에 배치 -->
+
+                <!-- 사용자 드롭다운 메뉴 -->
                 <div class="user-dropdown" id="userDropdown">
                     <!-- 드롭다운 내용은 JavaScript로 동적 생성 -->
                 </div>
@@ -1495,8 +1489,8 @@
             // 모바일 메뉴 설정
             setupMobileMenu();
             
-            // 드롭다운 설정 - 페이지 로드 시 바로 설정
-            setupDropdown();
+            // 사용자 드롭다운 설정
+            setupUserDropdown();
             
             // 헤더 UI 업데이트
             updateHeaderUI();
@@ -1552,13 +1546,33 @@
             }
         }
 
-        // ========== 드롭다운 메뉴 설정 (중요: 페이지 로드 시 바로 설정) ==========
-        function setupDropdown() {
+        // ========== 로그인 상태 확인 ==========
+        function checkLoginStatus() {
+            // 간단한 localStorage 확인
+            const token = localStorage.getItem('timelink_token');
+            const userData = localStorage.getItem('timelink_user');
+            return token && userData;
+        }
+
+        function getUserInfo() {
+            const userData = localStorage.getItem('timelink_user');
+            if (userData) {
+                try {
+                    return JSON.parse(userData);
+                } catch (e) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        // ========== 사용자 드롭다운 설정 ==========
+        function setupUserDropdown() {
             const userAvatar = document.getElementById('userAvatar');
             const userDropdown = document.getElementById('userDropdown');
             
             if (userAvatar && userDropdown) {
-                // 초기 드롭다운 내용 생성
+                // 페이지 로드 시 드롭다운 내용 생성
                 createDropdownContent();
                 
                 // 아바타 클릭 시 드롭다운 토글
@@ -1586,14 +1600,13 @@
         // ========== 드롭다운 내용 생성 ==========
         function createDropdownContent() {
             const userDropdown = document.getElementById('userDropdown');
-            if (!userDropdown) return;
-            
-            // 로그인 상태 확인
             const isLoggedIn = checkLoginStatus();
             const userInfo = getUserInfo();
             
+            if (!userDropdown) return;
+            
             if (isLoggedIn && userInfo) {
-                // 로그인 상태 - 드롭다운 내용 생성
+                // 로그인 상태
                 const initials = userInfo.name ? userInfo.name.charAt(0).toUpperCase() : 'U';
                 const balance = userInfo.balance ? userInfo.balance.toLocaleString() : '10,000';
                 
@@ -1648,7 +1661,7 @@
                 }
                 
             } else {
-                // 비로그인 상태 - 드롭다운 내용 생성
+                // 비로그인 상태
                 userDropdown.innerHTML = `
                     <div class="dropdown-header">
                         <div class="dropdown-user-info">
@@ -1683,25 +1696,6 @@
                     </div>
                 `;
             }
-        }
-
-        // ========== 로그인 상태 확인 ==========
-        function checkLoginStatus() {
-            const token = localStorage.getItem('timelink_token');
-            const userData = localStorage.getItem('timelink_user');
-            return token !== null && token !== '' && userData !== null;
-        }
-
-        function getUserInfo() {
-            const userData = localStorage.getItem('timelink_user');
-            if (userData) {
-                try {
-                    return JSON.parse(userData);
-                } catch (e) {
-                    return null;
-                }
-            }
-            return null;
         }
 
         // ========== 헤더 UI 업데이트 ==========
@@ -1758,6 +1752,12 @@
                 // 드롭다운 내용 업데이트
                 createDropdownContent();
                 
+                // 드롭다운 닫기
+                const userDropdown = document.getElementById('userDropdown');
+                if (userDropdown) {
+                    userDropdown.classList.remove('active');
+                }
+                
                 // 성공 메시지
                 alert('로그아웃되었습니다.');
                 
@@ -1804,8 +1804,33 @@
             });
         }
 
+        // ========== 데모 데이터 로드 (로그인 테스트용) ==========
+        function loadDemoData() {
+            // 로그인 테스트를 위한 데모 데이터
+            if (!localStorage.getItem('timelink_demo_loaded')) {
+                const demoUser = {
+                    name: '타임링크 사용자',
+                    email: 'user@timelink.digital',
+                    balance: 10000,
+                    joinedAt: new Date().toISOString()
+                };
+                
+                localStorage.setItem('timelink_token', 'demo_token_123456');
+                localStorage.setItem('timelink_user', JSON.stringify(demoUser));
+                localStorage.setItem('timelink_demo_loaded', 'true');
+                
+                console.log('데모 데이터 로드됨');
+            }
+        }
+
         // ========== 페이지 로드 시 초기화 ==========
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', function() {
+            // 데모 데이터 로드 (테스트용)
+            loadDemoData();
+            
+            // 초기화 실행
+            init();
+        });
     </script>
 </body>
 </html>
