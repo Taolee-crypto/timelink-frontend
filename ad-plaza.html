@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TIMELINK - AD PLAZA</title>
     
+    <!-- auth-manager.js 추가 -->
+    <script src="auth-manager.js"></script>
+    
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
     
@@ -238,6 +241,74 @@
         .user-avatar:hover {
             border-color: var(--secondary-teal);
             transform: scale(1.05);
+        }
+
+        /* 로그인/회원가입 버튼 */
+        .auth-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-login, .btn-signup {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            border: 1px solid transparent;
+        }
+
+        .btn-login {
+            color: var(--ad-orange);
+            border-color: var(--ad-orange);
+            background: transparent;
+        }
+
+        .btn-login:hover {
+            background: rgba(255, 107, 53, 0.1);
+        }
+
+        .btn-signup {
+            background: var(--ad-orange);
+            color: white;
+        }
+
+        .btn-signup:hover {
+            background: #FF5722;
+            transform: translateY(-1px);
+        }
+
+        /* 인증 관련 스타일 */
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: white;
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .logout-btn {
+            background: rgba(255, 59, 48, 0.1);
+            border: 1px solid rgba(255, 59, 48, 0.3);
+            color: #FF3B30;
+            padding: 0.3rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 59, 48, 0.2);
         }
 
         /* 모바일 메뉴 버튼 */
@@ -1205,6 +1276,20 @@
             .user-section {
                 min-width: auto;
             }
+
+            .auth-buttons {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+
+            .btn-login, .btn-signup {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.8rem;
+            }
+
+            .user-name {
+                display: none;
+            }
             
             .hero-title {
                 font-size: 2.5rem;
@@ -1329,11 +1414,12 @@
                 </a>
             </nav>
 
-            <!-- User Section (index.html과 동일) -->
-            <div class="user-section">
+            <!-- User Section (auth-manager.js에서 업데이트됨) -->
+            <div class="user-section" id="userSection">
+                <!-- 로그인 상태에 따라 auth-manager.js에서 동적 생성 -->
                 <div class="tl-balance" id="walletBtn">
                     <div class="tl-icon">TL</div>
-                    <span id="balanceAmount">10,000</span>
+                    <span id="balanceAmount">0</span>
                 </div>
                 
                 <div class="user-avatar" id="userMenuBtn">
@@ -1963,31 +2049,65 @@
         // 페이지 초기화
         function initializePage() {
             // 모바일 메뉴 버튼
-            document.getElementById('mobileMenuBtn').addEventListener('click', toggleMobileMenu);
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            if (mobileMenuBtn) {
+                mobileMenuBtn.addEventListener('click', toggleMobileMenu);
+            }
             
-            // 지갑 버튼
-            document.getElementById('walletBtn').addEventListener('click', function() {
-                alert('지갑 페이지로 이동합니다.\n현재 잔액: 10,000 TL');
-            });
+            // 지갑 버튼 - 인증 체크
+            const walletBtn = document.getElementById('walletBtn');
+            if (walletBtn) {
+                walletBtn.addEventListener('click', () => {
+                    if (window.timelinkAuth && window.timelinkAuth.isLoggedIn()) {
+                        // 로그인된 경우 지갑 정보 표시
+                        const userData = window.timelinkAuth.getUserData();
+                        const balance = userData ? userData.tlBalance : 0;
+                        alert(`지갑 페이지로 이동합니다.\n현재 잔액: ${balance.toLocaleString()} TL`);
+                    } else {
+                        // 로그인되지 않은 경우 로그인 유도
+                        alert('지갑 기능을 사용하려면 로그인이 필요합니다.');
+                        window.location.href = 'login.html';
+                    }
+                });
+            }
             
-            // 사용자 메뉴 버튼
-            document.getElementById('userMenuBtn').addEventListener('click', function() {
-                alert('사용자 메뉴가 표시됩니다.\n프로필, 대시보드, 설정, 로그아웃 등의 옵션이 있습니다.');
-            });
+            // 사용자 메뉴 버튼 - 인증 체크
+            const userMenuBtn = document.getElementById('userMenuBtn');
+            if (userMenuBtn) {
+                userMenuBtn.addEventListener('click', () => {
+                    if (window.timelinkAuth && window.timelinkAuth.isLoggedIn()) {
+                        // 로그인된 경우 프로필 페이지로 이동
+                        window.location.href = 'profile.html';
+                    } else {
+                        // 로그인되지 않은 경우 로그인 페이지로 이동
+                        alert('로그인이 필요합니다.');
+                        window.location.href = 'login.html';
+                    }
+                });
+            }
             
             // 파일 업로드 이벤트
-            document.getElementById('adFile').addEventListener('change', function(e) {
-                if (e.target.files.length > 0) {
-                    document.getElementById('fileName').textContent = `선택된 파일: ${e.target.files[0].name}`;
-                }
-            });
+            const adFileInput = document.getElementById('adFile');
+            if (adFileInput) {
+                adFileInput.addEventListener('change', function(e) {
+                    if (e.target.files.length > 0) {
+                        const fileNameElement = document.getElementById('fileName');
+                        if (fileNameElement) {
+                            fileNameElement.textContent = `선택된 파일: ${e.target.files[0].name}`;
+                        }
+                    }
+                });
+            }
             
             // 검색 입력 엔터키 이벤트
-            document.getElementById('searchInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    searchAds();
-                }
-            });
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        searchAds();
+                    }
+                });
+            }
         }
 
         // 모바일 메뉴 토글
@@ -2027,6 +2147,8 @@
         // 카테고리 로드
         function loadCategories() {
             const categoryFilter = document.getElementById('categoryFilter');
+            if (!categoryFilter) return;
+            
             categoryFilter.innerHTML = '';
             
             categories.forEach(category => {
@@ -2053,7 +2175,11 @@
             document.querySelectorAll('.category-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-            event.target.classList.add('active');
+            
+            const activeBtn = document.querySelector(`.category-btn[onclick*="${categoryId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
             
             loadAds();
         }
@@ -2075,7 +2201,10 @@
         function sortAds(sortType = null) {
             if (sortType) {
                 currentSort = sortType;
-                document.getElementById('sortSelect').value = sortType;
+                const sortSelect = document.getElementById('sortSelect');
+                if (sortSelect) {
+                    sortSelect.value = sortType;
+                }
             }
             
             switch(currentSort) {
@@ -2113,6 +2242,8 @@
         // 광고 표시
         function displayAds() {
             const adGrid = document.getElementById('adGrid');
+            if (!adGrid) return;
+            
             adGrid.innerHTML = '';
             
             const adsToDisplay = currentAds.slice(0, displayedAds);
@@ -2124,10 +2255,12 @@
             
             // 더보기 버튼 업데이트
             const loadMoreBtn = document.getElementById('loadMoreBtn');
-            if (displayedAds >= currentAds.length) {
-                loadMoreBtn.style.display = 'none';
-            } else {
-                loadMoreBtn.style.display = 'inline-flex';
+            if (loadMoreBtn) {
+                if (displayedAds >= currentAds.length) {
+                    loadMoreBtn.style.display = 'none';
+                } else {
+                    loadMoreBtn.style.display = 'inline-flex';
+                }
             }
         }
 
@@ -2251,7 +2384,10 @@
 
         // 광고 검색
         function searchAds() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const searchInput = document.getElementById('searchInput');
+            if (!searchInput) return;
+            
+            const searchTerm = searchInput.value.toLowerCase();
             
             if (searchTerm.trim() === '') {
                 loadAds();
@@ -2343,11 +2479,10 @@
             document.body.style.overflow = 'hidden';
         }
 
-        // 광고 신청
+        // 광고 신청 - 인증 체크 추가
         function applyForAd(adId) {
-            const isLoggedIn = localStorage.getItem('tl_loggedIn') === 'true';
-            
-            if (!isLoggedIn) {
+            // 인증 체크
+            if (!window.timelinkAuth || !window.timelinkAuth.isLoggedIn()) {
                 alert('광고 신청을 위해서는 로그인이 필요합니다.');
                 window.location.href = 'login.html?return=ad-plaza';
                 return;
@@ -2380,42 +2515,84 @@
             }
         }
 
-        // 광고주 등록 폼 표시
+        // 광고주 등록 폼 표시 - 인증 체크 추가
         function showAdvertiserRegistration() {
+            // 인증 체크
+            if (!window.timelinkAuth || !window.timelinkAuth.isLoggedIn()) {
+                alert('광고주 등록을 위해서는 로그인이 필요합니다.');
+                window.location.href = 'login.html';
+                return;
+            }
+            
             registrationType = 'advertiser';
-            document.getElementById('registrationTitle').innerHTML = '<h2 class="section-title" style="text-align: center; margin-bottom: 2rem;">광고주 사업자 등록</h2>';
-            document.getElementById('registrationSection').style.display = 'block';
+            const registrationTitle = document.getElementById('registrationTitle');
+            if (registrationTitle) {
+                registrationTitle.innerHTML = '<h2 class="section-title" style="text-align: center; margin-bottom: 2rem;">광고주 사업자 등록</h2>';
+            }
+            
+            const registrationSection = document.getElementById('registrationSection');
+            if (registrationSection) {
+                registrationSection.style.display = 'block';
+            }
+            
             resetForm();
             
             // 스크롤
-            document.getElementById('registrationSection').scrollIntoView({ behavior: 'smooth' });
+            if (registrationSection) {
+                registrationSection.scrollIntoView({ behavior: 'smooth' });
+            }
         }
 
-        // 크리에이터 등록 폼 표시
+        // 크리에이터 등록 폼 표시 - 인증 체크 추가
         function showCreatorRegistration() {
+            // 인증 체크
+            if (!window.timelinkAuth || !window.timelinkAuth.isLoggedIn()) {
+                alert('크리에이터 등록을 위해서는 로그인이 필요합니다.');
+                window.location.href = 'login.html';
+                return;
+            }
+            
             registrationType = 'creator';
-            document.getElementById('registrationTitle').innerHTML = '<h2 class="section-title" style="text-align: center; margin-bottom: 2rem;">크리에이터 등록</h2>';
-            document.getElementById('registrationSection').style.display = 'block';
+            const registrationTitle = document.getElementById('registrationTitle');
+            if (registrationTitle) {
+                registrationTitle.innerHTML = '<h2 class="section-title" style="text-align: center; margin-bottom: 2rem;">크리에이터 등록</h2>';
+            }
+            
+            const registrationSection = document.getElementById('registrationSection');
+            if (registrationSection) {
+                registrationSection.style.display = 'block';
+            }
+            
             resetForm();
             
             // 크리에이터용으로 폼 수정
             if (registrationType === 'creator') {
                 // Step 1 수정
-                document.querySelector('#step1 .form-title').textContent = '크리에이터 기본 정보';
-                document.querySelector('#step1 label[for="companyName"]').textContent = '크리에이터명 / 채널명 *';
-                document.querySelector('#step1 #companyName').placeholder = '예: 디지털 아티스트 김크리에이터';
-                document.querySelector('#step1 label[for="businessNumber"]').textContent = '주민등록번호 (또는 사업자번호) *';
-                document.querySelector('#step1 #businessNumber').placeholder = '예: 901010-1234567';
+                const step1Title = document.querySelector('#step1 .form-title');
+                const step1CompanyLabel = document.querySelector('#step1 label[for="companyName"]');
+                const step1CompanyInput = document.querySelector('#step1 #companyName');
+                const step1BusinessLabel = document.querySelector('#step1 label[for="businessNumber"]');
+                const step1BusinessInput = document.querySelector('#step1 #businessNumber');
+                
+                if (step1Title) step1Title.textContent = '크리에이터 기본 정보';
+                if (step1CompanyLabel) step1CompanyLabel.textContent = '크리에이터명 / 채널명 *';
+                if (step1CompanyInput) step1CompanyInput.placeholder = '예: 디지털 아티스트 김크리에이터';
+                if (step1BusinessLabel) step1BusinessLabel.textContent = '주민등록번호 (또는 사업자번호) *';
+                if (step1BusinessInput) step1BusinessInput.placeholder = '예: 901010-1234567';
                 
                 // Step 2 수정
-                document.querySelector('#step2 .form-title').textContent = '포트폴리오 및 경력';
+                const step2Title = document.querySelector('#step2 .form-title');
+                if (step2Title) step2Title.textContent = '포트폴리오 및 경력';
                 
                 // Step 3 수정
-                document.querySelector('#step3 .form-title').textContent = '작품 분야 및 수익 계획';
+                const step3Title = document.querySelector('#step3 .form-title');
+                if (step3Title) step3Title.textContent = '작품 분야 및 수익 계획';
             }
             
             // 스크롤
-            document.getElementById('registrationSection').scrollIntoView({ behavior: 'smooth' });
+            if (registrationSection) {
+                registrationSection.scrollIntoView({ behavior: 'smooth' });
+            }
         }
 
         // 폼 리셋
@@ -2428,23 +2605,39 @@
             });
             
             // 첫 단계 표시
-            document.getElementById('step1').classList.add('active');
+            const step1 = document.getElementById('step1');
+            if (step1) {
+                step1.classList.add('active');
+            }
             
             // 폼 초기화
-            document.getElementById('companyName').value = '';
-            document.getElementById('businessNumber').value = '';
-            document.getElementById('ceoName').value = '';
-            document.getElementById('industryCategory').value = '';
-            document.getElementById('websiteUrl').value = '';
-            document.getElementById('contactName').value = '';
-            document.getElementById('contactPosition').value = '';
-            document.getElementById('contactEmail').value = '';
-            document.getElementById('contactPhone').value = '';
-            document.getElementById('companyDescription').value = '';
-            document.getElementById('adBudget').value = '';
-            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-            document.getElementById('adFile').value = '';
-            document.getElementById('fileName').textContent = '';
+            const formInputs = [
+                'companyName', 'businessNumber', 'ceoName', 'websiteUrl',
+                'contactName', 'contactPosition', 'contactEmail', 'contactPhone',
+                'companyDescription', 'industryCategory', 'adBudget'
+            ];
+            
+            formInputs.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    if (element.type === 'select-one') {
+                        element.value = '';
+                    } else {
+                        element.value = '';
+                    }
+                }
+            });
+            
+            // 체크박스 초기화
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+            
+            // 파일 입력 초기화
+            const adFile = document.getElementById('adFile');
+            const fileName = document.getElementById('fileName');
+            if (adFile) adFile.value = '';
+            if (fileName) fileName.textContent = '';
         }
 
         // 다음 단계
@@ -2460,11 +2653,14 @@
             });
             
             // 다음 단계 표시
-            document.getElementById(`step${next}`).classList.add('active');
-            currentStep = next;
-            
-            // 스크롤
-            document.getElementById(`step${next}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const nextStepElement = document.getElementById(`step${next}`);
+            if (nextStepElement) {
+                nextStepElement.classList.add('active');
+                currentStep = next;
+                
+                // 스크롤
+                nextStepElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         }
 
         // 이전 단계
@@ -2475,80 +2671,83 @@
             });
             
             // 이전 단계 표시
-            document.getElementById(`step${prev}`).classList.add('active');
-            currentStep = prev;
-            
-            // 스크롤
-            document.getElementById(`step${prev}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const prevStepElement = document.getElementById(`step${prev}`);
+            if (prevStepElement) {
+                prevStepElement.classList.add('active');
+                currentStep = prev;
+                
+                // 스크롤
+                prevStepElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         }
 
         // 현재 단계 유효성 검사
         function validateCurrentStep() {
             if (currentStep === 1) {
-                const companyName = document.getElementById('companyName').value.trim();
-                const businessNumber = document.getElementById('businessNumber').value.trim();
-                const ceoName = document.getElementById('ceoName').value.trim();
-                const industryCategory = document.getElementById('industryCategory').value;
+                const companyName = document.getElementById('companyName');
+                const businessNumber = document.getElementById('businessNumber');
+                const ceoName = document.getElementById('ceoName');
+                const industryCategory = document.getElementById('industryCategory');
                 
-                if (!companyName) {
+                if (!companyName || !companyName.value.trim()) {
                     alert('회사명/브랜드명을 입력해주세요.');
-                    document.getElementById('companyName').focus();
+                    if (companyName) companyName.focus();
                     return false;
                 }
                 
-                if (!businessNumber) {
+                if (!businessNumber || !businessNumber.value.trim()) {
                     alert('사업자등록번호를 입력해주세요.');
-                    document.getElementById('businessNumber').focus();
+                    if (businessNumber) businessNumber.focus();
                     return false;
                 }
                 
-                if (!ceoName) {
+                if (!ceoName || !ceoName.value.trim()) {
                     alert('대표자명을 입력해주세요.');
-                    document.getElementById('ceoName').focus();
+                    if (ceoName) ceoName.focus();
                     return false;
                 }
                 
-                if (!industryCategory) {
+                if (!industryCategory || !industryCategory.value) {
                     alert('주요 산업 분류를 선택해주세요.');
-                    document.getElementById('industryCategory').focus();
+                    if (industryCategory) industryCategory.focus();
                     return false;
                 }
             }
             
             if (currentStep === 2) {
-                const contactName = document.getElementById('contactName').value.trim();
-                const contactPosition = document.getElementById('contactPosition').value.trim();
-                const contactEmail = document.getElementById('contactEmail').value.trim();
-                const contactPhone = document.getElementById('contactPhone').value.trim();
-                const companyDescription = document.getElementById('companyDescription').value.trim();
+                const contactName = document.getElementById('contactName');
+                const contactPosition = document.getElementById('contactPosition');
+                const contactEmail = document.getElementById('contactEmail');
+                const contactPhone = document.getElementById('contactPhone');
+                const companyDescription = document.getElementById('companyDescription');
                 
-                if (!contactName) {
+                if (!contactName || !contactName.value.trim()) {
                     alert('담당자 이름을 입력해주세요.');
-                    document.getElementById('contactName').focus();
+                    if (contactName) contactName.focus();
                     return false;
                 }
                 
-                if (!contactPosition) {
+                if (!contactPosition || !contactPosition.value.trim()) {
                     alert('담당자 직책을 입력해주세요.');
-                    document.getElementById('contactPosition').focus();
+                    if (contactPosition) contactPosition.focus();
                     return false;
                 }
                 
-                if (!contactEmail) {
+                if (!contactEmail || !contactEmail.value.trim()) {
                     alert('이메일 주소를 입력해주세요.');
-                    document.getElementById('contactEmail').focus();
+                    if (contactEmail) contactEmail.focus();
                     return false;
                 }
                 
-                if (!contactPhone) {
+                if (!contactPhone || !contactPhone.value.trim()) {
                     alert('전화번호를 입력해주세요.');
-                    document.getElementById('contactPhone').focus();
+                    if (contactPhone) contactPhone.focus();
                     return false;
                 }
                 
-                if (!companyDescription) {
+                if (!companyDescription || !companyDescription.value.trim()) {
                     alert('회사 소개를 입력해주세요.');
-                    document.getElementById('companyDescription').focus();
+                    if (companyDescription) companyDescription.focus();
                     return false;
                 }
             }
@@ -2563,13 +2762,13 @@
             }
             
             // 추가 유효성 검사 (Step 3)
-            const adBudget = document.getElementById('adBudget').value;
+            const adBudget = document.getElementById('adBudget');
             const targetAudience = document.querySelectorAll('input[name="targetAudience"]:checked');
             const adFormat = document.querySelectorAll('input[name="adFormat"]:checked');
             
-            if (!adBudget) {
+            if (!adBudget || !adBudget.value) {
                 alert('월간 광고 예산을 선택해주세요.');
-                document.getElementById('adBudget').focus();
+                if (adBudget) adBudget.focus();
                 return;
             }
             
@@ -2586,20 +2785,20 @@
             // 실제 구현에서는 서버로 데이터 전송
             const formData = {
                 type: registrationType,
-                companyName: document.getElementById('companyName').value,
-                businessNumber: document.getElementById('businessNumber').value,
-                ceoName: document.getElementById('ceoName').value,
-                industryCategory: document.getElementById('industryCategory').value,
-                websiteUrl: document.getElementById('websiteUrl').value,
-                contactName: document.getElementById('contactName').value,
-                contactPosition: document.getElementById('contactPosition').value,
-                contactEmail: document.getElementById('contactEmail').value,
-                contactPhone: document.getElementById('contactPhone').value,
-                companyDescription: document.getElementById('companyDescription').value,
-                adBudget: adBudget,
+                companyName: document.getElementById('companyName')?.value || '',
+                businessNumber: document.getElementById('businessNumber')?.value || '',
+                ceoName: document.getElementById('ceoName')?.value || '',
+                industryCategory: document.getElementById('industryCategory')?.value || '',
+                websiteUrl: document.getElementById('websiteUrl')?.value || '',
+                contactName: document.getElementById('contactName')?.value || '',
+                contactPosition: document.getElementById('contactPosition')?.value || '',
+                contactEmail: document.getElementById('contactEmail')?.value || '',
+                contactPhone: document.getElementById('contactPhone')?.value || '',
+                companyDescription: document.getElementById('companyDescription')?.value || '',
+                adBudget: adBudget?.value || '',
                 targetAudience: Array.from(targetAudience).map(cb => cb.value),
                 adFormat: Array.from(adFormat).map(cb => cb.value),
-                file: document.getElementById('adFile').files[0]?.name || '없음'
+                file: document.getElementById('adFile')?.files[0]?.name || '없음'
             };
             
             console.log('Form Data:', formData);
@@ -2617,7 +2816,10 @@
 
         // 등록 폼 닫기
         function closeRegistration() {
-            document.getElementById('registrationSection').style.display = 'none';
+            const registrationSection = document.getElementById('registrationSection');
+            if (registrationSection) {
+                registrationSection.style.display = 'none';
+            }
             resetForm();
         }
 
@@ -2630,9 +2832,9 @@
                 const statCreators = document.getElementById('statCreators');
                 const statAds = document.getElementById('statAds');
                 
-                let currentAdv = parseInt(statAdvertisers.textContent.replace(/,/g, ''));
-                let currentCre = parseInt(statCreators.textContent.replace(/,/g, ''));
-                let currentAds = parseInt(statAds.textContent.replace(/,/g, ''));
+                let currentAdv = statAdvertisers ? parseInt(statAdvertisers.textContent.replace(/,/g, '')) : 1250;
+                let currentCre = statCreators ? parseInt(statCreators.textContent.replace(/,/g, '')) : 5300;
+                let currentAds = statAds ? parseInt(statAds.textContent.replace(/,/g, '')) : 15240;
                 
                 if (registrationType === 'advertiser') {
                     currentAdv += 1;
@@ -2643,22 +2845,24 @@
                 // 랜덤으로 광고 수도 증가
                 currentAds += Math.floor(Math.random() * 3) + 1;
                 
-                statAdvertisers.textContent = currentAdv.toLocaleString();
-                statCreators.textContent = currentCre.toLocaleString();
-                statAds.textContent = currentAds.toLocaleString();
+                if (statAdvertisers) statAdvertisers.textContent = currentAdv.toLocaleString();
+                if (statCreators) statCreators.textContent = currentCre.toLocaleString();
+                if (statAds) statAds.textContent = currentAds.toLocaleString();
                 
                 // 카테고리 카운트 업데이트
-                const category = document.getElementById('industryCategory').value;
+                const category = document.getElementById('industryCategory')?.value;
                 if (category && category !== 'all') {
                     const categoryBtn = document.querySelector(`.category-btn[onclick*="${category}"]`);
                     if (categoryBtn) {
                         const countSpan = categoryBtn.querySelector('.category-count');
-                        let currentCount = parseInt(countSpan.textContent);
-                        countSpan.textContent = currentCount + 1;
-                        
-                        // 카테고리 데이터 업데이트
-                        const cat = categories.find(c => c.id === category);
-                        if (cat) cat.count += 1;
+                        if (countSpan) {
+                            let currentCount = parseInt(countSpan.textContent);
+                            countSpan.textContent = currentCount + 1;
+                            
+                            // 카테고리 데이터 업데이트
+                            const cat = categories.find(c => c.id === category);
+                            if (cat) cat.count += 1;
+                        }
                     }
                 }
             }
@@ -2680,6 +2884,28 @@
                 }, 3000);
             }
         }, 2000);
+    </script>
+
+    <!-- 인증 관련 스크립트 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 인증 상태 업데이트
+            if (window.timelinkAuth) {
+                window.timelinkAuth.updateAllPages();
+            }
+            
+            // 페이지별 인증 체크 (필요시)
+            const protectedPages = ['studio.html', 'shareplace.html', 'profile.html'];
+            const currentPage = window.location.pathname.split('/').pop();
+            
+            if (protectedPages.includes(currentPage)) {
+                if (!window.timelinkAuth || !window.timelinkAuth.isLoggedIn()) {
+                    // alert('로그인이 필요한 페이지입니다.');
+                    // window.location.href = 'login.html';
+                    // 실제 서비스에서는 주석 해제
+                }
+            }
+        });
     </script>
 </body>
 </html>
