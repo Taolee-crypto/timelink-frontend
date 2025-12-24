@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TIMELINK - TL MUSIC</title>
     
+    <!-- auth-manager.js 추가 -->
+    <script src="auth-manager.js"></script>
+    
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
     
@@ -242,6 +245,74 @@
         .user-avatar:hover {
             border-color: var(--secondary-teal);
             transform: scale(1.05);
+        }
+
+        /* 로그인/회원가입 버튼 */
+        .auth-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-login, .btn-signup {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            border: 1px solid transparent;
+        }
+
+        .btn-login {
+            color: var(--primary-blue);
+            border-color: var(--primary-blue);
+            background: transparent;
+        }
+
+        .btn-login:hover {
+            background: rgba(0, 102, 255, 0.1);
+        }
+
+        .btn-signup {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .btn-signup:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        /* 인증 관련 스타일 */
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: white;
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .logout-btn {
+            background: rgba(255, 59, 48, 0.1);
+            border: 1px solid rgba(255, 59, 48, 0.3);
+            color: #FF3B30;
+            padding: 0.3rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 59, 48, 0.2);
         }
 
         /* 모바일 메뉴 버튼 */
@@ -978,6 +1049,20 @@
             .user-section {
                 min-width: auto;
             }
+
+            .auth-buttons {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+
+            .btn-login, .btn-signup {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.8rem;
+            }
+
+            .user-name {
+                display: none;
+            }
         }
 
         @media (max-width: 768px) {
@@ -1096,11 +1181,12 @@
                 </a>
             </nav>
 
-            <!-- User Section (index.html과 동일) -->
-            <div class="user-section">
+            <!-- User Section (auth-manager.js에서 업데이트됨) -->
+            <div class="user-section" id="userSection">
+                <!-- 로그인 상태에 따라 auth-manager.js에서 동적 생성 -->
                 <div class="tl-balance" id="walletBtn">
                     <div class="tl-icon">TL</div>
-                    <span id="balanceAmount">10,000</span>
+                    <span id="balanceAmount">0</span>
                 </div>
                 
                 <div class="user-avatar" id="userMenuBtn">
@@ -1384,7 +1470,10 @@
         // 페이지 초기화
         function initializePage() {
             // 모바일 메뉴 버튼 (index.html과 동일한 로직)
-            document.getElementById('mobileMenuBtn').addEventListener('click', toggleMobileMenu);
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            if (mobileMenuBtn) {
+                mobileMenuBtn.addEventListener('click', toggleMobileMenu);
+            }
             
             // 필터 탭 클릭 이벤트
             document.querySelectorAll('.filter-tab').forEach(tab => {
@@ -1399,25 +1488,84 @@
                 });
             });
             
-            // 업로드 버튼
-            document.getElementById('uploadTl3Btn').addEventListener('click', () => openUploadForm('tl3'));
-            document.getElementById('uploadTl4Btn').addEventListener('click', () => openUploadForm('tl4'));
-            document.getElementById('uploadMusicBtn').addEventListener('click', () => openUploadForm('tl3'));
+            // 업로드 버튼 - 인증 체크 추가
+            const uploadTl3Btn = document.getElementById('uploadTl3Btn');
+            const uploadTl4Btn = document.getElementById('uploadTl4Btn');
+            const uploadMusicBtn = document.getElementById('uploadMusicBtn');
             
-            // 지갑 버튼 (index.html과 동일한 기능)
-            document.getElementById('walletBtn').addEventListener('click', function() {
-                alert('지갑 페이지로 이동합니다.\n현재 잔액: 10,000 TL');
-            });
+            if (uploadTl3Btn) {
+                uploadTl3Btn.addEventListener('click', () => {
+                    if (window.timelinkAuth && window.timelinkAuth.isLoggedIn()) {
+                        openUploadForm('tl3');
+                    } else {
+                        alert('음원 업로드를 하려면 로그인이 필요합니다.');
+                        window.location.href = 'login.html';
+                    }
+                });
+            }
             
-            // 사용자 메뉴 버튼 (index.html과 동일한 기능)
-            document.getElementById('userMenuBtn').addEventListener('click', function() {
-                alert('사용자 메뉴가 표시됩니다.\n프로필, 대시보드, 설정, 로그아웃 등의 옵션이 있습니다.');
-            });
+            if (uploadTl4Btn) {
+                uploadTl4Btn.addEventListener('click', () => {
+                    if (window.timelinkAuth && window.timelinkAuth.isLoggedIn()) {
+                        openUploadForm('tl4');
+                    } else {
+                        alert('뮤직비디오 업로드를 하려면 로그인이 필요합니다.');
+                        window.location.href = 'login.html';
+                    }
+                });
+            }
+            
+            if (uploadMusicBtn) {
+                uploadMusicBtn.addEventListener('click', () => {
+                    if (window.timelinkAuth && window.timelinkAuth.isLoggedIn()) {
+                        openUploadForm('tl3');
+                    } else {
+                        alert('음악 업로드를 하려면 로그인이 필요합니다.');
+                        window.location.href = 'login.html';
+                    }
+                });
+            }
+            
+            // 지갑 버튼 - 인증 체크
+            const walletBtn = document.getElementById('walletBtn');
+            if (walletBtn) {
+                walletBtn.addEventListener('click', () => {
+                    if (window.timelinkAuth && window.timelinkAuth.isLoggedIn()) {
+                        // 로그인된 경우 지갑 정보 표시
+                        const userData = window.timelinkAuth.getUserData();
+                        const balance = userData ? userData.tlBalance : 0;
+                        alert(`지갑 페이지로 이동합니다.\n현재 잔액: ${balance.toLocaleString()} TL`);
+                    } else {
+                        // 로그인되지 않은 경우 로그인 유도
+                        alert('지갑 기능을 사용하려면 로그인이 필요합니다.');
+                        window.location.href = 'login.html';
+                    }
+                });
+            }
+            
+            // 사용자 메뉴 버튼 - 인증 체크
+            const userMenuBtn = document.getElementById('userMenuBtn');
+            if (userMenuBtn) {
+                userMenuBtn.addEventListener('click', () => {
+                    if (window.timelinkAuth && window.timelinkAuth.isLoggedIn()) {
+                        // 로그인된 경우 프로필 페이지로 이동
+                        window.location.href = 'profile.html';
+                    } else {
+                        // 로그인되지 않은 경우 로그인 페이지로 이동
+                        alert('로그인이 필요합니다.');
+                        window.location.href = 'login.html';
+                    }
+                });
+            }
             
             // 플레이어 컨트롤
-            document.getElementById('playPauseBtn').addEventListener('click', togglePlayPause);
-            document.getElementById('prevBtn').addEventListener('click', () => skipTrack(-1));
-            document.getElementById('nextBtn').addEventListener('click', () => skipTrack(1));
+            const playPauseBtn = document.getElementById('playPauseBtn');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            if (playPauseBtn) playPauseBtn.addEventListener('click', togglePlayPause);
+            if (prevBtn) prevBtn.addEventListener('click', () => skipTrack(-1));
+            if (nextBtn) nextBtn.addEventListener('click', () => skipTrack(1));
             
             // 네비게이션 링크
             document.querySelectorAll('.nav-link').forEach(link => {
@@ -1468,6 +1616,8 @@
         // 음악 그리드 로드
         function loadMusicGrid(filter = 'all') {
             const musicGrid = document.getElementById('musicGrid');
+            if (!musicGrid) return;
+            
             musicGrid.innerHTML = '';
             
             let filteredMusic = [...musicLibrary];
@@ -1554,8 +1704,20 @@
             const playBtn = card.querySelector('.play-btn');
             const buyBtn = card.querySelector('.btn-buy');
             
-            playBtn.addEventListener('click', () => playMusic(music.id));
-            buyBtn.addEventListener('click', () => buyMusic(music.id));
+            playBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                playMusic(music.id);
+            });
+            
+            buyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                buyMusic(music.id);
+            });
+            
+            // 카드 클릭 시 재생
+            card.addEventListener('click', () => {
+                playMusic(music.id);
+            });
             
             return card;
         }
@@ -1572,22 +1734,52 @@
 
         // 음악 재생
         function playMusic(musicId) {
+            // 인증 체크
+            if (!window.timelinkAuth || !window.timelinkAuth.isLoggedIn()) {
+                alert('음악을 재생하려면 로그인이 필요합니다.');
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // TL 잔액 체크
+            const userData = window.timelinkAuth.getUserData();
+            if (!userData || userData.tlBalance < 10) {
+                alert('TL 잔액이 부족합니다. 충전 후 이용해주세요.');
+                return;
+            }
+            
             const music = musicLibrary.find(m => m.id === musicId);
             if (!music) return;
             
             currentMusic = music;
             
             // 플레이어 UI 업데이트
-            document.getElementById('playerAlbumArt').src = music.cover;
-            document.getElementById('playerTitle').textContent = music.title;
-            document.getElementById('playerArtist').textContent = music.artist;
+            const playerAlbumArt = document.getElementById('playerAlbumArt');
+            const playerTitle = document.getElementById('playerTitle');
+            const playerArtist = document.getElementById('playerArtist');
+            const playerTLConsumption = document.getElementById('playerTLConsumption');
+            const playerBalance = document.getElementById('playerBalance');
+            
+            if (playerAlbumArt) playerAlbumArt.src = music.cover;
+            if (playerTitle) playerTitle.textContent = music.title;
+            if (playerArtist) playerArtist.textContent = music.artist;
             
             // TL 소비량 표시
             const tlPerSecond = music.price / 60;
-            document.getElementById('playerTLConsumption').textContent = `${tlPerSecond.toFixed(2)} TL/초`;
+            if (playerTLConsumption) {
+                playerTLConsumption.textContent = `${tlPerSecond.toFixed(2)} TL/초`;
+            }
+            
+            // 잔액 표시
+            if (playerBalance && userData) {
+                playerBalance.textContent = userData.tlBalance.toLocaleString();
+            }
             
             // 플레이어 표시
-            document.getElementById('musicPlayer').classList.add('active');
+            const musicPlayer = document.getElementById('musicPlayer');
+            if (musicPlayer) {
+                musicPlayer.classList.add('active');
+            }
             
             // 재생 시작
             togglePlayPause(true);
@@ -1600,17 +1792,19 @@
         // 재생/일시정지 토글
         function togglePlayPause(forcePlay = false) {
             const playPauseBtn = document.getElementById('playPauseBtn');
+            if (!playPauseBtn) return;
+            
             const icon = playPauseBtn.querySelector('i');
             
             if (forcePlay || !isPlaying) {
                 // 재생 시작
                 isPlaying = true;
-                icon.className = 'fas fa-pause';
+                if (icon) icon.className = 'fas fa-pause';
                 startProgress();
             } else {
                 // 일시정지
                 isPlaying = false;
-                icon.className = 'fas fa-play';
+                if (icon) icon.className = 'fas fa-play';
                 stopProgress();
             }
         }
@@ -1640,11 +1834,17 @@
 
         // 프로그레스 바 업데이트
         function updateProgressBar() {
-            const progressPercent = (currentTime / totalTime) * 100;
-            document.getElementById('progressBar').style.width = `${progressPercent}%`;
+            const progressBar = document.getElementById('progressBar');
+            const currentTimeElement = document.getElementById('currentTime');
             
-            // 시간 표시 업데이트
-            document.getElementById('currentTime').textContent = formatTime(currentTime);
+            if (progressBar) {
+                const progressPercent = (currentTime / totalTime) * 100;
+                progressBar.style.width = `${progressPercent}%`;
+            }
+            
+            if (currentTimeElement) {
+                currentTimeElement.textContent = formatTime(currentTime);
+            }
         }
 
         // 시간 포맷팅
@@ -1669,6 +1869,13 @@
 
         // 음악 구매
         function buyMusic(musicId) {
+            // 인증 체크
+            if (!window.timelinkAuth || !window.timelinkAuth.isLoggedIn()) {
+                alert('음악을 구매하려면 로그인이 필요합니다.');
+                window.location.href = 'login.html';
+                return;
+            }
+            
             const music = musicLibrary.find(m => m.id === musicId);
             if (!music) return;
             
@@ -1697,6 +1904,28 @@
                 }
             }
         }
+    </script>
+
+    <!-- 인증 관련 스크립트 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 인증 상태 업데이트
+            if (window.timelinkAuth) {
+                window.timelinkAuth.updateAllPages();
+            }
+            
+            // 페이지별 인증 체크 (필요시)
+            const protectedPages = ['studio.html', 'shareplace.html', 'profile.html'];
+            const currentPage = window.location.pathname.split('/').pop();
+            
+            if (protectedPages.includes(currentPage)) {
+                if (!window.timelinkAuth || !window.timelinkAuth.isLoggedIn()) {
+                    // alert('로그인이 필요한 페이지입니다.');
+                    // window.location.href = 'login.html';
+                    // 실제 서비스에서는 주석 해제
+                }
+            }
+        });
     </script>
 </body>
 </html>
