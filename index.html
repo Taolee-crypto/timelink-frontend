@@ -766,6 +766,7 @@
             display: flex;
             gap: 1rem;
             margin-top: 1.5rem;
+            flex-wrap: wrap;
         }
 
         .social-links a {
@@ -793,6 +794,12 @@
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             color: #94a3b8;
             font-size: 0.9rem;
+        }
+
+        /* 로그인 상태 UI 스타일 */
+        .user-initial {
+            font-weight: bold;
+            font-size: 1.2rem;
         }
 
         /* ====== 반응형 디자인 ====== */
@@ -960,9 +967,9 @@
 
             <!-- User Section (TLTUBE와 동일) -->
             <div class="user-section">
-                <div class="tl-balance" id="tlBalance">
+                <div class="tl-balance" id="tlBalance" style="display: none;">
                     <div class="tl-icon">TL</div>
-                    <span id="balanceAmount">10,000</span>
+                    <span id="balanceAmount">0</span>
                 </div>
                 
                 <div class="user-avatar" id="userAvatar">
@@ -999,7 +1006,7 @@
                 </div>
 
                 <div class="cta-buttons">
-                    <a href="login.html" class="btn btn-primary">
+                    <a href="signup.html" class="btn btn-primary">
                         <i class="fas fa-gift"></i> 무료로 시작하기 (10,000TL 보너스)
                     </a>
                     <a href="studio.html" class="btn btn-secondary">
@@ -1200,7 +1207,7 @@
                         <li><i class="fas fa-check"></i> 고음질 스트리밍</li>
                         <li><i class="fas fa-check"></i> 플레이리스트 공유</li>
                         <li><i class="fas fa-check"></i> 라이브 콘서트</li>
-                        <li><i class="fas fa-check"></i> 아티치 후원 시스템</li>
+                        <li><i class="fas fa-check"></i> 아티스트 후원 시스템</li>
                     </ul>
                     <a href="tlmusic.html" class="btn-outline">
                         음악 듣기 <i class="fas fa-arrow-right"></i>
@@ -1285,9 +1292,9 @@
                 <!-- Company Info -->
                 <div class="footer-section">
                     <h4>TIMELINK</h4>
-                    <p><i class="fas fa-map-marker-alt"></i> 서울특별시 강남구 테헤란로 123 타임링크 빌딩</p>
-                    <p><i class="fas fa-phone"></i> 02-1234-5678</p>
-                    <p><i class="fas fa-envelope"></i> support@timelink.io</p>
+                    <p><i class="fas fa-map-marker-alt"></i> 대한민국 인천광역시 송도구</p>
+                    <p><i class="fas fa-envelope"></i> hello@timelink.digital</p>
+                    <p><i class="fas fa-globe"></i> timelink.digital</p>
                     
                     <div class="social-links">
                         <a href="#"><i class="fab fa-twitter"></i></a>
@@ -1326,7 +1333,7 @@
             </div>
             
             <div class="copyright">
-                <p>© 2024 TIMELINK. All rights reserved.유휴 디지털파일의 자산화 관련 특허 출원중 .</p>
+                <p>© 2024 TIMELINK CO., LTD. All rights reserved. 유휴 디지털파일의 자산화 관련 특허 출원중</p>
                 <p>TL 토큰은 가상자산이 아니며 투자 위험을 포함합니다.</p>
             </div>
         </div>
@@ -1366,34 +1373,79 @@
             });
         }
         
-        // TL 잔액 표시
+        // ========== 로그인 상태 관리 ==========
         const tlBalance = document.getElementById('tlBalance');
         const balanceAmount = document.getElementById('balanceAmount');
         const userAvatar = document.getElementById('userAvatar');
         
-        // 로그인 상태 (실제 구현에서는 서버에서 확인)
-        const isLoggedIn = true;
-        
-        if (isLoggedIn && tlBalance && balanceAmount) {
-            tlBalance.style.display = 'flex';
-            balanceAmount.textContent = '10,000';
+        // 로그인 상태 체크 함수
+        function checkLoginStatus() {
+            const token = localStorage.getItem('timelink_token');
+            const userData = localStorage.getItem('timelink_user');
+            return token !== null && token !== '' && userData !== null;
         }
         
-        // 사용자 아바타 클릭 이벤트
-        if (userAvatar) {
-            userAvatar.addEventListener('click', () => {
+        // 사용자 정보 가져오기
+        function getUserInfo() {
+            const userData = localStorage.getItem('timelink_user');
+            if (userData) {
+                try {
+                    return JSON.parse(userData);
+                } catch (e) {
+                    return null;
+                }
+            }
+            return null;
+        }
+        
+        // 헤더 UI 업데이트
+        function updateHeaderUI() {
+            const isLoggedIn = checkLoginStatus();
+            const userInfo = getUserInfo();
+            
+            if (isLoggedIn && userInfo) {
+                // 로그인 상태
+                tlBalance.style.display = 'flex';
+                balanceAmount.textContent = userInfo.balance ? userInfo.balance.toLocaleString() : '10,000';
+                
+                // 아바타에 사용자 이니셜 표시
+                const initials = userInfo.name ? userInfo.name.charAt(0).toUpperCase() : 'U';
+                userAvatar.innerHTML = `<span class="user-initial">${initials}</span>`;
+                userAvatar.title = userInfo.name || '사용자';
+            } else {
+                // 비로그인 상태
+                tlBalance.style.display = 'none';
+                userAvatar.innerHTML = '<i class="fas fa-user"></i>';
+                userAvatar.title = '로그인';
+            }
+        }
+        
+        // TL 잔액 클릭 이벤트
+        if (tlBalance) {
+            tlBalance.addEventListener('click', () => {
+                const isLoggedIn = checkLoginStatus();
+                
                 if (isLoggedIn) {
-                    window.location.href = 'profile.html';
+                    // 지갑 페이지나 충전 페이지로 이동
+                    window.location.href = 'profile.html#wallet';
                 } else {
                     window.location.href = 'login.html';
                 }
             });
         }
         
-        // TL 잔액 클릭 이벤트
-        if (tlBalance) {
-            tlBalance.addEventListener('click', () => {
-                alert('지갑 페이지로 이동합니다.\n현재 잔액: 10,000 TL');
+        // 사용자 아바타 클릭 이벤트
+        if (userAvatar) {
+            userAvatar.addEventListener('click', () => {
+                const isLoggedIn = checkLoginStatus();
+                
+                if (isLoggedIn) {
+                    // 통합 사용자 대시보드(프로필)로 이동
+                    window.location.href = 'profile.html';
+                } else {
+                    // 로그인 페이지로 이동
+                    window.location.href = 'login.html';
+                }
             });
         }
         
@@ -1428,7 +1480,40 @@
                     this.style.zIndex = '1';
                 });
             });
+            
+            // 페이지 로드 시 헤더 UI 업데이트
+            updateHeaderUI();
+            
+            // 로그인 상태 변경 감지 (간단한 구현)
+            window.addEventListener('storage', function(e) {
+                if (e.key === 'timelink_token' || e.key === 'timelink_user') {
+                    updateHeaderUI();
+                }
+            });
         });
+        
+        // 로그아웃 함수 (다른 페이지에서 사용)
+        function logout() {
+            localStorage.removeItem('timelink_token');
+            localStorage.removeItem('timelink_user');
+            window.location.href = 'index.html';
+        }
+        
+        // 모달 닫기 함수
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+        
+        // 모달 열기 함수
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        }
     </script>
 </body>
 </html>
