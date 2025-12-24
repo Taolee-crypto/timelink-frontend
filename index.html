@@ -51,7 +51,7 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        /* ====== 헤더 스타일 (TLTUBE와 동일) ====== */
+        /* ====== 헤더 스타일 ====== */
         .main-header {
             background: rgba(10, 15, 43, 0.95);
             backdrop-filter: blur(10px);
@@ -109,7 +109,7 @@
             white-space: nowrap;
         }
 
-        /* Navigation - TLTUBE와 동일 */
+        /* Navigation */
         .main-nav {
             flex: 1;
             display: flex;
@@ -150,7 +150,7 @@
             font-size: 1rem;
         }
 
-        /* User Section */
+        /* User Section - 중요: position: relative 추가 */
         .user-section {
             flex: 0 0 auto;
             display: flex;
@@ -158,7 +158,7 @@
             gap: 1.5rem;
             min-width: 150px;
             justify-content: flex-end;
-            position: relative;
+            position: relative; /* 드롭다운 위치 기준점 */
         }
 
         .tl-balance {
@@ -208,7 +208,7 @@
             transition: all 0.3s ease;
             flex-shrink: 0;
             position: relative;
-            z-index: 1002;
+            z-index: 1002; /* 드롭다운보다 위에 표시 */
         }
 
         .user-avatar:hover {
@@ -233,7 +233,7 @@
             color: white;
         }
 
-        /* ====== 사용자 드롭다운 메뉴 ====== */
+        /* ====== 사용자 드롭다운 메뉴 - 중요: user-section 내부에 배치 ====== */
         .user-dropdown {
             position: absolute;
             top: 60px;
@@ -1001,6 +1001,14 @@
             
             .user-section {
                 min-width: auto;
+                position: relative;
+            }
+            
+            .user-dropdown {
+                position: fixed;
+                top: 70px;
+                right: 20px;
+                left: auto;
             }
             
             .showcase-grid {
@@ -1009,13 +1017,6 @@
             
             .features-grid {
                 grid-template-columns: 1fr;
-            }
-            
-            .user-dropdown {
-                position: fixed;
-                top: 70px;
-                right: 20px;
-                left: auto;
             }
         }
 
@@ -1063,10 +1064,10 @@
     </style>
 </head>
 <body>
-    <!-- Google 번역 위젯 (TLTUBE와 동일) -->
+    <!-- Google 번역 위젯 -->
     <div id="google_translate_element"></div>
 
-    <!-- Header (TLTUBE와 동일한 구조) -->
+    <!-- Header -->
     <header class="main-header">
         <div class="header-content">
             <!-- Logo -->
@@ -1080,7 +1081,7 @@
                 <i class="fas fa-bars"></i>
             </button>
 
-            <!-- Navigation - TLTUBE와 동일한 메뉴 -->
+            <!-- Navigation -->
             <nav class="main-nav" id="mainNav">
                 <a href="index.html" class="nav-link active">
                     <i class="fas fa-home"></i> HOME
@@ -1105,7 +1106,7 @@
                 </a>
             </nav>
 
-            <!-- User Section (TLTUBE와 동일) -->
+            <!-- User Section -->
             <div class="user-section">
                 <div class="tl-balance" id="tlBalance" style="display: none;">
                     <div class="tl-icon">TL</div>
@@ -1116,7 +1117,7 @@
                     <i class="fas fa-user"></i>
                 </div>
                 
-                <!-- 사용자 드롭다운 메뉴 -->
+                <!-- 중요: user-dropdown을 user-section 안에 배치 -->
                 <div class="user-dropdown" id="userDropdown">
                     <!-- 드롭다운 내용은 JavaScript로 동적 생성 -->
                 </div>
@@ -1488,14 +1489,14 @@
     <script>
         // ========== 초기화 함수 ==========
         function init() {
-            // 페이지 로드 시 초기 드롭다운 내용 생성
-            createDropdownContent();
-            
             // Google 번역 초기화
             googleTranslateElementInit();
             
             // 모바일 메뉴 설정
             setupMobileMenu();
+            
+            // 드롭다운 설정 - 페이지 로드 시 바로 설정
+            setupDropdown();
             
             // 헤더 UI 업데이트
             updateHeaderUI();
@@ -1503,8 +1504,8 @@
             // 페이지 스크롤 효과
             setupScrollEffects();
             
-            // 드롭다운 이벤트 설정 (여기서 한 번만 설정)
-            setupDropdownEvents();
+            // 기타 이벤트 설정
+            setupOtherEvents();
         }
 
         // ========== Google 번역 초기화 ==========
@@ -1551,35 +1552,48 @@
             }
         }
 
-        // ========== 로그인 상태 확인 ==========
-        function checkLoginStatus() {
-            const token = localStorage.getItem('timelink_token');
-            const userData = localStorage.getItem('timelink_user');
-            return token !== null && token !== '' && userData !== null;
-        }
-
-        function getUserInfo() {
-            const userData = localStorage.getItem('timelink_user');
-            if (userData) {
-                try {
-                    return JSON.parse(userData);
-                } catch (e) {
-                    return null;
-                }
+        // ========== 드롭다운 메뉴 설정 (중요: 페이지 로드 시 바로 설정) ==========
+        function setupDropdown() {
+            const userAvatar = document.getElementById('userAvatar');
+            const userDropdown = document.getElementById('userDropdown');
+            
+            if (userAvatar && userDropdown) {
+                // 초기 드롭다운 내용 생성
+                createDropdownContent();
+                
+                // 아바타 클릭 시 드롭다운 토글
+                userAvatar.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    userDropdown.classList.toggle('active');
+                });
+                
+                // 드롭다운 외부 클릭 시 닫기
+                document.addEventListener('click', (e) => {
+                    if (!userDropdown.contains(e.target) && !userAvatar.contains(e.target)) {
+                        userDropdown.classList.remove('active');
+                    }
+                });
+                
+                // 드롭다운 내부 링크 클릭 시 드롭다운 닫기
+                userDropdown.addEventListener('click', (e) => {
+                    if (e.target.closest('.dropdown-item')) {
+                        userDropdown.classList.remove('active');
+                    }
+                });
             }
-            return null;
         }
 
-        // ========== 드롭다운 내용 동적 생성 ==========
+        // ========== 드롭다운 내용 생성 ==========
         function createDropdownContent() {
             const userDropdown = document.getElementById('userDropdown');
+            if (!userDropdown) return;
+            
+            // 로그인 상태 확인
             const isLoggedIn = checkLoginStatus();
             const userInfo = getUserInfo();
             
-            if (!userDropdown) return;
-            
             if (isLoggedIn && userInfo) {
-                // 로그인 상태 - 로그아웃 옵션 표시
+                // 로그인 상태 - 드롭다운 내용 생성
                 const initials = userInfo.name ? userInfo.name.charAt(0).toUpperCase() : 'U';
                 const balance = userInfo.balance ? userInfo.balance.toLocaleString() : '10,000';
                 
@@ -1626,8 +1640,15 @@
                         TIMELINK v1.0
                     </div>
                 `;
+                
+                // 로그아웃 버튼 이벤트 추가
+                const logoutBtn = document.getElementById('logoutBtnDropdown');
+                if (logoutBtn) {
+                    logoutBtn.addEventListener('click', handleLogout);
+                }
+                
             } else {
-                // 비로그인 상태 - 로그인/회원가입 옵션 표시
+                // 비로그인 상태 - 드롭다운 내용 생성
                 userDropdown.innerHTML = `
                     <div class="dropdown-header">
                         <div class="dropdown-user-info">
@@ -1664,43 +1685,23 @@
             }
         }
 
-        // ========== 드롭다운 이벤트 설정 ==========
-        function setupDropdownEvents() {
-            const userAvatar = document.getElementById('userAvatar');
-            const userDropdown = document.getElementById('userDropdown');
-            
-            if (userAvatar && userDropdown) {
-                // 아바타 클릭 시 드롭다운 토글
-                userAvatar.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    
-                    // 드롭다운 내용 업데이트
-                    createDropdownContent();
-                    
-                    // 드롭다운 토글
-                    userDropdown.classList.toggle('active');
-                    
-                    // 로그아웃 버튼 이벤트 추가
-                    const logoutBtn = document.getElementById('logoutBtnDropdown');
-                    if (logoutBtn) {
-                        logoutBtn.addEventListener('click', handleLogout);
-                    }
-                });
-                
-                // 드롭다운 외부 클릭 시 닫기
-                document.addEventListener('click', (e) => {
-                    if (!userDropdown.contains(e.target) && !userAvatar.contains(e.target)) {
-                        userDropdown.classList.remove('active');
-                    }
-                });
-                
-                // 드롭다운 내부 링크 클릭 시 드롭다운 닫기
-                userDropdown.addEventListener('click', (e) => {
-                    if (e.target.closest('.dropdown-item')) {
-                        userDropdown.classList.remove('active');
-                    }
-                });
+        // ========== 로그인 상태 확인 ==========
+        function checkLoginStatus() {
+            const token = localStorage.getItem('timelink_token');
+            const userData = localStorage.getItem('timelink_user');
+            return token !== null && token !== '' && userData !== null;
+        }
+
+        function getUserInfo() {
+            const userData = localStorage.getItem('timelink_user');
+            if (userData) {
+                try {
+                    return JSON.parse(userData);
+                } catch (e) {
+                    return null;
+                }
             }
+            return null;
         }
 
         // ========== 헤더 UI 업데이트 ==========
@@ -1723,6 +1724,7 @@
                 userAvatar.innerHTML = initials;
                 userAvatar.title = userInfo.name || '사용자';
                 userAvatar.classList.add('user-initial');
+                
             } else {
                 // 비로그인 상태
                 tlBalance.style.display = 'none';
@@ -1759,7 +1761,7 @@
                 // 성공 메시지
                 alert('로그아웃되었습니다.');
                 
-                // 페이지 새로고침 (UI 업데이트 확인)
+                // 페이지 새로고침
                 setTimeout(() => {
                     window.location.reload();
                 }, 500);
@@ -1803,13 +1805,7 @@
         }
 
         // ========== 페이지 로드 시 초기화 ==========
-        document.addEventListener('DOMContentLoaded', function() {
-            init();
-            setupOtherEvents();
-        });
-
-        // ========== 전역 변수로 드롭다운 상태 관리 ==========
-        let dropdownOpen = false;
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
