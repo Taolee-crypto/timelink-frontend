@@ -833,15 +833,17 @@
                     <p><i class="fas fa-globe"></i> timelink.digital</p>
                 </div>
                 
-                <!-- Quick Links -->
+                <!-- Quick Links - 상단 메뉴 전체 추가 -->
                 <div class="footer-section">
                     <h4>빠른 링크</h4>
                     <div class="footer-links">
-                        <a href="index.html">홈</a>
-                        <a href="studio.html">STUDIO</a>
-                        <a href="shareplace.html">SHAREPLACE</a>
-                        <a href="login.html">로그인</a>
-                        <a href="signup.html">회원가입</a>
+                        <a href="index.html"><i class="fas fa-home"></i> HOME</a>
+                        <a href="studio.html"><i class="fas fa-sliders-h"></i> STUDIO</a>
+                        <a href="shareplace.html"><i class="fas fa-store"></i> SHAREPLACE</a>
+                        <a href="tltube.html"><i class="fas fa-play-circle"></i> TLTUBE</a>
+                        <a href="tlmusic.html"><i class="fas fa-music"></i> TLMUSIC</a>
+                        <a href="cafe-radio.html"><i class="fas fa-broadcast-tower"></i> CAFE RADIO</a>
+                        <a href="ad-plaza.html"><i class="fas fa-ad"></i> AD PLAZA</a>
                     </div>
                 </div>
                 
@@ -849,11 +851,23 @@
                 <div class="footer-section">
                     <h4>지원</h4>
                     <div class="footer-links">
-                        <a href="#">도움말 센터</a>
-                        <a href="#">자주 묻는 질문</a>
-                        <a href="#">문의하기</a>
-                        <a href="#">개인정보처리방침</a>
-                        <a href="#">이용약관</a>
+                        <a href="#"><i class="fas fa-question-circle"></i> 도움말 센터</a>
+                        <a href="#"><i class="fas fa-question"></i> 자주 묻는 질문</a>
+                        <a href="#"><i class="fas fa-envelope"></i> 문의하기</a>
+                        <a href="#"><i class="fas fa-user-shield"></i> 개인정보처리방침</a>
+                        <a href="#"><i class="fas fa-file-contract"></i> 이용약관</a>
+                    </div>
+                </div>
+                
+                <!-- Account Links -->
+                <div class="footer-section">
+                    <h4>계정</h4>
+                    <div class="footer-links">
+                        <a href="login.html"><i class="fas fa-sign-in-alt"></i> 로그인</a>
+                        <a href="signup.html"><i class="fas fa-user-plus"></i> 회원가입</a>
+                        <a href="dashboard.html"><i class="fas fa-tachometer-alt"></i> 대시보드</a>
+                        <a href="profile.html"><i class="fas fa-user-circle"></i> 프로필</a>
+                        <a href="charge.html"><i class="fas fa-bolt"></i> TL 충전</a>
                     </div>
                 </div>
             </div>
@@ -868,18 +882,12 @@
     <!-- JavaScript -->
     <script>
         // ========== 전역 변수 ==========
-        let authManager = null;
+        let loginInProgress = false;
 
         // ========== 초기화 함수 ==========
         function init() {
-            // AuthManager 초기화
-            initAuthManager();
-            
             // 모바일 메뉴 설정
             setupMobileMenu();
-            
-            // UI 업데이트
-            updateUI();
             
             // 로그인 폼 이벤트 설정
             setupLoginForm();
@@ -892,69 +900,19 @@
             
             // 로그아웃 체크
             checkLogout();
+            
+            // 페이지 진입 시 헤더 UI 업데이트
+            setTimeout(() => {
+                updateHeaderUI();
+            }, 100);
         }
 
-        // ========== AuthManager 초기화 ==========
-        function initAuthManager() {
-            // 간단한 AuthManager 구현
-            authManager = {
-                isLoggedIn: function() {
-                    const userData = localStorage.getItem('timelink_user');
-                    const token = localStorage.getItem('timelink_token');
-                    return userData !== null && token !== null;
-                },
-                getUser: function() {
-                    const userData = localStorage.getItem('timelink_user');
-                    return userData ? JSON.parse(userData) : null;
-                },
-                login: function(userData, token) {
-                    try {
-                        localStorage.setItem('timelink_user', JSON.stringify(userData));
-                        localStorage.setItem('timelink_token', token);
-                        
-                        // 로그인 상태 유지 체크
-                        const rememberMe = document.getElementById('rememberMe');
-                        if (rememberMe && rememberMe.checked) {
-                            // 30일 동안 유지
-                            const expires = new Date();
-                            expires.setDate(expires.getDate() + 30);
-                            document.cookie = `timelink_auth=${token}; expires=${expires.toUTCString()}; path=/`;
-                        }
-                        
-                        updateUI();
-                        return true;
-                    } catch (error) {
-                        console.error('로그인 저장 실패:', error);
-                        return false;
-                    }
-                },
-                logout: function(redirectToIndex = true) {
-                    try {
-                        // 로컬 스토리지 클리어
-                        localStorage.removeItem('timelink_user');
-                        localStorage.removeItem('timelink_token');
-                        
-                        // 쿠키 삭제
-                        document.cookie = 'timelink_auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-                        
-                        updateUI();
-                        
-                        if (redirectToIndex) {
-                            window.location.href = 'index.html?logout=true';
-                        }
-                        return true;
-                    } catch (error) {
-                        console.error('로그아웃 실패:', error);
-                        return false;
-                    }
-                }
-            };
-        }
-
-        // ========== UI 업데이트 ==========
-        function updateUI() {
-            const isLoggedIn = authManager.isLoggedIn();
-            const user = authManager.getUser();
+        // ========== 헤더 UI 업데이트 ==========
+        function updateHeaderUI() {
+            const token = localStorage.getItem('timelink_token') || localStorage.getItem('token');
+            const userEmail = localStorage.getItem('timelink_userEmail');
+            const nickname = localStorage.getItem('timelink_nickname');
+            const balance = localStorage.getItem('timelink_tlBalance') || '10000';
             
             const tlBalance = document.getElementById('tlBalance');
             const balanceAmount = document.getElementById('balanceAmount');
@@ -962,19 +920,21 @@
             const loginBtn = document.getElementById('loginBtn');
             const logoutBtn = document.getElementById('logoutBtn');
             
-            if (isLoggedIn && user) {
+            if (token && userEmail) {
                 // 로그인 상태
+                const displayName = nickname || userEmail.split('@')[0];
+                
                 if (tlBalance) {
                     tlBalance.style.display = 'flex';
-                    tlBalance.title = 'TL 잔액: ' + (user.balance || 0).toLocaleString() + ' TL';
+                    tlBalance.title = 'TL 잔액: ' + (parseInt(balance) || 0).toLocaleString() + ' TL';
                 }
                 if (balanceAmount) {
-                    balanceAmount.textContent = (user.balance || 10000).toLocaleString();
+                    balanceAmount.textContent = (parseInt(balance) || 10000).toLocaleString();
                 }
                 if (userAvatar) {
                     userAvatar.style.display = 'flex';
-                    userAvatar.textContent = user.name ? user.name.charAt(0).toUpperCase() : 'U';
-                    userAvatar.title = user.name || '사용자';
+                    userAvatar.textContent = displayName.charAt(0).toUpperCase();
+                    userAvatar.title = displayName;
                 }
                 if (loginBtn) loginBtn.style.display = 'none';
                 if (logoutBtn) logoutBtn.style.display = 'flex';
@@ -1032,12 +992,14 @@
                 demoLoginBtn.addEventListener('click', handleDemoLogin);
             }
             
-            function handleLoginSubmit(e) {
+            // 실제 로그인 처리 함수
+            async function handleLoginSubmit(e) {
                 e.preventDefault();
+                
+                if (loginInProgress) return;
                 
                 const email = document.getElementById('email').value.trim();
                 const password = document.getElementById('password').value;
-                const rememberMe = document.getElementById('rememberMe').checked;
                 
                 // 입력 검증
                 if (!email || !password) {
@@ -1051,83 +1013,91 @@
                 }
                 
                 // 로그인 버튼 비활성화
+                loginInProgress = true;
                 if (loginSubmitBtn) {
                     loginSubmitBtn.disabled = true;
                     loginSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 로그인 중...';
                 }
                 
-                // 로그인 처리 (시뮬레이션)
-                setTimeout(() => {
-                    const userData = {
-                        email: email,
-                        name: email.split('@')[0],
-                        balance: 10000,
-                        joinedAt: new Date().toISOString(),
-                        tier: 'standard',
-                        avatar: getAvatarColor(email)
-                    };
+                try {
+                    console.log('[로그인] API 로그인 시도:', email);
                     
-                    // 로그인 성공
-                    if (authManager.login(userData, 'timelink_token_' + Date.now())) {
-                        showStatus('로그인 성공! 홈페이지로 이동합니다.', 'success', loginStatus);
+                    // auth.js의 loginUser 함수 호출
+                    if (typeof window.auth !== 'undefined' && window.auth.loginUser) {
+                        const result = await window.auth.loginUser(email, password);
                         
-                        // 페이지 이동
-                        setTimeout(() => {
-                            window.location.href = 'index.html';
-                        }, 1500);
-                    } else {
-                        showStatus('로그인 중 오류가 발생했습니다.', 'error', loginStatus);
-                        if (loginSubmitBtn) {
-                            loginSubmitBtn.disabled = false;
-                            loginSubmitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 로그인';
+                        if (result.success) {
+                            showStatus('로그인 성공! 홈페이지로 이동합니다.', 'success', loginStatus);
+                            
+                            // 통합 인증 UI 업데이트 함수 호출
+                            setTimeout(() => {
+                                if (typeof window.updateIntegratedAuthUI === 'function') {
+                                    window.updateIntegratedAuthUI();
+                                } else if (typeof window.updateAuthUI === 'function') {
+                                    window.updateAuthUI();
+                                }
+                                
+                                // 헤더 UI 업데이트
+                                updateHeaderUI();
+                            }, 100);
+                            
+                            // 페이지 이동
+                            setTimeout(() => {
+                                window.location.href = 'index.html';
+                            }, 1500);
+                            
+                        } else {
+                            showStatus(result.error || '로그인에 실패했습니다.', 'error', loginStatus);
+                            resetLoginButton();
                         }
+                    } else {
+                        // auth.js가 로드되지 않은 경우
+                        showStatus('인증 시스템을 불러오는 중 오류가 발생했습니다. 페이지를 새로고침해주세요.', 'error', loginStatus);
+                        resetLoginButton();
                     }
-                }, 1500);
+                } catch (error) {
+                    console.error('[로그인] 로그인 처리 오류:', error);
+                    showStatus('로그인 중 오류가 발생했습니다: ' + error.message, 'error', loginStatus);
+                    resetLoginButton();
+                }
             }
             
+            // 데모 로그인 함수
             function handleDemoLogin() {
-                // 데모 계정으로 로그인
-                const demoUser = {
-                    email: 'demo@timelink.digital',
-                    name: '데모 사용자',
-                    balance: 10000,
-                    joinedAt: new Date().toISOString(),
-                    tier: 'demo',
-                    avatar: 'demo'
-                };
+                // 데모 계정 정보
+                const demoEmail = 'demo@timelink.digital';
+                const demoPassword = 'demo1234';
                 
                 // 폼에 데모 데이터 채우기
-                document.getElementById('email').value = demoUser.email;
-                document.getElementById('password').value = 'demo1234';
+                document.getElementById('email').value = demoEmail;
+                document.getElementById('password').value = demoPassword;
                 document.getElementById('rememberMe').checked = true;
                 
                 showStatus('데모 계정으로 로그인합니다.', 'info', loginStatus);
                 
-                // 로그인 처리
+                // 약간의 지연 후 자동 로그인
                 setTimeout(() => {
-                    if (authManager.login(demoUser, 'demo_token_' + Date.now())) {
-                        showStatus('데모 로그인 성공! 홈페이지로 이동합니다.', 'success', loginStatus);
-                        
-                        setTimeout(() => {
-                            window.location.href = 'index.html';
-                        }, 1500);
-                    }
-                }, 1000);
+                    const demoEvent = { preventDefault: () => {} };
+                    handleLoginSubmit(demoEvent);
+                }, 500);
             }
             
+            // 로그인 버튼 리셋
+            function resetLoginButton() {
+                loginInProgress = false;
+                if (loginSubmitBtn) {
+                    loginSubmitBtn.disabled = false;
+                    loginSubmitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 로그인';
+                }
+            }
+            
+            // 이메일 유효성 검사
             function isValidEmail(email) {
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 return emailRegex.test(email);
             }
             
-            function getAvatarColor(email) {
-                const colors = ['#0066FF', '#00D4AA', '#8A2BE2', '#FF6B6B', '#FFA500'];
-                const hash = email.split('').reduce((acc, char) => {
-                    return char.charCodeAt(0) + ((acc << 5) - acc);
-                }, 0);
-                return colors[Math.abs(hash) % colors.length];
-            }
-            
+            // 상태 메시지 표시
             function showStatus(message, type, element) {
                 if (!element) return;
                 
@@ -1149,14 +1119,37 @@
             // 로그아웃 버튼
             const logoutBtn = document.getElementById('logoutBtn');
             if (logoutBtn) {
-                logoutBtn.addEventListener('click', handleLogout);
+                logoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    if (confirm('정말 로그아웃하시겠습니까?')) {
+                        // common-components.js의 logout 함수 호출
+                        if (typeof window.logout === 'function') {
+                            window.logout();
+                        } else {
+                            // 없으면 직접 처리
+                            localStorage.removeItem('timelink_token');
+                            localStorage.removeItem('timelink_userEmail');
+                            localStorage.removeItem('timelink_nickname');
+                            localStorage.removeItem('timelink_tlBalance');
+                            localStorage.removeItem('token');
+                            localStorage.removeItem('user');
+                            
+                            // 헤더 UI 업데이트
+                            updateHeaderUI();
+                            
+                            window.location.href = 'index.html?logout=true';
+                        }
+                    }
+                });
             }
             
             // TL 잔액 클릭
             const tlBalance = document.getElementById('tlBalance');
             if (tlBalance) {
                 tlBalance.addEventListener('click', () => {
-                    if (authManager.isLoggedIn()) {
+                    const token = localStorage.getItem('timelink_token');
+                    if (token) {
                         window.location.href = 'profile.html#wallet';
                     }
                 });
@@ -1166,30 +1159,25 @@
             const userAvatar = document.getElementById('userAvatar');
             if (userAvatar) {
                 userAvatar.addEventListener('click', () => {
-                    if (authManager.isLoggedIn()) {
+                    const token = localStorage.getItem('timelink_token');
+                    if (token) {
                         window.location.href = 'profile.html';
                     }
                 });
             }
         }
 
-        // ========== 로그아웃 처리 ==========
-        function handleLogout(e) {
-            e.preventDefault();
-            
-            if (confirm('정말 로그아웃하시겠습니까?')) {
-                authManager.logout();
-            }
-        }
-
         // ========== 이미 로그인된 사용자 체크 ==========
         function checkAlreadyLoggedIn() {
-            if (authManager.isLoggedIn()) {
+            const token = localStorage.getItem('timelink_token') || localStorage.getItem('token');
+            const userEmail = localStorage.getItem('timelink_userEmail');
+            
+            if (token && userEmail) {
                 showStatus('이미 로그인되어 있습니다. 홈페이지로 이동합니다.', 'info', document.getElementById('loginStatus'));
                 
                 setTimeout(() => {
                     window.location.href = 'index.html';
-                }, 2000);
+                }, 1500);
             }
         }
 
@@ -1201,7 +1189,12 @@
             
             if (logoutParam === 'true' || forceLogout === 'true') {
                 // 강제 로그아웃 처리
-                authManager.logout(false);
+                localStorage.removeItem('timelink_token');
+                localStorage.removeItem('timelink_userEmail');
+                localStorage.removeItem('timelink_nickname');
+                localStorage.removeItem('timelink_tlBalance');
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
                 
                 // 폼 리셋
                 const loginForm = document.getElementById('loginForm');
@@ -1210,6 +1203,9 @@
                     document.getElementById('email').value = 'realuser@test.com';
                     document.getElementById('password').value = 'realpass123';
                 }
+                
+                // 헤더 UI 업데이트
+                updateHeaderUI();
                 
                 // 로그아웃 메시지 표시
                 showStatus('로그아웃되었습니다.', 'info', document.getElementById('loginStatus'));
@@ -1239,5 +1235,3 @@
     </script>
 </body>
 </html>
-
-
