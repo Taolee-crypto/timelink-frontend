@@ -1,3 +1,30 @@
+// ============================================
+// 인증 시스템 사전 초기화
+// ============================================
+(function preInitializeAuth() {
+    'use strict';
+    
+    // auth.js가 로드되기 전에 미리 UI 설정
+    const authElements = document.querySelectorAll('[data-auth-status]');
+    if (authElements.length === 0) return;
+    
+    // 모든 가능한 토큰 키 확인
+    const token = localStorage.getItem('timelink_token') || localStorage.getItem('token');
+    const userEmail = localStorage.getItem('timelink_userEmail');
+    const nickname = localStorage.getItem('timelink_nickname');
+    const balance = localStorage.getItem('timelink_tlBalance') || '10000';
+    
+    if (token && userEmail) {
+        const displayName = nickname || userEmail.split('@')[0];
+        authElements.forEach(el => {
+            // 최대한 빨리 텍스트 설정
+            el.textContent = \\님 (\TL)\;
+            el.style.opacity = '1';
+            el.style.visibility = 'visible';
+        });
+    }
+})();
+
 
 
 
@@ -45,3 +72,4 @@
         preSetupAuthUI();
     }
 })();
+
