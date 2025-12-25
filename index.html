@@ -154,8 +154,8 @@
             flex: 0 0 auto;
             display: flex;
             align-items: center;
-            gap: 1.5rem;
-            min-width: 150px;
+            gap: 1rem;
+            min-width: 100px;
             justify-content: flex-end;
             position: relative;
         }
@@ -194,7 +194,12 @@
             font-weight: bold;
         }
 
-        /* 로그인/로그아웃 버튼 */
+        /* 로그인/회원가입 버튼 (비로그인 시) */
+        .auth-buttons {
+            display: flex;
+            gap: 0.75rem;
+        }
+
         .auth-button {
             background: rgba(0, 102, 255, 0.1);
             border: 1px solid rgba(0, 102, 255, 0.3);
@@ -203,7 +208,7 @@
             color: #0066FF;
             text-decoration: none;
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
@@ -216,20 +221,21 @@
             transform: translateY(-1px);
         }
 
-        .auth-button.logout {
-            background: rgba(244, 67, 54, 0.1);
-            border-color: rgba(244, 67, 54, 0.3);
-            color: #f44336;
+        .auth-button.signup {
+            background: linear-gradient(135deg, #0066FF, #00D4AA);
+            border-color: transparent;
+            color: white;
         }
 
-        .auth-button.logout:hover {
-            background: rgba(244, 67, 54, 0.2);
+        .auth-button.signup:hover {
+            box-shadow: 0 5px 15px rgba(0, 102, 255, 0.3);
+            transform: translateY(-1px);
         }
 
         .user-avatar {
             width: 44px;
             height: 44px;
-            background: #1A2342;
+            background: linear-gradient(135deg, #0066FF, #00D4AA);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -246,7 +252,7 @@
         }
 
         .user-avatar:hover {
-            border-color: #00D4AA;
+            border-color: rgba(255, 255, 255, 0.3);
             transform: scale(1.05);
         }
 
@@ -816,6 +822,10 @@
                 left: auto;
             }
             
+            .auth-buttons {
+                display: none;
+            }
+            
             .showcase-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -905,9 +915,7 @@
                 <a href="ad-plaza.html" class="nav-link">
                     <i class="fas fa-ad"></i> AD PLAZA
                 </a>
-                <a href="profile.html" class="nav-link">
-                    <i class="fas fa-user"></i> PROFILE
-                </a>
+                <!-- PROFILE 메뉴 제거됨 (드롭다운으로 이동) -->
             </nav>
 
             <!-- User Section -->
@@ -918,10 +926,15 @@
                     <span id="balanceAmount">0</span>
                 </div>
                 
-                <!-- 로그인 버튼 (비로그인 시 표시) -->
-                <a href="login.html" class="auth-button" id="loginBtn">
-                    <i class="fas fa-sign-in-alt"></i> LOGIN
-                </a>
+                <!-- 로그인/회원가입 버튼 (비로그인 시 표시) -->
+                <div class="auth-buttons" id="authButtons">
+                    <a href="login.html" class="auth-button">
+                        <i class="fas fa-sign-in-alt"></i> <span class="d-none d-sm-inline">로그인</span>
+                    </a>
+                    <a href="signup.html" class="auth-button signup">
+                        <i class="fas fa-user-plus"></i> <span class="d-none d-sm-inline">회원가입</span>
+                    </a>
+                </div>
                 
                 <!-- 사용자 아바타 (로그인 시 표시) -->
                 <div class="user-avatar" id="userAvatar">
@@ -1112,6 +1125,7 @@
                         <a href="shareplace.html">SHAREPLACE</a>
                         <a href="tltube.html">TLTUBE</a>
                         <a href="tlmusic.html">TLMUSIC</a>
+                        <!-- PROFILE은 빠른 링크에서도 제외 -->
                     </div>
                 </div>
                 
@@ -1177,6 +1191,9 @@
             
             // 페이지 스크롤 효과
             setupScrollEffects();
+            
+            // 초기 UI 업데이트
+            updateUI();
         }
 
         // ========== AuthManager 초기화 ==========
@@ -1184,21 +1201,36 @@
             // auth-manager.js에서 생성된 전역 인스턴스 사용
             if (window.timelinkAuth) {
                 authManager = window.timelinkAuth;
-                updateUI();
             } else {
-                console.error('AuthManager가 로드되지 않았습니다.');
                 // 대체 로직
                 authManager = {
                     isLoggedIn: function() {
-                        return localStorage.getItem('timelink_user') !== null;
+                        return localStorage.getItem('timelink_user') !== null || 
+                               localStorage.getItem('timelink_token') !== null;
                     },
                     getUser: function() {
                         const userData = localStorage.getItem('timelink_user');
-                        return userData ? JSON.parse(userData) : null;
+                        if (userData) {
+                            return JSON.parse(userData);
+                        }
+                        // 기본 사용자 데이터
+                        const email = localStorage.getItem('timelink_userEmail');
+                        const nickname = localStorage.getItem('timelink_nickname');
+                        if (email) {
+                            return {
+                                name: nickname || email.split('@')[0],
+                                email: email,
+                                balance: parseInt(localStorage.getItem('timelink_tlBalance') || '10000')
+                            };
+                        }
+                        return null;
                     },
                     logout: function() {
                         localStorage.removeItem('timelink_user');
                         localStorage.removeItem('timelink_token');
+                        localStorage.removeItem('timelink_userEmail');
+                        localStorage.removeItem('timelink_nickname');
+                        localStorage.removeItem('timelink_tlBalance');
                         updateUI();
                         window.location.href = 'index.html';
                     }
@@ -1215,7 +1247,7 @@
             const tlBalance = document.getElementById('tlBalance');
             const balanceAmount = document.getElementById('balanceAmount');
             const userAvatar = document.getElementById('userAvatar');
-            const loginBtn = document.getElementById('loginBtn');
+            const authButtons = document.getElementById('authButtons');
             
             if (isLoggedIn && user) {
                 // 로그인 상태
@@ -1231,7 +1263,7 @@
                     userAvatar.textContent = user.name ? user.name.charAt(0).toUpperCase() : 'U';
                     userAvatar.title = user.name || '사용자';
                 }
-                if (loginBtn) loginBtn.style.display = 'none';
+                if (authButtons) authButtons.style.display = 'none';
                 
                 // 드롭다운 내용 업데이트
                 updateDropdownContent(user);
@@ -1239,7 +1271,7 @@
                 // 비로그인 상태
                 if (tlBalance) tlBalance.style.display = 'none';
                 if (userAvatar) userAvatar.style.display = 'none';
-                if (loginBtn) loginBtn.style.display = 'flex';
+                if (authButtons) authButtons.style.display = 'flex';
                 
                 // 기본 드롭다운
                 updateDropdownContent(null);
@@ -1270,6 +1302,7 @@
                     </div>
                     
                     <div class="dropdown-menu">
+                        <!-- PROFILE 메뉴는 여기서만 표시 -->
                         <a href="profile.html" class="dropdown-item">
                             <i class="fas fa-user-circle"></i>
                             <span>프로필 보기</span>
@@ -1281,6 +1314,15 @@
                         <a href="profile.html#uploads" class="dropdown-item">
                             <i class="fas fa-folder-open"></i>
                             <span>업로드 관리</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="studio.html" class="dropdown-item">
+                            <i class="fas fa-sliders-h"></i>
+                            <span>STUDIO</span>
+                        </a>
+                        <a href="dashboard.html" class="dropdown-item">
+                            <i class="fas fa-chart-line"></i>
+                            <span>대시보드</span>
                         </a>
                         <div class="dropdown-divider"></div>
                         <div class="dropdown-item logout" id="dropdownLogoutBtn">
@@ -1411,8 +1453,10 @@
             const userAvatar = document.getElementById('userAvatar');
             if (userAvatar) {
                 userAvatar.addEventListener('click', () => {
-                    if (authManager.isLoggedIn()) {
-                        window.location.href = 'profile.html';
+                    if (!document.getElementById('userDropdown').classList.contains('active')) {
+                        if (authManager.isLoggedIn()) {
+                            window.location.href = 'profile.html';
+                        }
                     }
                 });
             }
@@ -1451,31 +1495,8 @@
             });
         }
 
-        // ========== 데모 데이터 (테스트용) ==========
-        function loadDemoData() {
-            // 처음 접속 시 데모 데이터 로드
-            if (!localStorage.getItem('timelink_demo_loaded')) {
-                const demoUser = {
-                    name: '타임링크 사용자',
-                    email: 'user@timelink.digital',
-                    balance: 10000,
-                    joinedAt: new Date().toISOString(),
-                    tier: 'standard'
-                };
-                
-                localStorage.setItem('timelink_user', JSON.stringify(demoUser));
-                localStorage.setItem('timelink_token', 'demo_token_' + Date.now());
-                localStorage.setItem('timelink_demo_loaded', 'true');
-                
-                console.log('데모 데이터 로드됨');
-            }
-        }
-
         // ========== DOM 로드 시 실행 ==========
         document.addEventListener('DOMContentLoaded', function() {
-            // 데모 데이터 로드 (테스트용)
-            loadDemoData();
-            
             // 초기화 실행
             init();
         });
@@ -1484,6 +1505,19 @@
         document.addEventListener('click', function(e) {
             if (e.target && e.target.id === 'dropdownLogoutBtn') {
                 handleLogout(e);
+            }
+            if (e.target && e.target.closest('#dropdownLogoutBtn')) {
+                handleLogout(e);
+            }
+        });
+
+        // ========== 키보드 이벤트 (ESC로 드롭다운 닫기) ==========
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const dropdown = document.getElementById('userDropdown');
+                if (dropdown) {
+                    dropdown.classList.remove('active');
+                }
             }
         });
     </script>
