@@ -1,0 +1,267 @@
+const API_BASE_URL = "https://timelink-api.timelink-api.workers.dev";
+
+// 이메일 인증
+async function verifyEmail(email, verificationCode) {
+    try {
+        const response = await fetch(API_BASE_URL + '/api/auth/verify', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: email,
+                verificationCode: verificationCode
+            })
+        });
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('이메일 인증 오류:', error);
+        return { success: false, error: '서버 연결 실패' };
+    }
+}
+
+// 로그인 함수
+async function loginUser(email, password) {
+    try {
+        const response = await fetch(API_BASE_URL + '/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: email,
+                password: password
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // 토큰 저장
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            return { success: true, user: data.user };
+        } else {
+            return { success: false, error: data.error };
+        }
+    } catch (error) {
+        console.error('로그인 오류:', error);
+        return { success: false, error: '서버 연결 실패' };
+    }
+}
+
+// 회원가입 함수
+async function signupUser(email, password, name) {
+    try {
+        const response = await fetch(API_BASE_URL + '/api/auth/signup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: email,
+                password: password,
+                name: name
+            })
+        });
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('회원가입 오류:', error);
+        return { success: false, error: '서버 연결 실패' };
+    }
+}
+
+// 로그아웃 함수
+function logoutUser() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    
+    // UI 업데이트
+    updateAuthUI(false);
+    
+    // 홈페이지가 아니면 로그인 페이지로 이동
+    if (!window.location.pathname.includes('index.html')) {
+        window.location.href = 'login.html';
+    }
+}
+
+// 토큰 확인 함수
+function isLoggedIn() {
+    return localStorage.getItem('token') !== null;
+}
+
+// 현재 사용자 정보 가져오기
+function getCurrentUser() {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
+}
+
+// 토큰 검증 함수
+async function verifyToken() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return { valid: false };
+        
+        const response = await fetch(API_BASE_URL + '/api/auth/verify', {
+            method: 'POST',
+            headers: {
+                'Authorization': \Bearer \\,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        return { valid: response.ok, user: data.user };
+    } catch (error) {
+        console.error('토큰 검증 오류:', error);
+        return { valid: false };
+    }
+}
+
+// 인증 UI 업데이트 함수
+function updateAuthUI(isLoggedIn, user = null) {
+    const authStatusElements = document.querySelectorAll('[data-auth-status]');
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const userBalance = document.getElementById('userBalance');
+    
+    if (isLoggedIn && user) {
+        // 로그인 상태
+        const balance = user.balance || 10000;
+        
+        if (authStatusElements.length > 0) {
+            authStatusElements.forEach(el => {
+                el.innerHTML = \\님 (\TL)\;
+                el.href = '#';
+                el.onclick = (e) => {
+                    e.preventDefault();
+                    logoutUser();
+                };
+            });
+        }
+        
+        if (loginBtn) loginBtn.style.display = 'none';
+        if (logoutBtn) logoutBtn.style.display = 'block';
+        if (userBalance) userBalance.textContent = \\TL\;
+    } else {
+        // 로그아웃 상태
+        if (authStatusElements.length > 0) {
+            authStatusElements.forEach(el => {
+                el.innerHTML = '로그인';
+                el.href = 'login.html';
+                el.onclick = null;
+            });
+        }
+        
+        if (loginBtn) loginBtn.style.display = 'block';
+        if (logoutBtn) logoutBtn.style.display = 'none';
+        if (userBalance) userBalance.textContent = '0TL';
+    }
+}
+
+// 인증 상태 초기화
+async function initializeAuth() {
+    // 1. 먼저 로컬 스토리지 확인 (빠른 UI 업데이트)
+    const token = localStorage.getItem('token');
+    const user = getCurrentUser();
+    
+    if (token && user) {
+        // 즉시 UI 업데이트
+        updateAuthUI(true, user);
+        
+        // 2. 서버에서 토큰 검증 (비동기)
+        setTimeout(async () => {
+            try {
+                const verification = await verifyToken();
+                if (!verification.valid) {
+                    // 토큰이 유효하지 않음
+                    logoutUser();
+                } else {
+                    // 토큰이 유효하고 사용자 정보 업데이트
+                    updateAuthUI(true, verification.user || user);
+                }
+            } catch (error) {
+                console.error('인증 초기화 오류:', error);
+            }
+        }, 500);
+    } else {
+        // 로그아웃 상태
+        updateAuthUI(false);
+    }
+}
+
+// 페이지 로드 시 인증 초기화
+document.addEventListener('DOMContentLoaded', function() {
+    // 약간의 지연으로 FOUC(Flash of Unstyled Content) 방지
+    setTimeout(initializeAuth, 50);
+});
+
+// 전역에 함수 노출
+window.auth = {
+    loginUser,
+    logoutUser,
+    signupUser,
+    verifyEmail,
+    isLoggedIn,
+    getCurrentUser,
+    initializeAuth
+};
+
+// 토큰 검증 함수
+async function verifyToken() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return { valid: false };
+        
+        const response = await fetch(API_BASE_URL + '/api/auth/verify', {
+            method: 'POST',
+            headers: {
+                'Authorization': \Bearer \\,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        return { valid: response.ok, user: data.user };
+    } catch (error) {
+        console.error('토큰 검증 오류:', error);
+        return { valid: false };
+    }
+}
+
+// 인증 상태 초기화
+async function initializeAuth() {
+    const authStatusElements = document.querySelectorAll('[data-auth-status]');
+    if (authStatusElements.length === 0) return;
+    
+    // 1. 먼저 로컬 스토리지 확인 (즉시 표시)
+    const token = localStorage.getItem('token');
+    const user = getCurrentUser();
+    
+    if (token && user) {
+        // 즉시 UI 업데이트
+        authStatusElements.forEach(el => {
+            el.innerHTML = \\님 (\TL)\;
+            el.href = '#';
+            el.onclick = (e) => {
+                e.preventDefault();
+                logoutUser();
+            };
+        });
+        
+        // 2. 비동기 토큰 검증
+        setTimeout(async () => {
+            const verification = await verifyToken();
+            if (!verification.valid) {
+                logoutUser();
+            }
+        }, 100);
+    }
+}
+
+// 페이지 로드 시 실행
+document.addEventListener('DOMContentLoaded', initializeAuth);
