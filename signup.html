@@ -3,461 +3,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TimeLink - 회원가입</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
-        body { background: #121212; color: white; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
-        .signup-box { background: #1E1E1E; padding: 40px; border-radius: 15px; width: 100%; max-width: 400px; }
-        h1 { text-align: center; margin-bottom: 30px; color: #29C4A8; }
-        .input-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; color: #BBB; }
-        input { width: 100%; padding: 12px; background: #2A2A2A; border: 2px solid #3A3A3A; border-radius: 8px; color: white; font-size: 16px; }
-        input:focus { outline: none; border-color: #29C4A8; }
-        button { width: 100%; padding: 14px; background: #29C4A8; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;  }
-        button:hover { background: #20a78b; }
-        .message {  padding: 10px; border-radius: 8px; display: none; }
-        .success { background: rgba(41, 196, 168, 0.2); color: #29C4A8; display: block; }
-        .error { background: rgba(244, 67, 54, 0.2); color: #f44336; display: block; }
-        .links {  text-align: center; }
-        .links a { color: #29C4A8; text-decoration: none; margin: 0 10px; }
-    </style>
-
-    <link rel="stylesheet" href="src/styles/common.css">
-        <!-- 인증 및 헤더 관리 -->
-    <script src="auth-manager.js"></script>
-    <script src="header-manager.js"></script>
-</head>
-<body>
-<!-- 헤더 -->
-<header class="main-header">
-    <div class="header-content">
-        <a href="index.html" class="logo">
-            <div class="logo-icon">TL</div>
-            <div class="logo-text">TIMELINK</div>
-        </a>
-        <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
-        <nav class="main-nav" id="mainNav">
-            <a href="index.html" class="nav-link"><i class="fas fa-home"></i> HOME</a>
-            <a href="studio.html" class="nav-link"><i class="fas fa-sliders-h"></i> STUDIO</a>
-            <a href="shareplace.html" class="nav-link"><i class="fas fa-store"></i> SHAREPLACE</a>
-            <a href="tltube.html" class="nav-link"><i class="fas fa-play-circle"></i> TLTUBE</a>
-            <a href="tlmusic.html" class="nav-link"><i class="fas fa-music"></i> TLMUSIC</a>
-            <a href="cafe-radio.html" class="nav-link"><i class="fas fa-broadcast-tower"></i> CAFE RADIO</a>
-            <a href="ad-plaza.html" class="nav-link"><i class="fas fa-ad"></i> AD PLAZA</a>
-            <a href="profile.html" class="nav-link"><i class="fas fa-user"></i> PROFILE</a>
-        </nav>
-        <div class="user-section">
-            <div class="tl-balance" id="walletBtn"><div class="tl-icon">TL</div><span id="headerBalanceAmount">0</span></div>
-            <div class="user-avatar" id="userMenuBtn"><i class="fas fa-user"></i></div>
-            <div class="user-dropdown" id="userDropdown"></div>
-        </div>
-    </div>
-</header>
-    <div class="signup-box">
-        <h1>TimeLink 회원가입</h1>
-        
-        <div id="message" class="message"></div>
-        
-        <form id="signupForm">
-            <div class="input-group">
-                <label for="email">이메일</label>
-                <input type="email" id="email" placeholder="이메일" required>
-            </div>
-            
-            <div class="input-group">
-                <label for="password">비밀번호</label>
-                <input type="password" id="password" placeholder="비밀번호 (6자 이상)" required>
-            </div>
-            
-            <div class="input-group">
-                <label for="nickname">닉네임</label>
-                <input type="text" id="nickname" placeholder="닉네임" required>
-            </div>
-            
-            <div class="input-group">
-                <label for="realName">실명</label>
-                <input type="text" id="realName" placeholder="실명" required>
-            </div>
-            
-            <button type="submit">회원가입</button>
-        </form>
-        
-        <div class="links">
-            <a href="login.html">로그인</a>
-            <a href="index.html">홈으로</a>
-        </div>
-    </div>
-
-    <script>
-        const API_BASE_URL = 'https://timelink-backend.timelink-api.workers.dev';
-        
-        document.getElementById('signupForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const nickname = document.getElementById('nickname').value;
-            const realName = document.getElementById('realName').value;
-            const messageDiv = document.getElementById('message');
-            
-            // 로딩 상태
-            const btn = this.querySelector('button[type="submit"]');
-            const originalText = btn.textContent;
-            btn.disabled = true;
-            btn.textContent = '가입 중...';
-            messageDiv.textContent = '';
-            messageDiv.className = 'message';
-            
-            try {
-                // 회원가입 API 호출
-                const response = await fetch(API_BASE_URL + '/api/signup', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        email: email,
-                        password: password,
-                        nickname: nickname,
-                        realName: realName
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok && data.success) {
-                    messageDiv.textContent = '회원가입 성공! 이메일 인증번호가 발송되었습니다.';
-                    messageDiv.className = 'message success';
-                    
-                    // 인증 페이지로 이동
-                    setTimeout(() => {
-                        window.location.href = 'verify.html?email=' + encodeURIComponent(email);
-                    }, 2000);
-                    
-                } else {
-                    messageDiv.textContent = data.error || '회원가입에 실패했습니다.';
-                    messageDiv.className = 'message error';
-                }
-                
-            } catch (error) {
-                messageDiv.textContent = '서버 연결에 실패했습니다.';
-                messageDiv.className = 'message error';
-                console.error('회원가입 에러:', error);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = originalText;
-            }
-        });
-        
-        // 페이지 로드 시 포커스
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('email').focus();
-        });
-    </script>
-</body>
-
-    <script type="module" src="./src/script/common-components.js"></script>
-</html>
-
-    <title>회원가입 | TIMELINK</title>
+    <title>TIMELINK - 회원가입</title>
     
     <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Auth Manager -->
-    <script src="auth-manager.js"></script>
-    
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
         body {
-            font-family: 'Inter', sans-serif;
-            background: #0A0F2B;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0A0F2B;
             color: white;
             min-height: 100vh;
+            line-height: 1.6;
         }
         
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 0 2rem;
+            padding: 0 20px;
         }
         
-        /* 헤더 */
-        .main-header {
-            background: rgba(10, 15, 43, 0.95);
+        /* 헤더 스타일 */
+        .header {
+            background-color: rgba(10, 15, 43, 0.95);
             backdrop-filter: blur(10px);
+            padding: 15px 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             position: fixed;
             width: 100%;
             top: 0;
             z-index: 1000;
-            padding: 1rem 0;
-            height: 70px;
         }
         
         .header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            height: 100%;
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 2rem;
         }
         
         .logo {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
             text-decoration: none;
+            gap: 10px;
         }
         
         .logo-icon {
             width: 40px;
             height: 40px;
             background: linear-gradient(135deg, #0066FF, #00D4AA);
-            border-radius: 10px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 700;
-            font-size: 1.2rem;
+            font-weight: bold;
+            font-size: 18px;
             color: white;
         }
         
         .logo-text {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.8rem;
-            font-weight: 700;
+            font-size: 24px;
+            font-weight: bold;
             background: linear-gradient(135deg, #0066FF, #00D4AA);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            white-space: nowrap;
         }
         
-        /* 네비게이션 */
-        .main-nav {
+        .nav {
             display: flex;
-            gap: 0.5rem;
-            padding: 0 1rem;
+            gap: 10px;
         }
         
         .nav-link {
             color: #94a3b8;
             text-decoration: none;
-            font-weight: 500;
-            padding: 0.5rem 0.8rem;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            white-space: nowrap;
-            font-size: 0.9rem;
+            padding: 8px 15px;
+            border-radius: 6px;
+            transition: all 0.3s;
+            font-size: 14px;
         }
         
         .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.05);
             color: white;
-            background: rgba(255, 255, 255, 0.05);
         }
         
-        .nav-link.active {
-            background: rgba(138, 43, 226, 0.1);
-            color: #8A2BE2;
-            border: 1px solid rgba(138, 43, 226, 0.3);
-        }
-        
-        /* 사용자 섹션 */
-        .user-section {
+        .auth-buttons {
             display: flex;
-            align-items: center;
-            gap: 1rem;
+            gap: 10px;
         }
         
-        .auth-button {
-            background: rgba(0, 102, 255, 0.1);
-            border: 1px solid rgba(0, 102, 255, 0.3);
-            border-radius: 8px;
-            padding: 0.5rem 1rem;
-            color: #0066FF;
+        .auth-btn {
+            padding: 8px 20px;
+            border-radius: 6px;
             text-decoration: none;
-            font-weight: 600;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: all 0.3s ease;
+            font-weight: 500;
+            transition: all 0.3s;
         }
         
-        .auth-button:hover {
-            background: rgba(0, 102, 255, 0.2);
-            transform: translateY(-1px);
+        .auth-btn.login {
+            border: 1px solid #0066FF;
+            color: #0066FF;
+            background: transparent;
         }
         
-        .auth-button.primary {
+        .auth-btn.signup {
             background: linear-gradient(135deg, #0066FF, #00D4AA);
             color: white;
             border: none;
         }
         
         /* 메인 컨텐츠 */
-        .signup-main {
-            padding: 120px 0 60px;
+        .main-content {
+            padding-top: 100px;
+            min-height: calc(100vh - 100px);
             display: flex;
-            justify-content: center;
             align-items: center;
-            min-height: calc(100vh - 70px);
+            justify-content: center;
         }
         
         .signup-card {
-            background: linear-gradient(145deg, #1A2342, #0F172A);
+            background: rgba(26, 35, 66, 0.8);
             border-radius: 20px;
-            padding: 3rem;
+            padding: 40px;
             width: 100%;
             max-width: 500px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 102, 255, 0.3);
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
         
         .signup-header {
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 30px;
         }
         
         .signup-title {
-            font-size: 2.5rem;
-            font-weight: 700;
+            font-size: 32px;
+            font-weight: bold;
             background: linear-gradient(135deg, #FFFFFF, #00D4AA);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 0.5rem;
+            margin-bottom: 10px;
         }
         
         .signup-subtitle {
             color: #94a3b8;
-            font-size: 1.1rem;
-            margin-bottom: 1rem;
+            margin-bottom: 20px;
         }
         
         .bonus-badge {
             display: inline-block;
             background: linear-gradient(135deg, #FFD700, #FF6B00);
             color: #0A0F2B;
-            padding: 0.5rem 1rem;
+            padding: 8px 16px;
             border-radius: 20px;
-            font-weight: 700;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .bonus-badge i {
+            margin-right: 5px;
         }
         
         /* 폼 스타일 */
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 20px;
         }
         
         .form-label {
             display: block;
-            margin-bottom: 0.5rem;
+            margin-bottom: 8px;
             color: white;
             font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
         }
         
-        .form-control {
+        .form-label i {
+            margin-right: 8px;
+            color: #00D4AA;
+        }
+        
+        .form-input {
             width: 100%;
-            padding: 1rem;
+            padding: 15px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 10px;
             color: white;
-            font-size: 1rem;
-            transition: all 0.3s ease;
+            font-size: 16px;
+            transition: all 0.3s;
         }
         
-        .form-control:focus {
+        .form-input:focus {
             outline: none;
             border-color: #0066FF;
             background: rgba(0, 102, 255, 0.05);
         }
         
+        /* 체크박스 */
         .checkbox-group {
-            margin: 2rem 0;
+            margin: 25px 0;
         }
         
         .checkbox-item {
             display: flex;
             align-items: flex-start;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-            padding: 1rem;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 15px;
             background: rgba(255, 255, 255, 0.03);
             border-radius: 8px;
         }
         
-        .checkbox-item input[type="checkbox"] {
+        .checkbox-item input {
             width: 18px;
             height: 18px;
             accent-color: #0066FF;
-            margin-top: 0.25rem;
+            margin-top: 3px;
         }
         
-        .checkbox-label {
+        .checkbox-text {
             flex: 1;
-            cursor: pointer;
         }
         
-        .checkbox-label span {
+        .checkbox-text .title {
             display: block;
             color: white;
             font-weight: 500;
-            margin-bottom: 0.25rem;
+            margin-bottom: 5px;
         }
         
-        .checkbox-label p {
+        .checkbox-text .desc {
             color: #94a3b8;
-            font-size: 0.85rem;
+            font-size: 14px;
             line-height: 1.5;
         }
         
-        .btn {
+        /* 버튼 */
+        .submit-btn {
             width: 100%;
-            padding: 1rem;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 1rem;
+            padding: 15px;
+            background: linear-gradient(135deg, #0066FF, #00D4AA);
+            color: white;
             border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.3s;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.75rem;
+            gap: 10px;
         }
         
-        .btn-primary {
-            background: linear-gradient(135deg, #0066FF, #00D4AA);
-            color: white;
-        }
-        
-        .btn-primary:hover {
+        .submit-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 30px rgba(0, 102, 255, 0.3);
         }
         
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* 링크 */
         .login-link {
             text-align: center;
-            margin-top: 2rem;
+            margin-top: 25px;
             color: #94a3b8;
-            font-size: 0.95rem;
+            font-size: 15px;
         }
         
         .login-link a {
             color: #00D4AA;
             text-decoration: none;
-            font-weight: 600;
+            font-weight: 500;
         }
         
         .login-link a:hover {
@@ -466,9 +293,9 @@
         
         /* 상태 메시지 */
         .status-message {
-            padding: 1rem;
+            padding: 15px;
             border-radius: 10px;
-            margin-bottom: 1.5rem;
+            margin-bottom: 20px;
             display: none;
         }
         
@@ -489,70 +316,65 @@
         /* 반응형 */
         @media (max-width: 768px) {
             .container {
-                padding: 0 1rem;
+                padding: 0 15px;
             }
             
-            .header-content {
-                padding: 0 1rem;
-            }
-            
-            .nav-link span {
+            .nav {
                 display: none;
             }
             
             .signup-card {
-                padding: 2rem;
+                padding: 30px 20px;
             }
             
             .signup-title {
-                font-size: 2rem;
+                font-size: 28px;
             }
         }
     </style>
 </head>
 <body>
     <!-- 헤더 -->
-    <header class="main-header">
-        <div class="header-content">
-            <a href="index.html" class="logo">
-                <div class="logo-icon">TL</div>
-                <div class="logo-text">TIMELINK</div>
-            </a>
-            
-            <nav class="main-nav">
-                <a href="index.html" class="nav-link">
-                    <i class="fas fa-home"></i> HOME
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <!-- 로고 -->
+                <a href="index.html" class="logo">
+                    <div class="logo-icon">TL</div>
+                    <div class="logo-text">TIMELINK</div>
                 </a>
-                <a href="studio.html" class="nav-link">
-                    <i class="fas fa-sliders-h"></i> STUDIO
-                </a>
-                <a href="shareplace.html" class="nav-link">
-                    <i class="fas fa-store"></i> SHAREPLACE
-                </a>
-                <a href="tltube.html" class="nav-link">
-                    <i class="fas fa-play-circle"></i> TLTUBE
-                </a>
-                <a href="tlmusic.html" class="nav-link">
-                    <i class="fas fa-music"></i> TLMUSIC
-                </a>
-                <a href="cafe-radio.html" class="nav-link">
-                    <i class="fas fa-broadcast-tower"></i> CAFE RADIO
-                </a>
-                <a href="ad-plaza.html" class="nav-link">
-                    <i class="fas fa-ad"></i> AD PLAZA
-                </a>
-            </nav>
-            
-            <div class="user-section">
-                <a href="login.html" class="auth-button">
-                    <i class="fas fa-sign-in-alt"></i> LOGIN
-                </a>
+                
+                <!-- 네비게이션 -->
+                <nav class="nav">
+                    <a href="index.html" class="nav-link">
+                        <i class="fas fa-home"></i> HOME
+                    </a>
+                    <a href="studio.html" class="nav-link">
+                        <i class="fas fa-sliders-h"></i> STUDIO
+                    </a>
+                    <a href="shareplace.html" class="nav-link">
+                        <i class="fas fa-store"></i> SHAREPLACE
+                    </a>
+                    <a href="tltube.html" class="nav-link">
+                        <i class="fas fa-play-circle"></i> TLTUBE
+                    </a>
+                </nav>
+                
+                <!-- 로그인/회원가입 버튼 -->
+                <div class="auth-buttons">
+                    <a href="login.html" class="auth-btn login">
+                        <i class="fas fa-sign-in-alt"></i> 로그인
+                    </a>
+                    <a href="signup.html" class="auth-btn signup">
+                        <i class="fas fa-user-plus"></i> 회원가입
+                    </a>
+                </div>
             </div>
         </div>
     </header>
-    
+
     <!-- 메인 컨텐츠 -->
-    <main class="signup-main">
+    <main class="main-content">
         <div class="container">
             <div class="signup-card">
                 <div class="signup-header">
@@ -572,58 +394,66 @@
                         <label class="form-label" for="name">
                             <i class="fas fa-user"></i> 이름
                         </label>
-                        <input type="text" class="form-control" id="name" placeholder="이름을 입력하세요" required>
+                        <input type="text" class="form-input" id="name" placeholder="이름을 입력하세요" required>
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label" for="email">
                             <i class="fas fa-envelope"></i> 이메일 주소
                         </label>
-                        <input type="email" class="form-control" id="email" placeholder="your@email.com" required>
+                        <input type="email" class="form-input" id="email" placeholder="your@email.com" required>
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label" for="nickname">
                             <i class="fas fa-at"></i> 닉네임
                         </label>
-                        <input type="text" class="form-control" id="nickname" placeholder="사용할 닉네임" required>
+                        <input type="text" class="form-input" id="nickname" placeholder="사용할 닉네임" required>
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label" for="password">
                             <i class="fas fa-lock"></i> 비밀번호
                         </label>
-                        <input type="password" class="form-control" id="password" placeholder="비밀번호 (8자 이상)" required>
+                        <input type="password" class="form-input" id="password" placeholder="비밀번호 (8자 이상)" required>
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label" for="confirmPassword">
                             <i class="fas fa-lock"></i> 비밀번호 확인
                         </label>
-                        <input type="password" class="form-control" id="confirmPassword" placeholder="비밀번호 다시 입력" required>
+                        <input type="password" class="form-input" id="confirmPassword" placeholder="비밀번호 다시 입력" required>
                     </div>
                     
                     <!-- 약관 동의 -->
                     <div class="checkbox-group">
                         <div class="checkbox-item">
                             <input type="checkbox" id="termsAgreement" required>
-                            <label class="checkbox-label" for="termsAgreement">
-                                <span>이용약관 동의 (필수)</span>
-                                <p>TIMELINK 서비스 이용약관에 동의합니다.</p>
-                            </label>
+                            <div class="checkbox-text">
+                                <span class="title">이용약관 동의 (필수)</span>
+                                <span class="desc">TIMELINK 서비스 이용약관에 동의합니다.</span>
+                            </div>
                         </div>
                         
                         <div class="checkbox-item">
                             <input type="checkbox" id="privacyAgreement" required>
-                            <label class="checkbox-label" for="privacyAgreement">
-                                <span>개인정보 처리방침 동의 (필수)</span>
-                                <p>개인정보 수집 및 이용에 동의합니다.</p>
-                            </label>
+                            <div class="checkbox-text">
+                                <span class="title">개인정보 처리방침 동의 (필수)</span>
+                                <span class="desc">개인정보 수집 및 이용에 동의합니다.</span>
+                            </div>
+                        </div>
+                        
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="marketingAgreement">
+                            <div class="checkbox-text">
+                                <span class="title">마케팅 정보 수신 동의 (선택)</span>
+                                <span class="desc">새로운 소식과 혜택 정보를 이메일로 받아보시겠습니까?</span>
+                            </div>
                         </div>
                     </div>
                     
                     <!-- 가입 버튼 -->
-                    <button type="submit" class="btn btn-primary" id="signupSubmitBtn">
+                    <button type="submit" class="submit-btn" id="signupSubmitBtn">
                         <i class="fas fa-user-plus"></i> 무료로 회원가입하기
                     </button>
                 </form>
@@ -635,20 +465,26 @@
             </div>
         </div>
     </main>
-    
+
     <script>
+        // 페이지 로드 시 실행
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('회원가입 페이지 로드됨');
+            
             const signupForm = document.getElementById('signupForm');
             const signupStatus = document.getElementById('signupStatus');
             
-            // 이미 로그인된 경우 확인
-            if (localStorage.getItem('timelink_user')) {
+            // 이미 로그인된 경우 홈으로 이동
+            if (localStorage.getItem('timelink_user') || localStorage.getItem('timelink_token')) {
+                console.log('이미 로그인됨, 홈으로 이동');
                 window.location.href = 'index.html';
                 return;
             }
             
+            // 폼 제출 이벤트
             signupForm.addEventListener('submit', function(e) {
                 e.preventDefault();
+                console.log('회원가입 폼 제출됨');
                 
                 // 입력값 가져오기
                 const name = document.getElementById('name').value.trim();
@@ -680,42 +516,56 @@
                     return;
                 }
                 
+                // 이메일 형식 검사
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    showStatus('올바른 이메일 형식을 입력해주세요.', 'error');
+                    return;
+                }
+                
                 // 버튼 상태 변경
                 const submitBtn = document.getElementById('signupSubmitBtn');
+                const originalText = submitBtn.innerHTML;
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 처리 중...';
                 
-                // 회원가입 처리 (시뮬레이션)
+                // 회원가입 처리
                 setTimeout(() => {
+                    console.log('회원가입 처리 시작');
+                    
+                    // 사용자 데이터 생성
                     const userData = {
                         name: name,
                         email: email,
                         nickname: nickname,
                         balance: 10000, // 가입 보너스 10,000 TL
                         joinedAt: new Date().toISOString(),
-                        verified: false // 이메일 인증 대기 상태
+                        verified: true,
+                        marketingAgreed: document.getElementById('marketingAgreement').checked
                     };
                     
-                    // AuthManager 사용
-                    if (window.timelinkAuth) {
-                        window.timelinkAuth.login(userData, 'signup_token_' + Date.now());
-                    } else {
-                        // 폴백: localStorage에 저장
-                        localStorage.setItem('timelink_user', JSON.stringify(userData));
-                        localStorage.setItem('timelink_token', 'signup_token_' + Date.now());
-                    }
+                    // 로컬 스토리지에 저장
+                    localStorage.setItem('timelink_user', JSON.stringify(userData));
+                    localStorage.setItem('timelink_token', 'signup_token_' + Date.now());
+                    localStorage.setItem('timelink_userEmail', email);
+                    localStorage.setItem('timelink_nickname', nickname);
+                    localStorage.setItem('timelink_tlBalance', '10000');
                     
+                    console.log('회원가입 완료:', userData);
                     showStatus('회원가입이 완료되었습니다! 10,000 TL이 지급되었습니다.', 'success');
                     
                     // 성공 후 홈페이지로 이동
                     setTimeout(() => {
+                        console.log('홈페이지로 이동');
                         window.location.href = 'index.html';
-                    }, 2000);
+                    }, 1500);
                     
                 }, 1500);
             });
             
+            // 상태 메시지 표시 함수
             function showStatus(message, type) {
+                console.log('상태 메시지:', type, message);
                 signupStatus.textContent = message;
                 signupStatus.className = 'status-message status-' + type;
                 
@@ -725,6 +575,9 @@
                     signupStatus.textContent = '';
                 }, 5000);
             }
+            
+            // 입력 필드 자동 포커스
+            document.getElementById('name').focus();
         });
     </script>
 </body>
