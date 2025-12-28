@@ -604,122 +604,218 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <!-- 공통 컴포넌트 -->
     <script src="src/script/common-components.js"></script>
-    <!-- 인증 JS -->
-    <script src="src/script/auth.js"></script>
     
-  <script>
-    // === 초기화 함수 ===
-    function init() {
-        setupLoginForm();
-        checkAlreadyLoggedIn();
-        console.log('🔐 로그인 페이지 초기화 완료');
-    }
+    <script>
+        // =============== auth.js 내용 직접 포함 ===============
+        console.log('🔐 auth.js 로드됨');
 
-    // === 로그인 폼 설정 ===
-    function setupLoginForm() {
-        const loginForm = document.getElementById('loginForm');
-        const loginSubmitBtn = document.getElementById('loginSubmitBtn');
-        const demoLoginBtn = document.getElementById('demoLoginBtn');
-        
-        if (loginForm) {
-            loginForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
+        // 실제 API 엔드포인트
+        const API_CONFIG = {
+            AUTH_API: 'https://timelink-api.timelink-api.workers.dev',
+            MAIN_API: 'https://deconomic-api.timelink-api.workers.dev'
+        };
+
+        // 로그인 함수
+        async function loginUser(email, password, rememberMe = false) {
+            console.log('[Auth] 로그인 요청:', email);
+            
+            try {
+                const response = await fetch(`${API_CONFIG.AUTH_API}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
                 
-                const email = document.getElementById('email').value.trim();
-                const password = document.getElementById('password').value;
-                const rememberMe = document.getElementById('rememberMe').checked;
+                const data = await response.json();
+                console.log('[Auth] 로그인 응답:', data);
                 
-                // 입력 검증
-                if (!email || !password) {
-                    showStatus('이메일과 비밀번호를 입력해주세요.', 'error', 'loginStatus');
-                    return;
-                }
-                
-                if (!isValidEmail(email)) {
-                    showStatus('유효한 이메일 주소를 입력해주세요.', 'error', 'loginStatus');
-                    return;
-                }
-                
-                // 로그인 버튼 비활성화
-                loginSubmitBtn.disabled = true;
-                loginSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 로그인 중...';
-                
-                // 실제 API 로그인
-                if (typeof window.auth !== 'undefined' && window.auth.loginUser) {
-                    const result = await window.auth.loginUser(email, password, rememberMe);
+                if (response.ok && data.success) {
+                    // 로그인 성공 시 데이터 저장
+                    const userData = data.user || {};
                     
-                    if (result.success) {
-                        showStatus(result.message, 'success', 'loginStatus');
-                        
-                        // handleLoginSuccess 호출
-                        if (typeof window.handleLoginSuccess === 'function') {
-                            window.handleLoginSuccess({
-                                token: result.token,
-                                email: email,
-                                nickname: result.user?.nickname,
-                                balance: result.user?.balance || '10000'
-                            });
-                        }
-                    } else {
-                        showStatus(result.error, 'error', 'loginStatus');
-                        loginSubmitBtn.disabled = false;
-                        loginSubmitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 로그인';
+                    localStorage.setItem('timelink_token', data.token || '');
+                    localStorage.setItem('timelink_userEmail', email);
+                    localStorage.setItem('timelink_nickname', userData.nickname || userData.name || email.split('@')[0]);
+                    localStorage.setItem('timelink_tlBalance', userData.balance || userData.tl_balance || '10000');
+                    localStorage.setItem('timelink_remember', rememberMe.toString());
+                    
+                    // 인증 UI 업데이트
+                    if (typeof window.updateAuthUI === 'function') {
+                        setTimeout(() => {
+                            window.updateAuthUI();
+                        }, 100);
                     }
+                    
+                    return { 
+                        success: true, 
+                        message: '로그인 성공!',
+                        user: userData,
+                        token: data.token
+                    };
+                } else {
+                    return { 
+                        success: false, 
+                        error: data.error || data.message || '로그인에 실패했습니다.'
+                    };
                 }
-            });
-        }
-        
-        if (demoLoginBtn) {
-            demoLoginBtn.addEventListener('click', function() {
-                // 데모 계정 정보 자동 입력
-                document.getElementById('email').value = 'demo@timelink.digital';
-                document.getElementById('password').value = 'demo1234';
-                document.getElementById('rememberMe').checked = true;
-                
-                showStatus('데모 계정으로 로그인합니다.', 'info', 'loginStatus');
-            });
-        }
-        
-        // 이메일 유효성 검사
-        function isValidEmail(email) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return emailRegex.test(email);
-        }
-    }
-
-    // === 이미 로그인된 사용자 체크 ===
-    function checkAlreadyLoggedIn() {
-        const token = localStorage.getItem('timelink_token');
-        const urlParams = new URLSearchParams(window.location.search);
-        const logoutParam = urlParams.get('logout');
-        
-        if (token && logoutParam !== 'true') {
-            showStatus('이미 로그인되어 있습니다. 홈페이지로 이동합니다.', 'info', 'loginStatus');
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 1500);
-        }
-    }
-
-    // === 상태 메시지 표시 ===
-    function showStatus(message, type, elementId) {
-        const element = document.getElementById(elementId);
-        if (!element) return;
-        
-        element.textContent = message;
-        element.className = 'status-message';
-        element.classList.add('status-' + type);
-        
-        setTimeout(() => {
-            if (element.textContent === message) {
-                element.className = 'status-message';
-                element.textContent = '';
+            } catch (error) {
+                console.error('[Auth] 로그인 오류:', error);
+                return { 
+                    success: false, 
+                    error: '서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.' 
+                };
             }
-        }, 5000);
-    }
+        }
 
-    // === DOM 로드 시 실행 ===
-    document.addEventListener('DOMContentLoaded', init);
-</script>
+        // 로그인 성공 처리 함수
+        window.handleLoginSuccess = function(userData) {
+            localStorage.setItem('timelink_token', userData.token || '');
+            localStorage.setItem('timelink_userEmail', userData.email || '');
+            localStorage.setItem('timelink_nickname', userData.nickname || '');
+            localStorage.setItem('timelink_tlBalance', userData.balance || '10000');
+            
+            if (typeof window.updateAuthUI === 'function') {
+                setTimeout(() => {
+                    window.updateAuthUI();
+                }, 100);
+            }
+            
+            // 리다이렉트 URL 체크
+            const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+            if (redirectUrl) {
+                sessionStorage.removeItem('redirectAfterLogin');
+                window.location.href = redirectUrl;
+            } else {
+                window.location.href = 'index.html?login=success';
+            }
+        };
+
+        // auth 객체 생성 (window.auth로 접근 가능)
+        window.auth = {
+            loginUser,
+            handleLoginSuccess: window.handleLoginSuccess
+        };
+        // =============== auth.js 내용 끝 ===============
+
+        // =============== login.html 전용 스크립트 ===============
+        // === 초기화 함수 ===
+        function init() {
+            setupLoginForm();
+            checkAlreadyLoggedIn();
+            console.log('🔐 로그인 페이지 초기화 완료');
+        }
+
+        // === 로그인 폼 설정 ===
+        function setupLoginForm() {
+            const loginForm = document.getElementById('loginForm');
+            const loginSubmitBtn = document.getElementById('loginSubmitBtn');
+            const demoLoginBtn = document.getElementById('demoLoginBtn');
+            
+            if (loginForm) {
+                loginForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const email = document.getElementById('email').value.trim();
+                    const password = document.getElementById('password').value;
+                    const rememberMe = document.getElementById('rememberMe').checked;
+                    
+                    // 입력 검증
+                    if (!email || !password) {
+                        showStatus('이메일과 비밀번호를 입력해주세요.', 'error');
+                        return;
+                    }
+                    
+                    if (!isValidEmail(email)) {
+                        showStatus('유효한 이메일 주소를 입력해주세요.', 'error');
+                        return;
+                    }
+                    
+                    // 로그인 버튼 비활성화
+                    loginSubmitBtn.disabled = true;
+                    loginSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 로그인 중...';
+                    
+                    // 실제 API 로그인
+                    if (typeof window.auth !== 'undefined' && window.auth.loginUser) {
+                        const result = await window.auth.loginUser(email, password, rememberMe);
+                        
+                        if (result.success) {
+                            showStatus(result.message, 'success');
+                            
+                            // handleLoginSuccess 호출
+                            if (typeof window.handleLoginSuccess === 'function') {
+                                window.handleLoginSuccess({
+                                    token: result.token,
+                                    email: email,
+                                    nickname: result.user?.nickname,
+                                    balance: result.user?.balance || '10000'
+                                });
+                            }
+                        } else {
+                            showStatus(result.error, 'error');
+                            loginSubmitBtn.disabled = false;
+                            loginSubmitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 로그인';
+                        }
+                    }
+                });
+            }
+            
+            if (demoLoginBtn) {
+                demoLoginBtn.addEventListener('click', function() {
+                    // 데모 계정 정보 자동 입력
+                    document.getElementById('email').value = 'demo@timelink.digital';
+                    document.getElementById('password').value = 'demo1234';
+                    document.getElementById('rememberMe').checked = true;
+                    
+                    showStatus('데모 계정으로 로그인합니다.', 'info');
+                });
+            }
+            
+            // 이메일 유효성 검사
+            function isValidEmail(email) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return emailRegex.test(email);
+            }
+        }
+
+        // === 이미 로그인된 사용자 체크 ===
+        function checkAlreadyLoggedIn() {
+            const token = localStorage.getItem('timelink_token');
+            const urlParams = new URLSearchParams(window.location.search);
+            const logoutParam = urlParams.get('logout');
+            
+            if (token && logoutParam !== 'true') {
+                showStatus('이미 로그인되어 있습니다. 홈페이지로 이동합니다.', 'info');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1500);
+            }
+        }
+
+        // === 상태 메시지 표시 ===
+        function showStatus(message, type) {
+            const element = document.getElementById('loginStatus');
+            if (!element) return;
+            
+            element.textContent = message;
+            element.className = 'status-message';
+            element.classList.add('status-' + type);
+            
+            setTimeout(() => {
+                if (element.textContent === message) {
+                    element.className = 'status-message';
+                    element.textContent = '';
+                }
+            }, 5000);
+        }
+
+        // === DOM 로드 시 실행 ===
+        document.addEventListener('DOMContentLoaded', init);
+        // =============== login.html 전용 스크립트 끝 ===============
+    </script>
 </body>
 </html>
