@@ -1,124 +1,112 @@
-// studio.js - TL3 스튜디오 메인 기능
+// studio.js - 완전한 TL3 플레이어 구현
 
+console.log('studio.js 로드됨 - 플레이어 버전');
+
+// 전역 변수
+let currentTL3 = null;
+let isPlaying = false;
+let tlConsumptionInterval = null;
+let tlRemaining = 0;
+let tlUsed = 0;
+let playbackTimer = null;
+let currentPlaybackTime = 0;
+let totalPlaybackTime = 180; // 샘플 재생 시간 (3분)
+
+// DOM이 로드된 후 실행
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('studio.js 로드됨');
+    console.log('DOMContentLoaded - studio.js 플레이어 버전');
     
-    // 1. 파일 선택 버튼 이벤트 핸들러
+    // 파일 선택 버튼 이벤트 설정
     setupFileSelection();
     
-    // 2. TL 슬라이더 이벤트 핸들러
+    // TL 슬라이더 이벤트 설정
     setupTLSlider();
     
-    // 3. TL3 생성 버튼 이벤트 핸들러
+    // TL3 생성 버튼 이벤트 설정
     setupCreateButton();
     
-    // 4. 플레이어 컨트롤 이벤트 핸들러
+    // 플레이어 컨트롤 이벤트 설정
     setupPlayerControls();
     
-    // 5. 샘플 데이터 로드
-    loadSampleData();
+    // 플레이어 초기화
+    initializePlayer();
+    
+    // 샘플 데이터 로드
+    setTimeout(loadSampleData, 1000);
 });
+
+// 플레이어 초기화
+function initializePlayer() {
+    // 플레이어 버튼 비활성화
+    document.getElementById('playBtn').disabled = true;
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    
+    // TL 소비율 표시
+    document.getElementById('consumptionRate').textContent = '-1 TL/초';
+    
+    // 재생 시간 표시 초기화
+    updateTimeDisplay();
+}
 
 // 파일 선택 설정
 function setupFileSelection() {
     const selectFileBtn = document.getElementById('selectFileBtn');
     const fileInput = document.getElementById('musicFileInput');
-    const uploadArea = document.getElementById('uploadArea');
-    const fileInfo = document.getElementById('fileInfo');
     
     if (!selectFileBtn || !fileInput) {
-        console.error('필수 요소를 찾을 수 없습니다');
+        console.error('필수 요소를 찾을 수 없음');
         return;
     }
     
     // 파일 선택 버튼 클릭 이벤트
     selectFileBtn.addEventListener('click', function(e) {
+        console.log('파일 선택 버튼 클릭됨');
         e.preventDefault();
         e.stopPropagation();
-        console.log('파일 선택 버튼 클릭됨');
         fileInput.click();
     });
     
+    // 파일 입력 변경 이벤트
+    fileInput.addEventListener('change', function(e) {
+        console.log('파일 변경됨');
+        const file = e.target.files[0];
+        
+        if (file) {
+            console.log('선택된 파일:', file.name);
+            
+            // 파일 정보 표시
+            const fileInfo = document.getElementById('fileInfo');
+            if (fileInfo) {
+                fileInfo.innerHTML = `
+                    <div style="color: var(--success);">
+                        <i class="fas fa-check-circle"></i> ${file.name}
+                    </div>
+                    <div style="font-size: 0.85rem; margin-top: 0.25rem; color: var(--gray);">
+                        크기: ${formatFileSize(file.size)}
+                    </div>
+                `;
+            }
+            
+            // 파일 유효성 검사 메시지 표시
+            showFileValidation(file);
+        }
+    });
+    
     // 업로드 영역 클릭 이벤트
+    const uploadArea = document.getElementById('uploadArea');
     if (uploadArea) {
         uploadArea.addEventListener('click', function() {
             console.log('업로드 영역 클릭됨');
             fileInput.click();
         });
     }
-    
-    // 파일 입력 변경 이벤트
-    fileInput.addEventListener('change', function(e) {
-        console.log('파일 변경됨:', e.target.files[0]?.name);
-        const file = e.target.files[0];
-        
-        if (file) {
-            // 파일 정보 표시
-            if (fileInfo) {
-                fileInfo.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="fas fa-check-circle" style="color: var(--success);"></i>
-                        <span style="color: var(--success); font-weight: 600;">${file.name}</span>
-                    </div>
-                    <div style="font-size: 0.85rem; margin-top: 0.25rem;">
-                        크기: ${formatFileSize(file.size)} | 
-                        형식: ${file.type || getFileExtension(file.name)}
-                    </div>
-                `;
-            }
-            
-            // 파일 유효성 검사
-            validateFile(file);
-        }
-    });
-    
-    // 드래그 앤 드롭 이벤트
-    if (uploadArea) {
-        // 드래그 오버
-        uploadArea.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            uploadArea.style.borderColor = 'var(--creator)';
-            uploadArea.style.background = 'rgba(139, 92, 246, 0.1)';
-        });
-        
-        // 드래그 리브
-        uploadArea.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-            uploadArea.style.background = 'rgba(26, 26, 46, 0.3)';
-        });
-        
-        // 드롭
-        uploadArea.addEventListener('drop', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-            uploadArea.style.background = 'rgba(26, 26, 46, 0.3)';
-            
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                const file = files[0];
-                
-                // DataTransfer에서 파일을 FileInput에 설정
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(file);
-                fileInput.files = dataTransfer.files;
-                
-                // change 이벤트 트리거
-                const changeEvent = new Event('change', { bubbles: true });
-                fileInput.dispatchEvent(changeEvent);
-            }
-        });
-    }
 }
 
-// 파일 유효성 검사
-function validateFile(file) {
+// 파일 유효성 검사 메시지 표시
+function showFileValidation(file) {
     const validationMessage = document.getElementById('fileValidation');
     const validationText = document.getElementById('validationText');
-    const durationInfo = document.getElementById('fileDurationInfo');
     
     if (!validationMessage || !validationText) return;
     
@@ -127,17 +115,6 @@ function validateFile(file) {
     const fileName = file.name.toLowerCase();
     const extension = fileName.substring(fileName.lastIndexOf('.'));
     
-    // 허용된 MIME 타입
-    const allowedMimeTypes = [
-        'audio/mpeg',
-        'audio/wav',
-        'audio/x-wav',
-        'audio/mp4',
-        'audio/x-m4a',
-        'audio/ogg',
-        'audio/flac'
-    ];
-    
     let isValid = false;
     
     // 확장자 검사
@@ -145,20 +122,12 @@ function validateFile(file) {
         isValid = true;
     }
     // MIME 타입 검사
-    else if (file.type && allowedMimeTypes.includes(file.type)) {
-        isValid = true;
-    }
-    // 파일 타입이 없는 경우 확장자만 검사
-    else if (!file.type && allowedExtensions.includes(extension)) {
+    else if (file.type && file.type.startsWith('audio/')) {
         isValid = true;
     }
     
     if (!isValid) {
-        validationText.innerHTML = `
-            <i class="fas fa-exclamation-circle"></i> 
-            지원되지 않는 파일 형식입니다.
-            <br>지원 형식: MP3, WAV, M4A, OGG, FLAC
-        `;
+        validationText.textContent = '지원되지 않는 파일 형식입니다. MP3, WAV, M4A, OGG, FLAC 파일만 업로드 가능합니다.';
         validationMessage.className = 'validation-message validation-error';
         validationMessage.style.display = 'block';
         return;
@@ -167,54 +136,16 @@ function validateFile(file) {
     // 파일 크기 검사 (50MB)
     const maxSize = 50 * 1024 * 1024; // 50MB
     if (file.size > maxSize) {
-        validationText.innerHTML = `
-            <i class="fas fa-exclamation-circle"></i> 
-            파일 크기가 너무 큽니다 (최대 50MB).
-            <br>현재 파일 크기: ${formatFileSize(file.size)}
-        `;
+        validationText.textContent = `파일 크기가 너무 큽니다 (최대 50MB). 현재: ${formatFileSize(file.size)}`;
         validationMessage.className = 'validation-message validation-error';
         validationMessage.style.display = 'block';
         return;
     }
     
     // 성공 메시지
-    validationText.innerHTML = `
-        <i class="fas fa-check-circle"></i> 
-        파일이 유효합니다. 오디오 길이를 분석하는 중...
-    `;
+    validationText.textContent = '파일이 유효합니다!';
     validationMessage.className = 'validation-message validation-success';
     validationMessage.style.display = 'block';
-    
-    // 오디오 길이 분석
-    analyzeAudioDuration(file, durationInfo);
-}
-
-// 오디오 길이 분석
-function analyzeAudioDuration(file, durationElement) {
-    if (!durationElement) return;
-    
-    const audio = new Audio();
-    const objectURL = URL.createObjectURL(file);
-    
-    audio.src = objectURL;
-    audio.preload = 'metadata';
-    
-    audio.addEventListener('loadedmetadata', function() {
-        const duration = audio.duration;
-        durationElement.innerHTML = `
-            <i class="fas fa-clock"></i> 
-            재생 시간: ${formatTime(duration)} (${Math.round(duration)}초)
-        `;
-        URL.revokeObjectURL(objectURL);
-    });
-    
-    audio.addEventListener('error', function() {
-        durationElement.innerHTML = `
-            <i class="fas fa-exclamation-triangle"></i> 
-            길이 분석 실패
-        `;
-        URL.revokeObjectURL(objectURL);
-    });
 }
 
 // TL 슬라이더 설정
@@ -293,16 +224,15 @@ function createTL3File() {
     
     // TL3 객체 생성
     const tl3File = {
-        id: 'tl3_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+        id: 'tl3_' + Date.now(),
         title: musicTitle,
         artist: artistName,
         genre: musicGenre || '미지정',
         tlAmount: tlValue,
         tlRemaining: tlValue,
         fileName: fileInput.files[0].name,
-        fileSize: fileInput.files[0].size,
-        createdAt: new Date().toISOString(),
-        isSample: false
+        createdAt: new Date().toLocaleString(),
+        isActive: true
     };
     
     console.log('TL3 파일 생성됨:', tl3File);
@@ -379,60 +309,46 @@ function addTL3ToList(tl3File) {
         const count = document.querySelectorAll('.tl3-item').length;
         libraryCount.textContent = `(${count})`;
     }
-    
-    // 로컬 스토리지에 저장
-    saveTL3ToStorage(tl3File);
 }
 
 // 플레이어에 전송
 function sendToPlayer(tl3File) {
     console.log('플레이어에 전송:', tl3File.title);
     
+    // 현재 TL3 저장
+    currentTL3 = tl3File;
+    tlRemaining = tl3File.tlRemaining;
+    tlUsed = 0;
+    currentPlaybackTime = 0;
+    
     // 현재 트랙 정보 업데이트
     document.getElementById('currentTrack').textContent = tl3File.title;
     document.getElementById('currentArtist').textContent = tl3File.artist;
-    document.getElementById('currentTL').textContent = `남은 TL: ${tl3File.tlRemaining.toLocaleString()}`;
+    document.getElementById('currentTL').textContent = `남은 TL: ${tlRemaining.toLocaleString()}`;
     
     // TL 정보 업데이트
-    document.getElementById('remainingTL').textContent = tl3File.tlRemaining.toLocaleString();
-    document.getElementById('tlUsed').textContent = `사용: 0 TL`;
+    document.getElementById('remainingTL').textContent = tlRemaining.toLocaleString();
+    document.getElementById('tlUsed').textContent = `사용: ${tlUsed} TL`;
+    
+    // TL 소비 프로그레스 초기화
+    document.getElementById('consumptionProgress').style.width = '0%';
     
     // 재생 버튼 활성화
-    const playBtn = document.getElementById('playBtn');
-    if (playBtn) {
-        playBtn.disabled = false;
+    document.getElementById('playBtn').disabled = false;
+    document.getElementById('playIcon').className = 'fas fa-play';
+    
+    // 재생 시간 초기화
+    updateTimeDisplay();
+    document.getElementById('progress').style.width = '0%';
+    
+    // 재생 중이면 정지
+    if (isPlaying) {
+        stopPlayback();
     }
     
-    // 앨범 아트 업데이트
-    updateAlbumArt(tl3File.genre);
-}
-
-// 앨범 아트 업데이트
-function updateAlbumArt(genre) {
-    const albumArt = document.getElementById('albumArt');
-    if (!albumArt) return;
-    
-    // 장르에 따른 아이콘 선택
-    let icon = 'fas fa-music';
-    let color = 'var(--creator)';
-    
-    if (genre.includes('Electronic') || genre.includes('EDM')) {
-        icon = 'fas fa-bolt';
-        color = '#FF6B35';
-    } else if (genre.includes('Chill') || genre.includes('Ambient')) {
-        icon = 'fas fa-cloud';
-        color = '#00D4AA';
-    } else if (genre.includes('Rock') || genre.includes('Metal')) {
-        icon = 'fas fa-guitar';
-        color = '#EF4444';
-    } else if (genre.includes('Jazz') || genre.includes('Blues')) {
-        icon = 'fas fa-saxophone';
-        color = '#9D4EDD';
-    }
-    
-    albumArt.innerHTML = `<i class="${icon}"></i>`;
-    albumArt.style.background = `rgba(${hexToRgb(color)}, 0.1)`;
-    albumArt.style.color = color;
+    // 플레이어 컨트롤 활성화
+    document.getElementById('prevBtn').disabled = false;
+    document.getElementById('nextBtn').disabled = false;
 }
 
 // 플레이어 컨트롤 설정
@@ -443,11 +359,11 @@ function setupPlayerControls() {
     const progressBar = document.getElementById('progressBar');
     
     if (playBtn) {
-        playBtn.addEventListener('click', togglePlayPause);
+        playBtn.addEventListener('click', togglePlayback);
     }
     
     if (prevBtn) {
-        prevBtn.addEventListener('click', playPrev);
+        prevBtn.addEventListener('click', playPrevious);
     }
     
     if (nextBtn) {
@@ -455,90 +371,195 @@ function setupPlayerControls() {
     }
     
     if (progressBar) {
-        progressBar.addEventListener('click', seekAudio);
+        progressBar.addEventListener('click', seekPlayback);
     }
 }
 
 // 재생/일시정지 토글
-function togglePlayPause() {
-    const playIcon = document.getElementById('playIcon');
-    const isPlaying = playIcon.classList.contains('fa-pause');
+function togglePlayback() {
+    if (!currentTL3) {
+        showNotification('먼저 TL3 파일을 선택해주세요', 'error');
+        return;
+    }
+    
+    if (tlRemaining <= 0) {
+        showNotification('TL이 부족합니다. TL을 충전해주세요.', 'error');
+        return;
+    }
     
     if (isPlaying) {
-        // 일시정지
-        playIcon.className = 'fas fa-play';
-        showNotification('재생 일시정지', 'info');
+        pausePlayback();
     } else {
-        // 재생
-        playIcon.className = 'fas fa-pause';
-        showNotification('음원 재생 시작', 'success');
-        
-        // TL 차감 시뮬레이션 시작
-        startTLConsumption();
+        startPlayback();
     }
 }
 
-// 이전 트랙
-function playPrev() {
-    showNotification('이전 트랙으로 이동', 'info');
+// 재생 시작
+function startPlayback() {
+    if (!currentTL3) return;
+    
+    isPlaying = true;
+    document.getElementById('playIcon').className = 'fas fa-pause';
+    
+    showNotification(`"${currentTL3.title}" 재생 시작`, 'success');
+    
+    // 재생 시간 타이머 시작
+    playbackTimer = setInterval(() => {
+        if (currentPlaybackTime >= totalPlaybackTime) {
+            // 곡 종료
+            stopPlayback();
+            showNotification('재생이 완료되었습니다', 'info');
+            return;
+        }
+        
+        currentPlaybackTime++;
+        updateTimeDisplay();
+        
+        // 프로그레스 바 업데이트
+        const progressPercent = (currentPlaybackTime / totalPlaybackTime) * 100;
+        document.getElementById('progress').style.width = `${progressPercent}%`;
+    }, 1000); // 1초마다
+    
+    // TL 소비 시작
+    startTLConsumption();
 }
 
-// 다음 트랙
+// 일시정지
+function pausePlayback() {
+    isPlaying = false;
+    document.getElementById('playIcon').className = 'fas fa-play';
+    
+    showNotification('재생 일시정지', 'info');
+    
+    // 타이머 정지
+    if (playbackTimer) {
+        clearInterval(playbackTimer);
+        playbackTimer = null;
+    }
+    
+    // TL 소비 정지
+    stopTLConsumption();
+}
+
+// 재생 정지
+function stopPlayback() {
+    isPlaying = false;
+    document.getElementById('playIcon').className = 'fas fa-play';
+    
+    // 타이머 정지
+    if (playbackTimer) {
+        clearInterval(playbackTimer);
+        playbackTimer = null;
+    }
+    
+    // TL 소비 정지
+    stopTLConsumption();
+    
+    // 재생 시간 초기화
+    currentPlaybackTime = 0;
+    updateTimeDisplay();
+    document.getElementById('progress').style.width = '0%';
+}
+
+// 이전 곡
+function playPrevious() {
+    showNotification('이전 곡 재생', 'info');
+    // 실제 구현에서는 이전 트랙 로드 로직 필요
+}
+
+// 다음 곡
 function playNext() {
-    showNotification('다음 트랙으로 이동', 'info');
+    showNotification('다음 곡 재생', 'info');
+    // 실제 구현에서는 다음 트랙 로드 로직 필요
 }
 
-// 오디오 탐색
-function seekAudio(e) {
+// 재생 위치 이동
+function seekPlayback(e) {
+    if (!currentTL3 || totalPlaybackTime <= 0) return;
+    
     const progressBar = e.currentTarget;
     const clickPosition = e.offsetX;
     const totalWidth = progressBar.clientWidth;
     const percentage = (clickPosition / totalWidth) * 100;
     
-    document.getElementById('progress').style.width = percentage + '%';
+    // 재생 위치 계산
+    currentPlaybackTime = Math.round((percentage / 100) * totalPlaybackTime);
     
-    // 시간 업데이트
-    const currentTime = document.getElementById('currentTime');
-    if (currentTime) {
-        const totalSeconds = 180; // 샘플 길이
-        const currentSeconds = Math.round((percentage / 100) * totalSeconds);
-        currentTime.textContent = formatTime(currentSeconds);
+    // 프로그레스 바 업데이트
+    document.getElementById('progress').style.width = `${percentage}%`;
+    
+    // 시간 표시 업데이트
+    updateTimeDisplay();
+    
+    // TL 소비량도 업데이트 (단순화된 구현)
+    if (isPlaying) {
+        // TL 소비 재시작
+        stopTLConsumption();
+        startTLConsumption();
     }
 }
 
-// TL 소비 시뮬레이션
+// TL 소비 시작
 function startTLConsumption() {
-    const remainingTL = document.getElementById('remainingTL');
-    const consumptionProgress = document.getElementById('consumptionProgress');
+    if (tlConsumptionInterval) {
+        clearInterval(tlConsumptionInterval);
+    }
     
-    if (!remainingTL || !consumptionProgress) return;
-    
-    let tlAmount = parseInt(remainingTL.textContent.replace(/,/g, '') || '0');
-    let progress = 0;
-    
-    // 1초마다 TL 차감
-    const interval = setInterval(() => {
-        if (tlAmount <= 0) {
-            clearInterval(interval);
-            document.getElementById('playIcon').className = 'fas fa-play';
+    tlConsumptionInterval = setInterval(() => {
+        if (tlRemaining <= 0) {
+            // TL 소진
+            stopTLConsumption();
+            stopPlayback();
             showNotification('TL이 모두 소진되었습니다', 'warning');
             return;
         }
         
-        // TL 차감
-        tlAmount -= 1;
-        progress = ((tlAmount - 1) / (tlAmount + 1)) * 100;
+        // TL 차감 (초당 1TL)
+        tlRemaining -= 1;
+        tlUsed += 1;
         
         // UI 업데이트
-        remainingTL.textContent = tlAmount.toLocaleString();
-        document.getElementById('currentTL').textContent = `남은 TL: ${tlAmount.toLocaleString()}`;
-        consumptionProgress.style.width = `${100 - progress}%`;
+        document.getElementById('remainingTL').textContent = tlRemaining.toLocaleString();
+        document.getElementById('tlUsed').textContent = `사용: ${tlUsed} TL`;
+        document.getElementById('currentTL').textContent = `남은 TL: ${tlRemaining.toLocaleString()}`;
         
-        // 사용량 업데이트
-        const totalTL = tlAmount + (100 - progress);
-        document.getElementById('tlUsed').textContent = `사용: ${Math.round(100 - progress)} TL`;
+        // TL 소비 프로그레스 업데이트
+        const totalTL = currentTL3.tlAmount;
+        const consumptionPercent = (tlUsed / totalTL) * 100;
+        document.getElementById('consumptionProgress').style.width = `${consumptionPercent}%`;
+        
+        // 선택된 TL3 항목 업데이트
+        const activeItem = document.querySelector('.tl3-item.active');
+        if (activeItem) {
+            const tlElement = activeItem.querySelector('.tl3-item-info div:nth-child(3)');
+            if (tlElement) {
+                tlElement.innerHTML = `<i class="fas fa-coins"></i> ${tlRemaining.toLocaleString()} TL`;
+            }
+        }
+        
+        // TL3 객체 업데이트
+        if (currentTL3) {
+            currentTL3.tlRemaining = tlRemaining;
+        }
         
     }, 1000); // 1초마다
+}
+
+// TL 소비 정지
+function stopTLConsumption() {
+    if (tlConsumptionInterval) {
+        clearInterval(tlConsumptionInterval);
+        tlConsumptionInterval = null;
+    }
+}
+
+// 시간 표시 업데이트
+function updateTimeDisplay() {
+    const currentTime = formatTime(currentPlaybackTime);
+    const totalTime = formatTime(totalPlaybackTime);
+    
+    document.getElementById('currentTime').textContent = currentTime;
+    document.getElementById('totalTime').textContent = totalTime;
 }
 
 // 샘플 데이터 로드
@@ -552,9 +573,8 @@ function loadSampleData() {
             tlAmount: 5000,
             tlRemaining: 5000,
             fileName: 'neon_dreams.mp3',
-            fileSize: 10240000,
-            createdAt: '2024-01-15T10:30:00Z',
-            isSample: true
+            createdAt: '2024-01-15',
+            isActive: true
         },
         {
             id: 'sample_2',
@@ -564,29 +584,14 @@ function loadSampleData() {
             tlAmount: 7200,
             tlRemaining: 7200,
             fileName: 'ocean_breeze.wav',
-            fileSize: 20480000,
-            createdAt: '2024-01-10T14:20:00Z',
-            isSample: true
+            createdAt: '2024-01-10',
+            isActive: true
         }
     ];
     
-    // 1초 후 샘플 데이터 추가
-    setTimeout(() => {
-        sampleTL3Files.forEach(file => {
-            addTL3ToList(file);
-        });
-    }, 1000);
-}
-
-// 로컬 스토리지에 TL3 저장
-function saveTL3ToStorage(tl3File) {
-    try {
-        const storedTL3 = JSON.parse(localStorage.getItem('tl3Library')) || [];
-        storedTL3.unshift(tl3File);
-        localStorage.setItem('tl3Library', JSON.stringify(storedTL3));
-    } catch (error) {
-        console.error('TL3 저장 실패:', error);
-    }
+    sampleTL3Files.forEach(file => {
+        addTL3ToList(file);
+    });
 }
 
 // 폼 초기화 (선택사항)
@@ -616,38 +621,43 @@ function formatTime(seconds) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-function getFileExtension(filename) {
-    return filename.slice((filename.lastIndexOf('.') - 1 >>> 0) + 2);
-}
-
-function hexToRgb(hex) {
-    // #RRGGBB 또는 #RGB 형식 처리
-    hex = hex.replace('#', '');
+// 알림 표시 함수 (common-components.js와 호환)
+function showNotification(message, type = 'info') {
+    const notification = document.getElementById('notification');
+    const notificationMessage = document.getElementById('notificationMessage');
     
-    if (hex.length === 3) {
-        hex = hex.split('').map(char => char + char).join('');
+    if (!notification || !notificationMessage) {
+        // common-components.js의 showNotification이 없으면 alert 사용
+        alert(message);
+        return;
     }
     
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
+    notificationMessage.innerHTML = message;
+    notification.className = 'notification';
+    notification.classList.add(`notification-${type}`);
+    notification.style.display = 'block';
     
-    return `${r}, ${g}, ${b}`;
+    // 자동 숨김
+    setTimeout(() => {
+        notification.style.display = 'none';
+    }, 5000);
 }
 
 // TL 충전 함수 (전역에서 접근 가능하게)
 window.chargeTL = function(amount) {
-    const remainingTL = document.getElementById('remainingTL');
-    if (!remainingTL || remainingTL.textContent === '-') {
+    if (!currentTL3) {
         showNotification('먼저 TL3 파일을 선택해주세요', 'error');
         return;
     }
     
-    let currentTL = parseInt(remainingTL.textContent.replace(/,/g, '') || '0');
+    let currentTL = tlRemaining || 0;
     currentTL += amount;
     
+    // 전역 변수 업데이트
+    tlRemaining = currentTL;
+    
     // UI 업데이트
-    remainingTL.textContent = currentTL.toLocaleString();
+    document.getElementById('remainingTL').textContent = currentTL.toLocaleString();
     document.getElementById('currentTL').textContent = `남은 TL: ${currentTL.toLocaleString()}`;
     
     // 선택된 TL3 항목 업데이트
@@ -657,6 +667,12 @@ window.chargeTL = function(amount) {
         if (tlElement) {
             tlElement.innerHTML = `<i class="fas fa-coins"></i> ${currentTL.toLocaleString()} TL`;
         }
+    }
+    
+    // TL3 객체 업데이트
+    if (currentTL3) {
+        currentTL3.tlRemaining = currentTL;
+        currentTL3.tlAmount = Math.max(currentTL3.tlAmount, currentTL);
     }
     
     showNotification(`${amount.toLocaleString()} TL이 충전되었습니다!`, 'success');
