@@ -1,20 +1,18 @@
-// studio.js - 간소화된 플레이어 버전
+// studio.js - TL3 스튜디오 완전 기능 버전
 
-console.log('studio.js 로드됨 - 간소화 버전');
+console.log('studio.js 로드됨 - 완전 기능 버전');
 
 // 전역 변수
 let currentTL3 = null;
 let isPlaying = false;
 let tlConsumptionInterval = null;
-let tlRemaining = 0;
-let tlUsed = 0;
 let playbackTimer = null;
 let currentPlaybackTime = 0;
-let totalPlaybackTime = 180; // 샘플 재생 시간 (3분)
+const totalPlaybackTime = 180; // 샘플 재생 시간 (3분)
 
 // DOM이 로드된 후 실행
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOMContentLoaded - studio.js 간소화 버전');
+    console.log('DOMContentLoaded - studio.js');
     
     // 모든 이벤트 리스너 설정
     setupAllEventListeners();
@@ -75,6 +73,13 @@ function setupAllEventListeners() {
     }
     
     // 4. 플레이어 컨트롤
+    setupPlayerControls();
+    
+    console.log('이벤트 리스너 설정 완료');
+}
+
+// 플레이어 컨트롤 설정
+function setupPlayerControls() {
     const playBtn = document.getElementById('playBtn');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
@@ -107,8 +112,6 @@ function setupAllEventListeners() {
             seekPlayback(e);
         });
     }
-    
-    console.log('이벤트 리스너 설정 완료');
 }
 
 // 플레이어 초기화
@@ -234,7 +237,10 @@ function addTL3ToList(tl3File) {
     const emptyMessage = document.getElementById('emptyLibraryMessage');
     const libraryCount = document.getElementById('libraryCount');
     
-    if (!tl3List) return;
+    if (!tl3List) {
+        console.error('tl3List 요소를 찾을 수 없음');
+        return;
+    }
     
     // 빈 메시지 숨기기
     if (emptyMessage) {
@@ -245,6 +251,7 @@ function addTL3ToList(tl3File) {
     const tl3Item = document.createElement('div');
     tl3Item.className = 'tl3-item';
     tl3Item.dataset.id = tl3File.id;
+    tl3Item.dataset.tl = tl3File.tlRemaining;
     
     tl3Item.innerHTML = `
         <div class="tl3-item-icon">
@@ -253,8 +260,8 @@ function addTL3ToList(tl3File) {
         <div class="tl3-item-info">
             <div class="tl3-item-title">${tl3File.title}</div>
             <div class="tl3-item-artist">${tl3File.artist} • ${tl3File.genre}</div>
-            <div style="font-size: 0.8rem; color: var(--tl-color); margin-top: 0.25rem;">
-                <i class="fas fa-coins"></i> ${tl3File.tlRemaining.toLocaleString()} TL
+            <div class="tl-remaining" style="font-size: 0.8rem; color: var(--tl-color); margin-top: 0.25rem;">
+                <i class="fas fa-coins"></i> <span class="tl-value">${tl3File.tlRemaining.toLocaleString()}</span> TL
             </div>
         </div>
         <div style="font-size: 1.2rem; color: var(--gray);">
@@ -284,6 +291,28 @@ function addTL3ToList(tl3File) {
         const count = document.querySelectorAll('.tl3-item').length;
         libraryCount.textContent = `(${count})`;
     }
+    
+    // 로컬 스토리지에 저장
+    saveTL3ToStorage(tl3File);
+}
+
+// 로컬 스토리지에 TL3 저장
+function saveTL3ToStorage(tl3File) {
+    try {
+        let storedTL3 = JSON.parse(localStorage.getItem('tl3Library')) || [];
+        
+        // 중복 체크 (동일 ID가 있으면 제거)
+        storedTL3 = storedTL3.filter(item => item.id !== tl3File.id);
+        
+        // 새 파일 추가
+        storedTL3.unshift(tl3File);
+        
+        // 저장
+        localStorage.setItem('tl3Library', JSON.stringify(storedTL3));
+        console.log('TL3 저장됨:', tl3File.id);
+    } catch (error) {
+        console.error('TL3 저장 실패:', error);
+    }
 }
 
 // 플레이어에 전송
@@ -292,29 +321,16 @@ function sendToPlayer(tl3File) {
     
     // 현재 TL3 저장
     currentTL3 = tl3File;
-    tlRemaining = tl3File.tlRemaining;
-    tlUsed = 0;
     currentPlaybackTime = 0;
     
     // 현재 트랙 정보 업데이트
-    const currentTrack = document.getElementById('currentTrack');
-    const currentArtist = document.getElementById('currentArtist');
-    const currentTL = document.getElementById('currentTL');
-    
-    if (currentTrack) currentTrack.textContent = tl3File.title;
-    if (currentArtist) currentArtist.textContent = tl3File.artist;
-    if (currentTL) currentTL.textContent = `남은 TL: ${tlRemaining.toLocaleString()}`;
-    
-    // TL 정보 업데이트
-    const remainingTL = document.getElementById('remainingTL');
-    const tlUsedElement = document.getElementById('tlUsed');
-    
-    if (remainingTL) remainingTL.textContent = tlRemaining.toLocaleString();
-    if (tlUsedElement) tlUsedElement.textContent = `사용: ${tlUsed} TL`;
+    updatePlayerDisplay(tl3File);
     
     // TL 소비 프로그레스 초기화
     const consumptionProgress = document.getElementById('consumptionProgress');
-    if (consumptionProgress) consumptionProgress.style.width = '0%';
+    if (consumptionProgress) {
+        consumptionProgress.style.width = '0%';
+    }
     
     // 재생 버튼 활성화
     const playBtn = document.getElementById('playBtn');
@@ -332,7 +348,9 @@ function sendToPlayer(tl3File) {
     
     // 프로그레스 바 초기화
     const progress = document.getElementById('progress');
-    if (progress) progress.style.width = '0%';
+    if (progress) {
+        progress.style.width = '0%';
+    }
     
     // 재생 중이면 정지
     if (isPlaying) {
@@ -342,19 +360,36 @@ function sendToPlayer(tl3File) {
     console.log('플레이어 로드 완료');
 }
 
+// 플레이어 디스플레이 업데이트
+function updatePlayerDisplay(tl3File) {
+    const currentTrack = document.getElementById('currentTrack');
+    const currentArtist = document.getElementById('currentArtist');
+    const currentTL = document.getElementById('currentTL');
+    const remainingTL = document.getElementById('remainingTL');
+    const tlUsedElement = document.getElementById('tlUsed');
+    
+    if (currentTrack) currentTrack.textContent = tl3File.title;
+    if (currentArtist) currentArtist.textContent = tl3File.artist;
+    
+    const tlRemaining = tl3File.tlRemaining;
+    const tlUsed = tl3File.tlAmount - tlRemaining;
+    
+    if (currentTL) currentTL.textContent = `남은 TL: ${tlRemaining.toLocaleString()}`;
+    if (remainingTL) remainingTL.textContent = tlRemaining.toLocaleString();
+    if (tlUsedElement) tlUsedElement.textContent = `사용: ${tlUsed} TL`;
+}
+
 // 재생/일시정지 토글
 function togglePlayback() {
     console.log('togglePlayback 호출');
     console.log('currentTL3:', currentTL3);
-    console.log('tlRemaining:', tlRemaining);
-    console.log('isPlaying:', isPlaying);
     
     if (!currentTL3) {
         showMessage('먼저 TL3 파일을 선택해주세요');
         return;
     }
     
-    if (tlRemaining <= 0) {
+    if (currentTL3.tlRemaining <= 0) {
         showMessage('TL이 부족합니다. TL을 충전해주세요.');
         return;
     }
@@ -489,7 +524,7 @@ function startTLConsumption() {
     }
     
     tlConsumptionInterval = setInterval(() => {
-        if (tlRemaining <= 0) {
+        if (!currentTL3 || currentTL3.tlRemaining <= 0) {
             // TL 소진
             stopTLConsumption();
             stopPlayback();
@@ -498,22 +533,16 @@ function startTLConsumption() {
         }
         
         // TL 차감 (초당 1TL)
-        tlRemaining -= 1;
-        tlUsed += 1;
+        currentTL3.tlRemaining -= 1;
         
-        console.log('TL 차감:', tlRemaining, '남음');
+        console.log('TL 차감:', currentTL3.tlRemaining, '남음');
         
         // UI 업데이트
-        const remainingTL = document.getElementById('remainingTL');
-        const tlUsedElement = document.getElementById('tlUsed');
-        const currentTL = document.getElementById('currentTL');
-        
-        if (remainingTL) remainingTL.textContent = tlRemaining.toLocaleString();
-        if (tlUsedElement) tlUsedElement.textContent = `사용: ${tlUsed} TL`;
-        if (currentTL) currentTL.textContent = `남은 TL: ${tlRemaining.toLocaleString()}`;
+        updatePlayerDisplay(currentTL3);
         
         // TL 소비 프로그레스 업데이트
         const totalTL = currentTL3.tlAmount;
+        const tlUsed = totalTL - currentTL3.tlRemaining;
         const consumptionPercent = (tlUsed / totalTL) * 100;
         const consumptionProgress = document.getElementById('consumptionProgress');
         if (consumptionProgress) {
@@ -521,20 +550,24 @@ function startTLConsumption() {
         }
         
         // 선택된 TL3 항목 업데이트
-        const activeItem = document.querySelector('.tl3-item.active');
-        if (activeItem) {
-            const tlElement = activeItem.querySelector('.tl3-item-info div:nth-child(3)');
-            if (tlElement) {
-                tlElement.innerHTML = `<i class="fas fa-coins"></i> ${tlRemaining.toLocaleString()} TL`;
-            }
-        }
+        updateActiveTL3Item(currentTL3);
         
-        // TL3 객체 업데이트
-        if (currentTL3) {
-            currentTL3.tlRemaining = tlRemaining;
-        }
+        // 로컬 스토리지 업데이트
+        saveTL3ToStorage(currentTL3);
         
     }, 1000); // 1초마다
+}
+
+// 활성 TL3 항목 업데이트
+function updateActiveTL3Item(tl3File) {
+    const activeItem = document.querySelector('.tl3-item.active');
+    if (activeItem) {
+        const tlElement = activeItem.querySelector('.tl-value');
+        if (tlElement) {
+            tlElement.textContent = tl3File.tlRemaining.toLocaleString();
+        }
+        activeItem.dataset.tl = tl3File.tlRemaining;
+    }
 }
 
 // TL 소비 정지
@@ -562,6 +595,21 @@ function updateTimeDisplay() {
 function loadSampleData() {
     console.log('샘플 데이터 로드');
     
+    // 먼저 로컬 스토리지에서 불러오기
+    try {
+        const storedTL3 = JSON.parse(localStorage.getItem('tl3Library')) || [];
+        if (storedTL3.length > 0) {
+            console.log('로컬 스토리지에서 TL3 불러옴:', storedTL3.length);
+            storedTL3.forEach(file => {
+                addTL3ToList(file);
+            });
+            return;
+        }
+    } catch (error) {
+        console.error('로컬 스토리지 로드 실패:', error);
+    }
+    
+    // 로컬 스토리지에 없으면 샘플 데이터 추가
     const sampleTL3Files = [
         {
             id: 'sample_1',
@@ -571,7 +619,7 @@ function loadSampleData() {
             tlAmount: 5000,
             tlRemaining: 5000,
             fileName: 'neon_dreams.mp3',
-            createdAt: '2024-01-15',
+            createdAt: new Date().toLocaleString(),
             isActive: true
         },
         {
@@ -582,7 +630,7 @@ function loadSampleData() {
             tlAmount: 7200,
             tlRemaining: 7200,
             fileName: 'ocean_breeze.wav',
-            createdAt: '2024-01-10',
+            createdAt: new Date().toLocaleString(),
             isActive: true
         }
     ];
@@ -614,42 +662,29 @@ function showMessage(message) {
 
 // TL 충전 함수 (전역에서 접근 가능하게)
 window.chargeTL = function(amount) {
-    console.log('TL 충전:', amount);
+    console.log('TL 충전 요청:', amount);
     
     if (!currentTL3) {
         showMessage('먼저 TL3 파일을 선택해주세요');
         return;
     }
     
-    let currentTL = tlRemaining || 0;
-    currentTL += amount;
+    console.log('충전 전:', currentTL3.tlRemaining);
     
-    // 전역 변수 업데이트
-    tlRemaining = currentTL;
+    // TL 충전
+    currentTL3.tlRemaining += amount;
+    currentTL3.tlAmount = Math.max(currentTL3.tlAmount, currentTL3.tlRemaining);
     
-    console.log('새 TL 잔액:', tlRemaining);
+    console.log('충전 후:', currentTL3.tlRemaining);
     
     // UI 업데이트
-    const remainingTL = document.getElementById('remainingTL');
-    const currentTLElement = document.getElementById('currentTL');
-    
-    if (remainingTL) remainingTL.textContent = currentTL.toLocaleString();
-    if (currentTLElement) currentTLElement.textContent = `남은 TL: ${currentTL.toLocaleString()}`;
+    updatePlayerDisplay(currentTL3);
     
     // 선택된 TL3 항목 업데이트
-    const activeItem = document.querySelector('.tl3-item.active');
-    if (activeItem) {
-        const tlElement = activeItem.querySelector('.tl3-item-info div:nth-child(3)');
-        if (tlElement) {
-            tlElement.innerHTML = `<i class="fas fa-coins"></i> ${currentTL.toLocaleString()} TL`;
-        }
-    }
+    updateActiveTL3Item(currentTL3);
     
-    // TL3 객체 업데이트
-    if (currentTL3) {
-        currentTL3.tlRemaining = currentTL;
-        currentTL3.tlAmount = Math.max(currentTL3.tlAmount, currentTL);
-    }
+    // 로컬 스토리지 업데이트
+    saveTL3ToStorage(currentTL3);
     
-    showMessage(`${amount.toLocaleString()} TL이 충전되었습니다!`);
+    showMessage(`${amount.toLocaleString()} TL이 충전되었습니다!\n총 TL: ${currentTL3.tlRemaining.toLocaleString()} TL`);
 };
