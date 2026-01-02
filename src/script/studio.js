@@ -1,5 +1,4 @@
-// studio.js - TIMEGATE™ STUDIO 완전 기능 버전
-// 실제 오디오 재생 + TL 관리 + 파일 업로드 통합
+// studio.js - TIMEGATE™ STUDIO 완전 기능 버전 (재귀 호출 문제 수정)
 
 console.log('TIMEGATE™ STUDIO 시스템 로드됨');
 
@@ -28,8 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 라이브러리 로드
     loadTL3Library();
     
-    // 초기 테스트 데이터 (필요시)
-    // setTimeout(addSampleData, 1000);
+    console.log('시스템 초기화 완료');
 });
 
 // 오디오 플레이어 초기화
@@ -78,12 +76,12 @@ function updateAudioProgress() {
 function handleAudioEnded() {
     console.log('오디오 재생 완료');
     stopPlayback();
-    showMessage('재생이 완료되었습니다');
+    showNotificationMessage('재생이 완료되었습니다', 'info');
 }
 
 function handleAudioError(e) {
     console.error('오디오 에러:', e);
-    showMessage('오디오 재생 중 오류가 발생했습니다');
+    showNotificationMessage('오디오 재생 중 오류가 발생했습니다', 'error');
     stopPlayback();
 }
 
@@ -376,19 +374,19 @@ function createTL3File() {
     
     // 입력값 검증
     if (!musicTitle) {
-        showMessage('음원 제목을 입력해주세요');
+        showNotificationMessage('음원 제목을 입력해주세요', 'error');
         document.getElementById('musicTitle').focus();
         return;
     }
     
     if (!artistName) {
-        showMessage('아티스트명을 입력해주세요');
+        showNotificationMessage('아티스트명을 입력해주세요', 'error');
         document.getElementById('artistName').focus();
         return;
     }
     
     if (!fileInput.files || fileInput.files.length === 0) {
-        showMessage('음원 파일을 선택해주세요');
+        showNotificationMessage('음원 파일을 선택해주세요', 'error');
         return;
     }
     
@@ -446,8 +444,8 @@ function createTL3File() {
         sendToPlayer(tl3File);
         
         // 성공 메시지
-        showNotification(
-            `"${musicTitle}" TL3 파일이 생성되었습니다!`,
+        showNotificationMessage(
+            `"${musicTitle}" TL3 파일이 생성되었습니다!<br>재생 시간: ${formatTime(tl3File.duration)}<br>남은 TL: ${tlValue.toLocaleString()} TL`,
             'success'
         );
         
@@ -457,7 +455,7 @@ function createTL3File() {
     
     tempAudio.addEventListener('error', function() {
         console.error('오디오 분석 실패');
-        showMessage('오디오 파일 분석 중 오류가 발생했습니다');
+        showNotificationMessage('오디오 파일 분석 중 오류가 발생했습니다', 'error');
         URL.revokeObjectURL(audioUrl);
     });
 }
@@ -693,17 +691,17 @@ function updateAlbumArt(genre, albumArt) {
 // 재생/일시정지 토글
 function togglePlayback() {
     if (!currentTL3) {
-        showMessage('먼저 TL3 파일을 선택해주세요');
+        showNotificationMessage('먼저 TL3 파일을 선택해주세요', 'error');
         return;
     }
     
     if (currentTL3.tlRemaining <= 0) {
-        showMessage('TL이 부족합니다. TL을 충전해주세요.');
+        showNotificationMessage('TL이 부족합니다. TL을 충전해주세요.', 'warning');
         return;
     }
     
     if (!audioPlayer || !audioPlayer.src) {
-        showMessage('오디오 파일을 로드하는 중입니다...');
+        showNotificationMessage('오디오 파일을 로드하는 중입니다...', 'info');
         return;
     }
     
@@ -735,10 +733,10 @@ function startPlayback() {
         currentTL3.playCount = (currentTL3.playCount || 0) + 1;
         
         // 재생 시작 알림
-        showNotification(`"${currentTL3.title}" 재생 시작`, 'info');
+        showNotificationMessage(`"${currentTL3.title}" 재생 시작`, 'info');
     }).catch(error => {
         console.error('오디오 재생 실패:', error);
-        showMessage('오디오 재생에 실패했습니다: ' + error.message);
+        showNotificationMessage('오디오 재생에 실패했습니다: ' + error.message, 'error');
     });
 }
 
@@ -757,7 +755,7 @@ function pausePlayback() {
     // TL 소비 정지
     stopTLConsumption();
     
-    showNotification('재생 일시정지', 'info');
+    showNotificationMessage('재생 일시정지', 'info');
 }
 
 // 재생 정지
@@ -788,12 +786,12 @@ function stopPlayback() {
 
 // 이전 곡
 function playPrevious() {
-    showNotification('이전 곡 기능은 준비 중입니다', 'info');
+    showNotificationMessage('이전 곡 기능은 준비 중입니다', 'info');
 }
 
 // 다음 곡
 function playNext() {
-    showNotification('다음 곡 기능은 준비 중입니다', 'info');
+    showNotificationMessage('다음 곡 기능은 준비 중입니다', 'info');
 }
 
 // 재생 위치 이동
@@ -833,7 +831,7 @@ function startTLConsumption() {
             // TL 소진
             stopTLConsumption();
             stopPlayback();
-            showNotification('TL이 모두 소진되었습니다', 'warning');
+            showNotificationMessage('TL이 모두 소진되었습니다', 'warning');
             return;
         }
         
@@ -956,6 +954,35 @@ function resetForm() {
     updateTLDisplay();
 }
 
+// 알림 메시지 표시 (재귀 호출 문제 해결)
+function showNotificationMessage(message, type = 'info') {
+    console.log('알림:', message, type);
+    
+    // common-components.js의 showNotification이 있으면 사용
+    if (typeof window.showNotification === 'function' && window.showNotification !== showNotificationMessage) {
+        window.showNotification(message, type);
+        return;
+    }
+    
+    // 자체 알림 시스템
+    const notification = document.getElementById('notification');
+    const notificationMessage = document.getElementById('notificationMessage');
+    
+    if (notification && notificationMessage) {
+        notificationMessage.innerHTML = message;
+        notification.className = 'notification';
+        notification.classList.add(`notification-${type}`);
+        notification.style.display = 'block';
+        
+        setTimeout(() => {
+            notification.style.display = 'none';
+        }, 5000);
+    } else {
+        // 최종 fallback: 간단한 alert
+        alert(message);
+    }
+}
+
 // 유틸리티 함수들
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
@@ -978,95 +1005,12 @@ function getFileExtension(filename) {
     return extension ? `.${extension}` : '';
 }
 
-function showMessage(message) {
-    console.log('메시지:', message);
-    alert(message);
-}
-
-// 알림 표시 (common-components.js와 호환)
-function showNotification(message, type = 'info') {
-    // common-components.js의 showNotification 사용 시도
-    if (typeof window.showNotification === 'function') {
-        window.showNotification(message, type);
-        return;
-    }
-    
-    // fallback: 기본 알림
-    const notification = document.getElementById('notification');
-    const notificationMessage = document.getElementById('notificationMessage');
-    
-    if (notification && notificationMessage) {
-        notificationMessage.innerHTML = message;
-        notification.className = 'notification';
-        notification.classList.add(`notification-${type}`);
-        notification.style.display = 'block';
-        
-        setTimeout(() => {
-            notification.style.display = 'none';
-        }, 5000);
-    } else {
-        // 최종 fallback: alert
-        alert(message);
-    }
-}
-
-// 샘플 데이터 추가 (테스트용)
-function addSampleData() {
-    if (tl3Library.length > 0) return;
-    
-    console.log('샘플 데이터 추가');
-    
-    const sampleFiles = [
-        {
-            id: 'sample_1',
-            title: 'Neon Dreams',
-            artist: 'Synthwave AI',
-            genre: 'Electronic Synthwave',
-            tlAmount: 5000,
-            tlRemaining: 5000,
-            fileName: 'neon_dreams.mp3',
-            fileSize: 5120000,
-            fileType: 'audio/mpeg',
-            audioUrl: '', // 실제 파일이 없으므로 빈 URL
-            duration: 180, // 3분
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            isActive: true,
-            playCount: 0
-        },
-        {
-            id: 'sample_2',
-            title: 'Ocean Breeze',
-            artist: 'Ambient Generator',
-            genre: 'Chill Ambient',
-            tlAmount: 7200,
-            tlRemaining: 7200,
-            fileName: 'ocean_breeze.wav',
-            fileSize: 10240000,
-            fileType: 'audio/wav',
-            audioUrl: '',
-            duration: 240, // 4분
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            isActive: true,
-            playCount: 0
-        }
-    ];
-    
-    sampleFiles.forEach(file => {
-        tl3Library.push(file);
-        addTL3ToList(file);
-    });
-    
-    saveTL3Library();
-}
-
 // TL 충전 함수 (전역에서 접근 가능하게)
 window.chargeTL = function(amount) {
     console.log('TL 충전 요청:', amount);
     
     if (!currentTL3) {
-        showMessage('먼저 TL3 파일을 선택해주세요');
+        showNotificationMessage('먼저 TL3 파일을 선택해주세요', 'error');
         return;
     }
     
@@ -1087,7 +1031,7 @@ window.chargeTL = function(amount) {
     // 라이브러리 업데이트
     saveTL3Library();
     
-    showNotification(
+    showNotificationMessage(
         `${amount.toLocaleString()} TL이 충전되었습니다!<br>총 TL: ${currentTL3.tlRemaining.toLocaleString()} TL`,
         'success'
     );
@@ -1109,7 +1053,7 @@ window.studioUtils = {
                 </div>
             `;
         }
-        showMessage('라이브러리가 초기화되었습니다');
+        showNotificationMessage('라이브러리가 초기화되었습니다', 'info');
     },
     addTestTL3: (title, tlAmount) => {
         const testFile = {
@@ -1133,7 +1077,29 @@ window.studioUtils = {
         tl3Library.unshift(testFile);
         addTL3ToList(testFile);
         saveTL3Library();
-        showMessage('테스트 TL3 파일이 추가되었습니다');
+        showNotificationMessage('테스트 TL3 파일이 추가되었습니다', 'success');
+    },
+    
+    // 테스트용 오디오 추가
+    addTestAudio: function() {
+        // 간단한 오디오 테스트 파일 생성
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 440; // A4 음
+        gainNode.gain.value = 0.1;
+        
+        oscillator.start();
+        
+        // 2초 후 정지
+        setTimeout(() => {
+            oscillator.stop();
+            showNotificationMessage('테스트 오디오 재생 완료', 'success');
+        }, 2000);
     }
 };
 
