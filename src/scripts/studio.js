@@ -1,1081 +1,535 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STUDIO | TIMELINK - 콘텐츠 변환 플랫폼</title>
-    
-    <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- 공통 스타일 -->
-    <link rel="stylesheet" href="studio.css">
-    
-    <!-- 스튜디오 전용 스타일 -->
-    <style>
-        /* 기존 studio.html의 스타일 중 studio.css로 이동하지 않은 부분 */
-        /* 스튜디오 전용 스타일들 */
-        
-        /* Header 패딩 조정 (공통 헤더가 fixed이므로) */
-        body {
-            padding-top: 80px;
-        }
-        
-        .studio-header {
-            background: var(--gradient-dark);
-            padding: 3rem 0 2rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 3rem;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .header-bg {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                radial-gradient(circle at 20% 50%, rgba(108, 99, 255, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(0, 212, 170, 0.1) 0%, transparent 50%);
-        }
-        
-        .header-content {
-            position: relative;
-            z-index: 2;
-            text-align: center;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        
-        .studio-logo {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .studio-icon {
-            width: 50px;
-            height: 50px;
-            background: var(--gradient-primary);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            color: white;
-        }
-        
-        .studio-title {
-            font-size: 3rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #FFFFFF, var(--tl-secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 1rem;
-        }
-        
-        .studio-subtitle {
-            font-size: 1.2rem;
-            color: var(--tl-gray);
-            margin-bottom: 2rem;
-            line-height: 1.8;
-        }
-        
-        .badge-grid {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-            margin-bottom: 2rem;
-        }
-        
-        .tl-badge {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 20px;
-            padding: 0.5rem 1rem;
-            font-size: 0.9rem;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: all 0.3s ease;
-        }
-        
-        .tl-badge:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateY(-2px);
-        }
-        
-        .tl-badge.crypto {
-            background: linear-gradient(135deg, var(--tl-crypto), #7c4dff);
-            color: white;
-            border: none;
-        }
-        
-        /* Conversion Process */
-        .conversion-process {
-            margin: 3rem 0;
-            padding: 2rem;
-            background: var(--gradient-card);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        
-        .process-header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        
-        .process-header h2 {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-            color: white;
-        }
-        
-        .process-header p {
-            color: var(--tl-gray);
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        
-        .process-steps {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 3rem;
-        }
-        
-        .process-step {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            padding: 2rem;
-            text-align: center;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .process-step:hover {
-            transform: translateY(-5px);
-            border-color: var(--tl-primary);
-        }
-        
-        .step-number {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            width: 30px;
-            height: 30px;
-            background: var(--tl-primary);
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 0.9rem;
-        }
-        
-        .step-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            background: linear-gradient(135deg, var(--tl-primary), var(--tl-secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .step-title {
-            font-size: 1.1rem;
-            margin-bottom: 0.5rem;
-            color: white;
-        }
-        
-        .step-description {
-            font-size: 0.9rem;
-            color: var(--tl-gray);
-        }
-        
-        /* File Upload Area */
-        .upload-section {
-            background: var(--gradient-card);
-            border-radius: 20px;
-            padding: 3rem;
-            margin-bottom: 3rem;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        
-        .upload-zone {
-            border: 3px dashed rgba(108, 99, 255, 0.3);
-            border-radius: 20px;
-            padding: 4rem 2rem;
-            text-align: center;
-            background: rgba(26, 26, 46, 0.3);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .upload-zone:hover {
-            border-color: var(--tl-secondary);
-            background: rgba(54, 209, 220, 0.05);
-        }
-        
-        .upload-zone.dragover {
-            border-color: var(--tl-primary);
-            background: rgba(0, 102, 255, 0.05);
-        }
-        
-        .upload-icon {
-            font-size: 4rem;
-            margin-bottom: 1.5rem;
-            display: block;
-        }
-        
-        .upload-text h3 {
-            font-size: 1.8rem;
-            margin-bottom: 1rem;
-            color: white;
-        }
-        
-        .upload-text p {
-            color: var(--tl-gray);
-            margin-bottom: 1.5rem;
-            max-width: 500px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .file-input {
-            display: none;
-        }
-        
-        .upload-btn {
-            background: var(--gradient-primary);
-            color: white;
-            border: none;
-            padding: 1rem 2rem;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        
-        .upload-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 102, 255, 0.3);
-        }
-        
-        /* File List */
-        .file-list {
-            margin-top: 2rem;
-        }
-        
-        .file-item {
-            display: flex;
-            align-items: center;
-            padding: 1.5rem;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            margin-bottom: 1rem;
-            transition: all 0.3s ease;
-        }
-        
-        .file-item:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-        
-        .file-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 12px;
-            background: var(--gradient-primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            margin-right: 1.5rem;
-            flex-shrink: 0;
-        }
-        
-        .file-info {
-            flex: 1;
-        }
-        
-        .file-name {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: white;
-        }
-        
-        .file-details {
-            display: flex;
-            gap: 1.5rem;
-            color: var(--tl-gray);
-            font-size: 0.9rem;
-        }
-        
-        .file-actions {
-            display: flex;
-            gap: 1rem;
-        }
-        
-        .action-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
-        }
-        
-        .action-btn:hover {
-            background: var(--tl-primary);
-            border-color: var(--tl-primary);
-        }
-        
-        .action-btn.convert {
-            background: var(--gradient-primary);
-            border: none;
-        }
-        
-        /* Copyright Form */
-        .copyright-form {
-            background: var(--gradient-card);
-            border-radius: 20px;
-            padding: 3rem;
-            margin-bottom: 3rem;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        
-        .form-section {
-            margin-bottom: 2.5rem;
-        }
-        
-        .form-section h3 {
-            font-size: 1.5rem;
-            margin-bottom: 1.5rem;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        
-        .form-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        
-        .form-label {
-            display: block;
-            margin-bottom: 0.75rem;
-            font-weight: 500;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .form-control {
-            width: 100%;
-            padding: 1rem;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            color: white;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-        
-        .form-control:focus {
-            outline: none;
-            border-color: var(--tl-primary);
-            background: rgba(0, 102, 255, 0.05);
-        }
-        
-        .form-control::placeholder {
-            color: var(--tl-gray);
-        }
-        
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            cursor: pointer;
-            font-weight: 500;
-        }
-        
-        .checkbox-label input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            accent-color: var(--tl-primary);
-        }
-        
-        /* Time Settings */
-        .time-settings {
-            background: var(--gradient-card);
-            border-radius: 20px;
-            padding: 3rem;
-            margin-bottom: 3rem;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        
-        .time-range {
-            display: flex;
-            align-items: center;
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
-        
-        .range-label {
-            min-width: 150px;
-            font-weight: 500;
-        }
-        
-        .range-slider {
-            flex: 1;
-        }
-        
-        .slider {
-            width: 100%;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            outline: none;
-            -webkit-appearance: none;
-        }
-        
-        .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 24px;
-            height: 24px;
-            background: var(--gradient-primary);
-            border-radius: 50%;
-            cursor: pointer;
-            border: 3px solid white;
-        }
-        
-        .time-display {
-            font-family: 'Courier New', monospace;
-            font-size: 1.5rem;
-            color: var(--tl-secondary);
-            text-align: center;
-            padding: 1rem;
-            background: rgba(0, 212, 170, 0.1);
-            border-radius: 10px;
-            margin-bottom: 2rem;
-        }
-        
-        /* Crypto Section */
-        .crypto-section {
-            background: var(--gradient-card);
-            border-radius: 20px;
-            padding: 3rem;
-            margin-bottom: 3rem;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        
-        .crypto-animation {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 200px;
-            margin: 2rem 0;
-        }
-        
-        .quantum-particles {
-            position: relative;
-            width: 150px;
-            height: 150px;
-        }
-        
-        .particle {
-            position: absolute;
-            width: 8px;
-            height: 8px;
-            background: var(--tl-secondary);
-            border-radius: 50%;
-            animation: float 2s infinite ease-in-out;
-        }
-        
-        .particle:nth-child(1) {
-            top: 20%;
-            left: 20%;
-            animation-delay: 0s;
-        }
-        
-        .particle:nth-child(2) {
-            top: 60%;
-            left: 40%;
-            animation-delay: 0.5s;
-        }
-        
-        .particle:nth-child(3) {
-            top: 30%;
-            left: 70%;
-            animation-delay: 1s;
-        }
-        
-        .key-display {
-            background: rgba(155, 93, 229, 0.1);
-            border: 1px solid rgba(155, 93, 229, 0.3);
-            border-radius: 10px;
-            padding: 1.5rem;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9rem;
-            margin: 2rem 0;
-        }
-        
-        .key-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .key-item:last-child {
-            margin-bottom: 0;
-            padding-bottom: 0;
-            border-bottom: none;
-        }
-        
-        .key-label {
-            color: var(--tl-gray);
-        }
-        
-        .key-value {
-            color: var(--tl-secondary);
-            word-break: break-all;
-            text-align: right;
-        }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(-20px) scale(1.2); }
-        }
-        
-        /* Save Section */
-        .save-section {
-            background: var(--gradient-card);
-            border-radius: 20px;
-            padding: 3rem;
-            margin-bottom: 3rem;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            text-align: center;
-        }
-        
-        .tl-formats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 1.5rem;
-            margin: 2rem 0;
-        }
-        
-        .format-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            padding: 2rem 1rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .format-card:hover {
-            background: rgba(0, 102, 255, 0.05);
-            border-color: var(--tl-primary);
-            transform: translateY(-5px);
-        }
-        
-        .format-card.active {
-            background: rgba(0, 102, 255, 0.1);
-            border-color: var(--tl-primary);
-        }
-        
-        .format-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            display: block;
-        }
-        
-        .format-name {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: white;
-        }
-        
-        .format-desc {
-            font-size: 0.9rem;
-            color: var(--tl-gray);
-        }
-        
-        /* Action Buttons */
-        .action-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            margin-top: 3rem;
-        }
-        
-        .btn {
-            padding: 1rem 2.5rem;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        
-        .btn-primary {
-            background: var(--gradient-primary);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(0, 102, 255, 0.3);
-        }
-        
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateY(-3px);
-        }
-        
-        /* Footer */
-        .studio-footer {
-            text-align: center;
-            padding: 3rem 0;
-            color: var(--tl-gray);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
-        
-        .footer-links a {
-            color: var(--tl-gray);
-            text-decoration: none;
-            transition: color 0.3s ease;
-        }
-        
-        .footer-links a:hover {
-            color: var(--tl-secondary);
-        }
-        
-        /* Responsive */
-        @media (max-width: 768px) {
-            .container {
-                padding: 0 1rem;
-            }
-            
-            body {
-                padding-top: 70px;
-            }
-            
-            .studio-title {
-                font-size: 2.2rem;
-            }
-            
-            .process-steps {
-                grid-template-columns: 1fr;
-            }
-            
-            .upload-zone {
-                padding: 3rem 1rem;
-            }
-            
-            .file-actions {
-                flex-direction: column;
-            }
-            
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-            
-            .tl-formats {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .action-buttons {
-                flex-direction: column;
-                gap: 1rem;
-            }
-            
-            .btn {
-                width: 100%;
-                justify-content: center;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .tl-formats {
-                grid-template-columns: 1fr;
-            }
-            
-            .studio-title {
-                font-size: 1.8rem;
-            }
-            
-            .upload-section,
-            .copyright-form,
-            .time-settings,
-            .crypto-section,
-            .save-section {
-                padding: 2rem 1rem;
-            }
-        }
-        
-        /* Status Messages */
-        .status-message {
-            padding: 1rem;
-            border-radius: 10px;
-            margin: 1rem 0;
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
-        
-        .status-success {
-            background: rgba(0, 212, 170, 0.1);
-            color: var(--tl-secondary);
-            border: 1px solid rgba(0, 212, 170, 0.3);
-            display: block;
-        }
-        
-        .status-error {
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--tl-danger);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            display: block;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* 텍스트 클래스 */
-        .text-muted {
-            color: var(--tl-gray);
-            margin-bottom: 1.5rem;
-        }
-    </style>
-</head>
-<body>
-    <!-- 공통 헤더 -->
-    <header class="tl-header">
-        <div class="header-container">
-            <!-- 로고 -->
-            <a href="index.html" class="tl-logo">
-                <div class="tl-logo-icon">TL</div>
-                <div class="tl-logo-text">TIMELINK</div>
-            </a>
+// studio.js - TL3 스튜디오 메인 기능
 
-            <!-- 네비게이션 -->
-            <nav class="tl-nav">
-                <a href="studio.html" class="nav-link active">
-                    <i class="fas fa-sliders-h"></i> <span>STUDIO</span>
-                </a>
-                <a href="shareplace.html" class="nav-link">
-                    <i class="fas fa-store"></i> <span>SHAREPLACE</span>
-                </a>
-                <a href="tltube.html" class="nav-link">
-                    <i class="fas fa-play-circle"></i> <span>TLTUBE</span>
-                </a>
-                <a href="tlmusic.html" class="nav-link">
-                    <i class="fas fa-music"></i> <span>TLMUSIC</span>
-                </a>
-                <a href="cafe-radio.html" class="nav-link">
-                    <i class="fas fa-broadcast-tower"></i> <span>CAFE RADIO</span>
-                </a>
-            </nav>
+// DOM이 로드된 후 실행
+document.addEventListener('DOMContentLoaded', function() {
+    // 파일 선택 버튼 이벤트 리스너
+    const selectFileBtn = document.getElementById('selectFileBtn');
+    const fileInput = document.getElementById('musicFileInput');
+    const uploadArea = document.getElementById('uploadArea');
+    
+    if (selectFileBtn) {
+        selectFileBtn.addEventListener('click', function(e) {
+            e.stopPropagation(); // 이벤트 버블링 방지
+            fileInput.click();
+        });
+    }
+    
+    if (uploadArea) {
+        uploadArea.addEventListener('click', function() {
+            fileInput.click();
+        });
+    }
+    
+    if (fileInput) {
+        fileInput.addEventListener('change', handleFileSelect);
+    }
+    
+    // 파일 드래그 앤 드롭 기능
+    if (uploadArea) {
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            uploadArea.style.borderColor = 'var(--creator)';
+            uploadArea.style.background = 'rgba(139, 92, 246, 0.1)';
+        });
+        
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            uploadArea.style.background = 'rgba(26, 26, 46, 0.3)';
+        });
+        
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            uploadArea.style.background = 'rgba(26, 26, 46, 0.3)';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileDrop(files[0]);
+            }
+        });
+    }
+    
+    // TL 슬라이더 이벤트 리스너
+    const timeSlider = document.getElementById('timeSlider');
+    if (timeSlider) {
+        timeSlider.addEventListener('input', updateTLDisplay);
+    }
+    
+    // TL3 생성 버튼 이벤트 리스너
+    const createTL3Btn = document.getElementById('createTL3Btn');
+    if (createTL3Btn) {
+        createTL3Btn.addEventListener('click', createTL3File);
+    }
+    
+    // 플레이어 컨트롤 이벤트 리스너
+    const playBtn = document.getElementById('playBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const progressBar = document.getElementById('progressBar');
+    
+    if (playBtn) {
+        playBtn.addEventListener('click', togglePlay);
+    }
+    
+    if (prevBtn) {
+        prevBtn.addEventListener('click', playPrev);
+    }
+    
+    if (nextBtn) {
+        nextBtn.addEventListener('click', playNext);
+    }
+    
+    if (progressBar) {
+        progressBar.addEventListener('click', seekAudio);
+    }
+    
+    // 초기화
+    updateTLDisplay();
+    
+    // 테스트용: 샘플 TL3 파일 추가
+    addSampleTL3Files();
+});
 
-            <!-- 사용자 메뉴 -->
-            <div class="user-section">
-                <div class="tl-balance" id="tlBalance">
-                    <div class="tl-icon">TL</div>
-                    <span id="balanceAmount">0</span>
-                </div>
-                
-                <div class="user-avatar" id="userAvatar">
-                    <i class="fas fa-user"></i>
-                </div>
+// 파일 선택 처리 함수
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (file) {
+        validateAndDisplayFile(file);
+    }
+}
+
+// 파일 드롭 처리 함수
+function handleFileDrop(file) {
+    if (file) {
+        validateAndDisplayFile(file);
+    }
+}
+
+// 파일 유효성 검사 및 정보 표시
+function validateAndDisplayFile(file) {
+    const fileInfo = document.getElementById('fileInfo');
+    const validationMessage = document.getElementById('fileValidation');
+    const validationText = document.getElementById('validationText');
+    const durationInfo = document.getElementById('fileDurationInfo');
+    const musicFileInput = document.getElementById('musicFileInput');
+    
+    // 허용된 파일 타입
+    const allowedTypes = ['audio/mp3', 'audio/wav', 'audio/mpeg', 'audio/x-m4a', 'audio/ogg', 'audio/flac'];
+    const allowedExtensions = ['.mp3', '.wav', '.m4a', '.ogg', '.flac'];
+    
+    // 파일 확장자 확인
+    const fileName = file.name.toLowerCase();
+    const isValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+    const isValidType = allowedTypes.includes(file.type);
+    
+    // 파일 크기 확인 (50MB 제한)
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    
+    // 유효성 검사
+    if (!isValidExtension && !isValidType) {
+        validationText.textContent = '지원되지 않는 파일 형식입니다. MP3, WAV, M4A, OGG, FLAC 파일만 업로드 가능합니다.';
+        validationMessage.className = 'validation-message validation-error';
+        validationMessage.style.display = 'block';
+        fileInfo.innerHTML = `<span style="color: var(--danger)">${file.name}</span>`;
+        return;
+    }
+    
+    if (file.size > maxSize) {
+        validationText.textContent = `파일 크기가 너무 큽니다. (${formatFileSize(file.size)} / 최대 50MB)`;
+        validationMessage.className = 'validation-message validation-error';
+        validationMessage.style.display = 'block';
+        fileInfo.innerHTML = `<span style="color: var(--danger)">${file.name}</span>`;
+        return;
+    }
+    
+    // 파일 정보 표시
+    fileInfo.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--success)">
+                <i class="fas fa-check-circle"></i> ${file.name}
+            </span>
+            <span style="font-size: 0.85rem;">${formatFileSize(file.size)}</span>
+        </div>
+    `;
+    
+    // 성공 메시지
+    validationText.textContent = '파일이 유효합니다. 파일을 분석 중입니다...';
+    validationMessage.className = 'validation-message validation-success';
+    validationMessage.style.display = 'block';
+    
+    // 오디오 파일 길이 분석
+    analyzeAudioDuration(file);
+}
+
+// 오디오 파일 길이 분석
+function analyzeAudioDuration(file) {
+    const durationInfo = document.getElementById('fileDurationInfo');
+    
+    // 오디오 파일을 임시로 로드하여 길이 확인
+    const audio = new Audio();
+    const objectURL = URL.createObjectURL(file);
+    
+    audio.src = objectURL;
+    
+    audio.addEventListener('loadedmetadata', function() {
+        const duration = audio.duration;
+        durationInfo.textContent = `길이: ${formatTime(duration)}`;
+        
+        // TL 슬라이더 자동 조정 (파일 길이의 100배까지)
+        const timeSlider = document.getElementById('timeSlider');
+        if (timeSlider) {
+            const minTL = Math.ceil(duration) * 100; // 최소 100배 재생 가능
+            timeSlider.min = minTL;
+            
+            // 현재 값이 최소값보다 작으면 조정
+            if (parseInt(timeSlider.value) < minTL) {
+                timeSlider.value = minTL;
+                updateTLDisplay();
+            }
+            
+            // 권장값 설정 (파일 길이의 500배)
+            const recommendedTL = Math.ceil(duration) * 500;
+            if (recommendedTL < 10000) { // 최대 10,000 TL 제한
+                timeSlider.value = recommendedTL;
+                updateTLDisplay();
+            }
+        }
+        
+        // 오브젝트 URL 정리
+        URL.revokeObjectURL(objectURL);
+    });
+    
+    audio.addEventListener('error', function() {
+        durationInfo.textContent = '길이 분석 실패';
+        durationInfo.style.color = 'var(--warning)';
+    });
+}
+
+// TL 디스플레이 업데이트
+function updateTLDisplay() {
+    const timeSlider = document.getElementById('timeSlider');
+    const tlAmount = document.getElementById('tlAmount');
+    const totalTimeDisplay = document.getElementById('totalTimeDisplay');
+    
+    if (timeSlider && tlAmount && totalTimeDisplay) {
+        const tlValue = parseInt(timeSlider.value);
+        
+        // TL 금액 표시 (천단위 콤마)
+        tlAmount.textContent = tlValue.toLocaleString() + ' TL';
+        
+        // 총 재생 시간 계산
+        const totalSeconds = tlValue;
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        
+        let timeString = '';
+        if (hours > 0) {
+            timeString += `${hours}시간 `;
+        }
+        if (minutes > 0 || hours > 0) {
+            timeString += `${minutes}분 `;
+        }
+        timeString += `${seconds}초`;
+        
+        totalTimeDisplay.textContent = timeString;
+    }
+}
+
+// TL3 파일 생성
+function createTL3File() {
+    // 로그인 상태 확인
+    const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true' || 
+                      localStorage.getItem('isLoggedIn') === 'true';
+    
+    if (!isLoggedIn) {
+        showNotification('TL3 파일을 생성하려면 먼저 로그인해주세요', 'error');
+        openLoginModal();
+        return;
+    }
+    
+    // 입력값 확인
+    const musicTitle = document.getElementById('musicTitle').value.trim();
+    const artistName = document.getElementById('artistName').value.trim();
+    const fileInput = document.getElementById('musicFileInput');
+    
+    if (!musicTitle || !artistName) {
+        showNotification('음원 제목과 아티스트명을 입력해주세요', 'error');
+        return;
+    }
+    
+    if (!fileInput.files || fileInput.files.length === 0) {
+        showNotification('음원 파일을 선택해주세요', 'error');
+        return;
+    }
+    
+    const tlValue = parseInt(document.getElementById('timeSlider').value);
+    
+    // TL3 객체 생성
+    const tl3File = {
+        id: generateId(),
+        title: musicTitle,
+        artist: artistName,
+        genre: document.getElementById('musicGenre').value.trim(),
+        tlAmount: tlValue,
+        tlRemaining: tlValue,
+        file: fileInput.files[0],
+        createdAt: new Date().toISOString(),
+        owner: sessionStorage.getItem('username') || localStorage.getItem('username') || 'Unknown'
+    };
+    
+    // TL3 파일 목록에 추가
+    addTL3ToList(tl3File);
+    
+    // 플레이어에 전송
+    sendToPlayer(tl3File);
+    
+    // 성공 메시지
+    showNotification(`"${musicTitle}" TL3 파일이 생성되었습니다`, 'success');
+    
+    // 폼 초기화 (파일은 유지)
+    document.getElementById('musicTitle').value = '';
+    document.getElementById('artistName').value = '';
+    document.getElementById('musicGenre').value = '';
+    document.getElementById('fileInfo').innerHTML = '파일을 선택해주세요';
+    document.getElementById('fileValidation').style.display = 'none';
+    document.getElementById('timeSlider').value = '3600';
+    updateTLDisplay();
+    
+    // 파일 입력 초기화
+    fileInput.value = '';
+}
+
+// TL3 파일 목록에 추가
+function addTL3ToList(tl3File) {
+    const tl3List = document.getElementById('tl3List');
+    const emptyMessage = document.getElementById('emptyLibraryMessage');
+    const libraryCount = document.getElementById('libraryCount');
+    
+    if (emptyMessage) {
+        emptyMessage.style.display = 'none';
+    }
+    
+    // 새로운 TL3 아이템 생성
+    const tl3Item = document.createElement('div');
+    tl3Item.className = 'tl3-item';
+    tl3Item.dataset.id = tl3File.id;
+    
+    tl3Item.innerHTML = `
+        <div class="tl3-item-icon">
+            <i class="fas fa-music"></i>
+        </div>
+        <div class="tl3-item-info">
+            <div class="tl3-item-title">${tl3File.title}</div>
+            <div class="tl3-item-artist">${tl3File.artist} • ${tl3File.genre}</div>
+            <div style="font-size: 0.8rem; color: var(--tl-color); margin-top: 0.25rem;">
+                <i class="fas fa-coins"></i> ${tl3File.tlRemaining.toLocaleString()} TL
             </div>
         </div>
-    </header>
-
-    <!-- 스튜디오 헤더 -->
-    <div class="studio-header">
-        <div class="header-bg"></div>
-        <div class="container">
-            <div class="header-content">
-                <div class="studio-logo">
-                    <div class="studio-icon">
-                        <i class="fas fa-sliders-h"></i>
-                    </div>
-                    <h1 class="studio-title">STUDIO</h1>
-                </div>
-                
-                <p class="studio-subtitle">
-                    음악, 영상, 이미지, 문서, 전자책을 TL 파일로 변환하는 통합 스튜디오<br>
-                    CRYSTALS-DILITHIUM 양자내성 암호화로 보호되는 최고의 콘텐츠 변환 플랫폼
-                </p>
-                
-                <div class="badge-grid">
-                    <div class="tl-badge">
-                        <i class="fas fa-music"></i> 음악 (TL3)
-                    </div>
-                    <div class="tl-badge">
-                        <i class="fas fa-video"></i> 영상 (TL4)
-                    </div>
-                    <div class="tl-badge">
-                        <i class="fas fa-image"></i> 이미지 (TLI)
-                    </div>
-                    <div class="tl-badge">
-                        <i class="fas fa-file-alt"></i> 문서 (TLD)
-                    </div>
-                    <div class="tl-badge">
-                        <i class="fas fa-book"></i> 전자책 (TLE)
-                    </div>
-                    <div class="tl-badge crypto">
-                        <i class="fas fa-shield-alt"></i> 양자내성 암호화
-                    </div>
-                </div>
-            </div>
+        <div style="font-size: 1.2rem; color: var(--gray);">
+            <i class="fas fa-play"></i>
         </div>
-    </div>
+    `;
+    
+    // 클릭 이벤트 추가
+    tl3Item.addEventListener('click', function() {
+        // 활성화 상태 변경
+        document.querySelectorAll('.tl3-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        tl3Item.classList.add('active');
+        
+        // 플레이어에 로드
+        loadTL3ToPlayer(tl3File);
+    });
+    
+    // 목록에 추가 (맨 위에)
+    tl3List.insertBefore(tl3Item, tl3List.firstChild);
+    
+    // 카운트 업데이트
+    if (libraryCount) {
+        const count = document.querySelectorAll('.tl3-item').length;
+        libraryCount.textContent = `(${count})`;
+    }
+    
+    // 로컬 스토리지에 저장
+    saveTL3ToStorage(tl3File);
+}
 
-    <!-- 메인 콘텐츠 -->
-    <div class="container">
-        <!-- Conversion Process -->
-        <section class="conversion-process">
-            <div class="process-header">
-                <h2>5단계 TL 파일 변환 프로세스</h2>
-                <p>간단한 5단계로 모든 콘텐츠를 안전한 TL 파일로 변환하세요</p>
-            </div>
-            
-            <div class="process-steps">
-                <div class="process-step">
-                    <div class="step-number">1</div>
-                    <div class="step-icon">
-                        <i class="fas fa-file-upload"></i>
-                    </div>
-                    <h3 class="step-title">파일 업로드</h3>
-                    <p class="step-description">음악, 영상, 이미지 등 원본 파일 업로드</p>
-                </div>
-                
-                <div class="process-step">
-                    <div class="step-number">2</div>
-                    <div class="step-icon">
-                        <i class="fas fa-copyright"></i>
-                    </div>
-                    <h3 class="step-title">저작권 정보</h3>
-                    <p class="step-description">저작권자 정보 및 작품 메타데이터 입력</p>
-                </div>
-                
-                <div class="process-step">
-                    <div class="step-number">3</div>
-                    <div class="step-icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <h3 class="step-title">시간 충전</h3>
-                    <p class="step-description">재생 시간 및 TL 승수 설정</p>
-                </div>
-                
-                <div class="process-step">
-                    <div class="step-number">4</div>
-                    <div class="step-icon">
-                        <i class="fas fa-lock"></i>
-                    </div>
-                    <h3 class="step-title">양자 암호화</h3>
-                    <p class="step-description">CRYSTALS-DILITHIUM 암호화 적용</p>
-                </div>
-                
-                <div class="process-step">
-                    <div class="step-number">5</div>
-                    <div class="step-icon">
-                        <i class="fas fa-save"></i>
-                    </div>
-                    <h3 class="step-title">TL 파일 저장</h3>
-                    <p class="step-description">TL3/TL4/TLI/TLD/TLE 형식으로 저장</p>
-                </div>
-            </div>
-            
-            <div class="action-buttons">
-                <button class="btn btn-primary" id="startConversion">
-                    <i class="fas fa-play"></i> 변환 시작하기
-                </button>
-                <button class="btn btn-secondary" id="viewTutorial">
-                    <i class="fas fa-question-circle"></i> 튜토리얼 보기
-                </button>
-            </div>
-        </section>
+// 플레이어에 TL3 파일 전송
+function sendToPlayer(tl3File) {
+    // 현재 트랙 정보 업데이트
+    document.getElementById('currentTrack').textContent = tl3File.title;
+    document.getElementById('currentArtist').textContent = tl3File.artist;
+    document.getElementById('currentTL').textContent = `남은 TL: ${tl3File.tlRemaining.toLocaleString()}`;
+    
+    // 잔여 TL 업데이트
+    document.getElementById('remainingTL').textContent = tl3File.tlRemaining.toLocaleString();
+    
+    // 앨범 아트 업데이트
+    const albumArt = document.getElementById('albumArt');
+    albumArt.innerHTML = '<i class="fas fa-music"></i>';
+    albumArt.style.background = 'rgba(139, 92, 246, 0.1)';
+    
+    // 재생 버튼 활성화
+    document.getElementById('playBtn').disabled = false;
+}
 
-        <!-- File Upload Section -->
-        <section class="upload-section" id="uploadSection">
-            <h2><i class="fas fa-file-upload"></i> 파일 업로드 (1단계)</h2>
-            <p class="text-muted">TL 파일로 변환할 원본 파일을 업로드하세요</p>
-            
-            <div class="upload-zone" id="uploadZone">
-                <div class="upload-icon">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                </div>
-                <div class="upload-text">
-                    <h3>파일을 드래그 앤 드롭하거나 클릭하여 선택</h3>
-                    <p>MP3, WAV, MP4, PDF, JPEG, PNG 등 다양한 형식 지원</p>
-                </div>
-                <button class="upload-btn" id="uploadBtn">
-                    <i class="fas fa-folder-open"></i> 파일 선택
-                </button>
-                <input type="file" class="file-input" id="fileInput" multiple>
-            </div>
-            
-            <div class="file-list" id="fileList">
-                <!-- 파일 목록이 여기에 동적으로 추가됨 -->
-            </div>
-            
-            <div class="status-message" id="uploadStatus"></div>
-        </section>
+// 샘플 TL3 파일 추가 (테스트용)
+function addSampleTL3Files() {
+    const sampleFiles = [
+        {
+            id: 'sample1',
+            title: 'Neon Dreams',
+            artist: 'Synthwave AI',
+            genre: 'Synthwave',
+            tlAmount: 5000,
+            tlRemaining: 5000,
+            createdAt: '2024-01-15T10:30:00Z'
+        },
+        {
+            id: 'sample2',
+            title: 'Ocean Breeze',
+            artist: 'Ambient Generator',
+            genre: 'Ambient',
+            tlAmount: 7200,
+            tlRemaining: 7200,
+            createdAt: '2024-01-10T14:20:00Z'
+        }
+    ];
+    
+    // 2초 후에 샘플 파일 추가
+    setTimeout(() => {
+        sampleFiles.forEach(file => addTL3ToList(file));
+    }, 2000);
+}
 
-        <!-- Copyright Information Section -->
-        <section class="copyright-form" id="copyrightSection" style="display: none;">
-            <h2><i class="fas fa-copyright"></i> 저작권 정보 입력 (2단계)</h2>
-            <p class="text-muted">저작권자 정보와 작품 메타데이터를 입력하세요</p>
-            
-            <div class="form-section">
-                <h3><i class="fas fa-user-check"></i> 저작권자 정보</h3>
-                
-                <div class="checkbox-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="isCopyrightOwner">
-                        <span>나는 이 작품의 저작권자입니다</span>
-                    </label>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">
-                            <i class="fas fa-user"></i> 작품명
-                        </label>
-                        <input type="text" class="form-control" id="artworkName" placeholder="작품 이름">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">
-                            <i class="fas fa-user-tag"></i> 예술가 이름
-                        </label>
-                        <input type="text" class="form-control" id="artistName" placeholder="아티스트/작가 이름">
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">
-                        <i class="fas fa-tags"></i> 장르/카테고리
-                    </label>
-                    <input type="text" class="form-control" id="genre" placeholder="음악, 영상, 예술, 교육 등">
-                </div>
-            </div>
-            
-            <div class="form-section" id="detailedInfoSection" style="display: none;">
-                <h3><i class="fas fa-info-circle"></i> 상세 정보 (저작권자용)</h3>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">
-                            <i class="fas fa-user-edit"></i> 작곡가/작사가
-                        </label>
-                        <input type="text" class="form-control" id="composer" placeholder="작곡가 이름">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">
-                            <i class="fas fa-microphone"></i> 가수/성우
-                        </label>
-                        <input type="text" class="form-control" id="singer" placeholder="가수/성우 이름">
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">
-                        <i class="fas fa-calendar-alt"></i> 작품 생성일
-                    </label>
-                    <input type="date" class="form-control" id="creationDate">
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">
-                        <i class="fas fa-align-left"></i> 작품 설명
-                    </label>
-                    <textarea class="form-control" id="description" rows="4" placeholder="작품에 대한 자세한 설명"></textarea>
-                </div>
-            </div>
-            
-            <div class="status-message" id="copyrightStatus"></div>
-        </section>
+// 로컬 스토리지에 TL3 저장
+function saveTL3ToStorage(tl3File) {
+    try {
+        const storedTL3 = JSON.parse(localStorage.getItem('tl3Library')) || [];
+        storedTL3.unshift(tl3File);
+        localStorage.setItem('tl3Library', JSON.stringify(storedTL3));
+    } catch (error) {
+        console.error('TL3 저장 실패:', error);
+    }
+}
 
-        <!-- Time Settings Section -->
-        <section class="time-settings" id="timeSection" style="display: none;">
-            <h2><i class="fas fa-clock"></i> 시간 충전 설정 (3단계)</h2>
-            <p class="text-muted">TL 파일의 재생 시간과 TL 차감 승수를 설정하세요</p>
-            
-            <div class="time-display" id="timeDisplay">
-                1초 = 1TL (승수: 1.0x)
-            </div>
-            
-            <div class="form-section">
-                <h3><i class="fas fa-bolt"></i> TL 승수 설정</h3>
-                
-                <div class="time-range">
-                    <div class="range-label">승수 배율: <span id="multiplierValue">1.0</span>x</div>
-                    <div class="range-slider">
-                        <input type="range" class="slider" id="multiplierSlider" min="0.5" max="3" step="0.1" value="1">
-                    </div>
-                </div>
-                
-                <p class="text-muted">
-                    <i class="fas fa-info-circle"></i> 승수는 파일 재생 시 차감되는
+// 플레이어 기능들
+let currentAudio = null;
+let isPlaying = false;
+let currentTL3 = null;
+
+function togglePlay() {
+    if (!currentTL3) {
+        showNotification('재생할 TL3 파일을 선택해주세요', 'error');
+        return;
+    }
+    
+    if (isPlaying) {
+        pauseAudio();
+    } else {
+        playAudio();
+    }
+}
+
+function playAudio() {
+    // 실제 구현에서는 오디오 파일 재생 로직이 필요
+    showNotification('오디오 재생 시작', 'info');
+    isPlaying = true;
+    document.getElementById('playIcon').className = 'fas fa-pause';
+}
+
+function pauseAudio() {
+    showNotification('오디오 일시정지', 'info');
+    isPlaying = false;
+    document.getElementById('playIcon').className = 'fas fa-play';
+}
+
+function playPrev() {
+    showNotification('이전 트랙', 'info');
+}
+
+function playNext() {
+    showNotification('다음 트랙', 'info');
+}
+
+function seekAudio(e) {
+    const progressBar = e.currentTarget;
+    const clickPosition = e.offsetX;
+    const totalWidth = progressBar.clientWidth;
+    const percentage = (clickPosition / totalWidth) * 100;
+    
+    document.getElementById('progress').style.width = percentage + '%';
+}
+
+function loadTL3ToPlayer(tl3File) {
+    currentTL3 = tl3File;
+    
+    document.getElementById('currentTrack').textContent = tl3File.title;
+    document.getElementById('currentArtist').textContent = tl3File.artist;
+    document.getElementById('currentTL').textContent = `남은 TL: ${tl3File.tlRemaining.toLocaleString()}`;
+    document.getElementById('remainingTL').textContent = tl3File.tlRemaining.toLocaleString();
+}
+
+// TL 충전 (테스트용)
+function chargeTL(amount) {
+    // 로그인 상태 확인
+    const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true' || 
+                      localStorage.getItem('isLoggedIn') === 'true';
+    
+    if (!isLoggedIn) {
+        showNotification('TL을 충전하려면 먼저 로그인해주세요', 'error');
+        openLoginModal();
+        return;
+    }
+    
+    // 현재 선택된 TL3 파일에 충전
+    if (currentTL3) {
+        currentTL3.tlRemaining += amount;
+        currentTL3.tlAmount += amount;
+        
+        // 화면 업데이트
+        document.getElementById('currentTL').textContent = `남은 TL: ${currentTL3.tlRemaining.toLocaleString()}`;
+        document.getElementById('remainingTL').textContent = currentTL3.tlRemaining.toLocaleString();
+        
+        // TL3 목록 업데이트
+        const tl3Item = document.querySelector(`.tl3-item[data-id="${currentTL3.id}"]`);
+        if (tl3Item) {
+            const tlElement = tl3Item.querySelector('.tl3-item-info div:nth-child(3)');
+            if (tlElement) {
+                tlElement.innerHTML = `<i class="fas fa-coins"></i> ${currentTL3.tlRemaining.toLocaleString()} TL`;
+            }
+        }
+        
+        showNotification(`${amount.toLocaleString()} TL이 충전되었습니다`, 'success');
+    } else {
+        showNotification('먼저 TL3 파일을 선택해주세요', 'error');
+    }
+}
+
+// 유틸리티 함수들
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+// 전역 함수로 노출
+window.chargeTL = chargeTL;
