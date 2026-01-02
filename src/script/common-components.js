@@ -14,11 +14,8 @@ const navConfig = {
         { icon: 'fa-home', text: 'HOME', link: 'index.html' },
         { icon: 'fa-sliders-h', text: 'STUDIO', link: 'studio.html' },
         { icon: 'fa-store', text: 'SHAREPLACE', link: 'shareplace.html' },
-        { icon: 'fa-play-circle', text: 'TLTUBE', link: 'tltube.html' },
         { icon: 'fa-music', text: 'TLMUSIC', link: 'tlmusic.html' },
         { icon: 'fa-broadcast-tower', text: 'CAFE RADIO', link: 'cafe-radio.html' },
-        { icon: 'fa-ad', text: 'AD PLAZA', link: 'ad-plaza.html' },
-        { icon: 'fa-user', text: 'PROFILE', link: 'profile.html' }
     ],
     authButtons: {
         login: { icon: 'fa-sign-in-alt', text: '로그인', link: 'login.html' },
