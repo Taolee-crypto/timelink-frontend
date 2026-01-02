@@ -337,295 +337,280 @@ function createNavigationBar() {
 }
 
 // DOM 로드 시 네비게이션 생성
-document.addEventListener('DOMContentLoaded', () => {
-    createNavigationBar();
-    
-    // 로그인 상태에 따라 페이지 접근 제어
-    const protectedPages = ['profile.html', 'dashboard.html', 'studio.html'];
-    const currentPage = window.location.pathname.split('/').pop();
-    
-    if (protectedPages.includes(currentPage) && !window.AuthManager.isLoggedIn()) {
-        // 로그인 페이지로 리다이렉트, 현재 URL 저장
-        sessionStorage.setItem('redirectAfterLogin', window.location.href);
-        window.location.href = 'login.html';
-    }
-    
-    // 로그아웃 파라미터 처리
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('logout') === 'true') {
-        window.AuthManager.logout();
-    }
-});
+// 공통 네비게이션 바 생성
+document.addEventListener('DOMContentLoaded', function() {
+    // 네비게이션 바 컨테이너가 있는지 확인
+    const navContainer = document.getElementById('nav-container');
+    if (!navContainer) return;
 
-// 공통 스타일 추가 함수
-function addCommonStyles() {
-    const styleId = 'timelink-common-styles';
-    if (document.getElementById(styleId)) return;
-    
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-        /* 공통 네비게이션 스타일 */
-        .main-header {
-            background: rgba(15, 23, 42, 0.95);
+    // 로그인 상태 확인 (세션 스토리지 사용)
+    const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+    const storedUsername = sessionStorage.getItem('username');
+
+    // 네비게이션 바 HTML
+    const navbarHTML = `
+        <nav style="
+            background: rgba(26, 35, 66, 0.95);
             backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 107, 0, 0.1);
-            position: fixed;
-            width: 100%;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
             top: 0;
             z-index: 1000;
-            padding: 1rem 0;
-            height: 70px;
-        }
-
-        .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 100%;
-            position: relative;
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 2rem;
-        }
-
-        .logo {
-            flex: 0 0 auto;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            text-decoration: none;
-            min-width: 150px;
-        }
-
-        .logo-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #FF6B00, #FFA500);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 700;
-            font-size: 1.2rem;
-            color: white;
-        }
-
-        .logo-text {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.8rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #FF6B00, #FFA500);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            white-space: nowrap;
-        }
-
-        .main-nav {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0 1rem;
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        .nav-link {
-            color: #94a3b8;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 0.5rem 0.8rem;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            white-space: nowrap;
-            font-size: 0.9rem;
-        }
-
-        .nav-link:hover {
-            color: white;
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .nav-link.active {
-            background: rgba(255, 107, 0, 0.1);
-            color: #FFA500;
-            border: 1px solid rgba(255, 107, 0, 0.3);
-        }
-
-        .nav-link i {
-            font-size: 1rem;
-        }
-
-        .user-section {
-            flex: 0 0 auto;
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-            min-width: 150px;
-            justify-content: flex-end;
-        }
-
-        .auth-buttons {
-            display: flex;
-            gap: 0.75rem;
-            align-items: center;
-        }
-
-        .auth-button {
-            background: rgba(255, 107, 0, 0.1);
-            border: 1px solid rgba(255, 107, 0, 0.3);
-            border-radius: 8px;
-            padding: 0.5rem 1rem;
-            color: #FFA500;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 0.85rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: all 0.3s ease;
-            white-space: nowrap;
-            cursor: pointer;
-        }
-
-        .auth-button:hover {
-            background: rgba(255, 107, 0, 0.2);
-            transform: translateY(-1px);
-        }
-
-        .auth-button.signup {
-            background: linear-gradient(135deg, #FF6B00, #FFA500);
-            border-color: transparent;
-            color: white;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .user-balance {
-            background: rgba(255, 165, 0, 0.1);
-            border: 1px solid rgba(255, 165, 0, 0.3);
-            border-radius: 8px;
-            padding: 0.5rem 0.75rem;
-            font-weight: 600;
-            color: #FFA500;
-            font-size: 0.85rem;
-        }
-
-        .user-balance i {
-            margin-right: 0.25rem;
-        }
-
-        .logout-btn {
-            background: rgba(239, 68, 68, 0.1);
-            border-color: rgba(239, 68, 68, 0.3);
-            color: #f44336;
-        }
-
-        .logout-btn:hover {
-            background: rgba(239, 68, 68, 0.2);
-        }
-
-        .mobile-menu-btn {
-            display: none;
-            background: none;
-            border: none;
-            color: #94a3b8;
-            font-size: 1.5rem;
-            cursor: pointer;
-            transition: color 0.3s ease;
-            padding: 0.5rem;
-            flex-shrink: 0;
-        }
-
-        .mobile-menu-btn:hover {
-            color: white;
-        }
-
-        /* 반응형 */
-        @media (max-width: 1200px) {
-            .header-content {
-                padding: 0 1.5rem;
-            }
-            
-            .nav-link span {
-                display: none;
-            }
-            
-            .nav-link {
-                padding: 0.5rem;
-            }
-            
-            .nav-link i {
-                font-size: 1.2rem;
-            }
-        }
-
-        @media (max-width: 992px) {
-            .main-nav {
-                position: fixed;
-                top: 70px;
-                left: 0;
-                right: 0;
-                transform: none;
-                background: #0F172A;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                padding: 1rem;
-                flex-direction: column;
-                gap: 0.5rem;
-                display: none;
-                z-index: 999;
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-                max-width: 100%;
-            }
-            
-            .main-nav.active {
+        ">
+            <div style="
+                max-width: 1400px;
+                margin: 0 auto;
                 display: flex;
-            }
-            
-            .nav-link {
-                width: 100%;
-                justify-content: center;
-                padding: 1rem;
-            }
-            
-            .nav-link span {
-                display: inline;
-            }
-            
-            .mobile-menu-btn {
-                display: block;
-            }
-            
-            .user-section {
-                min-width: auto;
-            }
-            
-            .auth-buttons {
-                display: none;
-            }
-        }
+                justify-content: space-between;
+                align-items: center;
+            ">
+                <!-- 로고 -->
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="
+                        width: 40px;
+                        height: 40px;
+                        background: linear-gradient(135deg, #0066FF, #00D4AA);
+                        border-radius: 10px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 1.2rem;
+                        font-weight: bold;
+                        color: white;
+                    ">
+                        T
+                    </div>
+                    <span style="
+                        font-size: 1.5rem;
+                        font-weight: 700;
+                        background: linear-gradient(135deg, #0066FF, #00D4AA);
+                        -webkit-background-clip: text;
+                        -webkit-text-fill-color: transparent;
+                    ">
+                        TIMEGATE™ STUDIO
+                    </span>
+                </div>
 
-        @media (max-width: 768px) {
-            .user-info {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 0.5rem;
-            }
-        }
+                <!-- 로그인 상태 표시 -->
+                <div id="userStatusArea" style="display: flex; align-items: center; gap: 1rem;">
+                    ${isLoggedIn ? `
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="
+                                width: 36px;
+                                height: 36px;
+                                background: linear-gradient(135deg, #9D4EDD, #8B5CF6);
+                                border-radius: 50%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                color: white;
+                            ">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div>
+                                <div style="font-weight: 600; color: white;">${storedUsername || '사용자'}</div>
+                                <div style="font-size: 0.8rem; color: #64748b;">로그인 중</div>
+                            </div>
+                            <button onclick="logout()" style="
+                                background: rgba(239, 68, 68, 0.1);
+                                color: #ef4444;
+                                border: 1px solid rgba(239, 68, 68, 0.3);
+                                padding: 0.5rem 1rem;
+                                border-radius: 8px;
+                                cursor: pointer;
+                                font-size: 0.9rem;
+                                margin-left: 0.5rem;
+                            ">
+                                <i class="fas fa-sign-out-alt"></i> 로그아웃
+                            </button>
+                        </div>
+                    ` : `
+                        <button onclick="openLoginModal()" style="
+                            background: linear-gradient(135deg, #0066FF, #00D4AA);
+                            color: white;
+                            border: none;
+                            padding: 0.75rem 1.5rem;
+                            border-radius: 10px;
+                            cursor: pointer;
+                            font-weight: 600;
+                            display: flex;
+                            align-items: center;
+                            gap: 0.5rem;
+                        ">
+                            <i class="fas fa-sign-in-alt"></i> 로그인
+                        </button>
+                    `}
+                </div>
+            </div>
+        </nav>
+
+        <!-- 로그인 모달 (기본적으로 숨김) -->
+        <div id="loginModal" style="
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 15, 43, 0.9);
+            z-index: 2000;
+            backdrop-filter: blur(10px);
+        ">
+            <div style="
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: #1A2342;
+                padding: 2.5rem;
+                border-radius: 20px;
+                width: 90%;
+                max-width: 400px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            ">
+                <h2 style="color: white; margin-bottom: 0.5rem;">로그인</h2>
+                <p style="color: #64748b; margin-bottom: 2rem;">TIMEGATE™ STUDIO에 로그인하세요</p>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; color: white; margin-bottom: 0.5rem;">사용자명</label>
+                    <input type="text" id="loginUsername" style="
+                        width: 100%;
+                        padding: 1rem;
+                        background: rgba(255, 255, 255, 0.05);
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        border-radius: 10px;
+                        color: white;
+                        font-size: 1rem;
+                    " placeholder="사용자명 입력">
+                </div>
+                
+                <div style="margin-bottom: 2rem;">
+                    <label style="display: block; color: white; margin-bottom: 0.5rem;">비밀번호</label>
+                    <input type="password" id="loginPassword" style="
+                        width: 100%;
+                        padding: 1rem;
+                        background: rgba(255, 255, 255, 0.05);
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        border-radius: 10px;
+                        color: white;
+                        font-size: 1rem;
+                    " placeholder="비밀번호 입력">
+                </div>
+                
+                <div style="display: flex; gap: 1rem;">
+                    <button onclick="performLogin()" style="
+                        flex: 1;
+                        background: linear-gradient(135deg, #0066FF, #00D4AA);
+                        color: white;
+                        border: none;
+                        padding: 1rem;
+                        border-radius: 10px;
+                        cursor: pointer;
+                        font-weight: 600;
+                    ">
+                        로그인
+                    </button>
+                    <button onclick="closeLoginModal()" style="
+                        flex: 1;
+                        background: rgba(255, 255, 255, 0.1);
+                        color: white;
+                        border: none;
+                        padding: 1rem;
+                        border-radius: 10px;
+                        cursor: pointer;
+                    ">
+                        취소
+                    </button>
+                </div>
+
+                <div style="margin-top: 1.5rem; text-align: center;">
+                    <label style="color: #64748b; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                        <input type="checkbox" id="rememberLogin">
+                        <span>로그인 상태 유지</span>
+                    </label>
+                </div>
+            </div>
+        </div>
     `;
-    
-    document.head.appendChild(style);
+
+    navContainer.innerHTML = navbarHTML;
+});
+
+// 로그인 모달 열기
+function openLoginModal() {
+    const modal = document.getElementById('loginModal');
+    if (modal) {
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
 }
 
-// 스타일 추가 실행
-addCommonStyles();
+// 로그인 모달 닫기
+function closeLoginModal() {
+    const modal = document.getElementById('loginModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
+
+// 로그인 수행
+function performLogin() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    const rememberMe = document.getElementById('rememberLogin').checked;
+
+    if (!username || !password) {
+        showNotification('사용자명과 비밀번호를 입력해주세요', 'error');
+        return;
+    }
+
+    // 임시 로그인 처리 (실제로는 서버와 통신해야 함)
+    if (rememberMe) {
+        // 로컬 스토리지에 저장 (브라우저를 닫아도 유지)
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('username', username);
+    } else {
+        // 세션 스토리지에 저장 (브라우저 탭을 닫으면 사라짐)
+        sessionStorage.setItem('isLoggedIn', 'true');
+        sessionStorage.setItem('username', username);
+    }
+
+    // 모달 닫기
+    closeLoginModal();
+    
+    // 페이지 새로고침하여 네비게이션 업데이트
+    location.reload();
+}
+
+// 로그아웃
+function logout() {
+    // 모든 저장소에서 로그인 정보 삭제
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('username');
+    sessionStorage.removeItem('isLoggedIn');
+    sessionStorage.removeItem('username');
+    
+    // 페이지 새로고침
+    location.reload();
+}
+
+// 알림 표시
+function showNotification(message, type = 'info') {
+    const notification = document.getElementById('notification');
+    const notificationMessage = document.getElementById('notificationMessage');
+    
+    if (!notification || !notificationMessage) return;
+    
+    notificationMessage.textContent = message;
+    notification.className = 'notification';
+    notification.classList.add(`notification-${type}`);
+    notification.style.display = 'block';
+    
+    // 5초 후 자동 숨김
+    setTimeout(() => {
+        notification.style.display = 'none';
+    }, 5000);
+}
