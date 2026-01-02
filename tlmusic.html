@@ -1046,7 +1046,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🎵 TLMUSIC 인디 아티스트 플랫폼 초기화');
             
-            // 사용자 정보 확인
+            // 사용자 정보 확인 - 수정된 버전
             checkUserAuth();
             
             // 데이터 로드
@@ -1054,20 +1054,46 @@
             
             // UI 초기화
             initUI();
+            
+            // 콘솔에 사용자 정보 출력
+            console.log('현재 사용자 상태:', TLMUSIC_DATA.user);
         });
 
-        // 사용자 인증 확인
+        // 사용자 인증 확인 - 수정 완료
         function checkUserAuth() {
-            TLMUSIC_DATA.user = JSON.parse(localStorage.getItem('timelink_user'));
+            const userData = localStorage.getItem('timelink_user');
             
-            if (!TLMUSIC_DATA.user) {
-                TLMUSIC_DATA.user = {
-                    name: 'Guest',
-                    email: 'guest@timelink.digital',
-                    balance: 0,
-                    isGuest: true
-                };
+            if (userData) {
+                try {
+                    TLMUSIC_DATA.user = JSON.parse(userData);
+                    
+                    // 게스트 여부를 명확하게 설정
+                    if (TLMUSIC_DATA.user.email === 'guest@timelink.digital') {
+                        TLMUSIC_DATA.user.isGuest = true;
+                    } else {
+                        // 로그인된 사용자인 경우 isGuest가 false거나 없으면 false로 설정
+                        TLMUSIC_DATA.user.isGuest = TLMUSIC_DATA.user.isGuest === undefined ? false : TLMUSIC_DATA.user.isGuest;
+                    }
+                } catch (e) {
+                    console.error('사용자 데이터 파싱 오류:', e);
+                    setGuestUser();
+                }
+            } else {
+                // 사용자 데이터가 없는 경우 게스트로 설정
+                setGuestUser();
             }
+        }
+
+        // 게스트 사용자 설정
+        function setGuestUser() {
+            TLMUSIC_DATA.user = {
+                name: 'Guest',
+                email: 'guest@timelink.digital',
+                balance: 0,
+                isGuest: true
+            };
+            // 로컬스토리지에 저장
+            localStorage.setItem('timelink_user', JSON.stringify(TLMUSIC_DATA.user));
         }
 
         // UI 초기화
@@ -1110,12 +1136,16 @@
             const showBtn = document.getElementById('showUploadFormBtn');
             if (showBtn) {
                 showBtn.addEventListener('click', function() {
+                    // 로그인 확인
                     if (TLMUSIC_DATA.user.isGuest) {
-                        alert('음원 출시를 하려면 로그인이 필요합니다.');
-                        window.location.href = 'login.html';
+                        const confirmLogin = confirm('음원 출시를 하려면 로그인이 필요합니다.\n로그인 페이지로 이동하시겠습니까?');
+                        if (confirmLogin) {
+                            window.location.href = 'login.html';
+                        }
                         return;
                     }
                     
+                    // 잔액 확인
                     if (TLMUSIC_DATA.user.balance < 300) {
                         alert(`음원 출시를 하려면 300 TL이 필요합니다.\n현재 잔액: ${TLMUSIC_DATA.user.balance} TL`);
                         return;
@@ -1149,15 +1179,15 @@
             document.getElementById('cancelUploadBtn')?.addEventListener('click', hideUploadForm);
             document.getElementById('cancelAlbumBtn')?.addEventListener('click', hideUploadForm);
             
-            // 폼 제출
+            // 폼 제출 - 수정된 부분
             document.getElementById('singleTrackForm')?.addEventListener('submit', function(e) {
                 e.preventDefault();
-                uploadIndieTrack('single');
+                handleTrackUpload('single');
             });
             
             document.getElementById('albumForm')?.addEventListener('submit', function(e) {
                 e.preventDefault();
-                uploadIndieTrack('album');
+                handleTrackUpload('album');
             });
         }
 
@@ -1215,6 +1245,23 @@
                 <div class="file-info-size">${fileSize} MB</div>
             `;
             container.style.display = 'block';
+        }
+
+        // 트랙 업로드 핸들러 - 새로 추가
+        function handleTrackUpload(type) {
+            // 즉시 로그인 상태 확인
+            checkUserAuth();
+            
+            if (TLMUSIC_DATA.user.isGuest) {
+                const confirmLogin = confirm('음원 출시를 하려면 로그인이 필요합니다.\n로그인 페이지로 이동하시겠습니까?');
+                if (confirmLogin) {
+                    window.location.href = 'login.html';
+                }
+                return;
+            }
+            
+            // 업로드 실행
+            uploadIndieTrack(type);
         }
 
         // 정렬 버튼 설정
@@ -1334,6 +1381,7 @@
 
         // 인디 트랙 업로드
         async function uploadIndieTrack(type) {
+            // 로그인 확인 (이중 체크)
             if (TLMUSIC_DATA.user.isGuest) {
                 alert('음원 출시를 하려면 로그인이 필요합니다.');
                 return;
@@ -1341,12 +1389,13 @@
             
             const cost = type === 'single' ? 300 : 600;
             
+            // 잔액 확인
             if (TLMUSIC_DATA.user.balance < cost) {
                 alert(`${type === 'single' ? '싱글' : '앨범'} 출시를 하려면 ${cost} TL이 필요합니다.\n현재 잔액: ${TLMUSIC_DATA.user.balance} TL`);
                 return;
             }
             
-            // MP3 파일 확인
+            // MP3 파일 확인 (싱글인 경우만)
             const mp3File = document.getElementById('mp3FileInput').files[0];
             if (!mp3File && type === 'single') {
                 alert('MP3 파일을 업로드해주세요.');
