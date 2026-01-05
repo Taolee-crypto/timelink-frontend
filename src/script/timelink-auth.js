@@ -1,444 +1,554 @@
-// timelink-auth.js
+// timelink-auth.js - TIMELINK 인증 시스템
+
 class TimelinkAuth {
     constructor() {
-        this.currentUser = null;
+        this.baseURL = 'https://api.timelink.studio'; // 실제 API 엔드포인트
+        this.localStorageKey = 'timelink_auth';
+        this.tokenKey = 'timelink_token';
+        this.userKey = 'timelink_user';
+        this.balanceKey = 'timelink_tl_balance';
+        
         this.init();
     }
-
+    
     init() {
-        this.loadUserFromStorage();
-        this.renderAuthButtons();
+        this.loadUserData();
+        this.setupEventListeners();
+        this.updateUI();
     }
-
-    loadUserFromStorage() {
-        const userData = localStorage.getItem('timelink_user');
-        if (userData) {
-            this.currentUser = JSON.parse(userData);
-            console.log('사용자 로드됨:', this.currentUser);
-        }
-    }
-
-    saveUserToStorage(user) {
-        localStorage.setItem('timelink_user', JSON.stringify(user));
-        this.currentUser = user;
-        console.log('사용자 저장됨:', user);
-    }
-
-    logout() {
-        localStorage.removeItem('timelink_user');
-        this.currentUser = null;
-        this.renderAuthButtons();
-        console.log('로그아웃됨');
-        window.location.reload();
-    }
-
-    async login(email, password) {
-        // 더미 데이터로 로그인 처리
-        const dummyUsers = [
-            {
-                id: 1,
-                name: '테스트 사용자',
-                email: 'test@example.com',
-                password: '1234',
-                balance: 10000,
-                isCreator: true,
-                joinDate: '2024-01-01'
+    
+    // 로컬 스토리지에서 사용자 데이터 로드
+    loadUserData() {
+        try {
+            const userData = localStorage.getItem(this.userKey);
+            if (userData) {
+                this.user = JSON.parse(userData);
             }
-        ];
-
-        const user = dummyUsers.find(u => u.email === email && u.password === password);
-        
-        if (user) {
-            // 민감한 정보 제거
-            const userData = {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                balance: user.balance,
-                isCreator: user.isCreator,
-                joinDate: user.joinDate
-            };
             
-            this.saveUserToStorage(userData);
-            this.renderAuthButtons();
+            const token = localStorage.getItem(this.tokenKey);
+            if (token) {
+                this.token = token;
+            }
             
-            console.log('로그인 성공:', userData);
-            alert(`${userData.name}님, 환영합니다!`);
-            return true;
-        } else {
-            console.log('로그인 실패');
-            alert('이메일 또는 비밀번호가 올바르지 않습니다.');
-            return false;
+            const balance = localStorage.getItem(this.balanceKey);
+            if (balance) {
+                this.balance = parseInt(balance);
+            } else {
+                // 기본 잔액 설정
+                this.balance = 10000;
+                this.saveBalance();
+            }
+        } catch (error) {
+            console.error('사용자 데이터 로드 중 오류:', error);
+            this.clearAuth();
         }
     }
-
-    async register(name, email, password, isCreator = false) {
-        // 간단한 유효성 검사
-        if (!name || !email || !password) {
-            alert('모든 필드를 입력해주세요.');
-            return false;
+    
+    // 사용자 데이터 저장
+    saveUserData(user) {
+        try {
+            this.user = user;
+            localStorage.setItem(this.userKey, JSON.stringify(user));
+            this.updateUI();
+        } catch (error) {
+            console.error('사용자 데이터 저장 중 오류:', error);
         }
-
-        if (password.length < 4) {
-            alert('비밀번호는 4자 이상이어야 합니다.');
-            return false;
-        }
-
-        // 이메일 중복 체크 (더미)
-        const existingUser = this.getUserByEmail(email);
-        if (existingUser) {
-            alert('이미 사용 중인 이메일입니다.');
-            return false;
-        }
-
-        // 새 사용자 생성
-        const newUser = {
-            id: Date.now(),
-            name: name,
-            email: email,
-            password: password, // 실제로는 해싱해야 함
-            balance: 10000, // 회원가입 보너스 10,000 TL
-            isCreator: isCreator,
-            joinDate: new Date().toISOString().split('T')[0],
-            profileImage: null
-        };
-
-        this.saveUserToStorage(newUser);
-        this.renderAuthButtons();
-        
-        console.log('회원가입 성공:', newUser);
-        alert(`${newUser.name}님, 가입을 환영합니다!\n보너스 10,000 TL이 지급되었습니다.`);
-        return true;
     }
-
-    getUserByEmail(email) {
-        const userData = localStorage.getItem('timelink_user');
-        if (userData) {
-            const user = JSON.parse(userData);
-            return user.email === email ? user : null;
+    
+    // 토큰 저장
+    saveToken(token) {
+        try {
+            this.token = token;
+            localStorage.setItem(this.tokenKey, token);
+        } catch (error) {
+            console.error('토큰 저장 중 오류:', error);
         }
-        return null;
     }
-
+    
+    // TL 잔액 저장
+    saveBalance() {
+        try {
+            localStorage.setItem(this.balanceKey, this.balance.toString());
+            this.updateUI();
+        } catch (error) {
+            console.error('잔액 저장 중 오류:', error);
+        }
+    }
+    
+    // TL 잔액 업데이트
     updateBalance(amount) {
-        if (this.currentUser) {
-            this.currentUser.balance += amount;
-            if (this.currentUser.balance < 0) {
-                this.currentUser.balance = 0;
-            }
-            this.saveUserToStorage(this.currentUser);
-            this.renderAuthButtons();
-            return this.currentUser.balance;
-        }
-        return 0;
+        this.balance += amount;
+        this.saveBalance();
+        return this.balance;
     }
-
-    renderAuthButtons() {
+    
+    // 현재 TL 잔액 조회
+    getBalance() {
+        return this.balance;
+    }
+    
+    // 이벤트 리스너 설정
+    setupEventListeners() {
+        // 로그인 폼 이벤트
+        document.addEventListener('submit', (e) => {
+            if (e.target.id === 'loginForm') {
+                e.preventDefault();
+                this.handleLogin(e);
+            }
+            
+            if (e.target.id === 'signupForm') {
+                e.preventDefault();
+                this.handleSignup(e);
+            }
+        });
+        
+        // 로그아웃 이벤트
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('logout-btn') || 
+                e.target.closest('.logout-btn')) {
+                this.logout();
+            }
+        });
+    }
+    
+    // UI 업데이트
+    updateUI() {
+        // 헤더 업데이트
+        this.updateHeader();
+        
+        // 페이지별 UI 업데이트
+        this.updatePageUI();
+    }
+    
+    // 헤더 업데이트
+    updateHeader() {
         const authButtons = document.getElementById('authButtons');
         if (!authButtons) return;
-
-        if (this.currentUser) {
-            // 로그인 상태
-            authButtons.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: rgba(255, 107, 0, 0.1); border-radius: 10px; border: 1px solid rgba(255, 107, 0, 0.3);">
-                        <i class="fas fa-coins" style="color: #FFA500;"></i>
-                        <span style="font-weight: 600; color: #FFA500;" id="balanceAmount">${this.currentUser.balance.toLocaleString()} TL</span>
-                    </div>
-                    <div style="position: relative;">
-                        <button id="userMenuBtn" style="background: linear-gradient(135deg, #FF6B00, #FFA500); border: none; border-radius: 10px; padding: 0.5rem 1rem; color: white; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.3s ease;">
-                            <i class="fas fa-user"></i>
-                            ${this.currentUser.name}
-                            <i class="fas fa-chevron-down" style="font-size: 0.8rem;"></i>
-                        </button>
-                        <div id="userMenu" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 0.5rem; background: #1A2342; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 0.5rem; min-width: 180px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); z-index: 1000;">
-                            <div style="padding: 0.75rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-                                <div style="font-weight: 600;">${this.currentUser.name}</div>
-                                <div style="font-size: 0.8rem; color: #94a3b8;">${this.currentUser.email}</div>
-                            </div>
-                            <a href="studio.html" style="display: block; padding: 0.75rem; color: white; text-decoration: none; border-radius: 5px; transition: background 0.3s ease;">
-                                <i class="fas fa-sliders-h"></i> 스튜디오
-                            </a>
-                            <a href="tlmusic.html" style="display: block; padding: 0.75rem; color: white; text-decoration: none; border-radius: 5px; transition: background 0.3s ease;">
-                                <i class="fas fa-music"></i> TLMUSIC
-                            </a>
-                            <a href="#" style="display: block; padding: 0.75rem; color: white; text-decoration: none; border-radius: 5px; transition: background 0.3s ease;">
-                                <i class="fas fa-wallet"></i> TL 충전
-                            </a>
-                            <button onclick="window.timelinkAuth.logout()" style="width: 100%; padding: 0.75rem; background: rgba(255, 107, 0, 0.2); border: 1px solid rgba(255, 107, 0, 0.3); border-radius: 5px; color: #FF6B00; font-weight: 600; cursor: pointer; margin-top: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                                <i class="fas fa-sign-out-alt"></i>
-                                로그아웃
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            // 사용자 메뉴 토글
-            const userMenuBtn = document.getElementById('userMenuBtn');
-            const userMenu = document.getElementById('userMenu');
-            
-            if (userMenuBtn && userMenu) {
-                userMenuBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    userMenu.style.display = userMenu.style.display === 'none' ? 'block' : 'none';
-                });
-
-                // 문서 클릭 시 메뉴 닫기
-                document.addEventListener('click', () => {
-                    userMenu.style.display = 'none';
-                });
-
-                // 메뉴 내부 클릭 시 버블링 방지
-                userMenu.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                });
-            }
-        } else {
-            // 로그아웃 상태
-            authButtons.innerHTML = `
-                <div style="display: flex; gap: 0.75rem;">
-                    <button id="loginBtn" style="padding: 0.5rem 1.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; color: white; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
-                        로그인
-                    </button>
-                    <button id="registerBtn" style="padding: 0.5rem 1.5rem; background: linear-gradient(135deg, #FF6B00, #FFA500); border: none; border-radius: 10px; color: white; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
-                        회원가입
-                    </button>
-                </div>
-            `;
-
-            // 로그인/회원가입 버튼 이벤트
-            document.getElementById('loginBtn')?.addEventListener('click', () => this.showLoginModal());
-            document.getElementById('registerBtn')?.addEventListener('click', () => this.showRegisterModal());
-        }
-    }
-
-    showLoginModal() {
-        // 기존 모달 제거
-        this.removeExistingModal();
-
-        const modalHTML = `
-            <div id="loginModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 2000;">
-                <div style="background: #1A2342; border-radius: 20px; padding: 2.5rem; width: 90%; max-width: 400px; border: 1px solid rgba(255, 107, 0, 0.3); position: relative;">
-                    <button id="closeLoginModal" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer;">
-                        <i class="fas fa-times"></i>
-                    </button>
-                    
-                    <h2 style="font-size: 1.8rem; margin-bottom: 2rem; color: white; text-align: center;">
-                        <i class="fas fa-sign-in-alt" style="color: #FF6B00;"></i>
-                        로그인
-                    </h2>
-                    
-                    <form id="loginForm">
-                        <div style="margin-bottom: 1.5rem;">
-                            <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">이메일</label>
-                            <input type="email" id="loginEmail" required 
-                                   style="width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; color: white;"
-                                   placeholder="이메일을 입력하세요">
-                        </div>
-                        
-                        <div style="margin-bottom: 2rem;">
-                            <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">비밀번호</label>
-                            <input type="password" id="loginPassword" required 
-                                   style="width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; color: white;"
-                                   placeholder="비밀번호를 입력하세요">
-                        </div>
-                        
-                        <button type="submit" 
-                                style="width: 100%; padding: 1rem; background: linear-gradient(135deg, #FF6B00, #FFA500); border: none; border-radius: 10px; color: white; font-weight: 600; cursor: pointer; margin-bottom: 1rem;">
-                            로그인
-                        </button>
-                        
-                        <div style="text-align: center; color: #94a3b8; font-size: 0.9rem;">
-                            아직 계정이 없으신가요? 
-                            <a href="#" id="switchToRegister" style="color: #FF6B00; text-decoration: none; font-weight: 600;">회원가입</a>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
-
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-        // 이벤트 리스너 추가
-        document.getElementById('closeLoginModal').addEventListener('click', () => {
-            document.getElementById('loginModal').remove();
-        });
-
-        document.getElementById('switchToRegister').addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('loginModal').remove();
-            this.showRegisterModal();
-        });
-
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            
-            const success = await this.login(email, password);
-            if (success) {
-                document.getElementById('loginModal').remove();
-            }
-        });
-
-        // 모달 외부 클릭 시 닫기
-        document.getElementById('loginModal').addEventListener('click', (e) => {
-            if (e.target.id === 'loginModal') {
-                document.getElementById('loginModal').remove();
-            }
-        });
-    }
-
-    showRegisterModal() {
-        // 기존 모달 제거
-        this.removeExistingModal();
-
-        const modalHTML = `
-            <div id="registerModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 2000;">
-                <div style="background: #1A2342; border-radius: 20px; padding: 2.5rem; width: 90%; max-width: 400px; border: 1px solid rgba(255, 107, 0, 0.3); position: relative;">
-                    <button id="closeRegisterModal" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer;">
-                        <i class="fas fa-times"></i>
-                    </button>
-                    
-                    <h2 style="font-size: 1.8rem; margin-bottom: 2rem; color: white; text-align: center;">
-                        <i class="fas fa-user-plus" style="color: #FF6B00;"></i>
-                        회원가입
-                    </h2>
-                    
-                    <form id="registerForm">
-                        <div style="margin-bottom: 1.5rem;">
-                            <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">이름</label>
-                            <input type="text" id="registerName" required 
-                                   style="width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; color: white;"
-                                   placeholder="이름을 입력하세요">
-                        </div>
-                        
-                        <div style="margin-bottom: 1.5rem;">
-                            <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">이메일</label>
-                            <input type="email" id="registerEmail" required 
-                                   style="width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; color: white;"
-                                   placeholder="이메일을 입력하세요">
-                        </div>
-                        
-                        <div style="margin-bottom: 1.5rem;">
-                            <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">비밀번호</label>
-                            <input type="password" id="registerPassword" required 
-                                   style="width: 100%; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; color: white;"
-                                   placeholder="비밀번호를 입력하세요">
-                        </div>
-                        
-                        <div style="margin-bottom: 2rem;">
-                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #94a3b8;">
-                                <input type="checkbox" id="isCreator" style="width: auto;">
-                                창작자로 가입하기
-                            </label>
-                            <small style="display: block; margin-top: 0.5rem; color: #94a3b8; font-size: 0.8rem;">
-                                ✔️ 가입 즉시 10,000 TL 보너스 지급
-                            </small>
-                            <small style="display: block; margin-top: 0.25rem; color: #94a3b8; font-size: 0.8rem;">
-                                ✔️ 음악 업로드 및 TL3 파일 생성 가능
-                            </small>
-                        </div>
-                        
-                        <button type="submit" 
-                                style="width: 100%; padding: 1rem; background: linear-gradient(135deg, #FF6B00, #FFA500); border: none; border-radius: 10px; color: white; font-weight: 600; cursor: pointer; margin-bottom: 1rem;">
-                            회원가입
-                        </button>
-                        
-                        <div style="text-align: center; color: #94a3b8; font-size: 0.9rem;">
-                            이미 계정이 있으신가요? 
-                            <a href="#" id="switchToLogin" style="color: #FF6B00; text-decoration: none; font-weight: 600;">로그인</a>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
-
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-        // 이벤트 리스너 추가
-        document.getElementById('closeRegisterModal').addEventListener('click', () => {
-            document.getElementById('registerModal').remove();
-        });
-
-        document.getElementById('switchToLogin').addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('registerModal').remove();
-            this.showLoginModal();
-        });
-
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const name = document.getElementById('registerName').value;
-            const email = document.getElementById('registerEmail').value;
-            const password = document.getElementById('registerPassword').value;
-            const isCreator = document.getElementById('isCreator').checked;
-            
-            const success = await this.register(name, email, password, isCreator);
-            if (success) {
-                document.getElementById('registerModal').remove();
-            }
-        });
-
-        // 모달 외부 클릭 시 닫기
-        document.getElementById('registerModal').addEventListener('click', (e) => {
-            if (e.target.id === 'registerModal') {
-                document.getElementById('registerModal').remove();
-            }
-        });
-    }
-
-    removeExistingModal() {
-        const existingModal = document.querySelector('#loginModal, #registerModal');
-        if (existingModal) {
-            existingModal.remove();
-        }
-    }
-
-    // TL 잔액 업데이트
-    updateTLDisplay() {
-        if (this.currentUser) {
-            const balanceElements = document.querySelectorAll('#balanceAmount, .mobile-tl-balance span');
-            balanceElements.forEach(element => {
-                element.textContent = `${this.currentUser.balance.toLocaleString()} TL`;
-            });
-        }
-    }
-
-    // 테스트 계정 생성
-    createTestAccount() {
-        const testUser = {
-            id: 999,
-            name: '테스트 사용자',
-            email: 'test@example.com',
-            balance: 10000,
-            isCreator: true,
-            joinDate: '2024-01-01'
-        };
         
-        this.saveUserToStorage(testUser);
-        this.renderAuthButtons();
-        console.log('테스트 계정 생성 완료:', testUser);
+        if (this.isAuthenticated()) {
+            // 로그인 상태
+            const tlBalance = this.getBalance().toLocaleString();
+            
+            authButtons.innerHTML = `
+                <div class="user-menu">
+                    <div class="user-tl-balance">
+                        <i class="fas fa-coins"></i>
+                        <span>${tlBalance} TL</span>
+                    </div>
+                    <div class="user-info">
+                        <div class="user-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <span class="user-name">${this.user.name || this.user.email}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="dropdown-menu">
+                        <a href="dashboard.html" class="dropdown-item">
+                            <i class="fas fa-tachometer-alt"></i> 대시보드
+                        </a>
+                        <a href="my-music.html" class="dropdown-item">
+                            <i class="fas fa-music"></i> 내 음원
+                        </a>
+                        <a href="my-cafe.html" class="dropdown-item">
+                            <i class="fas fa-store"></i> 내 카페
+                        </a>
+                        <a href="wallet.html" class="dropdown-item">
+                            <i class="fas fa-wallet"></i> TL 지갑
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="profile.html" class="dropdown-item">
+                            <i class="fas fa-user-cog"></i> 프로필 설정
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item logout-btn">
+                            <i class="fas fa-sign-out-alt"></i> 로그아웃
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            // 비로그인 상태
+            authButtons.innerHTML = `
+                <div class="auth-buttons">
+                    <button class="btn btn-outline" id="loginBtn">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>로그인</span>
+                    </button>
+                    <button class="btn btn-primary" id="signupBtn">
+                        <i class="fas fa-user-plus"></i>
+                        <span>회원가입</span>
+                    </button>
+                </div>
+            `;
+        }
+    }
+    
+    // 페이지별 UI 업데이트
+    updatePageUI() {
+        const currentPage = window.location.pathname.split('/').pop();
+        
+        // 대시보드 페이지
+        if (currentPage === 'dashboard.html' || currentPage.includes('dashboard')) {
+            this.updateDashboard();
+        }
+        
+        // 지갑 페이지
+        if (currentPage === 'wallet.html' || currentPage.includes('wallet')) {
+            this.updateWallet();
+        }
+    }
+    
+    // 대시보드 업데이트
+    updateDashboard() {
+        if (!this.isAuthenticated()) return;
+        
+        const tlBalance = this.getBalance().toLocaleString();
+        const welcomeElement = document.getElementById('welcomeMessage');
+        const balanceElement = document.getElementById('dashboardBalance');
+        
+        if (welcomeElement) {
+            welcomeElement.textContent = `${this.user.name}님, 환영합니다!`;
+        }
+        
+        if (balanceElement) {
+            balanceElement.textContent = `${tlBalance} TL`;
+        }
+    }
+    
+    // 지갑 페이지 업데이트
+    updateWallet() {
+        if (!this.isAuthenticated()) return;
+        
+        const balanceElement = document.getElementById('walletBalance');
+        const transactionsElement = document.getElementById('walletTransactions');
+        
+        if (balanceElement) {
+            balanceElement.textContent = this.getBalance().toLocaleString();
+        }
+        
+        if (transactionsElement) {
+            // 거래 내역 표시
+            this.displayTransactionHistory(transactionsElement);
+        }
+    }
+    
+    // 거래 내역 표시
+    displayTransactionHistory(container) {
+        const transactions = this.getTransactionHistory();
+        
+        if (transactions.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-wallet"></i>
+                    <p>아직 거래 내역이 없습니다.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        transactions.forEach(transaction => {
+            const amountClass = transaction.amount >= 0 ? 'positive' : 'negative';
+            const sign = transaction.amount >= 0 ? '+' : '';
+            
+            html += `
+                <div class="transaction-item">
+                    <div class="transaction-info">
+                        <div class="transaction-type">${transaction.type}</div>
+                        <div class="transaction-date">${transaction.date}</div>
+                    </div>
+                    <div class="transaction-amount ${amountClass}">
+                        ${sign}${transaction.amount.toLocaleString()} TL
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    }
+    
+    // 거래 내역 조회
+    getTransactionHistory() {
+        const history = localStorage.getItem('timelink_transactions');
+        return history ? JSON.parse(history) : [
+            {
+                type: '회원가입 보너스',
+                amount: 10000,
+                date: new Date().toLocaleDateString('ko-KR'),
+                description: '신규 회원가입 보너스'
+            }
+        ];
+    }
+    
+    // 거래 내역 추가
+    addTransaction(type, amount, description = '') {
+        const transactions = this.getTransactionHistory();
+        
+        transactions.unshift({
+            type: type,
+            amount: amount,
+            date: new Date().toLocaleDateString('ko-KR'),
+            description: description,
+            timestamp: Date.now()
+        });
+        
+        // 최근 50개만 저장
+        if (transactions.length > 50) {
+            transactions.length = 50;
+        }
+        
+        localStorage.setItem('timelink_transactions', JSON.stringify(transactions));
+    }
+    
+    // 로그인 처리
+    async handleLogin(event) {
+        event.preventDefault();
+        
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        
+        if (!this.validateEmail(email)) {
+            this.showMessage('유효한 이메일 주소를 입력해주세요.', 'error');
+            return;
+        }
+        
+        if (!password) {
+            this.showMessage('비밀번호를 입력해주세요.', 'error');
+            return;
+        }
+        
+        // 로딩 표시
+        this.showLoading();
+        
+        try {
+            // API 호출 (시뮬레이션)
+            const response = await this.mockLoginAPI(email, password);
+            
+            if (response.success) {
+                // 인증 정보 저장
+                this.saveUserData(response.user);
+                this.saveToken(response.token);
+                
+                // 로그인 보너스 (첫 로그인 시에만)
+                if (!localStorage.getItem('timelink_login_bonus_given')) {
+                    this.updateBalance(10000);
+                    this.addTransaction('로그인 보너스', 10000, '첫 로그인 보너스');
+                    localStorage.setItem('timelink_login_bonus_given', 'true');
+                    this.showMessage('로그인 성공! 10,000 TL이 지급되었습니다.', 'success');
+                } else {
+                    this.showMessage('로그인 성공!', 'success');
+                }
+                
+                // 모달 닫기
+                this.closeAuthModal();
+                
+                // 페이지 새로고침
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+                
+            } else {
+                this.showMessage(response.message || '로그인에 실패했습니다.', 'error');
+            }
+            
+        } catch (error) {
+            console.error('로그인 오류:', error);
+            this.showMessage('로그인 중 오류가 발생했습니다.', 'error');
+            
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    // 회원가입 처리
+    async handleSignup(event) {
+        event.preventDefault();
+        
+        const name = document.getElementById('signupName').value;
+        const email = document.getElementById('signupEmail').value;
+        const password = document.getElementById('signupPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        
+        // 유효성 검사
+        if (!name || name.length < 2) {
+            this.showMessage('이름을 2자 이상 입력해주세요.', 'error');
+            return;
+        }
+        
+        if (!this.validateEmail(email)) {
+            this.showMessage('유효한 이메일 주소를 입력해주세요.', 'error');
+            return;
+        }
+        
+        if (!this.validatePassword(password)) {
+            this.showMessage('비밀번호는 8자 이상, 영문과 숫자를 포함해야 합니다.', 'error');
+            return;
+        }
+        
+        if (password !== confirmPassword) {
+            this.showMessage('비밀번호가 일치하지 않습니다.', 'error');
+            return;
+        }
+        
+        // 로딩 표시
+        this.showLoading();
+        
+        try {
+            // API 호출 (시뮬레이션)
+            const response = await this.mockSignupAPI(name, email, password);
+            
+            if (response.success) {
+                // 인증 정보 저장
+                this.saveUserData(response.user);
+                this.saveToken(response.token);
+                
+                // 회원가입 보너스 10,000 TL 지급
+                this.updateBalance(10000);
+                this.addTransaction('회원가입 보너스', 10000, '신규 회원가입 보너스');
+                
+                this.showMessage('회원가입 성공! 10,000 TL이 지급되었습니다.', 'success');
+                
+                // 모달 닫기
+                this.closeAuthModal();
+                
+                // 페이지 새로고침
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+                
+            } else {
+                this.showMessage(response.message || '회원가입에 실패했습니다.', 'error');
+            }
+            
+        } catch (error) {
+            console.error('회원가입 오류:', error);
+            this.showMessage('회원가입 중 오류가 발생했습니다.', 'error');
+            
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    // 로그아웃
+    logout() {
+        if (confirm('로그아웃 하시겠습니까?')) {
+            this.clearAuth();
+            this.showMessage('로그아웃되었습니다.', 'info');
+            
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    }
+    
+    // 인증 정보 초기화
+    clearAuth() {
+        this.user = null;
+        this.token = null;
+        
+        localStorage.removeItem(this.userKey);
+        localStorage.removeItem(this.tokenKey);
+        
+        // 잔액은 유지
+        // localStorage.removeItem(this.balanceKey);
+        
+        this.updateUI();
+    }
+    
+    // 인증 상태 확인
+    isAuthenticated() {
+        return !!this.user && !!this.token;
+    }
+    
+    // 현재 사용자 정보
+    getCurrentUser() {
+        return this.user;
+    }
+    
+    // 인증 토큰
+    getToken() {
+        return this.token;
+    }
+    
+    // 모의 API 함수들
+    async mockLoginAPI(email, password) {
+        // 실제로는 서버와 통신
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // 테스트용 성공 응답
+        return {
+            success: true,
+            user: {
+                id: Date.now().toString(),
+                email: email,
+                name: email.split('@')[0],
+                role: 'user',
+                createdAt: new Date().toISOString()
+            },
+            token: 'mock_jwt_token_' + Date.now(),
+            message: '로그인 성공'
+        };
+    }
+    
+    async mockSignupAPI(name, email, password) {
+        // 실제로는 서버와 통신
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // 테스트용 성공 응답
+        return {
+            success: true,
+            user: {
+                id: Date.now().toString(),
+                email: email,
+                name: name,
+                role: 'user',
+                createdAt: new Date().toISOString()
+            },
+            token: 'mock_jwt_token_' + Date.now(),
+            message: '회원가입 성공'
+        };
+    }
+    
+    // 유틸리티 함수들
+    validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+    
+    validatePassword(password) {
+        // 최소 8자, 영문+숫자 포함
+        const re = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/;
+        return re.test(password);
+    }
+    
+    showMessage(message, type = 'info') {
+        // common-component.js의 showToast 사용
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type);
+        } else {
+            alert(message);
+        }
+    }
+    
+    showLoading() {
+        if (typeof window.showLoading === 'function') {
+            window.showLoading();
+        }
+    }
+    
+    hideLoading() {
+        if (typeof window.hideLoading === 'function') {
+            window.hideLoading();
+        }
+    }
+    
+    closeAuthModal() {
+        const modal = document.querySelector('.auth-modal-overlay');
+        if (modal) {
+            modal.remove();
+        }
     }
 }
 
-// 전역 객체로 사용할 수 있도록 설정
+// 글로벌 인스턴스 생성
 window.timelinkAuth = new TimelinkAuth();
-
-// 페이지 로드 시 실행
-document.addEventListener('DOMContentLoaded', function() {
-    // 페이지별 추가 설정
-    if (window.location.pathname.includes('studio.html')) {
-        // 스튜디오 페이지에서만 실행할 코드
-        console.log('스튜디오 페이지 로드됨');
-    }
-    
-    // 테스트 계정 자동 생성 (개발용)
-    if (!localStorage.getItem('timelink_user')) {
-        console.log('테스트 계정 자동 생성 중...');
-        window.timelinkAuth.createTestAccount();
-    }
-});
