@@ -331,90 +331,47 @@
         </section>
     </main>
 
-   <script>
-// 페이지 로드 시 사용자 정보 표시
+  <script>
+// 공통 헤더 버튼 이벤트 핸들러
 document.addEventListener('DOMContentLoaded', function() {
-    const user = getCurrentUser();
-    
-    if (user) {
-        // 로그인 상태일 때 환영 메시지 업데이트
-        const welcomeElement = document.querySelector('.hero-subtitle');
-        if (welcomeElement) {
-            welcomeElement.innerHTML = `${user.name}님, 환영합니다!<br>현재 보유 TL: <strong>${getTLBalance().toLocaleString()} TL</strong>`;
-        }
+    // authButtons 클릭 이벤트 핸들러
+    const authButtons = document.getElementById('authButtons');
+    if (authButtons) {
+        // 이벤트 위임 사용
+        authButtons.addEventListener('click', function(e) {
+            // 회원가입 버튼 클릭
+            if (e.target.closest('button') && e.target.closest('button').textContent.includes('회원가입')) {
+                e.preventDefault();
+                if (typeof window.timelinkAuth !== 'undefined' && window.timelinkAuth.showSignupModal) {
+                    window.timelinkAuth.showSignupModal();
+                } else {
+                    window.location.href = 'signup.html';
+                }
+            }
+            // 로그인 버튼 클릭
+            else if (e.target.closest('button') && e.target.closest('button').textContent.includes('로그인')) {
+                e.preventDefault();
+                if (typeof window.timelinkAuth !== 'undefined' && window.timelinkAuth.showLoginModal) {
+                    window.timelinkAuth.showLoginModal();
+                } else {
+                    window.location.href = 'login.html';
+                }
+            }
+        });
     }
     
-    // 회원가입 버튼 이벤트 핸들러 추가
-    const signupButtons = document.querySelectorAll('.signup-button');
-    signupButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            // timelinkAuth의 showSignupModal 호출
-            if (typeof window.timelinkAuth !== 'undefined') {
+    // 모든 회원가입 버튼에 이벤트 추가
+    document.querySelectorAll('.signup-button, .signup-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof window.timelinkAuth !== 'undefined' && window.timelinkAuth.showSignupModal) {
                 window.timelinkAuth.showSignupModal();
             } else {
-                // common-component.js가 아직 로드되지 않았다면 직접 모달 생성
-                showSimpleSignupModal();
+                window.location.href = 'signup.html';
             }
         });
     });
 });
-
-// 간단한 회원가입 모달 (fallback)
-function showSimpleSignupModal() {
-    if (confirm('회원가입 페이지로 이동하시겠습니까?')) {
-        window.location.href = 'signup.html';
-    }
-}
-
-// 데모 음원 구매 함수
-function buyDemoMusic() {
-    if (buyWithTL(1500, '데모 음원 패키지')) {
-        alert('데모 음원이 구매되었습니다! 스튜디오에서 확인하세요.');
-    }
-}
-
-// 무료 TL 테스트
-function testFreeTL() {
-    if (!isLoggedIn()) {
-        alert('로그인 후 이용해주세요!');
-        showLoginModal();
-        return;
-    }
-    
-    if (confirm('테스트로 500 TL을 받으시겠습니까?')) {
-        addTLBonus(500, '테스트 보너스');
-    }
-}
-
-// common-component.js가 로드되었는지 확인하는 함수
-function checkAuthLoaded() {
-    if (typeof window.timelinkAuth === 'undefined') {
-        console.log('timelinkAuth가 아직 로드되지 않았습니다.');
-        // 2초 후 다시 확인
-        setTimeout(checkAuthLoaded, 2000);
-    } else {
-        console.log('timelinkAuth 로드 완료');
-        // 헤더 버튼 이벤트 재설정
-        const authButtons = document.getElementById('authButtons');
-        if (authButtons) {
-            authButtons.addEventListener('click', function(e) {
-                if (e.target.closest('button')) {
-                    const button = e.target.closest('button');
-                    if (button.textContent.includes('회원가입')) {
-                        e.preventDefault();
-                        window.timelinkAuth.showSignupModal();
-                    } else if (button.textContent.includes('로그인')) {
-                        e.preventDefault();
-                        window.timelinkAuth.showLoginModal();
-                    }
-                }
-            });
-        }
-    }
-}
-
-// 페이지 로드 시 auth 시스템 체크
-checkAuthLoaded();
 </script>
 </body>
 </html>
