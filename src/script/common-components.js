@@ -5,44 +5,168 @@ class CommonComponents {
     }
 
     init() {
+        this.renderHeader();
         this.renderTLBalance();
         this.setupMobileMenu();
         this.setupEventListeners();
+        this.setupNavigation();
+    }
+
+    renderHeader() {
+        // 헤더가 이미 있는지 확인
+        if (document.querySelector('.main-header')) {
+            return;
+        }
+
+        const headerHTML = `
+            <header class="main-header">
+                <div class="header-content">
+                    <a href="index.html" class="logo">
+                        <div class="logo-icon">TL</div>
+                        <div class="logo-text">TIMELINK</div>
+                    </a>
+
+                    <nav class="main-nav">
+                        <a href="index.html" class="nav-link ${window.location.pathname.includes('index.html') || window.location.pathname.endsWith('/') ? 'active' : ''}">
+                            <i class="fas fa-home"></i> HOME
+                        </a>
+                        <a href="studio.html" class="nav-link ${window.location.pathname.includes('studio.html') ? 'active' : ''}">
+                            <i class="fas fa-sliders-h"></i> STUDIO
+                        </a>
+                        <a href="tlmusic.html" class="nav-link ${window.location.pathname.includes('tlmusic.html') ? 'active' : ''}">
+                            <i class="fas fa-music"></i> TLMUSIC
+                        </a>
+                        <a href="cafe-radio.html" class="nav-link ${window.location.pathname.includes('cafe-radio.html') ? 'active' : ''}">
+                            <i class="fas fa-broadcast-tower"></i> CAFE RADIO
+                        </a>
+                    </nav>
+
+                    <div id="authButtons"></div>
+                </div>
+            </header>
+        `;
+
+        // 헤더를 body 시작 부분에 삽입
+        document.body.insertAdjacentHTML('afterbegin', headerHTML);
+
+        // 헤더 스타일 추가
+        this.addHeaderStyles();
+    }
+
+    addHeaderStyles() {
+        const headerStyles = document.createElement('style');
+        headerStyles.textContent = `
+            /* 헤더 스타일 */
+            .main-header {
+                background: rgba(10, 15, 43, 0.95);
+                backdrop-filter: blur(10px);
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                position: fixed;
+                width: 100%;
+                top: 0;
+                z-index: 1000;
+                padding: 1rem 0;
+                height: 70px;
+            }
+
+            .header-content {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                max-width: 1400px;
+                margin: 0 auto;
+                padding: 0 2rem;
+            }
+
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                text-decoration: none;
+            }
+
+            .logo-icon {
+                width: 40px;
+                height: 40px;
+                background: linear-gradient(135deg, #FF6B00, #FFA500);
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: 'Orbitron', sans-serif;
+                font-weight: 700;
+                font-size: 1.2rem;
+                color: white;
+            }
+
+            .logo-text {
+                font-family: 'Orbitron', sans-serif;
+                font-size: 1.8rem;
+                font-weight: 700;
+                background: linear-gradient(135deg, #FF6B00, #FFA500);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+
+            .main-nav {
+                display: flex;
+                gap: 0.5rem;
+            }
+
+            .nav-link {
+                color: #94a3b8;
+                text-decoration: none;
+                font-weight: 500;
+                padding: 0.5rem 1rem;
+                border-radius: 8px;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+
+            .nav-link:hover {
+                color: white;
+                background: rgba(255, 255, 255, 0.05);
+            }
+
+            .nav-link.active {
+                background: rgba(255, 107, 0, 0.1);
+                color: #FF6B00;
+            }
+
+            /* 반응형 */
+            @media (max-width: 768px) {
+                .main-nav {
+                    display: none !important;
+                }
+                
+                body {
+                    padding-top: 70px !important;
+                    padding-bottom: 60px !important; /* 모바일 네비게이션 높이 */
+                }
+                
+                .main-content {
+                    padding: 20px 0 40px !important;
+                }
+            }
+        `;
+        document.head.appendChild(headerStyles);
+
+        // body에 패딩 추가
+        document.body.style.paddingTop = '70px';
     }
 
     renderTLBalance() {
         // 모든 페이지에서 TL 잔액 표시를 위한 공통 함수
         const user = JSON.parse(localStorage.getItem('timelink_user'));
         if (user && user.balance) {
-            // 헤더의 TL 잔액 업데이트
-            const balanceElements = document.querySelectorAll('#balanceAmount, .mobile-tl-balance span');
-            balanceElements.forEach(element => {
-                element.textContent = `${user.balance.toLocaleString()} TL`;
-            });
-
-            // 모바일 TL 잔액 추가 (없는 경우)
-            if (!document.querySelector('.mobile-tl-balance')) {
-                const mobileTLBalance = document.createElement('div');
-                mobileTLBalance.className = 'mobile-tl-balance';
-                mobileTLBalance.style.cssText = `
-                    display: none;
-                    position: fixed;
-                    bottom: 80px;
-                    right: 20px;
-                    background: linear-gradient(135deg, #FF6B00, #FFA500);
-                    color: white;
-                    padding: 0.5rem 1rem;
-                    border-radius: 50px;
-                    font-weight: 600;
-                    box-shadow: 0 4px 15px rgba(255, 107, 0, 0.3);
-                    z-index: 999;
-                `;
-                mobileTLBalance.innerHTML = `
-                    <i class="fas fa-coins"></i>
-                    <span>${user.balance.toLocaleString()} TL</span>
-                `;
-                document.body.appendChild(mobileTLBalance);
-            }
+            // TL 잔액 업데이트 (authButtons가 이미 있을 경우)
+            setTimeout(() => {
+                if (window.timelinkAuth) {
+                    window.timelinkAuth.renderAuthButtons();
+                }
+            }, 100);
         }
     }
 
@@ -93,7 +217,8 @@ class CommonComponents {
         ];
 
         pages.forEach(page => {
-            const isActive = window.location.pathname.includes(page.link.replace('.html', ''));
+            const isActive = window.location.pathname.includes(page.link.replace('.html', '')) || 
+                           (page.link === 'index.html' && window.location.pathname.endsWith('/'));
             const navItem = document.createElement('a');
             navItem.href = page.link;
             navItem.style.cssText = `
@@ -124,15 +249,18 @@ class CommonComponents {
         });
 
         document.body.appendChild(mobileNav);
+    }
 
-        // 모바일 TL 잔액 표시
-        const user = JSON.parse(localStorage.getItem('timelink_user'));
-        if (user && user.balance) {
-            const mobileTLBalance = document.querySelector('.mobile-tl-balance');
-            if (mobileTLBalance) {
-                mobileTLBalance.style.display = 'block';
+    setupNavigation() {
+        // 네비게이션 링크 클릭 이벤트
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.nav-link')) {
+                const navLink = e.target.closest('.nav-link');
+                const allNavLinks = document.querySelectorAll('.nav-link');
+                allNavLinks.forEach(link => link.classList.remove('active'));
+                navLink.classList.add('active');
             }
-        }
+        });
     }
 
     setupEventListeners() {
@@ -267,7 +395,6 @@ class CommonComponents {
                 return;
             }
 
-            // 더미 충전 처리
             if (confirm(`${amount.toLocaleString()} TL을 충전하시겠습니까?\n₩${(amount / 10).toLocaleString()}이 결제됩니다.`)) {
                 user.balance += amount;
                 localStorage.setItem('timelink_user', JSON.stringify(user));
@@ -326,17 +453,6 @@ commonStyles.textContent = `
         color: #FF6B00;
     }
     
-    /* 모바일 네비게이션 */
-    @media (max-width: 768px) {
-        .main-nav {
-            display: none !important;
-        }
-        
-        body {
-            padding-bottom: 60px; /* 모바일 네비게이션 높이 */
-        }
-    }
-    
     @media (min-width: 769px) {
         .mobile-nav,
         .mobile-tl-balance {
@@ -358,6 +474,25 @@ commonStyles.textContent = `
     
     .mobile-nav {
         animation: slideInUp 0.3s ease-out;
+    }
+    
+    /* 기본 스타일 */
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #0F172A;
+        color: white;
+        line-height: 1.6;
+        min-height: 100vh;
+    }
+    
+    .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 2rem;
+    }
+    
+    .main-content {
+        padding: 40px 0 60px;
     }
 `;
 document.head.appendChild(commonStyles);
