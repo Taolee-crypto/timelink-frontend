@@ -469,82 +469,17 @@
 
         <!-- 음악 그리드 -->
         <div class="music-grid" id="musicGrid">
-            <!-- 샘플 음악 카드 -->
-            <div class="music-card" data-id="1">
-                <div class="music-cover">
-                    <i class="fas fa-music"></i>
-                    <div class="play-overlay">
-                        <div class="play-btn">
-                            <i class="fas fa-play"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="music-info">
-                    <div class="music-title">Sunset Dreams</div>
-                    <div class="music-artist">Indie Artist</div>
-                    <div class="music-meta">
-                        <span><i class="fas fa-clock"></i> 3:45</span>
-                        <span class="tl-price">100 TL</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="music-card" data-id="2">
-                <div class="music-cover">
-                    <i class="fas fa-music"></i>
-                    <div class="play-overlay">
-                        <div class="play-btn">
-                            <i class="fas fa-play"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="music-info">
-                    <div class="music-title">Midnight Jazz</div>
-                    <div class="music-artist">Jazz Collective</div>
-                    <div class="music-meta">
-                        <span><i class="fas fa-clock"></i> 4:20</span>
-                        <span class="tl-price">150 TL</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="music-card" data-id="3">
-                <div class="music-cover">
-                    <i class="fas fa-music"></i>
-                    <div class="play-overlay">
-                        <div class="play-btn">
-                            <i class="fas fa-play"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="music-info">
-                    <div class="music-title">Electronic Waves</div>
-                    <div class="music-artist">EDM Producer</div>
-                    <div class="music-meta">
-                        <span><i class="fas fa-clock"></i> 3:10</span>
-                        <span class="tl-price">120 TL</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="music-card" data-id="4">
-                <div class="music-cover">
-                    <i class="fas fa-music"></i>
-                    <div class="play-overlay">
-                        <div class="play-btn">
-                            <i class="fas fa-play"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="music-info">
-                    <div class="music-title">Acoustic Soul</div>
-                    <div class="music-artist">Singer Songwriter</div>
-                    <div class="music-meta">
-                        <span><i class="fas fa-clock"></i> 4:05</span>
-                        <span class="tl-price">90 TL</span>
-                    </div>
-                </div>
-            </div>
+            <!-- 음악 카드들이 여기에 동적으로 로드됩니다 -->
+        </div>
+        
+        <!-- 음악이 없을 때 -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <i class="fas fa-music"></i>
+            <h3>아직 음악이 없습니다</h3>
+            <p>STUDIO에서 음악을 업로드하면 여기에 표시됩니다.</p>
+            <a href="studio.html" class="btn" style="background: #FF6B00; color: white; padding: 0.75rem 1.5rem; border-radius: 10px; text-decoration: none; margin-top: 1rem; display: inline-block;">
+                <i class="fas fa-upload"></i> 음악 업로드하기
+            </a>
         </div>
     </main>
 
@@ -562,13 +497,13 @@
             </div>
 
             <div class="player-controls">
-                <button class="control-btn">
+                <button class="control-btn" id="prevBtn">
                     <i class="fas fa-step-backward"></i>
                 </button>
                 <button class="control-btn play" id="playPauseBtn">
                     <i class="fas fa-play"></i>
                 </button>
-                <button class="control-btn">
+                <button class="control-btn" id="nextBtn">
                     <i class="fas fa-step-forward"></i>
                 </button>
             </div>
@@ -585,65 +520,488 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="./src/script/timelink-auth.js"></script>
+    <script src="./src/script/common-components.js"></script>
     <script>
-        // 음악 재생
-        let isPlaying = false;
-        let currentMusic = null;
+        // TLMUSIC 데이터 관리
+        const TLMUSIC_DATA = {
+            musicList: [],
+            currentTrack: null,
+            isPlaying: false,
+            currentTime: 0,
+            totalTime: 0,
+            progressInterval: null,
+            currentTrackIndex: -1
+        };
 
-        document.querySelectorAll('.music-card').forEach(card => {
-            card.addEventListener('click', function() {
-                const player = document.getElementById('musicPlayer');
-                const title = this.querySelector('.music-title').textContent;
-                const artist = this.querySelector('.music-artist').textContent;
-                
-                document.getElementById('playerTitle').textContent = title;
-                document.getElementById('playerArtist').textContent = artist;
-                
-                player.classList.add('active');
-                currentMusic = this.dataset.id;
-                
-                // 자동 재생
-                playMusic();
-            });
+        // 페이지 로드 시 실행
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('TLMUSIC 페이지 로드됨');
+            
+            // 음악 데이터 로드
+            loadMusicData();
+            
+            // UI 초기화
+            initUI();
+            
+            // 플레이어 컨트롤 설정
+            setupPlayerControls();
+            
+            // 필터 버튼 설정
+            setupFilterButtons();
+            
+            // 검색 기능 설정
+            setupSearch();
         });
 
-        // 재생/일시정지
-        document.getElementById('playPauseBtn').addEventListener('click', function() {
-            if (isPlaying) {
-                pauseMusic();
+        // 음악 데이터 로드
+        function loadMusicData() {
+            // localStorage에서 음악 데이터 로드
+            const savedMusic = localStorage.getItem('tlmusic_library');
+            
+            if (savedMusic) {
+                TLMUSIC_DATA.musicList = JSON.parse(savedMusic);
+                console.log('음악 데이터 로드됨:', TLMUSIC_DATA.musicList.length + '개');
             } else {
-                playMusic();
+                // 샘플 데이터
+                TLMUSIC_DATA.musicList = [
+                    {
+                        id: 1,
+                        title: "Sunset Dreams",
+                        artist: "Indie Artist",
+                        genre: "인디 팝",
+                        duration: 225, // 3:45
+                        tlPrice: 100,
+                        plays: 1245,
+                        likes: 89,
+                        uploader: "artist@example.com",
+                        uploadDate: "2024-01-15"
+                    },
+                    {
+                        id: 2,
+                        title: "Midnight Jazz",
+                        artist: "Jazz Collective",
+                        genre: "재즈",
+                        duration: 260, // 4:20
+                        tlPrice: 150,
+                        plays: 987,
+                        likes: 67,
+                        uploader: "jazz@example.com",
+                        uploadDate: "2024-01-20"
+                    },
+                    {
+                        id: 3,
+                        title: "Electronic Waves",
+                        artist: "EDM Producer",
+                        genre: "일렉트로닉",
+                        duration: 190, // 3:10
+                        tlPrice: 120,
+                        plays: 2156,
+                        likes: 145,
+                        uploader: "edm@example.com",
+                        uploadDate: "2024-01-25"
+                    },
+                    {
+                        id: 4,
+                        title: "Acoustic Soul",
+                        artist: "Singer Songwriter",
+                        genre: "어쿠스틱",
+                        duration: 245, // 4:05
+                        tlPrice: 90,
+                        plays: 876,
+                        likes: 54,
+                        uploader: "acoustic@example.com",
+                        uploadDate: "2024-01-30"
+                    }
+                ];
+                
+                localStorage.setItem('tlmusic_library', JSON.stringify(TLMUSIC_DATA.musicList));
+                console.log('샘플 데이터 생성됨');
+            }
+            
+            // 음악 그리드 렌더링
+            renderMusicGrid();
+        }
+
+        // UI 초기화
+        function initUI() {
+            // 빈 상태 체크
+            if (TLMUSIC_DATA.musicList.length === 0) {
+                document.getElementById('emptyState').style.display = 'block';
+            }
+        }
+
+        // 음악 그리드 렌더링
+        function renderMusicGrid() {
+            const musicGrid = document.getElementById('musicGrid');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (TLMUSIC_DATA.musicList.length === 0) {
+                musicGrid.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            
+            musicGrid.innerHTML = TLMUSIC_DATA.musicList.map(music => `
+                <div class="music-card" data-id="${music.id}">
+                    <div class="music-cover">
+                        <i class="fas fa-music"></i>
+                        <div class="play-overlay">
+                            <div class="play-btn">
+                                <i class="fas fa-play"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="music-info">
+                        <div class="music-title">${music.title}</div>
+                        <div class="music-artist">${music.artist}</div>
+                        <div class="music-meta">
+                            <span><i class="fas fa-clock"></i> ${formatTime(music.duration)}</span>
+                            <span class="tl-price">${music.tlPrice} TL</span>
+                        </div>
+                        <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.5rem;">
+                            <i class="fas fa-play-circle"></i> ${music.plays}회 재생
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            // 음악 카드 클릭 이벤트
+            document.querySelectorAll('.music-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    const musicId = parseInt(this.dataset.id);
+                    playMusic(musicId);
+                });
+            });
+        }
+
+        // 플레이어 컨트롤 설정
+        function setupPlayerControls() {
+            const playPauseBtn = document.getElementById('playPauseBtn');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const progressBar = document.getElementById('progressBar');
+            
+            // 재생/일시정지
+            playPauseBtn.addEventListener('click', function() {
+                if (!TLMUSIC_DATA.currentTrack) return;
+                
+                if (TLMUSIC_DATA.isPlaying) {
+                    pauseMusic();
+                } else {
+                    playCurrentTrack();
+                }
+            });
+            
+            // 이전 트랙
+            prevBtn.addEventListener('click', function() {
+                if (TLMUSIC_DATA.musicList.length === 0) return;
+                
+                if (TLMUSIC_DATA.currentTrackIndex === -1) return;
+                
+                TLMUSIC_DATA.currentTrackIndex--;
+                if (TLMUSIC_DATA.currentTrackIndex < 0) {
+                    TLMUSIC_DATA.currentTrackIndex = TLMUSIC_DATA.musicList.length - 1;
+                }
+                
+                const prevMusic = TLMUSIC_DATA.musicList[TLMUSIC_DATA.currentTrackIndex];
+                playMusic(prevMusic.id);
+            });
+            
+            // 다음 트랙
+            nextBtn.addEventListener('click', function() {
+                if (TLMUSIC_DATA.musicList.length === 0) return;
+                
+                if (TLMUSIC_DATA.currentTrackIndex === -1) return;
+                
+                TLMUSIC_DATA.currentTrackIndex = (TLMUSIC_DATA.currentTrackIndex + 1) % TLMUSIC_DATA.musicList.length;
+                const nextMusic = TLMUSIC_DATA.musicList[TLMUSIC_DATA.currentTrackIndex];
+                playMusic(nextMusic.id);
+            });
+            
+            // 진행바 클릭
+            progressBar.addEventListener('click', function(e) {
+                if (!TLMUSIC_DATA.currentTrack || !TLMUSIC_DATA.isPlaying) return;
+                
+                const rect = this.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const width = rect.width;
+                const percentage = clickX / width;
+                
+                // 재생 위치 변경
+                TLMUSIC_DATA.currentTime = percentage * TLMUSIC_DATA.totalTime;
+                updateProgressBar();
+            });
+        }
+
+        // 필터 버튼 설정
+        function setupFilterButtons() {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // 모든 버튼에서 active 클래스 제거
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    
+                    // 클릭한 버튼에 active 클래스 추가
+                    this.classList.add('active');
+                    
+                    const filter = this.dataset.filter;
+                    filterMusic(filter);
+                });
+            });
+        }
+
+        // 검색 기능 설정
+        function setupSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchBtn = document.getElementById('searchBtn');
+            
+            // 검색 버튼 클릭
+            searchBtn.addEventListener('click', function() {
+                const searchTerm = searchInput.value.trim();
+                if (searchTerm) {
+                    searchMusic(searchTerm);
+                }
+            });
+            
+            // 엔터 키로 검색
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const searchTerm = this.value.trim();
+                    if (searchTerm) {
+                        searchMusic(searchTerm);
+                    }
+                }
+            });
+        }
+
+        // 음악 필터링
+        function filterMusic(filter) {
+            let filteredMusic = [...TLMUSIC_DATA.musicList];
+            
+            switch(filter) {
+                case 'new':
+                    // 최신순 (업로드 날짜 기준)
+                    filteredMusic.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
+                    break;
+                case 'popular':
+                    // 인기순 (재생수 기준)
+                    filteredMusic.sort((a, b) => b.plays - a.plays);
+                    break;
+                case 'indie':
+                    // 인디 장르만
+                    filteredMusic = filteredMusic.filter(music => 
+                        music.genre.toLowerCase().includes('인디'));
+                    break;
+                // 'all'은 그대로
+            }
+            
+            // 필터링된 음악으로 그리드 업데이트
+            renderFilteredMusic(filteredMusic);
+        }
+
+        // 검색 기능
+        function searchMusic(searchTerm) {
+            const filteredMusic = TLMUSIC_DATA.musicList.filter(music => 
+                music.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                music.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                music.genre.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            
+            renderFilteredMusic(filteredMusic);
+            
+            // 검색 결과가 없을 때
+            const emptyState = document.getElementById('emptyState');
+            if (filteredMusic.length === 0) {
+                emptyState.style.display = 'block';
+                emptyState.innerHTML = `
+                    <i class="fas fa-search"></i>
+                    <h3>"${searchTerm}"에 대한 검색 결과가 없습니다</h3>
+                    <p>다른 검색어로 시도해보세요.</p>
+                `;
+            }
+        }
+
+        // 필터링된 음악 렌더링
+        function renderFilteredMusic(filteredMusic) {
+            const musicGrid = document.getElementById('musicGrid');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (filteredMusic.length === 0) {
+                musicGrid.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            
+            musicGrid.innerHTML = filteredMusic.map(music => `
+                <div class="music-card" data-id="${music.id}">
+                    <div class="music-cover">
+                        <i class="fas fa-music"></i>
+                        <div class="play-overlay">
+                            <div class="play-btn">
+                                <i class="fas fa-play"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="music-info">
+                        <div class="music-title">${music.title}</div>
+                        <div class="music-artist">${music.artist}</div>
+                        <div class="music-meta">
+                            <span><i class="fas fa-clock"></i> ${formatTime(music.duration)}</span>
+                            <span class="tl-price">${music.tlPrice} TL</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            // 음악 카드 클릭 이벤트 재설정
+            document.querySelectorAll('.music-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    const musicId = parseInt(this.dataset.id);
+                    playMusic(musicId);
+                });
+            });
+        }
+
+        // 음악 재생
+        function playMusic(musicId) {
+            // 현재 재생 중인 음악 중지
+            if (TLMUSIC_DATA.isPlaying) {
+                pauseMusic();
+            }
+            
+            // 음악 찾기
+            const music = TLMUSIC_DATA.musicList.find(m => m.id === musicId);
+            if (!music) return;
+            
+            // 플레이어 표시
+            const player = document.getElementById('musicPlayer');
+            player.classList.add('active');
+            
+            // 현재 트랙 설정
+            TLMUSIC_DATA.currentTrack = music;
+            TLMUSIC_DATA.currentTrackIndex = TLMUSIC_DATA.musicList.findIndex(m => m.id === musicId);
+            
+            // UI 업데이트
+            document.getElementById('playerTitle').textContent = music.title;
+            document.getElementById('playerArtist').textContent = music.artist;
+            document.getElementById('totalTime').textContent = formatTime(music.duration);
+            document.getElementById('currentTime').textContent = '0:00';
+            document.getElementById('progressFill').style.width = '0%';
+            
+            // TL 차감 (사용자 인증 체크)
+            const user = JSON.parse(localStorage.getItem('timelink_user'));
+            if (user && user.balance >= music.tlPrice) {
+                // TL 차감
+                user.balance -= music.tlPrice;
+                localStorage.setItem('timelink_user', JSON.stringify(user));
+                
+                // TL 잔액 업데이트
+                if (window.timelinkAuth) {
+                    window.timelinkAuth.renderAuthButtons();
+                }
+                
+                // 재생 수 증가
+                music.plays++;
+                localStorage.setItem('tlmusic_library', JSON.stringify(TLMUSIC_DATA.musicList));
+                
+                // 재생 시작
+                TLMUSIC_DATA.totalTime = music.duration;
+                TLMUSIC_DATA.currentTime = 0;
+                TLMUSIC_DATA.isPlaying = true;
+                
+                document.getElementById('playPauseBtn').querySelector('i').className = 'fas fa-pause';
+                
+                // 프로그레스 바 업데이트 시작
+                startProgressUpdate();
+                
+                console.log(`${music.title} 재생 시작, ${music.tlPrice} TL 차감`);
+            } else {
+                alert('TL이 부족합니다. TL을 충전해주세요.');
+                if (window.commonComponents) {
+                    window.commonComponents.showChargeModal();
+                }
+            }
+        }
+
+        // 현재 트랙 재생
+        function playCurrentTrack() {
+            if (!TLMUSIC_DATA.currentTrack) return;
+            
+            TLMUSIC_DATA.isPlaying = true;
+            document.getElementById('playPauseBtn').querySelector('i').className = 'fas fa-pause';
+            
+            // 프로그레스 바 업데이트 시작
+            startProgressUpdate();
+        }
+
+        // 음악 일시정지
+        function pauseMusic() {
+            TLMUSIC_DATA.isPlaying = false;
+            document.getElementById('playPauseBtn').querySelector('i').className = 'fas fa-play';
+            
+            // 프로그레스 바 업데이트 중지
+            clearInterval(TLMUSIC_DATA.progressInterval);
+        }
+
+        // 프로그레스 바 업데이트 시작
+        function startProgressUpdate() {
+            clearInterval(TLMUSIC_DATA.progressInterval);
+            
+            TLMUSIC_DATA.progressInterval = setInterval(() => {
+                if (TLMUSIC_DATA.isPlaying && TLMUSIC_DATA.currentTime < TLMUSIC_DATA.totalTime) {
+                    TLMUSIC_DATA.currentTime++;
+                    updateProgressBar();
+                    
+                    // 재생이 끝나면 다음 트랙으로
+                    if (TLMUSIC_DATA.currentTime >= TLMUSIC_DATA.totalTime) {
+                        clearInterval(TLMUSIC_DATA.progressInterval);
+                        playNextTrack();
+                    }
+                }
+            }, 1000); // 1초마다 업데이트
+        }
+
+        // 프로그레스 바 업데이트
+        function updateProgressBar() {
+            const progressPercentage = (TLMUSIC_DATA.currentTime / TLMUSIC_DATA.totalTime) * 100;
+            document.getElementById('progressFill').style.width = `${progressPercentage}%`;
+            document.getElementById('currentTime').textContent = formatTime(TLMUSIC_DATA.currentTime);
+        }
+
+        // 다음 트랙 재생
+        function playNextTrack() {
+            if (TLMUSIC_DATA.musicList.length === 0) return;
+            
+            TLMUSIC_DATA.currentTrackIndex = (TLMUSIC_DATA.currentTrackIndex + 1) % TLMUSIC_DATA.musicList.length;
+            const nextMusic = TLMUSIC_DATA.musicList[TLMUSIC_DATA.currentTrackIndex];
+            
+            // 1초 후 다음 트랙 재생
+            setTimeout(() => {
+                playMusic(nextMusic.id);
+            }, 1000);
+        }
+
+        // 시간 포맷 (초 → 분:초)
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // STUDIO에서 음원이 업로드되면 자동으로 반영
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'tlmusic_library') {
+                console.log('음원 업데이트 감지');
+                loadMusicData();
             }
         });
 
-        function playMusic() {
-            isPlaying = true;
-            document.querySelector('#playPauseBtn i').className = 'fas fa-pause';
-            
-            // TL 차감 시뮬레이션
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += 1;
-                document.getElementById('progressFill').style.width = progress + '%';
-                
-                if (progress >= 100) {
-                    clearInterval(interval);
-                    pauseMusic();
-                }
-            }, 100);
-        }
-
-        function pauseMusic() {
-            isPlaying = false;
-            document.querySelector('#playPauseBtn i').className = 'fas fa-play';
-        }
-
-        // 필터 버튼
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-            });
+        // 페이지 포커스 시 데이터 새로고침
+        window.addEventListener('focus', function() {
+            loadMusicData();
         });
     </script>
 </body>
