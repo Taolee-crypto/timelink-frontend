@@ -506,161 +506,47 @@
         </div>
     </main>
 
-    <script>
-        // 페이지 로드 시
-        document.addEventListener('DOMContentLoaded', function() {
-            updateStudioBalance();
-            loadMyMusic();
-            
-            // 비용 계산
-            document.getElementById('musicLength').addEventListener('change', function() {
-                const prices = {60: 500, 120: 1000, 180: 1500, 240: 2000, 300: 2500};
-                document.getElementById('estimatedCost').textContent = prices[this.value];
-            });
+   <script>
+// 공통 헤더 버튼 이벤트 핸들러
+document.addEventListener('DOMContentLoaded', function() {
+    // authButtons 클릭 이벤트 핸들러
+    const authButtons = document.getElementById('authButtons');
+    if (authButtons) {
+        // 이벤트 위임 사용
+        authButtons.addEventListener('click', function(e) {
+            // 회원가입 버튼 클릭
+            if (e.target.closest('button') && e.target.closest('button').textContent.includes('회원가입')) {
+                e.preventDefault();
+                if (typeof window.timelinkAuth !== 'undefined' && window.timelinkAuth.showSignupModal) {
+                    window.timelinkAuth.showSignupModal();
+                } else {
+                    window.location.href = 'signup.html';
+                }
+            }
+            // 로그인 버튼 클릭
+            else if (e.target.closest('button') && e.target.closest('button').textContent.includes('로그인')) {
+                e.preventDefault();
+                if (typeof window.timelinkAuth !== 'undefined' && window.timelinkAuth.showLoginModal) {
+                    window.timelinkAuth.showLoginModal();
+                } else {
+                    window.location.href = 'login.html';
+                }
+            }
         });
-        
-        function updateStudioBalance() {
-            const balance = getTLBalance();
-            document.getElementById('studioBalance').textContent = balance.toLocaleString() + ' TL';
-        }
-        
-        // 음원 생성 함수들
-        function createBasicMusic() {
-            if (buyWithTL(1000, '베이직 음원 생성')) {
-                simulateMusicCreation('베이직 음원', 1000);
-                updateStudioBalance();
+    }
+    
+    // 모든 회원가입 버튼에 이벤트 추가
+    document.querySelectorAll('.signup-button, .signup-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof window.timelinkAuth !== 'undefined' && window.timelinkAuth.showSignupModal) {
+                window.timelinkAuth.showSignupModal();
+            } else {
+                window.location.href = 'signup.html';
             }
-        }
-        
-        function createProMusic() {
-            if (buyWithTL(3000, '프로페셔널 음원 생성')) {
-                simulateMusicCreation('프로페셔널 음원', 3000);
-                updateStudioBalance();
-            }
-        }
-        
-        function createPremiumMusic() {
-            if (buyWithTL(5000, '프리미엄 음원 생성')) {
-                simulateMusicCreation('프리미엄 음원', 5000);
-                updateStudioBalance();
-            }
-        }
-        
-        function createCustomMusic() {
-            const title = document.getElementById('musicTitle').value;
-            const genre = document.getElementById('musicGenre').value;
-            const mood = document.getElementById('musicMood').value;
-            const length = document.getElementById('musicLength').value;
-            const request = document.getElementById('musicRequest').value;
-            
-            if (!title) {
-                alert('음원 제목을 입력해주세요.');
-                return;
-            }
-            
-            const prices = {60: 500, 120: 1000, 180: 1500, 240: 2000, 300: 2500};
-            const cost = prices[length];
-            
-            if (buyWithTL(cost, '커스텀 음원: ' + title)) {
-                simulateMusicCreation(title, cost, {genre, mood, length, request});
-                updateStudioBalance();
-                
-                // 폼 초기화
-                document.getElementById('musicTitle').value = '';
-                document.getElementById('musicRequest').value = '';
-            }
-        }
-        
-        // 음원 생성 시뮬레이션
-        function simulateMusicCreation(title, cost, options = {}) {
-            const user = getCurrentUser();
-            if (!user) return;
-            
-            // 음원 데이터 생성
-            const musicId = Date.now();
-            const musicData = {
-                id: musicId,
-                title: title,
-                cost: cost,
-                created: new Date().toLocaleString('ko-KR'),
-                status: '생성 중...',
-                genre: options.genre || 'pop',
-                mood: options.mood || 'happy',
-                length: options.length || '120'
-            };
-            
-            // 로컬스토리지에 저장
-            let myMusic = JSON.parse(localStorage.getItem('timelink_my_music') || '[]');
-            myMusic.push(musicData);
-            localStorage.setItem('timelink_my_music', JSON.stringify(myMusic));
-            
-            // 시뮬레이션
-            alert(`🎵 "${title}" 음원 생성이 시작되었습니다!\nAI가 음원을 만들고 있어요. 잠시만 기다려주세요.`);
-            
-            setTimeout(() => {
-                musicData.status = '생성 완료';
-                musicData.downloadUrl = '#' + musicId;
-                localStorage.setItem('timelink_my_music', JSON.stringify(myMusic));
-                loadMyMusic();
-                alert(`🎉 "${title}" 음원 생성이 완료되었습니다!\n내 음원 목록에서 확인하세요.`);
-            }, 3000);
-        }
-        
-        // 내 음원 목록 로드
-        function loadMyMusic() {
-            const container = document.getElementById('myMusicList');
-            const myMusic = JSON.parse(localStorage.getItem('timelink_my_music') || '[]');
-            
-            if (myMusic.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #94a3b8;">아직 생성한 음원이 없습니다.</p>';
-                return;
-            }
-            
-            let html = '';
-            myMusic.forEach(music => {
-                html += `
-                    <div class="music-item">
-                        <h4>${music.title}</h4>
-                        <div class="music-meta">
-                            <div>생성일: ${music.created}</div>
-                            <div>장르: ${getGenreName(music.genre)}</div>
-                            <div>비용: ${music.cost.toLocaleString()} TL</div>
-                            <div>상태: ${music.status}</div>
-                        </div>
-                        <div class="music-actions">
-                            <button class="action-btn" onclick="downloadMusic('${music.id}')">
-                                <i class="fas fa-download"></i> 다운로드
-                            </button>
-                            <button class="action-btn" onclick="sellMusic('${music.id}')">
-                                <i class="fas fa-store"></i> 판매하기
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            container.innerHTML = html;
-        }
-        
-        function getGenreName(code) {
-            const genres = {
-                pop: '팝', rock: '락', hiphop: '힙합',
-                electronic: '일렉트로닉', jazz: '재즈', classical: '클래식'
-            };
-            return genres[code] || code;
-        }
-        
-        function downloadMusic(musicId) {
-            alert('음원 다운로드가 시작됩니다!');
-            // 실제 구현: 서버에서 음원 다운로드
-        }
-        
-        function sellMusic(musicId) {
-            if (confirm('TL Music 마켓에 이 음원을 판매하시겠습니까?')) {
-                alert('음원이 마켓에 등록되었습니다!');
-                // 실제 구현: 마켓 등록 로직
-            }
-        }
-    </script>
+        });
+    });
+});
+</script>
 </body>
 </html>
