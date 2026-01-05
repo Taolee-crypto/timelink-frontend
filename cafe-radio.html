@@ -590,352 +590,47 @@
         </div>
     </div>
 
-    <script>
-        // 카페 데이터
-        const sampleCafes = [
-            { id: 1, name: "Chill Vibes Cafe", owner: "DJ Luna", genre: "electronic", description: "편안한 일렉트로닉 음악과 함께하는 카페", listeners: 42, revenue: 12500, status: "online" },
-            { id: 2, name: "Jazz Lounge", owner: "Miles Davis", genre: "jazz", description: "클래식 재즈와 함께하는 고급스러운 공간", listeners: 28, revenue: 8900, status: "online" },
-            { id: 3, name: "Rock Arena", owner: "Guitar King", genre: "rock", description: "에너지 넘치는 락 음악의 성지", listeners: 65, revenue: 21000, status: "offline" },
-            { id: 4, name: "Hiphop Base", owner: "MC Flow", genre: "hiphop", description: "최신 힙합과 함께하는 도시적인 분위기", listeners: 38, revenue: 15400, status: "online" }
-        ];
-
-        // 페이지 로드 시
-        document.addEventListener('DOMContentLoaded', function() {
-            updateCafeDashboard();
-            loadMyCafes();
-            loadPopularCafes();
-            
-            // 음량 조절
-            document.getElementById('volumeSlider').addEventListener('input', function(e) {
-                updateVolume(e.target.value);
-            });
-        });
-
-        function updateCafeDashboard() {
-            const user = getCurrentUser();
-            const balance = getTLBalance();
-            
-            document.getElementById('cafeBalance').textContent = balance.toLocaleString() + ' TL';
-            
-            if (user) {
-                const myCafes = JSON.parse(localStorage.getItem('timelink_my_cafes') || '[]');
-                document.getElementById('cafeCount').textContent = myCafes.length + '개';
-                
-                // 수익 계산
-                let totalRevenue = 0;
-                let totalVisitors = 0;
-                
-                myCafes.forEach(cafe => {
-                    totalRevenue += cafe.revenue || 0;
-                    totalVisitors += cafe.visitors || 0;
-                });
-                
-                document.getElementById('totalRevenue').textContent = totalRevenue.toLocaleString() + ' TL';
-                document.getElementById('totalVisitors').textContent = totalVisitors.toLocaleString() + '명';
-            }
-        }
-
-        function loadMyCafes() {
-            const container = document.getElementById('myCafeList');
-            const myCafes = JSON.parse(localStorage.getItem('timelink_my_cafes') || '[]');
-            
-            if (myCafes.length === 0) {
-                container.innerHTML = `
-                    <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: #94a3b8;">
-                        <i class="fas fa-store" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                        <p>아직 운영중인 카페가 없습니다.</p>
-                        <p>새 카페를 만들어보세요!</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            let html = '';
-            myCafes.forEach(cafe => {
-                html += createCafeCard(cafe, true);
-            });
-            
-            container.innerHTML = html;
-        }
-
-        function loadPopularCafes() {
-            const container = document.getElementById('popularCafeList');
-            let html = '';
-            
-            sampleCafes.forEach(cafe => {
-                html += createCafeCard(cafe, false);
-            });
-            
-            container.innerHTML = html;
-        }
-
-        function createCafeCard(cafe, isMine) {
-            return `
-                <div class="cafe-card">
-                    <div class="cafe-banner">
-                        <div class="cafe-status ${cafe.status === 'offline' ? 'cafe-offline' : ''}">
-                            ${cafe.status === 'online' ? 'ON AIR' : 'OFFLINE'}
-                        </div>
-                        <div class="cafe-avatar">
-                            ${cafe.name.charAt(0)}
-                        </div>
-                    </div>
-                    <div class="cafe-info">
-                        <h3 class="cafe-name">${cafe.name}</h3>
-                        <p class="cafe-desc">${cafe.description}</p>
-                        <div class="cafe-meta">
-                            <span><i class="fas fa-user"></i> ${cafe.owner}</span>
-                            <span><i class="fas fa-headphones"></i> ${cafe.listeners}명</span>
-                        </div>
-                        <div class="cafe-actions">
-                            <button class="cafe-btn" onclick="enterCafe(${cafe.id})">
-                                <i class="fas fa-door-open"></i>
-                                입장하기
-                            </button>
-                            ${isMine ? `
-                                <button class="cafe-btn primary-btn" onclick="manageCafe(${cafe.id})">
-                                    <i class="fas fa-cog"></i>
-                                    관리
-                                </button>
-                            ` : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function getGenreName(code) {
-            const genres = {
-                pop: '팝', rock: '락', hiphop: '힙합',
-                electronic: '일렉트로닉', jazz: '재즈', classical: '클래식',
-                mixed: '믹스'
-            };
-            return genres[code] || code;
-        }
-
-        // 카페 생성 함수
-        function createNewCafe() {
-            if (!isLoggedIn()) {
-                alert('로그인이 필요합니다!');
-                showLoginModal();
-                return;
-            }
-            
-            const balance = getTLBalance();
-            if (balance < 5000) {
-                alert(`카페 생성에는 5,000 TL이 필요합니다.\n현재 잔액: ${balance.toLocaleString()} TL`);
-                return;
-            }
-            
-            document.getElementById('createCafeModal').style.display = 'flex';
-        }
-
-        function closeCreateModal() {
-            document.getElementById('createCafeModal').style.display = 'none';
-            document.getElementById('cafeName').value = '';
-            document.getElementById('cafeDescription').value = '';
-        }
-
-        function confirmCreateCafe() {
-            const name = document.getElementById('cafeName').value.trim();
-            const description = document.getElementById('cafeDescription').value.trim();
-            const genre = document.getElementById('cafeGenre').value;
-            
-            if (!name) {
-                alert('카페 이름을 입력해주세요.');
-                return;
-            }
-            
-            if (!description) {
-                alert('카페 설명을 입력해주세요.');
-                return;
-            }
-            
-            if (buyWithTL(5000, `카페 생성: ${name}`)) {
-                const user = getCurrentUser();
-                const newCafe = {
-                    id: Date.now(),
-                    name: name,
-                    owner: user.name,
-                    genre: genre,
-                    description: description,
-                    created: new Date().toLocaleDateString('ko-KR'),
-                    status: 'online',
-                    listeners: 0,
-                    revenue: 0,
-                    visitors: 0,
-                    musicList: []
-                };
-                
-                // 저장
-                let myCafes = JSON.parse(localStorage.getItem('timelink_my_cafes') || '[]');
-                myCafes.push(newCafe);
-                localStorage.setItem('timelink_my_cafes', JSON.stringify(myCafes));
-                
-                // UI 업데이트
-                updateCafeDashboard();
-                loadMyCafes();
-                closeCreateModal();
-                
-                alert(`🎉 "${name}" 카페가 오픈되었습니다!\n이제 음악을 추가하고 방송을 시작해보세요.`);
-            }
-        }
-
-        // 카페 입장 함수
-        function enterCafe(cafeId) {
-            if (!isLoggedIn()) {
-                alert('로그인이 필요합니다!');
-                showLoginModal();
-                return;
-            }
-            
-            // 카페 정보 찾기
-            let cafes = JSON.parse(localStorage.getItem('timelink_my_cafes') || '[]');
-            let cafe = cafes.find(c => c.id === cafeId);
-            
-            if (!cafe) {
-                cafe = sampleCafes.find(c => c.id === cafeId);
-            }
-            
-            if (!cafe) {
-                alert('카페를 찾을 수 없습니다.');
-                return;
-            }
-            
-            if (cafe.status === 'offline') {
-                alert('현재 방송중이 아닙니다.');
-                return;
-            }
-            
-            // 플레이어 표시
-            document.getElementById('radioPlayer').style.display = 'block';
-            document.getElementById('chatSection').style.display = 'block';
-            
-            // 현재 재생 정보 설정
-            document.getElementById('currentTrack').textContent = 'Chill Vibes Mix';
-            document.getElementById('currentArtist').textContent = 'Various Artists';
-            document.getElementById('currentCafe').textContent = cafe.name;
-            
-            // 카페 방문자 증가
-            if (cafes.some(c => c.id === cafeId)) {
-                cafes = cafes.map(c => {
-                    if (c.id === cafeId) {
-                        return { ...c, visitors: (c.visitors || 0) + 1 };
-                    }
-                    return c;
-                });
-                localStorage.setItem('timelink_my_cafes', JSON.stringify(cafes));
-                updateCafeDashboard();
-            }
-            
-            // 채팅 메시지 추가
-            addChatMessage('시스템', `${cafe.name}에 입장하셨습니다!`);
-        }
-
-        function closePlayer() {
-            document.getElementById('radioPlayer').style.display = 'none';
-            document.getElementById('chatSection').style.display = 'none';
-        }
-
-        // 카페 관리
-        function manageCafe(cafeId) {
-            alert('카페 관리 페이지로 이동합니다! (실제 구현에서는 별도 관리 페이지)');
-            // 실제 구현: 카페 관리 페이지로 이동
-        }
-
-        // 라디오 플레이어 컨트롤
-        let isPlaying = false;
-        let currentVolume = 50;
-
-        function togglePlay() {
-            const playBtn = document.getElementById('playBtn');
-            isPlaying = !isPlaying;
-            
-            if (isPlaying) {
-                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
-                alert('방송이 시작되었습니다! (실제 구현에서는 Web Audio API 사용)');
-            } else {
-                playBtn.innerHTML = '<i class="fas fa-play"></i>';
-                alert('방송이 중지되었습니다.');
-            }
-        }
-
-        function skipPrevious() {
-            alert('이전 트랙으로 이동합니다.');
-        }
-
-        function skipNext() {
-            alert('다음 트랙으로 이동합니다.');
-        }
-
-        function updateVolume(volume) {
-            currentVolume = volume;
-            // 실제 구현: 오디오 볼륨 조절
-        }
-
-        // 채팅 기능
-        function addChatMessage(sender, message) {
-            const chatBox = document.getElementById('chatBox');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'chat-message';
-            messageDiv.innerHTML = `<strong>${sender}:</strong> ${message}`;
-            chatBox.appendChild(messageDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
-        function sendChatMessage() {
-            const input = document.getElementById('chatInput');
-            const message = input.value.trim();
-            
-            if (!message) return;
-            
-            const user = getCurrentUser();
-            const sender = user ? user.name : '손님';
-            
-            addChatMessage(sender, message);
-            input.value = '';
-            
-            // 간단한 AI 응답 (시뮬레이션)
-            setTimeout(() => {
-                const responses = [
-                    '좋은 음악이네요!',
-                    '이 카페 분위기 좋아요',
-                    '다음 곡은 무엇일까요?',
-                    'TL로 음원 구매할 생각이에요'
-                ];
-                const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-                addChatMessage('다른 방문자', randomResponse);
-            }, 1000);
-        }
-
-        // 카페 수익 창출 시뮬레이션
-        function simulateCafeRevenue() {
-            const myCafes = JSON.parse(localStorage.getItem('timelink_my_cafes') || '[]');
-            
-            myCafes.forEach((cafe, index) => {
-                if (cafe.status === 'online') {
-                    // 랜덤한 수익 생성
-                    const revenue = Math.floor(Math.random() * 100) + 10;
-                    const newRevenue = (cafe.revenue || 0) + revenue;
-                    
-                    // 업데이트
-                    myCafes[index].revenue = newRevenue;
-                    
-                    // TL 잔액에 추가
-                    updateTLBalance(revenue);
-                    
-                    console.log(`${cafe.name}: +${revenue} TL 수익`);
+   <script>
+// 공통 헤더 버튼 이벤트 핸들러
+document.addEventListener('DOMContentLoaded', function() {
+    // authButtons 클릭 이벤트 핸들러
+    const authButtons = document.getElementById('authButtons');
+    if (authButtons) {
+        // 이벤트 위임 사용
+        authButtons.addEventListener('click', function(e) {
+            // 회원가입 버튼 클릭
+            if (e.target.closest('button') && e.target.closest('button').textContent.includes('회원가입')) {
+                e.preventDefault();
+                if (typeof window.timelinkAuth !== 'undefined' && window.timelinkAuth.showSignupModal) {
+                    window.timelinkAuth.showSignupModal();
+                } else {
+                    window.location.href = 'signup.html';
                 }
-            });
-            
-            localStorage.setItem('timelink_my_cafes', JSON.stringify(myCafes));
-            updateCafeDashboard();
-        }
-
-        // 5분마다 수익 시뮬레이션
-        if (isLoggedIn()) {
-            setInterval(simulateCafeRevenue, 300000); // 5분마다
-        }
-    </script>
+            }
+            // 로그인 버튼 클릭
+            else if (e.target.closest('button') && e.target.closest('button').textContent.includes('로그인')) {
+                e.preventDefault();
+                if (typeof window.timelinkAuth !== 'undefined' && window.timelinkAuth.showLoginModal) {
+                    window.timelinkAuth.showLoginModal();
+                } else {
+                    window.location.href = 'login.html';
+                }
+            }
+        });
+    }
+    
+    // 모든 회원가입 버튼에 이벤트 추가
+    document.querySelectorAll('.signup-button, .signup-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof window.timelinkAuth !== 'undefined' && window.timelinkAuth.showSignupModal) {
+                window.timelinkAuth.showSignupModal();
+            } else {
+                window.location.href = 'signup.html';
+            }
+        });
+    });
+});
+</script>
 </body>
 </html>
