@@ -512,3 +512,15 @@ class TimelinkAuth {
                     from { transform: translateX(100%); opacity: 0; }
                     to { transform: translateX(0); opacity: 1; }
                 }
+                @keyframes toastSlideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+}
+
+// 글로벌 인스턴스 생성
+window.timelinkAuth = new TimelinkAuth();
