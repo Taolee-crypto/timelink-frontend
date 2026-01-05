@@ -463,263 +463,47 @@
         </div>
     </div>
 
-    <script>
-        // 샘플 음원 데이터
-        const sampleMusic = [
-            { id: 1, title: "Midnight Dreams", artist: "Luna", genre: "electronic", price: 1500, duration: "3:45", cover: "🎵", owned: false },
-            { id: 2, title: "Sunset Boulevard", artist: "Solar Beats", genre: "pop", price: 1200, duration: "4:20", cover: "🎶", owned: false },
-            { id: 3, title: "Neon Lights", artist: "Cyber Pulse", genre: "electronic", price: 2500, duration: "5:15", cover: "🎧", owned: false },
-            { id: 4, title: "Mountain High", artist: "Nature Sounds", genre: "classical", price: 1800, duration: "6:30", cover: "🏔️", owned: false },
-            { id: 5, title: "Urban Jungle", artist: "City Vibes", genre: "hiphop", price: 2200, duration: "3:15", cover: "🏙️", owned: false },
-            { id: 6, title: "Ocean Waves", artist: "Deep Blue", genre: "jazz", price: 1900, duration: "4:45", cover: "🌊", owned: false },
-            { id: 7, title: "Desert Storm", artist: "Sandstorm", genre: "rock", price: 2800, duration: "5:50", cover: "🏜️", owned: false },
-            { id: 8, title: "Cosmic Journey", artist: "Starlight", genre: "electronic", price: 3500, duration: "7:20", cover: "🌌", owned: false }
-        ];
-
-        // 페이지 로드 시
-        document.addEventListener('DOMContentLoaded', function() {
-            updateMarketUI();
-            loadMusicList();
-            loadPurchasedMusic();
-            
-            // TL 충전 버튼 이벤트
-            document.querySelectorAll('.tl-amount-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    document.getElementById('customAmount').value = this.dataset.amount;
-                });
-            });
-        });
-
-        function updateMarketUI() {
-            const user = getCurrentUser();
-            const balance = getTLBalance();
-            
-            document.getElementById('marketBalance').textContent = balance.toLocaleString() + ' TL';
-            
-            if (user) {
-                document.getElementById('userGreeting').textContent = `${user.name}님, 환영합니다!`;
-            }
-        }
-
-        function loadMusicList() {
-            const container = document.getElementById('musicList');
-            let html = '';
-            
-            sampleMusic.forEach(music => {
-                const isOwned = checkIfOwned(music.id);
-                
-                html += `
-                    <div class="music-card" data-id="${music.id}" data-genre="${music.genre}" data-price="${music.price}">
-                        ${isOwned ? '<div class="owned-badge">보유중</div>' : ''}
-                        <div class="music-cover">
-                            ${music.cover}
-                        </div>
-                        <div class="music-info">
-                            <h3 class="music-title">${music.title}</h3>
-                            <div class="music-artist">
-                                <i class="fas fa-user"></i>
-                                ${music.artist}
-                            </div>
-                            <div class="music-meta">
-                                <span>${music.duration}</span>
-                                <span class="music-genre">${getGenreName(music.genre)}</span>
-                            </div>
-                            <div class="music-price">${music.price.toLocaleString()} TL</div>
-                            <button class="buy-btn" ${isOwned ? 'disabled' : ''} onclick="buyMusic(${music.id}, '${music.title}', ${music.price})">
-                                <i class="fas fa-shopping-cart"></i>
-                                ${isOwned ? '보유중' : '구매하기'}
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            container.innerHTML = html;
-        }
-
-        function loadPurchasedMusic() {
-            const container = document.getElementById('purchasedMusic');
-            const purchased = JSON.parse(localStorage.getItem('timelink_purchased_music') || '[]');
-            
-            if (purchased.length === 0) {
-                document.getElementById('purchasedSection').innerHTML = `
-                    <h2 style="margin-bottom: 1.5rem;">내가 구매한 음원</h2>
-                    <div class="empty-state">
-                        <i class="fas fa-music"></i>
-                        <p>아직 구매한 음원이 없습니다.</p>
-                        <p>위의 음원을 구매해보세요!</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            let html = '';
-            purchased.forEach(music => {
-                html += `
-                    <div class="music-card">
-                        <div class="owned-badge">보유중</div>
-                        <div class="music-cover">
-                            ${music.cover || '🎵'}
-                        </div>
-                        <div class="music-info">
-                            <h3 class="music-title">${music.title}</h3>
-                            <div class="music-artist">
-                                <i class="fas fa-user"></i>
-                                ${music.artist}
-                            </div>
-                            <div class="music-meta">
-                                <span>구매일: ${music.purchaseDate}</span>
-                                <span class="music-genre">${getGenreName(music.genre)}</span>
-                            </div>
-                            <div class="music-price">${music.price.toLocaleString()} TL</div>
-                            <button class="buy-btn" onclick="playMusic('${music.id}')" style="background: linear-gradient(135deg, #10b981, #059669);">
-                                <i class="fas fa-play"></i>
-                                재생하기
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            container.innerHTML = html;
-        }
-
-        function getGenreName(code) {
-            const genres = {
-                pop: '팝', rock: '락', hiphop: '힙합',
-                electronic: '일렉트로닉', jazz: '재즈', classical: '클래식'
-            };
-            return genres[code] || code;
-        }
-
-        function checkIfOwned(musicId) {
-            const purchased = JSON.parse(localStorage.getItem('timelink_purchased_music') || '[]');
-            return purchased.some(music => music.id === musicId);
-        }
-
-        // 음원 구매 함수
-        function buyMusic(musicId, title, price) {
-            if (!isLoggedIn()) {
-                alert('로그인이 필요합니다!');
-                showLoginModal();
-                return;
-            }
-
-            if (buyWithTL(price, `음원: ${title}`)) {
-                // 구매 처리
-                const music = sampleMusic.find(m => m.id === musicId);
-                const purchased = JSON.parse(localStorage.getItem('timelink_purchased_music') || '[]');
-                
-                purchased.push({
-                    ...music,
-                    purchaseDate: new Date().toLocaleDateString('ko-KR'),
-                    downloadUrl: '#downloaded-' + musicId
-                });
-                
-                localStorage.setItem('timelink_purchased_music', JSON.stringify(purchased));
-                
-                // UI 업데이트
-                updateMarketUI();
-                loadMusicList();
-                loadPurchasedMusic();
-                
-                alert(`🎉 "${title}" 구매 완료!\n내 음원 라이브러리에서 확인하세요.`);
-            }
-        }
-
-        // 음원 재생 함수
-        function playMusic(musicId) {
-            alert('음원 재생이 시작됩니다! (실제 구현에서는 오디오 플레이어가 실행됩니다)');
-            // 실제 구현: Web Audio API나 HTML5 Audio 사용
-        }
-
-        // 검색 함수
-        function searchMusic() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const cards = document.querySelectorAll('.music-card');
-            
-            cards.forEach(card => {
-                const title = card.querySelector('.music-title').textContent.toLowerCase();
-                const artist = card.querySelector('.music-artist').textContent.toLowerCase();
-                
-                if (title.includes(searchTerm) || artist.includes(searchTerm)) {
-                    card.style.display = 'block';
+   <script>
+// 공통 헤더 버튼 이벤트 핸들러
+document.addEventListener('DOMContentLoaded', function() {
+    // authButtons 클릭 이벤트 핸들러
+    const authButtons = document.getElementById('authButtons');
+    if (authButtons) {
+        // 이벤트 위임 사용
+        authButtons.addEventListener('click', function(e) {
+            // 회원가입 버튼 클릭
+            if (e.target.closest('button') && e.target.closest('button').textContent.includes('회원가입')) {
+                e.preventDefault();
+                if (typeof window.timelinkAuth !== 'undefined' && window.timelinkAuth.showSignupModal) {
+                    window.timelinkAuth.showSignupModal();
                 } else {
-                    card.style.display = 'none';
+                    window.location.href = 'signup.html';
                 }
-            });
-        }
-
-        // 필터 함수
-        function filterMusic() {
-            const genre = document.getElementById('genreFilter').value;
-            const priceFilter = document.getElementById('priceFilter').value;
-            const cards = document.querySelectorAll('.music-card');
-            
-            cards.forEach(card => {
-                const cardGenre = card.dataset.genre;
-                const cardPrice = parseInt(card.dataset.price);
-                let show = true;
-                
-                // 장르 필터
-                if (genre && cardGenre !== genre) {
-                    show = false;
+            }
+            // 로그인 버튼 클릭
+            else if (e.target.closest('button') && e.target.closest('button').textContent.includes('로그인')) {
+                e.preventDefault();
+                if (typeof window.timelinkAuth !== 'undefined' && window.timelinkAuth.showLoginModal) {
+                    window.timelinkAuth.showLoginModal();
+                } else {
+                    window.location.href = 'login.html';
                 }
-                
-                // 가격 필터
-                if (priceFilter) {
-                    const [min, max] = priceFilter.split('-').map(p => p === '' ? Infinity : parseInt(p));
-                    if (cardPrice < min || (max !== Infinity && cardPrice > max)) {
-                        show = false;
-                    }
-                }
-                
-                card.style.display = show ? 'block' : 'none';
-            });
-        }
-
-        // TL 충전 모달
-        function showTLPurchaseModal() {
-            if (!isLoggedIn()) {
-                alert('로그인이 필요합니다!');
-                showLoginModal();
-                return;
             }
-            
-            document.getElementById('tlPurchaseModal').style.display = 'flex';
-        }
-
-        function closePurchaseModal() {
-            document.getElementById('tlPurchaseModal').style.display = 'none';
-        }
-
-        function purchaseTL() {
-            const amountInput = document.getElementById('customAmount');
-            let amount = parseInt(amountInput.value);
-            
-            if (!amount || amount <= 0) {
-                alert('올바른 금액을 입력해주세요.');
-                return;
+        });
+    }
+    
+    // 모든 회원가입 버튼에 이벤트 추가
+    document.querySelectorAll('.signup-button, .signup-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof window.timelinkAuth !== 'undefined' && window.timelinkAuth.showSignupModal) {
+                window.timelinkAuth.showSignupModal();
+            } else {
+                window.location.href = 'signup.html';
             }
-            
-            if (amount > 1000000) {
-                alert('한번에 1,000,000 TL 이상은 충전할 수 없습니다.');
-                return;
-            }
-            
-            if (confirm(`${amount.toLocaleString()} TL을 충전하시겠습니까?\n(모의 충전입니다)`)) {
-                updateTLBalance(amount);
-                updateMarketUI();
-                closePurchaseModal();
-                alert(`🎉 ${amount.toLocaleString()} TL이 충전되었습니다!`);
-                amountInput.value = '';
-            }
-        }
-
-        // 장르별 음원 로드 함수 (실제 API 호출 대신)
-        function loadMusicByGenre(genre) {
-            alert(`${getGenreName(genre)} 음원을 불러오는 중...\n(실제 구현에서는 API 호출)`);
-        }
-    </script>
+        });
+    });
+});
+</script>
 </body>
 </html>
