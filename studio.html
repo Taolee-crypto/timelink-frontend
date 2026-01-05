@@ -520,58 +520,145 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="./src/script/timelink-auth.js"></script>
-    <script>
-        let library = [];
-        let currentTrack = null;
-        let isPlaying = false;
+   <script>
+    let library = [];
+    let currentTrack = null;
+    let isPlaying = false;
+    let audioContext = null;
+    let audioBuffer = null;
+    let sourceNode = null;
+    let startTime = 0;
+    let pausedTime = 0;
+    let currentAudioFile = null;
 
-        // 업로드 영역 클릭
-        document.getElementById('uploadArea').addEventListener('click', function() {
-            document.getElementById('fileInput').click();
-        });
+    // Web Audio API 초기화
+    function initAudioContext() {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
 
-        // 파일 선택
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                document.getElementById('uploadArea').innerHTML = `
-                    <div class="upload-icon"><i class="fas fa-check-circle"></i></div>
-                    <p>${file.name}</p>
-                    <small style="color: var(--teal);">파일이 선택되었습니다</small>
-                `;
-            }
-        });
+    // 업로드 영역 클릭
+    document.getElementById('uploadArea').addEventListener('click', function() {
+        document.getElementById('fileInput').click();
+    });
 
-        // TL 슬라이더
-        document.getElementById('tlSlider').addEventListener('input', function() {
-            const value = parseInt(this.value);
-            document.getElementById('tlAmount').textContent = value + ' TL';
+    // 파일 선택
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            document.getElementById('uploadArea').innerHTML = `
+                <div class="upload-icon"><i class="fas fa-check-circle"></i></div>
+                <p>${file.name}</p>
+                <small style="color: var(--teal);">파일이 선택되었습니다</small>
+            `;
             
-            const hours = Math.floor(value / 3600);
-            const minutes = Math.floor((value % 3600) / 60);
-            const seconds = value % 60;
-            
-            let timeStr = '';
-            if (hours > 0) timeStr += hours + '시간 ';
-            if (minutes > 0) timeStr += minutes + '분 ';
-            if (seconds > 0 || (!hours && !minutes)) timeStr += seconds + '초';
-            
-            document.getElementById('tlTime').textContent = timeStr;
-        });
+            // 오디오 파일 미리 로드
+            loadAudioFile(file);
+        }
+    });
 
-        // TL3 생성
-        document.getElementById('createBtn').addEventListener('click', function() {
-            const title = document.getElementById('musicTitle').value;
-            const artist = document.getElementById('artistName').value;
-            const genre = document.getElementById('musicGenre').value;
-            const tl = parseInt(document.getElementById('tlSlider').value);
-            
-            if (!title || !artist) {
-                alert('제목과 아티스트를 입력하세요.');
-                return;
-            }
+    // 오디오 파일 로드
+    function loadAudioFile(file) {
+        if (!file) return;
+        
+        currentAudioFile = file;
+        
+        // 파일 정보 표시
+        const fileName = file.name.replace(/\.[^/.]+$/, ""); // 확장자 제거
+        document.getElementById('musicTitle').value = fileName;
+        document.getElementById('artistName').value = '업로드한 사용자';
+        
+        // 미리보기용 라이브러리 항목 추가
+        addToLibraryPreview(file);
+    }
 
-            const track = {
+    // 미리보기 라이브러리에 추가
+    function addToLibraryPreview(file) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            const arrayBuffer = e.target.result;
+            
+            initAudioContext();
+            
+            // 오디오 파일 디코딩
+            audioContext.decodeAudioData(arrayBuffer, function(buffer) {
+                const duration = buffer.duration;
+                const track = {
+                    id: Date.now(),
+                    title: file.name.replace(/\.[^/.]+$/, ""),
+                    artist: '업로드한 사용자',
+                    genre: '업로드',
+                    tl: 3600,
+                    duration: duration,
+                    audioBuffer: buffer,
+                    file: file
+                };
+                
+                library.unshift(track);
+                renderLibrary();
+                loadTrack(track.id);
+            }, function(e) {
+                console.error("오디오 디코딩 오류:", e);
+                alert("오디오 파일을 로드할 수 없습니다.");
+            });
+        };
+        
+        reader.readAsArrayBuffer(file);
+    }
+
+    // TL 슬라이더
+    document.getElementById('tlSlider').addEventListener('input', function() {
+        const value = parseInt(this.value);
+        document.getElementById('tlAmount').textContent = value + ' TL';
+        
+        const hours = Math.floor(value / 3600);
+        const minutes = Math.floor((value % 3600) / 60);
+        const seconds = value % 60;
+        
+        let timeStr = '';
+        if (hours > 0) timeStr += hours + '시간 ';
+        if (minutes > 0) timeStr += minutes + '분 ';
+        if (seconds > 0 || (!hours && !minutes)) timeStr += seconds + '초';
+        
+        document.getElementById('tlTime').textContent = timeStr;
+    });
+
+    // TL3 생성
+    document.getElementById('createBtn').addEventListener('click', function() {
+        const title = document.getElementById('musicTitle').value;
+        const artist = document.getElementById('artistName').value;
+        const genre = document.getElementById('musicGenre').value;
+        const tl = parseInt(document.getElementById('tlSlider').value);
+        
+        if (!title || !artist) {
+            alert('제목과 아티스트를 입력하세요.');
+            return;
+        }
+
+        // 현재 로드된 오디오 파일이 있는지 확인
+        if (!currentAudioFile && library.length === 0) {
+            alert('먼저 오디오 파일을 업로드하세요.');
+            return;
+        }
+
+        let track;
+        
+        if (currentAudioFile && library.length === 0) {
+            // 파일이 업로드되었지만 라이브러리에 추가되지 않은 경우
+            alert('파일을 먼저 로드해주세요.');
+            return;
+        } else if (library.length > 0) {
+            // 이미 라이브러리에 있는 트랙 업데이트
+            track = library[0];
+            track.title = title;
+            track.artist = artist;
+            track.genre = genre;
+            track.tl = tl;
+        } else {
+            // 새 트랙 생성 (시뮬레이션용)
+            track = {
                 id: Date.now(),
                 title,
                 artist,
@@ -579,116 +666,309 @@
                 tl,
                 duration: Math.floor(Math.random() * 300) + 180
             };
-
-            library.unshift(track);
-            renderLibrary();
-            alert('TL3 파일이 생성되었습니다!');
-
-            // 폼 초기화
-            document.getElementById('musicTitle').value = '';
-            document.getElementById('artistName').value = '';
-            document.getElementById('musicGenre').value = '';
-        });
-
-        // 라이브러리 렌더링
-        function renderLibrary() {
-            const list = document.getElementById('libraryList');
             
-            if (library.length === 0) {
-                list.innerHTML = `
-                    <div style="text-align: center; padding: 2rem; color: #94a3b8;">
-                        <i class="fas fa-music" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
-                        <p>아직 음악이 없습니다.<br>왼쪽에서 음악을 업로드하세요.</p>
-                    </div>
-                `;
-                return;
-            }
+            library.unshift(track);
+        }
+        
+        renderLibrary();
+        alert('TL3 파일이 생성되었습니다!');
 
-            list.innerHTML = library.map(track => `
-                <div class="library-item" data-id="${track.id}">
-                    <div class="item-info">
-                        <h4>${track.title}</h4>
-                        <p>${track.artist} • ${track.genre || '장르 미지정'}</p>
-                    </div>
-                    <div class="item-tl">${track.tl} TL</div>
+        // 폼 초기화
+        document.getElementById('musicTitle').value = '';
+        document.getElementById('artistName').value = '';
+        document.getElementById('musicGenre').value = '';
+        document.getElementById('uploadArea').innerHTML = `
+            <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+            <p>클릭하거나 파일을 드래그하세요</p>
+            <small style="color: #94a3b8;">MP3, WAV, FLAC 지원</small>
+        `;
+        currentAudioFile = null;
+    });
+
+    // 라이브러리 렌더링
+    function renderLibrary() {
+        const list = document.getElementById('libraryList');
+        
+        if (library.length === 0) {
+            list.innerHTML = `
+                <div style="text-align: center; padding: 2rem; color: #94a3b8;">
+                    <i class="fas fa-music" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                    <p>아직 음악이 없습니다.<br>왼쪽에서 음악을 업로드하세요.</p>
                 </div>
-            `).join('');
-
-            // 클릭 이벤트
-            document.querySelectorAll('.library-item').forEach(item => {
-                item.addEventListener('click', function() {
-                    const id = parseInt(this.dataset.id);
-                    loadTrack(id);
-                });
-            });
+            `;
+            return;
         }
 
-        // 트랙 로드
-        function loadTrack(id) {
-            currentTrack = library.find(t => t.id === id);
-            if (!currentTrack) return;
+        list.innerHTML = library.map(track => `
+            <div class="library-item" data-id="${track.id}">
+                <div class="item-info">
+                    <h4>${track.title}</h4>
+                    <p>${track.artist} • ${track.genre || '장르 미지정'}</p>
+                </div>
+                <div class="item-tl">${track.tl} TL</div>
+                <div class="item-duration">${formatTime(track.duration)}</div>
+            </div>
+        `).join('');
 
-            document.getElementById('playerTitle').textContent = currentTrack.title;
-            document.getElementById('playerArtist').textContent = currentTrack.artist;
-            document.getElementById('playerTL').textContent = currentTrack.tl;
-            document.getElementById('playerDuration').textContent = formatTime(currentTrack.duration);
-            document.getElementById('totalTime').textContent = formatTime(currentTrack.duration);
+        // CSS 추가
+        const style = document.createElement('style');
+        style.textContent = `
+            .library-item { display: flex; justify-content: space-between; align-items: center; }
+            .item-info { flex: 1; }
+            .item-tl { margin: 0 1rem; color: var(--teal); font-weight: 600; }
+            .item-duration { color: #94a3b8; font-size: 0.9rem; }
+        `;
+        document.head.appendChild(style);
 
-            // 활성 표시
-            document.querySelectorAll('.library-item').forEach(item => {
-                item.classList.remove('active');
-                if (parseInt(item.dataset.id) === id) {
-                    item.classList.add('active');
-                }
+        // 클릭 이벤트
+        document.querySelectorAll('.library-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const id = parseInt(this.dataset.id);
+                loadTrack(id);
             });
-        }
+        });
+    }
 
-        // 재생/일시정지
-        document.getElementById('playBtn').addEventListener('click', function() {
-            if (!currentTrack) {
-                alert('먼저 음악을 선택하세요.');
-                return;
-            }
+    // 트랙 로드
+    function loadTrack(id) {
+        // 현재 재생 중인 오디오 정지
+        stopAudio();
+        
+        currentTrack = library.find(t => t.id === id);
+        if (!currentTrack) return;
 
-            if (isPlaying) {
-                this.querySelector('i').className = 'fas fa-play';
-                isPlaying = false;
-            } else {
-                this.querySelector('i').className = 'fas fa-pause';
-                isPlaying = true;
-                simulatePlayback();
+        document.getElementById('playerTitle').textContent = currentTrack.title;
+        document.getElementById('playerArtist').textContent = currentTrack.artist;
+        document.getElementById('playerTL').textContent = currentTrack.tl;
+        document.getElementById('playerDuration').textContent = formatTime(currentTrack.duration);
+        document.getElementById('totalTime').textContent = formatTime(currentTrack.duration);
+        
+        // 진행바 초기화
+        document.getElementById('progressFill').style.width = '0%';
+        document.getElementById('currentTime').textContent = '0:00';
+        
+        // 재생 버튼 상태 초기화
+        document.querySelector('#playBtn i').className = 'fas fa-play';
+        isPlaying = false;
+
+        // 활성 표시
+        document.querySelectorAll('.library-item').forEach(item => {
+            item.classList.remove('active');
+            if (parseInt(item.dataset.id) === id) {
+                item.classList.add('active');
             }
         });
+        
+        // 오디오 버퍼가 있으면 미리 로드
+        if (currentTrack.audioBuffer) {
+            audioBuffer = currentTrack.audioBuffer;
+        }
+    }
 
-        // 재생 시뮬레이션
-        function simulatePlayback() {
-            let progress = 0;
-            const interval = setInterval(() => {
-                if (!isPlaying) {
-                    clearInterval(interval);
-                    return;
-                }
-                
-                progress += 0.5;
-                if (progress >= 100) {
-                    progress = 0;
-                    isPlaying = false;
-                    document.querySelector('#playBtn i').className = 'fas fa-play';
-                    clearInterval(interval);
-                }
-                
-                document.getElementById('progressFill').style.width = progress + '%';
-                const currentSec = Math.floor((progress / 100) * currentTrack.duration);
-                document.getElementById('currentTime').textContent = formatTime(currentSec);
-            }, 100);
+    // 오디오 재생
+    function playAudio() {
+        if (!currentTrack) {
+            alert('먼저 음악을 선택하세요.');
+            return;
         }
 
-        // 시간 포맷
-        function formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        initAudioContext();
+        
+        // 오디오 버퍼가 없으면 시뮬레이션
+        if (!audioBuffer && !currentTrack.audioBuffer) {
+            simulatePlayback();
+            return;
         }
-    </script>
+        
+        // 실제 오디오 재생
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+        
+        sourceNode = audioContext.createBufferSource();
+        sourceNode.buffer = audioBuffer || currentTrack.audioBuffer;
+        sourceNode.connect(audioContext.destination);
+        
+        // 오디오 재생 시작
+        if (pausedTime > 0) {
+            sourceNode.start(0, pausedTime);
+            startTime = audioContext.currentTime - pausedTime;
+        } else {
+            sourceNode.start(0);
+            startTime = audioContext.currentTime;
+        }
+        
+        // 재생 종료 이벤트
+        sourceNode.onended = function() {
+            isPlaying = false;
+            document.querySelector('#playBtn i').className = 'fas fa-play';
+            document.getElementById('progressFill').style.width = '100%';
+            document.getElementById('currentTime').textContent = formatTime(currentTrack.duration);
+            pausedTime = 0;
+        };
+        
+        // 재생 진행 상태 업데이트
+        updatePlaybackProgress();
+    }
+
+    // 오디오 정지
+    function stopAudio() {
+        if (sourceNode) {
+            sourceNode.stop();
+            sourceNode.disconnect();
+            sourceNode = null;
+        }
+        pausedTime = 0;
+        isPlaying = false;
+    }
+
+    // 오디오 일시정지
+    function pauseAudio() {
+        if (sourceNode) {
+            sourceNode.stop();
+            pausedTime = audioContext.currentTime - startTime;
+            sourceNode.disconnect();
+            sourceNode = null;
+        }
+        isPlaying = false;
+    }
+
+    // 재생 진행 상태 업데이트
+    function updatePlaybackProgress() {
+        if (!isPlaying) return;
+        
+        function update() {
+            if (!isPlaying || !currentTrack) return;
+            
+            let currentTime;
+            if (pausedTime > 0) {
+                currentTime = pausedTime;
+            } else if (startTime > 0) {
+                currentTime = audioContext.currentTime - startTime;
+            } else {
+                currentTime = 0;
+            }
+            
+            // 진행률 계산
+            const progress = Math.min(100, (currentTime / currentTrack.duration) * 100);
+            
+            // UI 업데이트
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('currentTime').textContent = formatTime(currentTime);
+            
+            // 재생이 끝나지 않았으면 계속 업데이트
+            if (currentTime < currentTrack.duration) {
+                requestAnimationFrame(update);
+            }
+        }
+        
+        requestAnimationFrame(update);
+    }
+
+    // 재생/일시정지
+    document.getElementById('playBtn').addEventListener('click', function() {
+        if (!currentTrack) {
+            alert('먼저 음악을 선택하세요.');
+            return;
+        }
+
+        if (isPlaying) {
+            // 일시정지
+            pauseAudio();
+            this.querySelector('i').className = 'fas fa-play';
+        } else {
+            // 재생
+            playAudio();
+            this.querySelector('i').className = 'fas fa-pause';
+            isPlaying = true;
+        }
+    });
+
+    // 진행바 클릭으로 재생 위치 변경
+    document.getElementById('progressBar').addEventListener('click', function(e) {
+        if (!currentTrack || !isPlaying) return;
+        
+        const rect = this.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const width = rect.width;
+        const percentage = clickX / width;
+        
+        // 재생 위치 변경
+        if (sourceNode) {
+            sourceNode.stop();
+            sourceNode.disconnect();
+        }
+        
+        pausedTime = percentage * currentTrack.duration;
+        playAudio();
+        document.querySelector('#playBtn i').className = 'fas fa-pause';
+        isPlaying = true;
+    });
+
+    // 이전 트랙
+    document.querySelector('.control-btn:nth-child(1)').addEventListener('click', function() {
+        if (!currentTrack || library.length === 0) return;
+        
+        const currentIndex = library.findIndex(t => t.id === currentTrack.id);
+        const prevIndex = (currentIndex - 1 + library.length) % library.length;
+        loadTrack(library[prevIndex].id);
+        
+        // 자동 재생
+        setTimeout(() => {
+            if (!isPlaying) {
+                document.getElementById('playBtn').click();
+            }
+        }, 100);
+    });
+
+    // 다음 트랙
+    document.querySelector('.control-btn:nth-child(3)').addEventListener('click', function() {
+        if (!currentTrack || library.length === 0) return;
+        
+        const currentIndex = library.findIndex(t => t.id === currentTrack.id);
+        const nextIndex = (currentIndex + 1) % library.length;
+        loadTrack(library[nextIndex].id);
+        
+        // 자동 재생
+        setTimeout(() => {
+            if (!isPlaying) {
+                document.getElementById('playBtn').click();
+            }
+        }, 100);
+    });
+
+    // 시뮬레이션 재생 (오디오 파일 없을 때)
+    function simulatePlayback() {
+        let progress = 0;
+        const interval = setInterval(() => {
+            if (!isPlaying) {
+                clearInterval(interval);
+                return;
+            }
+            
+            progress += 0.5;
+            if (progress >= 100) {
+                progress = 0;
+                isPlaying = false;
+                document.querySelector('#playBtn i').className = 'fas fa-play';
+                clearInterval(interval);
+            }
+            
+            document.getElementById('progressFill').style.width = progress + '%';
+            const currentSec = Math.floor((progress / 100) * currentTrack.duration);
+            document.getElementById('currentTime').textContent = formatTime(currentSec);
+        }, 100);
+    }
+
+    // 시간 포맷
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    // 초기화
+    renderLibrary();
+</script>
 </body>
 </html>
