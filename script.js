@@ -21,7 +21,7 @@ let playTime = 0;
 let isSpotifyVerified = false;
 
 // API 객체
-const api = window.timeLinkAPI;
+const api = window.hybridAPI || window.timeLinkAPI;
 const tokenManager = window.tokenManager;
 
 // ============================================================================
