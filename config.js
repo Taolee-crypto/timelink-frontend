@@ -31,6 +31,7 @@ class TokenManager {
     constructor() {
         this.tokenKey = 'timelink_token';
         this.userKey = 'timelink_user';
+        this.walletKey = 'timelink_wallet';
     }
     
     setToken(token) {
@@ -44,6 +45,7 @@ class TokenManager {
     clearToken() {
         localStorage.removeItem(this.tokenKey);
         localStorage.removeItem(this.userKey);
+        localStorage.removeItem(this.walletKey);
     }
     
     setUser(user) {
@@ -52,11 +54,30 @@ class TokenManager {
     
     getUser() {
         const userStr = localStorage.getItem(this.userKey);
-        return userStr ? JSON.parse(userStr) : null;
+        try {
+            return userStr ? JSON.parse(userStr) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+    
+    setWallet(wallet) {
+        localStorage.setItem(this.walletKey, JSON.stringify(wallet));
+    }
+    
+    getWallet() {
+        const walletStr = localStorage.getItem(this.walletKey);
+        try {
+            return walletStr ? JSON.parse(walletStr) : null;
+        } catch (e) {
+            return null;
+        }
     }
     
     isAuthenticated() {
-        return !!this.getToken() && !!this.getUser();
+        const token = this.getToken();
+        const user = this.getUser();
+        return !!token && !!user;
     }
 }
 
