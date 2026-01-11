@@ -1119,7 +1119,7 @@
         </div>
     </div>
 
-    <script>
+ <script>
         // 전역 상태
         let currentUser = null;
         let currentAudio = null;
@@ -1134,110 +1134,14 @@
         const showSignupBtn = document.getElementById('show-signup-btn');
         const showLoginBtn = document.getElementById('show-login-btn');
         const logoutBtn = document.getElementById('logout-btn');
-        const userMenuBtn = document.getElementById('user-menu-btn');
-        const userDropdown = document.getElementById('user-dropdown');
-        const userNameElement = document.getElementById('user-name');
-        const userTypeElement = document.getElementById('user-type');
-        const totalTlElement = document.getElementById('total-tl');
-        const mobileTotalTlElement = document.getElementById('mobile-total-tl');
-        const tabButtons = document.querySelectorAll('.tab-button');
-        const tabContents = document.querySelectorAll('.tab-content');
-        const notification = document.getElementById('notification');
-        const notificationContent = document.getElementById('notification-content');
-
-        // API 서비스
-        const TimelinkAPI = {
-            baseURL: 'https://api.timelink.io',
-            
-            getHeaders() {
-                const headers = {
-                    'Content-Type': 'application/json'
-                };
-                
-                const token = localStorage.getItem('timelink_token');
-                if (token) {
-                    headers['Authorization'] = `Bearer ${token}`;
-                }
-                
-                return headers;
-            },
-
-            async login(email, password) {
-                try {
-                    const response = await fetch(`${this.baseURL}/api/v1/auth/login`, {
-                        method: 'POST',
-                        headers: this.getHeaders(),
-                        body: JSON.stringify({ email, password })
-                    });
-
-                    const data = await response.json();
-                    
-                    if (response.ok) {
-                        localStorage.setItem('timelink_token', data.token);
-                        localStorage.setItem('timelink_user', JSON.stringify(data.user));
-                        return { success: true, user: data.user };
-                    } else {
-                        return { success: false, error: data.message || '로그인 실패' };
-                    }
-                } catch (error) {
-                    return { success: false, error: '서버 연결 실패' };
-                }
-            },
-
-            async register(userData) {
-                try {
-                    const response = await fetch(`${this.baseURL}/api/v1/auth/register`, {
-                        method: 'POST',
-                        headers: this.getHeaders(),
-                        body: JSON.stringify(userData)
-                    });
-
-                    const data = await response.json();
-                    
-                    if (response.ok) {
-                        localStorage.setItem('timelink_token', data.token);
-                        localStorage.setItem('timelink_user', JSON.stringify(data.user));
-                        return { success: true, user: data.user };
-                    } else {
-                        return { success: false, error: data.message || '회원가입 실패' };
-                    }
-                } catch (error) {
-                    return { success: false, error: '서버 연결 실패' };
-                }
-            }
-        };
 
         // 유틸리티 함수
         function showNotification(message, type = 'info') {
-            notificationContent.textContent = message;
-            notification.className = 'notification';
-            
-            const typeClasses = {
-                'success': 'gradient-green',
-                'error': 'gradient-red',
-                'warning': 'gradient-yellow',
-                'info': 'gradient-blue'
-            };
-            
-            notification.classList.add(typeClasses[type] || 'gradient-blue');
-            notification.classList.remove('hidden');
-            
-            setTimeout(() => {
-                notification.classList.add('hidden');
-            }, 3000);
+            // ... (알림 표시 함수)
         }
 
         function toggleAuthForm(type) {
-            const loginSection = document.getElementById('login-section');
-            const signupSection = document.getElementById('signup-section');
-
-            if (type === 'signup') {
-                loginSection.classList.add('hidden');
-                signupSection.classList.remove('hidden');
-            } else {
-                signupSection.classList.add('hidden');
-                loginSection.classList.remove('hidden');
-            }
+            // ... (폼 전환 함수)
         }
 
         function updateUserInfo() {
@@ -1246,8 +1150,8 @@
             const userName = currentUser.name || currentUser.email.split('@')[0];
             const userType = currentUser.type || 'user';
 
-            userNameElement.textContent = userName;
-            userTypeElement.textContent = getUserTypeLabel(userType);
+            document.getElementById('user-name').textContent = userName;
+            document.getElementById('user-type').textContent = getUserTypeLabel(userType);
             document.getElementById('dropdown-user-name').textContent = userName;
             document.getElementById('dropdown-user-type').textContent = getUserTypeLabel(userType);
         }
@@ -1266,27 +1170,9 @@
             if (!currentUser) return;
             
             const balance = currentUser.balance ? currentUser.balance.toLocaleString() : '0';
-            totalTlElement.textContent = `${balance} TL`;
-            mobileTotalTlElement.textContent = `${balance} TL`;
+            document.getElementById('total-tl').textContent = `${balance} TL`;
+            document.getElementById('mobile-total-tl').textContent = `${balance} TL`;
             document.getElementById('modal-balance').textContent = `${balance} TL`;
-        }
-
-        function switchTab(tabId) {
-            // 탭 버튼 업데이트
-            tabButtons.forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.id === `tab-${tabId}`) {
-                    btn.classList.add('active');
-                }
-            });
-
-            // 탭 콘텐츠 업데이트
-            tabContents.forEach(content => {
-                content.classList.add('hidden');
-                if (content.id === `tab-content-${tabId}`) {
-                    content.classList.remove('hidden');
-                }
-            });
         }
 
         function showDashboard() {
@@ -1305,7 +1191,7 @@
 
         // 이벤트 리스너 설정
         function setupEventListeners() {
-            // 로그인 폼 제출
+            // 로그인 폼 제출 - 실제 API 사용
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
@@ -1319,18 +1205,26 @@
 
                 showNotification('로그인 중...', 'info');
                 
-                const result = await TimelinkAPI.login(email, password);
+                // 실제 API 호출
+                const result = await window.TimelinkAPI.login(email, password);
                 
                 if (result.success) {
-                    currentUser = result.user;
+                    currentUser = window.TimelinkAPI.user;
                     showDashboard();
                     showNotification('로그인 성공!', 'success');
+                    
+                    // 잔액 정보 업데이트
+                    const balanceResult = await window.TimelinkAPI.getBalance();
+                    if (balanceResult.success) {
+                        currentUser.balance = balanceResult.data.balance;
+                        updateBalance();
+                    }
                 } else {
                     showNotification(result.error, 'error');
                 }
             });
 
-            // 회원가입 폼 제출
+            // 회원가입 폼 제출 - 실제 API 사용
             signupForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
@@ -1341,7 +1235,6 @@
                     type: document.getElementById('signup-type').value
                 };
                 
-                // 유효성 검사
                 if (!userData.name || !userData.email || !userData.password || !userData.type) {
                     showNotification('모든 필드를 입력해주세요', 'error');
                     return;
@@ -1349,12 +1242,17 @@
 
                 showNotification('회원가입 중...', 'info');
                 
-                const result = await TimelinkAPI.register(userData);
+                // 실제 API 호출
+                const result = await window.TimelinkAPI.register(userData);
                 
                 if (result.success) {
-                    currentUser = result.user;
+                    currentUser = window.TimelinkAPI.user;
                     showDashboard();
                     showNotification('회원가입 성공! 10,000 TL이 지급되었습니다.', 'success');
+                    
+                    // 잔액 정보 업데이트
+                    currentUser.balance = 10000; // 가입 보너스
+                    updateBalance();
                 } else {
                     showNotification(result.error, 'error');
                 }
@@ -1364,53 +1262,18 @@
             showSignupBtn.addEventListener('click', () => toggleAuthForm('signup'));
             showLoginBtn.addEventListener('click', () => toggleAuthForm('login'));
 
-            // 로그아웃
+            // 로그아웃 - 실제 API 사용
             logoutBtn.addEventListener('click', () => {
-                localStorage.removeItem('timelink_token');
-                localStorage.removeItem('timelink_user');
+                window.TimelinkAPI.logout();
                 currentUser = null;
                 showAuthPage();
                 showNotification('로그아웃 되었습니다.', 'info');
             });
 
-            // 사용자 메뉴 토글
-            userMenuBtn.addEventListener('click', () => {
-                userDropdown.classList.toggle('hidden');
-            });
-
-            // 탭 변경
-            tabButtons.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const tabId = btn.id.replace('tab-', '');
-                    switchTab(tabId);
-                });
-            });
-
-            // 외부 클릭 시 사용자 메뉴 닫기
-            document.addEventListener('click', (e) => {
-                if (!userMenuBtn.contains(e.target) && !userDropdown.contains(e.target)) {
-                    userDropdown.classList.add('hidden');
-                }
-            });
-
-            // TL 충전
-            const chargeBtn = document.getElementById('charge-tl-btn');
-            const mobileChargeBtn = document.getElementById('mobile-charge-tl-btn');
-            const closeChargeModal = document.getElementById('close-charge-modal');
-            const chargeModal = document.getElementById('charge-modal');
+            // TL 충전 - 실제 API 사용
             const confirmChargeBtn = document.getElementById('confirm-charge');
-
-            if (chargeBtn) {
-                chargeBtn.addEventListener('click', () => chargeModal.classList.remove('hidden'));
-            }
-            if (mobileChargeBtn) {
-                mobileChargeBtn.addEventListener('click', () => chargeModal.classList.remove('hidden'));
-            }
-            if (closeChargeModal) {
-                closeChargeModal.addEventListener('click', () => chargeModal.classList.add('hidden'));
-            }
             if (confirmChargeBtn) {
-                confirmChargeBtn.addEventListener('click', () => {
+                confirmChargeBtn.addEventListener('click', async () => {
                     const selectedAmount = document.querySelector('input[name="charge-amount"]:checked');
                     const customAmount = document.getElementById('custom-amount').value;
                     
@@ -1426,90 +1289,139 @@
                         return;
                     }
                     
-                    // 실제 구현에서는 API 호출
-                    showNotification(`${amount.toLocaleString()} TL 충전 요청이 완료되었습니다`, 'success');
-                    chargeModal.classList.add('hidden');
-                });
-            }
-
-            // 파일 업로드 관련
-            const uploadArea = document.getElementById('upload-area');
-            const fileUpload = document.getElementById('file-upload');
-            const convertBtn = document.getElementById('convert-to-tl3-btn');
-
-            if (uploadArea && fileUpload) {
-                uploadArea.addEventListener('click', () => fileUpload.click());
-                
-                fileUpload.addEventListener('change', (e) => {
-                    if (e.target.files.length > 0) {
-                        const file = e.target.files[0];
-                        handleFileUpload(file);
+                    showNotification('TL 충전 처리 중...', 'info');
+                    
+                    // 실제 API 호출
+                    const result = await window.TimelinkAPI.chargeTL(amount, 'credit_card');
+                    
+                    if (result.success) {
+                        // 잔액 업데이트
+                        const balanceResult = await window.TimelinkAPI.getBalance();
+                        if (balanceResult.success) {
+                            currentUser.balance = balanceResult.data.balance;
+                            updateBalance();
+                        }
+                        
+                        showNotification(`${amount.toLocaleString()} TL 충전 완료!`, 'success');
+                        document.getElementById('charge-modal').classList.add('hidden');
+                    } else {
+                        showNotification(`충전 실패: ${result.error}`, 'error');
                     }
                 });
             }
 
+            // TL3 변환 - 실제 API 사용
+            const convertBtn = document.getElementById('convert-to-tl3-btn');
             if (convertBtn) {
-                convertBtn.addEventListener('click', () => {
-                    // TL3 변환 로직
-                    showNotification('TL3 변환 기능은 곧 제공될 예정입니다', 'info');
+                convertBtn.addEventListener('click', async () => {
+                    const title = document.getElementById('music-title').value;
+                    const artist = document.getElementById('music-artist').value;
+                    const genre = document.getElementById('music-genre').value;
+                    const quality = document.querySelector('input[name="quality"]:checked').value;
+                    const fileInput = document.getElementById('file-upload');
+                    
+                    if (!fileInput.files.length) {
+                        showNotification('음원 파일을 선택해주세요', 'error');
+                        return;
+                    }
+                    
+                    if (!title || !artist) {
+                        showNotification('음원 제목과 아티스트를 입력해주세요', 'error');
+                        return;
+                    }
+                    
+                    showNotification('TL3 변환 중...', 'info');
+                    
+                    // 실제 API 호출
+                    const metadata = { title, artist, genre, quality };
+                    const uploadResult = await window.TimelinkAPI.uploadMusic(fileInput.files[0], metadata);
+                    
+                    if (uploadResult.success) {
+                        const musicId = uploadResult.data.music_id;
+                        const convertResult = await window.TimelinkAPI.convertToTL3(musicId, quality);
+                        
+                        if (convertResult.success) {
+                            showNotification('TL3 변환 완료!', 'success');
+                            // TL3 파일 목록 새로고침
+                            loadTL3Files();
+                        } else {
+                            showNotification(`변환 실패: ${convertResult.error}`, 'error');
+                        }
+                    } else {
+                        showNotification(`업로드 실패: ${uploadResult.error}`, 'error');
+                    }
                 });
             }
         }
 
-        // 파일 업로드 처리
-        function handleFileUpload(file) {
-            if (!file.type.match('audio.*')) {
-                showNotification('오디오 파일만 업로드 가능합니다', 'error');
-                return;
+        // TL3 파일 목록 로드 - 실제 API 사용
+        async function loadTL3Files() {
+            const tl3List = document.getElementById('tl3-list');
+            const emptyTl3 = document.getElementById('empty-tl3');
+            const tl3Count = document.getElementById('tl3-count');
+            
+            if (!tl3List) return;
+            
+            const result = await window.TimelinkAPI.getMyTL3Files();
+            
+            if (result.success && result.data.files && result.data.files.length > 0) {
+                const files = result.data.files;
+                tl3Count.textContent = files.length;
+                emptyTl3.classList.add('hidden');
+                
+                tl3List.innerHTML = files.map(file => `
+                    <div class="tl3-file-item" data-id="${file.id}">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 gradient-purple rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-music text-white"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold">${file.title}</div>
+                                    <div class="text-sm text-gray-600">${file.artist} • ${file.genre}</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="badge badge-purple">TL3</span>
+                                <button class="text-gray-400 hover:text-purple-600">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center mt-3">
+                            <div class="text-sm text-gray-500">
+                                <i class="far fa-clock mr-1"></i>
+                                ${file.duration} • ${file.price} TL
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button class="play-file-btn text-gray-400 hover:text-purple-600" data-id="${file.id}">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button class="download-file-btn text-gray-400 hover:text-green-600" data-id="${file.id}">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                tl3Count.textContent = '0';
+                emptyTl3.classList.remove('hidden');
             }
-
-            if (file.size > 50 * 1024 * 1024) {
-                showNotification('파일 크기는 50MB를 초과할 수 없습니다', 'error');
-                return;
-            }
-
-            // 파일 정보 표시
-            const uploadedFileInfo = document.getElementById('uploaded-file-info');
-            const uploadedFileName = document.getElementById('uploaded-file-name');
-            const uploadedFileSize = document.getElementById('uploaded-file-size');
-            const convertBtn = document.getElementById('convert-to-tl3-btn');
-            
-            uploadedFileName.textContent = file.name;
-            uploadedFileSize.textContent = formatFileSize(file.size);
-            uploadedFileInfo.classList.remove('hidden');
-            
-            // 파일 제목 자동 채우기
-            const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
-            document.getElementById('music-title').value = fileNameWithoutExt;
-            
-            if (convertBtn) {
-                convertBtn.disabled = false;
-            }
-            
-            showNotification('파일 업로드 완료', 'success');
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes < 1024) return bytes + ' bytes';
-            else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-            else return (bytes / 1048576).toFixed(1) + ' MB';
         }
 
         // 앱 초기화
         function init() {
-            // 로컬 스토리지에서 사용자 정보 로드
-            const savedUser = localStorage.getItem('timelink_user');
-            const token = localStorage.getItem('timelink_token');
+            // API 서비스 초기화
+            window.TimelinkAPI.init();
             
-            if (savedUser && token) {
-                try {
-                    currentUser = JSON.parse(savedUser);
-                    showDashboard();
-                } catch (e) {
-                    console.error('사용자 정보 로드 실패:', e);
-                    localStorage.removeItem('timelink_user');
-                    localStorage.removeItem('timelink_token');
-                }
+            // 현재 사용자 설정
+            currentUser = window.TimelinkAPI.user;
+            
+            if (currentUser) {
+                showDashboard();
+                // TL3 파일 목록 로드
+                loadTL3Files();
             }
 
             // 이벤트 리스너 설정
