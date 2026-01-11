@@ -123,17 +123,16 @@
             border-radius: 8px;
             font-weight: 500;
             transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #6b7280;
         }
         
         .tab-button.active {
             background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
             color: white;
             box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
-        }
-        
-        .tab-button:not(.active) {
-            background: transparent;
-            color: #6b7280;
         }
         
         .tab-button:not(.active):hover {
@@ -146,6 +145,7 @@
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
+            cursor: pointer;
         }
 
         .play-button:hover:not(:disabled) {
@@ -1340,7 +1340,7 @@
                                                 <p class="text-gray-300 text-sm">DJ CoffeeBeats • 245명 청취 중</p>
                                             </div>
                                         </div>
-                                        <button class="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:shadow-md transition-all">
+                                        <button class="play-dj-btn bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:shadow-md transition-all" data-id="1">
                                             <i class="fas fa-play mr-2"></i>방송 듣기
                                         </button>
                                     </div>
@@ -1362,7 +1362,7 @@
                                                 <p class="text-gray-300 text-sm">DJ DeepWork • 189명 청취 중</p>
                                             </div>
                                         </div>
-                                        <button class="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:shadow-md transition-all">
+                                        <button class="play-dj-btn bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:shadow-md transition-all" data-id="2">
                                             <i class="fas fa-play mr-2"></i>방송 듣기
                                         </button>
                                     </div>
@@ -2047,12 +2047,13 @@
             elements.revenueBtn.addEventListener('click', () => switchTab('revenue'));
             elements.chargeTLBtn.addEventListener('click', showChargeModal);
             
-            // 탭 전환
-            elements.tabTL3Converter.addEventListener('click', () => switchTab('tl3-converter'));
-            elements.tabMusicplace.addEventListener('click', () => switchTab('musicplace'));
-            elements.tabCafeRadio.addEventListener('click', () => switchTab('cafe-radio'));
-            elements.tabSpotify.addEventListener('click', () => switchTab('spotify'));
-            elements.tabRevenue.addEventListener('click', () => switchTab('revenue'));
+            // 탭 전환 (상단 메뉴 수정)
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const tabId = this.id.replace('tab-', '');
+                    switchTab(tabId);
+                });
+            });
             
             // TL3 변환기
             elements.toggleConverterBtn.addEventListener('click', toggleConverter);
@@ -2088,6 +2089,16 @@
                 elements.cafePlaylistSection.classList.add('hidden');
                 elements.djBroadcastsSection.classList.remove('hidden');
                 loadDJBroadcasts();
+            });
+            
+            // DJ 방송 이벤트 리스너
+            document.addEventListener('click', function(event) {
+                if (event.target.closest('.play-dj-btn')) {
+                    const btn = event.target.closest('.play-dj-btn');
+                    const id = parseInt(btn.dataset.id);
+                    const broadcast = state.djBroadcasts.find(b => b.id === id);
+                    if (broadcast) playDJBroadcast(broadcast);
+                }
             });
             
             // 수익 관리
@@ -2229,22 +2240,38 @@
         }
 
         // ============================================
-        // 탭 전환
+        // 탭 전환 (수정된 버전)
         // ============================================
         function switchTab(tabName) {
+            console.log('Switching to tab:', tabName); // 디버깅용
+            
             state.currentTab = tabName;
             
-            // 탭 버튼 업데이트
-            ['tl3-converter', 'musicplace', 'cafe-radio', 'spotify', 'revenue'].forEach(tab => {
-                elements[`tab-${tab.replace('-', '')}`]?.classList.remove('active');
-                elements[`content-${tab}`]?.classList.add('hidden');
+            // 모든 탭 버튼 비활성화
+            const tabButtons = ['tl3-converter', 'musicplace', 'cafe-radio', 'spotify', 'revenue'];
+            tabButtons.forEach(tab => {
+                const tabElement = elements[`tab-${tab}`];
+                const contentElement = elements[`content-${tab}`];
+                
+                if (tabElement) {
+                    tabElement.classList.remove('active');
+                }
+                if (contentElement) {
+                    contentElement.classList.add('hidden');
+                }
             });
             
-            const tabElement = elements[`tab-${tabName.replace('-', '')}`];
-            const contentElement = elements[`content-${tabName}`];
+            // 선택된 탭 활성화
+            const selectedTabElement = elements[`tab-${tabName}`];
+            const selectedContentElement = elements[`content-${tabName}`];
             
-            if (tabElement) tabElement.classList.add('active');
-            if (contentElement) contentElement.classList.remove('hidden');
+            if (selectedTabElement) {
+                selectedTabElement.classList.add('active');
+            }
+            
+            if (selectedContentElement) {
+                selectedContentElement.classList.remove('hidden');
+            }
             
             // 탭별 초기화
             switch(tabName) {
@@ -2253,9 +2280,14 @@
                     break;
                 case 'musicplace':
                     updatePlayerDisplay();
+                    loadMusicplaceList();
                     break;
                 case 'cafe-radio':
                     updateCafePlayerDisplay();
+                    loadCafeMusicList();
+                    break;
+                case 'spotify':
+                    // Spotify 탭 초기화
                     break;
                 case 'revenue':
                     updateRevenueDisplay();
@@ -2953,14 +2985,6 @@
                     </div>
                 `;
                 elements.djBroadcasts.appendChild(item);
-            });
-            
-            document.querySelectorAll('.play-dj-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const id = parseInt(btn.dataset.id);
-                    const broadcast = state.djBroadcasts.find(b => b.id === id);
-                    if (broadcast) playDJBroadcast(broadcast);
-                });
             });
         }
 
