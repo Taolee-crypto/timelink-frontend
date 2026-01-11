@@ -220,6 +220,17 @@
             color: white;
         }
 
+        .badge-new {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            animation: newBadge 2s infinite;
+        }
+        
+        @keyframes newBadge {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
         /* 사용자 드롭다운 */
         .user-dropdown {
             position: absolute;
@@ -244,6 +255,34 @@
             .waveform {
                 height: 40px;
             }
+        }
+
+        /* 파일 섹션 구분 */
+        .section-divider {
+            position: relative;
+            margin: 2rem 0;
+            text-align: center;
+        }
+        
+        .section-divider:before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #e5e7eb;
+            z-index: 1;
+        }
+        
+        .section-divider span {
+            position: relative;
+            background: white;
+            padding: 0 1rem;
+            color: #6b7280;
+            font-size: 0.875rem;
+            font-weight: 600;
+            z-index: 2;
         }
     </style>
 </head>
@@ -561,7 +600,9 @@
                                 <div class="relative">
                                     <select id="music-filter" 
                                             class="appearance-none bg-gray-50 border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all">
-                                        <option value="all">모든 무드</option>
+                                        <option value="all">모든 음악</option>
+                                        <option value="sample">샘플 음악</option>
+                                        <option value="my">내가 변환한 음악</option>
                                         <option value="Relaxed">Relaxed</option>
                                         <option value="Energetic">Energetic</option>
                                         <option value="Focus">Focus</option>
@@ -724,8 +765,9 @@
             currentTrack: null,
             currentTrackIndex: 0,
             tlBalance: 10000,
-            tl3Files: [],
-            musicplaceFiles: [],
+            tl3Files: [],  // 내가 변환한 TL3 파일들
+            musicplaceFiles: [],  // MusicPlace에 표시될 모든 파일들 (샘플 + 내 파일)
+            sampleTL3Files: [],  // 샘플 파일들만 따로 저장
             audioContext: null,
             audioSource: null,
             analyser: null,
@@ -751,7 +793,8 @@
                 audioUrl: "https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3",
                 verified: true,
                 plays: 1245,
-                earnings: 373500
+                earnings: 373500,
+                type: "sample"
             },
             {
                 id: 2,
@@ -763,14 +806,15 @@
                 timestamp: "2024-01-20T14:45:00Z",
                 tlCost: 350,
                 tlUnits: 350,
-                maxPlaytime: "무제한 (TL 소반 기준)",
+                maxPlaytime: "무제한 (TL 소모 기준)",
                 creator: "AI Creator #2",
                 source: "Udio",
                 copyrightId: "TL3-2024-002-DEF456",
                 audioUrl: "https://assets.mixkit.co/music/preview/mixkit-driving-ambition-32.mp3",
                 verified: true,
                 plays: 892,
-                earnings: 312200
+                earnings: 312200,
+                type: "sample"
             },
             {
                 id: 3,
@@ -789,7 +833,8 @@
                 audioUrl: "https://assets.mixkit.co/music/preview/mixkit-deep-urban-623.mp3",
                 verified: true,
                 plays: 1567,
-                earnings: 626800
+                earnings: 626800,
+                type: "sample"
             },
             {
                 id: 4,
@@ -808,7 +853,8 @@
                 audioUrl: "https://assets.mixkit.co/music/preview/mixkit-summer-bossa-nova-116.mp3",
                 verified: true,
                 plays: 2103,
-                earnings: 683475
+                earnings: 683475,
+                type: "sample"
             }
         ];
 
@@ -942,8 +988,22 @@
 
         // 샘플 데이터 로드
         function loadSampleData() {
-            state.musicplaceFiles = [...sampleTL3Files];
-            state.tl3Files = [];
+            state.sampleTL3Files = [...sampleTL3Files];
+            state.tl3Files = [];  // 내가 변환한 파일들 (초기엔 빈 배열)
+            updateMusicplaceFiles();  // MusicPlace에 표시할 파일들 업데이트
+        }
+
+        // MusicPlace 파일 목록 업데이트
+        function updateMusicplaceFiles() {
+            // 샘플 파일 + 내가 변환한 파일 모두 결합
+            state.musicplaceFiles = [...state.sampleTL3Files, ...state.tl3Files];
+            
+            // 내가 변환한 파일에는 type을 추가
+            state.tl3Files.forEach(file => {
+                if (!file.type) {
+                    file.type = "my";
+                }
+            });
         }
 
         // 로그인 페이지 표시
@@ -1015,10 +1075,12 @@
             if (tabName === 'tl3-converter') {
                 elements.tabTL3Converter.classList.add('active');
                 elements.contentTL3Converter.classList.remove('hidden');
+                updateTL3List();
             } else if (tabName === 'musicplace') {
                 elements.tabMusicplace.classList.add('active');
                 elements.contentMusicplace.classList.remove('hidden');
                 updatePlayerDisplay();
+                loadMusicplaceList();
             }
         }
 
@@ -1085,17 +1147,25 @@
                     tlUnits: Math.round(length * 100 / 60),
                     maxPlaytime: "무제한 (TL 소모 기준)",
                     creator: artist,
-                    source: "Custom Upload",
+                    source: "TIMELINK AI 변환기",
                     copyrightId: "TL3-" + new Date().getFullYear() + "-" + 
                                  String(Date.now()).slice(-6) + "-" + 
                                  Math.random().toString(36).substr(2, 6).toUpperCase(),
                     audioUrl: URL.createObjectURL(elements.musicFile.files[0]),
                     verified: true,
                     plays: 0,
-                    earnings: 0
+                    earnings: 0,
+                    type: "my",
+                    isNew: true  // 새로 변환된 파일 표시용
                 };
                 
+                // 내 TL3 파일 목록에 추가
                 state.tl3Files.unshift(newTL3);
+                
+                // MusicPlace 파일 목록 업데이트
+                updateMusicplaceFiles();
+                
+                // UI 업데이트
                 updateTL3List();
                 toggleConverter();
                 
@@ -1104,7 +1174,10 @@
                 elements.fileInfo.classList.add('hidden');
                 elements.musicFile.value = '';
                 
-                showNotification(`"${title}"이(가) TL3 포맷으로 변환되었습니다!`, 'success');
+                // MusicPlace 탭으로 전환
+                switchTab('musicplace');
+                
+                showNotification(`"${title}"이(가) TL3 포맷으로 변환되어 MusicPlace에 추가되었습니다!`, 'success');
             }, 2000);
         }
 
@@ -1123,25 +1196,27 @@
             
             let html = '<div class="space-y-4">';
             state.tl3Files.forEach(file => {
+                const isNew = file.isNew ? '<span class="badge badge-new ml-2">NEW</span>' : '';
                 html += `
                     <div class="tl3-file-item" data-id="${file.id}">
                         <div class="flex justify-between items-start">
                             <div class="flex-1">
                                 <div class="flex items-center gap-3 mb-2">
-                                    <h3 class="font-bold text-lg">${file.title}</h3>
+                                    <h3 class="font-bold text-lg">${file.title}${isNew}</h3>
                                     <span class="badge badge-purple">${file.mood}</span>
                                 </div>
                                 <p class="text-gray-600 mb-3">${file.artist} • ${Math.floor(file.length/60)}:${String(file.length%60).padStart(2, '0')} • ${file.fileSize}</p>
                                 <div class="flex items-center gap-4 text-sm">
                                     <span class="text-purple-600 font-medium"><i class="fas fa-coins mr-1"></i>${file.tlCost} TL</span>
                                     <span class="text-gray-500"><i class="fas fa-clock mr-1"></i>${formatDate(file.timestamp)}</span>
+                                    <span class="badge badge-blue">내가 변환함</span>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
-                                <button class="play-music-btn text-purple-600 hover:text-purple-700 p-2 rounded-full hover:bg-purple-50" data-id="${file.id}">
+                                <button class="play-music-btn text-purple-600 hover:text-purple-700 p-2 rounded-full hover:bg-purple-50" data-id="${file.id}" title="MusicPlace에서 재생">
                                     <i class="fas fa-play"></i>
                                 </button>
-                                <button class="info-btn text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100" data-id="${file.id}">
+                                <button class="info-btn text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100" data-id="${file.id}" title="TL3 파일 정보">
                                     <i class="fas fa-info-circle"></i>
                                 </button>
                             </div>
@@ -1212,7 +1287,11 @@
             const filter = elements.musicFilter.value;
             let filteredFiles = [...state.musicplaceFiles];
             
-            if (filter !== 'all') {
+            if (filter === 'sample') {
+                filteredFiles = filteredFiles.filter(file => file.type === 'sample');
+            } else if (filter === 'my') {
+                filteredFiles = filteredFiles.filter(file => file.type === 'my');
+            } else if (filter !== 'all') {
                 filteredFiles = filteredFiles.filter(file => file.mood === filter);
             }
             
@@ -1225,46 +1304,117 @@
                 elements.musicplaceList.innerHTML = `
                     <div class="text-center py-12">
                         <i class="fas fa-filter text-gray-300 text-5xl mb-4"></i>
-                        <p class="text-gray-500 text-lg mb-2">해당 무드의 TL3 파일이 없습니다</p>
+                        <p class="text-gray-500 text-lg mb-2">해당 카테고리의 TL3 파일이 없습니다</p>
                         <p class="text-gray-400">다른 필터를 선택해보세요!</p>
                     </div>
                 `;
                 return;
             }
             
-            let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
-            files.forEach((file, index) => {
-                const isPlaying = state.currentTrack && state.currentTrack.id === file.id;
+            // 파일들을 type별로 분류
+            const sampleFiles = files.filter(f => f.type === 'sample');
+            const myFiles = files.filter(f => f.type === 'my');
+            
+            let html = '';
+            
+            // 내가 변환한 파일 섹션
+            if (myFiles.length > 0) {
                 html += `
-                    <div class="tl3-file-item ${isPlaying ? 'playing' : ''}" data-id="${file.id}" data-index="${index}">
-                        <div class="flex items-start gap-3">
-                            <div class="w-12 h-12 gradient-purple rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="fas fa-music text-white"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <h3 class="font-bold truncate">${file.title}</h3>
-                                <p class="text-gray-600 text-sm truncate">${file.artist}</p>
-                                <div class="flex items-center gap-2 mt-2">
-                                    <span class="badge badge-purple text-xs">${file.mood}</span>
-                                    <span class="text-xs text-gray-500">${Math.floor(file.length/60)}:${String(file.length%60).padStart(2, '0')}</span>
+                    <div class="mb-8">
+                        <div class="section-divider">
+                            <span>내가 변환한 TL3 파일들</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                `;
+                
+                myFiles.forEach((file, index) => {
+                    const isPlaying = state.currentTrack && state.currentTrack.id === file.id;
+                    const isNew = file.isNew ? '<span class="badge badge-new ml-2">NEW</span>' : '';
+                    html += `
+                        <div class="tl3-file-item ${isPlaying ? 'playing' : ''}" data-id="${file.id}" data-index="${index}">
+                            <div class="flex items-start gap-3">
+                                <div class="w-12 h-12 gradient-purple rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-music text-white"></i>
                                 </div>
-                                <div class="flex items-center justify-between mt-3">
-                                    <span class="text-purple-600 font-bold">${file.tlCost} TL</span>
-                                    <div class="flex items-center gap-1">
-                                        <button class="play-btn text-purple-600 hover:text-purple-700 p-1" data-id="${file.id}">
-                                            <i class="fas fa-play"></i>
-                                        </button>
-                                        <button class="info-btn text-gray-500 hover:text-gray-700 p-1" data-id="${file.id}">
-                                            <i class="fas fa-info-circle"></i>
-                                        </button>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between">
+                                        <h3 class="font-bold truncate">${file.title}${isNew}</h3>
+                                        <span class="badge badge-blue text-xs">내 파일</span>
+                                    </div>
+                                    <p class="text-gray-600 text-sm truncate">${file.artist}</p>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <span class="badge badge-purple text-xs">${file.mood}</span>
+                                        <span class="text-xs text-gray-500">${Math.floor(file.length/60)}:${String(file.length%60).padStart(2, '0')}</span>
+                                    </div>
+                                    <div class="flex items-center justify-between mt-3">
+                                        <span class="text-purple-600 font-bold">${file.tlCost} TL</span>
+                                        <div class="flex items-center gap-1">
+                                            <button class="play-btn text-purple-600 hover:text-purple-700 p-1" data-id="${file.id}" title="재생">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                            <button class="info-btn text-gray-500 hover:text-gray-700 p-1" data-id="${file.id}" title="TL3 파일 정보">
+                                                <i class="fas fa-info-circle"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
                     </div>
                 `;
-            });
-            html += '</div>';
+            }
+            
+            // 샘플 파일 섹션
+            if (sampleFiles.length > 0) {
+                const showDivider = myFiles.length > 0;
+                html += `
+                    <div>
+                        ${showDivider ? '<div class="section-divider"><span>샘플 TL3 파일들</span></div>' : ''}
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                `;
+                
+                sampleFiles.forEach((file, index) => {
+                    const isPlaying = state.currentTrack && state.currentTrack.id === file.id;
+                    html += `
+                        <div class="tl3-file-item ${isPlaying ? 'playing' : ''}" data-id="${file.id}" data-index="${index}">
+                            <div class="flex items-start gap-3">
+                                <div class="w-12 h-12 gradient-purple rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-music text-white"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <h3 class="font-bold truncate">${file.title}</h3>
+                                    <p class="text-gray-600 text-sm truncate">${file.artist}</p>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <span class="badge badge-purple text-xs">${file.mood}</span>
+                                        <span class="text-xs text-gray-500">${Math.floor(file.length/60)}:${String(file.length%60).padStart(2, '0')}</span>
+                                    </div>
+                                    <div class="flex items-center justify-between mt-3">
+                                        <span class="text-purple-600 font-bold">${file.tlCost} TL</span>
+                                        <div class="flex items-center gap-1">
+                                            <button class="play-btn text-purple-600 hover:text-purple-700 p-1" data-id="${file.id}" title="재생">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                            <button class="info-btn text-gray-500 hover:text-gray-700 p-1" data-id="${file.id}" title="TL3 파일 정보">
+                                                <i class="fas fa-info-circle"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
             
             elements.musicplaceList.innerHTML = html;
             
@@ -1339,6 +1489,17 @@
                 startWaveform();
                 
                 showNotification(`"${track.title}" 재생 중...`, 'info');
+                
+                // 재생 횟수 증가
+                if (track.type === 'my') {
+                    track.plays = (track.plays || 0) + 1;
+                }
+                
+                // NEW 뱃지 제거
+                if (track.isNew) {
+                    track.isNew = false;
+                    updateTL3List();
+                }
             }).catch(error => {
                 console.error('재생 오류:', error);
                 showNotification('음악 재생 중 오류가 발생했습니다.', 'error');
