@@ -76,7 +76,7 @@
                     <i class="fas fa-music"></i>
                     <span>TIMELINK</span>
                 </div>
-                <button onclick="showAuth()" class="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-2 rounded-full font-semibold hover:shadow-lg transition-all duration-300">
+                <button onclick="showAuth()" class="gradient-purple text-white px-6 py-2 rounded-full font-semibold hover:shadow-lg transition-all duration-300">
                     <i class="fas fa-rocket mr-2"></i>시작하기
                 </button>
             </div>
@@ -438,7 +438,7 @@
                         </div>
                         
                         <!-- 역할 배지 -->
-                        <div class="role-badge bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">
+                        <div id="role-badge" class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">
                             <i class="fas fa-user mr-2"></i>
                             <span id="role-badge-text">리스너</span>
                         </div>
@@ -463,6 +463,12 @@
                                 <div id="earned-tl" class="font-bold text-green-600">0 TL</div>
                             </div>
                         </div>
+
+                        <!-- 크리에이터 업그레이드 버튼 -->
+                        <button id="creator-upgrade-btn" onclick="showCreatorUpgradeModal()" 
+                                class="hidden bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg font-medium hover:shadow-md transition-all">
+                            <i class="fas fa-crown mr-2"></i>크리에이터로 전환
+                        </button>
 
                         <!-- 광고 보기 버튼 -->
                         <button onclick="watchAd()" class="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg font-medium hover:bg-yellow-200 transition-colors">
@@ -928,6 +934,71 @@
         </div>
     </div>
 
+    <!-- 크리에이터 업그레이드 모달 -->
+    <div id="creator-upgrade-modal" class="hidden modal-backdrop">
+        <div class="modal-content">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center">
+                        <i class="fas fa-crown text-3xl text-yellow-500 mr-3"></i>
+                        <div>
+                            <h2 class="text-xl font-bold">크리에이터로 전환</h2>
+                            <p class="text-gray-600 text-sm">Spotify 인증으로 크리에이터 권한을 획득하세요</p>
+                        </div>
+                    </div>
+                    <button onclick="closeModal('creator-upgrade-modal')" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- 크리에이터 혜택 -->
+                    <div class="bg-purple-50 rounded-xl p-6">
+                        <h3 class="font-bold text-purple-800 mb-3">크리에이터 혜택</h3>
+                        <ul class="space-y-2 text-purple-700">
+                            <li class="flex items-center">
+                                <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                                <span>AI 음악 TL3 변환 기능</span>
+                            </li>
+                            <li class="flex items-center">
+                                <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                                <span>플랫폼 기여 보상 시스템</span>
+                            </li>
+                            <li class="flex items-center">
+                                <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                                <span>환전 가능한 TL 수익 창출</span>
+                            </li>
+                            <li class="flex items-center">
+                                <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                                <span>음악 재생 통계 및 분석</span>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Spotify 연결 안내 -->
+                    <div class="bg-green-50 rounded-xl p-6">
+                        <div class="flex items-center mb-4">
+                            <i class="fab fa-spotify text-2xl text-green-500 mr-3"></i>
+                            <div>
+                                <h4 class="font-bold text-green-800">Spotify 인증 필요</h4>
+                                <p class="text-green-700 text-sm">크리에이터 기능 사용을 위해 Spotify 계정 연결이 필요합니다</p>
+                            </div>
+                        </div>
+                        <button onclick="showSpotifyModal()" class="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors">
+                            <i class="fab fa-spotify mr-2"></i>Spotify 인증하기
+                        </button>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button onclick="closeModal('creator-upgrade-modal')" class="text-gray-600 hover:text-gray-800">
+                            나중에 하기
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 환전 모달 -->
     <div id="exchange-modal" class="hidden modal-backdrop">
         <div class="modal-content">
@@ -1018,6 +1089,10 @@
             document.getElementById('auth-page').classList.remove('hidden');
             document.getElementById('dashboard').classList.add('hidden');
             closeAllModals();
+            // 가입 모드 초기화
+            isSignUp = false;
+            document.getElementById('name-group').classList.add('hidden');
+            document.getElementById('role-selection').classList.add('hidden');
         }
 
         function showDashboard() {
@@ -1061,14 +1136,20 @@
             const buttons = document.querySelectorAll('.role-btn');
             buttons.forEach(btn => {
                 btn.classList.remove('active', 'border-purple-500', 'bg-purple-50', 'text-purple-600');
-                btn.querySelector('span').classList.remove('text-purple-600', 'font-medium');
-                btn.querySelector('i').classList.remove('text-purple-600');
+                const span = btn.querySelector('span');
+                const icon = btn.querySelector('i');
+                if (span) span.classList.remove('text-purple-600', 'font-medium');
+                if (icon) icon.classList.remove('text-purple-600');
             });
             
             const selectedBtn = document.getElementById(`${role}-btn`);
-            selectedBtn.classList.add('active', 'border-purple-500', 'bg-purple-50');
-            selectedBtn.querySelector('span').classList.add('text-purple-600', 'font-medium');
-            selectedBtn.querySelector('i').classList.add('text-purple-600');
+            if (selectedBtn) {
+                selectedBtn.classList.add('active', 'border-purple-500', 'bg-purple-50');
+                const span = selectedBtn.querySelector('span');
+                const icon = selectedBtn.querySelector('i');
+                if (span) span.classList.add('text-purple-600', 'font-medium');
+                if (icon) icon.classList.add('text-purple-600');
+            }
         }
 
         // 인증 처리
@@ -1102,10 +1183,19 @@
                     currentUser = {
                         email: email,
                         name: name,
-                        role: selectedRole
+                        role: selectedRole,
+                        isCreator: selectedRole === 'creator' // 크리에이터 여부
                     };
                     spinner.classList.add('hidden');
                     showNotification('가입이 완료되었습니다!', 'success');
+                    
+                    // 크리에이터로 가입한 경우 Spotify 연결 안내
+                    if (selectedRole === 'creator') {
+                        setTimeout(() => {
+                            showSpotifyModal();
+                        }, 1000);
+                    }
+                    
                     showDashboard();
                 }, 1500);
             } else {
@@ -1115,7 +1205,8 @@
                     currentUser = {
                         email: email,
                         name: '사용자',
-                        role: 'listener'
+                        role: 'listener',
+                        isCreator: false
                     };
                     spinner.classList.add('hidden');
                     showNotification('로그인 성공!', 'success');
@@ -1176,6 +1267,9 @@
             
             // Spotify 상태 업데이트
             updateSpotifyStatus();
+            
+            // 크리에이터 업그레이드 버튼 표시 여부
+            updateCreatorUpgradeButton();
         }
 
         // 역할명 가져오기
@@ -1196,7 +1290,10 @@
             document.getElementById('listener-dashboard').classList.add('hidden');
             
             // 선택된 대시보드 표시
-            document.getElementById(`${role}-dashboard`).classList.remove('hidden');
+            const dashboardElement = document.getElementById(`${role}-dashboard`);
+            if (dashboardElement) {
+                dashboardElement.classList.remove('hidden');
+            }
             
             // 크리에이터일 경우 Spotify 프롬프트 표시
             if (role === 'creator' && !spotifyConnected) {
@@ -1217,7 +1314,24 @@
         function updateSpotifyStatus() {
             if (spotifyConnected) {
                 document.getElementById('spotify-badge').classList.remove('hidden');
+            } else {
+                document.getElementById('spotify-badge').classList.add('hidden');
             }
+        }
+
+        // 크리에이터 업그레이드 버튼 업데이트
+        function updateCreatorUpgradeButton() {
+            const upgradeBtn = document.getElementById('creator-upgrade-btn');
+            if (currentUser && currentUser.role !== 'creator' && !spotifyConnected) {
+                upgradeBtn.classList.remove('hidden');
+            } else {
+                upgradeBtn.classList.add('hidden');
+            }
+        }
+
+        // 크리에이터 업그레이드 모달 표시
+        function showCreatorUpgradeModal() {
+            document.getElementById('creator-upgrade-modal').classList.remove('hidden');
         }
 
         // 변환기 토글
@@ -1439,9 +1553,25 @@
             
             spotifyConnected = true;
             closeModal('spotify-modal');
+            
+            // 사용자를 크리에이터로 업그레이드
+            if (currentUser && !currentUser.isCreator) {
+                currentUser.role = 'creator';
+                currentUser.isCreator = true;
+                showNotification('Spotify 인증 완료! 크리에이터로 전환되었습니다.', 'success');
+                
+                // 대시보드 업데이트
+                setTimeout(() => {
+                    updateDashboard();
+                }, 500);
+            } else {
+                showNotification('Spotify 계정이 연결되었습니다!', 'success');
+            }
+            
+            // Spotify 관련 UI 업데이트
             document.getElementById('spotify-badge').classList.remove('hidden');
             document.getElementById('spotify-prompt').classList.add('hidden');
-            showNotification('Spotify 계정이 연결되었습니다!', 'success');
+            document.getElementById('creator-upgrade-btn').classList.add('hidden');
         }
 
         // 환전 처리
@@ -1493,6 +1623,7 @@
         function closeAllModals() {
             document.getElementById('spotify-modal').classList.add('hidden');
             document.getElementById('exchange-modal').classList.add('hidden');
+            document.getElementById('creator-upgrade-modal').classList.add('hidden');
         }
 
         // 사용자 메뉴 토글
@@ -1510,6 +1641,12 @@
             clearInterval(playTimer);
             broadcastTime = 0;
             playTime = 0;
+            spotifyConnected = false;
+            tl3Tracks = [];
+            wallet = {
+                total_tl: 10000,
+                earned_tl: 0
+            };
             showLanding();
             showNotification('로그아웃되었습니다', 'info');
         }
@@ -1517,7 +1654,10 @@
         // 이벤트 리스너 설정
         document.addEventListener('DOMContentLoaded', () => {
             // 환전 금액 입력 시 예상 금액 업데이트
-            document.getElementById('exchange-amount').addEventListener('input', updateExchangeEstimate);
+            const exchangeAmountInput = document.getElementById('exchange-amount');
+            if (exchangeAmountInput) {
+                exchangeAmountInput.addEventListener('input', updateExchangeEstimate);
+            }
             
             // 음악 재생 버튼 (리스너)
             document.addEventListener('click', (e) => {
@@ -1537,7 +1677,7 @@
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('.relative')) {
                     const dropdown = document.getElementById('user-dropdown');
-                    if (!dropdown.classList.contains('hidden')) {
+                    if (dropdown && !dropdown.classList.contains('hidden')) {
                         dropdown.classList.add('hidden');
                     }
                 }
@@ -1547,6 +1687,10 @@
             document.getElementById('creator-dashboard').classList.add('hidden');
             document.getElementById('cafe-dashboard').classList.add('hidden');
             document.getElementById('listener-dashboard').classList.add('hidden');
+            
+            // 초기 인증 모드 설정
+            toggleAuthMode();
+            toggleAuthMode(); // 기본 로그인 모드로 설정
         });
     </script>
 </body>
