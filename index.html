@@ -1993,1267 +1993,1500 @@
     <!-- 알림 컨테이너 -->
     <div id="notification-container"></div>
 
-    <script>
-        // 전역 상태 관리
-        const state = {
-            currentUser: null,
-            tlBalance: 10000,
-            currentTrack: null,
-            isPlaying: false,
-            tl3Files: [],
-            musicplaceTracks: [],
-            cafeStations: [],
-            verifiedTracks: [],
-            revenueData: [],
-            currentTab: 'tl3-converter',
-            spotifyConnected: false,
-            isDJMode: false,
-            cafeRegistered: false,
-            spotifyApi: null,
-            playRecords: [],
-            artistRevenue: 0,
-            platformRevenue: 0
-        };
+ <script>
+    // 전역 상태 관리
+    const state = {
+        currentUser: null,
+        tlBalance: 10000,
+        currentTrack: null,
+        isPlaying: false,
+        tl3Files: [],
+        musicplaceTracks: [],
+        cafeStations: [],
+        verifiedTracks: [],
+        revenueData: [],
+        currentTab: 'tl3-converter',
+        spotifyConnected: false,
+        isDJMode: false,
+        cafeRegistered: false,
+        spotifyApi: null,
+        playRecords: [],
+        artistRevenue: 0,
+        platformRevenue: 0
+    };
 
-        // TL3 수익 분배 시스템
-        const revenueSystem = {
-            artistShare: 0.7,
-            platformShare: 0.3,
-            
-            calculateRevenue: function(durationSeconds) {
-                const totalEarned = durationSeconds * 1; // 1 TL per second
-                return {
-                    total: totalEarned,
-                    artist: Math.floor(totalEarned * this.artistShare),
-                    platform: Math.floor(totalEarned * this.platformShare)
-                };
-            },
-            
-            recordPlay: function(trackId, userId, duration, artistId) {
-                const record = {
-                    trackId,
-                    userId,
-                    artistId,
-                    duration,
-                    timestamp: new Date().toISOString(),
-                    revenue: this.calculateRevenue(duration)
-                };
-                
-                state.playRecords.push(record);
-                
-                // 아티스트 수익 업데이트
-                this.updateArtistRevenue(artistId, record.revenue.artist);
-                
-                // 플랫폼 수익 업데이트
-                this.updatePlatformRevenue(record.revenue.platform);
-                
-                return record;
-            },
-            
-            updateArtistRevenue: function(artistId, amount) {
-                // 실제 구현에서는 서버에 아티스트 수익 업데이트 요청
-                state.artistRevenue += amount;
-                console.log(`아티스트 ${artistId}에게 ${amount} TL 지급`);
-            },
-            
-            updatePlatformRevenue: function(amount) {
-                state.platformRevenue += amount;
-                console.log(`플랫폼 수익 ${amount} TL 추가`);
-            },
-            
-            getUserEarnings: function(userId) {
-                return state.playRecords
-                    .filter(record => record.artistId === userId)
-                    .reduce((total, record) => total + record.revenue.artist, 0);
+    // 음악 재생 시스템
+    const audioPlaybackSystem = {
+        audioContext: null,
+        currentAudio: null,
+        isPlaying: false,
+        currentPlayback: null,
+        playbackInterval: null,
+        
+        initAudioContext: function() {
+            if (!this.audioContext) {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             }
-        };
-
-        // MusicPlace 전환 시스템
-        const musicplaceTransfer = {
-            transferToMusicplace: function(tl3FileId) {
-                const tl3File = state.tl3Files.find(file => file.id === tl3FileId);
-                if (!tl3File) {
-                    showNotification('TL3 파일을 찾을 수 없습니다.', 'error');
-                    return false;
-                }
-                
-                // MusicPlace 트랙 생성
-                const musicplaceTrack = {
-                    id: 'mp_' + Date.now(),
-                    title: tl3File.title,
-                    artist: tl3File.artist,
-                    artistId: state.currentUser.email, // 실제로는 아티스트 ID 사용
-                    mood: tl3File.mood,
-                    length: tl3File.length,
-                    tags: tl3File.tags,
-                    tl3Source: tl3File.id,
-                    plays: 0,
-                    likes: 0,
-                    verified: tl3File.verified,
-                    tlPerSecond: 1,
-                    revenueShare: {
-                        artist: 0.7,
-                        platform: 0.3
-                    },
-                    totalEarnings: 0,
-                    artistEarnings: 0,
-                    platformEarnings: 0,
-                    createdAt: new Date().toISOString()
-                };
-                
-                // MusicPlace에 추가
-                state.musicplaceTracks.push(musicplaceTrack);
-                
-                // TL3 파일 상태 업데이트
-                tl3File.transferredToMusicplace = true;
-                tl3File.musicplaceId = musicplaceTrack.id;
-                
-                showNotification('MusicPlace로 성공적으로 전환되었습니다!', 'success');
-                updateTl3FileList();
-                updateMusicplaceList();
-                
-                return musicplaceTrack;
-            },
+        },
+        
+        playTrack: async function(track, durationSeconds = 30) {
+            if (state.tlBalance < durationSeconds) {
+                showNotification(`TL이 부족합니다. ${durationSeconds} TL이 필요합니다.`, 'error');
+                return false;
+            }
             
-            playTrack: function(trackId, duration) {
-                const track = state.musicplaceTracks.find(t => t.id === trackId);
-                if (!track) return false;
-                
-                // TL 차감
-                const tlCost = duration * track.tlPerSecond;
-                if (state.tlBalance < tlCost) {
-                    showNotification('TL이 부족합니다.', 'error');
-                    return false;
-                }
-                
-                state.tlBalance -= tlCost;
-                updateTlBalance();
-                
-                // 재생 기록 추가
+            this.initAudioContext();
+            this.stopPlayback();
+            this.createMockAudio(track);
+            this.startPlaybackRecord(track, durationSeconds);
+            this.updateMusicPlayerUI(track);
+            
+            showNotification(`"${track.title}" 재생 시작!`, 'success');
+            return true;
+        },
+        
+        createMockAudio: function(track) {
+            this.currentAudio = {
+                duration: track.length,
+                currentTime: 0,
+                volume: 1.0,
+                play: function() { console.log('Audio playing...'); },
+                pause: function() { console.log('Audio paused...'); },
+                stop: function() { console.log('Audio stopped...'); }
+            };
+            
+            this.isPlaying = true;
+        },
+        
+        startPlaybackRecord: function(track, durationSeconds) {
+            this.currentPlayback = {
+                track: track,
+                startTime: Date.now(),
+                durationSeconds: durationSeconds,
+                tlDeducted: 0,
+                intervalCount: 0
+            };
+            
+            this.playbackInterval = setInterval(() => {
+                this.deductTLPerSecond(track);
+            }, 1000);
+            
+            setTimeout(() => {
+                this.stopPlayback();
+                showNotification(`"${track.title}" 재생 종료!`, 'info');
+            }, durationSeconds * 1000);
+        },
+        
+        deductTLPerSecond: function(track) {
+            if (!this.currentPlayback) return;
+            
+            if (state.tlBalance <= 0) {
+                showNotification('TL이 부족하여 재생이 중단되었습니다.', 'error');
+                this.stopPlayback();
+                return;
+            }
+            
+            state.tlBalance -= 1;
+            this.currentPlayback.tlDeducted += 1;
+            this.currentPlayback.intervalCount += 1;
+            
+            updateTlBalance();
+            
+            if (this.currentPlayback.intervalCount % 5 === 0) {
                 const playRecord = revenueSystem.recordPlay(
-                    trackId,
+                    track.id,
                     state.currentUser.email,
-                    duration,
+                    5,
                     track.artistId
                 );
                 
-                // 트랙 통계 업데이트
-                track.plays += 1;
-                track.totalEarnings += playRecord.revenue.total;
-                track.artistEarnings += playRecord.revenue.artist;
-                track.platformEarnings += playRecord.revenue.platform;
+                const trackIndex = state.musicplaceTracks.findIndex(t => t.id === track.id);
+                if (trackIndex !== -1) {
+                    state.musicplaceTracks[trackIndex].plays += 1;
+                    state.musicplaceTracks[trackIndex].totalEarnings += 5;
+                    state.musicplaceTracks[trackIndex].artistEarnings += Math.floor(5 * 0.7);
+                    state.musicplaceTracks[trackIndex].platformEarnings += Math.floor(5 * 0.3);
+                }
                 
-                // 아티스트에게 수익 지급
                 const artist = getArtistById(track.artistId);
                 if (artist) {
-                    artist.tlBalance += playRecord.revenue.artist;
+                    artist.tlBalance += Math.floor(5 * 0.7);
                 }
                 
-                showNotification(`${duration}초 재생 완료! ${tlCost} TL 소모`, 'info');
-                
-                return playRecord;
+                console.log(`5초 재생 완료: 아티스트 ${Math.floor(5 * 0.7)} TL 수익`);
             }
-        };
-
-        // Spotify API 시스템
-        const spotifyIntegration = {
-            isConnected: false,
-            apiConfig: null,
-            artistProfile: null,
             
-            connectAPI: function(clientId, clientSecret) {
-                // 실제 구현에서는 OAuth 2.0 인증 플로우 필요
-                showNotification('Spotify API에 연결 중...', 'info');
-                
-                // 모의 데이터로 시뮬레이션
-                this.apiConfig = {
-                    clientId: clientId,
-                    clientSecret: clientSecret,
-                    accessToken: 'mock_access_token_' + Date.now(),
-                    refreshToken: 'mock_refresh_token_' + Date.now()
-                };
-                
-                this.isConnected = true;
-                state.spotifyConnected = true;
-                
-                setTimeout(() => {
-                    document.getElementById('spotify-api-loading').classList.add('hidden');
-                    showNotification('Spotify API 연결이 완료되었습니다!', 'success');
-                    updateSpotifyStatus();
-                }, 2000);
-                
-                return true;
-            },
-            
-            verifyArtistProfile: function() {
-                if (!this.isConnected) {
-                    showNotification('Spotify API가 연결되지 않았습니다.', 'error');
-                    return false;
-                }
-                
-                // 모의 아티스트 프로필 데이터
-                this.artistProfile = {
-                    id: 'spotify_artist_' + Date.now(),
-                    name: state.currentUser.name,
-                    spotifyId: '3Nrfpe0tUJi4K4DXYWgMUX',
-                    followers: 15000,
-                    verified: true,
-                    imageUrl: 'https://i.scdn.co/image/ab6761610000e5eb0db39be3c6d0ab6d2f9ea9c9'
-                };
-                
-                showNotification('아티스트 프로필 인증이 완료되었습니다!', 'success');
-                updateSpotifyVerificationStatus();
-                
-                return this.artistProfile;
-            },
-            
-            verifyTrack: function(tl3TrackId, spotifyTrackUrl) {
-                if (!this.isConnected) {
-                    showNotification('Spotify API가 연결되지 않았습니다.', 'error');
-                    return false;
-                }
-                
-                // 모의 트랙 인증 데이터
-                const tl3Track = state.tl3Files.find(t => t.id === tl3TrackId);
-                if (!tl3Track) {
-                    showNotification('TL3 트랙을 찾을 수 없습니다.', 'error');
-                    return false;
-                }
-                
-                const verifiedTrack = {
-                    tl3Id: tl3TrackId,
-                    spotifyId: '7ouMYWpwJ422jRcDASZB7P',
-                    spotifyUrl: spotifyTrackUrl,
-                    title: tl3Track.title,
-                    artist: tl3Track.artist,
-                    verifiedAt: new Date().toISOString(),
-                    streams: Math.floor(Math.random() * 10000) + 1000,
-                    revenue: Math.floor(Math.random() * 1000) + 100
-                };
-                
-                // TL3 트랙 인증 상태 업데이트
-                tl3Track.verified = true;
-                tl3Track.spotifyVerified = true;
-                tl3Track.spotifyData = verifiedTrack;
-                
-                // MusicPlace 트랙도 업데이트
-                const musicplaceTrack = state.musicplaceTracks.find(t => t.tl3Source === tl3TrackId);
-                if (musicplaceTrack) {
-                    musicplaceTrack.verified = true;
-                    musicplaceTrack.spotifyVerified = true;
-                }
-                
-                state.verifiedTracks.push(verifiedTrack);
-                
-                showNotification('음원 저작권 인증이 완료되었습니다!', 'success');
-                updateTl3FileList();
-                updateMusicplaceList();
-                updateVerifiedTracks();
-                
-                return verifiedTrack;
-            },
-            
-            getSpotifyRevenue: function() {
-                if (!this.isConnected) return { total: 0, monthly: 0, streams: 0 };
-                
-                // 모의 수익 데이터
-                return {
-                    total: state.verifiedTracks.reduce((sum, track) => sum + track.revenue, 0),
-                    monthly: Math.floor(Math.random() * 500) + 100,
-                    streams: state.verifiedTracks.reduce((sum, track) => sum + track.streams, 0)
-                };
+            this.updatePlaybackUI();
+        },
+        
+        stopPlayback: function() {
+            if (this.playbackInterval) {
+                clearInterval(this.playbackInterval);
+                this.playbackInterval = null;
             }
-        };
-
-        // DOM 요소 캐싱
-        const elements = {
-            // 인증 페이지
-            authPage: document.getElementById('auth-page'),
-            dashboard: document.getElementById('dashboard'),
             
-            // 로그인/회원가입
-            loginSection: document.getElementById('login-section'),
-            signupSection: document.getElementById('signup-section'),
-            showSignupBtn: document.getElementById('show-signup-btn'),
-            showLoginBtn: document.getElementById('show-login-btn'),
-            demoLoginBtn: document.getElementById('demo-login'),
-            loginForm: document.getElementById('login-form'),
-            signupForm: document.getElementById('signup-form'),
+            if (this.currentAudio) {
+                this.currentAudio.stop();
+                this.currentAudio = null;
+            }
             
-            // 대시보드 탭
-            tabButtons: {
-                tl3Converter: document.getElementById('tab-tl3-converter'),
-                musicplace: document.getElementById('tab-musicplace'),
-                cafeRadio: document.getElementById('tab-cafe-radio'),
-                spotify: document.getElementById('tab-spotify'),
-                revenue: document.getElementById('tab-revenue')
-            },
-            
-            // 콘텐츠 영역
-            contents: {
-                tl3Converter: document.getElementById('content-tl3-converter'),
-                musicplace: document.getElementById('content-musicplace'),
-                cafeRadio: document.getElementById('content-cafe-radio'),
-                spotify: document.getElementById('content-spotify'),
-                revenue: document.getElementById('content-revenue')
-            },
-            
-            // 사용자 메뉴
-            userMenuBtn: document.getElementById('user-menu-btn'),
-            userDropdown: document.getElementById('user-dropdown'),
-            userName: document.getElementById('user-name'),
-            userType: document.getElementById('user-type'),
-            totalTl: document.getElementById('total-tl'),
-            logoutBtn: document.getElementById('logout-btn'),
-            
-            // TL3 변환기
-            converterForm: document.getElementById('converter-form'),
-            toggleConverterBtn: document.getElementById('toggle-converter-btn'),
-            convertForm: document.getElementById('convert-form'),
-            fileUploadBtn: document.getElementById('file-upload-btn'),
-            audioFile: document.getElementById('audio-file'),
-            fileName: document.getElementById('file-name'),
-            cancelConvertBtn: document.getElementById('cancel-convert-btn'),
-            
-            // MusicPlace
-            musicPlayer: document.querySelector('.music-player'),
-            playBtn: document.getElementById('play-btn'),
-            prevBtn: document.getElementById('prev-btn'),
-            nextBtn: document.getElementById('next-btn'),
-            progressBar: document.getElementById('progress-bar'),
-            progressFill: document.getElementById('progress-fill'),
-            currentTime: document.getElementById('current-time'),
-            totalTime: document.getElementById('total-time'),
-            waveform: document.getElementById('waveform'),
-            
-            // 모달
-            musicPlayerModal: document.getElementById('music-player-modal'),
-            closePlayerModal: document.getElementById('close-player-modal'),
-            chargeModal: document.getElementById('charge-modal'),
-            closeChargeModal: document.getElementById('close-charge-modal'),
-            chargeTlBtn: document.getElementById('charge-tl-btn'),
-            transferModal: document.getElementById('transfer-modal'),
-            closeTransferModal: document.getElementById('close-transfer-modal'),
-            spotifyApiModal: document.getElementById('spotify-api-modal'),
-            closeSpotifyModal: document.getElementById('close-spotify-modal'),
-            spotifyApiLoading: document.getElementById('spotify-api-loading'),
-            
-            // 알림
-            notificationContainer: document.getElementById('notification-container')
-        };
-
-        // 이벤트 리스너 설정
-        function setupEventListeners() {
-            // 로그인/회원가입 전환
-            elements.showSignupBtn.addEventListener('click', () => {
-                elements.loginSection.classList.add('hidden');
-                elements.signupSection.classList.remove('hidden');
-            });
-            
-            elements.showLoginBtn.addEventListener('click', () => {
-                elements.signupSection.classList.add('hidden');
-                elements.loginSection.classList.remove('hidden');
-            });
-            
-            // 데모 로그인
-            elements.demoLoginBtn.addEventListener('click', handleDemoLogin);
-            
-            // 폼 제출
-            elements.loginForm.addEventListener('submit', handleLogin);
-            elements.signupForm.addEventListener('submit', handleSignup);
-            
-            // 대시보드 탭 전환
-            Object.keys(elements.tabButtons).forEach(tab => {
-                elements.tabButtons[tab].addEventListener('click', () => switchTab(tab));
-            });
-            
-            // 사용자 메뉴
-            elements.userMenuBtn.addEventListener('click', toggleUserDropdown);
-            document.addEventListener('click', closeUserDropdown);
-            elements.logoutBtn.addEventListener('click', handleLogout);
-            
-            // TL3 변환기
-            elements.toggleConverterBtn.addEventListener('click', toggleConverterForm);
-            elements.cancelConvertBtn.addEventListener('click', toggleConverterForm);
-            elements.fileUploadBtn.addEventListener('click', () => elements.audioFile.click());
-            elements.audioFile.addEventListener('change', handleFileUpload);
-            elements.convertForm.addEventListener('submit', handleConvert);
-            
-            // MusicPlace 플레이어
-            elements.playBtn.addEventListener('click', togglePlay);
-            elements.progressBar.addEventListener('click', handleProgressClick);
-            
-            // TL3 → MusicPlace 전환
-            document.addEventListener('click', function(e) {
-                if (e.target.closest('.transfer-to-musicplace-btn')) {
-                    const tl3FileId = e.target.closest('.tl3-file-item').dataset.id;
-                    openTransferModal(tl3FileId);
+            this.isPlaying = false;
+            this.currentPlayback = null;
+            this.resetMusicPlayerUI();
+        },
+        
+        updateMusicPlayerUI: function(track) {
+            const playBtn = elements.playBtn.querySelector('i');
+            playBtn.classList.remove('fa-play');
+            playBtn.classList.add('fa-pause');
+            elements.playBtn.classList.add('playing');
+            this.startProgressBarAnimation(track.length);
+        },
+        
+        startProgressBarAnimation: function(totalDuration) {
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                if (!this.isPlaying) {
+                    clearInterval(progressInterval);
+                    return;
                 }
                 
-                if (e.target.closest('.play-track-btn')) {
-                    const trackId = e.target.closest('[data-id]').dataset.id;
-                    playMusicplaceTrack(trackId, 30); // 30초 재생
+                progress += (100 / totalDuration) * 0.1;
+                if (progress > 100) progress = 100;
+                
+                elements.progressFill.style.width = `${progress}%`;
+                
+                const currentTime = Math.floor((progress / 100) * totalDuration);
+                elements.currentTime.textContent = formatTime(currentTime);
+                elements.totalTime.textContent = formatTime(totalDuration);
+                
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
                 }
-            });
+            }, 100);
+        },
+        
+        updatePlaybackUI: function() {
+            if (!this.currentPlayback) return;
             
-            // Spotify API 연동
-            document.getElementById('connect-spotify-btn').addEventListener('click', () => {
-                elements.spotifyApiModal.classList.remove('hidden');
-            });
+            const remainingSeconds = this.currentPlayback.durationSeconds - this.currentPlayback.intervalCount;
+            const tlDeducted = this.currentPlayback.tlDeducted;
             
-            document.getElementById('connect-spotify-api').addEventListener('click', handleSpotifyAPIConnect);
-            document.getElementById('cancel-spotify-api').addEventListener('click', () => {
-                elements.spotifyApiModal.classList.add('hidden');
-            });
+            document.getElementById('tl-consumption').textContent = `1 TL/초 (총 ${tlDeducted} TL 소모)`;
             
-            document.getElementById('close-spotify-modal').addEventListener('click', () => {
-                elements.spotifyApiModal.classList.add('hidden');
-            });
+            if (remainingSeconds > 0) {
+                console.log(`남은 재생 시간: ${remainingSeconds}초, 소모 TL: ${tlDeducted}`);
+            }
+        },
+        
+        resetMusicPlayerUI: function() {
+            const playBtn = elements.playBtn.querySelector('i');
+            playBtn.classList.remove('fa-pause');
+            playBtn.classList.add('fa-play');
+            elements.playBtn.classList.remove('playing');
             
-            // 프로필 인증
-            document.getElementById('verify-profile-btn').addEventListener('click', handleProfileVerification);
-            
-            // 개별곡 인증
-            document.getElementById('verify-track-btn').addEventListener('click', () => {
-                document.getElementById('track-verification-form').classList.remove('hidden');
-            });
-            
-            document.getElementById('confirm-track-verification').addEventListener('click', handleTrackVerification);
-            
-            // MusicPlace 전환 모달
-            document.getElementById('close-transfer-modal').addEventListener('click', () => {
-                elements.transferModal.classList.add('hidden');
-            });
-            
-            document.getElementById('cancel-transfer').addEventListener('click', () => {
-                elements.transferModal.classList.add('hidden');
-            });
-            
-            document.getElementById('confirm-transfer').addEventListener('click', handleTransferToMusicplace);
-            
-            // 모달 닫기
-            elements.closePlayerModal.addEventListener('click', () => {
-                elements.musicPlayerModal.classList.add('hidden');
-            });
-            
-            elements.chargeTlBtn.addEventListener('click', () => {
-                elements.chargeModal.classList.remove('hidden');
-            });
-            
-            elements.closeChargeModal.addEventListener('click', () => {
-                elements.chargeModal.classList.add('hidden');
-            });
-            
-            // TL 충전
-            document.querySelectorAll('.tl-amount-btn').forEach(btn => {
-                btn.addEventListener('click', handleTlAmountSelect);
-            });
-            
-            document.getElementById('custom-tl-amount').addEventListener('input', handleCustomTlAmount);
-            document.getElementById('confirm-charge').addEventListener('click', handleCharge);
-            document.getElementById('cancel-charge').addEventListener('click', () => {
-                elements.chargeModal.classList.add('hidden');
-            });
+            elements.progressFill.style.width = '0%';
+            elements.currentTime.textContent = '0:00';
         }
+    };
 
-        // 이벤트 핸들러
-        async function handleDemoLogin(e) {
-            e.preventDefault();
+    // TL 자동 충전 시스템
+    const autoChargeSystem = {
+        minBalanceThreshold: 1000,
+        autoChargeAmount: 5000,
+        isAutoCharging: false,
+        
+        checkAndAutoCharge: function() {
+            if (state.tlBalance < this.minBalanceThreshold && !this.isAutoCharging) {
+                this.triggerAutoCharge();
+            }
+        },
+        
+        triggerAutoCharge: function() {
+            this.isAutoCharging = true;
             
-            state.currentUser = {
-                name: '데모 아티스트',
-                email: 'demo@timelink.com',
-                type: 'creator',
-                tlBalance: 10000,
-                userId: 'user_demo_' + Date.now()
+            showNotification(`TL 잔액이 부족하여 자동으로 ${this.autoChargeAmount.toLocaleString()} TL을 충전합니다.`, 'warning');
+            
+            setTimeout(() => {
+                state.tlBalance += this.autoChargeAmount;
+                updateTlBalance();
+                
+                showNotification(`${this.autoChargeAmount.toLocaleString()} TL 자동 충전 완료!`, 'success');
+                this.isAutoCharging = false;
+                this.addAutoChargeRecord();
+            }, 2000);
+        },
+        
+        addAutoChargeRecord: function() {
+            const record = {
+                type: 'auto_charge',
+                amount: this.autoChargeAmount,
+                timestamp: new Date().toISOString(),
+                reason: '잔액 부족 자동 충전'
+            };
+            console.log('자동 충전 기록:', record);
+        }
+    };
+
+    // 수익 분배 시스템
+    const revenueSystem = {
+        artistShare: 0.7,
+        platformShare: 0.3,
+        
+        calculateRevenue: function(durationSeconds) {
+            const totalEarned = durationSeconds * 1;
+            return {
+                total: totalEarned,
+                artist: Math.floor(totalEarned * this.artistShare),
+                platform: Math.floor(totalEarned * this.platformShare),
+                timestamp: new Date().toISOString()
+            };
+        },
+        
+        recordPlay: function(trackId, userId, duration, artistId) {
+            const record = {
+                trackId,
+                userId,
+                artistId,
+                duration,
+                timestamp: new Date().toISOString(),
+                revenue: this.calculateRevenue(duration)
             };
             
-            showNotification('데모 계정으로 로그인되었습니다!', 'success');
-            await switchToDashboard();
-        }
-
-        async function handleLogin(e) {
-            e.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
+            state.playRecords.push(record);
+            this.updateArtistRevenue(artistId, record.revenue.artist);
+            this.updatePlatformRevenue(record.revenue.platform);
+            this.addToRevenueHistory(record);
             
-            if (!email || !password) {
-                showNotification('이메일과 비밀번호를 입력해주세요.', 'error');
-                return;
+            return record;
+        },
+        
+        updateArtistRevenue: function(artistId, amount) {
+            console.log(`[수익 분배] 아티스트 ${artistId}에게 ${amount} TL 지급`);
+            
+            const artist = getArtistById(artistId);
+            if (artist) {
+                artist.tlBalance += amount;
+                console.log(`[수익 분배] 아티스트 ${artist.name} 현재 잔액: ${artist.tlBalance} TL`);
             }
-            
-            state.currentUser = {
-                name: email.split('@')[0],
-                email: email,
-                type: 'creator',
-                tlBalance: 10000,
-                userId: 'user_' + Date.now()
+        },
+        
+        updatePlatformRevenue: function(amount) {
+            state.platformRevenue += amount;
+            console.log(`[수익 분배] 플랫폼 수익 ${amount} TL 추가, 총계: ${state.platformRevenue} TL`);
+        },
+        
+        addToRevenueHistory: function(record) {
+            const revenueItem = {
+                date: new Date().toISOString().split('T')[0],
+                type: 'music_play',
+                description: `${record.trackId} 재생`,
+                amount: record.revenue.artist,
+                status: '완료',
+                details: record
             };
             
-            showNotification('로그인되었습니다!', 'success');
-            await switchToDashboard();
-        }
-
-        async function handleSignup(e) {
-            e.preventDefault();
-            const name = document.getElementById('signup-name').value;
-            const email = document.getElementById('signup-email').value;
-            const password = document.getElementById('signup-password').value;
-            const type = document.getElementById('signup-type').value;
+            state.revenueData.unshift(revenueItem);
             
-            if (!name || !email || !password || !type) {
-                showNotification('모든 필드를 입력해주세요.', 'error');
-                return;
+            if (state.currentTab === 'revenue') {
+                updateRevenueData();
+            }
+        },
+        
+        getUserEarnings: function(userId) {
+            return state.playRecords
+                .filter(record => record.artistId === userId)
+                .reduce((total, record) => total + record.revenue.artist, 0);
+        }
+    };
+
+    // MusicPlace 전환 시스템
+    const musicplaceTransfer = {
+        transferToMusicplace: function(tl3FileId) {
+            const tl3File = state.tl3Files.find(file => file.id === tl3FileId);
+            if (!tl3File) {
+                showNotification('TL3 파일을 찾을 수 없습니다.', 'error');
+                return false;
             }
             
-            state.currentUser = {
-                name: name,
-                email: email,
-                type: type,
-                tlBalance: 10000,
-                userId: 'user_' + Date.now()
-            };
-            
-            showNotification('회원가입이 완료되었습니다! 10,000 TL이 지급되었습니다.', 'success');
-            await switchToDashboard();
-        }
-
-        function handleLogout() {
-            state.currentUser = null;
-            elements.authPage.classList.remove('hidden');
-            elements.dashboard.classList.add('hidden');
-            showNotification('로그아웃되었습니다.', 'info');
-        }
-
-        function toggleConverterForm() {
-            elements.converterForm.classList.toggle('hidden');
-        }
-
-        function handleFileUpload(e) {
-            const file = e.target.files[0];
-            if (file) {
-                elements.fileName.textContent = file.name;
-                elements.fileName.classList.remove('hidden');
-            }
-        }
-
-        async function handleConvert(e) {
-            e.preventDefault();
-            
-            if (state.tlBalance < 500) {
-                showNotification('TL이 부족합니다. 충전이 필요합니다.', 'error');
-                return;
-            }
-            
-            // TL 차감
-            state.tlBalance -= 500;
-            updateTlBalance();
-            
-            showNotification('TL3 변환을 시작합니다...', 'info');
-            
-            const trackData = {
-                id: 'tl3_' + Date.now(),
-                title: document.getElementById('track-title').value,
-                artist: document.getElementById('track-artist').value,
-                mood: document.getElementById('track-mood').value,
-                length: parseInt(document.getElementById('track-length').value),
-                tags: document.getElementById('track-tags').value.split(',').map(tag => tag.trim()),
-                aiSource: document.getElementById('ai-source').value,
+            const musicplaceTrack = {
+                id: 'mp_' + Date.now(),
+                title: tl3File.title,
+                artist: tl3File.artist,
                 artistId: state.currentUser.email,
-                createdAt: new Date().toISOString(),
+                mood: tl3File.mood,
+                length: tl3File.length,
+                tags: tl3File.tags,
+                tl3Source: tl3File.id,
                 plays: 0,
                 likes: 0,
+                verified: tl3File.verified,
+                tlPerSecond: 1,
+                revenueShare: {
+                    artist: 0.7,
+                    platform: 0.3
+                },
+                totalEarnings: 0,
+                artistEarnings: 0,
+                platformEarnings: 0,
+                createdAt: new Date().toISOString()
+            };
+            
+            state.musicplaceTracks.push(musicplaceTrack);
+            tl3File.transferredToMusicplace = true;
+            tl3File.musicplaceId = musicplaceTrack.id;
+            
+            showNotification('MusicPlace로 성공적으로 전환되었습니다!', 'success');
+            updateTl3FileList();
+            updateMusicplaceList();
+            
+            return musicplaceTrack;
+        }
+    };
+
+    // Spotify API 시스템
+    const spotifyIntegration = {
+        isConnected: false,
+        apiConfig: null,
+        artistProfile: null,
+        
+        connectAPI: function(clientId, clientSecret) {
+            showNotification('Spotify API에 연결 중...', 'info');
+            
+            this.apiConfig = {
+                clientId: clientId,
+                clientSecret: clientSecret,
+                accessToken: 'mock_access_token_' + Date.now(),
+                refreshToken: 'mock_refresh_token_' + Date.now()
+            };
+            
+            this.isConnected = true;
+            state.spotifyConnected = true;
+            
+            setTimeout(() => {
+                document.getElementById('spotify-api-loading').classList.add('hidden');
+                showNotification('Spotify API 연결이 완료되었습니다!', 'success');
+                updateSpotifyStatus();
+            }, 2000);
+            
+            return true;
+        },
+        
+        verifyArtistProfile: function() {
+            if (!this.isConnected) {
+                showNotification('Spotify API가 연결되지 않았습니다.', 'error');
+                return false;
+            }
+            
+            this.artistProfile = {
+                id: 'spotify_artist_' + Date.now(),
+                name: state.currentUser.name,
+                spotifyId: '3Nrfpe0tUJi4K4DXYWgMUX',
+                followers: 15000,
+                verified: true,
+                imageUrl: 'https://i.scdn.co/image/ab6761610000e5eb0db39be3c6d0ab6d2f9ea9c9'
+            };
+            
+            showNotification('아티스트 프로필 인증이 완료되었습니다!', 'success');
+            updateSpotifyVerificationStatus();
+            
+            return this.artistProfile;
+        },
+        
+        verifyTrack: function(tl3TrackId, spotifyTrackUrl) {
+            if (!this.isConnected) {
+                showNotification('Spotify API가 연결되지 않았습니다.', 'error');
+                return false;
+            }
+            
+            const tl3Track = state.tl3Files.find(t => t.id === tl3TrackId);
+            if (!tl3Track) {
+                showNotification('TL3 트랙을 찾을 수 없습니다.', 'error');
+                return false;
+            }
+            
+            const verifiedTrack = {
+                tl3Id: tl3TrackId,
+                spotifyId: '7ouMYWpwJ422jRcDASZB7P',
+                spotifyUrl: spotifyTrackUrl,
+                title: tl3Track.title,
+                artist: tl3Track.artist,
+                verifiedAt: new Date().toISOString(),
+                streams: Math.floor(Math.random() * 10000) + 1000,
+                revenue: Math.floor(Math.random() * 1000) + 100
+            };
+            
+            tl3Track.verified = true;
+            tl3Track.spotifyVerified = true;
+            tl3Track.spotifyData = verifiedTrack;
+            
+            const musicplaceTrack = state.musicplaceTracks.find(t => t.tl3Source === tl3TrackId);
+            if (musicplaceTrack) {
+                musicplaceTrack.verified = true;
+                musicplaceTrack.spotifyVerified = true;
+            }
+            
+            state.verifiedTracks.push(verifiedTrack);
+            
+            showNotification('음원 저작권 인증이 완료되었습니다!', 'success');
+            updateTl3FileList();
+            updateMusicplaceList();
+            updateVerifiedTracks();
+            
+            return verifiedTrack;
+        },
+        
+        getSpotifyRevenue: function() {
+            if (!this.isConnected) return { total: 0, monthly: 0, streams: 0 };
+            
+            return {
+                total: state.verifiedTracks.reduce((sum, track) => sum + track.revenue, 0),
+                monthly: Math.floor(Math.random() * 500) + 100,
+                streams: state.verifiedTracks.reduce((sum, track) => sum + track.streams, 0)
+            };
+        }
+    };
+
+    // DOM 요소 캐싱
+    const elements = {
+        authPage: document.getElementById('auth-page'),
+        dashboard: document.getElementById('dashboard'),
+        loginSection: document.getElementById('login-section'),
+        signupSection: document.getElementById('signup-section'),
+        showSignupBtn: document.getElementById('show-signup-btn'),
+        showLoginBtn: document.getElementById('show-login-btn'),
+        demoLoginBtn: document.getElementById('demo-login'),
+        loginForm: document.getElementById('login-form'),
+        signupForm: document.getElementById('signup-form'),
+        tabButtons: {
+            tl3Converter: document.getElementById('tab-tl3-converter'),
+            musicplace: document.getElementById('tab-musicplace'),
+            cafeRadio: document.getElementById('tab-cafe-radio'),
+            spotify: document.getElementById('tab-spotify'),
+            revenue: document.getElementById('tab-revenue')
+        },
+        contents: {
+            tl3Converter: document.getElementById('content-tl3-converter'),
+            musicplace: document.getElementById('content-musicplace'),
+            cafeRadio: document.getElementById('content-cafe-radio'),
+            spotify: document.getElementById('content-spotify'),
+            revenue: document.getElementById('content-revenue')
+        },
+        userMenuBtn: document.getElementById('user-menu-btn'),
+        userDropdown: document.getElementById('user-dropdown'),
+        userName: document.getElementById('user-name'),
+        userType: document.getElementById('user-type'),
+        totalTl: document.getElementById('total-tl'),
+        logoutBtn: document.getElementById('logout-btn'),
+        converterForm: document.getElementById('converter-form'),
+        toggleConverterBtn: document.getElementById('toggle-converter-btn'),
+        convertForm: document.getElementById('convert-form'),
+        fileUploadBtn: document.getElementById('file-upload-btn'),
+        audioFile: document.getElementById('audio-file'),
+        fileName: document.getElementById('file-name'),
+        cancelConvertBtn: document.getElementById('cancel-convert-btn'),
+        musicPlayer: document.querySelector('.music-player'),
+        playBtn: document.getElementById('play-btn'),
+        prevBtn: document.getElementById('prev-btn'),
+        nextBtn: document.getElementById('next-btn'),
+        progressBar: document.getElementById('progress-bar'),
+        progressFill: document.getElementById('progress-fill'),
+        currentTime: document.getElementById('current-time'),
+        totalTime: document.getElementById('total-time'),
+        waveform: document.getElementById('waveform'),
+        musicPlayerModal: document.getElementById('music-player-modal'),
+        closePlayerModal: document.getElementById('close-player-modal'),
+        chargeModal: document.getElementById('charge-modal'),
+        closeChargeModal: document.getElementById('close-charge-modal'),
+        chargeTlBtn: document.getElementById('charge-tl-btn'),
+        transferModal: document.getElementById('transfer-modal'),
+        closeTransferModal: document.getElementById('close-transfer-modal'),
+        spotifyApiModal: document.getElementById('spotify-api-modal'),
+        closeSpotifyModal: document.getElementById('close-spotify-modal'),
+        spotifyApiLoading: document.getElementById('spotify-api-loading'),
+        notificationContainer: document.getElementById('notification-container')
+    };
+
+    // 유틸리티 함수
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function getArtistById(artistId) {
+        return {
+            email: artistId,
+            name: artistId.split('@')[0],
+            tlBalance: Math.floor(Math.random() * 10000) + 1000
+        };
+    }
+
+    // 이벤트 핸들러 함수들
+    async function handleDemoLogin(e) {
+        e.preventDefault();
+        
+        state.currentUser = {
+            name: '데모 아티스트',
+            email: 'demo@timelink.com',
+            type: 'creator',
+            tlBalance: 10000,
+            userId: 'user_demo_' + Date.now()
+        };
+        
+        showNotification('데모 계정으로 로그인되었습니다!', 'success');
+        await switchToDashboard();
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        
+        if (!email || !password) {
+            showNotification('이메일과 비밀번호를 입력해주세요.', 'error');
+            return;
+        }
+        
+        state.currentUser = {
+            name: email.split('@')[0],
+            email: email,
+            type: 'creator',
+            tlBalance: 10000,
+            userId: 'user_' + Date.now()
+        };
+        
+        showNotification('로그인되었습니다!', 'success');
+        await switchToDashboard();
+    }
+
+    async function handleSignup(e) {
+        e.preventDefault();
+        const name = document.getElementById('signup-name').value;
+        const email = document.getElementById('signup-email').value;
+        const password = document.getElementById('signup-password').value;
+        const type = document.getElementById('signup-type').value;
+        
+        if (!name || !email || !password || !type) {
+            showNotification('모든 필드를 입력해주세요.', 'error');
+            return;
+        }
+        
+        state.currentUser = {
+            name: name,
+            email: email,
+            type: type,
+            tlBalance: 10000,
+            userId: 'user_' + Date.now()
+        };
+        
+        showNotification('회원가입이 완료되었습니다! 10,000 TL이 지급되었습니다.', 'success');
+        await switchToDashboard();
+    }
+
+    function handleLogout() {
+        state.currentUser = null;
+        elements.authPage.classList.remove('hidden');
+        elements.dashboard.classList.add('hidden');
+        showNotification('로그아웃되었습니다.', 'info');
+    }
+
+    function toggleConverterForm() {
+        elements.converterForm.classList.toggle('hidden');
+    }
+
+    function handleFileUpload(e) {
+        const file = e.target.files[0];
+        if (file) {
+            elements.fileName.textContent = file.name;
+            elements.fileName.classList.remove('hidden');
+        }
+    }
+
+    async function handleConvert(e) {
+        e.preventDefault();
+        
+        if (state.tlBalance < 500) {
+            showNotification('TL이 부족합니다. 충전이 필요합니다.', 'error');
+            return;
+        }
+        
+        state.tlBalance -= 500;
+        updateTlBalance();
+        
+        showNotification('TL3 변환을 시작합니다...', 'info');
+        
+        const trackData = {
+            id: 'tl3_' + Date.now(),
+            title: document.getElementById('track-title').value,
+            artist: document.getElementById('track-artist').value,
+            mood: document.getElementById('track-mood').value,
+            length: parseInt(document.getElementById('track-length').value),
+            tags: document.getElementById('track-tags').value.split(',').map(tag => tag.trim()),
+            aiSource: document.getElementById('ai-source').value,
+            artistId: state.currentUser.email,
+            createdAt: new Date().toISOString(),
+            plays: 0,
+            likes: 0,
+            verified: false,
+            transferredToMusicplace: false,
+            musicplaceId: null,
+            spotifyVerified: false
+        };
+        
+        state.tl3Files.push(trackData);
+        
+        elements.convertForm.reset();
+        elements.fileName.classList.add('hidden');
+        toggleConverterForm();
+        
+        setTimeout(() => {
+            showNotification('TL3 변환이 완료되었습니다!', 'success');
+            updateTl3FileList();
+        }, 3000);
+    }
+
+    function openTransferModal(tl3FileId) {
+        const tl3File = state.tl3Files.find(file => file.id === tl3FileId);
+        if (!tl3File) return;
+        
+        document.getElementById('transfer-track-title').textContent = tl3File.title;
+        document.getElementById('transfer-track-artist').textContent = tl3File.artist;
+        
+        elements.transferModal.classList.remove('hidden');
+        elements.transferModal.dataset.tl3Id = tl3FileId;
+    }
+
+    function handleTransferToMusicplace() {
+        const tl3FileId = elements.transferModal.dataset.tl3Id;
+        const result = musicplaceTransfer.transferToMusicplace(tl3FileId);
+        
+        if (result) {
+            elements.transferModal.classList.add('hidden');
+            
+            const tl3Card = document.querySelector(`[data-id="${tl3FileId}"]`);
+            if (tl3Card) {
+                tl3Card.classList.add('transfer-animation');
+                setTimeout(() => {
+                    tl3Card.classList.remove('transfer-animation');
+                }, 1000);
+            }
+        }
+    }
+
+    function playMusicplaceTrack(trackId, duration = 30) {
+        const track = state.musicplaceTracks.find(t => t.id === trackId);
+        if (!track) {
+            showNotification('트랙을 찾을 수 없습니다.', 'error');
+            return false;
+        }
+        
+        autoChargeSystem.checkAndAutoCharge();
+        state.currentTrack = track;
+        
+        const result = audioPlaybackSystem.playTrack(track, duration);
+        
+        if (result) {
+            updateMusicplaceList();
+            updateModalMusicPlayer(track);
+        }
+        
+        return result;
+    }
+
+    function togglePlay() {
+        if (audioPlaybackSystem.isPlaying) {
+            audioPlaybackSystem.stopPlayback();
+        } else {
+            if (state.currentTrack) {
+                audioPlaybackSystem.playTrack(state.currentTrack, 30);
+            } else {
+                showNotification('재생할 음악을 선택해주세요.', 'error');
+            }
+        }
+    }
+
+    function handleProgressClick(e) {
+        if (!state.currentTrack) return;
+        
+        const rect = elements.progressBar.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        elements.progressFill.style.width = `${percent * 100}%`;
+        
+        const currentTime = Math.floor(percent * state.currentTrack.length);
+        elements.currentTime.textContent = formatTime(currentTime);
+    }
+
+    function handleSpotifyAPIConnect() {
+        const clientId = document.getElementById('spotify-client-id').value;
+        const clientSecret = document.getElementById('spotify-client-secret').value;
+        
+        if (!clientId || !clientSecret) {
+            showNotification('Client ID와 Client Secret을 입력해주세요.', 'error');
+            return;
+        }
+        
+        elements.spotifyApiModal.classList.add('hidden');
+        elements.spotifyApiLoading.classList.remove('hidden');
+        
+        setTimeout(() => {
+            const success = spotifyIntegration.connectAPI(clientId, clientSecret);
+            if (success) {
+                updateTl3TrackSelect();
+            }
+        }, 1000);
+    }
+
+    function handleProfileVerification() {
+        const profile = spotifyIntegration.verifyArtistProfile();
+        if (profile) {
+            document.getElementById('profile-verified-info').classList.remove('hidden');
+            document.getElementById('verified-artist-name').textContent = profile.name;
+            document.getElementById('spotify-artist-id').textContent = profile.spotifyId;
+            
+            document.getElementById('profile-verification-icon').className = 'step-icon completed';
+            document.getElementById('artist-verification-icon').className = 'step-icon completed';
+        }
+    }
+
+    function handleTrackVerification() {
+        const tl3TrackSelect = document.getElementById('tl3-track-select');
+        const spotifyTrackUrl = document.getElementById('spotify-track-url').value;
+        
+        if (!tl3TrackSelect.value || !spotifyTrackUrl) {
+            showNotification('TL3 트랙과 Spotify URL을 입력해주세요.', 'error');
+            return;
+        }
+        
+        const verifiedTrack = spotifyIntegration.verifyTrack(tl3TrackSelect.value, spotifyTrackUrl);
+        if (verifiedTrack) {
+            document.getElementById('track-verification-form').classList.add('hidden');
+            document.getElementById('spotify-track-url').value = '';
+        }
+    }
+
+    function handleTlAmountSelect(e) {
+        document.querySelectorAll('.tl-amount-btn').forEach(btn => {
+            btn.classList.remove('border-purple-500', 'bg-purple-50');
+            btn.classList.add('border-gray-300');
+        });
+        
+        e.currentTarget.classList.add('border-purple-500', 'bg-purple-50');
+        e.currentTarget.classList.remove('border-gray-300');
+        
+        const amountText = e.currentTarget.querySelector('.font-bold').textContent;
+        if (amountText !== '직접 입력') {
+            const tlAmount = parseInt(amountText.replace(/[^0-9]/g, ''));
+            document.getElementById('charge-total-amount').textContent = tlAmount.toLocaleString() + ' TL';
+            document.getElementById('charge-payment-amount').textContent = (tlAmount / 1).toLocaleString() + '원';
+        }
+    }
+
+    function handleCustomTlAmount(e) {
+        const tlAmount = parseInt(e.target.value) || 0;
+        document.getElementById('charge-total-amount').textContent = tlAmount.toLocaleString() + ' TL';
+        document.getElementById('charge-payment-amount').textContent = (tlAmount / 1).toLocaleString() + '원';
+    }
+
+    function handleCharge() {
+        const tlAmount = parseInt(document.getElementById('charge-total-amount').textContent.replace(/[^0-9]/g, '')) || 0;
+        
+        if (tlAmount < 1000) {
+            showNotification('최소 충전 금액은 1,000 TL입니다.', 'error');
+            return;
+        }
+        
+        let bonus = 0;
+        if (tlAmount >= 50000) {
+            bonus = Math.floor(tlAmount * 0.05);
+        }
+        
+        state.tlBalance += tlAmount + bonus;
+        updateTlBalance();
+        
+        elements.chargeModal.classList.add('hidden');
+        
+        if (bonus > 0) {
+            showNotification(`${tlAmount.toLocaleString()} TL 충전 완료! ${bonus.toLocaleString()} TL 보너스가 추가되었습니다.`, 'success');
+        } else {
+            showNotification(`${tlAmount.toLocaleString()} TL 충전 완료!`, 'success');
+        }
+    }
+
+    function switchTab(tabName) {
+        Object.values(elements.tabButtons).forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        Object.values(elements.contents).forEach(content => {
+            content.classList.add('hidden');
+        });
+        
+        elements.tabButtons[tabName].classList.add('active');
+        elements.contents[tabName].classList.remove('hidden');
+        state.currentTab = tabName;
+        
+        switch(tabName) {
+            case 'tl3-converter':
+                updateTl3FileList();
+                updateSpotifyStatus();
+                break;
+            case 'musicplace':
+                updateMusicplaceList();
+                break;
+            case 'cafe-radio':
+                updateCafeRadioStations();
+                break;
+            case 'spotify':
+                updateSpotifyVerificationStatus();
+                updateTl3TrackSelect();
+                updateVerifiedTracks();
+                break;
+            case 'revenue':
+                updateRevenueData();
+                break;
+        }
+    }
+
+    function toggleUserDropdown(e) {
+        e.stopPropagation();
+        elements.userDropdown.classList.toggle('hidden');
+    }
+
+    function closeUserDropdown(e) {
+        if (!elements.userDropdown.contains(e.target) && !elements.userMenuBtn.contains(e.target)) {
+            elements.userDropdown.classList.add('hidden');
+        }
+    }
+
+    async function switchToDashboard() {
+        elements.userName.textContent = state.currentUser.name;
+        elements.userType.textContent = getAccountTypeLabel(state.currentUser.type);
+        document.getElementById('dropdown-user-name').textContent = state.currentUser.name;
+        document.getElementById('dropdown-user-type').textContent = getAccountTypeLabel(state.currentUser.type);
+        
+        updateTlBalance();
+        
+        elements.authPage.classList.add('hidden');
+        elements.dashboard.classList.remove('hidden');
+        
+        await loadInitialData();
+        
+        switchTab('tl3-converter');
+    }
+
+    function updateTlBalance() {
+        state.tlBalance = state.currentUser.tlBalance;
+        elements.totalTl.textContent = state.tlBalance.toLocaleString() + ' TL';
+        document.getElementById('dropdown-user-tl').textContent = state.tlBalance.toLocaleString() + ' TL';
+        document.getElementById('charge-current-balance').textContent = state.tlBalance.toLocaleString() + ' TL';
+        document.getElementById('player-tl-balance').textContent = state.tlBalance.toLocaleString();
+    }
+
+    function getAccountTypeLabel(type) {
+        const labels = {
+            'creator': '음악 크리에이터',
+            'cafe': '카페 사장님',
+            'listener': '일반 청취자',
+            'dj': 'DJ'
+        };
+        return labels[type] || type;
+    }
+
+    async function loadInitialData() {
+        state.tl3Files = [
+            {
+                id: 'tl3_001',
+                title: 'Chill Vibes #01',
+                artist: 'AI Lofi Master',
+                artistId: 'ai_lofi@demo.com',
+                mood: 'Relaxed',
+                length: 180,
+                tags: ['lofi', 'chill', 'study'],
+                aiSource: 'suno-ai',
+                createdAt: '2023-11-01T10:00:00Z',
+                plays: 1250,
+                likes: 89,
+                verified: true,
+                transferredToMusicplace: true,
+                musicplaceId: 'mp_001',
+                spotifyVerified: true
+            },
+            {
+                id: 'tl3_002',
+                title: 'Morning Coffee',
+                artist: 'Neural Beats',
+                artistId: 'neural@demo.com',
+                mood: 'Calm',
+                length: 240,
+                tags: ['ambient', 'morning', 'coffee'],
+                aiSource: 'mubert',
+                createdAt: '2023-11-05T14:30:00Z',
+                plays: 890,
+                likes: 67,
                 verified: false,
                 transferredToMusicplace: false,
                 musicplaceId: null,
                 spotifyVerified: false
-            };
-            
-            state.tl3Files.push(trackData);
-            
-            elements.convertForm.reset();
-            elements.fileName.classList.add('hidden');
-            toggleConverterForm();
-            
-            setTimeout(() => {
-                showNotification('TL3 변환이 완료되었습니다!', 'success');
-                updateTl3FileList();
-            }, 3000);
-        }
-
-        function openTransferModal(tl3FileId) {
-            const tl3File = state.tl3Files.find(file => file.id === tl3FileId);
-            if (!tl3File) return;
-            
-            document.getElementById('transfer-track-title').textContent = tl3File.title;
-            document.getElementById('transfer-track-artist').textContent = tl3File.artist;
-            
-            elements.transferModal.classList.remove('hidden');
-            elements.transferModal.dataset.tl3Id = tl3FileId;
-        }
-
-        function handleTransferToMusicplace() {
-            const tl3FileId = elements.transferModal.dataset.tl3Id;
-            const result = musicplaceTransfer.transferToMusicplace(tl3FileId);
-            
-            if (result) {
-                elements.transferModal.classList.add('hidden');
-                
-                // 전환 애니메이션 효과
-                const tl3Card = document.querySelector(`[data-id="${tl3FileId}"]`);
-                if (tl3Card) {
-                    tl3Card.classList.add('transfer-animation');
-                    setTimeout(() => {
-                        tl3Card.classList.remove('transfer-animation');
-                    }, 1000);
-                }
             }
-        }
-
-        function playMusicplaceTrack(trackId, duration = 30) {
-            const result = musicplaceTransfer.playTrack(trackId, duration);
-            if (result) {
-                updateMusicplaceList();
-                updateTlBalance();
-                
-                // 음악 플레이어 업데이트
-                const track = state.musicplaceTracks.find(t => t.id === trackId);
-                if (track) {
-                    updateMusicPlayer(track);
-                }
+        ];
+        
+        state.musicplaceTracks = [
+            {
+                id: 'mp_001',
+                title: 'Chill Vibes #01',
+                artist: 'AI Lofi Master',
+                artistId: 'ai_lofi@demo.com',
+                mood: 'Relaxed',
+                length: 180,
+                tags: ['lofi', 'chill', 'study'],
+                tl3Source: 'tl3_001',
+                plays: 1250,
+                likes: 89,
+                verified: true,
+                tlPerSecond: 1,
+                revenueShare: { artist: 0.7, platform: 0.3 },
+                totalEarnings: 1250,
+                artistEarnings: 875,
+                platformEarnings: 375,
+                createdAt: '2023-11-01T10:00:00Z'
+            },
+            {
+                id: 'mp_002',
+                title: 'Deep Focus Flow',
+                artist: 'Code Harmony',
+                artistId: 'code@demo.com',
+                mood: 'Focus',
+                length: 300,
+                tags: ['focus', 'work', 'coding'],
+                tl3Source: 'tl3_003',
+                plays: 3450,
+                likes: 245,
+                verified: true,
+                tlPerSecond: 1,
+                revenueShare: { artist: 0.7, platform: 0.3 },
+                totalEarnings: 3450,
+                artistEarnings: 2415,
+                platformEarnings: 1035,
+                createdAt: '2023-11-10T14:20:00Z'
             }
-        }
-
-        function handleSpotifyAPIConnect() {
-            const clientId = document.getElementById('spotify-client-id').value;
-            const clientSecret = document.getElementById('spotify-client-secret').value;
-            
-            if (!clientId || !clientSecret) {
-                showNotification('Client ID와 Client Secret을 입력해주세요.', 'error');
-                return;
+        ];
+        
+        state.cafeStations = [
+            {
+                id: 'cafe_001',
+                name: '서울 홍대 카페',
+                location: '서울 마포구',
+                currentTrack: 'Chill Vibes #01',
+                listeners: 15,
+                revenue: 12500
             }
-            
-            elements.spotifyApiModal.classList.add('hidden');
-            elements.spotifyApiLoading.classList.remove('hidden');
-            
-            // Spotify API 연결
-            setTimeout(() => {
-                const success = spotifyIntegration.connectAPI(clientId, clientSecret);
-                if (success) {
-                    // TL3 트랙 선택 옵션 업데이트
-                    updateTl3TrackSelect();
-                }
-            }, 1000);
-        }
-
-        function handleProfileVerification() {
-            const profile = spotifyIntegration.verifyArtistProfile();
-            if (profile) {
-                document.getElementById('profile-verified-info').classList.remove('hidden');
-                document.getElementById('verified-artist-name').textContent = profile.name;
-                document.getElementById('spotify-artist-id').textContent = profile.spotifyId;
-                
-                document.getElementById('profile-verification-icon').className = 'step-icon completed';
-                document.getElementById('artist-verification-icon').className = 'step-icon completed';
+        ];
+        
+        state.verifiedTracks = [
+            {
+                tl3Id: 'tl3_001',
+                spotifyId: '7ouMYWpwJ422jRcDASZB7P',
+                spotifyUrl: 'https://open.spotify.com/track/7ouMYWpwJ422jRcDASZB7P',
+                title: 'Chill Vibes #01',
+                artist: 'AI Lofi Master',
+                verifiedAt: '2023-11-10T09:15:00Z',
+                streams: 12500,
+                revenue: 1250
             }
-        }
-
-        function handleTrackVerification() {
-            const tl3TrackSelect = document.getElementById('tl3-track-select');
-            const spotifyTrackUrl = document.getElementById('spotify-track-url').value;
-            
-            if (!tl3TrackSelect.value || !spotifyTrackUrl) {
-                showNotification('TL3 트랙과 Spotify URL을 입력해주세요.', 'error');
-                return;
+        ];
+        
+        state.revenueData = [
+            {
+                date: '2023-11-15',
+                type: 'music_play',
+                description: 'Chill Vibes #01 재생',
+                amount: 1250,
+                status: '완료'
+            },
+            {
+                date: '2023-11-10',
+                type: 'spotify',
+                description: 'Spotify 수익 분배',
+                amount: 850,
+                status: '완료'
             }
-            
-            const verifiedTrack = spotifyIntegration.verifyTrack(tl3TrackSelect.value, spotifyTrackUrl);
-            if (verifiedTrack) {
-                document.getElementById('track-verification-form').classList.add('hidden');
-                document.getElementById('spotify-track-url').value = '';
-            }
-        }
+        ];
+    }
 
-        function togglePlay() {
-            state.isPlaying = !state.isPlaying;
-            const icon = elements.playBtn.querySelector('i');
-            
-            if (state.isPlaying) {
-                icon.classList.remove('fa-play');
-                icon.classList.add('fa-pause');
-                elements.playBtn.classList.add('playing');
-                startPlayback();
-            } else {
-                icon.classList.remove('fa-pause');
-                icon.classList.add('fa-play');
-                elements.playBtn.classList.remove('playing');
-                pausePlayback();
-            }
-        }
-
-        function startPlayback() {
-            console.log('Playback started');
-        }
-
-        function pausePlayback() {
-            console.log('Playback paused');
-        }
-
-        function handleProgressClick(e) {
-            const rect = elements.progressBar.getBoundingClientRect();
-            const percent = (e.clientX - rect.left) / rect.width;
-            elements.progressFill.style.width = `${percent * 100}%`;
-        }
-
-        function handleTlAmountSelect(e) {
-            document.querySelectorAll('.tl-amount-btn').forEach(btn => {
-                btn.classList.remove('border-purple-500', 'bg-purple-50');
-                btn.classList.add('border-gray-300');
-            });
-            
-            e.currentTarget.classList.add('border-purple-500', 'bg-purple-50');
-            e.currentTarget.classList.remove('border-gray-300');
-            
-            const amountText = e.currentTarget.querySelector('.font-bold').textContent;
-            if (amountText !== '직접 입력') {
-                const tlAmount = parseInt(amountText.replace(/[^0-9]/g, ''));
-                document.getElementById('charge-total-amount').textContent = tlAmount.toLocaleString() + ' TL';
-                document.getElementById('charge-payment-amount').textContent = (tlAmount / 1).toLocaleString() + '원';
-            }
-        }
-
-        function handleCustomTlAmount(e) {
-            const tlAmount = parseInt(e.target.value) || 0;
-            document.getElementById('charge-total-amount').textContent = tlAmount.toLocaleString() + ' TL';
-            document.getElementById('charge-payment-amount').textContent = (tlAmount / 1).toLocaleString() + '원';
-        }
-
-        function handleCharge() {
-            const tlAmount = parseInt(document.getElementById('charge-total-amount').textContent.replace(/[^0-9]/g, '')) || 0;
-            
-            if (tlAmount < 1000) {
-                showNotification('최소 충전 금액은 1,000 TL입니다.', 'error');
-                return;
-            }
-            
-            let bonus = 0;
-            if (tlAmount >= 50000) {
-                bonus = Math.floor(tlAmount * 0.05);
-            }
-            
-            state.tlBalance += tlAmount + bonus;
-            updateTlBalance();
-            
-            elements.chargeModal.classList.add('hidden');
-            
-            if (bonus > 0) {
-                showNotification(`${tlAmount.toLocaleString()} TL 충전 완료! ${bonus.toLocaleString()} TL 보너스가 추가되었습니다.`, 'success');
-            } else {
-                showNotification(`${tlAmount.toLocaleString()} TL 충전 완료!`, 'success');
-            }
-        }
-
-        function switchTab(tabName) {
-            Object.values(elements.tabButtons).forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            Object.values(elements.contents).forEach(content => {
-                content.classList.add('hidden');
-            });
-            
-            elements.tabButtons[tabName].classList.add('active');
-            elements.contents[tabName].classList.remove('hidden');
-            state.currentTab = tabName;
-            
-            switch(tabName) {
-                case 'tl3-converter':
-                    updateTl3FileList();
-                    updateSpotifyStatus();
-                    break;
-                case 'musicplace':
-                    updateMusicplaceList();
-                    break;
-                case 'cafe-radio':
-                    updateCafeRadioStations();
-                    break;
-                case 'spotify':
-                    updateSpotifyVerificationStatus();
-                    updateTl3TrackSelect();
-                    updateVerifiedTracks();
-                    break;
-                case 'revenue':
-                    updateRevenueData();
-                    break;
-            }
-        }
-
-        function toggleUserDropdown(e) {
-            e.stopPropagation();
-            elements.userDropdown.classList.toggle('hidden');
-        }
-
-        function closeUserDropdown(e) {
-            if (!elements.userDropdown.contains(e.target) && !elements.userMenuBtn.contains(e.target)) {
-                elements.userDropdown.classList.add('hidden');
-            }
-        }
-
-        async function switchToDashboard() {
-            elements.userName.textContent = state.currentUser.name;
-            elements.userType.textContent = getAccountTypeLabel(state.currentUser.type);
-            document.getElementById('dropdown-user-name').textContent = state.currentUser.name;
-            document.getElementById('dropdown-user-type').textContent = getAccountTypeLabel(state.currentUser.type);
-            
-            updateTlBalance();
-            
-            elements.authPage.classList.add('hidden');
-            elements.dashboard.classList.remove('hidden');
-            
-            await loadInitialData();
-            
-            switchTab('tl3-converter');
-        }
-
-        function updateTlBalance() {
-            state.tlBalance = state.currentUser.tlBalance;
-            elements.totalTl.textContent = state.tlBalance.toLocaleString() + ' TL';
-            document.getElementById('dropdown-user-tl').textContent = state.tlBalance.toLocaleString() + ' TL';
-            document.getElementById('charge-current-balance').textContent = state.tlBalance.toLocaleString() + ' TL';
-            document.getElementById('player-tl-balance').textContent = state.tlBalance.toLocaleString();
-        }
-
-        function getAccountTypeLabel(type) {
-            const labels = {
-                'creator': '음악 크리에이터',
-                'cafe': '카페 사장님',
-                'listener': '일반 청취자',
-                'dj': 'DJ'
-            };
-            return labels[type] || type;
-        }
-
-        function getArtistById(artistId) {
-            // 실제 구현에서는 사용자 DB에서 조회
-            return {
-                email: artistId,
-                tlBalance: 0
-            };
-        }
-
-        async function loadInitialData() {
-            // 모의 데이터
-            state.tl3Files = [
-                {
-                    id: 'tl3_001',
-                    title: 'Chill Vibes #01',
-                    artist: 'AI Lofi Master',
-                    artistId: 'ai_lofi@demo.com',
-                    mood: 'Relaxed',
-                    length: 180,
-                    tags: ['lofi', 'chill', 'study'],
-                    aiSource: 'suno-ai',
-                    createdAt: '2023-11-01T10:00:00Z',
-                    plays: 1250,
-                    likes: 89,
-                    verified: true,
-                    transferredToMusicplace: true,
-                    musicplaceId: 'mp_001',
-                    spotifyVerified: true
-                },
-                {
-                    id: 'tl3_002',
-                    title: 'Morning Coffee',
-                    artist: 'Neural Beats',
-                    artistId: 'neural@demo.com',
-                    mood: 'Calm',
-                    length: 240,
-                    tags: ['ambient', 'morning', 'coffee'],
-                    aiSource: 'mubert',
-                    createdAt: '2023-11-05T14:30:00Z',
-                    plays: 890,
-                    likes: 67,
-                    verified: false,
-                    transferredToMusicplace: false,
-                    musicplaceId: null,
-                    spotifyVerified: false
-                }
-            ];
-            
-            state.musicplaceTracks = [
-                {
-                    id: 'mp_001',
-                    title: 'Chill Vibes #01',
-                    artist: 'AI Lofi Master',
-                    artistId: 'ai_lofi@demo.com',
-                    mood: 'Relaxed',
-                    length: 180,
-                    tags: ['lofi', 'chill', 'study'],
-                    tl3Source: 'tl3_001',
-                    plays: 1250,
-                    likes: 89,
-                    verified: true,
-                    tlPerSecond: 1,
-                    revenueShare: { artist: 0.7, platform: 0.3 },
-                    totalEarnings: 1250,
-                    artistEarnings: 875,
-                    platformEarnings: 375,
-                    createdAt: '2023-11-01T10:00:00Z'
-                },
-                {
-                    id: 'mp_002',
-                    title: 'Deep Focus Flow',
-                    artist: 'Code Harmony',
-                    artistId: 'code@demo.com',
-                    mood: 'Focus',
-                    length: 300,
-                    tags: ['focus', 'work', 'coding'],
-                    tl3Source: 'tl3_003',
-                    plays: 3450,
-                    likes: 245,
-                    verified: true,
-                    tlPerSecond: 1,
-                    revenueShare: { artist: 0.7, platform: 0.3 },
-                    totalEarnings: 3450,
-                    artistEarnings: 2415,
-                    platformEarnings: 1035,
-                    createdAt: '2023-11-10T14:20:00Z'
-                }
-            ];
-            
-            state.cafeStations = [
-                {
-                    id: 'cafe_001',
-                    name: '서울 홍대 카페',
-                    location: '서울 마포구',
-                    currentTrack: 'Chill Vibes #01',
-                    listeners: 15,
-                    revenue: 12500
-                }
-            ];
-            
-            state.verifiedTracks = [
-                {
-                    tl3Id: 'tl3_001',
-                    spotifyId: '7ouMYWpwJ422jRcDASZB7P',
-                    spotifyUrl: 'https://open.spotify.com/track/7ouMYWpwJ422jRcDASZB7P',
-                    title: 'Chill Vibes #01',
-                    artist: 'AI Lofi Master',
-                    verifiedAt: '2023-11-10T09:15:00Z',
-                    streams: 12500,
-                    revenue: 1250
-                }
-            ];
-            
-            state.revenueData = [
-                {
-                    date: '2023-11-15',
-                    type: 'music_play',
-                    description: 'Chill Vibes #01 재생',
-                    amount: 1250,
-                    status: '완료'
-                },
-                {
-                    date: '2023-11-10',
-                    type: 'spotify',
-                    description: 'Spotify 수익 분배',
-                    amount: 850,
-                    status: '완료'
-                }
-            ];
-        }
-
-        function updateTl3FileList() {
-            const container = document.getElementById('tl3-files-list');
-            const countElement = document.getElementById('tl3-count');
-            
-            if (state.tl3Files.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-12 text-gray-500">
-                        <i class="fas fa-music text-4xl mb-4"></i>
-                        <p>아직 TL3 파일이 없습니다</p>
-                        <p class="text-sm mt-2">위의 "새 음악 변환" 버튼을 눌러 시작하세요</p>
-                    </div>
-                `;
-                countElement.textContent = '0';
-                return;
-            }
-            
-            countElement.textContent = state.tl3Files.length;
-            
-            container.innerHTML = state.tl3Files.map(file => `
-                <div class="tl3-file-item" data-id="${file.id}">
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <h4 class="font-bold text-lg">${file.title}</h4>
-                            <p class="text-gray-600">${file.artist}</p>
-                        </div>
-                        <div class="flex flex-col items-end space-y-2">
-                            ${file.verified ? 
-                                '<div class="badge badge-green"><i class="fas fa-check-circle"></i>인증됨</div>' : 
-                                '<div class="badge badge-yellow"><i class="fas fa-clock"></i>대기중</div>'
-                            }
-                            ${file.transferredToMusicplace ? 
-                                '<div class="badge badge-blue"><i class="fas fa-compact-disc"></i>MusicPlace</div>' : 
-                                '<div class="badge badge-purple"><i class="fas fa-file-code"></i>TL3</div>'
-                            }
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <span class="badge badge-purple">${file.mood}</span>
-                        ${file.tags.map(tag => `<span class="badge badge-blue ml-1">${tag}</span>`).join('')}
-                    </div>
-                    
-                    <div class="flex justify-between items-center text-sm text-gray-600 mb-3">
-                        <div class="flex items-center">
-                            <i class="fas fa-play-circle mr-1"></i>
-                            <span>${file.plays.toLocaleString()}</span>
-                            <i class="fas fa-heart ml-3 mr-1"></i>
-                            <span>${file.likes}</span>
-                        </div>
-                        <div>
-                            <span class="tl3-file">
-                                <i class="fas fa-file-code"></i>
-                                ${file.id}
-                            </span>
-                        </div>
-                    </div>
-                    
-                    ${!file.transferredToMusicplace ? 
-                        `<button class="transfer-to-musicplace-btn w-full gradient-green text-white py-2 rounded-lg font-medium hover:shadow-md transition-all flex items-center justify-center">
-                            <i class="fas fa-exchange-alt mr-2"></i>MusicPlace로 전환
-                        </button>` : 
-                        `<button class="play-track-btn w-full gradient-purple text-white py-2 rounded-lg font-medium hover:shadow-md transition-all flex items-center justify-center">
-                            <i class="fas fa-play mr-2"></i>MusicPlace에서 재생
-                        </button>`
-                    }
-                </div>
-            `).join('');
-        }
-
-        function updateMusicplaceList() {
-            const container = document.getElementById('musicplace-list');
-            
-            container.innerHTML = state.musicplaceTracks.map(track => `
-                <div class="bg-white rounded-xl shadow-sm border p-5 hover:shadow-md transition-shadow cursor-pointer" data-id="${track.id}">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h4 class="font-bold text-lg">${track.title}</h4>
-                            <p class="text-gray-600">${track.artist}</p>
-                        </div>
-                        <div class="flex flex-col items-end space-y-2">
-                            ${track.verified ? 
-                                '<div class="badge badge-green"><i class="fas fa-check-circle"></i>인증됨</div>' : ''
-                            }
-                            <div class="badge badge-purple">
-                                <i class="fas fa-coins"></i>
-                                1 TL/초
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <span class="badge badge-purple">${track.mood}</span>
-                        ${track.tags.map(tag => `<span class="badge badge-blue ml-1">${tag}</span>`).join('')}
-                    </div>
-                    
-                    <div class="flex justify-between items-center text-sm text-gray-600 mb-4">
-                        <div class="flex items-center">
-                            <i class="fas fa-play-circle mr-1"></i>
-                            <span>${track.plays.toLocaleString()}회 재생</span>
-                        </div>
-                        <div class="text-gray-500">
-                            ${Math.floor(track.length / 60)}:${(track.length % 60).toString().padStart(2, '0')}
-                        </div>
-                    </div>
-                    
-                    <div class="mb-4 p-3 bg-gray-50 rounded-lg">
-                        <div class="flex justify-between text-sm">
-                            <div>
-                                <div class="text-gray-600">아티스트 수익</div>
-                                <div class="font-bold text-green-600">${track.artistEarnings.toLocaleString()} TL</div>
-                            </div>
-                            <div>
-                                <div class="text-gray-600">비율</div>
-                                <div class="font-bold">${(track.revenueShare.artist * 100)}%</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button class="play-track-btn w-full gradient-purple text-white py-2 rounded-lg font-medium hover:shadow-md transition-all flex items-center justify-center">
-                        <i class="fas fa-play mr-2"></i>재생하기 (1 TL/초)
-                    </button>
-                </div>
-            `).join('');
-        }
-
-        function updateMusicPlayer(track) {
-            document.getElementById('current-track-title').textContent = track.title;
-            document.getElementById('current-track-artist').textContent = track.artist;
-            document.getElementById('tl-consumption').textContent = '1 TL/초';
-        }
-
-        function updateSpotifyStatus() {
-            if (state.spotifyConnected) {
-                document.getElementById('auth-badge').className = 'verification-badge verified';
-                document.getElementById('auth-badge').innerHTML = '<i class="fas fa-check-circle"></i><span>인증됨</span>';
-                document.getElementById('auth-status').textContent = 'Spotify 연동 완료';
-                document.getElementById('spotify-auth-status').className = 'verification-badge verified';
-                document.getElementById('spotify-auth-status').innerHTML = '<i class="fas fa-check-circle"></i><span>연동 완료</span>';
-                document.getElementById('verification-steps').classList.remove('hidden');
-                
-                // 스텝 업데이트
-                const steps = document.querySelectorAll('.verification-step');
-                steps.forEach(step => {
-                    step.classList.add('completed');
-                    const icon = step.querySelector('.step-icon');
-                    icon.className = 'step-icon completed';
-                });
-            }
-        }
-
-        function updateSpotifyVerificationStatus() {
-            if (spotifyIntegration.artistProfile) {
-                const revenueData = spotifyIntegration.getSpotifyRevenue();
-                
-                document.getElementById('spotify-total-revenue').textContent = revenueData.total.toLocaleString() + ' TL';
-                document.getElementById('spotify-monthly-revenue').textContent = revenueData.monthly.toLocaleString() + ' TL';
-                document.getElementById('spotify-total-streams').textContent = revenueData.streams.toLocaleString();
-                
-                document.getElementById('artist-revenue-share').textContent = Math.floor(revenueData.total * 0.6).toLocaleString() + ' TL';
-                document.getElementById('platform-revenue-share').textContent = Math.floor(revenueData.total * 0.3).toLocaleString() + ' TL';
-                document.getElementById('spotify-revenue-share').textContent = Math.floor(revenueData.total * 0.1).toLocaleString() + ' TL';
-            }
-        }
-
-        function updateTl3TrackSelect() {
-            const select = document.getElementById('tl3-track-select');
-            select.innerHTML = '<option value="">인증할 TL3 음악 선택</option>';
-            
-            state.tl3Files.forEach(file => {
-                if (!file.spotifyVerified) {
-                    const option = document.createElement('option');
-                    option.value = file.id;
-                    option.textContent = `${file.title} - ${file.artist}`;
-                    select.appendChild(option);
-                }
-            });
-        }
-
-        function updateVerifiedTracks() {
-            const container = document.getElementById('verified-tracks-list');
-            const countElement = document.getElementById('verified-tracks-count');
-            
-            if (state.verifiedTracks.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-12 text-gray-500">
-                        <i class="fas fa-music text-4xl mb-4"></i>
-                        <p>인증된 음원이 없습니다</p>
-                        <p class="text-sm mt-2">Spotify 연동 후 음원을 인증하세요</p>
-                    </div>
-                `;
-                countElement.textContent = '0';
-                return;
-            }
-            
-            countElement.textContent = state.verifiedTracks.length;
-            
-            container.innerHTML = state.verifiedTracks.map(track => `
-                <div class="bg-white rounded-lg border p-4">
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <h4 class="font-bold">${track.title}</h4>
-                            <p class="text-gray-600 text-sm">${track.artist}</p>
-                        </div>
-                        <div class="badge badge-green">
-                            <i class="fab fa-spotify"></i>
-                            Spotify 인증됨
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <div class="text-gray-600">Spotify 스트리밍</div>
-                            <div class="font-bold">${track.streams.toLocaleString()}회</div>
-                        </div>
-                        <div>
-                            <div class="text-gray-600">수익</div>
-                            <div class="font-bold text-green-600">${track.revenue.toLocaleString()} TL</div>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-3 text-xs text-gray-500">
-                        인증일: ${new Date(track.verifiedAt).toLocaleDateString()}
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function updateCafeRadioStations() {
-            // 구현 생략
-        }
-
-        function updateRevenueData() {
-            // 구현 생략
-        }
-
-        function showNotification(message, type = 'info') {
-            const colors = {
-                'success': 'gradient-green',
-                'error': 'gradient-red',
-                'info': 'gradient-blue',
-                'warning': 'gradient-yellow'
-            };
-            
-            const notification = document.createElement('div');
-            notification.className = `notification ${colors[type] || 'gradient-blue'}`;
-            notification.innerHTML = `
-                <div class="flex items-center">
-                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} mr-3"></i>
-                    <div>${message}</div>
+    function updateTl3FileList() {
+        const container = document.getElementById('tl3-files-list');
+        const countElement = document.getElementById('tl3-count');
+        
+        if (state.tl3Files.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12 text-gray-500">
+                    <i class="fas fa-music text-4xl mb-4"></i>
+                    <p>아직 TL3 파일이 없습니다</p>
+                    <p class="text-sm mt-2">위의 "새 음악 변환" 버튼을 눌러 시작하세요</p>
                 </div>
             `;
-            
-            elements.notificationContainer.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 5000);
+            countElement.textContent = '0';
+            return;
         }
+        
+        countElement.textContent = state.tl3Files.length;
+        
+        container.innerHTML = state.tl3Files.map(file => `
+            <div class="tl3-file-item" data-id="${file.id}">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h4 class="font-bold text-lg">${file.title}</h4>
+                        <p class="text-gray-600">${file.artist}</p>
+                    </div>
+                    <div class="flex flex-col items-end space-y-2">
+                        ${file.verified ? 
+                            '<div class="badge badge-green"><i class="fas fa-check-circle"></i>인증됨</div>' : 
+                            '<div class="badge badge-yellow"><i class="fas fa-clock"></i>대기중</div>'
+                        }
+                        ${file.transferredToMusicplace ? 
+                            '<div class="badge badge-blue"><i class="fas fa-compact-disc"></i>MusicPlace</div>' : 
+                            '<div class="badge badge-purple"><i class="fas fa-file-code"></i>TL3</div>'
+                        }
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <span class="badge badge-purple">${file.mood}</span>
+                    ${file.tags.map(tag => `<span class="badge badge-blue ml-1">${tag}</span>`).join('')}
+                </div>
+                
+                <div class="flex justify-between items-center text-sm text-gray-600 mb-3">
+                    <div class="flex items-center">
+                        <i class="fas fa-play-circle mr-1"></i>
+                        <span>${file.plays.toLocaleString()}</span>
+                        <i class="fas fa-heart ml-3 mr-1"></i>
+                        <span>${file.likes}</span>
+                    </div>
+                    <div>
+                        <span class="tl3-file">
+                            <i class="fas fa-file-code"></i>
+                            ${file.id}
+                        </span>
+                    </div>
+                </div>
+                
+                ${!file.transferredToMusicplace ? 
+                    `<button class="transfer-to-musicplace-btn w-full gradient-green text-white py-2 rounded-lg font-medium hover:shadow-md transition-all flex items-center justify-center">
+                        <i class="fas fa-exchange-alt mr-2"></i>MusicPlace로 전환
+                    </button>` : 
+                    `<button class="play-track-btn w-full gradient-purple text-white py-2 rounded-lg font-medium hover:shadow-md transition-all flex items-center justify-center">
+                        <i class="fas fa-play mr-2"></i>MusicPlace에서 재생
+                    </button>`
+                }
+            </div>
+        `).join('');
+    }
 
-        // 초기화
-        document.addEventListener('DOMContentLoaded', () => {
-            setupEventListeners();
-            createWaveform();
-            createModalWaveform();
+    function updateMusicplaceList() {
+        const container = document.getElementById('musicplace-list');
+        
+        container.innerHTML = state.musicplaceTracks.map(track => `
+            <div class="bg-white rounded-xl shadow-sm border p-5 hover:shadow-md transition-shadow cursor-pointer" data-id="${track.id}">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h4 class="font-bold text-lg">${track.title}</h4>
+                        <p class="text-gray-600">${track.artist}</p>
+                    </div>
+                    <div class="flex flex-col items-end space-y-2">
+                        ${track.verified ? 
+                            '<div class="badge badge-green"><i class="fas fa-check-circle"></i>인증됨</div>' : ''
+                        }
+                        <div class="badge badge-purple">
+                            <i class="fas fa-coins"></i>
+                            1 TL/초
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <span class="badge badge-purple">${track.mood}</span>
+                    ${track.tags.map(tag => `<span class="badge badge-blue ml-1">${tag}</span>`).join('')}
+                </div>
+                
+                <div class="flex justify-between items-center text-sm text-gray-600 mb-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-play-circle mr-1"></i>
+                        <span>${track.plays.toLocaleString()}회 재생</span>
+                    </div>
+                    <div class="text-gray-500">
+                        ${Math.floor(track.length / 60)}:${(track.length % 60).toString().padStart(2, '0')}
+                    </div>
+                </div>
+                
+                <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+                    <div class="flex justify-between text-sm">
+                        <div>
+                            <div class="text-gray-600">아티스트 수익</div>
+                            <div class="font-bold text-green-600">${track.artistEarnings.toLocaleString()} TL</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-600">비율</div>
+                            <div class="font-bold">${(track.revenueShare.artist * 100)}%</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="play-track-btn w-full gradient-purple text-white py-2 rounded-lg font-medium hover:shadow-md transition-all flex items-center justify-center">
+                    <i class="fas fa-play mr-2"></i>재생하기 (1 TL/초)
+                </button>
+            </div>
+        `).join('');
+    }
+
+    function updateModalMusicPlayer(track) {
+        document.getElementById('modal-track-title').textContent = track.title;
+        document.getElementById('modal-track-artist').textContent = track.artist;
+        document.getElementById('modal-track-plays').textContent = track.plays.toLocaleString();
+        document.getElementById('modal-track-likes').textContent = track.likes;
+        document.getElementById('modal-tl-consumption').textContent = '1 TL/초';
+        document.getElementById('modal-track-length').textContent = formatTime(track.length);
+        document.getElementById('modal-track-mood').textContent = track.mood;
+        document.getElementById('modal-track-tags').textContent = track.tags.join(', ');
+        document.getElementById('modal-total-playtime').textContent = `${track.plays * track.length}초`;
+        document.getElementById('modal-artist-earnings').textContent = `${track.artistEarnings.toLocaleString()} TL`;
+        document.getElementById('modal-platform-earnings').textContent = `${track.platformEarnings.toLocaleString()} TL`;
+        
+        const verifiedBadge = document.getElementById('modal-verified-badge');
+        if (track.verified) {
+            verifiedBadge.classList.remove('hidden');
+        } else {
+            verifiedBadge.classList.add('hidden');
+        }
+    }
+
+    function updateSpotifyStatus() {
+        if (state.spotifyConnected) {
+            document.getElementById('auth-badge').className = 'verification-badge verified';
+            document.getElementById('auth-badge').innerHTML = '<i class="fas fa-check-circle"></i><span>인증됨</span>';
+            document.getElementById('auth-status').textContent = 'Spotify 연동 완료';
+            document.getElementById('spotify-auth-status').className = 'verification-badge verified';
+            document.getElementById('spotify-auth-status').innerHTML = '<i class="fas fa-check-circle"></i><span>연동 완료</span>';
+            document.getElementById('verification-steps').classList.remove('hidden');
+            
+            const steps = document.querySelectorAll('.verification-step');
+            steps.forEach(step => {
+                step.classList.add('completed');
+                const icon = step.querySelector('.step-icon');
+                icon.className = 'step-icon completed';
+            });
+        }
+    }
+
+    function updateSpotifyVerificationStatus() {
+        if (spotifyIntegration.artistProfile) {
+            const revenueData = spotifyIntegration.getSpotifyRevenue();
+            
+            document.getElementById('spotify-total-revenue').textContent = revenueData.total.toLocaleString() + ' TL';
+            document.getElementById('spotify-monthly-revenue').textContent = revenueData.monthly.toLocaleString() + ' TL';
+            document.getElementById('spotify-total-streams').textContent = revenueData.streams.toLocaleString();
+            
+            document.getElementById('artist-revenue-share').textContent = Math.floor(revenueData.total * 0.6).toLocaleString() + ' TL';
+            document.getElementById('platform-revenue-share').textContent = Math.floor(revenueData.total * 0.3).toLocaleString() + ' TL';
+            document.getElementById('spotify-revenue-share').textContent = Math.floor(revenueData.total * 0.1).toLocaleString() + ' TL';
+        }
+    }
+
+    function updateTl3TrackSelect() {
+        const select = document.getElementById('tl3-track-select');
+        select.innerHTML = '<option value="">인증할 TL3 음악 선택</option>';
+        
+        state.tl3Files.forEach(file => {
+            if (!file.spotifyVerified) {
+                const option = document.createElement('option');
+                option.value = file.id;
+                option.textContent = `${file.title} - ${file.artist}`;
+                select.appendChild(option);
+            }
         });
+    }
 
-        function createWaveform() {
-            const waveform = elements.waveform;
-            waveform.innerHTML = '';
-            
-            for (let i = 0; i < 100; i++) {
-                const bar = document.createElement('div');
-                bar.className = 'waveform-bar';
-                bar.style.left = `${i}%`;
-                bar.style.height = `${20 + Math.random() * 40}%`;
-                waveform.appendChild(bar);
-            }
+    function updateVerifiedTracks() {
+        const container = document.getElementById('verified-tracks-list');
+        const countElement = document.getElementById('verified-tracks-count');
+        
+        if (state.verifiedTracks.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12 text-gray-500">
+                    <i class="fas fa-music text-4xl mb-4"></i>
+                    <p>인증된 음원이 없습니다</p>
+                    <p class="text-sm mt-2">Spotify 연동 후 음원을 인증하세요</p>
+                </div>
+            `;
+            countElement.textContent = '0';
+            return;
         }
+        
+        countElement.textContent = state.verifiedTracks.length;
+        
+        container.innerHTML = state.verifiedTracks.map(track => `
+            <div class="bg-white rounded-lg border p-4">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h4 class="font-bold">${track.title}</h4>
+                        <p class="text-gray-600 text-sm">${track.artist}</p>
+                    </div>
+                    <div class="badge badge-green">
+                        <i class="fab fa-spotify"></i>
+                        Spotify 인증됨
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <div class="text-gray-600">Spotify 스트리밍</div>
+                        <div class="font-bold">${track.streams.toLocaleString()}회</div>
+                    </div>
+                    <div>
+                        <div class="text-gray-600">수익</div>
+                        <div class="font-bold text-green-600">${track.revenue.toLocaleString()} TL</div>
+                    </div>
+                </div>
+                
+                <div class="mt-3 text-xs text-gray-500">
+                    인증일: ${new Date(track.verifiedAt).toLocaleDateString()}
+                </div>
+            </div>
+        `).join('');
+    }
 
-        function createModalWaveform() {
-            const waveform = document.getElementById('modal-waveform');
-            waveform.innerHTML = '';
-            
-            for (let i = 0; i < 100; i++) {
-                const bar = document.createElement('div');
-                bar.className = 'waveform-bar';
-                bar.style.left = `${i}%`;
-                bar.style.height = `${20 + Math.random() * 40}%`;
-                waveform.appendChild(bar);
+    function updateCafeRadioStations() {
+        // 구현 생략
+    }
+
+    function updateRevenueData() {
+        // 구현 생략
+    }
+
+    function showNotification(message, type = 'info') {
+        const colors = {
+            'success': 'gradient-green',
+            'error': 'gradient-red',
+            'info': 'gradient-blue',
+            'warning': 'gradient-yellow'
+        };
+        
+        const notification = document.createElement('div');
+        notification.className = `notification ${colors[type] || 'gradient-blue'}`;
+        notification.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} mr-3"></i>
+                <div>${message}</div>
+            </div>
+        `;
+        
+        elements.notificationContainer.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
+
+    // 이벤트 리스너 설정
+    function setupEventListeners() {
+        elements.showSignupBtn.addEventListener('click', () => {
+            elements.loginSection.classList.add('hidden');
+            elements.signupSection.classList.remove('hidden');
+        });
+        
+        elements.showLoginBtn.addEventListener('click', () => {
+            elements.signupSection.classList.add('hidden');
+            elements.loginSection.classList.remove('hidden');
+        });
+        
+        elements.demoLoginBtn.addEventListener('click', handleDemoLogin);
+        elements.loginForm.addEventListener('submit', handleLogin);
+        elements.signupForm.addEventListener('submit', handleSignup);
+        
+        Object.keys(elements.tabButtons).forEach(tab => {
+            elements.tabButtons[tab].addEventListener('click', () => switchTab(tab));
+        });
+        
+        elements.userMenuBtn.addEventListener('click', toggleUserDropdown);
+        document.addEventListener('click', closeUserDropdown);
+        elements.logoutBtn.addEventListener('click', handleLogout);
+        
+        elements.toggleConverterBtn.addEventListener('click', toggleConverterForm);
+        elements.cancelConvertBtn.addEventListener('click', toggleConverterForm);
+        elements.fileUploadBtn.addEventListener('click', () => elements.audioFile.click());
+        elements.audioFile.addEventListener('change', handleFileUpload);
+        elements.convertForm.addEventListener('submit', handleConvert);
+        
+        elements.playBtn.addEventListener('click', togglePlay);
+        elements.progressBar.addEventListener('click', handleProgressClick);
+        
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.transfer-to-musicplace-btn')) {
+                const tl3FileId = e.target.closest('.tl3-file-item').dataset.id;
+                openTransferModal(tl3FileId);
             }
+            
+            if (e.target.closest('.play-track-btn')) {
+                const trackId = e.target.closest('[data-id]').dataset.id;
+                playMusicplaceTrack(trackId, 30);
+            }
+        });
+        
+        document.getElementById('connect-spotify-btn').addEventListener('click', () => {
+            elements.spotifyApiModal.classList.remove('hidden');
+        });
+        
+        document.getElementById('connect-spotify-api').addEventListener('click', handleSpotifyAPIConnect);
+        document.getElementById('cancel-spotify-api').addEventListener('click', () => {
+            elements.spotifyApiModal.classList.add('hidden');
+        });
+        
+        document.getElementById('close-spotify-modal').addEventListener('click', () => {
+            elements.spotifyApiModal.classList.add('hidden');
+        });
+        
+        document.getElementById('verify-profile-btn').addEventListener('click', handleProfileVerification);
+        
+        document.getElementById('verify-track-btn').addEventListener('click', () => {
+            document.getElementById('track-verification-form').classList.remove('hidden');
+        });
+        
+        document.getElementById('confirm-track-verification').addEventListener('click', handleTrackVerification);
+        
+        document.getElementById('close-transfer-modal').addEventListener('click', () => {
+            elements.transferModal.classList.add('hidden');
+        });
+        
+        document.getElementById('cancel-transfer').addEventListener('click', () => {
+            elements.transferModal.classList.add('hidden');
+        });
+        
+        document.getElementById('confirm-transfer').addEventListener('click', handleTransferToMusicplace);
+        
+        elements.closePlayerModal.addEventListener('click', () => {
+            elements.musicPlayerModal.classList.add('hidden');
+        });
+        
+        elements.chargeTlBtn.addEventListener('click', () => {
+            elements.chargeModal.classList.remove('hidden');
+        });
+        
+        elements.closeChargeModal.addEventListener('click', () => {
+            elements.chargeModal.classList.add('hidden');
+        });
+        
+        document.querySelectorAll('.tl-amount-btn').forEach(btn => {
+            btn.addEventListener('click', handleTlAmountSelect);
+        });
+        
+        document.getElementById('custom-tl-amount').addEventListener('input', handleCustomTlAmount);
+        document.getElementById('confirm-charge').addEventListener('click', handleCharge);
+        document.getElementById('cancel-charge').addEventListener('click', () => {
+            elements.chargeModal.classList.add('hidden');
+        });
+        
+        // 모달 플레이어 컨트롤
+        document.getElementById('modal-play-btn').addEventListener('click', function() {
+            const trackTitle = document.getElementById('modal-track-title').textContent;
+            const track = state.musicplaceTracks.find(t => t.title === trackTitle);
+            
+            if (track) {
+                if (audioPlaybackSystem.isPlaying && state.currentTrack?.id === track.id) {
+                    audioPlaybackSystem.stopPlayback();
+                    this.querySelector('i').classList.remove('fa-pause');
+                    this.querySelector('i').classList.add('fa-play');
+                } else {
+                    playMusicplaceTrack(track.id, 30);
+                    this.querySelector('i').classList.remove('fa-play');
+                    this.querySelector('i').classList.add('fa-pause');
+                }
+            }
+        });
+        
+        // 추가 음악 컨트롤
+        elements.prevBtn.addEventListener('click', function() {
+            if (!state.musicplaceTracks.length) return;
+            
+            const currentIndex = state.musicplaceTracks.findIndex(t => t.id === state.currentTrack?.id);
+            const prevIndex = currentIndex > 0 ? currentIndex - 1 : state.musicplaceTracks.length - 1;
+            const prevTrack = state.musicplaceTracks[prevIndex];
+            
+            playMusicplaceTrack(prevTrack.id, 30);
+        });
+        
+        elements.nextBtn.addEventListener('click', function() {
+            if (!state.musicplaceTracks.length) return;
+            
+            const currentIndex = state.musicplaceTracks.findIndex(t => t.id === state.currentTrack?.id);
+            const nextIndex = currentIndex < state.musicplaceTracks.length - 1 ? currentIndex + 1 : 0;
+            const nextTrack = state.musicplaceTracks[nextIndex];
+            
+            playMusicplaceTrack(nextTrack.id, 30);
+        });
+        
+        document.getElementById('shuffle-btn')?.addEventListener('click', function() {
+            if (!state.musicplaceTracks.length) return;
+            
+            const randomIndex = Math.floor(Math.random() * state.musicplaceTracks.length);
+            const randomTrack = state.musicplaceTracks[randomIndex];
+            
+            playMusicplaceTrack(randomTrack.id, 30);
+        });
+        
+        document.getElementById('play-all-btn')?.addEventListener('click', function() {
+            if (!state.musicplaceTracks.length) {
+                showNotification('재생할 음악이 없습니다.', 'error');
+                return;
+            }
+            
+            const firstTrack = state.musicplaceTracks[0];
+            playMusicplaceTrack(firstTrack.id, 30);
+        });
+    }
+
+    // 초기화
+    document.addEventListener('DOMContentLoaded', () => {
+        setupEventListeners();
+        createWaveform();
+        createModalWaveform();
+        
+        // TL 자동 충전 모니터링 시작
+        setInterval(() => {
+            autoChargeSystem.checkAndAutoCharge();
+        }, 10000);
+        
+        setInterval(() => {
+            if (audioPlaybackSystem.isPlaying && state.tlBalance < 10) {
+                autoChargeSystem.triggerAutoCharge();
+            }
+        }, 5000);
+    });
+
+    function createWaveform() {
+        const waveform = elements.waveform;
+        waveform.innerHTML = '';
+        
+        for (let i = 0; i < 100; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'waveform-bar';
+            bar.style.left = `${i}%`;
+            bar.style.height = `${20 + Math.random() * 40}%`;
+            waveform.appendChild(bar);
         }
-    </script>
+    }
+
+    function createModalWaveform() {
+        const waveform = document.getElementById('modal-waveform');
+        waveform.innerHTML = '';
+        
+        for (let i = 0; i < 100; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'waveform-bar';
+            bar.style.left = `${i}%`;
+            bar.style.height = `${20 + Math.random() * 40}%`;
+            waveform.appendChild(bar);
+        }
+    }
+</script>
 </body>
 </html>
