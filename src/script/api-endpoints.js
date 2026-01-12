@@ -54,6 +54,3 @@ const API_ENDPOINTS = {
 
 module.exports = API_ENDPOINTS;
 
-
-
->>>>>>> 356b5c0c685362b7db51997604cf9371b9ee6f00
