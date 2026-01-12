@@ -8,8 +8,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .hidden { display: none !important; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .gradient-purple { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+        .gradient-green { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
         
-        /* 음악 플레이어 스타일 */
         .music-player {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             border-radius: 12px;
@@ -17,7 +19,7 @@
             color: white;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
-
+        
         .progress-bar {
             height: 6px;
             background: rgba(255, 255, 255, 0.1);
@@ -25,32 +27,13 @@
             overflow: hidden;
             cursor: pointer;
         }
-
+        
         .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%);
             transition: width 0.1s linear;
         }
-
-        .waveform {
-            height: 60px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 6px;
-            margin: 15px 0;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .waveform-bar {
-            position: absolute;
-            bottom: 0;
-            width: 3px;
-            background: rgba(139, 92, 246, 0.6);
-            border-radius: 1.5px;
-            transition: height 0.1s ease;
-        }
-
-        /* TL3 파일 스타일 */
+        
         .tl3-file {
             background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
             color: white;
@@ -62,8 +45,21 @@
             align-items: center;
             gap: 8px;
         }
-
-        /* 탭 버튼 */
+        
+        .user-dropdown {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 8px;
+            width: 240px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+            z-index: 100;
+        }
+        
         .tab-button {
             padding: 10px 20px;
             border-radius: 8px;
@@ -84,175 +80,501 @@
     </style>
 </head>
 <body class="bg-gray-50">
-    <!-- 음악 플레이어 (항상 표시) -->
-    <div id="global-player" class="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t z-50 p-4 hidden">
-        <div class="container mx-auto">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <div class="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-music text-white"></i>
-                    </div>
+    <!-- 회원가입/로그인 페이지 -->
+    <div id="auth-page" class="min-h-screen gradient-bg flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+            <div class="text-center mb-8">
+                <div class="flex items-center justify-center space-x-3 text-3xl font-bold text-purple-600 mb-4">
+                    <i class="fas fa-music"></i>
+                    <span>TIMELINK</span>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">TL3 음악 플랫폼</h2>
+                <p class="text-gray-600">가입 시 10,000 TL을 무료로 드립니다!</p>
+            </div>
+            
+            <div id="login-section" class="space-y-6">
+                <form id="login-form" class="space-y-6">
                     <div>
-                        <h4 id="global-track-title" class="font-bold">재생 중인 음악 없음</h4>
-                        <p id="global-track-artist" class="text-sm text-gray-600">아티스트 정보 없음</p>
+                        <label class="block text-gray-700 mb-2 font-medium">이메일</label>
+                        <input type="email" id="login-email" required 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                               placeholder="your@email.com">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 mb-2 font-medium">비밀번호</label>
+                        <input type="password" id="login-password" required 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                               placeholder="••••••••">
+                    </div>
+                    
+                    <button type="submit" class="w-full gradient-purple text-white py-3 rounded-lg font-semibold text-lg hover:shadow-lg transition-all duration-300 flex items-center justify-center">
+                        <i class="fas fa-sign-in-alt mr-2"></i>로그인
+                    </button>
+                </form>
+                
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-2 bg-white text-gray-500">또는</span>
                     </div>
                 </div>
                 
-                <div class="flex items-center space-x-4">
-                    <div class="text-center">
-                        <div class="text-sm text-gray-600">TL 잔액</div>
-                        <div id="global-tl-balance" class="font-bold text-purple-600">10,000 TL</div>
-                    </div>
-                    
-                    <button id="global-play-btn" class="w-10 h-10 bg-purple-500 text-white rounded-full flex items-center justify-center">
-                        <i class="fas fa-play"></i>
-                    </button>
-                    
-                    <div class="progress-bar w-64">
-                        <div id="global-progress-fill" class="progress-fill" style="width: 0%"></div>
-                    </div>
-                    
-                    <div class="text-sm text-gray-600">
-                        <span id="global-current-time">0:00</span> / <span id="global-total-time">0:00</span>
-                    </div>
-                </div>
+                <button id="demo-login" class="w-full gradient-green text-white py-3 rounded-lg font-semibold text-lg hover:shadow-lg transition-all duration-300">
+                    <i class="fas fa-rocket mr-2"></i>데모 계정으로 시작하기
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- 메인 콘텐츠 -->
-    <div class="container mx-auto px-4 py-8 mb-24">
+    <!-- 대시보드 페이지 -->
+    <div id="dashboard" class="min-h-screen hidden">
         <!-- 헤더 -->
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">TIMELINK - TL3 음악 플랫폼</h1>
-            <p class="text-gray-600">실제 음악을 재생하고 TL3 시스템을 경험하세요</p>
-        </div>
-
-        <!-- 탭 네비게이션 -->
-        <div class="flex space-x-2 mb-8">
-            <button id="tab-music" class="tab-button active">
-                <i class="fas fa-music mr-2"></i>음악 재생
-            </button>
-            <button id="tab-tl3" class="tab-button">
-                <i class="fas fa-file-code mr-2"></i>TL3 파일
-            </button>
-            <button id="tab-wallet" class="tab-button">
-                <i class="fas fa-wallet mr-2"></i>내 지갑
-            </button>
-            <button id="tab-cafe" class="tab-button">
-                <i class="fas fa-coffee mr-2"></i>CAFE-RADIO
-            </button>
-        </div>
-
-        <!-- 음악 재생 탭 -->
-        <div id="content-music" class="space-y-8">
-            <div class="music-player">
-                <div class="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
-                    <div class="flex items-center space-x-4 flex-1">
-                        <div class="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
-                            <i class="fas fa-compact-disc text-2xl text-white animate-spin-slow"></i>
+        <header class="bg-white shadow-sm sticky top-0 z-50">
+            <div class="container mx-auto px-4 py-3">
+                <div class="flex justify-between items-center">
+                    <!-- 왼쪽: 로고와 탭 -->
+                    <div class="flex items-center space-x-8">
+                        <!-- 로고 -->
+                        <div class="flex items-center space-x-2 text-xl font-bold text-purple-600">
+                            <i class="fas fa-music"></i>
+                            <span>TIMELINK</span>
                         </div>
-                        <div class="flex-1">
-                            <h3 id="current-track-title" class="font-bold text-2xl">Chill Vibes #01</h3>
-                            <p id="current-track-artist" class="text-gray-300 text-lg">AI Lofi Master</p>
-                            <div class="flex items-center space-x-3 mt-2">
-                                <span class="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-sm">Lo-Fi</span>
-                                <span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-sm">Chill</span>
+                        
+                        <!-- 대시보드 탭 -->
+                        <div class="flex space-x-2">
+                            <button id="tab-tl3-converter" class="tab-button active">
+                                <i class="fas fa-exchange-alt mr-2"></i>TL3 변환
+                            </button>
+                            <button id="tab-musicplace" class="tab-button">
+                                <i class="fas fa-compact-disc mr-2"></i>MusicPlace
+                            </button>
+                            <button id="tab-cafe-radio" class="tab-button">
+                                <i class="fas fa-coffee mr-2"></i>CAFE-RADIO
+                            </button>
+                            <button id="tab-wallet" class="tab-button">
+                                <i class="fas fa-wallet mr-2"></i>내 지갑
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 오른쪽: 사용자 정보 -->
+                    <div class="flex items-center space-x-4">
+                        <!-- TL 잔액 -->
+                        <div class="hidden md:flex items-center space-x-6">
+                            <div class="text-right">
+                                <div class="text-sm text-gray-600">TL 잔액</div>
+                                <div id="total-tl" class="font-bold text-purple-600 text-lg">10,000 TL</div>
+                            </div>
+                            <button id="charge-tl-btn" class="gradient-purple text-white px-4 py-2 rounded-lg font-medium hover:shadow-md transition-all">
+                                <i class="fas fa-plus mr-2"></i>충전
+                            </button>
+                        </div>
+
+                        <!-- 사용자 메뉴 -->
+                        <div class="relative">
+                            <button id="user-menu-btn" class="flex items-center space-x-3 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors">
+                                <div class="w-8 h-8 gradient-purple text-white rounded-full flex items-center justify-center">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="hidden md:block text-left">
+                                    <div id="user-name" class="font-medium text-sm">사용자</div>
+                                    <div id="user-type" class="text-xs text-gray-600">계정 유형</div>
+                                </div>
+                                <i class="fas fa-chevron-down text-gray-400"></i>
+                            </button>
+                            
+                            <div id="user-dropdown" class="user-dropdown hidden">
+                                <div class="px-4 py-3 border-b">
+                                    <div id="dropdown-user-name" class="font-medium">사용자</div>
+                                    <div id="dropdown-user-type" class="text-sm text-gray-600">계정 유형</div>
+                                    <div id="dropdown-user-tl" class="text-sm text-purple-600 font-bold mt-1">10,000 TL</div>
+                                </div>
+                                <button id="profile-btn" class="w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors">
+                                    <i class="fas fa-user-circle mr-3"></i>프로필
+                                </button>
+                                <button id="wallet-btn" class="w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors">
+                                    <i class="fas fa-wallet mr-3"></i>내 지갑
+                                </button>
+                                <button id="my-music-btn" class="w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors">
+                                    <i class="fas fa-music mr-3"></i>내 음악
+                                </button>
+                                <div class="border-t"></div>
+                                <button id="logout-btn" class="w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors text-red-600">
+                                    <i class="fas fa-sign-out-alt mr-3"></i>로그아웃
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 메인 콘텐츠 -->
+        <main class="container mx-auto px-4 py-8">
+            <!-- TL3 변환기 탭 -->
+            <div id="content-tl3-converter" class="space-y-8">
+                <!-- 헤더 -->
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">TL3 변환기</h1>
+                    <p class="text-gray-600">AI 음악을 TL3 포맷으로 변환하여 MusicPlace에 등록하세요</p>
+                </div>
+
+                <!-- TL3 변환기 -->
+                <div class="bg-white rounded-xl shadow-sm border mb-8">
+                    <div class="p-6 border-b">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-xl font-bold">새 TL3 변환</h2>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <form id="convert-form" class="space-y-6">
+                            <div class="grid md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-gray-700 mb-2 font-medium">곡 제목</label>
+                                    <input type="text" id="track-title" required 
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                                           placeholder="Chill Vibes #02" value="Chill Vibes #02">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 mb-2 font-medium">아티스트</label>
+                                    <input type="text" id="track-artist" required 
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                                           placeholder="AI Creator Name" value="AI Lofi Master">
+                                </div>
+                            </div>
+                            
+                            <div class="grid md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-gray-700 mb-2 font-medium">무드</label>
+                                    <select id="track-mood" required 
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all">
+                                        <option value="Relaxed" selected>Relaxed</option>
+                                        <option value="Energetic">Energetic</option>
+                                        <option value="Focus">Focus</option>
+                                        <option value="Happy">Happy</option>
+                                        <option value="Calm">Calm</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 mb-2 font-medium">음악 길이 (초)</label>
+                                    <input type="number" id="track-length" required min="30" max="600"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                                           placeholder="180" value="180">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-700 mb-2 font-medium">음원 파일 업로드 (MP3)</label>
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                                    <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                                    <p class="text-gray-600 mb-2">MP3 파일을 여기에 드래그하거나 클릭하여 업로드하세요</p>
+                                    <p class="text-sm text-gray-500 mb-4">최대 파일 크기: 50MB</p>
+                                    <input type="file" id="audio-file" accept=".mp3" class="hidden">
+                                    <button type="button" id="file-upload-btn" class="gradient-purple text-white px-6 py-2 rounded-lg font-medium hover:shadow-md transition-all">
+                                        <i class="fas fa-file-upload mr-2"></i>파일 선택
+                                    </button>
+                                    <div id="file-name" class="mt-3 text-sm text-gray-700 hidden"></div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-700 mb-2 font-medium">AI 음악 소스</label>
+                                <select id="ai-source" required 
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all">
+                                    <option value="suno-ai" selected>Suno AI</option>
+                                    <option value="mubert">Mubert</option>
+                                    <option value="aiva">AIVA</option>
+                                    <option value="boomy">Boomy</option>
+                                    <option value="soundful">Soundful</option>
+                                    <option value="other">기타</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-700 mb-2 font-medium">태그 (쉼표로 구분)</label>
+                                <input type="text" id="track-tags" 
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                                       placeholder="chill, lofi, study, relax, ambient" value="chill, lofi, study">
+                            </div>
+                            
+                            <div class="bg-blue-50 rounded-lg p-4">
+                                <div class="flex items-start">
+                                    <i class="fas fa-info-circle text-blue-500 mt-1 mr-3"></i>
+                                    <div class="text-sm text-blue-700">
+                                        <p class="font-medium mb-1">TL3 변환 정보</p>
+                                        <p>• 변환된 TL3 파일은 고유의 시간 기반 식별자를 가지게 됩니다</p>
+                                        <p>• MusicPlace에서 1초 재생당 1 TL이 소모됩니다</p>
+                                        <p>• 변환에는 500 TL이 소요됩니다 (신규 가입시 무료 제공)</p>
+                                        <p>• MusicPlace로 이동 시 자동으로 TL3 재생 수익 시스템에 등록됩니다</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-4">
+                                <button type="submit" class="gradient-green text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all flex items-center">
+                                    <i class="fas fa-magic mr-2"></i>TL3 변환 시작 (500 TL)
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- TL3 파일 목록 -->
+                <div>
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold">내 TL3 파일</h2>
+                        <div class="text-sm text-gray-600">
+                            <span id="tl3-count">0</span>개의 파일
+                        </div>
+                    </div>
+                    
+                    <div id="tl3-files-list" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- TL3 파일 카드들이 여기에 동적으로 추가됩니다 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- MusicPlace 탭 -->
+            <div id="content-musicplace" class="space-y-8 hidden">
+                <!-- 헤더 -->
+                <div class="mb-8">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h1 class="text-3xl font-bold text-gray-800 mb-2">MusicPlace</h1>
+                            <p class="text-gray-600">TL3 음악을 스트리밍하고, DJ가 되어 라이브 방송을 진행해보세요</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="bg-purple-50 text-purple-700 px-4 py-2 rounded-lg font-medium">
+                                <i class="fas fa-headphones-alt mr-2"></i>
+                                현재 청취자: <span id="current-listeners">0</span>명
                             </div>
                         </div>
                     </div>
                     
-                    <div class="flex items-center space-x-6">
-                        <div class="text-center">
-                            <div class="text-sm text-gray-300">TL 소모</div>
-                            <div id="tl-consumption" class="text-2xl font-bold">1 TL/초</div>
+                    <!-- MusicPlayer -->
+                    <div class="music-player mb-8">
+                        <div class="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+                            <div class="flex items-center space-x-4 flex-1">
+                                <div class="w-16 h-16 gradient-purple rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-music text-xl"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 id="current-track-title" class="font-bold text-lg">재생 중인 음악 없음</h3>
+                                    <p id="current-track-artist" class="text-gray-300">아티스트 정보 없음</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center space-x-6">
+                                <div class="text-center">
+                                    <div class="text-sm text-gray-300">TL 소모</div>
+                                    <div id="tl-consumption" class="text-xl font-bold">0 TL/초</div>
+                                </div>
+                                <button id="play-all-btn" class="gradient-purple text-white w-12 h-12 rounded-full flex items-center justify-center hover:shadow-lg transition-all">
+                                    <i class="fas fa-play text-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 진행 바 -->
+                        <div class="flex items-center space-x-4 mb-6">
+                            <div id="current-time" class="text-sm text-gray-300">0:00</div>
+                            <div class="progress-bar flex-1" id="progress-bar">
+                                <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+                            </div>
+                            <div id="total-time" class="text-sm text-gray-300">0:00</div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center">
+                            <div class="text-sm text-gray-300">
+                                TL 잔액: <span id="player-tl-balance" class="font-bold">10,000</span> TL
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <button id="prev-btn" class="text-gray-300 hover:text-white transition-colors">
+                                    <i class="fas fa-step-backward text-xl"></i>
+                                </button>
+                                <button id="play-btn" class="gradient-purple text-white w-10 h-10 rounded-full flex items-center justify-center hover:shadow-lg transition-all">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button id="next-btn" class="text-gray-300 hover:text-white transition-colors">
+                                    <i class="fas fa-step-forward text-xl"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- 웨이브폼 -->
-                <div class="waveform mb-4" id="waveform"></div>
-                
-                <!-- 진행 바 -->
-                <div class="flex items-center space-x-4 mb-6">
-                    <div id="current-time" class="text-sm text-gray-300">0:00</div>
-                    <div class="progress-bar flex-1" id="progress-bar">
-                        <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
-                    </div>
-                    <div id="total-time" class="text-sm text-gray-300">0:00</div>
-                </div>
-                
-                <div class="flex justify-between items-center">
-                    <div class="text-sm text-gray-300">
-                        TL 잔액: <span id="player-tl-balance" class="font-bold text-xl">10,000</span> TL
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <button id="prev-btn" class="text-gray-300 hover:text-white transition-colors">
-                            <i class="fas fa-step-backward text-2xl"></i>
-                        </button>
-                        <button id="play-btn" class="w-14 h-14 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all">
-                            <i class="fas fa-play text-xl" id="play-icon"></i>
-                        </button>
-                        <button id="next-btn" class="text-gray-300 hover:text-white transition-colors">
-                            <i class="fas fa-step-forward text-2xl"></i>
+
+                <!-- 음악 목록 -->
+                <div>
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold">인기 TL3 음악</h2>
+                        <button id="refresh-music-btn" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                            <i class="fas fa-redo-alt mr-2"></i>새로고침
                         </button>
                     </div>
-                </div>
-            </div>
-
-            <!-- 음악 목록 -->
-            <div>
-                <h2 class="text-2xl font-bold mb-6">인기 TL3 음악</h2>
-                <div id="music-list" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <!-- 음악 카드들이 동적으로 추가됩니다 -->
-                </div>
-            </div>
-        </div>
-
-        <!-- TL3 파일 탭 -->
-        <div id="content-tl3" class="space-y-8 hidden">
-            <div>
-                <h2 class="text-2xl font-bold mb-6">내 TL3 파일</h2>
-                <div id="tl3-files" class="space-y-4">
-                    <!-- TL3 파일 카드들이 동적으로 추가됩니다 -->
-                </div>
-            </div>
-        </div>
-
-        <!-- 지갑 탭 -->
-        <div id="content-wallet" class="space-y-8 hidden">
-            <div>
-                <h2 class="text-2xl font-bold mb-6">내 지갑</h2>
-                <div class="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-8 text-white shadow-lg">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <h3 class="text-lg font-medium mb-2">총 잔액</h3>
-                            <div class="text-5xl font-bold" id="wallet-balance">10,000 TL</div>
-                            <p class="mt-4 text-purple-100">• 1초 재생당 1 TL이 차감됩니다</p>
-                            <p class="text-purple-100">• TL3 파일에 TL을 충전하여 재생하세요</p>
-                        </div>
-                        <i class="fas fa-wallet text-6xl opacity-50"></i>
+                    
+                    <div id="musicplace-list" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- 음악 카드들이 여기에 동적으로 추가됩니다 -->
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- CAFE-RADIO 탭 -->
-        <div id="content-cafe" class="space-y-8 hidden">
-            <div>
-                <h2 class="text-2xl font-bold mb-6">CAFE-RADIO</h2>
-                <div class="bg-gradient-to-r from-amber-600 to-orange-600 rounded-2xl p-8 text-white shadow-lg">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <h3 class="text-2xl font-bold mb-4">카페 전용 음악 스트리밍</h3>
-                            <p class="text-amber-100 mb-4">카페 분위기에 맞는 음악을 TL3로 스트리밍하세요</p>
-                            <button class="bg-white text-amber-700 px-6 py-3 rounded-lg font-bold hover:bg-amber-50 transition-colors">
+            <!-- CAFE-RADIO 탭 -->
+            <div id="content-cafe-radio" class="space-y-8 hidden">
+                <!-- 헤더 -->
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">CAFE-RADIO</h1>
+                    <p class="text-gray-600">카페에서 TL3 음악을 스트리밍하고, 고객에게 특별한 음악 경험을 제공하세요</p>
+                </div>
+
+                <!-- 카페 정보 등록 -->
+                <div class="bg-white rounded-xl shadow-sm border mb-8">
+                    <div class="p-6 border-b">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h2 class="text-xl font-bold">내 카페 정보</h2>
+                                <p class="text-gray-600 text-sm">카페 정보를 등록하여 CAFE-RADIO 서비스를 이용하세요</p>
+                            </div>
+                            <button id="register-cafe-btn" class="gradient-cafe text-white px-6 py-2 rounded-lg font-semibold hover:shadow-lg transition-all">
                                 <i class="fas fa-store mr-2"></i>카페 등록하기
                             </button>
                         </div>
-                        <i class="fas fa-coffee text-6xl opacity-50"></i>
                     </div>
                 </div>
+
+                <!-- 카페 라디오 스테이션 -->
+                <div>
+                    <h2 class="text-xl font-bold mb-6">카페 라디오 스테이션</h2>
+                    <div id="cafe-radio-stations" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- 카페 라디오 스테이션 카드들이 여기에 추가됩니다 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 내 지갑 탭 -->
+            <div id="content-wallet" class="space-y-8 hidden">
+                <!-- 헤더 -->
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">내 지갑</h1>
+                    <p class="text-gray-600">TL3 음악 재생, DJ 방송, Spotify 수익 등 모든 수익을 한눈에 확인하세요</p>
+                </div>
+
+                <!-- 수익 요약 -->
+                <div class="grid md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white rounded-xl shadow-sm border p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-lg">총 잔액</h3>
+                            <i class="fas fa-coins text-2xl text-yellow-500"></i>
+                        </div>
+                        <div class="text-3xl font-bold mb-2" id="wallet-total-balance">10,000 TL</div>
+                        <div class="text-sm text-gray-600">사용 가능한 TL</div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-lg">음악 충전</h3>
+                            <i class="fas fa-music text-2xl text-purple-500"></i>
+                        </div>
+                        <div class="text-3xl font-bold mb-2" id="wallet-music-charge">0 TL</div>
+                        <div class="text-sm text-gray-600">TL3 파일에 충전된 금액</div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-lg">총 수익</h3>
+                            <i class="fas fa-wallet text-2xl text-green-500"></i>
+                        </div>
+                        <div class="text-3xl font-bold mb-2" id="wallet-total-revenue">0 TL</div>
+                        <div class="text-sm text-gray-600">누적 음악 수익</div>
+                    </div>
+                </div>
+
+                <!-- TL 충전 섹션 -->
+                <div class="bg-white rounded-xl shadow-sm border p-6 mb-8">
+                    <h3 class="font-bold text-lg mb-6">TL 충전</h3>
+                    
+                    <div class="grid md:grid-cols-3 gap-6 mb-6">
+                        <button class="tl-charge-btn border-2 border-gray-300 rounded-xl p-6 text-center hover:border-purple-500 hover:bg-purple-50 transition-all" data-amount="5000">
+                            <div class="text-2xl font-bold text-gray-800 mb-2">5,000 TL</div>
+                            <div class="text-lg font-medium text-purple-600">5,000원</div>
+                        </button>
+                        
+                        <button class="tl-charge-btn border-2 border-purple-500 rounded-xl p-6 text-center bg-purple-50" data-amount="10000">
+                            <div class="text-2xl font-bold text-gray-800 mb-2">10,000 TL</div>
+                            <div class="text-lg font-medium text-purple-600">10,000원</div>
+                            <div class="text-sm text-purple-500 font-medium mt-2">가장 인기</div>
+                        </button>
+                        
+                        <button class="tl-charge-btn border-2 border-gray-300 rounded-xl p-6 text-center hover:border-purple-500 hover:bg-purple-50 transition-all" data-amount="50000">
+                            <div class="text-2xl font-bold text-gray-800 mb-2">50,000 TL</div>
+                            <div class="text-lg font-medium text-purple-600">50,000원</div>
+                            <div class="text-sm text-yellow-600 font-medium mt-2">+5% 보너스</div>
+                        </button>
+                    </div>
+                    
+                    <!-- 직접 입력 -->
+                    <div class="mb-6">
+                        <label class="block text-gray-700 mb-3 font-medium">직접 입력하기</label>
+                        <div class="flex space-x-4">
+                            <input type="number" id="custom-tl-amount" min="1000" step="1000"
+                                   class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                                   placeholder="충전할 TL 금액">
+                            <button id="apply-custom-amount" class="gradient-purple text-white px-6 py-3 rounded-lg font-medium hover:shadow-md transition-all">
+                                적용
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 결제 버튼 -->
+                    <button id="charge-wallet-btn" class="w-full gradient-purple text-white py-4 rounded-xl font-bold text-lg hover:shadow-lg transition-all">
+                        <i class="fas fa-credit-card mr-2"></i>TL 충전하기
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- TL 충전 모달 -->
+    <div id="charge-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold">TL 충전 완료</h3>
+                <button id="close-charge-modal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            
+            <div class="text-center py-8">
+                <div class="w-20 h-20 gradient-green text-white rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i class="fas fa-check text-3xl"></i>
+                </div>
+                <h4 class="text-2xl font-bold mb-2" id="charge-success-amount">10,000 TL</h4>
+                <p class="text-gray-600">TL 충전이 완료되었습니다!</p>
+            </div>
+            
+            <button id="confirm-charge" class="w-full gradient-purple text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all">
+                확인
+            </button>
+        </div>
+    </div>
+
+    <!-- TL3 변환 모달 -->
+    <div id="convert-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold">TL3 변환 중</h3>
+            </div>
+            
+            <div class="text-center py-8">
+                <div class="w-20 h-20 gradient-purple text-white rounded-full flex items-center justify-center mx-auto mb-6 animate-spin">
+                    <i class="fas fa-cog text-3xl"></i>
+                </div>
+                <h4 class="text-xl font-bold mb-2">TL3 변환 진행 중</h4>
+                <p class="text-gray-600 mb-4" id="convert-track-title">Chill Vibes #02</p>
+                <p class="text-sm text-gray-500">AI 음악을 TL3 포맷으로 변환하고 있습니다...</p>
             </div>
         </div>
     </div>
@@ -260,20 +582,30 @@
     <script>
         // 전역 상태
         const state = {
+            currentUser: null,
+            tlBalance: 10000,
             currentTrack: null,
             isPlaying: false,
-            tlBalance: 10000,
+            tl3Files: [],
+            musicplaceTracks: [],
+            cafeStations: [],
             audioContext: null,
             audioSource: null,
-            audioBuffer: null,
+            deductionInterval: null,
             currentTime: 0,
             startTime: 0,
-            deductionInterval: null,
-            currentTab: 'music'
+            currentTab: 'tl3-converter',
+            demoAudioUrls: [
+                'https://assets.mixkit.co/music/preview/mixkit-chill-abstract-loop-229.mp3',
+                'https://assets.mixkit.co/music/preview/mixkit-driving-ambition-32.mp3',
+                'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
+                'https://assets.mixkit.co/music/preview/mixkit-deep-urban-623.mp3',
+                'https://assets.mixkit.co/music/preview/mixkit-mellow-feedback-229.mp3'
+            ]
         };
 
-        // 음악 데이터베이스 (실제 음악 URL 포함)
-        const musicLibrary = [
+        // 데모 음악 데이터
+        const demoMusic = [
             {
                 id: 'track_001',
                 title: 'Chill Vibes #01',
@@ -287,7 +619,8 @@
                 artistWallet: '0x742d35Cc6634C0532925a3b844Bc9e',
                 pricePerSecond: 1,
                 plays: 1250,
-                likes: 89
+                likes: 89,
+                isMine: false
             },
             {
                 id: 'track_002',
@@ -302,253 +635,290 @@
                 artistWallet: '0x8a5eaB5C6C9A2b3c4d5e6f7A8b9c0d',
                 pricePerSecond: 1,
                 plays: 890,
-                likes: 67
-            },
-            {
-                id: 'track_003',
-                title: 'Deep Focus',
-                artist: 'Code Harmony',
-                mood: 'Focus',
-                tags: ['Focus', 'Work', 'Coding'],
-                length: 300,
-                audioUrl: 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
-                tl3Id: 'TL3-003',
-                tlBalance: 800,
-                artistWallet: '0x9b6fC7D8E0f1A2b3c4d5e6f7A8b9c0d',
-                pricePerSecond: 1,
-                plays: 2340,
-                likes: 156
-            },
-            {
-                id: 'track_004',
-                title: 'Urban Night',
-                artist: 'Synth Wave AI',
-                mood: 'Energetic',
-                tags: ['Synthwave', 'Night', 'Urban'],
-                length: 210,
-                audioUrl: 'https://assets.mixkit.co/music/preview/mixkit-deep-urban-623.mp3',
-                tl3Id: 'TL3-004',
-                tlBalance: 600,
-                artistWallet: '0x4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f',
-                pricePerSecond: 1,
-                plays: 1670,
-                likes: 123
-            },
-            {
-                id: 'track_005',
-                title: 'Study Session',
-                artist: 'Brain Waves',
-                mood: 'Focus',
-                tags: ['Study', 'Concentration', 'Productive'],
-                length: 270,
-                audioUrl: 'https://assets.mixkit.co/music/preview/mixkit-mellow-feedback-229.mp3',
-                tl3Id: 'TL3-005',
-                tlBalance: 450,
-                artistWallet: '0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d',
-                pricePerSecond: 1,
-                plays: 980,
-                likes: 78
+                likes: 67,
+                isMine: false
             }
         ];
 
-        // TL3 파일 데이터
-        const tl3Files = [
-            {
-                id: 'tl3_001',
-                title: 'My First TL3',
-                artist: '내가 만든 음악',
-                mood: 'Relaxed',
-                tags: ['My Music', 'First'],
-                length: 180,
-                audioUrl: 'https://assets.mixkit.co/music/preview/mixkit-chill-abstract-loop-229.mp3',
-                tl3Id: 'TL3-MY001',
-                tlBalance: 100,
-                artistWallet: '내 지갑',
-                pricePerSecond: 1,
-                plays: 5,
-                likes: 2,
-                isMine: true
+        // 오디오 플레이어 시스템
+        class AudioPlayer {
+            constructor() {
+                this.audioContext = null;
+                this.currentSource = null;
+                this.currentBuffer = null;
             }
-        ];
 
-        // 오디오 플레이어 초기화
-        async function initAudioPlayer() {
-            try {
-                window.AudioContext = window.AudioContext || window.webkitAudioContext;
-                state.audioContext = new AudioContext();
-                console.log('Audio player initialized');
-            } catch (error) {
-                console.error('Audio player initialization failed:', error);
+            async init() {
+                try {
+                    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.audioContext = new AudioContext();
+                    return true;
+                } catch (error) {
+                    console.error('Audio player init failed:', error);
+                    return false;
+                }
+            }
+
+            async loadAudio(url) {
+                try {
+                    const response = await fetch(url);
+                    const arrayBuffer = await response.arrayBuffer();
+                    this.currentBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                    return this.currentBuffer;
+                } catch (error) {
+                    console.error('Failed to load audio:', error);
+                    return null;
+                }
+            }
+
+            play(buffer, onEnded) {
+                if (this.currentSource) {
+                    this.currentSource.stop();
+                }
+
+                this.currentSource = this.audioContext.createBufferSource();
+                this.currentSource.buffer = buffer;
+                
+                const gainNode = this.audioContext.createGain();
+                gainNode.gain.value = 0.7;
+                
+                this.currentSource.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                
+                this.currentSource.start();
+                
+                if (onEnded) {
+                    this.currentSource.onended = onEnded;
+                }
+                
+                return this.currentSource;
+            }
+
+            pause() {
+                if (this.currentSource) {
+                    this.currentSource.stop();
+                }
             }
         }
 
-        // 오디오 로드
-        async function loadAudio(url) {
-            try {
-                const response = await fetch(url);
-                const arrayBuffer = await response.arrayBuffer();
-                state.audioBuffer = await state.audioContext.decodeAudioData(arrayBuffer);
-                return state.audioBuffer;
-            } catch (error) {
-                console.error('Failed to load audio:', error);
-                return null;
-            }
+        const audioPlayer = new AudioPlayer();
+
+        // 이벤트 핸들러
+        async function handleDemoLogin() {
+            state.currentUser = {
+                name: '데모 사용자',
+                email: 'demo@timelink.com',
+                type: 'creator',
+                userId: 'demo_' + Date.now()
+            };
+
+            // 데모 데이터 로드
+            state.musicplaceTracks = [...demoMusic];
+            state.tl3Files = [];
+
+            // 오디오 플레이어 초기화
+            await audioPlayer.init();
+
+            // 대시보드 표시
+            document.getElementById('auth-page').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+
+            // 사용자 정보 설정
+            updateUserInfo();
+            updateTlBalance();
+            renderMusicplaceList();
+            
+            showNotification('데모 계정으로 로그인되었습니다!', 'success');
         }
 
-        // 음악 재생
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            state.currentUser = {
+                name: email.split('@')[0],
+                email: email,
+                type: 'creator',
+                userId: 'user_' + Date.now()
+            };
+
+            // 데모 데이터 로드
+            state.musicplaceTracks = [...demoMusic];
+            state.tl3Files = [];
+
+            // 오디오 플레이어 초기화
+            await audioPlayer.init();
+
+            // 대시보드 표시
+            document.getElementById('auth-page').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+
+            // 사용자 정보 설정
+            updateUserInfo();
+            updateTlBalance();
+            renderMusicplaceList();
+            
+            showNotification('로그인되었습니다!', 'success');
+        }
+
+        async function handleConvert(e) {
+            e.preventDefault();
+            
+            if (state.tlBalance < 500) {
+                showNotification('TL이 부족합니다. 충전이 필요합니다.', 'error');
+                return;
+            }
+
+            const trackTitle = document.getElementById('track-title').value;
+            const trackArtist = document.getElementById('track-artist').value;
+            const trackMood = document.getElementById('track-mood').value;
+            const trackLength = parseInt(document.getElementById('track-length').value);
+            const trackTags = document.getElementById('track-tags').value.split(',').map(tag => tag.trim());
+
+            // TL3 변환 모달 표시
+            document.getElementById('convert-modal').classList.remove('hidden');
+            document.getElementById('convert-track-title').textContent = trackTitle;
+
+            // TL 차감
+            setTimeout(() => {
+                state.tlBalance -= 500;
+                updateTlBalance();
+
+                // TL3 파일 생성
+                const tl3File = {
+                    id: 'tl3_' + Date.now(),
+                    title: trackTitle,
+                    artist: trackArtist,
+                    mood: trackMood,
+                    length: trackLength,
+                    tags: trackTags,
+                    audioUrl: state.demoAudioUrls[Math.floor(Math.random() * state.demoAudioUrls.length)],
+                    tl3Id: 'TL3-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+                    tlBalance: 0, // 초기에는 TL이 없음
+                    artistWallet: state.currentUser.email,
+                    pricePerSecond: 1,
+                    plays: 0,
+                    likes: 0,
+                    isMine: true,
+                    createdAt: new Date().toISOString(),
+                    converted: true
+                };
+
+                // TL3 파일 추가
+                state.tl3Files.push(tl3File);
+
+                // MusicPlace에도 추가
+                const musicplaceTrack = {
+                    ...tl3File,
+                    id: 'mp_' + tl3File.id,
+                    tl3Source: tl3File.id
+                };
+                state.musicplaceTracks.push(musicplaceTrack);
+
+                // 모달 숨기기
+                document.getElementById('convert-modal').classList.add('hidden');
+
+                // 성공 메시지
+                showNotification(`"${trackTitle}" TL3 변환이 완료되었습니다!`, 'success');
+
+                // 목록 업데이트
+                renderTl3FileList();
+                renderMusicplaceList();
+            }, 2000);
+        }
+
         async function playTrack(track) {
             try {
                 // 오디오 컨텍스트가 일시정지 상태이면 재개
-                if (state.audioContext.state === 'suspended') {
-                    await state.audioContext.resume();
+                if (audioPlayer.audioContext.state === 'suspended') {
+                    await audioPlayer.audioContext.resume();
                 }
 
-                // 현재 재생 중이면 정지
-                if (state.isPlaying && state.audioSource) {
-                    state.audioSource.stop();
-                }
-
-                // 오디오 로드
-                const audioBuffer = await loadTrackAudio(track);
-                if (!audioBuffer) {
-                    alert('음악을 로드할 수 없습니다.');
+                // TL 확인 (내 음악이 아닌 경우)
+                if (!track.isMine && track.tlBalance <= 0) {
+                    showNotification('이 음악에는 TL이 충전되어 있지 않습니다.', 'error');
                     return;
                 }
 
-                // 오디오 소스 생성
-                state.audioSource = state.audioContext.createBufferSource();
-                state.audioSource.buffer = audioBuffer;
+                // TL 확인 (내 음악인 경우 - 지갑에서 차감)
+                if (track.isMine && state.tlBalance <= 0) {
+                    showNotification('TL이 부족합니다. 충전이 필요합니다.', 'error');
+                    return;
+                }
 
-                // 볼륨 컨트롤
-                const gainNode = state.audioContext.createGain();
-                gainNode.gain.value = 0.7;
+                // 오디오 로드
+                const audioBuffer = await audioPlayer.loadAudio(track.audioUrl);
+                if (!audioBuffer) {
+                    showNotification('음원을 로드할 수 없습니다.', 'error');
+                    return;
+                }
 
-                // 연결
-                state.audioSource.connect(gainNode);
-                gainNode.connect(state.audioContext.destination);
-
-                // 재생 시작
-                state.audioSource.start();
+                // 현재 트랙 설정
                 state.currentTrack = track;
                 state.isPlaying = true;
                 state.startTime = Date.now();
 
                 // UI 업데이트
                 updatePlayerUI(track);
-                
-                // TL 차감 시작
-                startTLDeduction();
 
-                // 재생 완료 이벤트
-                state.audioSource.onended = () => {
+                // 재생 시작
+                audioPlayer.play(audioBuffer, () => {
                     state.isPlaying = false;
-                    state.currentTime = 0;
-                    document.getElementById('play-icon').className = 'fas fa-play';
-                    updateProgressBar();
+                    document.getElementById('play-btn').innerHTML = '<i class="fas fa-play"></i>';
                     stopTLDeduction();
-                };
+                });
 
-                console.log('Playing:', track.title);
+                // TL 차감 시작
+                startTLDeduction(track);
+
+                // 재생 수 증가
+                track.plays += 1;
+                renderMusicplaceList();
 
             } catch (error) {
                 console.error('Playback error:', error);
-                alert('재생 중 오류가 발생했습니다.');
+                showNotification('재생 중 오류가 발생했습니다.', 'error');
             }
         }
 
-        // 트랙 오디오 로드 (캐싱 포함)
-        const audioCache = new Map();
-        async function loadTrackAudio(track) {
-            if (audioCache.has(track.id)) {
-                return audioCache.get(track.id);
-            }
-
-            const audioBuffer = await loadAudio(track.audioUrl);
-            if (audioBuffer) {
-                audioCache.set(track.id, audioBuffer);
-            }
-            return audioBuffer;
-        }
-
-        // 재생 일시정지/재개
-        function togglePlay() {
-            if (!state.currentTrack) {
-                // 트랙이 없으면 첫 번째 트랙 재생
-                playTrack(musicLibrary[0]);
-                return;
-            }
-
-            if (state.isPlaying) {
-                pauseTrack();
-            } else {
-                resumeTrack();
-            }
-        }
-
-        function pauseTrack() {
-            if (state.audioSource) {
-                state.audioSource.stop();
-                state.currentTime += (Date.now() - state.startTime) / 1000;
-                state.isPlaying = false;
-                document.getElementById('play-icon').className = 'fas fa-play';
-                stopTLDeduction();
-            }
-        }
-
-        function resumeTrack() {
-            if (!state.currentTrack || !state.audioBuffer) return;
-
-            const offset = state.currentTime % state.audioBuffer.duration;
-            state.audioSource = state.audioContext.createBufferSource();
-            state.audioSource.buffer = state.audioBuffer;
-
-            const gainNode = state.audioContext.createGain();
-            gainNode.gain.value = 0.7;
-
-            state.audioSource.connect(gainNode);
-            gainNode.connect(state.audioContext.destination);
-
-            state.audioSource.start(0, offset);
-            state.isPlaying = true;
-            state.startTime = Date.now() - (state.currentTime * 1000);
-
-            document.getElementById('play-icon').className = 'fas fa-pause';
-            startTLDeduction();
-
-            state.audioSource.onended = () => {
-                state.isPlaying = false;
-                state.currentTime = 0;
-                document.getElementById('play-icon').className = 'fas fa-play';
-                updateProgressBar();
-                stopTLDeduction();
-            };
-        }
-
-        // TL 차감 시스템
-        function startTLDeduction() {
+        function startTLDeduction(track) {
             state.deductionInterval = setInterval(() => {
-                if (state.tlBalance > 0 && state.isPlaying) {
-                    // TL 차감
-                    state.tlBalance -= 1;
-                    updateTlBalance();
-                    
-                    // TL3 파일의 TL도 차감 (TL3 파일에 TL이 충전되어 있다면)
-                    if (state.currentTrack && state.currentTrack.tlBalance > 0) {
-                        state.currentTrack.tlBalance -= 1;
+                if (track.isMine) {
+                    // 내 음악인 경우: 내 지갑에서 TL 차감
+                    if (state.tlBalance > 0) {
+                        state.tlBalance -= 1;
+                        
+                        // 수익 분배 (내 음악이므로 내가 아티스트)
+                        const artistEarnings = 0.7;
+                        const platformEarnings = 0.3;
+                        
+                        console.log(`내 음악 재생 - 아티스트 수익: ${artistEarnings} TL, 플랫폼 수익: ${platformEarnings} TL`);
+                    }
+                } else {
+                    // 다른 사람의 음악인 경우: TL3 파일에서 TL 차감
+                    if (track.tlBalance > 0) {
+                        track.tlBalance -= 1;
                         
                         // 수익 분배 (아티스트 70%, 플랫폼 30%)
                         const artistEarnings = 0.7;
                         const platformEarnings = 0.3;
                         
-                        // 실제 구현에서는 아티스트 지갑과 플랫폼 지갑으로 전송
                         console.log(`수익 분배 - 아티스트: ${artistEarnings} TL, 플랫폼: ${platformEarnings} TL`);
                     }
-                    
-                    // TL이 부족하면 중지
-                    if (state.tlBalance <= 0) {
-                        pauseTrack();
-                        alert('TL이 부족합니다. 충전 후 재생해주세요.');
-                    }
+                }
+                
+                // TL 업데이트
+                updateTlBalance();
+                renderMusicplaceList();
+                
+                // TL이 부족하면 중지
+                if ((track.isMine && state.tlBalance <= 0) || (!track.isMine && track.tlBalance <= 0)) {
+                    audioPlayer.pause();
+                    state.isPlaying = false;
+                    document.getElementById('play-btn').innerHTML = '<i class="fas fa-play"></i>';
+                    stopTLDeduction();
+                    showNotification('TL이 부족합니다.', 'error');
                 }
             }, 1000);
         }
@@ -560,125 +930,112 @@
             }
         }
 
-        // 다음 트랙 재생
-        function playNextTrack() {
-            if (!state.currentTrack) return;
+        function togglePlay() {
+            if (!state.currentTrack) {
+                if (state.musicplaceTracks.length > 0) {
+                    playTrack(state.musicplaceTracks[0]);
+                }
+                return;
+            }
+
+            if (state.isPlaying) {
+                audioPlayer.pause();
+                state.isPlaying = false;
+                document.getElementById('play-btn').innerHTML = '<i class="fas fa-play"></i>';
+                stopTLDeduction();
+            } else {
+                playTrack(state.currentTrack);
+            }
+        }
+
+        function chargeTl3File(track, amount) {
+            if (state.tlBalance < amount) {
+                showNotification('지갑 잔액이 부족합니다.', 'error');
+                return;
+            }
+
+            // 지갑에서 TL 차감
+            state.tlBalance -= amount;
             
-            const currentIndex = musicLibrary.findIndex(track => track.id === state.currentTrack.id);
-            const nextIndex = (currentIndex + 1) % musicLibrary.length;
-            playTrack(musicLibrary[nextIndex]);
-        }
-
-        // 이전 트랙 재생
-        function playPrevTrack() {
-            if (!state.currentTrack) return;
+            // TL3 파일에 TL 충전
+            track.tlBalance += amount;
             
-            const currentIndex = musicLibrary.findIndex(track => track.id === state.currentTrack.id);
-            const prevIndex = (currentIndex - 1 + musicLibrary.length) % musicLibrary.length;
-            playTrack(musicLibrary[prevIndex]);
-        }
-
-        // UI 업데이트
-        function updatePlayerUI(track) {
-            document.getElementById('current-track-title').textContent = track.title;
-            document.getElementById('current-track-artist').textContent = track.artist;
-            document.getElementById('global-track-title').textContent = track.title;
-            document.getElementById('global-track-artist').textContent = track.artist;
-            document.getElementById('play-icon').className = 'fas fa-pause';
+            // 업데이트
+            updateTlBalance();
+            renderMusicplaceList();
+            renderTl3FileList();
             
-            // 전역 플레이어 표시
-            document.getElementById('global-player').classList.remove('hidden');
+            showNotification(`${amount} TL이 ${track.title}에 충전되었습니다.`, 'success');
         }
 
-        function updateProgressBar() {
-            if (!state.isPlaying || !state.currentTrack) return;
-
-            const current = state.currentTime + (Date.now() - state.startTime) / 1000;
-            const duration = state.audioBuffer ? state.audioBuffer.duration : state.currentTrack.length;
-            const progress = (current / duration) * 100;
-
-            document.getElementById('progress-fill').style.width = `${progress}%`;
-            document.getElementById('global-progress-fill').style.width = `${progress}%`;
-
-            document.getElementById('current-time').textContent = formatTime(current);
-            document.getElementById('total-time').textContent = formatTime(duration);
-            document.getElementById('global-current-time').textContent = formatTime(current);
-            document.getElementById('global-total-time').textContent = formatTime(duration);
+        function chargeWallet(amount) {
+            // 실제 결제 시뮬레이션
+            const bonus = amount >= 50000 ? Math.floor(amount * 0.05) : 0;
+            const totalAmount = amount + bonus;
+            
+            state.tlBalance += totalAmount;
+            updateTlBalance();
+            
+            // 충전 모달 표시
+            document.getElementById('charge-modal').classList.remove('hidden');
+            document.getElementById('charge-success-amount').textContent = 
+                `${totalAmount.toLocaleString()} TL${bonus > 0 ? ` (+${bonus.toLocaleString()} TL 보너스)` : ''}`;
+            
+            showNotification(`${totalAmount.toLocaleString()} TL이 충전되었습니다!`, 'success');
         }
 
-        function formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        // UI 업데이트 함수
+        function updateUserInfo() {
+            document.getElementById('user-name').textContent = state.currentUser.name;
+            document.getElementById('user-type').textContent = getAccountTypeLabel(state.currentUser.type);
+            document.getElementById('dropdown-user-name').textContent = state.currentUser.name;
+            document.getElementById('dropdown-user-type').textContent = getAccountTypeLabel(state.currentUser.type);
         }
 
         function updateTlBalance() {
+            document.getElementById('total-tl').textContent = state.tlBalance.toLocaleString() + ' TL';
+            document.getElementById('dropdown-user-tl').textContent = state.tlBalance.toLocaleString() + ' TL';
             document.getElementById('player-tl-balance').textContent = state.tlBalance.toLocaleString();
-            document.getElementById('global-tl-balance').textContent = state.tlBalance.toLocaleString() + ' TL';
-            document.getElementById('wallet-balance').textContent = state.tlBalance.toLocaleString() + ' TL';
+            document.getElementById('wallet-total-balance').textContent = state.tlBalance.toLocaleString() + ' TL';
+            
+            // TL3 파일에 충전된 총 금액 계산
+            const musicCharge = state.tl3Files.reduce((sum, file) => sum + file.tlBalance, 0);
+            document.getElementById('wallet-music-charge').textContent = musicCharge.toLocaleString() + ' TL';
         }
 
-        // 음악 목록 렌더링
-        function renderMusicList() {
-            const container = document.getElementById('music-list');
-            container.innerHTML = musicLibrary.map(track => `
-                <div class="bg-white rounded-xl shadow-sm border p-5 hover:shadow-md transition-shadow cursor-pointer" onclick="playTrack(${JSON.stringify(track).replace(/"/g, '&quot;')})">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h4 class="font-bold text-lg">${track.title}</h4>
-                            <p class="text-gray-600">${track.artist}</p>
-                        </div>
-                        <div class="flex flex-col items-end space-y-2">
-                            <div class="text-sm text-purple-600 font-bold">
-                                ${track.tlBalance} TL
-                            </div>
-                            ${state.currentTrack && state.currentTrack.id === track.id ? 
-                                '<div class="badge badge-green text-xs"><i class="fas fa-play"></i> 재생 중</div>' : ''}
-                        </div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        ${track.tags.map(tag => `<span class="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs mr-2">${tag}</span>`).join('')}
-                    </div>
-                    
-                    <div class="flex justify-between items-center text-sm text-gray-600">
-                        <div class="flex items-center">
-                            <i class="fas fa-play-circle mr-1"></i>
-                            <span>${track.plays.toLocaleString()}</span>
-                            <i class="fas fa-heart ml-3 mr-1"></i>
-                            <span>${track.likes}</span>
-                        </div>
-                        <div class="text-gray-500">
-                            ${Math.floor(track.length / 60)}:${(track.length % 60).toString().padStart(2, '0')}
-                        </div>
-                    </div>
-                    
-                    <div class="mt-3 pt-3 border-t">
-                        <div class="text-xs text-gray-500">
-                            TL3 ID: ${track.tl3Id}
-                        </div>
-                    </div>
-                </div>
-            `).join('');
+        function updatePlayerUI(track) {
+            document.getElementById('current-track-title').textContent = track.title;
+            document.getElementById('current-track-artist').textContent = track.artist;
+            document.getElementById('play-btn').innerHTML = '<i class="fas fa-pause"></i>';
         }
 
-        // TL3 파일 목록 렌더링
-        function renderTl3Files() {
-            const container = document.getElementById('tl3-files');
-            container.innerHTML = tl3Files.map(file => `
+        function renderTl3FileList() {
+            const container = document.getElementById('tl3-files-list');
+            const countElement = document.getElementById('tl3-count');
+            
+            countElement.textContent = state.tl3Files.length;
+            
+            if (state.tl3Files.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-3 text-center py-12 text-gray-500">
+                        <i class="fas fa-music text-4xl mb-4"></i>
+                        <p>아직 TL3 파일이 없습니다</p>
+                        <p class="text-sm mt-2">위의 TL3 변환기를 사용하여 음악을 변환하세요</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = state.tl3Files.map(file => `
                 <div class="bg-white rounded-xl shadow-sm border p-5">
                     <div class="flex justify-between items-start mb-4">
                         <div>
                             <h4 class="font-bold text-lg">${file.title}</h4>
                             <p class="text-gray-600">${file.artist}</p>
                         </div>
-                        <div class="flex flex-col items-end space-y-2">
-                            <div class="tl3-file">
-                                <i class="fas fa-file-code"></i>
-                                ${file.tl3Id}
-                            </div>
-                            ${file.isMine ? 
-                                '<div class="badge badge-blue text-xs"><i class="fas fa-user"></i> 내 파일</div>' : ''}
+                        <div class="tl3-file">
+                            <i class="fas fa-file-code"></i>
+                            ${file.tl3Id}
                         </div>
                     </div>
                     
@@ -693,7 +1050,8 @@
                                 <div class="text-sm text-gray-600">TL 잔액</div>
                                 <div class="text-xl font-bold text-purple-600">${file.tlBalance} TL</div>
                             </div>
-                            <button class="bg-purple-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-600 transition-colors" onclick="chargeTl3File('${file.id}', 100)">
+                            <button class="gradient-purple text-white px-4 py-2 rounded-lg text-sm hover:opacity-90 transition-opacity" 
+                                    onclick="chargeTl3File(${JSON.stringify(file).replace(/"/g, '&quot;')}, 100)">
                                 <i class="fas fa-coins mr-1"></i>충전하기
                             </button>
                         </div>
@@ -712,28 +1070,75 @@
             `).join('');
         }
 
-        // TL3 파일 충전
-        function chargeTl3File(fileId, amount) {
-            if (state.tlBalance < amount) {
-                alert('지갑 잔액이 부족합니다.');
-                return;
-            }
-
-            const file = tl3Files.find(f => f.id === fileId);
-            if (file) {
-                // 지갑에서 TL 차감
-                state.tlBalance -= amount;
-                // TL3 파일에 TL 충전
-                file.tlBalance += amount;
-                
-                updateTlBalance();
-                renderTl3Files();
-                
-                alert(`${amount} TL이 ${file.title} 파일에 충전되었습니다.`);
-            }
+        function renderMusicplaceList() {
+            const container = document.getElementById('musicplace-list');
+            
+            container.innerHTML = state.musicplaceTracks.map(track => `
+                <div class="bg-white rounded-xl shadow-sm border p-5 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h4 class="font-bold text-lg">${track.title}</h4>
+                            <p class="text-gray-600">${track.artist}</p>
+                        </div>
+                        <div class="flex flex-col items-end space-y-2">
+                            <div class="text-sm ${track.isMine ? 'text-green-600' : 'text-purple-600'} font-bold">
+                                ${track.tlBalance} TL
+                            </div>
+                            ${track.isMine ? 
+                                '<div class="badge badge-green text-xs"><i class="fas fa-user"></i> 내 음악</div>' : 
+                                '<div class="badge badge-purple text-xs"><i class="fas fa-coins"></i> 1 TL/초</div>'}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <span class="inline-block bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs mr-2">${track.mood}</span>
+                        ${track.tags.map(tag => `<span class="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs mr-2">${tag}</span>`).join('')}
+                    </div>
+                    
+                    <div class="flex justify-between items-center text-sm text-gray-600 mb-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-play-circle mr-1"></i>
+                            <span>${track.plays}회 재생</span>
+                        </div>
+                        <div class="text-gray-500">
+                            ${Math.floor(track.length / 60)}:${(track.length % 60).toString().padStart(2, '0')}
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        ${track.isMine ? `
+                            <button class="w-full gradient-purple text-white py-2 rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center justify-center"
+                                    onclick="playTrack(${JSON.stringify(track).replace(/"/g, '&quot;')})">
+                                <i class="fas fa-play mr-2"></i>재생하기 (내 지갑에서 차감)
+                            </button>
+                            <button class="w-full border border-purple-500 text-purple-600 py-2 rounded-lg font-medium hover:bg-purple-50 transition-colors flex items-center justify-center"
+                                    onclick="chargeTl3File(${JSON.stringify(track).replace(/"/g, '&quot;')}, 100)">
+                                <i class="fas fa-coins mr-2"></i>TL3 파일에 TL 충전
+                            </button>
+                        ` : `
+                            <button class="w-full gradient-purple text-white py-2 rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center justify-center"
+                                    onclick="playTrack(${JSON.stringify(track).replace(/"/g, '&quot;')})">
+                                <i class="fas fa-play mr-2"></i>재생하기 (TL3 파일에서 차감)
+                            </button>
+                        `}
+                    </div>
+                </div>
+            `).join('');
         }
 
-        // 탭 전환
+        function getAccountTypeLabel(type) {
+            const labels = {
+                'creator': '음악 크리에이터',
+                'listener': '일반 청취자'
+            };
+            return labels[type] || type;
+        }
+
+        function showNotification(message, type = 'info') {
+            // 간단한 알림 표시
+            alert(message);
+        }
+
         function switchTab(tabName) {
             // 모든 탭 콘텐츠 숨기기
             document.querySelectorAll('[id^="content-"]').forEach(content => {
@@ -751,73 +1156,91 @@
             state.currentTab = tabName;
             
             // 탭별 초기화
-            if (tabName === 'music') {
-                renderMusicList();
-            } else if (tabName === 'tl3') {
-                renderTl3Files();
+            if (tabName === 'tl3-converter') {
+                renderTl3FileList();
+            } else if (tabName === 'musicplace') {
+                renderMusicplaceList();
             }
         }
 
         // 이벤트 리스너 설정
         function setupEventListeners() {
-            // 플레이어 컨트롤
-            document.getElementById('play-btn').addEventListener('click', togglePlay);
-            document.getElementById('prev-btn').addEventListener('click', playPrevTrack);
-            document.getElementById('next-btn').addEventListener('click', playNextTrack);
+            // 로그인
+            document.getElementById('demo-login').addEventListener('click', handleDemoLogin);
+            document.getElementById('login-form').addEventListener('submit', handleLogin);
             
-            // 전역 플레이어 컨트롤
-            document.getElementById('global-play-btn').addEventListener('click', togglePlay);
-            
-            // 탭 네비게이션
-            document.getElementById('tab-music').addEventListener('click', () => switchTab('music'));
-            document.getElementById('tab-tl3').addEventListener('click', () => switchTab('tl3'));
+            // 탭 전환
+            document.getElementById('tab-tl3-converter').addEventListener('click', () => switchTab('tl3-converter'));
+            document.getElementById('tab-musicplace').addEventListener('click', () => switchTab('musicplace'));
+            document.getElementById('tab-cafe-radio').addEventListener('click', () => switchTab('cafe-radio'));
             document.getElementById('tab-wallet').addEventListener('click', () => switchTab('wallet'));
-            document.getElementById('tab-cafe').addEventListener('click', () => switchTab('cafe'));
             
-            // 진행바 클릭
-            document.getElementById('progress-bar').addEventListener('click', (e) => {
-                if (!state.currentTrack || !state.audioBuffer) return;
-                
-                const rect = e.target.getBoundingClientRect();
-                const percent = (e.clientX - rect.left) / rect.width;
-                const duration = state.audioBuffer.duration;
-                const seekTime = duration * percent;
-                
-                // 재생 위치 변경
-                if (state.isPlaying) {
-                    pauseTrack();
+            // TL3 변환
+            document.getElementById('convert-form').addEventListener('submit', handleConvert);
+            document.getElementById('file-upload-btn').addEventListener('click', () => {
+                document.getElementById('audio-file').click();
+            });
+            
+            // 음악 재생
+            document.getElementById('play-btn').addEventListener('click', togglePlay);
+            document.getElementById('play-all-btn').addEventListener('click', () => {
+                if (state.musicplaceTracks.length > 0) {
+                    playTrack(state.musicplaceTracks[0]);
                 }
-                state.currentTime = seekTime;
-                if (state.isPlaying) {
-                    resumeTrack();
+            });
+            
+            // TL 충전
+            document.querySelectorAll('.tl-charge-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const amount = parseInt(btn.dataset.amount);
+                    chargeWallet(amount);
+                });
+            });
+            
+            document.getElementById('apply-custom-amount').addEventListener('click', () => {
+                const amount = parseInt(document.getElementById('custom-tl-amount').value);
+                if (amount >= 1000) {
+                    chargeWallet(amount);
                 }
-                updateProgressBar();
+            });
+            
+            // 사용자 메뉴
+            document.getElementById('user-menu-btn').addEventListener('click', () => {
+                document.getElementById('user-dropdown').classList.toggle('hidden');
+            });
+            
+            document.getElementById('wallet-btn').addEventListener('click', () => {
+                document.getElementById('user-dropdown').classList.add('hidden');
+                switchTab('wallet');
+            });
+            
+            document.getElementById('logout-btn').addEventListener('click', () => {
+                location.reload();
+            });
+            
+            // 모달 닫기
+            document.getElementById('close-charge-modal').addEventListener('click', () => {
+                document.getElementById('charge-modal').classList.add('hidden');
+            });
+            
+            document.getElementById('confirm-charge').addEventListener('click', () => {
+                document.getElementById('charge-modal').classList.add('hidden');
             });
         }
 
         // 초기화
-        document.addEventListener('DOMContentLoaded', async () => {
-            // 오디오 플레이어 초기화
-            await initAudioPlayer();
-            
-            // 이벤트 리스너 설정
+        document.addEventListener('DOMContentLoaded', () => {
             setupEventListeners();
             
-            // 초기 데이터 렌더링
-            renderMusicList();
-            renderTl3Files();
-            updateTlBalance();
-            
-            // 첫 번째 트랙 자동 로드 (재생은 안 함)
-            loadTrackAudio(musicLibrary[0]);
-            
-            // 진행바 업데이트 시작
-            setInterval(updateProgressBar, 100);
-            
-            console.log('TL3 음악 플랫폼이 준비되었습니다.');
+            // 외부 클릭 시 사용자 드롭다운 닫기
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#user-menu-btn') && !e.target.closest('#user-dropdown')) {
+                    document.getElementById('user-dropdown').classList.add('hidden');
+                }
+            });
         });
 
-        // 글로벌 함수로 노출
+        // 글로벌 함수
         window.playTrack = playTrack;
         window.chargeTl3File = chargeTl3File;
     </script>
