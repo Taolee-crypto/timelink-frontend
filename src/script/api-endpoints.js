@@ -2,11 +2,11 @@
 const API_BASE_URL = 'https://timelink-api.timelink-api.workers.dev';
 
 const API_ENDPOINTS = {
-    health: \\https://timelink-backend.timelink-api.workers.dev/health\,
-    signup: \\https://timelink-backend.timelink-api.workers.dev/api/auth/signup\,
-    login: \\https://timelink-backend.timelink-api.workers.dev/api/auth/login\,
-    verify: \\https://timelink-backend.timelink-api.workers.dev/api/auth/verify\,
-    resend: \\https://timelink-backend.timelink-api.workers.dev/api/auth/resend-verification\
+    health: \\https://timelink-api.timelink-api.workers.dev/health\,
+    signup: \\https://timelink-api.timelink-api.workers.dev/api/auth/signup\,
+    login: \\https://timelink-api.timelink-api.workers.dev/api/auth/login\,
+    verify: \\https://timelink-api.timelink-api.workers.dev/api/auth/verify\,
+    resend: \\https://timelink-api.timelink-api.workers.dev/api/auth/resend-verification\
 };
 
 // CORS 문제 해결을 위한 fetch 래퍼
