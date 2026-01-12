@@ -1,311 +1,158 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TIMELINK</title>
-    <style>
-        /* 기본 스타일 */
-        body { margin: 0; font-family: Arial, sans-serif; }
-        .hidden { display: none !important; }
-        .page { min-height: 100vh; padding: 20px; }
-        .auth-page { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; }
-        .auth-box { background: white; padding: 40px; border-radius: 20px; max-width: 400px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
-        .dashboard { background: #f5f5f5; }
-        .header { background: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin: 8px 0; }
-        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .btn-secondary { background: white; color: #667eea; border: 2px solid #667eea; }
-        .tab { padding: 10px 20px; background: white; border: none; cursor: pointer; }
-        .tab.active { background: #667eea; color: white; }
-        .notification { position: fixed; top: 20px; right: 20px; padding: 15px; background: #4CAF50; color: white; border-radius: 5px; z-index: 1000; }
-        .notification.error { background: #f44336; }
-    </style>
 </head>
 <body>
-    <!-- 인증 페이지 -->
-    <div id="auth-page" class="page auth-page">
-        <div class="auth-box">
-            <h2 style="text-align: center; margin-bottom: 30px; color: #333;">TIMELINK</h2>
-            
-            <!-- 로그인 폼 -->
-            <div id="login-section">
-                <form id="login-form">
-                    <input type="email" id="login-email" class="input" placeholder="이메일" required>
-                    <input type="password" id="login-password" class="input" placeholder="비밀번호" required>
-                    <button type="submit" class="btn btn-primary">로그인</button>
-                </form>
-                <div style="text-align: center; margin: 20px 0;">또는</div>
-                <button id="show-signup-btn" class="btn btn-secondary">회원가입</button>
-            </div>
+<div id="app"></div>
 
-            <!-- 회원가입 폼 -->
-            <div id="signup-section" class="hidden">
-                <form id="signup-form">
-                    <input type="text" id="signup-name" class="input" placeholder="이름" required>
-                    <input type="email" id="signup-email" class="input" placeholder="이메일" required>
-                    <input type="password" id="signup-password" class="input" placeholder="비밀번호" required>
-                    <select id="signup-type" class="input" required>
-                        <option value="">계정 유형 선택</option>
-                        <option value="creator">크리에이터</option>
-                        <option value="listener">청취자</option>
-                        <option value="cafe">카페</option>
-                    </select>
-                    <button type="submit" class="btn btn-primary">가입하기</button>
-                </form>
-                <div style="text-align: center; margin: 20px 0;">이미 계정이 있으신가요?</div>
-                <button id="show-login-btn" class="btn btn-secondary">로그인</button>
-            </div>
-        </div>
-    </div>
+<script>
+// API 주소
+const AUTH_API = 'https://timelink-api.timelink-api.workers.dev';
+const ECONOMIC_API = 'https://deconomic-api.timelink-api.workers.dev';
 
-    <!-- 대시보드 페이지 -->
-    <div id="dashboard" class="page dashboard hidden">
-        <div class="header">
-            <div>TIMELINK</div>
-            <div>
-                <span id="user-name">사용자</span>
-                <button id="logout-btn" style="margin-left: 20px;">로그아웃</button>
-            </div>
+// 앱 상태
+let token = localStorage.getItem('token');
+let user = JSON.parse(localStorage.getItem('user') || 'null');
+
+// 앱 초기화
+function init() {
+    if (token && user) {
+        showDashboard();
+    } else {
+        showLogin();
+    }
+}
+
+// 로그인 화면
+function showLogin() {
+    document.getElementById('app').innerHTML = `
+        <div style="max-width: 400px; margin: 50px auto; padding: 20px;">
+            <h2>TIMELINK 로그인</h2>
+            <input type="email" id="email" placeholder="이메일" style="width:100%; padding:10px; margin:5px 0;"><br>
+            <input type="password" id="password" placeholder="비밀번호" style="width:100%; padding:10px; margin:5px 0;"><br>
+            <button onclick="login()" style="width:100%; padding:10px; margin:10px 0;">로그인</button>
+            <button onclick="showSignup()" style="width:100%; padding:10px; margin:5px 0;">회원가입</button>
         </div>
-        
+    `;
+}
+
+// 회원가입 화면
+function showSignup() {
+    document.getElementById('app').innerHTML = `
+        <div style="max-width: 400px; margin: 50px auto; padding: 20px;">
+            <h2>TIMELINK 회원가입</h2>
+            <input type="text" id="name" placeholder="이름" style="width:100%; padding:10px; margin:5px 0;"><br>
+            <input type="email" id="email" placeholder="이메일" style="width:100%; padding:10px; margin:5px 0;"><br>
+            <input type="password" id="password" placeholder="비밀번호" style="width:100%; padding:10px; margin:5px 0;"><br>
+            <select id="type" style="width:100%; padding:10px; margin:5px 0;">
+                <option value="creator">크리에이터</option>
+                <option value="listener">청취자</option>
+            </select><br>
+            <button onclick="signup()" style="width:100%; padding:10px; margin:10px 0;">가입하기</button>
+            <button onclick="showLogin()" style="width:100%; padding:10px; margin:5px 0;">로그인으로</button>
+        </div>
+    `;
+}
+
+// 대시보드
+function showDashboard() {
+    document.getElementById('app').innerHTML = `
         <div style="padding: 20px;">
-            <div>
-                <button class="tab active">TL3 변환</button>
-                <button class="tab">MusicPlace</button>
-                <button class="tab">수익 관리</button>
-            </div>
-            
-            <div style="background: white; padding: 20px; margin-top: 20px; border-radius: 10px;">
-                <h3>환영합니다, <span id="dashboard-user-name"></span>님!</h3>
-                <p>잔액: <span id="balance">0</span> TL</p>
-            </div>
+            <h2>대시보드</h2>
+            <p>환영합니다, ${user?.name || '사용자'}님!</p>
+            <div id="balance">잔액: 로딩중...</div>
+            <button onclick="logout()" style="padding:10px; margin-top:20px;">로그아웃</button>
         </div>
-    </div>
+    `;
+    loadBalance();
+}
 
-    <!-- 알림 -->
-    <div id="notification" class="notification hidden"></div>
+// API 호출
+async function apiCall(url, method = 'GET', body = null) {
+    const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+    };
+    
+    const options = {
+        method,
+        headers
+    };
+    
+    if (body) options.body = JSON.stringify(body);
+    
+    try {
+        const res = await fetch(url, options);
+        return await res.json();
+    } catch (error) {
+        alert('API 오류: ' + error.message);
+        return null;
+    }
+}
 
-    <script>
-        // 실제 API 엔드포인트
-        const API_ENDPOINTS = {
-            LOGIN: 'https://timelink-api.timelink-api.workers.dev/auth/login',
-            REGISTER: 'https://timelink-api.timelink-api.workers.dev/auth/register',
-            GET_USER: 'https://timelink-api.timelink-api.workers.dev/auth/user',
-            GET_BALANCE: 'https://deconomic-api.timelink-api.workers.dev/wallet/balance'
-        };
+// 로그인
+async function login() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    
+    const data = await apiCall(AUTH_API + '/auth/login', 'POST', { email, password });
+    
+    if (data && data.token) {
+        token = data.token;
+        user = data.user;
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        showDashboard();
+        alert('로그인 성공');
+    } else {
+        alert('로그인 실패');
+    }
+}
 
-        // 전역 상태
-        let currentUser = null;
-        let authToken = null;
+// 회원가입
+async function signup() {
+    const name = document.getElementById('name').value;
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const type = document.getElementById('type').value;
+    
+    const data = await apiCall(AUTH_API + '/auth/register', 'POST', {
+        name, email, password, type
+    });
+    
+    if (data && data.token) {
+        token = data.token;
+        user = data.user;
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        showDashboard();
+        alert('회원가입 성공');
+    } else {
+        alert('회원가입 실패');
+    }
+}
 
-        // DOM 요소
-        const authPage = document.getElementById('auth-page');
-        const dashboard = document.getElementById('dashboard');
-        const loginForm = document.getElementById('login-form');
-        const signupForm = document.getElementById('signup-form');
-        const loginSection = document.getElementById('login-section');
-        const signupSection = document.getElementById('signup-section');
-        const showSignupBtn = document.getElementById('show-signup-btn');
-        const showLoginBtn = document.getElementById('show-login-btn');
-        const logoutBtn = document.getElementById('logout-btn');
-        const notification = document.getElementById('notification');
+// 잔액 조회
+async function loadBalance() {
+    const data = await apiCall(ECONOMIC_API + '/wallet/balance');
+    if (data && data.balance !== undefined) {
+        document.getElementById('balance').innerHTML = `잔액: ${data.balance} TL`;
+    }
+}
 
-        // 알림 표시
-        function showNotification(message, type = 'success') {
-            notification.textContent = message;
-            notification.className = 'notification';
-            if (type === 'error') notification.classList.add('error');
-            notification.classList.remove('hidden');
-            
-            setTimeout(() => {
-                notification.classList.add('hidden');
-            }, 3000);
-        }
+// 로그아웃
+function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    token = null;
+    user = null;
+    showLogin();
+}
 
-        // 폼 전환
-        function toggleAuthForm(type) {
-            if (type === 'signup') {
-                loginSection.classList.add('hidden');
-                signupSection.classList.remove('hidden');
-            } else {
-                signupSection.classList.add('hidden');
-                loginSection.classList.remove('hidden');
-            }
-        }
-
-        // API 호출 함수
-        async function callAPI(url, method = 'GET', data = null) {
-            const headers = {
-                'Content-Type': 'application/json'
-            };
-            
-            if (authToken) {
-                headers['Authorization'] = `Bearer ${authToken}`;
-            }
-
-            const options = {
-                method,
-                headers,
-                credentials: 'include'
-            };
-
-            if (data) {
-                options.body = JSON.stringify(data);
-            }
-
-            try {
-                const response = await fetch(url, options);
-                const result = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(result.message || 'API 요청 실패');
-                }
-                
-                return { success: true, data: result };
-            } catch (error) {
-                console.error('API 오류:', error);
-                return { success: false, error: error.message };
-            }
-        }
-
-        // 로그인 처리
-        async function handleLogin(email, password) {
-            showNotification('로그인 중...');
-            
-            const result = await callAPI(API_ENDPOINTS.LOGIN, 'POST', {
-                email,
-                password
-            });
-
-            if (result.success) {
-                authToken = result.data.token;
-                currentUser = result.data.user;
-                
-                // 로컬스토리지에 저장
-                localStorage.setItem('timelink_token', authToken);
-                localStorage.setItem('timelink_user', JSON.stringify(currentUser));
-                
-                showNotification('로그인 성공!');
-                showDashboard();
-                loadUserData();
-            } else {
-                showNotification(result.error || '로그인 실패', 'error');
-            }
-        }
-
-        // 회원가입 처리
-        async function handleRegister(userData) {
-            showNotification('회원가입 중...');
-            
-            const result = await callAPI(API_ENDPOINTS.REGISTER, 'POST', userData);
-
-            if (result.success) {
-                authToken = result.data.token;
-                currentUser = result.data.user;
-                
-                localStorage.setItem('timelink_token', authToken);
-                localStorage.setItem('timelink_user', JSON.stringify(currentUser));
-                
-                showNotification('회원가입 성공!');
-                showDashboard();
-                loadUserData();
-            } else {
-                showNotification(result.error || '회원가입 실패', 'error');
-            }
-        }
-
-        // 사용자 데이터 로드
-        async function loadUserData() {
-            if (!authToken) return;
-
-            // 사용자 정보
-            const userResult = await callAPI(API_ENDPOINTS.GET_USER);
-            if (userResult.success) {
-                currentUser = userResult.data;
-                updateUserInfo();
-            }
-
-            // 잔액 정보
-            const balanceResult = await callAPI(API_ENDPOINTS.GET_BALANCE);
-            if (balanceResult.success) {
-                document.getElementById('balance').textContent = balanceResult.data.balance || 0;
-            }
-        }
-
-        // 사용자 정보 업데이트
-        function updateUserInfo() {
-            if (currentUser) {
-                document.getElementById('user-name').textContent = currentUser.name || currentUser.email;
-                document.getElementById('dashboard-user-name').textContent = currentUser.name || currentUser.email;
-            }
-        }
-
-        // 대시보드 표시
-        function showDashboard() {
-            authPage.classList.add('hidden');
-            dashboard.classList.remove('hidden');
-        }
-
-        // 로그아웃
-        function handleLogout() {
-            authToken = null;
-            currentUser = null;
-            localStorage.removeItem('timelink_token');
-            localStorage.removeItem('timelink_user');
-            
-            dashboard.classList.add('hidden');
-            authPage.classList.remove('hidden');
-            toggleAuthForm('login');
-            showNotification('로그아웃 되었습니다.');
-        }
-
-        // 초기화
-        function init() {
-            // 저장된 토큰 확인
-            const savedToken = localStorage.getItem('timelink_token');
-            const savedUser = localStorage.getItem('timelink_user');
-            
-            if (savedToken && savedUser) {
-                try {
-                    authToken = savedToken;
-                    currentUser = JSON.parse(savedUser);
-                    showDashboard();
-                    updateUserInfo();
-                    loadUserData();
-                } catch (e) {
-                    console.error('저장된 데이터 오류:', e);
-                    localStorage.clear();
-                }
-            }
-
-            // 이벤트 리스너
-            loginForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const email = document.getElementById('login-email').value;
-                const password = document.getElementById('login-password').value;
-                handleLogin(email, password);
-            });
-
-            signupForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const userData = {
-                    name: document.getElementById('signup-name').value,
-                    email: document.getElementById('signup-email').value,
-                    password: document.getElementById('signup-password').value,
-                    type: document.getElementById('signup-type').value
-                };
-                handleRegister(userData);
-            });
-
-            showSignupBtn.addEventListener('click', () => toggleAuthForm('signup'));
-            showLoginBtn.addEventListener('click', () => toggleAuthForm('login'));
-            logoutBtn.addEventListener('click', handleLogout);
-        }
-
-        // 앱 시작
-        document.addEventListener('DOMContentLoaded', init);
-    </script>
+// 시작
+init();
+</script>
 </body>
 </html>
