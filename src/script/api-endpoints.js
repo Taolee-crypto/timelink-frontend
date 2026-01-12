@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // TimeLink API 엔드포인트
 const API_BASE_URL = 'https://timelink-api.timelink-api.workers.dev';
 
@@ -24,7 +23,6 @@ async function fetchWithCORS(url, options = {}) {
 }
 
 export { API_BASE_URL, API_ENDPOINTS, fetchWithCORS };
-=======
 // backend-api-endpoints.js
 const API_ENDPOINTS = {
     // 파일 변환 관련
