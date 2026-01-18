@@ -117,6 +117,13 @@
             align-items: center;
             gap: 8px;
             box-shadow: 0 4px 12px rgba(108, 99, 255, 0.3);
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .tl-wallet:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(108, 99, 255, 0.4);
         }
         
         .btn {
@@ -154,10 +161,12 @@
 
         .btn-tl3 {
             background: linear-gradient(135deg, var(--success), #0d966c);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
 
         .btn-tl4 {
             background: linear-gradient(135deg, var(--accent), #e0557e);
+            box-shadow: 0 4px 12px rgba(255, 101, 132, 0.3);
         }
 
         .modal {
@@ -557,6 +566,13 @@
             border-radius: 8px;
             text-align: center;
             margin: 15px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tl-balance:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
         }
 
         .balance-amount {
@@ -640,6 +656,8 @@
             background: var(--primary);
             display: inline-block;
             margin-bottom: 8px;
+            color: white;
+            font-weight: 600;
         }
 
         .content-type.tl3 {
@@ -847,6 +865,40 @@
             font-size: 14px;
         }
 
+        /* 스크롤바 스타일 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         @media (max-width: 768px) {
             .header-content {
                 flex-direction: column;
@@ -903,6 +955,11 @@
                 flex: 1;
                 width: 100%;
             }
+
+            .modal-content {
+                padding: 20px;
+                margin: 20px;
+            }
         }
     </style>
 </head>
@@ -925,11 +982,11 @@
                 </nav>
                 
                 <div class="user-actions">
-                    <div class="tl-wallet" onclick="chargeTL()" style="cursor: pointer;" title="클릭하여 TL 충전">
+                    <div class="tl-wallet" onclick="chargeTL()" title="클릭하여 TL 충전">
                         <i class="fas fa-coins"></i>
                         <span id="headerBalance">0</span> TL
                     </div>
-                    <button class="btn" onclick="openLoginModal()">
+                    <button class="btn" onclick="openLoginModal()" id="loginBtn">
                         <i class="fas fa-user"></i> 로그인
                     </button>
                 </div>
@@ -1118,7 +1175,7 @@
             <div class="player-container">
                 <div class="player-header">
                     <h2><i class="fas fa-play-circle"></i> 통합 플레이어</h2>
-                    <div class="tl-wallet" onclick="chargeTL()" style="cursor: pointer;" title="클릭하여 TL 충전">
+                    <div class="tl-wallet" onclick="chargeTL()" title="클릭하여 TL 충전">
                         <i class="fas fa-coins"></i>
                         <span id="playerBalance">0</span> TL
                     </div>
@@ -1143,7 +1200,7 @@
                             </div>
                             
                             <div class="player-info">
-                                <div class="tl-balance" onclick="chargeTL()" style="cursor: pointer;" title="클릭하여 TL 충전">
+                                <div class="tl-balance" onclick="chargeTL()" title="클릭하여 TL 충전">
                                     <div class="small">TL 잔액</div>
                                     <div class="balance-amount" id="balanceDisplay">0 TL</div>
                                     <div class="small">소비: <span id="consumedDisplay">0</span> TL</div>
@@ -1241,10 +1298,10 @@
                 <div class="footer-column">
                     <h3>플랫폼</h3>
                     <ul>
-                        <li><a href="#"><i class="fas fa-music"></i> 음악</a></li>
-                        <li><a href="#"><i class="fas fa-podcast"></i> 팟캐스트</a></li>
-                        <li><a href="#"><i class="fas fa-video"></i> 비디오</a></li>
-                        <li><a href="#"><i class="fas fa-tools"></i> TL STUDIO</a></li>
+                        <li><a href="#" onclick="scrollToSection('platforms'); return false;"><i class="fas fa-music"></i> 음악</a></li>
+                        <li><a href="#" onclick="scrollToSection('platforms'); return false;"><i class="fas fa-podcast"></i> 팟캐스트</a></li>
+                        <li><a href="#" onclick="scrollToSection('platforms'); return false;"><i class="fas fa-video"></i> 비디오</a></li>
+                        <li><a href="#" onclick="openTLStudioModal(); return false;"><i class="fas fa-tools"></i> TL STUDIO</a></li>
                     </ul>
                 </div>
                 <div class="footer-column">
@@ -1274,16 +1331,18 @@
             
             <div class="form-group">
                 <label for="loginEmail"><i class="fas fa-envelope"></i> 이메일</label>
-                <input type="email" id="loginEmail" placeholder="이메일을 입력하세요">
+                <input type="email" id="loginEmail" placeholder="이메일을 입력하세요" autocomplete="email">
             </div>
             
             <div class="form-group">
                 <label for="loginPassword"><i class="fas fa-lock"></i> 비밀번호</label>
-                <input type="password" id="loginPassword" placeholder="비밀번호를 입력하세요">
+                <input type="password" id="loginPassword" placeholder="비밀번호를 입력하세요" autocomplete="current-password">
             </div>
             
+            <div id="loginStatus" class="status"></div>
+            
             <div class="form-actions">
-                <button class="btn" onclick="login()">
+                <button class="btn" onclick="login()" id="loginSubmitBtn">
                     <i class="fas fa-sign-in-alt"></i> 로그인
                 </button>
                 <button class="btn btn-outline" onclick="closeLoginModal()">
@@ -1307,26 +1366,28 @@
             
             <div class="form-group">
                 <label for="signupEmail"><i class="fas fa-envelope"></i> 이메일</label>
-                <input type="email" id="signupEmail" placeholder="이메일을 입력하세요">
+                <input type="email" id="signupEmail" placeholder="이메일을 입력하세요" autocomplete="email">
             </div>
             
             <div class="form-group">
                 <label for="signupUsername"><i class="fas fa-user"></i> 사용자 이름</label>
-                <input type="text" id="signupUsername" placeholder="사용자 이름을 입력하세요">
+                <input type="text" id="signupUsername" placeholder="사용자 이름을 입력하세요" autocomplete="username">
             </div>
             
             <div class="form-group">
                 <label for="signupPassword"><i class="fas fa-lock"></i> 비밀번호</label>
-                <input type="password" id="signupPassword" placeholder="비밀번호 (6자 이상)">
+                <input type="password" id="signupPassword" placeholder="비밀번호 (6자 이상)" autocomplete="new-password">
             </div>
             
             <div class="form-group">
                 <label for="signupConfirmPassword"><i class="fas fa-lock"></i> 비밀번호 확인</label>
-                <input type="password" id="signupConfirmPassword" placeholder="비밀번호를 다시 입력하세요">
+                <input type="password" id="signupConfirmPassword" placeholder="비밀번호를 다시 입력하세요" autocomplete="new-password">
             </div>
             
+            <div id="signupStatus" class="status"></div>
+            
             <div class="form-actions">
-                <button class="btn" onclick="signup()">
+                <button class="btn" onclick="signup()" id="signupSubmitBtn">
                     <i class="fas fa-user-plus"></i> 회원가입
                 </button>
                 <button class="btn btn-outline" onclick="closeSignupModal()">
@@ -1427,7 +1488,7 @@
             <div id="tl3Status" class="status"></div>
             
             <div class="form-actions">
-                <button class="btn btn-tl3" onclick="generateTL3()">
+                <button class="btn btn-tl3" onclick="generateTL3()" id="generateTL3Btn">
                     <i class="fas fa-file-audio"></i> TL3 파일 생성
                 </button>
                 <button class="btn btn-outline" onclick="closeTL3Modal()">
@@ -1479,7 +1540,7 @@
             <div id="tl4Status" class="status"></div>
             
             <div class="form-actions">
-                <button class="btn btn-tl4" onclick="generateTL4()">
+                <button class="btn btn-tl4" onclick="generateTL4()" id="generateTL4Btn">
                     <i class="fas fa-file-video"></i> TL4 파일 생성
                 </button>
                 <button class="btn btn-outline" onclick="closeTL4Modal()">
@@ -1504,12 +1565,11 @@
         let authToken = null;
         let audioElement = null;
         let videoElement = null;
-        let uploadedFiles = {}; // 업로드된 파일 저장소
+        let uploadedFiles = {};
         
-        // API 엔드포인트 (CORS 문제 해결용)
-        const API_BASE_URL = 'https://timelink-api.onrender.com';
-        const AUTH_API = `${API_BASE_URL}/auth`;
-        const ECONOMY_API = `${API_BASE_URL}/economy`;
+        // API 엔드포인트
+        const AUTH_API = 'https://timelink-api.timelink-api.workers.dev';
+        const ECONOMY_API = 'https://deconomic-api.timelink-api.workers.dev';
         
         // 샘플 데이터
         const sampleMusic = [
@@ -1534,9 +1594,9 @@
         });
 
         async function initializeApp() {
-            console.log('앱 초기화 시작 - 순수 API 모드');
+            console.log('타임링크 앱 초기화 시작');
             
-            // 세션 스토리지에서 현재 세션 정보만 확인
+            // 세션 스토리지에서 사용자 정보 확인
             const sessionToken = sessionStorage.getItem('authToken');
             const sessionUser = sessionStorage.getItem('currentUser');
             
@@ -1548,47 +1608,34 @@
                 await fetchUserBalance();
             } else {
                 console.log('비로그인 상태');
-                // 기본 잔액 설정
                 tlBalance = 0;
                 updateBalances();
             }
             
             initVisualizer();
             loadSampleContent();
-            loadTLFilesFromAPI();
-            setupEventListeners();
+            loadTLFiles();
             
-            // 오디오 요소 생성
+            // 오디오/비디오 요소 초기화
             audioElement = document.createElement('audio');
             audioElement.id = 'audio-element';
             audioElement.style.display = 'none';
             document.body.appendChild(audioElement);
             
-            // 비디오 요소 초기화
             videoElement = document.getElementById('video-element');
             
-            console.log('앱 초기화 완료');
-        }
-
-        function setupEventListeners() {
-            // TL3 파일 선택 이벤트
-            const tl3FileInput = document.getElementById('tl3File');
-            if (tl3FileInput) {
-                tl3FileInput.addEventListener('change', handleTL3FileSelect);
-            }
+            // 파일 선택 이벤트 리스너
+            document.getElementById('tl3File')?.addEventListener('change', handleTL3FileSelect);
+            document.getElementById('tl4File')?.addEventListener('change', handleTL4FileSelect);
             
-            // TL4 파일 선택 이벤트
-            const tl4FileInput = document.getElementById('tl4File');
-            if (tl4FileInput) {
-                tl4FileInput.addEventListener('change', handleTL4FileSelect);
-            }
+            console.log('타임링크 앱 초기화 완료');
         }
 
         // UI 업데이트 (로그인 상태)
         function updateUIForLoggedInUser() {
             console.log('UI 업데이트 - 로그인 사용자:', currentUser);
-            const loginBtn = document.querySelector('.user-actions .btn:last-child');
-            if (loginBtn) {
+            const loginBtn = document.getElementById('loginBtn');
+            if (loginBtn && currentUser) {
                 loginBtn.innerHTML = `<i class="fas fa-user-circle"></i> ${currentUser.username || currentUser.email}`;
                 loginBtn.onclick = function() {
                     if (confirm('로그아웃 하시겠습니까?')) {
@@ -1598,34 +1645,30 @@
             }
         }
 
-        // API 헬퍼 함수 (CORS 처리 포함)
-        async function apiCall(endpoint, options = {}) {
-            const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
-            
-            const defaultOptions = {
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
-                },
-                mode: 'cors',
-                credentials: 'omit'
-            };
-            
-            const mergedOptions = {
-                ...defaultOptions,
-                ...options,
-                headers: {
-                    ...defaultOptions.headers,
-                    ...options.headers
-                }
-            };
-            
-            console.log('API 호출:', url, mergedOptions);
+        // API 호출 함수
+        async function apiCall(url, options = {}) {
+            console.log('API 호출:', url);
             
             try {
-                const response = await fetch(url, mergedOptions);
+                // 헤더 설정
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    ...(authToken && !url.includes('/auth/') ? { 'Authorization': `Bearer ${authToken}` } : {}),
+                    ...options.headers
+                };
                 
-                // 응답 처리
+                console.log('요청 헤더:', headers);
+                
+                const response = await fetch(url, {
+                    ...options,
+                    headers,
+                    mode: 'cors'
+                });
+                
+                console.log('API 응답 상태:', response.status);
+                
+                // 인증 오류 처리
                 if (response.status === 401 || response.status === 403) {
                     console.log('인증 오류 - 로그아웃 처리');
                     logout();
@@ -1633,14 +1676,27 @@
                 }
                 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('API 오류:', response.status, errorText);
-                    throw new Error(`API 오류: ${response.status} ${errorText}`);
+                    throw new Error(`API 오류: ${response.status}`);
                 }
                 
-                return await response.json();
+                const text = await response.text();
+                if (!text) {
+                    return { success: true };
+                }
+                
+                return JSON.parse(text);
             } catch (error) {
                 console.error('API 호출 실패:', error);
+                
+                // CORS 에러 처리
+                if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
+                    console.error('⚠️ CORS 오류 발생!');
+                    console.error('API 서버에서 CORS 헤더 설정이 필요합니다:');
+                    console.error('Access-Control-Allow-Origin: *');
+                    console.error('Access-Control-Allow-Headers: authorization,content-type');
+                    console.error('Access-Control-Allow-Methods: GET,POST,PUT,DELETE,OPTIONS');
+                }
+                
                 throw error;
             }
         }
@@ -1657,15 +1713,16 @@
             }
             
             try {
-                const data = await apiCall('/economy/balance');
+                const data = await apiCall(`${ECONOMY_API}/balance`);
                 console.log('잔액 조회 응답:', data);
                 
-                tlBalance = data.balance || data.amount || 0;
+                // 다양한 응답 형식 처리
+                tlBalance = data.balance || data.amount || data.total || 0;
                 updateBalances();
                 console.log('✅ 잔액 조회 성공:', tlBalance);
+                
             } catch (error) {
                 console.error('❌ 잔액 조회 실패:', error);
-                // API 실패 시에도 UI는 업데이트
                 updateBalances();
             }
         }
@@ -1676,14 +1733,20 @@
             const password = document.getElementById('loginPassword').value;
             
             if (!email || !password) {
-                alert('이메일과 비밀번호를 입력해주세요.');
+                showStatus('loginStatus', '이메일과 비밀번호를 입력해주세요.', 'error');
                 return;
             }
+            
+            // 로딩 표시
+            const btn = document.getElementById('loginSubmitBtn');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="loading"></span> 로그인 중...';
+            btn.disabled = true;
             
             console.log('로그인 시도:', email);
             
             try {
-                const data = await apiCall('/auth/login', {
+                const data = await apiCall(`${AUTH_API}/login`, {
                     method: 'POST',
                     body: JSON.stringify({
                         email: email,
@@ -1693,27 +1756,50 @@
                 
                 console.log('로그인 응답:', data);
                 
-                authToken = data.token;
+                // 응답 처리
+                authToken = data.token || data.access_token || data.accessToken;
+                if (!authToken) {
+                    throw new Error('토큰을 받지 못했습니다.');
+                }
+                
                 currentUser = {
-                    id: data.userId || data.id,
+                    id: data.userId || data.id || data.user?.id,
                     email: email,
-                    username: data.username || email.split('@')[0]
+                    username: data.username || data.user?.username || email.split('@')[0]
                 };
                 
-                // 세션 스토리지에만 저장 (브라우저 닫으면 삭제)
+                // 세션 스토리지에 저장
                 sessionStorage.setItem('authToken', authToken);
                 sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
                 
                 console.log('✅ 로그인 성공');
-                alert('로그인되었습니다!');
+                showStatus('loginStatus', '로그인되었습니다!', 'success');
                 
-                closeLoginModal();
-                updateUIForLoggedInUser();
-                await fetchUserBalance();
+                setTimeout(() => {
+                    closeLoginModal();
+                    updateUIForLoggedInUser();
+                    fetchUserBalance();
+                    alert('로그인되었습니다!');
+                }, 1000);
                 
             } catch (error) {
                 console.error('❌ 로그인 오류:', error);
-                alert('로그인에 실패했습니다: ' + error.message);
+                
+                // 오류 메시지 처리
+                let errorMessage = '로그인에 실패했습니다.';
+                if (error.message.includes('401')) {
+                    errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
+                } else if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+                    errorMessage = 'API 서버에 연결할 수 없습니다. API 서버의 CORS 설정을 확인해주세요.';
+                } else {
+                    errorMessage = error.message;
+                }
+                
+                showStatus('loginStatus', errorMessage, 'error');
+            } finally {
+                // 버튼 원상복구
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
             }
         }
 
@@ -1725,13 +1811,14 @@
             currentUser = null;
             tlBalance = 0;
             
-            // 세션 스토리지만 삭제
+            // 세션 스토리지 삭제
             sessionStorage.removeItem('authToken');
             sessionStorage.removeItem('currentUser');
             
             updateBalances();
             
-            const loginBtn = document.querySelector('.user-actions .btn:last-child');
+            // 로그인 버튼 복구
+            const loginBtn = document.getElementById('loginBtn');
             if (loginBtn) {
                 loginBtn.innerHTML = `<i class="fas fa-user"></i> 로그인`;
                 loginBtn.onclick = openLoginModal;
@@ -1741,17 +1828,6 @@
             console.log('로그아웃 완료');
         }
 
-        // 회원가입 모달 열기
-        function openSignupModal() {
-            closeLoginModal();
-            document.getElementById('signupModal').classList.add('active');
-        }
-
-        // 회원가입 모달 닫기
-        function closeSignupModal() {
-            document.getElementById('signupModal').classList.remove('active');
-        }
-
         // 회원가입
         async function signup() {
             const email = document.getElementById('signupEmail').value.trim();
@@ -1759,25 +1835,39 @@
             const password = document.getElementById('signupPassword').value;
             const confirmPassword = document.getElementById('signupConfirmPassword').value;
             
+            // 유효성 검사
             if (!email || !username || !password || !confirmPassword) {
-                alert('모든 필드를 입력해주세요.');
+                showStatus('signupStatus', '모든 필드를 입력해주세요.', 'error');
                 return;
             }
             
             if (password !== confirmPassword) {
-                alert('비밀번호가 일치하지 않습니다.');
+                showStatus('signupStatus', '비밀번호가 일치하지 않습니다.', 'error');
                 return;
             }
             
             if (password.length < 6) {
-                alert('비밀번호는 6자 이상이어야 합니다.');
+                showStatus('signupStatus', '비밀번호는 6자 이상이어야 합니다.', 'error');
                 return;
             }
+            
+            // 이메일 형식 검사
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showStatus('signupStatus', '올바른 이메일 형식이 아닙니다.', 'error');
+                return;
+            }
+            
+            // 로딩 표시
+            const btn = document.getElementById('signupSubmitBtn');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="loading"></span> 회원가입 중...';
+            btn.disabled = true;
             
             console.log('회원가입 시도:', email, username);
             
             try {
-                const data = await apiCall('/auth/signup', {
+                const data = await apiCall(`${AUTH_API}/signup`, {
                     method: 'POST',
                     body: JSON.stringify({
                         email: email,
@@ -1788,29 +1878,48 @@
                 
                 console.log('회원가입 응답:', data);
                 
-                // 회원가입 성공 시 자동 로그인
-                authToken = data.token;
+                // 응답 처리
+                authToken = data.token || data.access_token || data.accessToken;
                 currentUser = {
-                    id: data.userId || data.id,
+                    id: data.userId || data.id || data.user?.id,
                     email: email,
                     username: username
                 };
                 
                 // 세션 스토리지에 저장
-                sessionStorage.setItem('authToken', authToken);
+                sessionStorage.setItem('authToken', authToken || 'temp');
                 sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
                 
                 // 초기 잔액 지급
                 await giveInitialBalance();
                 
-                closeSignupModal();
-                updateUIForLoggedInUser();
+                console.log('✅ 회원가입 성공');
+                showStatus('signupStatus', '회원가입이 완료되었습니다!', 'success');
                 
-                alert('🎉 회원가입이 완료되었습니다!\n환영 보너스 10,000 TL이 지급되었습니다!');
+                setTimeout(() => {
+                    closeSignupModal();
+                    updateUIForLoggedInUser();
+                    alert('🎉 회원가입이 완료되었습니다!\n환영 보너스 10,000 TL이 지급되었습니다!');
+                }, 1500);
                 
             } catch (error) {
                 console.error('❌ 회원가입 오류:', error);
-                alert('회원가입에 실패했습니다: ' + error.message);
+                
+                // 오류 메시지 처리
+                let errorMessage = '회원가입에 실패했습니다.';
+                if (error.message.includes('409')) {
+                    errorMessage = '이미 존재하는 이메일입니다.';
+                } else if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+                    errorMessage = 'API 서버에 연결할 수 없습니다. API 서버의 CORS 설정을 확인해주세요.';
+                } else {
+                    errorMessage = error.message;
+                }
+                
+                showStatus('signupStatus', errorMessage, 'error');
+            } finally {
+                // 버튼 원상복구
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
             }
         }
 
@@ -1818,8 +1927,13 @@
         async function giveInitialBalance() {
             console.log('초기 잔액 10,000 TL 지급 시작');
             
+            if (!authToken) {
+                console.log('인증 토큰 없음');
+                return;
+            }
+            
             try {
-                const data = await apiCall('/economy/charge', {
+                const data = await apiCall(`${ECONOMY_API}/charge`, {
                     method: 'POST',
                     body: JSON.stringify({
                         amount: 10000,
@@ -1828,46 +1942,14 @@
                 });
                 
                 console.log('초기 잔액 지급 응답:', data);
-                tlBalance = data.newBalance || data.balance || 10000;
+                
+                // 다양한 응답 형식 처리
+                tlBalance = data.newBalance || data.balance || data.amount || 10000;
                 updateBalances();
                 console.log('✅ 초기 잔액 지급 완료, 현재 잔액:', tlBalance);
                 
             } catch (error) {
                 console.error('초기 잔액 지급 오류:', error);
-                // API 실패 시에도 기본 잔액 설정
-                tlBalance = 10000;
-                updateBalances();
-                console.log('⚠️ 로컬 잔액으로 10,000 TL 설정');
-            }
-        }
-
-        // TL 소비 (API 호출)
-        async function consumeTL(amount) {
-            if (!authToken) {
-                console.log('로그인되지 않음 - TL 소비 불가');
-                return false;
-            }
-            
-            try {
-                const data = await apiCall('/economy/consume', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        amount: amount,
-                        contentId: currentMedia?.id,
-                        contentType: currentMedia?.type
-                    })
-                });
-                
-                tlBalance = data.newBalance || data.balance || (tlBalance - amount);
-                updateBalances();
-                return true;
-                
-            } catch (error) {
-                console.error('TL 소비 오류:', error);
-                // API 실패 시에도 로컬 잔액 차감
-                tlBalance -= amount;
-                updateBalances();
-                return false;
             }
         }
 
@@ -1892,7 +1974,7 @@
             console.log('충전 금액:', chargeAmount);
             
             try {
-                const data = await apiCall('/economy/charge', {
+                const data = await apiCall(`${ECONOMY_API}/charge`, {
                     method: 'POST',
                     body: JSON.stringify({
                         amount: chargeAmount
@@ -1901,6 +1983,7 @@
                 
                 console.log('충전 성공:', data);
                 
+                // 다양한 응답 형식 처리
                 const newBalance = data.newBalance || data.balance || (tlBalance + chargeAmount);
                 tlBalance = newBalance;
                 updateBalances();
@@ -1916,11 +1999,54 @@
             console.log('========== TL 충전 종료 ==========');
         }
 
+        // TL 소비
+        async function consumeTL(amount) {
+            if (!authToken) {
+                console.log('로그인되지 않음 - 로컬 소비만');
+                return false;
+            }
+            
+            try {
+                const data = await apiCall(`${ECONOMY_API}/consume`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        amount: amount,
+                        contentId: currentMedia?.id,
+                        contentType: currentMedia?.type
+                    })
+                });
+                
+                console.log('TL 소비 응답:', data);
+                
+                // 다양한 응답 형식 처리
+                tlBalance = data.newBalance || data.balance || (tlBalance - amount);
+                updateBalances();
+                return true;
+                
+            } catch (error) {
+                console.error('TL 소비 오류:', error);
+                return false;
+            }
+        }
+
         // 잔액 업데이트
         function updateBalances() {
-            document.getElementById('headerBalance').textContent = tlBalance.toLocaleString();
-            document.getElementById('playerBalance').textContent = tlBalance.toLocaleString();
-            document.getElementById('balanceDisplay').textContent = tlBalance.toLocaleString() + ' TL';
+            const balanceElements = [
+                document.getElementById('headerBalance'),
+                document.getElementById('playerBalance'),
+                document.getElementById('balanceDisplay')
+            ];
+            
+            balanceElements.forEach(el => {
+                if (el) {
+                    if (el.id === 'balanceDisplay') {
+                        el.textContent = tlBalance.toLocaleString() + ' TL';
+                    } else {
+                        el.textContent = tlBalance.toLocaleString();
+                    }
+                }
+            });
+            
             document.getElementById('consumedDisplay').textContent = tlConsumed.toFixed(2);
         }
 
@@ -1954,6 +2080,8 @@
 
         function loadContentItems(type, items) {
             const container = document.getElementById(`${type}-content-items`);
+            if (!container) return;
+            
             container.innerHTML = '';
             
             items.forEach(item => {
@@ -1971,6 +2099,99 @@
             });
         }
 
+        // TL 파일 로드
+        function loadTLFiles() {
+            const savedFiles = JSON.parse(localStorage.getItem('tlFiles') || '[]');
+            updateTLFilesList(savedFiles);
+            updateStudioTLFilesList(savedFiles);
+        }
+
+        // TL 파일 목록 업데이트 (플레이어)
+        function updateTLFilesList(files) {
+            const tlContent = document.getElementById('tl-content-items');
+            if (!tlContent) return;
+            
+            if (files.length === 0) {
+                tlContent.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">생성된 TL 파일이 없습니다. TL STUDIO에서 파일을 생성하세요.</div>';
+                return;
+            }
+            
+            tlContent.innerHTML = '';
+            
+            files.forEach((file, index) => {
+                const contentItem = document.createElement('div');
+                contentItem.className = 'content-item';
+                contentItem.onclick = () => loadTLFile(file);
+                contentItem.innerHTML = `
+                    <div class="content-type ${file.type}">${file.type.toUpperCase()}</div>
+                    <div><strong>${file.title}</strong></div>
+                    <div class="small">${file.artist || file.creator || '알 수 없음'}</div>
+                    <div class="small">${formatTime(file.duration)}</div>
+                    <div class="small">${file.pricePerSecond} TL/초</div>
+                `;
+                tlContent.appendChild(contentItem);
+            });
+        }
+
+        // TL 파일 목록 업데이트 (스튜디오)
+        function updateStudioTLFilesList(files) {
+            const tlFilesList = document.getElementById('studioTlFilesList');
+            const modalTlFilesList = document.getElementById('tlFilesList');
+            
+            if (files.length === 0) {
+                const emptyMsg = '<div class="card"><p>생성된 TL 파일이 없습니다. 위에서 TL3 또는 TL4 파일을 생성해보세요.</p></div>';
+                if (tlFilesList) tlFilesList.innerHTML = emptyMsg;
+                if (modalTlFilesList) modalTlFilesList.innerHTML = emptyMsg;
+                return;
+            }
+            
+            let filesHTML = '';
+            
+            files.forEach((file, index) => {
+                const fileInfo = `
+                    <div class="tl-file-info ${file.type}">
+                        <div class="tl-file-header">
+                            <h4>${file.title}</h4>
+                            <span class="tl-file-type ${file.type}">${file.type.toUpperCase()}</span>
+                        </div>
+                        <div class="metadata-item">
+                            <span class="metadata-label">${file.type === 'tl3' ? '아티스트' : '제작자'}:</span>
+                            <span class="metadata-value">${file.artist || file.creator || '알 수 없음'}</span>
+                        </div>
+                        <div class="metadata-item">
+                            <span class="metadata-label">초당 가격:</span>
+                            <span class="metadata-value">${file.pricePerSecond} TL</span>
+                        </div>
+                        <div class="metadata-item">
+                            <span class="metadata-label">재생 시간:</span>
+                            <span class="metadata-value">${formatTime(file.duration)}</span>
+                        </div>
+                        <div class="metadata-item">
+                            <span class="metadata-label">파일 크기:</span>
+                            <span class="metadata-value">${formatFileSize(file.fileSize || 0)}</span>
+                        </div>
+                        <div class="metadata-item">
+                            <span class="metadata-label">생성일:</span>
+                            <span class="metadata-value">${new Date(file.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div style="margin-top: 15px; display: flex; gap: 10px;">
+                            <button class="btn" onclick='loadTLFileFromStudio(${JSON.stringify(file).replace(/'/g, "&apos;")})'>
+                                <i class="fas fa-play"></i> 재생
+                            </button>
+                            <button class="btn btn-outline" onclick="deleteTLFile('${file.id}')">
+                                <i class="fas fa-trash"></i> 삭제
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                filesHTML += fileInfo;
+            });
+            
+            if (tlFilesList) tlFilesList.innerHTML = filesHTML;
+            if (modalTlFilesList) modalTlFilesList.innerHTML = filesHTML;
+        }
+
         // 미디어 로드
         function loadMedia(media) {
             console.log('미디어 로드 시작:', media);
@@ -1981,6 +2202,7 @@
             currentTime = 0;
             tlConsumed = 0;
             
+            // UI 업데이트
             document.getElementById('mediaTitle').textContent = media.title;
             document.getElementById('mediaArtist').textContent = media.artist || media.creator;
             document.getElementById('priceDisplay').textContent = media.price + ' TL';
@@ -1993,27 +2215,21 @@
                 document.getElementById('audioVisualizer').style.display = 'flex';
                 document.getElementById('videoPlayer').style.display = 'none';
                 
-                // 실제 오디오 파일이 있으면 로드
                 if (media.fileUrl) {
                     audioElement.src = media.fileUrl;
                     audioElement.load();
-                    console.log('✅ 오디오 로드 완료:', media.fileUrl);
                 } else {
                     audioElement.src = '';
-                    console.log('⚠️ 오디오 URL 없음 - 시뮬레이션 모드');
                 }
             } else {
                 document.getElementById('audioVisualizer').style.display = 'none';
                 document.getElementById('videoPlayer').style.display = 'block';
                 
-                // 실제 비디오 파일이 있으면 로드
                 if (media.fileUrl) {
                     videoElement.src = media.fileUrl;
                     videoElement.load();
-                    console.log('✅ 비디오 로드 완료:', media.fileUrl);
                 } else {
                     videoElement.src = '';
-                    console.log('⚠️ 비디오 URL 없음 - 시뮬레이션 모드');
                 }
             }
             
@@ -2025,6 +2241,34 @@
             if (event && event.currentTarget) {
                 event.currentTarget.classList.add('active');
             }
+        }
+
+        // TL 파일 로드 (스튜디오에서)
+        function loadTLFileFromStudio(file) {
+            closeTLStudioModal();
+            scrollToSection('player');
+            setTimeout(() => {
+                switchContentTab('tl');
+                loadTLFile(file);
+            }, 500);
+        }
+
+        // TL 파일 로드
+        function loadTLFile(file) {
+            console.log('TL 파일 로드:', file);
+            
+            const mediaObj = {
+                id: file.id,
+                title: file.title,
+                artist: file.artist,
+                creator: file.creator,
+                duration: file.duration,
+                price: file.pricePerSecond,
+                type: file.type,
+                fileUrl: file.fileUrl
+            };
+            
+            loadMedia(mediaObj);
         }
 
         // 재생/일시정지
@@ -2062,14 +2306,12 @@
             
             // 실제 미디어 재생
             if (currentMedia.type === 'tl3' && audioElement.src) {
-                // 오디오 재생
                 audioElement.currentTime = currentTime;
                 const playPromise = audioElement.play();
                 
                 if (playPromise !== undefined) {
                     playPromise.then(() => {
                         console.log('오디오 재생 시작');
-                        // 오디오 이벤트 리스너 설정
                         audioElement.ontimeupdate = function() {
                             if (isPlaying) {
                                 currentTime = Math.floor(audioElement.currentTime);
@@ -2079,24 +2321,21 @@
                         audioElement.onended = handleMediaEnded;
                     }).catch(err => {
                         console.error('오디오 재생 오류:', err);
-                        alert('오디오 재생에 실패했습니다: ' + err.message);
+                        alert('오디오 재생에 실패했습니다.');
                         pausePlayback();
                         return;
                     });
                 }
                 
-                // 비주얼라이저 시작
                 visualizerInterval = setInterval(animateVisualizer, 100);
                 
             } else if (currentMedia.type === 'tl4' && videoElement.src) {
-                // 비디오 재생
                 videoElement.currentTime = currentTime;
                 const playPromise = videoElement.play();
                 
                 if (playPromise !== undefined) {
                     playPromise.then(() => {
                         console.log('비디오 재생 시작');
-                        // 비디오 이벤트 리스너 설정
                         videoElement.ontimeupdate = function() {
                             if (isPlaying) {
                                 currentTime = Math.floor(videoElement.currentTime);
@@ -2106,33 +2345,33 @@
                         videoElement.onended = handleMediaEnded;
                     }).catch(err => {
                         console.error('비디오 재생 오류:', err);
-                        alert('비디오 재생에 실패했습니다: ' + err.message);
+                        alert('비디오 재생에 실패했습니다.');
                         pausePlayback();
                         return;
                     });
                 }
             } else {
-                // 실제 파일이 없을 때 시뮬레이션 모드
+                // 시뮬레이션 모드
                 console.log('시뮬레이션 모드로 재생');
                 if (currentMedia.type === 'tl3') {
                     visualizerInterval = setInterval(animateVisualizer, 100);
                 }
             }
             
-            // TL 소비 타이머 (1초마다)
+            // TL 소비 타이머
             playbackInterval = setInterval(async () => {
                 if (tlBalance > 0) {
                     const cost = pricePerSecond;
                     
-                    // 로컬 잔액 즉시 차감 (UI 반응성)
+                    // 로컬 잔액 즉시 차감
                     tlBalance -= cost;
                     tlConsumed += cost;
                     updateBalances();
                     
-                    // API로 TL 소비 전송 (비동기)
+                    // API로 TL 소비 전송
                     await consumeTL(cost);
                     
-                    // 실제 미디어가 없을 때만 시간 수동 증가
+                    // 시뮬레이션 모드에서만 시간 수동 증가
                     if (!audioElement.src && !videoElement.src) {
                         currentTime++;
                         updateProgress();
@@ -2144,9 +2383,6 @@
                 } else {
                     stopPlayback();
                     alert('TL 잔액이 부족하여 재생이 중지되었습니다.');
-                    if (confirm('TL을 충전하시겠습니까?')) {
-                        chargeTL();
-                    }
                 }
             }, 1000);
         }
@@ -2156,19 +2392,15 @@
             document.getElementById('playIcon').className = 'fas fa-play';
             document.getElementById('playText').textContent = '재생';
             
-            // 실제 미디어 일시정지
             if (audioElement.src && !audioElement.paused) {
                 audioElement.pause();
                 audioElement.ontimeupdate = null;
-                console.log('오디오 일시정지');
             }
             if (videoElement.src && !videoElement.paused) {
                 videoElement.pause();
                 videoElement.ontimeupdate = null;
-                console.log('비디오 일시정지');
             }
             
-            // 타이머 정지
             if (playbackInterval) {
                 clearInterval(playbackInterval);
                 playbackInterval = null;
@@ -2184,20 +2416,17 @@
             pausePlayback();
             currentTime = 0;
             
-            // 실제 미디어 정지
             if (audioElement.src) {
                 audioElement.pause();
                 audioElement.currentTime = 0;
                 audioElement.ontimeupdate = null;
                 audioElement.onended = null;
-                console.log('오디오 정지');
             }
             if (videoElement.src) {
                 videoElement.pause();
                 videoElement.currentTime = 0;
                 videoElement.ontimeupdate = null;
                 videoElement.onended = null;
-                console.log('비디오 정지');
             }
             
             updateProgress();
@@ -2217,7 +2446,6 @@
             const newTime = Math.max(0, Math.min(totalTime, currentTime + seconds));
             currentTime = newTime;
             
-            // 실제 미디어 탐색
             if (audioElement.src) {
                 audioElement.currentTime = newTime;
             }
@@ -2237,7 +2465,6 @@
             const newTime = Math.floor(totalTime * percent);
             currentTime = newTime;
             
-            // 실제 미디어 탐색
             if (audioElement.src) {
                 audioElement.currentTime = newTime;
             }
@@ -2306,11 +2533,26 @@
             document.getElementById('loginModal').classList.remove('active');
             document.getElementById('loginEmail').value = '';
             document.getElementById('loginPassword').value = '';
+            hideStatus('loginStatus');
+        }
+
+        function openSignupModal() {
+            closeLoginModal();
+            document.getElementById('signupModal').classList.add('active');
+        }
+
+        function closeSignupModal() {
+            document.getElementById('signupModal').classList.remove('active');
+            document.getElementById('signupEmail').value = '';
+            document.getElementById('signupUsername').value = '';
+            document.getElementById('signupPassword').value = '';
+            document.getElementById('signupConfirmPassword').value = '';
+            hideStatus('signupStatus');
         }
 
         function openTLStudioModal() {
             document.getElementById('tlStudioModal').classList.add('active');
-            loadTLFilesFromAPI();
+            loadTLFiles();
         }
 
         function closeTLStudioModal() {
@@ -2361,7 +2603,7 @@
                 return;
             }
             
-            console.log('TL3 파일 선택:', file.name, file.type, file.size);
+            console.log('TL3 파일 선택:', file.name);
             
             const fileType = file.type;
             const fileSize = formatFileSize(file.size);
@@ -2418,7 +2660,7 @@
                 return;
             }
             
-            console.log('TL4 파일 선택:', file.name, file.type, file.size);
+            console.log('TL4 파일 선택:', file.name);
             
             const fileType = file.type;
             const fileSize = formatFileSize(file.size);
@@ -2479,7 +2721,7 @@
                     }
                 });
                 
-                audio.addEventListener('error', (e) => {
+                audio.addEventListener('error', () => {
                     URL.revokeObjectURL(url);
                     reject(new Error('오디오 파일을 로드할 수 없습니다.'));
                 });
@@ -2505,7 +2747,7 @@
                     }
                 });
                 
-                video.addEventListener('error', (e) => {
+                video.addEventListener('error', () => {
                     URL.revokeObjectURL(url);
                     reject(new Error('비디오 파일을 로드할 수 없습니다.'));
                 });
@@ -2515,8 +2757,8 @@
             });
         }
 
-        // TL3 파일 생성 (API 저장)
-        async function generateTL3() {
+        // TL3 파일 생성
+        function generateTL3() {
             const fileInput = document.getElementById('tl3File');
             const title = document.getElementById('tl3Title').value;
             const artist = document.getElementById('tl3Artist').value;
@@ -2533,58 +2775,40 @@
                 return;
             }
             
-            if (!authToken) {
-                showStatus('tl3Status', '로그인이 필요합니다.', 'error');
-                openLoginModal();
-                return;
-            }
-            
             const file = fileInput.files[0];
+            const fileId = 'tl3_' + Date.now();
             
-            // FormData를 사용하여 파일 업로드
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('title', title);
-            formData.append('artist', artist || 'Unknown');
-            formData.append('pricePerSecond', price);
-            formData.append('duration', duration);
-            formData.append('type', 'tl3');
+            // 로컬 파일 저장
+            const fileUrl = URL.createObjectURL(file);
+            uploadedFiles[fileId] = file;
             
-            try {
-                showStatus('tl3Status', 'TL3 파일 생성 중...', 'success');
-                
-                const response = await fetch(`${API_BASE_URL}/content/upload`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: formData
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`API 오류: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                console.log('TL3 파일 생성 응답:', data);
-                
-                showStatus('tl3Status', 'TL3 파일이 성공적으로 생성되었습니다!', 'success');
-                
-                // TL 파일 목록 새로고침
-                await loadTLFilesFromAPI();
-                
-                setTimeout(() => {
-                    closeTL3Modal();
-                }, 1500);
-                
-            } catch (error) {
-                console.error('TL3 파일 생성 오류:', error);
-                showStatus('tl3Status', 'TL3 파일 생성 실패: ' + error.message, 'error');
-            }
+            const tl3File = {
+                id: fileId,
+                type: 'tl3',
+                title: title,
+                artist: artist || '알 수 없음',
+                pricePerSecond: parseFloat(price),
+                duration: parseInt(duration),
+                fileName: file.name,
+                fileSize: file.size,
+                fileType: file.type,
+                fileUrl: fileUrl,
+                timestamp: new Date().toISOString()
+            };
+            
+            // 로컬 저장소에 저장
+            saveTLFileToLocal(tl3File);
+            showStatus('tl3Status', 'TL3 파일이 성공적으로 생성되었습니다!', 'success');
+            
+            setTimeout(() => {
+                closeTL3Modal();
+                loadTLFiles();
+                alert('TL3 파일이 생성되었습니다!');
+            }, 1500);
         }
 
-        // TL4 파일 생성 (API 저장)
-        async function generateTL4() {
+        // TL4 파일 생성
+        function generateTL4() {
             const fileInput = document.getElementById('tl4File');
             const title = document.getElementById('tl4Title').value;
             const creator = document.getElementById('tl4Creator').value;
@@ -2601,218 +2825,57 @@
                 return;
             }
             
-            if (!authToken) {
-                showStatus('tl4Status', '로그인이 필요합니다.', 'error');
-                openLoginModal();
-                return;
-            }
-            
             const file = fileInput.files[0];
+            const fileId = 'tl4_' + Date.now();
             
-            // FormData를 사용하여 파일 업로드
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('title', title);
-            formData.append('creator', creator || 'Unknown');
-            formData.append('pricePerSecond', price);
-            formData.append('duration', duration);
-            formData.append('type', 'tl4');
+            // 로컬 파일 저장
+            const fileUrl = URL.createObjectURL(file);
+            uploadedFiles[fileId] = file;
             
-            try {
-                showStatus('tl4Status', 'TL4 파일 생성 중...', 'success');
-                
-                const response = await fetch(`${API_BASE_URL}/content/upload`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: formData
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`API 오류: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                console.log('TL4 파일 생성 응답:', data);
-                
-                showStatus('tl4Status', 'TL4 파일이 성공적으로 생성되었습니다!', 'success');
-                
-                // TL 파일 목록 새로고침
-                await loadTLFilesFromAPI();
-                
-                setTimeout(() => {
-                    closeTL4Modal();
-                }, 1500);
-                
-            } catch (error) {
-                console.error('TL4 파일 생성 오류:', error);
-                showStatus('tl4Status', 'TL4 파일 생성 실패: ' + error.message, 'error');
-            }
-        }
-
-        // API에서 TL 파일 로드
-        async function loadTLFilesFromAPI() {
-            if (!authToken) {
-                console.log('로그인 필요 - TL 파일 로드 불가');
-                updateTLFilesList([]);
-                return;
-            }
-            
-            try {
-                const data = await apiCall('/content/my-files');
-                console.log('TL 파일 로드 응답:', data);
-                
-                const files = data.files || data || [];
-                updateTLFilesList(files);
-                updateStudioTLFilesList(files);
-                
-            } catch (error) {
-                console.error('TL 파일 로드 오류:', error);
-                updateTLFilesList([]);
-            }
-        }
-
-        // TL 파일 목록 업데이트 (플레이어)
-        function updateTLFilesList(files) {
-            const tlContent = document.getElementById('tl-content-items');
-            
-            if (files.length === 0) {
-                tlContent.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">로그인 후 생성된 TL 파일이 표시됩니다.</div>';
-                return;
-            }
-            
-            tlContent.innerHTML = '';
-            
-            files.forEach((file, index) => {
-                const contentItem = document.createElement('div');
-                contentItem.className = 'content-item';
-                contentItem.onclick = () => loadTLFile(file);
-                contentItem.innerHTML = `
-                    <div class="content-type ${file.type}">${file.type.toUpperCase()}</div>
-                    <div><strong>${file.title}</strong></div>
-                    <div class="small">${file.artist || file.creator || '알 수 없음'}</div>
-                    <div class="small">${formatTime(file.duration)}</div>
-                    <div class="small">${file.pricePerSecond} TL/초</div>
-                `;
-                tlContent.appendChild(contentItem);
-            });
-        }
-
-        // TL 파일 목록 업데이트 (스튜디오)
-        function updateStudioTLFilesList(files) {
-            const tlFilesList = document.getElementById('studioTlFilesList');
-            const modalTlFilesList = document.getElementById('tlFilesList');
-            
-            if (files.length === 0) {
-                const emptyMsg = '<div class="card"><p>생성된 TL 파일이 없습니다. 위에서 TL3 또는 TL4 파일을 생성해보세요.</p></div>';
-                if (tlFilesList) tlFilesList.innerHTML = emptyMsg;
-                if (modalTlFilesList) modalTlFilesList.innerHTML = emptyMsg;
-                return;
-            }
-            
-            let filesHTML = '';
-            
-            files.forEach((file, index) => {
-                const fileInfo = `
-                    <div class="tl-file-info ${file.type}">
-                        <div class="tl-file-header">
-                            <h4>${file.title}</h4>
-                            <span class="tl-file-type ${file.type}">${file.type.toUpperCase()}</span>
-                        </div>
-                        <div class="metadata-item">
-                            <span class="metadata-label">${file.type === 'tl3' ? '아티스트' : '제작자'}:</span>
-                            <span class="metadata-value">${file.artist || file.creator || '알 수 없음'}</span>
-                        </div>
-                        <div class="metadata-item">
-                            <span class="metadata-label">초당 가격:</span>
-                            <span class="metadata-value">${file.pricePerSecond} TL</span>
-                        </div>
-                        <div class="metadata-item">
-                            <span class="metadata-label">재생 시간:</span>
-                            <span class="metadata-value">${formatTime(file.duration)}</span>
-                        </div>
-                        <div class="metadata-item">
-                            <span class="metadata-label">생성일:</span>
-                            <span class="metadata-value">${new Date(file.createdAt || file.timestamp).toLocaleString()}</span>
-                        </div>
-                        <div style="margin-top: 15px; display: flex; gap: 10px;">
-                            <button class="btn" onclick='loadTLFileFromStudio(${JSON.stringify(file).replace(/'/g, "&apos;")})'>
-                                <i class="fas fa-play"></i> 재생
-                            </button>
-                            <button class="btn btn-outline" onclick="deleteTLFile('${file.id}')">
-                                <i class="fas fa-trash"></i> 삭제
-                            </button>
-                        </div>
-                    </div>
-                `;
-                
-                filesHTML += fileInfo;
-            });
-            
-            if (tlFilesList) tlFilesList.innerHTML = filesHTML;
-            if (modalTlFilesList) modalTlFilesList.innerHTML = filesHTML;
-        }
-
-        // TL 파일 로드 (스튜디오에서)
-        function loadTLFileFromStudio(file) {
-            closeTLStudioModal();
-            scrollToSection('player');
-            setTimeout(() => {
-                switchContentTab('tl');
-                loadTLFile(file);
-            }, 500);
-        }
-
-        // TL 파일 로드
-        function loadTLFile(file) {
-            console.log('TL 파일 로드:', file);
-            
-            const mediaObj = {
-                id: file.id,
-                title: file.title,
-                artist: file.artist,
-                creator: file.creator,
-                duration: file.duration,
-                price: file.pricePerSecond,
-                type: file.type,
-                fileUrl: file.fileUrl || file.url
+            const tl4File = {
+                id: fileId,
+                type: 'tl4',
+                title: title,
+                creator: creator || '알 수 없음',
+                pricePerSecond: parseFloat(price),
+                duration: parseInt(duration),
+                fileName: file.name,
+                fileSize: file.size,
+                fileType: file.type,
+                fileUrl: fileUrl,
+                timestamp: new Date().toISOString()
             };
             
-            loadMedia(mediaObj);
+            // 로컬 저장소에 저장
+            saveTLFileToLocal(tl4File);
+            showStatus('tl4Status', 'TL4 파일이 성공적으로 생성되었습니다!', 'success');
+            
+            setTimeout(() => {
+                closeTL4Modal();
+                loadTLFiles();
+                alert('TL4 파일이 생성되었습니다!');
+            }, 1500);
+        }
+
+        // 로컬 TL 파일 저장
+        function saveTLFileToLocal(tlFile) {
+            const savedFiles = JSON.parse(localStorage.getItem('tlFiles') || '[]');
+            savedFiles.push(tlFile);
+            localStorage.setItem('tlFiles', JSON.stringify(savedFiles));
         }
 
         // TL 파일 삭제
-        async function deleteTLFile(fileId) {
+        function deleteTLFile(fileId) {
             if (!confirm('이 TL 파일을 삭제하시겠습니까?')) {
                 return;
             }
             
-            if (!authToken) {
-                alert('로그인이 필요합니다.');
-                return;
-            }
+            const savedFiles = JSON.parse(localStorage.getItem('tlFiles') || '[]');
+            const filteredFiles = savedFiles.filter(file => file.id !== fileId);
+            localStorage.setItem('tlFiles', JSON.stringify(filteredFiles));
             
-            try {
-                const response = await fetch(`${API_BASE_URL}/content/${fileId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`삭제 실패: ${response.status}`);
-                }
-                
-                alert('파일이 삭제되었습니다.');
-                await loadTLFilesFromAPI();
-                
-            } catch (error) {
-                console.error('파일 삭제 오류:', error);
-                alert('파일 삭제에 실패했습니다: ' + error.message);
-            }
+            loadTLFiles();
+            alert('파일이 삭제되었습니다.');
         }
 
         // 상태 메시지 표시
