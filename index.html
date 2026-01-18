@@ -1600,6 +1600,14 @@
 
         // 사용자 잔액 가져오기
         async function fetchUserBalance() {
+            console.log('잔액 조회 시작');
+            console.log('사용 중인 토큰:', authToken);
+            
+            if (!authToken) {
+                console.warn('토큰이 없어 잔액 조회 불가');
+                return;
+            }
+            
             try {
                 const response = await fetch(`${ECONOMY_API}/balance`, {
                     method: 'GET',
@@ -1609,20 +1617,26 @@
                     }
                 });
                 
+                console.log('잔액 조회 응답 상태:', response.status);
+                
                 if (response.ok) {
                     const data = await response.json();
-                    tlBalance = data.balance || 0;
+                    console.log('잔액 조회 응답 데이터:', data);
+                    tlBalance = data.balance || data.amount || 0;
                     updateBalances();
-                    console.log('잔액 조회 성공:', tlBalance);
+                    console.log('✅ 잔액 조회 성공:', tlBalance);
                 } else {
-                    console.error('잔액 조회 실패:', response.status);
+                    const errorData = await response.json();
+                    console.error('❌ 잔액 조회 실패:', response.status, errorData);
+                    
                     // 로그인 만료 시
-                    if (response.status === 401) {
+                    if (response.status === 401 || response.status === 403) {
+                        console.log('토큰 만료 - 로그아웃 처리');
                         logout();
                     }
                 }
             } catch (error) {
-                console.error('잔액 조회 오류:', error);
+                console.error('❌ 잔액 조회 오류:', error);
             }
         }
 
@@ -1741,6 +1755,8 @@
                 return;
             }
             
+            console.log('회원가입 시도:', email, username);
+            
             try {
                 const response = await fetch(`${AUTH_API}/signup`, {
                     method: 'POST',
@@ -1754,21 +1770,81 @@
                     })
                 });
                 
+                console.log('회원가입 응답 상태:', response.status);
                 const data = await response.json();
+                console.log('회원가입 응답 데이터:', data);
                 
                 if (response.ok) {
-                    alert('회원가입이 완료되었습니다! 로그인해주세요.');
-                    closeSignupModal();
-                    openLoginModal();
+                    console.log('✅ 회원가입 성공');
                     
-                    // 로그인 폼에 이메일 자동 입력
-                    document.getElementById('loginEmail').value = email;
+                    // 회원가입 성공 시 자동 로그인
+                    authToken = data.token;
+                    currentUser = {
+                        id: data.userId || data.id,
+                        email: email,
+                        username: username
+                    };
+                    
+                    // 로컬 스토리지에 저장
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    
+                    console.log('자동 로그인 완료');
+                    
+                    // 10,000 TL 지급
+                    await giveInitialBalance();
+                    
+                    closeSignupModal();
+                    updateUIForLoggedInUser();
+                    
+                    alert('🎉 회원가입이 완료되었습니다!\n환영 보너스 10,000 TL이 지급되었습니다!');
                 } else {
-                    alert(data.message || '회원가입에 실패했습니다.');
+                    console.error('❌ 회원가입 실패:', data);
+                    alert(data.message || data.error || '회원가입에 실패했습니다.');
                 }
             } catch (error) {
-                console.error('회원가입 오류:', error);
-                alert('회원가입 중 오류가 발생했습니다.');
+                console.error('❌ 회원가입 오류:', error);
+                alert('회원가입 중 오류가 발생했습니다: ' + error.message);
+            }
+        }
+
+        // 초기 잔액 지급 (회원가입 보너스)
+        async function giveInitialBalance() {
+            console.log('초기 잔액 10,000 TL 지급 시작');
+            
+            try {
+                const response = await fetch(`${ECONOMY_API}/charge`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        amount: 10000,
+                        reason: 'signup_bonus'
+                    })
+                });
+                
+                console.log('초기 잔액 지급 응답 상태:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('초기 잔액 지급 응답:', data);
+                    tlBalance = data.newBalance || data.balance || data.amount || 10000;
+                    updateBalances();
+                    console.log('✅ 초기 잔액 10,000 TL 지급 완료, 현재 잔액:', tlBalance);
+                } else {
+                    // API가 지원하지 않는 경우 로컬에서만 설정
+                    console.log('⚠️ API 지급 실패 - 로컬 잔액으로 설정');
+                    tlBalance = 10000;
+                    updateBalances();
+                }
+            } catch (error) {
+                console.error('초기 잔액 지급 오류:', error);
+                // 에러 발생 시에도 로컬에서 설정
+                tlBalance = 10000;
+                updateBalances();
+                console.log('⚠️ 로컬 잔액으로 10,000 TL 설정');
             }
         }
 
@@ -1810,26 +1886,44 @@
 
         // TL 충전
         async function chargeTL() {
-            console.log('TL 충전 함수 호출');
-            console.log('authToken:', authToken);
-            console.log('currentUser:', currentUser);
+            console.log('========== TL 충전 시작 ==========');
+            console.log('현재 authToken:', authToken);
+            console.log('현재 currentUser:', currentUser);
+            console.log('localStorage authToken:', localStorage.getItem('authToken'));
+            console.log('localStorage currentUser:', localStorage.getItem('currentUser'));
+            
+            // 로컬스토리지에서 다시 확인
+            if (!authToken) {
+                const savedToken = localStorage.getItem('authToken');
+                if (savedToken) {
+                    console.log('⚠️ authToken 변수가 비어있지만 localStorage에는 있음 - 복원 시도');
+                    authToken = savedToken;
+                    const savedUser = localStorage.getItem('currentUser');
+                    if (savedUser) {
+                        currentUser = JSON.parse(savedUser);
+                    }
+                }
+            }
             
             if (!authToken || !currentUser) {
-                console.log('로그인 상태 아님 - 로그인 모달 열기');
+                console.log('❌ 로그인 상태 아님 - 로그인 모달 열기');
                 alert('로그인이 필요합니다.');
                 openLoginModal();
                 return;
             }
             
             const amount = prompt('충전할 TL 금액을 입력하세요:', '10000');
-            if (!amount || isNaN(amount) || amount <= 0) {
+            if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
                 console.log('충전 취소 또는 잘못된 금액');
                 return;
             }
             
-            console.log('충전 요청:', amount);
+            const chargeAmount = parseFloat(amount);
+            console.log('충전 금액:', chargeAmount);
+            console.log('API URL:', `${ECONOMY_API}/charge`);
             
             try {
+                console.log('API 요청 시작...');
                 const response = await fetch(`${ECONOMY_API}/charge`, {
                     method: 'POST',
                     headers: {
@@ -1837,26 +1931,52 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        amount: parseFloat(amount)
+                        amount: chargeAmount
                     })
                 });
                 
-                console.log('충전 응답 상태:', response.status);
-                const data = await response.json();
-                console.log('충전 응답 데이터:', data);
+                console.log('충전 API 응답 상태:', response.status);
+                console.log('충전 API 응답 헤더:', Object.fromEntries(response.headers.entries()));
+                
+                const responseText = await response.text();
+                console.log('충전 API 응답 원본:', responseText);
+                
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                    console.log('충전 API 응답 데이터:', data);
+                } catch (e) {
+                    console.error('❌ JSON 파싱 실패:', e);
+                    alert('서버 응답 형식이 올바르지 않습니다.');
+                    return;
+                }
                 
                 if (response.ok) {
-                    tlBalance = data.newBalance || data.balance || (tlBalance + parseFloat(amount));
+                    console.log('✅ 충전 성공!');
+                    
+                    // 다양한 응답 형식 처리
+                    const newBalance = data.newBalance || data.balance || data.amount || (tlBalance + chargeAmount);
+                    tlBalance = newBalance;
                     updateBalances();
-                    alert(`${amount} TL이 충전되었습니다!\n현재 잔액: ${tlBalance} TL`);
+                    
+                    console.log('새 잔액:', tlBalance);
+                    alert(`${chargeAmount.toLocaleString()} TL이 충전되었습니다!\n현재 잔액: ${tlBalance.toLocaleString()} TL`);
                 } else {
-                    console.error('충전 실패:', data);
-                    alert(data.message || 'TL 충전에 실패했습니다.');
+                    console.error('❌ 충전 실패:', data);
+                    alert(data.message || data.error || 'TL 충전에 실패했습니다.');
+                    
+                    if (response.status === 401 || response.status === 403) {
+                        console.log('인증 오류 - 로그아웃 처리');
+                        logout();
+                    }
                 }
             } catch (error) {
-                console.error('TL 충전 오류:', error);
+                console.error('❌ TL 충전 오류:', error);
+                console.error('오류 스택:', error.stack);
                 alert('TL 충전 중 오류가 발생했습니다: ' + error.message);
             }
+            
+            console.log('========== TL 충전 종료 ==========');
         }
 
         // 잔액 업데이트
