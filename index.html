@@ -1807,15 +1807,23 @@
             consumptionInterval: null,
             currentConsumption: 0,
             tlRate: 0.08, // TL/초
+            tracks: [], // tracks 배열 추가
 
             init: function() {
                 // 로컬 저장소에서 데이터 로드
                 this.loadFromStorage();
                 
-                // 오디오 요소 초기화
+                // 오디오 요소 초기화 - 실제 재생 가능한 오디오 URL 사용
                 this.audioElement = new Audio();
+                this.audioElement.crossOrigin = "anonymous"; // CORS 문제 해결
+                
+                // 이벤트 리스너 설정
                 this.audioElement.addEventListener('timeupdate', this.updateProgress.bind(this));
                 this.audioElement.addEventListener('ended', this.trackEnded.bind(this));
+                this.audioElement.addEventListener('error', (e) => {
+                    console.error('오디오 로딩 에러:', e);
+                    this.showNotification('음악 로딩에 실패했습니다. 다른 음악을 재생해주세요.', 'error');
+                });
                 
                 // 초기화
                 this.updateBalanceDisplay();
@@ -1835,7 +1843,7 @@
                 if (savedTracks) {
                     this.tracks = JSON.parse(savedTracks);
                 } else {
-                    // 샘플 트랙 생성
+                    // 샘플 트랙 생성 - 실제 재생 가능한 오디오 URL 사용
                     this.tracks = [
                         {
                             id: 1,
@@ -1847,7 +1855,8 @@
                             genre: "electronic",
                             type: "tl3",
                             plays: 1245,
-                            likes: 89
+                            likes: 89,
+                            audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" // 실제 재생 가능한 URL
                         },
                         {
                             id: 2,
@@ -1859,7 +1868,8 @@
                             genre: "hiphop",
                             type: "tl3",
                             plays: 987,
-                            likes: 67
+                            likes: 67,
+                            audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
                         },
                         {
                             id: 3,
@@ -1871,7 +1881,8 @@
                             genre: "indie",
                             type: "tl3",
                             plays: 1567,
-                            likes: 123
+                            likes: 123,
+                            audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
                         },
                         {
                             id: 4,
@@ -1883,7 +1894,8 @@
                             genre: "electronic",
                             type: "tl4",
                             plays: 2345,
-                            likes: 198
+                            likes: 198,
+                            audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"
                         }
                     ];
                     this.saveTracks();
@@ -1906,12 +1918,11 @@
                 const totalSeconds = this.balance;
                 const hours = Math.floor(totalSeconds / 3600);
                 const minutes = Math.floor((totalSeconds % 3600) / 60);
-                const seconds = totalSeconds % 60;
                 
                 let timeString = '';
                 if (hours > 0) timeString += `${hours}시간 `;
-                if (minutes > 0) timeString += `${minutes}분 `;
-                if (seconds > 0 || timeString === '') timeString += `${seconds}초`;
+                if (minutes > 0) timeString += `${minutes}분`;
+                if (timeString === '') timeString = '0분';
                 
                 document.getElementById('walletTime').textContent = `≈ ${timeString} 재생 가능`;
                 document.getElementById('playableTime').textContent = timeString;
@@ -1928,7 +1939,7 @@
                     const card = `
                         <div class="music-card" data-id="${track.id}" data-type="${track.type}">
                             <div class="music-cover">
-                                <img src="${track.cover}" alt="${track.title}">
+                                <img src="${track.cover}" alt="${track.title}" onerror="this.src='https://via.placeholder.com/300x200/1A2342/94A3B8?text=Album+Cover'">
                                 <div class="music-badge ${track.type}">${track.type.toUpperCase()}</div>
                                 <div class="play-overlay">
                                     <button class="play-btn" onclick="TL3System.playTrack(${track.id})">
@@ -1985,23 +1996,44 @@
                 this.currentTrack = track;
                 this.tlRate = track.price;
                 
-                // 샘플 오디오 재생 (실제 구현에서는 TL3 파일 재생)
-                this.audioElement.src = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+                // 기존 재생 중이면 정지
+                if (this.isPlaying) {
+                    this.pauseTrack();
+                }
                 
-                this.isPlaying = true;
-                this.audioElement.play();
+                // 오디오 설정 및 재생
+                this.audioElement.src = track.audioUrl;
+                this.audioElement.preload = "auto";
                 
-                // UI 업데이트
-                document.getElementById('playerTitle').textContent = track.title;
-                document.getElementById('playerArtist').textContent = track.artist;
-                document.getElementById('playerAlbumArt').src = track.cover;
-                document.getElementById('playerTLConsumption').textContent = `${track.price} TL/초`;
-                document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+                // 재생 시도
+                const playPromise = this.audioElement.play();
                 
-                // TL 소비 시작
-                this.startConsumption();
-                
-                this.showNotification(`${track.title} 재생 중... (${track.price} TL/초 소비)`);
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        // 재생 성공
+                        this.isPlaying = true;
+                        
+                        // UI 업데이트
+                        document.getElementById('playerTitle').textContent = track.title;
+                        document.getElementById('playerArtist').textContent = track.artist;
+                        document.getElementById('playerAlbumArt').src = track.cover;
+                        document.getElementById('playerTLConsumption').textContent = `${track.price} TL/초`;
+                        document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+                        
+                        // TL 소비 시작
+                        this.startConsumption();
+                        
+                        // 재생 횟수 증가
+                        track.plays++;
+                        this.saveTracks();
+                        
+                        this.showNotification(`🎵 ${track.title} 재생 중... (${track.price} TL/초 소비)`);
+                    }).catch(error => {
+                        console.error('재생 실패:', error);
+                        this.showNotification('음악 재생에 실패했습니다. 브라우저 설정을 확인해주세요.', 'error');
+                        this.isPlaying = false;
+                    });
+                }
             },
 
             startConsumption: function() {
@@ -2011,11 +2043,12 @@
                 
                 this.consumptionInterval = setInterval(() => {
                     if (this.isPlaying && this.balance > 0) {
+                        // TL 차감
                         this.balance -= this.tlRate;
                         this.currentConsumption += this.tlRate;
                         
                         // 1TL마다 저장
-                        if (Math.floor(this.currentConsumption) > 0) {
+                        if (Math.floor(this.currentConsumption) >= 1) {
                             this.saveToStorage();
                             this.updateBalanceDisplay();
                             this.currentConsumption = 0;
@@ -2026,6 +2059,8 @@
                             this.pauseTrack();
                             this.showNotification('TL이 모두 소진되었습니다. 충전이 필요합니다.', 'error');
                         }
+                    } else if (this.balance <= 0) {
+                        this.pauseTrack();
                     }
                 }, 1000); // 1초마다 TL 차감
             },
@@ -2045,17 +2080,26 @@
             togglePlayPause: function() {
                 if (this.isPlaying) {
                     this.pauseTrack();
+                    this.showNotification('재생 일시정지');
                 } else if (this.currentTrack) {
                     this.playTrack(this.currentTrack.id);
+                } else if (this.tracks.length > 0) {
+                    // 현재 트랙이 없으면 첫 번째 트랙 재생
+                    this.playTrack(this.tracks[0].id);
                 }
             },
 
             updateProgress: function() {
-                const current = this.audioElement.currentTime;
-                const duration = this.audioElement.duration || 300; // 5분 기본값
+                if (!this.audioElement) return;
+                
+                const current = this.audioElement.currentTime || 0;
+                const duration = this.audioElement.duration || this.currentTrack?.duration || 300;
                 
                 const progress = (current / duration) * 100;
-                document.getElementById('progressBar').style.width = progress + '%';
+                const progressBar = document.getElementById('progressBar');
+                if (progressBar) {
+                    progressBar.style.width = progress + '%';
+                }
                 
                 document.getElementById('currentTime').textContent = this.formatTime(current);
                 document.getElementById('totalTime').textContent = this.formatTime(duration);
@@ -2064,6 +2108,15 @@
             trackEnded: function() {
                 this.pauseTrack();
                 this.showNotification('재생이 완료되었습니다.');
+                
+                // 다음 트랙 자동 재생 (옵션)
+                if (this.currentTrack && this.tracks.length > 1) {
+                    const currentIndex = this.tracks.findIndex(t => t.id === this.currentTrack.id);
+                    const nextIndex = (currentIndex + 1) % this.tracks.length;
+                    setTimeout(() => {
+                        this.playTrack(this.tracks[nextIndex].id);
+                    }, 2000);
+                }
             },
 
             buyTrack: function(trackId) {
@@ -2082,7 +2135,7 @@
                 this.saveToStorage();
                 this.updateBalanceDisplay();
                 
-                this.showNotification(`${track.title} 구매 완료! ${totalCost.toFixed(1)} TL이 차감되었습니다.`);
+                this.showNotification(`🎉 ${track.title} 구매 완료! ${totalCost.toFixed(1)} TL이 차감되었습니다.`);
             },
 
             openUploadForm: function(type) {
@@ -2170,7 +2223,8 @@
                     type: this.uploadType,
                     plays: 0,
                     likes: 0,
-                    description: description
+                    description: description,
+                    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-" + (this.tracks.length + 1) + ".mp3" // 샘플 URL
                 };
                 
                 this.tracks.unshift(newTrack);
@@ -2229,6 +2283,7 @@
                 let timeString = '';
                 if (hours > 0) timeString += `${hours}시간 `;
                 if (minutes > 0) timeString += `${minutes}분`;
+                if (timeString === '') timeString = '0분';
                 
                 this.showNotification(`⚡ ${this.chargeAmount.toLocaleString()} TL 충전 완료! (${timeString} 추가 재생 가능)`);
             },
@@ -2245,6 +2300,8 @@
                 const cards = document.querySelectorAll('.music-card');
                 cards.forEach(card => {
                     const type = card.getAttribute('data-type');
+                    const id = parseInt(card.getAttribute('data-id'));
+                    const track = this.tracks.find(t => t.id === id);
                     
                     switch(filter) {
                         case 'all':
@@ -2258,14 +2315,11 @@
                             break;
                         case 'trending':
                             // 인기순 (plays 기준)
-                            const id = parseInt(card.getAttribute('data-id'));
-                            const track = this.tracks.find(t => t.id === id);
                             card.style.display = track && track.plays > 1000 ? 'block' : 'none';
                             break;
                         case 'new':
                             // 신규 (id 기준)
-                            const trackId = parseInt(card.getAttribute('data-id'));
-                            card.style.display = trackId > this.tracks.length - 3 ? 'block' : 'none';
+                            card.style.display = track && id > this.tracks.length - 3 ? 'block' : 'none';
                             break;
                     }
                 });
@@ -2274,7 +2328,16 @@
             showNotification: function(message, type = 'success') {
                 const notification = document.getElementById('notification');
                 notification.textContent = message;
+                
+                // 타입에 따른 스타일 변경
+                if (type === 'error') {
+                    notification.style.background = 'linear-gradient(135deg, #FF4757 0%, #FF6B81 100%)';
+                } else {
+                    notification.style.background = 'var(--gradient-indie)';
+                }
+                
                 notification.style.display = 'block';
+                notification.style.animation = 'slideIn 0.3s ease';
                 
                 // 3초 후 숨기기
                 setTimeout(() => {
@@ -2294,16 +2357,22 @@
 
             setupEventListeners: function() {
                 // 파일 입력 이벤트
-                document.getElementById('fileInput').addEventListener('change', (e) => {
-                    this.handleFileSelect(e);
-                });
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput) {
+                    fileInput.addEventListener('change', (e) => {
+                        this.handleFileSelect(e);
+                    });
+                }
                 
                 // 가격 예시 업데이트
-                document.getElementById('pricePerSecond').addEventListener('input', (e) => {
-                    const price = parseFloat(e.target.value) || 0.08;
-                    const perMinute = (price * 60).toFixed(1);
-                    document.getElementById('priceExample').textContent = `${price} TL (1분 = ${perMinute} TL)`;
-                });
+                const priceInput = document.getElementById('pricePerSecond');
+                if (priceInput) {
+                    priceInput.addEventListener('input', (e) => {
+                        const price = parseFloat(e.target.value) || 0.08;
+                        const perMinute = (price * 60).toFixed(1);
+                        document.getElementById('priceExample').textContent = `${price} TL (1분 = ${perMinute} TL)`;
+                    });
+                }
                 
                 // 스크롤 이벤트
                 window.addEventListener('scroll', () => {
@@ -2314,6 +2383,33 @@
                         header.style.background = 'rgba(10, 15, 43, 0.95)';
                     }
                 });
+                
+                // 드래그 앤 드롭 이벤트
+                const fileUploadArea = document.getElementById('fileUploadArea');
+                if (fileUploadArea) {
+                    fileUploadArea.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        fileUploadArea.style.borderColor = 'var(--indie-purple)';
+                        fileUploadArea.style.background = 'rgba(138, 43, 226, 0.1)';
+                    });
+                    
+                    fileUploadArea.addEventListener('dragleave', (e) => {
+                        e.preventDefault();
+                        fileUploadArea.style.borderColor = 'rgba(138, 43, 226, 0.3)';
+                        fileUploadArea.style.background = '';
+                    });
+                    
+                    fileUploadArea.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        fileUploadArea.style.borderColor = 'rgba(138, 43, 226, 0.3)';
+                        fileUploadArea.style.background = '';
+                        
+                        if (e.dataTransfer.files.length) {
+                            fileInput.files = e.dataTransfer.files;
+                            this.handleFileSelect({ target: fileInput });
+                        }
+                    });
+                }
             }
         };
 
@@ -2374,9 +2470,22 @@
         // 페이지 로드 시 초기화
         document.addEventListener('DOMContentLoaded', () => {
             TL3System.init();
+            
+            // URL 해시 처리
+            if (window.location.hash) {
+                const hash = window.location.hash.substring(1);
+                if (hash) {
+                    const element = document.getElementById(hash);
+                    if (element) {
+                        setTimeout(() => {
+                            element.scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                    }
+                }
+            }
         });
 
-        // URL 해시 처리
+        // 해시 변경 이벤트
         window.addEventListener('hashchange', () => {
             const hash = window.location.hash.substring(1);
             if (hash) {
@@ -2385,6 +2494,23 @@
                     element.scrollIntoView({ behavior: 'smooth' });
                 }
             }
+        });
+
+        // 네비게이션 링크 클릭 처리
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                const href = this.getAttribute('href');
+                if (href === '#') return;
+                
+                const targetId = href.substring(1);
+                const targetElement = document.getElementById(targetId);
+                
+                if (targetElement) {
+                    e.preventDefault();
+                    window.location.hash = href;
+                    targetElement.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
         });
     </script>
 </body>
