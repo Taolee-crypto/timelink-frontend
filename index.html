@@ -1609,7 +1609,7 @@
             } else {
                 console.log('비로그인 상태');
                 tlBalance = 0;
-                updateBalances();
+                updateBalances(); // 명시적으로 업데이트 호출
             }
             
             initVisualizer();
@@ -1717,12 +1717,31 @@
                 console.log('잔액 조회 응답:', data);
                 
                 // 다양한 응답 형식 처리
-                tlBalance = data.balance || data.amount || data.total || 0;
+                if (data && (data.balance !== undefined || data.amount !== undefined || data.total !== undefined)) {
+                    tlBalance = data.balance || data.amount || data.total;
+                    console.log('✅ 잔액 조회 성공:', tlBalance);
+                } else {
+                    // 로컬 스토리지에서 잔액 가져오기 시도
+                    const localBalance = localStorage.getItem('tlBalance');
+                    if (localBalance) {
+                        tlBalance = parseFloat(localBalance);
+                        console.log('⚠️ API 응답 없음, 로컬 잔액 사용:', tlBalance);
+                    } else {
+                        console.log('⚠️ API 응답 없음, 기본값 사용');
+                        tlBalance = 0;
+                    }
+                }
+                
                 updateBalances();
-                console.log('✅ 잔액 조회 성공:', tlBalance);
                 
             } catch (error) {
                 console.error('❌ 잔액 조회 실패:', error);
+                // 로컬 스토리지에서 잔액 가져오기 시도
+                const localBalance = localStorage.getItem('tlBalance');
+                if (localBalance) {
+                    tlBalance = parseFloat(localBalance);
+                    console.log('⚠️ API 오류, 로컬 잔액 사용:', tlBalance);
+                }
                 updateBalances();
             }
         }
@@ -1828,6 +1847,56 @@
             console.log('로그아웃 완료');
         }
 
+        // 초기 잔액 지급 (회원가입 보너스)
+        async function giveInitialBalance() {
+            console.log('초기 잔액 10,000 TL 지급 시작');
+            
+            if (!authToken) {
+                console.log('인증 토큰 없음');
+                return false;
+            }
+            
+            try {
+                const data = await apiCall(`${ECONOMY_API}/charge`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        amount: 10000,
+                        reason: 'signup_bonus'
+                    })
+                });
+                
+                console.log('초기 잔액 지급 응답:', data);
+                
+                // 다양한 응답 형식 처리
+                if (data && (data.newBalance !== undefined || data.balance !== undefined || data.amount !== undefined)) {
+                    tlBalance = data.newBalance || data.balance || data.amount;
+                    console.log('✅ 초기 잔액 지급 완료, API 응답 잔액:', tlBalance);
+                } else {
+                    // API 응답에 잔액 정보가 없으면 기본값 사용
+                    tlBalance = 10000;
+                    console.log('⚠️ API 응답에 잔액 정보 없음, 기본값 사용:', tlBalance);
+                }
+                
+                // 로컬 스토리지에도 저장 (오프라인 대비)
+                localStorage.setItem('tlBalance', tlBalance.toString());
+                
+                // UI 즉시 업데이트
+                updateBalances();
+                console.log('✅ 초기 잔액 지급 완료, 현재 잔액:', tlBalance);
+                
+                return true;
+                
+            } catch (error) {
+                console.error('초기 잔액 지급 오류:', error);
+                // API 호출 실패 시에도 기본 잔액 설정
+                tlBalance = 10000;
+                localStorage.setItem('tlBalance', '10000');
+                updateBalances();
+                console.log('⚠️ API 오류 발생, 기본 잔액 설정:', tlBalance);
+                return false;
+            }
+        }
+
         // 회원가입
         async function signup() {
             const email = document.getElementById('signupEmail').value.trim();
@@ -1867,6 +1936,7 @@
             console.log('회원가입 시도:', email, username);
             
             try {
+                // 1. 회원가입 API 호출
                 const data = await apiCall(`${AUTH_API}/signup`, {
                     method: 'POST',
                     body: JSON.stringify({
@@ -1878,7 +1948,7 @@
                 
                 console.log('회원가입 응답:', data);
                 
-                // 응답 처리
+                // 2. 인증 정보 저장
                 authToken = data.token || data.access_token || data.accessToken;
                 currentUser = {
                     id: data.userId || data.id || data.user?.id,
@@ -1890,16 +1960,31 @@
                 sessionStorage.setItem('authToken', authToken || 'temp');
                 sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
                 
-                // 초기 잔액 지급
-                await giveInitialBalance();
+                // 3. 초기 잔액 지급
+                const balanceResult = await giveInitialBalance();
                 
-                console.log('✅ 회원가입 성공');
-                showStatus('signupStatus', '회원가입이 완료되었습니다!', 'success');
+                if (balanceResult) {
+                    console.log('✅ 회원가입 성공 - 잔액 지급 완료');
+                    showStatus('signupStatus', '회원가입이 완료되었습니다! 환영 보너스 10,000 TL이 지급되었습니다!', 'success');
+                } else {
+                    console.log('⚠️ 회원가입 성공 - 잔액 지급 실패');
+                    showStatus('signupStatus', '회원가입이 완료되었습니다! (잔액 지급에 일시적 문제가 발생했습니다)', 'success');
+                }
                 
+                // 4. 성공 후 UI 업데이트 및 모달 닫기
                 setTimeout(() => {
                     closeSignupModal();
                     updateUIForLoggedInUser();
-                    alert('🎉 회원가입이 완료되었습니다!\n환영 보너스 10,000 TL이 지급되었습니다!');
+                    
+                    // 메시지 박스 표시
+                    const message = balanceResult 
+                        ? '🎉 회원가입이 완료되었습니다!\n환영 보너스 10,000 TL이 지급되었습니다!' 
+                        : '🎉 회원가입이 완료되었습니다!\n(잔액 지급에 일시적 문제가 발생했습니다. 잔액을 확인해주세요.)';
+                    alert(message);
+                    
+                    // 플레이어 섹션으로 스크롤 (옵션)
+                    scrollToSection('player');
+                    
                 }, 1500);
                 
             } catch (error) {
@@ -1920,36 +2005,6 @@
                 // 버튼 원상복구
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
-            }
-        }
-
-        // 초기 잔액 지급 (회원가입 보너스)
-        async function giveInitialBalance() {
-            console.log('초기 잔액 10,000 TL 지급 시작');
-            
-            if (!authToken) {
-                console.log('인증 토큰 없음');
-                return;
-            }
-            
-            try {
-                const data = await apiCall(`${ECONOMY_API}/charge`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        amount: 10000,
-                        reason: 'signup_bonus'
-                    })
-                });
-                
-                console.log('초기 잔액 지급 응답:', data);
-                
-                // 다양한 응답 형식 처리
-                tlBalance = data.newBalance || data.balance || data.amount || 10000;
-                updateBalances();
-                console.log('✅ 초기 잔액 지급 완료, 현재 잔액:', tlBalance);
-                
-            } catch (error) {
-                console.error('초기 잔액 지급 오류:', error);
             }
         }
 
@@ -1986,6 +2041,10 @@
                 // 다양한 응답 형식 처리
                 const newBalance = data.newBalance || data.balance || (tlBalance + chargeAmount);
                 tlBalance = newBalance;
+                
+                // 로컬 스토리지에도 저장
+                localStorage.setItem('tlBalance', tlBalance.toString());
+                
                 updateBalances();
                 
                 console.log('새 잔액:', tlBalance);
@@ -2020,6 +2079,10 @@
                 
                 // 다양한 응답 형식 처리
                 tlBalance = data.newBalance || data.balance || (tlBalance - amount);
+                
+                // 로컬 스토리지 업데이트
+                localStorage.setItem('tlBalance', tlBalance.toString());
+                
                 updateBalances();
                 return true;
                 
@@ -2037,13 +2100,19 @@
                 document.getElementById('balanceDisplay')
             ];
             
+            console.log('잔액 업데이트 호출, tlBalance:', tlBalance);
+            
             balanceElements.forEach(el => {
                 if (el) {
                     if (el.id === 'balanceDisplay') {
                         el.textContent = tlBalance.toLocaleString() + ' TL';
+                        console.log('잔액 디스플레이 업데이트:', el.textContent);
                     } else {
                         el.textContent = tlBalance.toLocaleString();
+                        console.log('헤더/플레이어 잔액 업데이트:', el.textContent);
                     }
+                } else {
+                    console.log('요소 없음:', el?.id);
                 }
             });
             
@@ -2366,6 +2435,10 @@
                     // 로컬 잔액 즉시 차감
                     tlBalance -= cost;
                     tlConsumed += cost;
+                    
+                    // 로컬 스토리지 업데이트
+                    localStorage.setItem('tlBalance', tlBalance.toString());
+                    
                     updateBalances();
                     
                     // API로 TL 소비 전송
