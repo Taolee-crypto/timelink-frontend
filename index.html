@@ -1507,6 +1507,11 @@
             0% { transform: translateX(-100%); }
             100% { transform: translateX(100%); }
         }
+        
+        /* 오디오 요소 숨기기 */
+        .hidden-audio {
+            display: none;
+        }
     </style>
 </head>
 <body class="player-active">
@@ -1941,6 +1946,9 @@
         </div>
     </div>
 
+    <!-- Hidden Audio Element -->
+    <audio id="tl3AudioPlayer" class="hidden-audio" preload="auto"></audio>
+
     <!-- Music Player -->
     <div class="music-player">
         <div class="container">
@@ -1959,7 +1967,7 @@
                     <button class="control-btn" onclick="TL3System.skipTL3Track(-1)">
                         <i class="fas fa-step-backward"></i>
                     </button>
-                    <button class="control-btn play-pause" id="playPauseBtn" onclick="TL3System.openTL3Player()">
+                    <button class="control-btn play-pause" id="playPauseBtn" onclick="TL3System.toggleMainPlayPause()">
                         <i class="fas fa-play"></i>
                     </button>
                     <button class="control-btn" onclick="TL3System.skipTL3Track(1)">
@@ -1986,7 +1994,7 @@
     </div>
 
     <script>
-        // TL3 시스템 - MP3 → TL3 변환 및 재생 시스템
+        // TL3 시스템 - 실제 음악 재생 포함
         const TL3System = {
             balance: 24500,
             selectedFile: null,
@@ -1994,24 +2002,32 @@
             chargeAmount: 5000,
             currentTrack: null,
             isPlaying: false,
-            audioContext: null,
-            audioBuffer: null,
-            sourceNode: null,
-            startTime: 0,
-            pausedTime: 0,
+            audioElement: null,
             consumptionInterval: null,
             tlRate: 0.08,
             tracks: [],
             tl3PlayerVisible: false,
-            conversionProgress: 0,
+            playbackInterval: null,
 
             init: function() {
+                // 오디오 요소 초기화
+                this.audioElement = document.getElementById('tl3AudioPlayer');
+                this.audioElement.crossOrigin = "anonymous";
+                
+                // 오디오 이벤트 리스너 설정
+                this.audioElement.addEventListener('timeupdate', this.updateAudioProgress.bind(this));
+                this.audioElement.addEventListener('ended', this.trackEnded.bind(this));
+                this.audioElement.addEventListener('error', (e) => {
+                    console.error('오디오 에러:', e);
+                    this.showNotification('음악 재생 중 오류가 발생했습니다.', 'error');
+                });
+                
                 this.loadFromStorage();
                 this.updateBalanceDisplay();
                 this.loadMusicItems();
                 this.setupEventListeners();
                 
-                console.log('TL3 시스템 초기화 완료. 잔액:', this.balance, 'TL');
+                console.log('TL3 시스템 초기화 완료');
             },
 
             loadFromStorage: function() {
@@ -2030,19 +2046,20 @@
             },
 
             createSampleTL3Tracks: function() {
+                // 실제 음악 파일 URL 사용 (SoundHelix 무료 음악)
                 return [
                     {
                         id: 1,
                         title: "Midnight Dreams",
                         artist: "Neural Nexus",
                         price: 0.05,
-                        duration: 180,
+                        duration: 183, // 실제 음악 길이
                         cover: "https://images.unsplash.com/photo-1511379938547-c1f69419868d?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
                         genre: "electronic",
                         type: "tl3",
                         plays: 1245,
                         likes: 89,
-                        tl3Data: this.generateTL3Data(180), // TL3 포맷 데이터
+                        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
                         isTL3: true
                     },
                     {
@@ -2050,13 +2067,13 @@
                         title: "Urban Echoes",
                         artist: "City Poet",
                         price: 0.08,
-                        duration: 240,
+                        duration: 203,
                         cover: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
                         genre: "hiphop",
                         type: "tl3",
                         plays: 987,
                         likes: 67,
-                        tl3Data: this.generateTL3Data(240),
+                        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
                         isTL3: true
                     },
                     {
@@ -2064,13 +2081,13 @@
                         title: "Guitar Sunset",
                         artist: "Acoustic Soul",
                         price: 0.06,
-                        duration: 210,
+                        duration: 175,
                         cover: "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
                         genre: "indie",
                         type: "tl3",
                         plays: 1567,
                         likes: 123,
-                        tl3Data: this.generateTL3Data(210),
+                        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
                         isTL3: true
                     },
                     {
@@ -2084,23 +2101,10 @@
                         type: "tl4",
                         plays: 2345,
                         likes: 198,
-                        tl3Data: this.generateTL3Data(195),
+                        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
                         isTL3: true
                     }
                 ];
-            },
-
-            generateTL3Data: function(duration) {
-                // TL3 포맷 데이터 시뮬레이션 (실제로는 암호화된 오디오 데이터)
-                return {
-                    format: "TL3-QRC-v1.0",
-                    duration: duration,
-                    encrypted: true,
-                    quantumResistant: true,
-                    timestamp: Date.now(),
-                    dataSize: Math.floor(duration * 44100 * 2), // 샘플 데이터 크기
-                    chunks: Math.ceil(duration / 10) // 10초 단위 청크
-                };
             },
 
             saveToStorage: function() {
@@ -2192,10 +2196,10 @@
                 const track = this.tracks.find(t => t.id === trackId);
                 if (!track) return;
                 
-                // TL 잔액 확인
-                const requiredTL = 10;
+                // TL 잔액 확인 (최소 10초 재생 가능한지)
+                const requiredTL = Math.max(10, track.price * 10);
                 if (this.balance < requiredTL) {
-                    this.showNotification(`TL이 부족합니다. ${requiredTL} TL이 필요합니다.`, 'error');
+                    this.showNotification(`TL이 부족합니다. 최소 ${requiredTL} TL이 필요합니다.`, 'error');
                     this.openWallet();
                     return;
                 }
@@ -2206,8 +2210,8 @@
                 // TL3 플레이어 열기
                 this.openTL3Player();
                 
-                // TL3 데이터 로드 및 재생 시뮬레이션
-                this.simulateTL3Playback(track);
+                // 실제 음악 재생
+                this.playAudio(track);
                 
                 // 재생 횟수 증가
                 track.plays++;
@@ -2216,43 +2220,155 @@
                 this.showNotification(`🔐 TL3 음악 재생 시작: ${track.title} (${track.price} TL/초)`);
             },
 
-            simulateTL3Playback: function(track) {
-                // TL3 재생 시뮬레이션
-                const duration = track.duration;
-                let currentTime = 0;
+            playAudio: function(track) {
+                // 기존 재생 중지
+                if (this.isPlaying) {
+                    this.audioElement.pause();
+                    this.stopConsumption();
+                }
                 
-                // 웨이폼 그리기
-                this.drawWaveform();
+                // 오디오 설정
+                this.audioElement.src = track.audioUrl;
+                this.audioElement.load();
                 
-                // TL 소비 시작
-                this.startTL3Consumption();
+                // 재생 시도
+                const playPromise = this.audioElement.play();
                 
-                // 시간 업데이트
-                const updateTime = () => {
-                    if (this.isPlaying && currentTime < duration) {
-                        currentTime += 1;
-                        const progress = (currentTime / duration) * 100;
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        this.isPlaying = true;
                         
                         // UI 업데이트
-                        document.getElementById('progressBar').style.width = progress + '%';
-                        document.getElementById('tl3Time').textContent = 
-                            `${this.formatTime(currentTime)} / ${this.formatTime(duration)}`;
-                        document.getElementById('currentTime').textContent = this.formatTime(currentTime);
-                        document.getElementById('totalTime').textContent = this.formatTime(duration);
-                        document.getElementById('tl3ConsumptionRate').textContent = `${track.price} TL/초`;
-                        document.getElementById('playerTLConsumption').textContent = `${track.price} TL/초`;
+                        this.updatePlayerUI(track);
                         
-                        // 주기적으로 웨이폼 업데이트
-                        if (currentTime % 5 === 0) {
-                            this.updateWaveform(currentTime, duration);
-                        }
-                    } else if (currentTime >= duration) {
-                        this.trackEnded();
-                    }
-                };
+                        // TL 소비 시작
+                        this.startConsumption();
+                        
+                        // 웨이폼 그리기
+                        this.drawWaveform();
+                        
+                    }).catch(error => {
+                        console.error('재생 실패:', error);
+                        this.showNotification('음악 재생에 실패했습니다. 브라우저 설정을 확인해주세요.', 'error');
+                        this.isPlaying = false;
+                    });
+                }
+            },
+
+            updatePlayerUI: function(track) {
+                document.getElementById('playerTitle').textContent = track.title;
+                document.getElementById('playerArtist').textContent = track.artist;
+                document.getElementById('playerAlbumArt').src = track.cover;
+                document.getElementById('tl3ConsumptionRate').textContent = `${track.price} TL/초`;
+                document.getElementById('playerTLConsumption').textContent = `${track.price} TL/초`;
+                document.getElementById('tl3PlayPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+                document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+            },
+
+            updateAudioProgress: function() {
+                if (!this.audioElement || !this.currentTrack) return;
                 
-                // 1초마다 시간 업데이트
-                this.playbackInterval = setInterval(updateTime, 1000);
+                const current = this.audioElement.currentTime;
+                const duration = this.audioElement.duration || this.currentTrack.duration;
+                
+                const progress = (current / duration) * 100;
+                
+                // 프로그레스 바 업데이트
+                document.getElementById('progressBar').style.width = progress + '%';
+                document.getElementById('tl3Time').textContent = 
+                    `${this.formatTime(current)} / ${this.formatTime(duration)}`;
+                document.getElementById('currentTime').textContent = this.formatTime(current);
+                document.getElementById('totalTime').textContent = this.formatTime(duration);
+                
+                // 주기적으로 웨이폼 업데이트
+                if (Math.floor(current) % 2 === 0) {
+                    this.updateWaveform(current, duration);
+                }
+            },
+
+            startConsumption: function() {
+                if (this.consumptionInterval) {
+                    clearInterval(this.consumptionInterval);
+                }
+                
+                this.consumptionInterval = setInterval(() => {
+                    if (this.isPlaying && this.balance > 0 && !this.audioElement.paused) {
+                        // TL 차감 (1초마다)
+                        this.balance -= this.tlRate;
+                        this.saveToStorage();
+                        this.updateBalanceDisplay();
+                        
+                        // 잔액이 0이 되면 정지
+                        if (this.balance <= 0) {
+                            this.pausePlayback();
+                            this.showNotification('TL이 모두 소진되었습니다. 충전이 필요합니다.', 'error');
+                        }
+                    }
+                }, 1000);
+            },
+
+            stopConsumption: function() {
+                if (this.consumptionInterval) {
+                    clearInterval(this.consumptionInterval);
+                    this.consumptionInterval = null;
+                }
+            },
+
+            pausePlayback: function() {
+                this.isPlaying = false;
+                this.audioElement.pause();
+                this.stopConsumption();
+                
+                document.getElementById('tl3PlayPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
+                document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
+            },
+
+            resumePlayback: function() {
+                if (!this.currentTrack) return;
+                
+                const playPromise = this.audioElement.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        this.isPlaying = true;
+                        this.startConsumption();
+                        
+                        document.getElementById('tl3PlayPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+                        document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+                    }).catch(error => {
+                        console.error('재개 실패:', error);
+                    });
+                }
+            },
+
+            toggleTL3PlayPause: function() {
+                if (this.isPlaying && !this.audioElement.paused) {
+                    this.pausePlayback();
+                } else {
+                    this.resumePlayback();
+                }
+            },
+
+            toggleMainPlayPause: function() {
+                if (this.currentTrack) {
+                    this.toggleTL3PlayPause();
+                } else if (this.tracks.length > 0) {
+                    // 첫 번째 트랙 재생
+                    this.playTL3Track(this.tracks[0].id);
+                }
+            },
+
+            trackEnded: function() {
+                this.pausePlayback();
+                this.showNotification('TL3 재생이 완료되었습니다.');
+                
+                // 다음 트랙 자동 재생
+                if (this.currentTrack && this.tracks.length > 1) {
+                    const currentIndex = this.tracks.findIndex(t => t.id === this.currentTrack.id);
+                    const nextIndex = (currentIndex + 1) % this.tracks.length;
+                    setTimeout(() => {
+                        this.playTL3Track(this.tracks[nextIndex].id);
+                    }, 2000);
+                }
             },
 
             drawWaveform: function() {
@@ -2267,119 +2383,41 @@
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
                 ctx.fillRect(0, 0, width, height);
                 
-                // 웨이폼 그리기
+                // 웨이폼 그리기 (랜덤 파형)
                 const centerY = height / 2;
                 const amplitude = height * 0.4;
                 
                 for (let x = 0; x < width; x += 2) {
                     const progress = x / width;
-                    const y = centerY + Math.sin(progress * Math.PI * 10) * amplitude * 
-                               Math.sin(progress * Math.PI * 0.5) * 
-                               (0.5 + Math.random() * 0.5);
+                    const wave1 = Math.sin(progress * Math.PI * 8 + Date.now() / 1000) * 0.3;
+                    const wave2 = Math.sin(progress * Math.PI * 4 + Date.now() / 800) * 0.4;
+                    const wave3 = Math.sin(progress * Math.PI * 2 + Date.now() / 600) * 0.3;
+                    const y = centerY + (wave1 + wave2 + wave3) * amplitude;
                     
-                    ctx.fillStyle = `rgba(138, 43, 226, ${0.3 + progress * 0.3})`;
+                    const alpha = 0.3 + Math.sin(progress * Math.PI) * 0.3;
+                    ctx.fillStyle = `rgba(138, 43, 226, ${alpha})`;
                     ctx.fillRect(x, y, 1, 2);
                 }
             },
 
             updateWaveform: function(currentTime, duration) {
-                const canvas = document.getElementById('waveformCanvas');
-                if (!canvas) return;
-                
-                const ctx = canvas.getContext('2d');
-                const width = canvas.width;
-                const height = canvas.height;
-                
-                // 진행된 부분 강조
-                const progress = currentTime / duration;
-                const progressWidth = width * progress;
-                
-                ctx.fillStyle = 'rgba(138, 43, 226, 0.3)';
-                ctx.fillRect(0, 0, progressWidth, height);
-            },
-
-            startTL3Consumption: function() {
-                if (this.consumptionInterval) {
-                    clearInterval(this.consumptionInterval);
-                }
-                
-                this.consumptionInterval = setInterval(() => {
-                    if (this.isPlaying && this.balance > 0) {
-                        // TL 차감
-                        this.balance -= this.tlRate;
-                        this.saveToStorage();
-                        this.updateBalanceDisplay();
-                        
-                        // 잔액이 0이 되면 정지
-                        if (this.balance <= 0) {
-                            this.pauseTL3Playback();
-                            this.showNotification('TL이 모두 소진되었습니다. 충전이 필요합니다.', 'error');
-                        }
-                    }
-                }, 1000);
-            },
-
-            pauseTL3Playback: function() {
-                this.isPlaying = false;
-                if (this.playbackInterval) {
-                    clearInterval(this.playbackInterval);
-                }
-                if (this.consumptionInterval) {
-                    clearInterval(this.consumptionInterval);
-                    this.consumptionInterval = null;
-                }
-                
-                document.getElementById('tl3PlayPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
-                document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
-            },
-
-            resumeTL3Playback: function() {
-                this.isPlaying = true;
-                document.getElementById('tl3PlayPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
-                document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
-            },
-
-            toggleTL3PlayPause: function() {
-                if (this.isPlaying) {
-                    this.pauseTL3Playback();
-                } else {
-                    this.resumeTL3Playback();
-                }
-            },
-
-            trackEnded: function() {
-                this.pauseTL3Playback();
-                this.showNotification('TL3 재생이 완료되었습니다.');
-                
-                // 다음 트랙 자동 재생
-                if (this.currentTrack && this.tracks.length > 1) {
-                    const currentIndex = this.tracks.findIndex(t => t.id === this.currentTrack.id);
-                    const nextIndex = (currentIndex + 1) % this.tracks.length;
-                    setTimeout(() => {
-                        this.playTL3Track(this.tracks[nextIndex].id);
-                    }, 2000);
-                }
+                // 주기적으로 웨이폼 다시 그리기
+                this.drawWaveform();
             },
 
             openTL3Player: function() {
                 document.getElementById('tl3Player').classList.add('active');
                 this.tl3PlayerVisible = true;
-                
-                if (this.currentTrack) {
-                    document.getElementById('playerTitle').textContent = this.currentTrack.title;
-                    document.getElementById('playerArtist').textContent = this.currentTrack.artist;
-                    document.getElementById('playerAlbumArt').src = this.currentTrack.cover;
-                }
+                this.drawWaveform();
             },
 
             closeTL3Player: function() {
                 document.getElementById('tl3Player').classList.remove('active');
                 this.tl3PlayerVisible = false;
-                this.pauseTL3Playback();
             },
 
             skipTL3Track: function(direction) {
-                if (!this.currentTrack) return;
+                if (!this.currentTrack || this.tracks.length < 2) return;
                 
                 const currentIndex = this.tracks.findIndex(t => t.id === this.currentTrack.id);
                 let newIndex = currentIndex + direction;
@@ -2406,7 +2444,9 @@
                 this.saveToStorage();
                 this.updateBalanceDisplay();
                 
+                // 구매한 트랙 재생 권한 부여 (여기서는 즉시 재생 가능)
                 this.showNotification(`🎉 TL3 음악 구매 완료! ${totalCost.toFixed(1)} TL이 차감되었습니다.`);
+                this.playTL3Track(trackId);
             },
 
             openUploadForm: function(type) {
@@ -2483,12 +2523,12 @@
                     return;
                 }
                 
-                if (this.selectedFile.size > 100 * 1024 * 1024) { // 100MB 제한
+                if (this.selectedFile.size > 100 * 1024 * 1024) {
                     this.showNotification('파일 크기는 100MB를 초과할 수 없습니다.', 'error');
                     return;
                 }
                 
-                // 변환 시작
+                // 변환 시작 (시뮬레이션)
                 this.startConversion(title, artist, genre, price, description);
             },
 
@@ -2499,11 +2539,11 @@
                 let progress = 0;
                 const steps = [
                     "MP3 파일 분석 중...",
+                    "음질 검사 및 최적화...",
                     "양자내성 암호화 적용...",
-                    "TL3 포맷 변환 중...",
+                    "TL3 포맷으로 변환 중...",
                     "메타데이터 암호화...",
-                    "TL3 파일 생성 중...",
-                    "마켓플레이스 등록 준비..."
+                    "TL3 파일 생성 완료..."
                 ];
                 
                 let stepIndex = 0;
@@ -2536,9 +2576,19 @@
                 
                 // 새 TL3 트랙 생성
                 const duration = 180 + Math.floor(Math.random() * 120); // 3-5분 사이
+                const trackId = this.tracks.length + 1;
+                
+                // 샘플 음악 URL (실제로는 업로드된 파일이 사용됨)
+                const sampleUrls = [
+                    "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+                    "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+                    "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+                    "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"
+                ];
+                const audioUrl = sampleUrls[(trackId - 1) % sampleUrls.length];
                 
                 const newTrack = {
-                    id: this.tracks.length + 1,
+                    id: trackId,
                     title: title,
                     artist: artist,
                     price: price,
@@ -2549,7 +2599,7 @@
                     plays: 0,
                     likes: 0,
                     description: description,
-                    tl3Data: this.generateTL3Data(duration),
+                    audioUrl: audioUrl,
                     isTL3: true,
                     conversionDate: new Date().toISOString(),
                     originalFormat: "MP3",
@@ -2562,6 +2612,11 @@
                 
                 this.showNotification(`🎉 "${title}" MP3 파일이 TL3 포맷으로 성공적으로 변환되었습니다!`);
                 this.showNotification(`🔐 양자내성 암호화 적용 완료. 이제 TL3 음악으로 판매 가능합니다.`);
+                
+                // 변환된 음악 자동 재생
+                setTimeout(() => {
+                    this.playTL3Track(newTrack.id);
+                }, 1000);
             },
 
             getRandomCover: function() {
@@ -2737,6 +2792,14 @@
                         this.drawWaveform();
                     }
                 });
+                
+                // 오디오 로드 이벤트
+                this.audioElement.addEventListener('loadedmetadata', () => {
+                    if (this.currentTrack) {
+                        // 실제 음악 길이 업데이트
+                        this.currentTrack.duration = Math.floor(this.audioElement.duration);
+                    }
+                });
             }
         };
 
@@ -2775,14 +2838,6 @@
 
         function filterMusic(filter) {
             TL3System.filterMusic(filter);
-        }
-
-        function togglePlayPause() {
-            if (TL3System.currentTrack) {
-                TL3System.toggleTL3PlayPause();
-            } else if (TL3System.tracks.length > 0) {
-                TL3System.playTL3Track(TL3System.tracks[0].id);
-            }
         }
 
         // 페이지 로드 시 초기화
