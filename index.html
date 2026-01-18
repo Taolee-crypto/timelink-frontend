@@ -924,9 +924,9 @@
                 </nav>
                 
                 <div class="user-actions">
-                    <div class="tl-wallet">
+                    <div class="tl-wallet" onclick="chargeTL()" style="cursor: pointer;" title="클릭하여 TL 충전">
                         <i class="fas fa-coins"></i>
-                        <span id="headerBalance">10,000</span> TL
+                        <span id="headerBalance">0</span> TL
                     </div>
                     <button class="btn" onclick="openLoginModal()">
                         <i class="fas fa-user"></i> 로그인
@@ -1117,9 +1117,9 @@
             <div class="player-container">
                 <div class="player-header">
                     <h2><i class="fas fa-play-circle"></i> 통합 플레이어</h2>
-                    <div class="tl-wallet">
+                    <div class="tl-wallet" onclick="chargeTL()" style="cursor: pointer;" title="클릭하여 TL 충전">
                         <i class="fas fa-coins"></i>
-                        <span id="playerBalance">10,000</span> TL
+                        <span id="playerBalance">0</span> TL
                     </div>
                 </div>
                 
@@ -1142,10 +1142,13 @@
                             </div>
                             
                             <div class="player-info">
-                                <div class="tl-balance">
+                                <div class="tl-balance" onclick="chargeTL()" style="cursor: pointer;" title="클릭하여 TL 충전">
                                     <div class="small">TL 잔액</div>
-                                    <div class="balance-amount" id="balanceDisplay">10,000 TL</div>
+                                    <div class="balance-amount" id="balanceDisplay">0 TL</div>
                                     <div class="small">소비: <span id="consumedDisplay">0</span> TL</div>
+                                    <button class="btn" style="margin-top: 10px; width: 100%;">
+                                        <i class="fas fa-plus-circle"></i> TL 충전
+                                    </button>
                                 </div>
                                 
                                 <div class="player-controls">
@@ -1285,6 +1288,53 @@
                 <button class="btn btn-outline" onclick="closeLoginModal()">
                     <i class="fas fa-times"></i> 취소
                 </button>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <p>계정이 없으신가요? <a href="#" onclick="openSignupModal(); return false;" style="color: var(--primary); font-weight: 600;">회원가입</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 회원가입 모달 -->
+    <div id="signupModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>회원가입</h2>
+                <p>타임링크 계정을 만드세요</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="signupEmail"><i class="fas fa-envelope"></i> 이메일</label>
+                <input type="email" id="signupEmail" placeholder="이메일을 입력하세요">
+            </div>
+            
+            <div class="form-group">
+                <label for="signupUsername"><i class="fas fa-user"></i> 사용자 이름</label>
+                <input type="text" id="signupUsername" placeholder="사용자 이름을 입력하세요">
+            </div>
+            
+            <div class="form-group">
+                <label for="signupPassword"><i class="fas fa-lock"></i> 비밀번호</label>
+                <input type="password" id="signupPassword" placeholder="비밀번호 (6자 이상)">
+            </div>
+            
+            <div class="form-group">
+                <label for="signupConfirmPassword"><i class="fas fa-lock"></i> 비밀번호 확인</label>
+                <input type="password" id="signupConfirmPassword" placeholder="비밀번호를 다시 입력하세요">
+            </div>
+            
+            <div class="form-actions">
+                <button class="btn" onclick="signup()">
+                    <i class="fas fa-user-plus"></i> 회원가입
+                </button>
+                <button class="btn btn-outline" onclick="closeSignupModal()">
+                    <i class="fas fa-times"></i> 취소
+                </button>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <p>이미 계정이 있으신가요? <a href="#" onclick="openLoginModal(); closeSignupModal(); return false;" style="color: var(--primary); font-weight: 600;">로그인</a></p>
             </div>
         </div>
     </div>
@@ -1440,7 +1490,7 @@
 
     <script>
         // 전역 변수
-        let tlBalance = 10000;
+        let tlBalance = 0;
         let currentMedia = null;
         let isPlaying = false;
         let playbackInterval = null;
@@ -1450,9 +1500,14 @@
         let pricePerSecond = 1;
         let visualizerInterval = null;
         let currentUser = null;
+        let authToken = null;
         let audioElement = null;
         let videoElement = null;
         let uploadedFiles = {}; // 업로드된 파일 저장소
+        
+        // API 엔드포인트
+        const AUTH_API = 'https://timelink-api.timelink-api.workers.dev';
+        const ECONOMY_API = 'https://deconomic-api.timelink-api.workers.dev';
         
         // 샘플 데이터
         const sampleMusic = [
@@ -1476,7 +1531,17 @@
             initializeApp();
         });
 
-        function initializeApp() {
+        async function initializeApp() {
+            // 로컬 스토리지에서 토큰 확인
+            authToken = localStorage.getItem('authToken');
+            const savedUser = localStorage.getItem('currentUser');
+            
+            if (authToken && savedUser) {
+                currentUser = JSON.parse(savedUser);
+                updateUIForLoggedInUser();
+                await fetchUserBalance();
+            }
+            
             updateBalances();
             initVisualizer();
             loadSampleContent();
@@ -1508,6 +1573,255 @@
             const tl4FileInput = document.getElementById('tl4File');
             if (tl4FileInput) {
                 tl4FileInput.addEventListener('change', handleTL4FileSelect);
+            }
+        }
+
+        // UI 업데이트 (로그인 상태)
+        function updateUIForLoggedInUser() {
+            const loginBtn = document.querySelector('.user-actions .btn:last-child');
+            if (loginBtn) {
+                loginBtn.innerHTML = `<i class="fas fa-user"></i> ${currentUser.username || currentUser.email}`;
+                loginBtn.onclick = logout;
+            }
+        }
+
+        // 사용자 잔액 가져오기
+        async function fetchUserBalance() {
+            try {
+                const response = await fetch(`${ECONOMY_API}/balance`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    tlBalance = data.balance || 0;
+                    updateBalances();
+                    console.log('잔액 조회 성공:', tlBalance);
+                } else {
+                    console.error('잔액 조회 실패:', response.status);
+                    // 로그인 만료 시
+                    if (response.status === 401) {
+                        logout();
+                    }
+                }
+            } catch (error) {
+                console.error('잔액 조회 오류:', error);
+            }
+        }
+
+        // 로그인
+        async function login() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!email || !password) {
+                alert('이메일과 비밀번호를 입력해주세요.');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${AUTH_API}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    currentUser = {
+                        id: data.userId,
+                        email: email,
+                        username: data.username || email.split('@')[0]
+                    };
+                    
+                    // 로컬 스토리지에 저장
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    
+                    console.log('로그인 성공:', currentUser);
+                    alert('로그인되었습니다!');
+                    
+                    closeLoginModal();
+                    updateUIForLoggedInUser();
+                    await fetchUserBalance();
+                } else {
+                    alert(data.message || '로그인에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('로그인 오류:', error);
+                alert('로그인 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 로그아웃
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            tlBalance = 0;
+            
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            
+            updateBalances();
+            
+            const loginBtn = document.querySelector('.user-actions .btn:last-child');
+            if (loginBtn) {
+                loginBtn.innerHTML = `<i class="fas fa-user"></i> 로그인`;
+                loginBtn.onclick = openLoginModal;
+            }
+            
+            alert('로그아웃되었습니다.');
+            console.log('로그아웃 완료');
+        }
+
+        // 회원가입 모달 열기
+        function openSignupModal() {
+            closeLoginModal();
+            document.getElementById('signupModal').classList.add('active');
+        }
+
+        // 회원가입 모달 닫기
+        function closeSignupModal() {
+            document.getElementById('signupModal').classList.remove('active');
+        }
+
+        // 회원가입
+        async function signup() {
+            const email = document.getElementById('signupEmail').value.trim();
+            const username = document.getElementById('signupUsername').value.trim();
+            const password = document.getElementById('signupPassword').value;
+            const confirmPassword = document.getElementById('signupConfirmPassword').value;
+            
+            if (!email || !username || !password || !confirmPassword) {
+                alert('모든 필드를 입력해주세요.');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                alert('비밀번호가 일치하지 않습니다.');
+                return;
+            }
+            
+            if (password.length < 6) {
+                alert('비밀번호는 6자 이상이어야 합니다.');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${AUTH_API}/signup`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('회원가입이 완료되었습니다! 로그인해주세요.');
+                    closeSignupModal();
+                    openLoginModal();
+                    
+                    // 로그인 폼에 이메일 자동 입력
+                    document.getElementById('loginEmail').value = email;
+                } else {
+                    alert(data.message || '회원가입에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('회원가입 오류:', error);
+                alert('회원가입 중 오류가 발생했습니다.');
+            }
+        }
+
+        // TL 소비 (API 호출)
+        async function consumeTL(amount) {
+            if (!authToken) {
+                console.log('로그인되지 않음 - TL 소비 시뮬레이션');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${ECONOMY_API}/consume`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        amount: amount,
+                        contentId: currentMedia?.id,
+                        contentType: currentMedia?.type
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    tlBalance = data.newBalance;
+                    updateBalances();
+                } else {
+                    console.error('TL 소비 실패:', response.status);
+                    if (response.status === 401) {
+                        logout();
+                    }
+                }
+            } catch (error) {
+                console.error('TL 소비 오류:', error);
+            }
+        }
+
+        // TL 충전
+        async function chargeTL() {
+            if (!authToken) {
+                alert('로그인이 필요합니다.');
+                openLoginModal();
+                return;
+            }
+            
+            const amount = prompt('충전할 TL 금액을 입력하세요:', '10000');
+            if (!amount || isNaN(amount) || amount <= 0) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${ECONOMY_API}/charge`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        amount: parseFloat(amount)
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    tlBalance = data.newBalance;
+                    updateBalances();
+                    alert(`${amount} TL이 충전되었습니다!`);
+                } else {
+                    alert(data.message || 'TL 충전에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('TL 충전 오류:', error);
+                alert('TL 충전 중 오류가 발생했습니다.');
             }
         }
 
@@ -1659,8 +1973,17 @@
         }
 
         function startPlayback() {
+            if (!currentUser) {
+                alert('로그인이 필요합니다.');
+                openLoginModal();
+                return;
+            }
+            
             if (tlBalance <= 0) {
-                alert('TL 잔액이 부족합니다.');
+                alert('TL 잔액이 부족합니다. 충전해주세요.');
+                if (confirm('TL을 충전하시겠습니까?')) {
+                    chargeTL();
+                }
                 return;
             }
             
@@ -1728,12 +2051,17 @@
             }
             
             // TL 소비 타이머 (1초마다)
-            playbackInterval = setInterval(() => {
+            playbackInterval = setInterval(async () => {
                 if (tlBalance > 0) {
                     const cost = pricePerSecond;
+                    
+                    // 로컬 잔액 즉시 차감 (UI 반응성)
                     tlBalance -= cost;
                     tlConsumed += cost;
                     updateBalances();
+                    
+                    // API로 TL 소비 전송 (비동기)
+                    await consumeTL(cost);
                     
                     // 실제 미디어가 없을 때만 시간 수동 증가
                     if (!audioElement.src && !videoElement.src) {
@@ -1747,6 +2075,9 @@
                 } else {
                     stopPlayback();
                     alert('TL 잔액이 부족하여 재생이 중지되었습니다.');
+                    if (confirm('TL을 충전하시겠습니까?')) {
+                        chargeTL();
+                    }
                 }
             }, 1000);
         }
