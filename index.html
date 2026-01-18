@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>타임링크 - 통합 콘텐츠 플랫폼</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏰</text></svg>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -1533,13 +1534,20 @@
 
         async function initializeApp() {
             // 로컬 스토리지에서 토큰 확인
-            authToken = localStorage.getItem('authToken');
-            const savedUser = localStorage.getItem('currentUser');
+            const savedToken = localStorage.getItem('authToken');
+            const savedUserStr = localStorage.getItem('currentUser');
             
-            if (authToken && savedUser) {
-                currentUser = JSON.parse(savedUser);
+            console.log('앱 초기화 - 저장된 토큰:', savedToken);
+            console.log('앱 초기화 - 저장된 사용자:', savedUserStr);
+            
+            if (savedToken && savedUserStr) {
+                authToken = savedToken;
+                currentUser = JSON.parse(savedUserStr);
+                console.log('로그인 상태 복원:', currentUser);
                 updateUIForLoggedInUser();
                 await fetchUserBalance();
+            } else {
+                console.log('비로그인 상태');
             }
             
             updateBalances();
@@ -1578,10 +1586,15 @@
 
         // UI 업데이트 (로그인 상태)
         function updateUIForLoggedInUser() {
+            console.log('UI 업데이트 - 로그인 사용자:', currentUser);
             const loginBtn = document.querySelector('.user-actions .btn:last-child');
             if (loginBtn) {
-                loginBtn.innerHTML = `<i class="fas fa-user"></i> ${currentUser.username || currentUser.email}`;
-                loginBtn.onclick = logout;
+                loginBtn.innerHTML = `<i class="fas fa-user-circle"></i> ${currentUser.username || currentUser.email}`;
+                loginBtn.onclick = function() {
+                    if (confirm('로그아웃 하시겠습니까?')) {
+                        logout();
+                    }
+                };
             }
         }
 
@@ -1623,6 +1636,8 @@
                 return;
             }
             
+            console.log('로그인 시도:', email);
+            
             try {
                 const response = await fetch(`${AUTH_API}/login`, {
                     method: 'POST',
@@ -1635,12 +1650,14 @@
                     })
                 });
                 
+                console.log('로그인 응답 상태:', response.status);
                 const data = await response.json();
+                console.log('로그인 응답 데이터:', data);
                 
                 if (response.ok) {
                     authToken = data.token;
                     currentUser = {
-                        id: data.userId,
+                        id: data.userId || data.id,
                         email: email,
                         username: data.username || email.split('@')[0]
                     };
@@ -1649,23 +1666,29 @@
                     localStorage.setItem('authToken', authToken);
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
                     
-                    console.log('로그인 성공:', currentUser);
+                    console.log('✅ 로그인 성공');
+                    console.log('authToken 저장:', authToken);
+                    console.log('currentUser 저장:', currentUser);
+                    
                     alert('로그인되었습니다!');
                     
                     closeLoginModal();
                     updateUIForLoggedInUser();
                     await fetchUserBalance();
                 } else {
-                    alert(data.message || '로그인에 실패했습니다.');
+                    console.error('❌ 로그인 실패:', data);
+                    alert(data.message || data.error || '로그인에 실패했습니다.');
                 }
             } catch (error) {
-                console.error('로그인 오류:', error);
-                alert('로그인 중 오류가 발생했습니다.');
+                console.error('❌ 로그인 오류:', error);
+                alert('로그인 중 오류가 발생했습니다: ' + error.message);
             }
         }
 
         // 로그아웃
         function logout() {
+            console.log('로그아웃 시작');
+            
             authToken = null;
             currentUser = null;
             tlBalance = 0;
@@ -1787,7 +1810,12 @@
 
         // TL 충전
         async function chargeTL() {
-            if (!authToken) {
+            console.log('TL 충전 함수 호출');
+            console.log('authToken:', authToken);
+            console.log('currentUser:', currentUser);
+            
+            if (!authToken || !currentUser) {
+                console.log('로그인 상태 아님 - 로그인 모달 열기');
                 alert('로그인이 필요합니다.');
                 openLoginModal();
                 return;
@@ -1795,8 +1823,11 @@
             
             const amount = prompt('충전할 TL 금액을 입력하세요:', '10000');
             if (!amount || isNaN(amount) || amount <= 0) {
+                console.log('충전 취소 또는 잘못된 금액');
                 return;
             }
+            
+            console.log('충전 요청:', amount);
             
             try {
                 const response = await fetch(`${ECONOMY_API}/charge`, {
@@ -1810,18 +1841,21 @@
                     })
                 });
                 
+                console.log('충전 응답 상태:', response.status);
                 const data = await response.json();
+                console.log('충전 응답 데이터:', data);
                 
                 if (response.ok) {
-                    tlBalance = data.newBalance;
+                    tlBalance = data.newBalance || data.balance || (tlBalance + parseFloat(amount));
                     updateBalances();
-                    alert(`${amount} TL이 충전되었습니다!`);
+                    alert(`${amount} TL이 충전되었습니다!\n현재 잔액: ${tlBalance} TL`);
                 } else {
+                    console.error('충전 실패:', data);
                     alert(data.message || 'TL 충전에 실패했습니다.');
                 }
             } catch (error) {
                 console.error('TL 충전 오류:', error);
-                alert('TL 충전 중 오류가 발생했습니다.');
+                alert('TL 충전 중 오류가 발생했습니다: ' + error.message);
             }
         }
 
