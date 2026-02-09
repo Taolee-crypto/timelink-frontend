@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeLink - 창작자를 위한 즉시 정산 플랫폼</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        /* 로그인/가입 */
+        .auth-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .auth-box {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 400px;
+            width: 100%;
+        }
+        
+        .auth-box h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #667eea;
+            font-size: 2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            margin-top: 10px;
+        }
+        
+        /* 메인 앱 */
+        .app-container {
+            display: none;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .app-header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .balance {
+            text-align: right;
+        }
+        
+        .balance-value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .btn-logout {
+            padding: 8px 16px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        /* 탭 */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+        }
+        
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* 카드 */
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        /* 파일 업로드 */
+        .upload-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+            border-radius: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .upload-box input[type="file"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border: 2px solid white;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+        }
+        
+        /* 파일 리스트 */
+        .file-list {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .file-item {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .file-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+        
+        .file-meta {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .btn-sm {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .btn-play {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-recharge {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        /* 플레이어 모달 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .player-media {
+            width: 100%;
+            max-height: 400px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .player-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .tl-display {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        /* 알림 */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: none;
+            z-index: 2000;
+        }
+        
+        .toast.active {
+            display: block;
+        }
+        
+        .toast.success {
+            border-left: 4px solid #10b981;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* AI 분석 */
+        .ai-analysis {
+            background: #f0f9ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border: 2px solid #0ea5e9;
+        }
+        
+        .ai-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #0ea5e9;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 로그인/가입 -->
+    <div id="authContainer" class="auth-container">
+        <div class="auth-box">
+            <h1>⏱️ TimeLink</h1>
+            <p style="text-align: center; color: #667eea; font-weight: 600; margin-bottom: 10px;">
+                timelink.digital
+            </p>
+            <p style="text-align: center; color: #666; margin-bottom: 30px; font-size: 0.95rem;">
+                창작자를 위한 즉시 정산 플랫폼<br>
+                <span style="font-size: 0.85rem;">소비하고 보상받는 새로운 경제</span>
+            </p>
+            
+            <div id="loginForm">
+                <div class="form-group">
+                    <label>사용자 이름</label>
+                    <input type="text" id="loginUsername" placeholder="username">
+                </div>
+                <div class="form-group">
+                    <label>비밀번호</label>
+                    <input type="password" id="loginPassword" placeholder="••••••">
+                </div>
+                <button class="btn btn-primary" onclick="login()">로그인</button>
+                <button class="btn btn-secondary" onclick="showSignup()">회원가입</button>
+            </div>
+            
+            <div id="signupForm" class="hidden">
+                <div class="form-group">
+                    <label>사용자 이름</label>
+                    <input type="text" id="signupUsername" placeholder="username">
+                </div>
+                <div class="form-group">
+                    <label>이메일</label>
+                    <input type="email" id="signupEmail" placeholder="you@example.com">
+                </div>
+                <div class="form-group">
+                    <label>비밀번호</label>
+                    <input type="password" id="signupPassword" placeholder="••••••">
+                </div>
+                <div class="form-group">
+                    <label>나의 기여 분야 (AI 분석에 사용)</label>
+                    <textarea id="signupContribution" rows="3" placeholder="예: 음악 작곡, 영상 편집, 디자인 등..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>사용하는 AI 도구</label>
+                    <input type="text" id="signupAITools" placeholder="예: Suno AI, ChatGPT, Midjourney">
+                </div>
+                <button class="btn btn-primary" onclick="signup()">가입하기 (10,000 TL 지급)</button>
+                <button class="btn btn-secondary" onclick="showLogin()">로그인으로</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메인 앱 -->
+    <div id="appContainer" class="app-container">
+        <div class="app-header">
+            <div>
+                <h1 style="margin: 0;">⏱️ TimeLink</h1>
+                <p style="font-size: 0.75rem; color: #667eea; margin-top: 2px;">즉시 정산 플랫폼</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div style="background: #f8f9ff; padding: 15px 20px; border-radius: 12px; border: 2px solid #667eea;">
+                    <div style="font-size: 0.75rem; color: #667eea; font-weight: 600; margin-bottom: 8px; text-align: center;">💼 통합 지갑</div>
+                    <div style="display: flex; gap: 20px;">
+                        <div class="balance">
+                            <div style="font-size: 0.7rem; color: #666;">TL</div>
+                            <div class="balance-value" id="tlBalance" style="font-size: 1.1rem;">0</div>
+                        </div>
+                        <div class="balance">
+                            <div style="font-size: 0.7rem; color: #666;">TLC</div>
+                            <div class="balance-value" id="tlcBalance" style="font-size: 1.1rem;">0.00</div>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-logout" onclick="logout()">로그아웃</button>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('dashboard')">📊 대시보드</button>
+            <button class="tab" onclick="switchTab('upload')">📤 업로드</button>
+            <button class="tab" onclick="switchTab('browse')">🎵 탐색</button>
+            <button class="tab" onclick="switchTab('mining')">⛏️ 채굴</button>
+        </div>
+
+        <!-- 대시보드 -->
+        <div id="tabDashboard" class="tab-content active">
+            <div class="card">
+                <div class="card-title">내 프로필</div>
+                <div id="userProfile"></div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">내 파일</div>
+                <div id="myFilesList" class="file-list"></div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">📊 최근 행동 내역 (기여도 분석용)</div>
+                <div id="recentActions" style="font-size: 0.9rem;"></div>
+            </div>
+        </div>
+
+        <!-- 업로드 -->
+        <div id="tabUpload" class="tab-content">
+            <div class="card">
+                <div class="card-title">파일 업로드 및 TL3/TL4 변환</div>
+                
+                <div class="upload-box">
+                    <div style="font-size: 3rem; color: white; margin-bottom: 15px;">📁</div>
+                    <div style="color: white; font-size: 1.3rem; font-weight: bold; margin-bottom: 20px;">
+                        파일 선택 (음악, 영상, 이미지)
+                    </div>
+                    <input type="file" id="fileInput" accept="audio/*,video/*,image/*" onchange="handleFileSelect(event)">
+                    <div style="color: white; font-size: 0.9rem; margin-top: 15px; opacity: 0.9;">
+                        재생 시간이 자동으로 감지됩니다
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px; margin-top: 15px; font-size: 0.85rem; color: white;">
+                        💾 <strong>IndexedDB 사용 - 용량 제한 없음!</strong><br>
+                        100MB+ 파일도 업로드 가능
+                    </div>
+                </div>
+
+                <div id="uploadForm" class="hidden">
+                    <div class="form-group">
+                        <label>파일 이름</label>
+                        <input type="text" id="fileName">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>콘텐츠 타입</label>
+                        <select id="contentType">
+                            <option value="audio">🎵 음악 (Audio) → TL3</option>
+                            <option value="video">🎬 영상 (Video) → TL4</option>
+                            <option value="image">🖼️ 이미지 (Image) → TL4</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>재생 시간 (자동 감지됨)</label>
+                        <input type="text" id="fileDuration" readonly style="background: #f0f0f0;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>초기 충전 TL (1초 = 1 TL)</label>
+                        <input type="number" id="initialCharge" value="1000" min="1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>AI 도구 사용</label>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                            <label><input type="checkbox" class="aiTool" value="Suno AI"> Suno AI</label>
+                            <label><input type="checkbox" class="aiTool" value="ChatGPT"> ChatGPT</label>
+                            <label><input type="checkbox" class="aiTool" value="Runway"> Runway</label>
+                            <label><input type="checkbox" class="aiTool" value="Midjourney"> Midjourney</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>인간 기여도: <span id="humanContribValue">50</span>%</label>
+                        <input type="range" id="humanContrib" min="0" max="100" value="50" 
+                            oninput="document.getElementById('humanContribValue').textContent = this.value">
+                    </div>
+                    
+                    <button type="button" class="btn btn-primary" onclick="uploadFile()">🚀 TL 파일로 변환하여 업로드</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 탐색 -->
+        <div id="tabBrowse" class="tab-content">
+            <div class="card">
+                <div class="card-title">모든 파일</div>
+                <div id="allFilesList" class="file-list"></div>
+            </div>
+        </div>
+
+        <!-- 채굴 -->
+        <div id="tabMining" class="tab-content">
+            <div class="card">
+                <div class="card-title">TL → TLC 채굴</div>
+                <div class="form-group">
+                    <label>변환할 TL 양</label>
+                    <input type="number" id="miningAmount" min="1" placeholder="1000">
+                </div>
+                <button class="btn btn-primary" onclick="executeMining()">⛏️ 채굴 실행</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 플레이어 모달 -->
+    <div id="playerModal" class="modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 id="playerTitle" style="margin: 0;"></h2>
+                <button onclick="closePlayer()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">닫기</button>
+            </div>
+            
+            <div class="tl-display">
+                남은 TL: <span id="playerTL">0</span>
+            </div>
+            
+            <audio id="audioPlayer" class="player-media hidden" controls></audio>
+            <video id="videoPlayer" class="player-media hidden" controls></video>
+            <img id="imagePlayer" class="player-media hidden" alt="이미지">
+            
+            <div style="text-align: center; margin-top: 20px; color: #666;">
+                <div id="playerStatus">재생 중... (1초당 1 TL 차감)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 알림 -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // ===== 설정 =====
+        const ALLOW_SELF_PLAY = true; // true로 설정하면 자기 파일도 재생 가능 (테스트용)
+        
+        // ===== 사용자 행동 기록 (기여도 분석용) =====
+        async function recordAction(actionType, details) {
+            if (!currentUser) return;
+            
+            // currentUser 동기화
+            const user = users.find(u => u.id === currentUser.id);
+            if (!user) return;
+            
+            // actions 배열 초기화
+            if (!user.actions) {
+                user.actions = [];
+            }
+            
+            // 행동 기록
+            const action = {
+                type: actionType, // 'upload', 'charge', 'play', 'mine'
+                details: details,
+                timestamp: Date.now()
+            };
+            
+            user.actions.push(action);
+            
+            // 최근 100개만 유지
+            if (user.actions.length > 100) {
+                user.actions = user.actions.slice(-100);
+            }
+            
+            currentUser = user;
+            await saveUsers();
+            
+            console.log('📊 행동 기록:', actionType, details);
+        }
+        
+        // ===== IndexedDB 초기화 =====
+        const DB_NAME = 'PoCNetworkDB';
+        const DB_VERSION = 1;
+        let db = null;
+        
+        async function initDB() {
+            return new Promise((resolve, reject) => {
+                console.log('IndexedDB 초기화...');
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    db = request.result;
+                    console.log('✅ IndexedDB 연결 성공!');
+                    resolve(db);
+                };
+                
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('users')) {
+                        db.createObjectStore('users', { keyPath: 'id' });
+                    }
+                    if (!db.objectStoreNames.contains('files')) {
+                        db.createObjectStore('files', { keyPath: 'id' });
+                    }
+                };
+            });
+        }
+        
+        async function dbGetAll(storeName) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction([storeName], 'readonly');
+                const store = tx.objectStore(storeName);
+                const request = store.getAll();
+                request.onsuccess = () => resolve(request.result || []);
+                request.onerror = () => reject(request.error);
+            });
+        }
+        
+        async function dbPut(storeName, data) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction([storeName], 'readwrite');
+                const store = tx.objectStore(storeName);
+                const request = store.put(data);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+        
+        async function dbPutAll(storeName, dataArray) {
+            const tx = db.transaction([storeName], 'readwrite');
+            const store = tx.objectStore(storeName);
+            for (const item of dataArray) {
+                store.put(item);
+            }
+            return new Promise((resolve, reject) => {
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+        
+        // ===== 전역 변수 =====
+        let currentUser = null;
+        let users = [];
+        let files = [];
+        
+        let currentFile = null;
+        let currentMediaElement = null;
+        let tlDeductionInterval = null;
+        let selectedFileData = null;
+        
+        // localStorage에서 데이터 로드 → IndexedDB로 변경
+        async function loadData() {
+            try {
+                users = await dbGetAll('users');
+                files = await dbGetAll('files');
+                console.log('데이터 로드:', users.length, '명,', files.length, '개 파일');
+            } catch (error) {
+                console.error('데이터 로드 실패:', error);
+                users = [];
+                files = [];
+            }
+        }
+
+        // ===== 초기화 =====
+        window.onload = async function() {
+            try {
+                // IndexedDB 초기화
+                await initDB();
+                
+                // 데이터 로드
+                await loadData();
+                
+                // 자동 로그인 체크 (localStorage 사용)
+                const savedUsername = localStorage.getItem('currentUser');
+                if (savedUsername) {
+                    currentUser = users.find(u => u.username === savedUsername);
+                    if (currentUser) {
+                        showApp();
+                    }
+                }
+                
+                console.log('앱 초기화 완료!');
+            } catch (error) {
+                console.error('초기화 실패:', error);
+                alert('데이터베이스 초기화 실패!\n\n' + error.message);
+            }
+        };
+
+        // ===== 인증 =====
+        function showSignup() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('signupForm').classList.remove('hidden');
+        }
+
+        function showLogin() {
+            document.getElementById('signupForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+        }
+
+        async function signup() {
+            const username = document.getElementById('signupUsername').value.trim();
+            const email = document.getElementById('signupEmail').value.trim();
+            const password = document.getElementById('signupPassword').value;
+            const contribution = document.getElementById('signupContribution').value.trim();
+            const aiTools = document.getElementById('signupAITools').value.trim();
+
+            if (!username || !email || !password) {
+                showToast('모든 필드를 입력하세요', 'error');
+                return;
+            }
+
+            if (users.find(u => u.username === username)) {
+                showToast('이미 존재하는 사용자입니다', 'error');
+                return;
+            }
+
+            // AI 분석 (시뮬레이션)
+            const aiAnalysis = analyzeUserContribution(contribution, aiTools);
+
+            const user = {
+                id: 'user_' + Date.now(),
+                username: username,
+                email: email,
+                password: password,
+                createdAt: Date.now(),
+                
+                tlBalance: 10000, // 환영 보너스
+                tlcBalance: 0,
+                
+                // AI 분석 결과
+                contributionField: contribution,
+                aiToolsUsed: aiTools,
+                aiAnalysis: aiAnalysis,
+                
+                totalFilesUploaded: 0,
+                totalEarnings: 0
+            };
+
+            users.push(user);
+            await saveUsers();
+            
+            showToast('✅ 가입 성공! 환영 보너스 10,000 TL 지급!', 'success');
+            showLogin();
+        }
+
+        function analyzeUserContribution(contribution, aiTools) {
+            // AI 분석 시뮬레이션
+            const analysis = {
+                expertise: contribution ? '중급' : '초급',
+                aiDependency: aiTools ? '높음' : '낮음',
+                creativityScore: Math.floor(Math.random() * 30) + 70, // 70-100
+                technicalScore: Math.floor(Math.random() * 30) + 70,
+                recommendedContent: contribution.includes('음악') ? '음악' : 
+                                   contribution.includes('영상') ? '영상' : '이미지'
+            };
+            return analysis;
+        }
+
+        function login() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            const user = users.find(u => u.username === username && u.password === password);
+            
+            if (!user) {
+                showToast('사용자 이름 또는 비밀번호가 잘못되었습니다', 'error');
+                return;
+            }
+
+            currentUser = user;
+            localStorage.setItem('currentUser', username);
+            showApp();
+            showToast('로그인 성공!', 'success');
+        }
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            location.reload();
+        }
+
+        function showApp() {
+            document.getElementById('authContainer').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'block';
+            updateDashboard();
+        }
+
+        // ===== 탭 =====
+        async function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+            
+            // 데이터 재로드
+            await loadData();
+            
+            if (tab === 'dashboard') updateDashboard();
+            if (tab === 'browse') {
+                console.log('탐색 탭 전환, 파일 수:', files.length);
+                updateBrowse();
+            }
+        }
+
+        // ===== 대시보드 =====
+        function updateDashboard() {
+            // currentUser를 users 배열에서 다시 찾아서 동기화
+            if (currentUser && currentUser.id) {
+                const syncedUser = users.find(u => u.id === currentUser.id);
+                if (syncedUser) {
+                    currentUser = syncedUser;
+                }
+            }
+            
+            if (!currentUser) {
+                console.error('currentUser가 없습니다!');
+                return;
+            }
+            
+            document.getElementById('tlBalance').textContent = (currentUser.tlBalance || 0).toLocaleString();
+            document.getElementById('tlcBalance').textContent = (currentUser.tlcBalance || 0).toFixed(4);
+            
+            // 프로필
+            const profile = `
+                <div class="ai-analysis">
+                    <h3 style="margin-bottom: 15px;">🤖 AI 기여도 분석</h3>
+                    ${currentUser.aiAnalysis ? `
+                        <div style="margin-bottom: 10px;">
+                            <span class="ai-badge">전문성: ${currentUser.aiAnalysis.expertise}</span>
+                            <span class="ai-badge">AI 의존도: ${currentUser.aiAnalysis.aiDependency}</span>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <span class="ai-badge">창의성: ${currentUser.aiAnalysis.creativityScore}점</span>
+                            <span class="ai-badge">기술력: ${currentUser.aiAnalysis.technicalScore}점</span>
+                        </div>
+                        <div style="margin-top: 15px; padding: 10px; background: white; border-radius: 8px;">
+                            <strong>추천 콘텐츠:</strong> ${currentUser.aiAnalysis.recommendedContent}
+                        </div>
+                    ` : '<p>AI 분석 정보가 없습니다.</p>'}
+                </div>
+                <div style="margin-top: 20px;">
+                    <p><strong>기여 분야:</strong> ${currentUser.contributionField || '미설정'}</p>
+                    <p><strong>사용 AI 도구:</strong> ${currentUser.aiToolsUsed || '없음'}</p>
+                    <p><strong>총 수익:</strong> ${(currentUser.totalEarnings || 0).toLocaleString()} TL</p>
+                </div>
+            `;
+            document.getElementById('userProfile').innerHTML = profile;
+            
+            // 내 파일
+            const myFiles = files.filter(f => f.creatorId === currentUser.id);
+            const myFilesList = document.getElementById('myFilesList');
+            
+            if (myFiles.length === 0) {
+                myFilesList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">아직 업로드한 파일이 없습니다</p>';
+            } else {
+                myFilesList.innerHTML = myFiles.map(file => {
+                    // 재생 가능 여부 확인
+                    const canPlay = file.remainingTL >= file.duration;
+                    const playableCount = Math.floor(file.remainingTL / file.duration);
+                    
+                    return `
+                    <div class="file-item" style="border-left: 4px solid ${canPlay ? '#10b981' : '#ef4444'};">
+                        <div class="file-title">${getFileIcon(file.contentType)} ${file.fileName}</div>
+                        <div class="file-meta">
+                            ${file.fileType} • ${file.duration}초 • 
+                            충전 TL: <strong style="color: ${canPlay ? '#10b981' : '#ef4444'};">${Math.floor(file.remainingTL)}</strong> / ${file.totalTL}
+                            ${canPlay ? '<span style="color: #10b981;">✅ 재생 가능</span>' : '<span style="color: #ef4444;">⚠️ 충전 필요</span>'}
+                        </div>
+                        <div class="file-actions">
+                            <button class="btn-sm btn-recharge" onclick="rechargeFile('${file.id}')" style="background: #f59e0b; color: white; font-weight: bold;">
+                                ⚡ 재충전 (남은: ${Math.floor(file.remainingTL)} TL)
+                            </button>
+                            ${canPlay ? `
+                                <button class="btn-sm btn-play" onclick="playFile('${file.id}')" style="background: #10b981; color: white; font-weight: bold;">
+                                    ▶ 재생 (${playableCount}회)
+                                </button>
+                            ` : `
+                                <button class="btn-sm" style="background: #999; color: white;" disabled>
+                                    충전 필요 (${file.duration} TL)
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                `;
+                }).join('');
+            }
+            
+            // 최근 행동 내역
+            const recentActions = document.getElementById('recentActions');
+            if (!currentUser.actions || currentUser.actions.length === 0) {
+                recentActions.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">아직 행동 내역이 없습니다</p>';
+            } else {
+                // 최근 10개만 표시 (역순)
+                const actions = currentUser.actions.slice(-10).reverse();
+                recentActions.innerHTML = actions.map(action => {
+                    const time = new Date(action.timestamp).toLocaleString('ko-KR');
+                    let actionText = '';
+                    
+                    if (action.type === 'upload') {
+                        actionText = `📤 파일 업로드: ${action.details.fileName} (${action.details.initialCharge} TL 충전)`;
+                    } else if (action.type === 'charge') {
+                        actionText = `⚡ 파일 충전: ${action.details.fileName} (${action.details.tlAmount} TL)`;
+                    } else if (action.type === 'play') {
+                        actionText = `▶ 파일 재생: ${action.details.fileName} (${action.details.duration}초)`;
+                    } else if (action.type === 'mine') {
+                        actionText = `⛏️ TLC 채굴: ${action.details.tlAmount} TL → ${action.details.tlcMined.toFixed(4)} TLC`;
+                    }
+                    
+                    return `
+                        <div style="padding: 10px; margin-bottom: 8px; background: #f8f9ff; border-radius: 6px; border-left: 3px solid #667eea;">
+                            <div style="font-weight: 600; margin-bottom: 4px;">${actionText}</div>
+                            <div style="font-size: 0.8rem; color: #666;">${time}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // ===== 파일 업로드 =====
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            selectedFileData = file;
+            selectedFileData.duration = 0; // 초기화
+            
+            document.getElementById('fileName').value = file.name.split('.')[0];
+            
+            // 콘텐츠 타입 자동 감지
+            if (file.type.startsWith('audio/')) {
+                document.getElementById('contentType').value = 'audio';
+                document.getElementById('fileDuration').value = '감지 중...';
+                extractAudioDuration(file);
+            } else if (file.type.startsWith('video/')) {
+                document.getElementById('contentType').value = 'video';
+                document.getElementById('fileDuration').value = '감지 중...';
+                extractVideoDuration(file);
+            } else if (file.type.startsWith('image/')) {
+                document.getElementById('contentType').value = 'image';
+                document.getElementById('fileDuration').value = '무한대 (보는 시간만큼 차감)';
+                selectedFileData.duration = 999999; // 이미지는 무한
+            }
+            
+            document.getElementById('uploadForm').classList.remove('hidden');
+            showToast('✅ 파일 선택 완료: ' + file.name, 'success');
+        }
+
+        function extractAudioDuration(file) {
+            const audio = new Audio();
+            audio.src = URL.createObjectURL(file);
+            audio.addEventListener('loadedmetadata', function() {
+                const duration = Math.ceil(audio.duration);
+                document.getElementById('fileDuration').value = duration + '초';
+                selectedFileData.duration = duration;
+                console.log('오디오 재생 시간:', duration, '초');
+                URL.revokeObjectURL(audio.src);
+            });
+            audio.addEventListener('error', function() {
+                console.error('오디오 메타데이터 로드 실패');
+                document.getElementById('fileDuration').value = '180초 (기본값)';
+                selectedFileData.duration = 180;
+            });
+        }
+
+        function extractVideoDuration(file) {
+            const video = document.createElement('video');
+            video.src = URL.createObjectURL(file);
+            video.addEventListener('loadedmetadata', function() {
+                const duration = Math.ceil(video.duration);
+                document.getElementById('fileDuration').value = duration + '초';
+                selectedFileData.duration = duration;
+                console.log('비디오 재생 시간:', duration, '초');
+                URL.revokeObjectURL(video.src);
+            });
+            video.addEventListener('error', function() {
+                console.error('비디오 메타데이터 로드 실패');
+                document.getElementById('fileDuration').value = '300초 (기본값)';
+                selectedFileData.duration = 300;
+            });
+        }
+
+        function uploadFile() {
+            console.log('=== 업로드 시작 ===');
+            
+            const fileName = document.getElementById('fileName').value.trim();
+            const contentType = document.getElementById('contentType').value;
+            const initialCharge = parseInt(document.getElementById('initialCharge').value);
+            const humanContrib = parseInt(document.getElementById('humanContrib').value);
+            
+            console.log('입력값:', {fileName, contentType, initialCharge, humanContrib});
+            
+            const aiTools = [];
+            document.querySelectorAll('.aiTool:checked').forEach(cb => {
+                aiTools.push(cb.value);
+            });
+            
+            if (!fileName) {
+                alert('파일 이름을 입력하세요!');
+                return;
+            }
+            
+            if (!selectedFileData) {
+                alert('파일을 선택하세요!');
+                return;
+            }
+            
+            // 파일 크기 표시 (제한 없음!)
+            const fileSizeMB = (selectedFileData.size / (1024 * 1024)).toFixed(2);
+            console.log('파일 크기:', fileSizeMB, 'MB (제한 없음!)');
+            
+            // 초기 충전 TL 확인
+            if (initialCharge > 0) {
+                // currentUser 동기화
+                const userToCharge = users.find(u => u.id === currentUser.id);
+                if (!userToCharge) {
+                    alert('사용자 정보를 찾을 수 없습니다!');
+                    uploadBtn.disabled = false;
+                    uploadBtn.textContent = '🚀 TL 파일로 변환하여 업로드';
+                    return;
+                }
+                
+                if (initialCharge > userToCharge.tlBalance) {
+                    alert(`TL 잔액이 부족합니다!\n필요: ${initialCharge} TL\n보유: ${userToCharge.tlBalance} TL`);
+                    uploadBtn.disabled = false;
+                    uploadBtn.textContent = '🚀 TL 파일로 변환하여 업로드';
+                    return;
+                }
+                
+                // 초기 충전 TL을 창작자 잔액에서 차감!
+                userToCharge.tlBalance -= initialCharge;
+                currentUser = userToCharge;
+                
+                console.log(`초기 충전 ${initialCharge} TL을 창작자 잔액에서 차감`);
+                console.log(`창작자 잔액: ${userToCharge.tlBalance} TL`);
+            }
+            
+            // duration 확인
+            let duration = selectedFileData.duration || 0;
+            if (contentType === 'image') {
+                duration = 999999;
+            } else if (duration === 0) {
+                duration = contentType === 'audio' ? 180 : 300;
+            }
+            
+            console.log('최종 duration:', duration);
+            
+            // 버튼 비활성화
+            const uploadBtn = event.target;
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '⏳ 업로드 중...';
+            
+            // Blob 직접 저장 (Base64 변환 없음!)
+            const file = {
+                id: 'file_' + Date.now(),
+                creatorId: currentUser.id,
+                fileName: fileName,
+                fileType: contentType === 'audio' ? 'TL3' : 'TL4',
+                contentType: contentType,
+                duration: duration,
+                
+                totalTL: initialCharge,
+                remainingTL: initialCharge,
+                
+                // Blob 직접 저장!
+                fileBlob: selectedFileData,
+                fileSize: selectedFileData.size,
+                fileData: null, // 호환성 유지
+                fileURL: null,
+                
+                aiGenerated: aiTools.length > 0,
+                aiToolsUsed: aiTools,
+                humanContribution: humanContrib,
+                
+                viewCount: 0,
+                totalEarned: 0,
+                createdAt: Date.now()
+            };
+            
+            console.log('파일 객체 생성:', file.id);
+            
+            // 파일 배열에 추가
+            files.push(file);
+            
+            // currentUser 동기화
+            const userToUpdate = users.find(u => u.id === currentUser.id);
+            if (userToUpdate) {
+                userToUpdate.totalFilesUploaded = (userToUpdate.totalFilesUploaded || 0) + 1;
+                currentUser = userToUpdate;
+            }
+            
+            // IndexedDB에 저장
+            saveFiles().then(() => {
+                return saveUsers();
+            }).then(() => {
+                
+                console.log('✅ 업로드 완료!');
+                
+                // 행동 기록 (기여도 분석용)
+                recordAction('upload', {
+                    fileName: fileName,
+                    fileType: file.fileType,
+                    duration: duration,
+                    initialCharge: initialCharge,
+                    fileSize: fileSizeMB
+                });
+                
+                showToast(`✅ "${fileName}" 파일 업로드 완료!`, 'success');
+                alert(`✅ 업로드 성공!\n\n파일: ${fileName}\n타입: ${file.fileType}\n크기: ${fileSizeMB} MB\n재생시간: ${duration}초\n초기 충전: ${initialCharge} TL (잔액에서 차감됨)\n\n탐색 탭에서 확인하세요!`);
+                
+                document.getElementById('fileInput').value = '';
+                document.getElementById('uploadForm').classList.add('hidden');
+                selectedFileData = null;
+                
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '🚀 TL 파일로 변환하여 업로드';
+                
+                updateDashboard();
+                
+            }).catch(error => {
+                console.error('저장 실패:', error);
+                files.pop();
+                currentUser.totalFilesUploaded--;
+                alert('저장 실패!\n\n' + error.message);
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '🚀 TL 파일로 변환하여 업로드';
+            });
+        }
+
+        // ===== 파일 충전 (누구나 가능) =====
+        async function chargeFileForPlay(fileId) {
+            console.log('충전 시작, 파일 ID:', fileId);
+            
+            // currentUser 동기화
+            if (currentUser && currentUser.id) {
+                const syncedUser = users.find(u => u.id === currentUser.id);
+                if (syncedUser) currentUser = syncedUser;
+            }
+            
+            const file = files.find(f => f.id === fileId);
+            if (!file) {
+                console.error('파일을 찾을 수 없음:', fileId);
+                return;
+            }
+            
+            console.log('충전 대상 파일:', file.fileName, '현재 TL:', file.remainingTL);
+            
+            // 테스트 모드: 자신의 파일도 충전 가능
+            
+            let tlAmount;
+            
+            if (file.contentType === 'image') {
+                const amount = prompt(
+                    `이미지는 보는 시간만큼 TL이 차감됩니다.\n` +
+                    `충전할 TL을 입력하세요:`,
+                    '300'
+                );
+                
+                if (!amount || isNaN(amount) || amount <= 0) return;
+                tlAmount = parseInt(amount);
+                
+            } else {
+                const playCount = prompt(
+                    `이 파일을 몇 회 재생하시겠습니까?\n` +
+                    `1회 재생 = ${file.duration} TL\n` +
+                    `예) 1 입력 = ${file.duration} TL, 2 입력 = ${file.duration * 2} TL`,
+                    '1'
+                );
+                
+                if (!playCount || isNaN(playCount) || playCount <= 0) return;
+                
+                const times = parseInt(playCount);
+                tlAmount = file.duration * times;
+            }
+            
+            console.log('충전할 TL:', tlAmount);
+            
+            if (tlAmount > currentUser.tlBalance) {
+                showToast(`TL 잔액이 부족합니다. 필요: ${tlAmount} TL, 보유: ${currentUser.tlBalance} TL`, 'error');
+                return;
+            }
+            
+            // TL 충전
+            const beforeTL = file.remainingTL;
+            currentUser.tlBalance -= tlAmount;
+            file.remainingTL += tlAmount;
+            file.totalTL += tlAmount;
+            
+            console.log('충전 전 TL:', beforeTL);
+            console.log('충전 후 TL:', file.remainingTL);
+            
+            // IndexedDB에 저장
+            await saveFiles();
+            await saveUsers();
+            
+            // 행동 기록 (기여도 분석용)
+            await recordAction('charge', {
+                fileId: file.id,
+                fileName: file.fileName,
+                tlAmount: tlAmount,
+                isSelfFile: false
+            });
+            
+            const message = file.contentType === 'image' 
+                ? `✅ ${tlAmount} TL 충전 완료! 현재: ${Math.floor(file.remainingTL)} TL`
+                : `✅ ${tlAmount} TL 충전 완료! (${Math.floor(tlAmount / file.duration)}회 재생 가능)`;
+            
+            showToast(message, 'success');
+            
+            // 화면 갱신
+            console.log('화면 갱신 시작...');
+            updateBrowse();
+            updateDashboard();
+            console.log('화면 갱신 완료!');
+        }
+        
+        // ===== 파일 재충전 (소유자만) =====
+        async function rechargeFile(fileId) {
+            const file = files.find(f => f.id === fileId);
+            if (!file || file.creatorId !== currentUser.id) return;
+            
+            const amount = prompt('충전할 TL을 입력하세요:', '1000');
+            if (!amount || isNaN(amount) || amount <= 0) return;
+            
+            const tlAmount = parseInt(amount);
+            
+            if (tlAmount > currentUser.tlBalance) {
+                showToast('TL 잔액이 부족합니다', 'error');
+                return;
+            }
+            
+            // TL 차감 및 파일 충전
+            currentUser.tlBalance -= tlAmount;
+            file.remainingTL += tlAmount;
+            file.totalTL += tlAmount;
+            
+            await saveFiles();
+            await saveUsers();
+            
+            // 행동 기록 (기여도 분석용)
+            await recordAction('charge', {
+                fileId: file.id,
+                fileName: file.fileName,
+                tlAmount: tlAmount,
+                isSelfFile: true // 자기 파일 재충전
+            });
+            
+            showToast(`✅ ${tlAmount} TL 충전 완료!`, 'success');
+            updateDashboard();
+        }
+
+        // ===== 탐색 =====
+        function updateBrowse() {
+            console.log('=== 탐색 탭 업데이트 ===');
+            
+            const allFilesList = document.getElementById('allFilesList');
+            
+            // 데이터 재로드
+            loadData();
+            
+            console.log('총 파일 수:', files.length);
+            console.log('현재 사용자:', currentUser.username);
+            
+            if (files.length === 0) {
+                console.log('표시할 파일이 없음');
+                allFilesList.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px; background: #f8f9ff; border-radius: 12px;">
+                        <div style="font-size: 4rem; margin-bottom: 20px;">📂</div>
+                        <h3 style="color: #667eea; margin-bottom: 10px;">아직 업로드된 파일이 없습니다</h3>
+                        <p style="color: #666;">업로드 탭에서 첫 번째 파일을 업로드해보세요!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            console.log('파일 목록 생성 시작...');
+            
+            allFilesList.innerHTML = files.map((file, index) => {
+                console.log(`파일 ${index + 1}:`, file.fileName, '남은 TL:', file.remainingTL);
+                
+                const creator = users.find(u => u.id === file.creatorId);
+                const isMyFile = file.creatorId === currentUser.id;
+                
+                // 이미지는 무한대로 표시
+                const durationText = file.contentType === 'image' ? '무한대' : file.duration + '초';
+                const chargeText = file.contentType === 'image' ? '시간당 TL 차감' : `1회 재생 = ${file.duration} TL`;
+                
+                // 재생 가능 여부 확인
+                let canPlay = false;
+                let playableCount = 0;
+                let needTL = 0;
+                
+                if (file.contentType === 'image') {
+                    needTL = 60;
+                    canPlay = file.remainingTL >= needTL;
+                } else {
+                    needTL = file.duration;
+                    canPlay = file.remainingTL >= needTL;
+                    if (canPlay) {
+                        playableCount = Math.floor(file.remainingTL / file.duration);
+                    }
+                }
+                
+                console.log(`  - 재생 가능: ${canPlay}, 필요: ${needTL} TL, 보유: ${file.remainingTL} TL`);
+                
+                // 재생 버튼 HTML - 누구나 재생 가능! (테스트 모드)
+                let playButton = '';
+                if (canPlay) {
+                    const playText = file.contentType === 'image' 
+                        ? '▶ 보기' 
+                        : `▶ 재생 (${playableCount}회)`;
+                    playButton = `<button class="btn-sm btn-play" onclick="playFile('${file.id}')" style="background: #10b981; color: white; font-weight: bold;">
+                        ${playText}
+                    </button>`;
+                } else {
+                    const needText = file.contentType === 'image' 
+                        ? '충전 필요 (60 TL)' 
+                        : `충전 필요 (${needTL} TL)`;
+                    playButton = `<button class="btn-sm" style="background: #999; color: white;" disabled>
+                        ${needText}
+                    </button>`;
+                }
+                
+                return `
+                    <div class="file-item" style="border-left: 4px solid ${canPlay ? '#10b981' : '#ef4444'};">
+                        <div class="file-title">${getFileIcon(file.contentType)} ${file.fileName}</div>
+                        <div class="file-meta">
+                            작성자: ${creator ? creator.username : 'Unknown'} ${isMyFile ? '(나)' : ''}<br>
+                            ${file.fileType} • ${durationText} (${chargeText})<br>
+                            충전된 TL: <strong style="color: ${canPlay ? '#10b981' : '#ef4444'}; font-size: 1.1rem;">${Math.floor(file.remainingTL)}</strong> / ${file.totalTL}
+                            ${canPlay ? '<span style="color: #10b981; margin-left: 10px;">✅ 재생 가능</span>' : '<span style="color: #ef4444; margin-left: 10px;">⚠️ 충전 필요</span>'}
+                        </div>
+                        <div class="file-actions">
+                            <button class="btn-sm btn-recharge" onclick="chargeFileForPlay('${file.id}')" style="background: #f59e0b; color: white; font-weight: bold;">
+                                ⚡ TL 충전 ${file.contentType === 'image' ? '' : '(1회 = ' + file.duration + ' TL)'}
+                            </button>
+                            ${playButton}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            console.log('탐색 탭 업데이트 완료!');
+        }
+
+        function getFileIcon(type) {
+            if (type === 'audio') return '🎵';
+            if (type === 'video') return '🎬';
+            if (type === 'image') return '🖼️';
+            return '📄';
+        }
+
+        // ===== 파일 재생 (반드시 재생됨!) =====
+        function playFile(fileId) {
+            console.log('=== 재생 시작 ===');
+            console.log('파일 ID:', fileId);
+            
+            const file = files.find(f => f.id === fileId);
+            if (!file) {
+                console.error('파일을 찾을 수 없습니다');
+                showToast('파일을 찾을 수 없습니다', 'error');
+                return;
+            }
+            
+            console.log('파일:', file.fileName);
+            console.log('타입:', file.contentType);
+            console.log('남은 TL:', file.remainingTL);
+            console.log('필요 TL:', file.duration);
+            console.log('fileData 존재:', !!file.fileData);
+            console.log('fileURL 존재:', !!file.fileURL);
+            console.log('fileBlob 존재:', !!file.fileBlob);
+            
+            // 테스트 모드: 자신의 파일도 재생 가능
+            
+            // 재생 조건 확인
+            if (file.contentType === 'image') {
+                if (file.remainingTL < 60) {
+                    showToast(`이미지를 보려면 최소 60 TL이 필요합니다. 현재: ${Math.floor(file.remainingTL)} TL`, 'error');
+                    return;
+                }
+            } else {
+                if (file.remainingTL < file.duration) {
+                    showToast(`재생하려면 ${file.duration} TL이 필요합니다. 현재: ${Math.floor(file.remainingTL)} TL`, 'error');
+                    return;
+                }
+            }
+            
+            console.log('재생 조건 통과!');
+            
+            currentFile = file;
+            
+            document.getElementById('playerTitle').textContent = file.fileName;
+            document.getElementById('playerTL').textContent = Math.floor(file.remainingTL);
+            
+            // 플레이어 초기화
+            const audioPlayer = document.getElementById('audioPlayer');
+            const videoPlayer = document.getElementById('videoPlayer');
+            const imagePlayer = document.getElementById('imagePlayer');
+            
+            audioPlayer.classList.add('hidden');
+            videoPlayer.classList.add('hidden');
+            imagePlayer.classList.add('hidden');
+            
+            if (audioPlayer.pause) audioPlayer.pause();
+            if (videoPlayer.pause) videoPlayer.pause();
+            audioPlayer.src = '';
+            videoPlayer.src = '';
+            imagePlayer.src = '';
+            
+            // 파일 소스 결정 - Blob 우선, 없으면 fileData (Base64)
+            let fileSource;
+            if (file.fileBlob) {
+                // Blob이 있으면 URL 생성 (IndexedDB)
+                fileSource = URL.createObjectURL(file.fileBlob);
+                console.log('Blob URL 생성');
+            } else if (file.fileData) {
+                // Base64 사용 (기존 데이터 호환)
+                fileSource = file.fileData;
+                console.log('Base64 사용');
+            } else {
+                console.error('재생할 파일 데이터가 없습니다!');
+                showToast('파일 데이터를 찾을 수 없습니다.', 'error');
+                return;
+            }
+            
+            console.log('파일 소스 준비 완료');
+            
+            // 미디어 타입에 따라 플레이어 선택 및 재생
+            if (file.contentType === 'audio') {
+                console.log('오디오 재생 준비...');
+                currentMediaElement = audioPlayer;
+                currentMediaElement.src = fileSource;
+                currentMediaElement.classList.remove('hidden');
+                
+                console.log('오디오 src 설정:', fileSource.substring(0, 50) + '...');
+                
+                // 반드시 재생
+                currentMediaElement.load();
+                const playPromise = currentMediaElement.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        console.log('✅ 오디오 재생 시작 성공!');
+                        showToast('🎵 음악 재생 시작!', 'success');
+                    }).catch(err => {
+                        console.error('❌ 재생 실패:', err);
+                        console.error('에러 상세:', err.message);
+                        showToast('재생 실패: ' + err.message, 'error');
+                    });
+                }
+                
+            } else if (file.contentType === 'video') {
+                console.log('비디오 재생 준비...');
+                currentMediaElement = videoPlayer;
+                currentMediaElement.src = fileSource;
+                currentMediaElement.classList.remove('hidden');
+                
+                console.log('비디오 src 설정:', fileSource.substring(0, 50) + '...');
+                
+                // 반드시 재생
+                currentMediaElement.load();
+                const playPromise = currentMediaElement.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        console.log('✅ 비디오 재생 시작 성공!');
+                        showToast('🎬 영상 재생 시작!', 'success');
+                    }).catch(err => {
+                        console.error('❌ 재생 실패:', err);
+                        console.error('에러 상세:', err.message);
+                        showToast('재생 실패: ' + err.message, 'error');
+                    });
+                }
+                
+            } else if (file.contentType === 'image') {
+                console.log('이미지 표시 준비...');
+                currentMediaElement = imagePlayer;
+                currentMediaElement.src = fileSource;
+                currentMediaElement.classList.remove('hidden');
+                
+                console.log('✅ 이미지 표시 성공!');
+                showToast('🖼️ 이미지 표시 시작!', 'success');
+            }
+            
+            document.getElementById('playerModal').classList.add('active');
+            
+            // 행동 기록 (기여도 분석용)
+            recordAction('play', {
+                fileId: file.id,
+                fileName: file.fileName,
+                duration: file.duration,
+                isSelfFile: file.creatorId === currentUser.id
+            });
+            
+            // TL 차감 시작
+            console.log('TL 차감 타이머 시작...');
+            startTLDeduction();
+        }
+
+        function startTLDeduction() {
+            console.log('TL 차감 시작');
+            
+            // 기존 타이머 정리
+            if (tlDeductionInterval) {
+                clearInterval(tlDeductionInterval);
+            }
+            
+            // 1초마다 1 TL 차감
+            tlDeductionInterval = setInterval(async () => {
+                if (!currentFile || currentFile.remainingTL <= 0) {
+                    console.log('TL 소진, 재생 중지');
+                    stopPlayback();
+                    return;
+                }
+                
+                // TL 차감
+                currentFile.remainingTL -= 1;
+                
+                // 창작자에게 TL 지급
+                const creator = users.find(u => u.id === currentFile.creatorId);
+                if (creator) {
+                    creator.tlBalance += 1;
+                    creator.totalEarnings += 1;
+                    currentFile.totalEarned += 1;
+                }
+                
+                // UI 업데이트
+                document.getElementById('playerTL').textContent = Math.floor(currentFile.remainingTL);
+                
+                // IndexedDB에 저장
+                await saveFiles();
+                await saveUsers();
+                
+                console.log('TL 차감:', currentFile.fileName, '남은:', Math.floor(currentFile.remainingTL));
+                
+            }, 1000);
+            
+            console.log('TL 차감 타이머 설정 완료');
+        }
+
+        function stopPlayback() {
+            if (tlDeductionInterval) {
+                clearInterval(tlDeductionInterval);
+                tlDeductionInterval = null;
+            }
+            
+            if (currentMediaElement) {
+                if (currentMediaElement.pause) {
+                    currentMediaElement.pause();
+                }
+                currentMediaElement.src = '';
+            }
+            
+            if (currentFile && currentFile.remainingTL <= 0) {
+                showToast('⚠️ TL이 모두 소진되었습니다!', 'error');
+            }
+            
+            currentFile = null;
+            currentMediaElement = null;
+        }
+
+        function closePlayer() {
+            stopPlayback();
+            document.getElementById('playerModal').classList.remove('active');
+            updateBrowse();
+            updateDashboard();
+        }
+
+        // ===== 채굴 =====
+        async function executeMining() {
+            const amount = parseFloat(document.getElementById('miningAmount').value);
+            
+            if (!amount || amount <= 0) {
+                showToast('변환할 TL 양을 입력하세요', 'error');
+                return;
+            }
+            
+            // currentUser 동기화
+            const user = users.find(u => u.id === currentUser.id);
+            if (!user) return;
+            currentUser = user;
+            
+            if (amount > currentUser.tlBalance) {
+                showToast('TL 잔액이 부족합니다', 'error');
+                return;
+            }
+            
+            // 기여도 기반 채굴 비율 계산
+            let miningRate = 0.1; // 기본 10%
+            
+            if (currentUser.actions && currentUser.actions.length > 0) {
+                // 행동 내역 분석
+                const uploads = currentUser.actions.filter(a => a.type === 'upload').length;
+                const plays = currentUser.actions.filter(a => a.type === 'play').length;
+                const charges = currentUser.actions.filter(a => a.type === 'charge').length;
+                
+                // 보너스 적용
+                if (uploads > 0) miningRate += 0.02; // 업로드 +2%
+                if (plays > 5) miningRate += 0.03;   // 재생 5회 이상 +3%
+                if (charges > 3) miningRate += 0.02; // 충전 3회 이상 +2%
+                
+                // 최대 20%까지
+                miningRate = Math.min(miningRate, 0.2);
+                
+                console.log(`채굴 비율: ${(miningRate * 100).toFixed(1)}% (기여도 반영)`);
+            }
+            
+            const tlcMined = amount * miningRate;
+            
+            currentUser.tlBalance -= amount;
+            currentUser.tlcBalance += tlcMined;
+            
+            await saveUsers();
+            
+            // 행동 기록 (기여도 분석용)
+            await recordAction('mine', {
+                tlAmount: amount,
+                tlcMined: tlcMined,
+                miningRate: miningRate
+            });
+            
+            showToast(`✅ 채굴 성공! ${amount.toLocaleString()} TL → ${tlcMined.toFixed(4)} TLC (비율: ${(miningRate * 100).toFixed(1)}%)`, 'success');
+            
+            document.getElementById('miningAmount').value = '';
+            updateDashboard();
+        }
+
+        // ===== 저장 =====
+        async function saveUsers() {
+            try {
+                await dbPutAll('users', users);
+                console.log('사용자 저장 완료:', users.length, '명');
+            } catch (error) {
+                console.error('사용자 저장 실패:', error);
+            }
+        }
+
+        async function saveFiles() {
+            try {
+                await dbPutAll('files', files);
+                console.log('파일 저장 완료:', files.length, '개');
+            } catch (error) {
+                console.error('파일 저장 실패:', error);
+            }
+        }
+
+        // ===== 알림 =====
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type + ' active';
+            
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
