@@ -1,3025 +1,2308 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TimeLink v20.1 - 투자자 데모 (Google 로그인)</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TimeLink v20.1 - TL3 공유 즉시 표시!</title>
+
+<style>
+/* ===== 전체 스타일 (원본 유지) ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --warning: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  --danger: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+  --dark: #1a1a2e;
+  --light: #f8f9fa;
+  --shadow: 0 10px 40px rgba(0,0,0,0.1);
+  --shadow-lg: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  color: var(--dark);
+}
+
+/* ===== 로그인 ===== */
+.auth-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.auth-box {
+  background: white;
+  padding: 50px;
+  border-radius: 30px;
+  box-shadow: var(--shadow-lg);
+  max-width: 450px;
+  width: 100%;
+  text-align: center;
+}
+
+.logo h1 {
+  background: var(--primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.version-badge {
+  background: var(--secondary);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 30px;
+}
+
+.google-login-btn {
+  background: #4285F4;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 1.2rem;
+  padding: 20px;
+  border-radius: 50px;
+  margin: 30px 0;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+}
+
+.google-login-btn:hover {
+  background: #3367D6;
+  transform: translateY(-3px);
+}
+
+/* ===== 메인 앱 ===== */
+.app-container {
+  display: none;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.app-header {
+  background: white;
+  padding: 25px 40px;
+  border-radius: 25px;
+  margin-bottom: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow);
+}
+
+.header-left h1 {
+  background: var(--primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.header-right {
+  display: flex;
+  gap: 30px;
+  align-items: center;
+}
+
+.balance-cards {
+  display: flex;
+  gap: 16px;
+}
+
+.balance-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 12px 20px;
+  border-radius: 15px;
+  text-align: center;
+}
+
+.balance-card .label {
+  font-size: 11px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.balance-card .amount {
+  font-size: 22px;
+  font-weight: 800;
+  background: var(--primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.avatar-circle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.btn-logout {
+  background: var(--secondary);
+  color: white;
+  padding: 12px 25px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-logout:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(245, 87, 108, 0.3);
+}
+
+/* ===== 탭 ===== */
+.tabs {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  background: white;
+  padding: 18px 30px;
+  border-radius: 15px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.3s;
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+  border: none;
+}
+
+.tab:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+}
+
+.tab.active {
+  background: var(--primary);
+  color: white;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* ===== 카드 ===== */
+.card {
+  background: white;
+  padding: 40px;
+  border-radius: 25px;
+  margin-bottom: 30px;
+  box-shadow: var(--shadow);
+}
+
+.card h2 {
+  font-size: 1.8rem;
+  margin-bottom: 25px;
+  background: var(--primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ===== 통계 ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 25px;
+  margin-bottom: 30px;
+}
+
+.stat-card {
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: var(--primary);
+}
+
+.stat-card .icon {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+}
+
+.stat-card .label {
+  font-size: 13px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.stat-card .value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  background: var(--primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ===== 파일 업로드 ===== */
+.upload-zone {
+  border: 3px dashed #667eea;
+  border-radius: 20px;
+  padding: 60px 40px;
+  text-align: center;
+  background: linear-gradient(135deg, #f8f9ff 0%, #e8ecff 100%);
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 30px;
+}
+
+.upload-zone:hover {
+  border-color: #764ba2;
+  background: linear-gradient(135deg, #e8ecff 0%, #d8dcff 100%);
+  transform: scale(1.02);
+}
+
+.upload-zone .icon {
+  font-size: 5rem;
+  margin-bottom: 20px;
+}
+
+/* ===== 파일 목록 ===== */
+.file-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 25px;
+}
+
+.file-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  border-top: 5px solid #667eea;
+  transition: all 0.3s;
+}
+
+.file-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+}
+
+.file-thumbnail {
+  height: 180px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+  color: white;
+  position: relative;
+}
+
+.badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 6px 16px;
+  border-radius: 30px;
+  font-size: 12px;
+  font-weight: 700;
+  color: white;
+}
+
+.badge-mining { background: #4facfe; }
+.badge-no-tl { background: #f43f5e; }
+.badge-shared { background: #ff9800; }
+
+.file-info {
+  padding: 25px;
+}
+
+.file-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+.file-artist {
+  color: #666;
+  font-size: 0.95rem;
+  margin-bottom: 20px;
+}
+
+.copyright-info {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  border-left: 4px solid #667eea;
+}
+
+.file-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #666;
+}
+
+.tl-progress {
+  width: 100%;
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 16px 0;
+}
+
+.tl-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  transition: width 0.3s;
+}
+
+.tl-progress-empty {
+  height: 100%;
+  background: #f43f5e;
+  width: 100%;
+}
+
+.file-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.btn-play, .btn-charge, .btn-share, .btn-play-disabled {
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: white;
+  font-size: 14px;
+}
+
+.btn-play {
+  background: var(--success);
+}
+
+.btn-play-disabled {
+  background: #999;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.btn-charge {
+  background: var(--warning);
+}
+
+.btn-share {
+  background: var(--primary);
+  grid-column: span 2;
+}
+
+.btn-play:hover:not(.btn-play-disabled), 
+.btn-charge:hover, 
+.btn-share:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+
+/* ===== 공유 플레이스 ===== */
+.share-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 30px;
+  border-radius: 20px;
+  margin-bottom: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.share-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.share-stat-card {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.share-stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #667eea;
+  margin-top: 8px;
+}
+
+.share-filter {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 10px 24px;
+  border: 2px solid #e0e0e0;
+  border-radius: 30px;
+  background: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.filter-btn:hover {
+  border-color: #667eea;
+}
+
+.filter-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: transparent;
+}
+
+/* ===== 라디오 ===== */
+.radio-header {
+  background: linear-gradient(135deg, #1db954 0%, #1ed760 100%);
+  color: white;
+  padding: 40px;
+  border-radius: 25px;
+  margin-bottom: 30px;
+}
+
+.radio-channel-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.channel-header {
+  background: linear-gradient(135deg, #1db954 0%, #1ed760 100%);
+  color: white;
+  padding: 20px;
+}
+
+/* ===== 상업방송 ===== */
+.commercial-header {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  padding: 40px;
+  border-radius: 25px;
+  margin-bottom: 30px;
+}
+
+/* ===== 차량 ===== */
+.car-contribution-box {
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+  color: white;
+  padding: 40px;
+  border-radius: 25px;
+  margin-bottom: 30px;
+}
+
+/* ===== 금리저브 ===== */
+.gold-reserve-card {
+  background: linear-gradient(135deg, #f7b731 0%, #ffda79 100%);
+  color: white;
+  padding: 40px;
+  border-radius: 25px;
+  margin-bottom: 30px;
+}
+
+/* ===== TON ===== */
+.ton-card {
+  background: linear-gradient(135deg, #0088CC 0%, #00A8E8 100%);
+  color: white;
+  padding: 40px;
+  border-radius: 25px;
+  margin-bottom: 30px;
+}
+
+/* ===== 채굴 ===== */
+.mining-limit-box {
+  background: #f8f9fa;
+  padding: 25px;
+  border-radius: 15px;
+  border-left: 8px solid #ff9800;
+  margin-bottom: 24px;
+}
+
+.mining-progress {
+  width: 100%;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 16px 0;
+}
+
+.mining-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffd700, #ffa500);
+  transition: width 0.3s;
+}
+
+/* ===== 충전 옵션 ===== */
+.charge-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 25px;
+  margin-top: 30px;
+}
+
+.charge-card {
+  background: white;
+  border: 3px solid #e0e0e0;
+  border-radius: 20px;
+  padding: 35px;
+  text-align: center;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.charge-card:hover {
+  border-color: #667eea;
+  transform: translateY(-5px);
+}
+
+.charge-card .icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+}
+
+.charge-card .amount {
+  font-size: 2rem;
+  font-weight: 800;
+  background: var(--success);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ===== 플레이어 모달 ===== */
+.player-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.95);
+  z-index: 2000;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.player-content {
+  background: white;
+  padding: 40px;
+  border-radius: 30px;
+  max-width: 550px;
+  width: 90%;
+  text-align: center;
+}
+
+.player-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.player-artist {
+  color: #666;
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+}
+
+.player-copyright {
+  background: #f0f4ff;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  text-align: left;
+  border-left: 4px solid #667eea;
+}
+
+.player-tl-info {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 24px;
+}
+
+.player-tl-amount {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #667eea;
+}
+
+.player-progress {
+  width: 100%;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 20px 0;
+}
+
+.player-progress-fill {
+  height: 100%;
+  background: var(--success);
+  width: 0%;
+  transition: width 0.2s linear;
+}
+
+.player-time {
+  display: flex;
+  justify-content: space-between;
+  color: #666;
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+
+.player-controls {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+/* ===== 충전 모달 ===== */
+.charge-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  z-index: 1500;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.charge-content {
+  background: white;
+  padding: 40px;
+  border-radius: 30px;
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+}
+
+.charge-content h2 {
+  margin-bottom: 24px;
+  background: var(--primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.charge-content input {
+  width: 100%;
+  padding: 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+/* ===== 토스트 ===== */
+.toast {
+  position: fixed;
+  top: 30px;
+  right: 30px;
+  background: white;
+  padding: 18px 28px;
+  border-radius: 100px;
+  box-shadow: var(--shadow-lg);
+  display: none;
+  z-index: 3000;
+  min-width: 320px;
+  border-left: 6px solid #4CAF50;
+  animation: slideIn 0.3s;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(400px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.toast.success { border-left-color: #4CAF50; }
+.toast.error { border-left-color: #f44336; }
+.toast.warning { border-left-color: #ff9800; }
+
+/* ===== 충전 경고 ===== */
+.charge-warning {
+  background: #fff3cd;
+  border-left: 8px solid #ff9800;
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 30px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.charge-warning-icon {
+  font-size: 2.5rem;
+}
+
+.charge-warning-text {
+  color: #856404;
+  font-weight: 700;
+}
+
+/* ===== 데모 배지 ===== */
+.demo-badge {
+  background: #ff9800;
+  color: white;
+  padding: 5px 15px;
+  border-radius: 30px;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-block;
+  margin-left: 10px;
+}
+
+/* ===== 반응형 ===== */
+@media (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    gap: 20px;
+  }
   
-  <!-- Supabase JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <style>
-    /* ===== 원본 디자인 100% 완전 유지 ===== */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    :root {
-      --primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-      --success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-      --warning: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-      --danger: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
-      --dark: #1a1a2e;
-      --light: #f8f9fa;
-      --shadow: 0 10px 40px rgba(0,0,0,0.1);
-      --shadow-lg: 0 20px 60px rgba(0,0,0,0.2);
-      --ton: linear-gradient(135deg, #0088CC 0%, #00A8E8 100%);
-      --radio: linear-gradient(135deg, #1db954 0%, #1ed760 100%);
-      --car: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
-      --commercial: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      color: var(--dark);
-    }
-
-    /* ===== 로그인/가입 ===== */
-    .auth-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 20px;
-      animation: fadeIn 0.5s ease-in;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .auth-box {
-      background: white;
-      padding: 50px;
-      border-radius: 30px;
-      box-shadow: var(--shadow-lg);
-      max-width: 450px;
-      width: 100%;
-      animation: slideUp 0.6s ease-out;
-    }
-
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(30px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .logo {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
-    .logo h1 {
-      background: var(--primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      font-size: 3rem;
-      font-weight: 800;
-      margin-bottom: 10px;
-    }
-
-    .logo p {
-      color: #666;
-      font-size: 1.1rem;
-    }
-
-    .version-badge {
-      background: var(--secondary);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 25px;
-      font-size: 13px;
-      font-weight: 600;
-      text-align: center;
-      margin-bottom: 30px;
-      box-shadow: 0 5px 15px rgba(245, 87, 108, 0.3);
-    }
-
-    .btn {
-      width: 100%;
-      padding: 18px;
-      border: none;
-      border-radius: 15px;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .btn-primary {
-      background: var(--primary);
-      color: white;
-      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
-    }
-
-    .btn-secondary {
-      background: white;
-      color: #667eea;
-      border: 2px solid #667eea;
-      margin-top: 15px;
-    }
-
-    .btn-secondary:hover {
-      background: #f8f9ff;
-    }
-
-    .btn-danger {
-      background: var(--danger);
-      color: white;
-    }
-
-    .btn-danger:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 15px 40px rgba(244, 63, 94, 0.4);
-    }
-
-    .btn-business {
-      background: var(--commercial);
-      color: white;
-    }
-
-    .btn-business:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 15px 40px rgba(245, 87, 108, 0.4);
-    }
-
-    /* ===== 메인 앱 ===== */
-    .app-container {
-      display: none;
-      max-width: 1600px;
-      margin: 0 auto;
-      padding: 20px;
-      animation: fadeIn 0.5s ease-in;
-    }
-
-    /* 헤더 */
-    .app-header {
-      background: white;
-      padding: 25px 40px;
-      border-radius: 25px;
-      margin-bottom: 30px;
-      box-shadow: var(--shadow);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .header-left h1 {
-      background: var(--primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      font-size: 2rem;
-      font-weight: 800;
-    }
-
-    .header-right {
-      display: flex;
-      gap: 30px;
-      align-items: center;
-    }
-
-    .balance-card {
-      text-align: center;
-      padding: 10px 20px;
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-      border-radius: 15px;
-    }
-
-    .balance-card .label {
-      font-size: 11px;
-      color: #666;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 5px;
-    }
-
-    .balance-card .amount {
-      font-size: 24px;
-      font-weight: 800;
-      background: var(--primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .user-profile {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-    }
-
-    .avatar-circle {
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: var(--primary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: 800;
-      font-size: 20px;
-    }
-
-    .btn-logout {
-      background: var(--secondary);
-      color: white;
-      padding: 12px 25px;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.3s ease;
-    }
-
-    .btn-logout:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 25px rgba(245, 87, 108, 0.3);
-    }
-
-    /* 탭 네비게이션 */
-    .tabs {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 30px;
-      overflow-x: auto;
-      padding-bottom: 10px;
-      flex-wrap: wrap;
-    }
-
-    .tab {
-      background: white;
-      padding: 18px 30px;
-      border-radius: 15px;
-      cursor: pointer;
-      font-weight: 700;
-      transition: all 0.3s ease;
-      box-shadow: var(--shadow);
-      white-space: nowrap;
-      font-size: 15px;
-    }
-
-    .tab:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 15px 35px rgba(0,0,0,0.15);
-    }
-
-    .tab.active {
-      background: var(--primary);
-      color: white;
-    }
-
-    /* 탭 콘텐츠 */
-    .tab-content {
-      display: none;
-      animation: fadeIn 0.4s ease-in;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
-
-    /* 카드 */
-    .card {
-      background: white;
-      padding: 40px;
-      border-radius: 25px;
-      margin-bottom: 30px;
-      box-shadow: var(--shadow);
-    }
-
-    .card h2 {
-      font-size: 1.8rem;
-      margin-bottom: 25px;
-      background: var(--primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    /* 통계 그리드 */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 25px;
-      margin-bottom: 30px;
-    }
-
-    .stat-card {
-      background: white;
-      padding: 30px;
-      border-radius: 20px;
-      box-shadow: var(--shadow);
-      transition: all 0.3s ease;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .stat-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 5px;
-      background: var(--primary);
-    }
-
-    .stat-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 20px 50px rgba(0,0,0,0.15);
-    }
-
-    .stat-card .icon {
-      font-size: 2.5rem;
-      margin-bottom: 15px;
-    }
-
-    .stat-card .label {
-      font-size: 13px;
-      color: #666;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 10px;
-    }
-
-    .stat-card .value {
-      font-size: 2.5rem;
-      font-weight: 800;
-      background: var(--primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    /* ===== TL3 파일 카드 ===== */
-    .tl3-badge {
-      display: inline-block;
-      padding: 6px 16px;
-      border-radius: 30px;
-      font-size: 12px;
-      font-weight: 700;
-      color: white;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      margin-bottom: 10px;
-    }
-
-    .no-tl-badge {
-      display: inline-block;
-      padding: 6px 16px;
-      border-radius: 30px;
-      font-size: 12px;
-      font-weight: 700;
-      color: white;
-      background: var(--danger);
-      margin-bottom: 10px;
-    }
-
-    .copyright-info {
-      background: #f8f9fa;
-      padding: 15px;
-      border-radius: 10px;
-      margin: 15px 0;
-      font-size: 13px;
-      border-left: 4px solid #667eea;
-    }
-
-    /* ===== 파일 업로드 ===== */
-    .upload-zone {
-      border: 3px dashed #667eea;
-      border-radius: 20px;
-      padding: 60px 40px;
-      text-align: center;
-      background: linear-gradient(135deg, #f8f9ff 0%, #e8ecff 100%);
-      cursor: pointer;
-      transition: all 0.3s ease;
-      margin-bottom: 30px;
-    }
-
-    .upload-zone:hover {
-      border-color: #764ba2;
-      background: linear-gradient(135deg, #e8ecff 0%, #d8dcff 100%);
-      transform: scale(1.02);
-    }
-
-    .upload-zone .icon {
-      font-size: 5rem;
-      margin-bottom: 20px;
-    }
-
-    .upload-zone h3 {
-      font-size: 1.5rem;
-      margin-bottom: 10px;
-      color: #333;
-    }
-
-    .upload-zone p {
-      color: #666;
-      font-size: 14px;
-    }
-
-    /* 파일 목록 */
-    .file-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-      gap: 25px;
-    }
-
-    .file-card {
-      background: white;
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
-      transition: all 0.3s ease;
-      border-top: 5px solid #667eea;
-    }
-
-    .file-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 20px 50px rgba(0,0,0,0.15);
-    }
-
-    .file-thumbnail {
-      height: 180px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 4rem;
-      color: white;
-      position: relative;
-    }
-
-    .file-info {
-      padding: 25px;
-    }
-
-    .file-name {
-      font-size: 1.3rem;
-      font-weight: 700;
-      margin-bottom: 10px;
-      color: #333;
-    }
-
-    .file-artist {
-      color: #666;
-      font-size: 1rem;
-      margin-bottom: 15px;
-    }
-
-    .file-stats {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 15px;
-      font-size: 14px;
-      color: #666;
-    }
-
-    .tl-progress {
-      width: 100%;
-      height: 8px;
-      background: #e0e0e0;
-      border-radius: 4px;
-      overflow: hidden;
-      margin: 15px 0;
-    }
-
-    .tl-progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #667eea, #764ba2);
-      transition: width 0.3s ease;
-    }
-
-    .tl-progress-empty {
-      height: 100%;
-      background: linear-gradient(90deg, #f43f5e, #e11d48);
-      width: 100%;
-    }
-
-    .file-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 20px;
-    }
-
-    .btn-play, .btn-charge, .btn-share, .btn-business-play, .btn-play-disabled {
-      padding: 14px;
-      border: none;
-      border-radius: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      color: white;
-      font-size: 14px;
-    }
-
-    .btn-play {
-      background: var(--success);
-    }
-
-    .btn-play-disabled {
-      background: #999;
-      cursor: not-allowed;
-      opacity: 0.7;
-    }
-
-    .btn-charge {
-      background: var(--warning);
-    }
-
-    .btn-share {
-      background: var(--primary);
-    }
-
-    .btn-business-play {
-      background: var(--commercial);
-    }
-
-    .btn-play:hover:not(.btn-play-disabled), .btn-charge:hover, .btn-share:hover, .btn-business-play:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-    }
-
-    /* ===== 공유 플레이스 ===== */
-    .share-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 30px;
-      border-radius: 20px;
-      margin-bottom: 30px;
-    }
-
-    .share-stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-      margin-bottom: 30px;
-    }
-
-    .share-stat-card {
-      background: white;
-      padding: 25px;
-      border-radius: 15px;
-      text-align: center;
-      box-shadow: var(--shadow);
-    }
-
-    .share-stat-value {
-      font-size: 2rem;
-      font-weight: 800;
-      color: #667eea;
-    }
-
-    .share-filter {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 30px;
-      flex-wrap: wrap;
-    }
-
-    .filter-btn {
-      padding: 12px 24px;
-      border: 2px solid #e0e0e0;
-      border-radius: 30px;
-      background: white;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .filter-btn:hover {
-      border-color: #667eea;
-    }
-
-    .filter-btn.active {
-      background: var(--primary);
-      color: white;
-      border-color: transparent;
-    }
-
-    /* ===== 라디오 ===== */
-    .radio-header {
-      background: var(--radio);
-      color: white;
-      padding: 40px;
-      border-radius: 25px;
-      margin-bottom: 30px;
-    }
-
-    .radio-channel-card {
-      background: white;
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
-    }
-
-    .channel-header {
-      background: var(--radio);
-      color: white;
-      padding: 20px;
-    }
-
-    .channel-playlist {
-      padding: 20px;
-    }
-
-    .now-playing {
-      background: #f0f9ff;
-      padding: 15px;
-      border-radius: 15px;
-      margin-bottom: 15px;
-      border-left: 4px solid #1db954;
-    }
-
-    /* ===== 상업방송 ===== */
-    .commercial-header {
-      background: var(--commercial);
-      color: white;
-      padding: 40px;
-      border-radius: 25px;
-      margin-bottom: 30px;
-    }
-
-    .commercial-channel-card {
-      background: white;
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
-    }
-
-    .commercial-channel-header {
-      background: var(--commercial);
-      color: white;
-      padding: 20px;
-    }
-
-    .business-badge {
-      background: rgba(255,255,255,0.2);
-      padding: 5px 15px;
-      border-radius: 30px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-
-    /* ===== 차량 등록 ===== */
-    .car-contribution-box {
-      background: var(--car);
-      color: white;
-      padding: 40px;
-      border-radius: 25px;
-      margin-bottom: 30px;
-    }
-
-    /* ===== 금 리저브 ===== */
-    .gold-reserve-card {
-      background: linear-gradient(135deg, #f7b731 0%, #ffda79 100%);
-      padding: 40px;
-      border-radius: 25px;
-      color: white;
-      margin-bottom: 30px;
-    }
-
-    /* ===== TON TLC ===== */
-    .ton-card {
-      background: var(--ton);
-      color: white;
-      padding: 40px;
-      border-radius: 25px;
-      margin-bottom: 30px;
-    }
-
-    .ton-badge {
-      background: rgba(255,255,255,0.2);
-      padding: 8px 20px;
-      border-radius: 30px;
-      display: inline-block;
-    }
-
-    /* ===== 채굴 ===== */
-    .mining-limit-box {
-      background: #f8f9fa;
-      padding: 25px;
-      border-radius: 15px;
-      border-left: 8px solid #ff9800;
-    }
-
-    .mining-progress {
-      width: 100%;
-      height: 12px;
-      background: #e0e0e0;
-      border-radius: 6px;
-      overflow: hidden;
-      margin: 15px 0;
-    }
-
-    .mining-progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #ffd700, #ffa500);
-      transition: width 0.3s ease;
-    }
-
-    /* ===== 충전 옵션 ===== */
-    .charge-options {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 25px;
-      margin-top: 30px;
-    }
-
-    .charge-card {
-      background: white;
-      border: 3px solid #e0e0e0;
-      border-radius: 20px;
-      padding: 35px;
-      text-align: center;
-      transition: all 0.3s ease;
-      cursor: pointer;
-    }
-
-    .charge-card:hover {
-      border-color: #667eea;
-      transform: translateY(-5px);
-      box-shadow: 0 15px 40px rgba(102, 126, 234, 0.2);
-    }
-
-    .charge-card .icon {
-      font-size: 4rem;
-      margin-bottom: 20px;
-    }
-
-    .charge-card h3 {
-      font-size: 1.5rem;
-      margin-bottom: 15px;
-      color: #333;
-    }
-
-    .charge-card .amount {
-      font-size: 2rem;
-      font-weight: 800;
-      background: var(--success);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 15px;
-    }
-
-    /* ===== 광고 모달 ===== */
-    .ad-modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.8);
-      z-index: 1000;
-      justify-content: center;
-      align-items: center;
-      animation: fadeIn 0.3s ease-in;
-    }
-
-    .ad-content {
-      background: white;
-      padding: 50px;
-      border-radius: 30px;
-      max-width: 600px;
-      width: 90%;
-      text-align: center;
-      animation: slideUp 0.4s ease-out;
-    }
-
-    .ad-video {
-      width: 100%;
-      height: 300px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 20px;
-      margin-bottom: 30px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 3rem;
-      color: white;
-    }
-
-    .ad-timer {
-      font-size: 2rem;
-      font-weight: 800;
-      background: var(--primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 20px;
-    }
-
-    /* ===== 플레이어 모달 ===== */
-    .player-modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.95);
-      z-index: 2000;
-      justify-content: center;
-      align-items: center;
-      animation: fadeIn 0.3s ease-in;
-    }
-
-    .player-content {
-      background: white;
-      padding: 40px;
-      border-radius: 30px;
-      max-width: 550px;
-      width: 90%;
-      text-align: center;
-    }
-
-    .player-title {
-      font-size: 1.8rem;
-      font-weight: 700;
-      margin-bottom: 10px;
-      color: #333;
-    }
-
-    .player-artist {
-      color: #666;
-      font-size: 1.2rem;
-      margin-bottom: 20px;
-    }
-
-    .player-copyright {
-      background: #f0f4ff;
-      padding: 15px;
-      border-radius: 12px;
-      margin-bottom: 25px;
-      font-size: 14px;
-      color: #555;
-      text-align: left;
-      border-left: 4px solid #667eea;
-    }
-
-    .player-tl-info {
-      background: #f8f9fa;
-      padding: 20px;
-      border-radius: 15px;
-      margin-bottom: 25px;
-    }
-
-    .player-tl-amount {
-      font-size: 2.5rem;
-      font-weight: 800;
-      color: #667eea;
-    }
-
-    .player-progress {
-      width: 100%;
-      height: 8px;
-      background: #e0e0e0;
-      border-radius: 4px;
-      overflow: hidden;
-      margin: 20px 0;
-    }
-
-    .player-progress-fill {
-      height: 100%;
-      background: var(--success);
-      width: 0%;
-      transition: width 0.3s ease;
-    }
-
-    .player-time {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 25px;
-      color: #666;
-      font-size: 14px;
-    }
-
-    .player-controls {
-      display: flex;
-      gap: 15px;
-      justify-content: center;
-    }
-
-    .audio-element {
-      display: none;
-    }
-
-    /* ===== 충전 모달 ===== */
-    .charge-modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.8);
-      z-index: 1500;
-      justify-content: center;
-      align-items: center;
-      animation: fadeIn 0.3s ease-in;
-    }
-
-    .charge-content {
-      background: white;
-      padding: 40px;
-      border-radius: 30px;
-      max-width: 500px;
-      width: 90%;
-      text-align: center;
-      animation: slideUp 0.4s ease-out;
-    }
-
-    /* ===== 토스트 ===== */
-    .toast {
-      position: fixed;
-      top: 30px;
-      right: 30px;
-      background: white;
-      padding: 20px 30px;
-      border-radius: 15px;
-      box-shadow: var(--shadow-lg);
-      display: none;
-      z-index: 3000;
-      min-width: 350px;
-      animation: slideIn 0.4s ease-out;
-    }
-
-    @keyframes slideIn {
-      from { transform: translateX(400px); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-
-    .toast.success { border-left: 5px solid #4CAF50; }
-    .toast.error { border-left: 5px solid #f44336; }
-    .toast.warning { border-left: 5px solid #ff9800; }
-    .toast.info { border-left: 5px solid #2196F3; }
-
-    /* ===== 반응형 ===== */
-    @media (max-width: 768px) {
-      .app-header {
-        flex-direction: column;
-        gap: 20px;
-      }
-
-      .header-right {
-        flex-direction: column;
-        width: 100%;
-      }
-
-      .stats-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .tabs {
-        overflow-x: auto;
-        flex-wrap: nowrap;
-      }
-      
-      .share-stats {
-        grid-template-columns: 1fr;
-      }
-      
-      .share-filter {
-        justify-content: center;
-      }
-    }
-
-    /* ===== 충전 필수 경고 ===== */
-    .charge-warning {
-      background: #fff3cd;
-      border-left: 8px solid #ff9800;
-      padding: 20px;
-      border-radius: 15px;
-      margin-bottom: 30px;
-      display: flex;
-      align-items: center;
-      gap: 15px;
-    }
-
-    .charge-warning-icon {
-      font-size: 2.5rem;
-    }
-
-    .charge-warning-text {
-      color: #856404;
-      font-weight: 700;
-    }
-
-    /* Google 로그인 버튼 강조 */
-    .google-login-btn {
-      background: #4285F4;
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      font-size: 1.2rem;
-      padding: 20px;
-      border-radius: 50px;
-      margin: 30px 0;
-      box-shadow: 0 10px 30px rgba(66, 133, 244, 0.3);
-    }
-
-    .google-login-btn:hover {
-      background: #3367D6;
-      transform: translateY(-3px);
-      box-shadow: 0 15px 40px rgba(66, 133, 244, 0.4);
-    }
-
-    .google-icon {
-      font-size: 1.8rem;
-    }
-  </style>
+  .header-right {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .balance-cards {
+    flex-direction: column;
+  }
+  
+  .tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .share-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .file-list {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
 </head>
 <body>
 
-  <!-- 토스트 -->
-  <div id="toast" class="toast"></div>
+<!-- 토스트 -->
+<div id="toast" class="toast"></div>
 
-  <!-- 오디오 플레이어 (숨김) -->
-  <audio id="audioPlayer" class="audio-element"></audio>
+<!-- 오디오 플레이어 -->
+<audio id="audioPlayer" style="display: none;"></audio>
 
-  <!-- ===== TL3 충전 모달 ===== -->
-  <div id="chargeModal" class="charge-modal">
-    <div class="charge-content">
-      <h2 style="margin-bottom: 30px; background: var(--primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">💰 TL3 파일 충전</h2>
-      <div class="form-group">
-        <label>충전할 TL 양 (1초 = 1TL)</label>
-        <input type="number" id="chargeAmount" placeholder="1000" min="100" step="100" style="width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 15px; font-size: 16px;">
-        <p style="color: #666; font-size: 14px; margin-top: 10px;">
-          현재 내 지갑: <strong id="currentTLBalance">0</strong> TL<br>
-          1,000 TL 충전 시 약 16분 40초 재생 가능
-        </p>
-      </div>
-      <div style="display: flex; gap: 15px;">
-        <button class="btn btn-primary" onclick="chargeFile()" style="flex: 1;">⚡ 충전하기</button>
-        <button class="btn btn-secondary" onclick="closeChargeModal()" style="flex: 1;">취소</button>
-      </div>
+<!-- ===== 로그인 화면 ===== -->
+<div id="authContainer" class="auth-container">
+  <div class="auth-box">
+    <div class="logo">
+      <h1>⏰ TimeLink</h1>
+      <p>TL3 파일 - 공유하면 즉시 표시!</p>
     </div>
-  </div>
-
-  <!-- ===== 플레이어 모달 ===== -->
-  <div id="playerModal" class="player-modal">
-    <div class="player-content">
-      <div class="player-title" id="playerTitle">Now Playing</div>
-      <div class="player-artist" id="playerArtist">Artist</div>
-      
-      <div class="player-copyright" id="playerCopyright">
-        <strong>📋 TL3 파일 정보</strong><br>
-        <span id="copyrightOwner">저작권자: </span><br>
-        <span id="contractType">계약 유형: </span><br>
-        <span id="miningRight">채굴권: </span>
-      </div>
-      
-      <div class="player-tl-info">
-        <div style="color: #666; margin-bottom: 10px;">⏳ 충전된 TL (재생 가능 시간)</div>
-        <div class="player-tl-amount" id="playerTL">0 TL</div>
-        <div style="color: #999; font-size: 13px; margin-top: 8px;" id="playerTimeRemaining">약 0분 0초 남음</div>
-      </div>
-      
-      <div class="player-progress">
-        <div class="player-progress-fill" id="playerProgress"></div>
-      </div>
-      
-      <div class="player-time">
-        <span id="playerCurrentTime">0:00</span>
-        <span id="playerTotalTime">0:00</span>
-      </div>
-      
-      <div class="player-controls">
-        <button class="btn btn-primary" onclick="togglePlayPause()" id="playPauseBtn">⏸️ 일시정지</button>
-        <button class="btn btn-secondary" onclick="closePlayer()">⏹️ 재생 종료</button>
-        <button class="btn btn-warning" onclick="openChargeModalFromPlayer()" style="background: var(--warning); color: white;">💰 TL 충전</button>
-      </div>
+    <div class="version-badge">
+      🚀 v20.1 - TL3 공유 즉시 표시! <span class="demo-badge">DEMO</span>
     </div>
+    
+    <button class="google-login-btn" onclick="demoGoogleLogin()">
+      <span style="font-size:1.8rem;">🔐</span> Google 계정으로 로그인 (데모)
+    </button>
+    
+    <p style="color:#666; margin-top:30px; font-size:0.95rem;">
+      ※ 데모 모드에서는 실제 Google 로그인 없이<br>
+      <strong>테스트 계정으로 즉시 로그인</strong>됩니다.
+    </p>
   </div>
+</div>
 
-  <!-- ===== 광고 모달 ===== -->
-  <div id="adModal" class="ad-modal">
-    <div class="ad-content">
-      <h2 style="margin-bottom: 30px; background: var(--primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">📺 광고 시청 중...</h2>
-      <div class="ad-video">🎬</div>
-      <div class="ad-timer" id="adTimer">30초</div>
-      <p style="color: #666; margin-top: 20px;">광고 종료 시 <strong style="color: #667eea;">10 TL</strong> 내 지갑에 지급</p>
-      <button class="btn btn-secondary" onclick="closeAdModal()" style="margin-top: 20px;">취소</button>
+<!-- ===== 메인 앱 ===== -->
+<div id="appContainer" class="app-container" style="display:none;">
+  
+  <!-- 헤더 -->
+  <div class="app-header">
+    <div class="header-left">
+      <h1>⏰ TimeLink</h1>
+      <span class="demo-badge" style="margin-left:15px;">데모 모드</span>
     </div>
-  </div>
-
-  <!-- ===== 로그인 화면 (Google 버튼) ===== -->
-  <div id="authContainer" class="auth-container">
-    <div class="auth-box">
-      <div class="logo">
-        <h1>⏰ TimeLink</h1>
-        <p>TL3 파일 - 충전해야 재생 가능</p>
-      </div>
-      <div class="version-badge">
-        🚀 v20.1 - 투자자 데모 (Supabase Google 로그인)
-      </div>
-      
-      <button class="btn btn-primary google-login-btn" onclick="loginWithGoogle()">
-        <span class="google-icon">🔐</span> Google 계정으로 로그인
-      </button>
-      
-      <p style="color: #666; margin-top: 30px; font-size: 0.95rem; line-height: 1.6;">
-        ※ 데모용 Google 로그인입니다.<br>
-        실제 서비스에서는 더 다양한 로그인 옵션을 제공합니다.
-      </p>
-    </div>
-  </div>
-
-  <!-- ===== 메인 앱 ===== -->
-  <div id="appContainer" class="app-container">
-    <!-- 헤더 -->
-    <div class="app-header">
-      <div class="header-left">
-        <h1>⏰ TimeLink</h1>
-      </div>
-      <div class="header-right">
+    <div class="header-right">
+      <div class="balance-cards">
         <div class="balance-card">
           <div class="label">💰 내 지갑</div>
-          <div class="amount" id="tlBalance">0</div>
+          <div class="amount" id="tlBalance">15,000</div>
         </div>
         <div class="balance-card">
           <div class="label">🪙 보유 TLC</div>
-          <div class="amount" id="tlcBalance">0.00</div>
+          <div class="amount" id="tlcBalance">1,250.75</div>
         </div>
         <div class="balance-card">
           <div class="label">📊 기여지수</div>
-          <div class="amount" id="contributionIndex">1.00</div>
-        </div>
-        <div class="user-profile">
-          <div class="avatar-circle" id="userAvatar">U</div>
-          <div>
-            <div style="font-weight: 700;" id="currentUsername">User</div>
-            <div style="font-size: 12px; color: #666;" id="userStatus">Google 로그인</div>
-          </div>
-        </div>
-        <button class="btn-logout" onclick="logout()">로그아웃</button>
-      </div>
-    </div>
-
-    <!-- 탭 네비게이션 -->
-    <div class="tabs">
-      <div class="tab active" onclick="switchTab('dashboard')">📊 대시보드</div>
-      <div class="tab" onclick="switchTab('upload')">📤 TL3 생성</div>
-      <div class="tab" onclick="switchTab('library')">🎵 내 TL3 파일</div>
-      <div class="tab" onclick="switchTab('shareplace')">🔄 공유 플레이스</div>
-      <div class="tab" onclick="switchTab('radio')">📻 라디오</div>
-      <div class="tab" onclick="switchTab('commercial')">📺 상업방송</div>
-      <div class="tab" onclick="switchTab('charge')">💰 지갑 충전</div>
-      <div class="tab" onclick="switchTab('mining')">⛏️ TLC 채굴</div>
-      <div class="tab" onclick="switchTab('car')">🚗 차량</div>
-      <div class="tab" onclick="switchTab('gold')">🏆 금리저브</div>
-      <div class="tab" onclick="switchTab('ton')">⬡ TON TLC</div>
-    </div>
-
-    <!-- ===== 1. 대시보드 ===== -->
-    <div id="tabDashboard" class="tab-content active">
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="icon">💰</div>
-          <div class="label">내 지갑</div>
-          <div class="value" id="dashTL">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="icon">🪙</div>
-          <div class="label">보유 TLC</div>
-          <div class="value" id="dashTLC">0.00</div>
-        </div>
-        <div class="stat-card">
-          <div class="icon">📊</div>
-          <div class="label">기여지수</div>
-          <div class="value" id="dashIndex">1.00</div>
-        </div>
-        <div class="stat-card">
-          <div class="icon">⛏️</div>
-          <div class="label">채굴 한도</div>
-          <div class="value" id="dashMiningLimit">0 TL</div>
+          <div class="amount" id="contributionIndex">4.75</div>
         </div>
       </div>
+      <div class="user-profile">
+        <div class="avatar-circle" id="userAvatar">G</div>
+        <div>
+          <div style="font-weight:700;" id="currentUsername">Google 투자자</div>
+          <div style="font-size:12px; color:#f5576c;" id="userStatus">🏢 사업자 (데모)</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="demoLogout()">로그아웃</button>
+    </div>
+  </div>
+
+  <!-- 탭 네비게이션 -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('dashboard')">📊 대시보드</div>
+    <div class="tab" onclick="switchTab('upload')">📤 TL3 생성</div>
+    <div class="tab" onclick="switchTab('library')">🎵 내 TL3 파일</div>
+    <div class="tab" onclick="switchTab('shareplace')">🔄 공유 플레이스</div>
+    <div class="tab" onclick="switchTab('radio')">📻 라디오</div>
+    <div class="tab" onclick="switchTab('commercial')">📺 상업방송</div>
+    <div class="tab" onclick="switchTab('charge')">💰 지갑 충전</div>
+    <div class="tab" onclick="switchTab('mining')">⛏️ TLC 채굴</div>
+    <div class="tab" onclick="switchTab('car')">🚗 차량</div>
+    <div class="tab" onclick="switchTab('gold')">🏆 금리저브</div>
+    <div class="tab" onclick="switchTab('ton')">⬡ TON TLC</div>
+  </div>
+
+  <!-- ===== 1. 대시보드 ===== -->
+  <div id="tabDashboard" class="tab-content active">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="icon">💰</div>
+        <div class="label">내 지갑</div>
+        <div class="value" id="dashTL">15,000</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon">🪙</div>
+        <div class="label">보유 TLC</div>
+        <div class="value" id="dashTLC">1,250.75</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon">📊</div>
+        <div class="label">기여지수</div>
+        <div class="value" id="dashIndex">4.75</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon">⛏️</div>
+        <div class="label">채굴 한도</div>
+        <div class="value" id="dashMiningLimit">7,500 TL</div>
+      </div>
+    </div>
+    
+    <!-- 충전 필수 경고 -->
+    <div class="charge-warning">
+      <div class="charge-warning-icon">⚠️</div>
+      <div class="charge-warning-text">
+        <h3 style="color:#856404; margin-bottom:5px;">TL3 파일 = 충전 필수!</h3>
+        <p style="color:#856404;">재생하려면 반드시 TL을 충전해야 합니다. 충전 없이는 재생 버튼이 비활성화됩니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 2. TL3 파일 생성 ===== -->
+  <div id="tabUpload" class="tab-content">
+    <div class="card">
+      <h2>📤 TL3 파일 생성</h2>
+      <div style="background:#e8f5e9; padding:15px; border-radius:15px; margin-bottom:20px;">
+        <p style="color:#2e7d32; font-weight:700;">✅ TL3 파일 생성은 무료입니다!</p>
+      </div>
+      <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+        <div class="icon">☁️</div>
+        <h3 style="color:#333; margin-bottom:10px;">클릭하여 음악 파일 선택</h3>
+        <p style="color:#666;">MP3, WAV, FLAC (최대 100MB)</p>
+      </div>
+      <input type="file" id="fileInput" style="display:none;" accept="audio/*">
       
-      <!-- 충전 필수 경고 -->
-      <div class="charge-warning">
-        <div class="charge-warning-icon">⚠️</div>
-        <div class="charge-warning-text">
-          <h3 style="color: #856404; margin-bottom: 5px;">TL3 파일 = 충전 필수!</h3>
-          <p style="color: #856404;">재생하려면 반드시 TL을 충전해야 합니다. 충전 없이는 재생 버튼이 비활성화됩니다.</p>
+      <div id="uploadForm" style="display:none; margin-top:30px;">
+        <div class="form-group" style="margin-bottom:20px;">
+          <label style="display:block; margin-bottom:8px; color:#333; font-weight:600;">곡 제목</label>
+          <input type="text" id="songTitle" placeholder="노래 제목" style="width:100%; padding:15px; border:2px solid #e0e0e0; border-radius:12px;">
         </div>
-      </div>
-      
-      <!-- TL3 파일 설명 -->
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 20px; color: white; margin-bottom: 30px;">
-        <h2 style="color: white; margin-bottom: 20px;">🎵 TL3 파일이란?</h2>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center;">
-          <div>
-            <div style="font-size: 2.5rem;">🎵</div>
-            <div style="font-weight: 700;">음원</div>
-            <div style="font-size: 0.9rem; color: #ffd700;">MP3/WAV 파일</div>
-          </div>
-          <div>
-            <div style="font-size: 2.5rem;">⏱️</div>
-            <div style="font-weight: 700;">시간</div>
-            <div style="font-size: 0.9rem; color: #ffd700;">충전된 TL = 재생 시간</div>
-            <div style="font-size: 0.8rem; color: #ffd700; margin-top: 5px;">(1초 = 1TL)</div>
-          </div>
-          <div>
-            <div style="font-size: 2.5rem;">📋</div>
-            <div style="font-weight: 700;">저작권</div>
-            <div style="font-size: 0.9rem; color: #ffd700;">소유자/계약/채굴권</div>
-          </div>
+        <div class="form-group" style="margin-bottom:20px;">
+          <label style="display:block; margin-bottom:8px; color:#333; font-weight:600;">아티스트</label>
+          <input type="text" id="songArtist" placeholder="아티스트 이름" style="width:100%; padding:15px; border:2px solid #e0e0e0; border-radius:12px;">
         </div>
-      </div>
-    </div>
-
-    <!-- ===== 2. TL3 파일 생성 ===== -->
-    <div id="tabUpload" class="tab-content">
-      <div class="card">
-        <h2>📤 TL3 파일 생성</h2>
-        <div style="background: #e8f5e9; padding: 15px; border-radius: 15px; margin-bottom: 20px;">
-          <p style="color: #2e7d32; font-weight: 700;">✅ TL3 파일 생성은 무료입니다! 음원 + 저작권 정보</p>
+        <div class="form-group" style="margin-bottom:20px;">
+          <label style="display:block; margin-bottom:8px; color:#333; font-weight:600;">장르</label>
+          <select id="songGenre" style="width:100%; padding:15px; border:2px solid #e0e0e0; border-radius:12px;">
+            <option value="pop">팝</option>
+            <option value="rock">록</option>
+            <option value="hiphop">힙합</option>
+            <option value="jazz">재즈</option>
+            <option value="classical">클래식</option>
+            <option value="electronic">일렉트로닉</option>
+            <option value="rnb">R&B</option>
+            <option value="ballad">발라드</option>
+          </select>
         </div>
-        <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
-          <div class="icon">☁️</div>
-          <h3>클릭하여 음악 파일 선택</h3>
-          <p>MP3, WAV, FLAC (최대 100MB)</p>
-        </div>
-        <input type="file" id="fileInput" style="display: none;" accept="audio/*">
         
-        <div id="uploadForm" style="display: none; margin-top: 30px;">
-          <div class="form-group">
-            <label>곡 제목</label>
-            <input type="text" id="songTitle" placeholder="노래 제목">
+        <div style="background:#f0f4ff; padding:24px; border-radius:15px; margin-bottom:24px;">
+          <h3 style="margin-bottom:20px; color:#667eea;">📋 저작권 정보</h3>
+          <div class="form-group" style="margin-bottom:20px;">
+            <label style="display:block; margin-bottom:8px; color:#333; font-weight:600;">저작권자</label>
+            <input type="text" id="copyrightOwner" value="Google 투자자" style="width:100%; padding:15px; border:2px solid #e0e0e0; border-radius:12px;">
           </div>
-          <div class="form-group">
-            <label>아티스트</label>
-            <input type="text" id="songArtist" placeholder="아티스트 이름">
-          </div>
-          <div class="form-group">
-            <label>장르</label>
-            <select id="songGenre">
-              <option value="pop">팝</option>
-              <option value="rock">록</option>
-              <option value="hiphop">힙합</option>
-              <option value="jazz">재즈</option>
-              <option value="classical">클래식</option>
-              <option value="electronic">일렉트로닉</option>
-              <option value="rnb">R&B</option>
-              <option value="ballad">발라드</option>
+          <div class="form-group" style="margin-bottom:20px;">
+            <label style="display:block; margin-bottom:8px; color:#333; font-weight:600;">수익 분배 계약</label>
+            <select id="revenueShare" style="width:100%; padding:15px; border:2px solid #e0e0e0; border-radius:12px;">
+              <option value="73">7:3 계약 - 채굴권 없음</option>
+              <option value="55" selected>5:5 계약 - 채굴권 있음 ⛏️</option>
             </select>
           </div>
-          
-          <div style="background: #f0f4ff; padding: 20px; border-radius: 15px; margin-bottom: 20px;">
-            <h3 style="margin-bottom: 15px; color: #667eea;">📋 저작권 정보</h3>
-            <div class="form-group">
-              <label>저작권자</label>
-              <input type="text" id="copyrightOwner" value="" placeholder="저작권자 이름">
-            </div>
-            <div class="form-group">
-              <label>수익 분배 계약</label>
-              <select id="revenueShare">
-                <option value="73">7:3 계약 (크리에이터 70% / 플랫폼 30%) - 채굴권 없음</option>
-                <option value="55">5:5 계약 (크리에이터 50% / 플랫폼 50%) - 채굴권 있음 ⛏️</option>
-              </select>
-            </div>
-          </div>
-          
-          <button class="btn btn-primary" onclick="uploadFile()">✨ TL3 파일 생성 (무료)</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== 3. 내 TL3 파일 ===== -->
-    <div id="tabLibrary" class="tab-content">
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-          <h2>🎵 내 TL3 파일</h2>
-          <div>
-            <span style="background: #4facfe; color: white; padding: 8px 16px; border-radius: 30px;">5:5 = 채굴가능</span>
-            <span style="background: #fa709a; color: white; padding: 8px 16px; border-radius: 30px; margin-left: 10px;">7:3 = 채굴불가</span>
-          </div>
-        </div>
-        <div id="fileList" class="file-list"></div>
-        <div id="emptyLibrary" style="text-align: center; padding: 60px; color: #999; display: none;">
-          <div style="font-size: 4rem;">🎵</div>
-          <h3>생성한 TL3 파일이 없습니다</h3>
-          <p style="margin-top: 10px;">음악 파일을 업로드하여 TL3 파일을 생성하세요!</p>
-          <button class="btn btn-primary" onclick="switchTab('upload')" style="margin-top: 20px;">첫 TL3 파일 생성</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== 4. 공유 플레이스 ===== -->
-    <div id="tabShareplace" class="tab-content">
-      <div class="share-header">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <h2 style="color: white; margin-bottom: 15px;">🔄 공유 플레이스</h2>
-            <p style="color: rgba(255,255,255,0.9);">
-              다른 크리에이터의 TL3 파일을 감상하세요!<br>
-              <strong>🎧 재생 시 TL3 파일에 충전된 TL 소모 (1초 = 1TL)</strong>
-            </p>
-          </div>
-          <div style="background: rgba(255,255,255,0.2); padding: 15px 25px; border-radius: 30px;">
-            <span id="sharedCount">0</span>개 공유된 TL3 파일
-          </div>
-        </div>
-        <div style="margin-top: 20px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 15px;">
-          <p style="color: white;">💰 내 TL3 파일 공유 시 <strong style="font-size: 1.3rem;">5,000 TL</strong> 차감 (내 지갑 → 플랫폼 수익)</p>
-        </div>
-      </div>
-
-      <div class="share-stats">
-        <div class="share-stat-card">
-          <div style="color: #666;">전체 공유</div>
-          <div class="share-stat-value" id="totalSharedCount">0</div>
-        </div>
-        <div class="share-stat-card">
-          <div style="color: #666;">7:3 계약</div>
-          <div class="share-stat-value" id="shared73Count">0</div>
-        </div>
-        <div class="share-stat-card">
-          <div style="color: #666;">5:5 계약</div>
-          <div class="share-stat-value" id="shared55Count">0</div>
-        </div>
-      </div>
-
-      <div class="share-filter">
-        <button class="filter-btn active" onclick="filterSharePlace('all')">전체</button>
-        <button class="filter-btn" onclick="filterSharePlace('73')">7:3 계약</button>
-        <button class="filter-btn" onclick="filterSharePlace('55')">5:5 계약</button>
-        <button class="filter-btn" onclick="filterSharePlace('mining')">채굴 가능</button>
-      </div>
-
-      <div id="sharedMusicList" class="file-list"></div>
-      <div id="emptyShared" style="text-align: center; padding: 60px; color: #999; display: none;">
-        <div style="font-size: 4rem;">🔄</div>
-        <h3>공유된 TL3 파일이 없습니다</h3>
-      </div>
-    </div>
-
-    <!-- ===== 5. 라디오 ===== -->
-    <div id="tabRadio" class="tab-content">
-      <div class="radio-header">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <h2 style="color: white; font-size: 2rem; margin-bottom: 10px;">📻 TimeLink Radio</h2>
-            <p style="color: rgba(255,255,255,0.9);">공유 플레이스의 TL3 파일 24시간 실시간 스트리밍</p>
-            <p style="color: rgba(255,255,255,0.9); margin-top: 10px;">
-              <strong>🎧 1초 재생 = 내 지갑에서 1TL 소모</strong>
-            </p>
-          </div>
-          <div style="background: rgba(255,255,255,0.2); padding: 15px 30px; border-radius: 40px;">
-            🔴 LIVE 24/7
-          </div>
-        </div>
-      </div>
-      <div id="radioChannels" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px;"></div>
-    </div>
-
-    <!-- ===== 6. 상업방송 ===== -->
-    <div id="tabCommercial" class="tab-content">
-      <div class="commercial-header">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <h2 style="color: white; font-size: 2rem; margin-bottom: 10px;">📺 TimeLink Commercial</h2>
-            <p style="color: rgba(255,255,255,0.9);">사업자 등록 크리에이터 전용</p>
-            <p style="color: rgba(255,255,255,0.9); margin-top: 10px;">
-              <strong>🎧 1초 재생 = 내 지갑에서 1TL 소모</strong>
-            </p>
-          </div>
-          <div style="background: rgba(255,255,255,0.2); padding: 15px 30px; border-radius: 40px;">
-            💰 BUSINESS ONLY
-          </div>
-        </div>
-      </div>
-      <div id="commercialChannels" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px;"></div>
-      
-      <div id="businessApplySection" class="card" style="text-align: center;">
-        <h3>사업자 등록하기</h3>
-        <p style="color: #666; margin: 20px 0;">상업방송을 이용하려면 사업자 등록이 필요합니다</p>
-        <button class="btn btn-business" onclick="applyForBusiness()" style="width: auto; padding: 15px 40px;">사업자 신청</button>
-      </div>
-    </div>
-
-    <!-- ===== 7. 지갑 충전 ===== -->
-    <div id="tabCharge" class="tab-content">
-      <div class="card">
-        <h2>💰 내 지갑 충전</h2>
-        <p style="color: #666; margin-bottom: 20px;">TL3 파일에 충전할 TL을 내 지갑에 추가하세요!</p>
-        <div class="charge-options">
-          <div class="charge-card" onclick="watchAd()">
-            <div class="icon">📺</div>
-            <h3>광고 시청</h3>
-            <div class="amount">+10 TL</div>
-            <p>30초 광고 시청</p>
-          </div>
-          <div class="charge-card" onclick="chargeTL(1000)">
-            <div class="icon">💳</div>
-            <h3>소액 충전</h3>
-            <div class="amount">+1,000 TL</div>
-            <p>$1.00</p>
-          </div>
-          <div class="charge-card" onclick="chargeTL(5000)">
-            <div class="icon">🎁</div>
-            <h3>프리미엄 팩</h3>
-            <div class="amount">+5,000 TL</div>
-            <p>$4.00 (20% 할인)</p>
-          </div>
-          <div class="charge-card" onclick="chargeTL(10000)">
-            <div class="icon">👑</div>
-            <h3>VIP 패키지</h3>
-            <div class="amount">+10,000 TL</div>
-            <p>$7.50 (25% 할인)</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== 8. 채굴 ===== -->
-    <div id="tabMining" class="tab-content">
-      <div class="card">
-        <h2>⛏️ TLC 채굴</h2>
-        <div class="mining-limit-box">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <div style="font-weight: 700; font-size: 1.2rem; margin-bottom: 10px;">⚠️ 채굴 한도: 보유 TL의 50%</div>
-              <div style="font-size: 2rem; font-weight: 800; color: #ff9800;" id="miningLimitAmount">0 / 0 TL</div>
-            </div>
-            <div>
-              <div style="color: #666; margin-bottom: 5px;">내 기여지수</div>
-              <div style="font-size: 2rem; font-weight: 800; color: #667eea;" id="miningIndexDisplay">1.00</div>
-            </div>
-          </div>
-          <div class="mining-progress">
-            <div class="mining-progress-fill" id="miningProgressFill" style="width: 0%;"></div>
-          </div>
-        </div>
-        <div id="miningPermissionCheck" style="background: #fff3cd; padding: 20px; border-radius: 15px; margin: 30px 0;">
-          <div style="display: flex; align-items: center; gap: 15px;">
-            <span style="font-size: 2rem;">⛏️</span>
-            <div>
-              <span style="font-weight: 700; color: #856404;" id="miningPermissionMessage">채굴권 확인중...</span>
-              <p style="color: #856404; font-size: 14px; margin-top: 5px;" id="miningPermissionDetail">
-                * 5:5 계약 TL3 파일을 보유해야 채굴할 수 있습니다
-              </p>
-            </div>
-          </div>
-        </div>
-        <div style="margin-top: 30px;">
-          <div class="form-group">
-            <label>채굴할 TL 양 (최대 <span id="maxMiningLabel">0</span> TL)</label>
-            <input type="number" id="miningAmount" placeholder="500" min="1" style="font-size: 18px; padding: 20px; width: 100%;">
-          </div>
-          <div style="background: #f8f9fa; padding: 25px; border-radius: 15px; margin: 20px 0;">
-            <h3 style="margin-bottom: 15px;">📊 채굴 예상량</h3>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-              <span>투입 TL:</span>
-              <strong id="previewInput">0 TL</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-              <span>기여지수:</span>
-              <strong id="previewIndex">1.00x</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-              <span>획득 TLC:</span>
-              <strong id="previewOutput">0 TLC</strong>
-            </div>
-          </div>
-          <button class="btn btn-primary" onclick="executeMining()" style="margin-top: 20px; padding: 20px; font-size: 1.2rem; width: 100%;">
-            ⛏️ TLC 채굴 실행
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== 9. 차량 ===== -->
-    <div id="tabCar" class="tab-content">
-      <div class="car-contribution-box">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-          <div>
-            <h2 style="color: white; margin-bottom: 15px;">🚗 차량 청취</h2>
-            <p style="color: rgba(255,255,255,0.9); font-size: 1.2rem;">
-              <strong style="font-size: 2.5rem;">1분 = 10 TL</strong> 기여도 (일반의 2배!)
-            </p>
-          </div>
-          <div style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 20px; text-align: center;">
-            <div style="font-size: 14px; opacity: 0.9;">내 누적 운전 청취</div>
-            <div style="font-size: 3rem; font-weight: 800; color: white;" id="userTotalDrivingTime">0분</div>
-          </div>
         </div>
         
-        <div style="background: rgba(255,255,255,0.1); padding: 30px; border-radius: 20px; margin-bottom: 30px;">
-          <h3 style="color: white; margin-bottom: 20px;">🚘 차량 등록</h3>
-          <div style="display: flex; gap: 15px;">
-            <input type="text" id="carModel" placeholder="차량 모델 (예: Tesla Model 3)" style="flex: 2; padding: 15px; border-radius: 10px; border: none;">
-            <input type="text" id="carPlate" placeholder="번호판" style="flex: 1; padding: 15px; border-radius: 10px; border: none;">
-            <button class="btn btn-primary" onclick="registerCar()" style="background: white; color: #3498db; margin: 0; width: auto; padding: 15px 30px;">🚗 등록</button>
-          </div>
-          <div id="carList" style="margin-top: 20px; color: white;"></div>
+        <button class="btn btn-primary" onclick="uploadFile()" style="width:100%; padding:18px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; border:none; border-radius:15px; font-weight:700; cursor:pointer;">✨ TL3 파일 생성 (무료)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 3. 🔥 내 TL3 파일 ===== -->
+  <div id="tabLibrary" class="tab-content">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+        <h2>🎵 내 TL3 파일</h2>
+        <div>
+          <span style="background:#4facfe; color:white; padding:8px 16px; border-radius:30px;">5:5 = 채굴가능</span>
+          <span style="background:#fa709a; color:white; padding:8px 16px; border-radius:30px; margin-left:10px;">7:3 = 채굴불가</span>
         </div>
-        
-        <div style="display: flex; gap: 20px;">
-          <button class="btn btn-primary" onclick="addDrivingMinutes(10)" style="background: white; color: #3498db; flex: 1; padding: 20px; font-size: 1.2rem;">
-            🚗 +10분 (100 TL)
-          </button>
-          <button class="btn btn-primary" onclick="addDrivingMinutes(30)" style="background: white; color: #3498db; flex: 1; padding: 20px; font-size: 1.2rem;">
-            🚗 +30분 (300 TL)
-          </button>
-          <button class="btn btn-primary" onclick="addDrivingMinutes(60)" style="background: white; color: #3498db; flex: 1; padding: 20px; font-size: 1.2rem;">
-            🚗 +60분 (600 TL)
-          </button>
-        </div>
+      </div>
+      <div id="fileList" class="file-list"></div>
+      <div id="emptyLibrary" style="text-align:center; padding:60px; color:#999; display:none;">
+        <div style="font-size:4rem; margin-bottom:20px;">🎵</div>
+        <h3>생성한 TL3 파일이 없습니다</h3>
+        <p style="margin-top:10px;">음악 파일을 업로드하여 TL3 파일을 생성하세요!</p>
+        <button class="btn btn-primary" onclick="switchTab('upload')" style="margin-top:20px; padding:14px 40px;">첫 TL3 파일 생성</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 4. 🔥 공유 플레이스 (내가 공유한 파일 즉시 표시!) ===== -->
+  <div id="tabShareplace" class="tab-content">
+    <div class="share-header">
+      <div>
+        <h2 style="color:white; margin-bottom:10px;">🔄 공유 플레이스</h2>
+        <p style="color:rgba(255,255,255,0.9);">
+          <strong style="font-size:1.2rem;">✨ 내가 공유한 TL3 파일이 즉시 여기에 표시됩니다! ✨</strong>
+        </p>
+      </div>
+      <div style="background:rgba(255,255,255,0.2); padding:12px 28px; border-radius:30px;">
+        <span id="sharedCount" style="font-weight:700; color:white;">0</span>개 공유됨
+      </div>
+    </div>
+    
+    <div style="background:rgba(245,158,11,0.1); border-left:8px solid #ff9800; padding:20px; border-radius:15px; margin-bottom:32px;">
+      <p style="color:#fbbf24; font-weight:700;">💰 내 TL3 파일 공유 시 5,000 TL 차감 (내 지갑 → 플랫폼 수익)</p>
+    </div>
+
+    <div class="share-stats">
+      <div class="share-stat-card">
+        <div style="color:#666;">전체 공유</div>
+        <div class="share-stat-value" id="totalSharedCount">0</div>
+      </div>
+      <div class="share-stat-card">
+        <div style="color:#666;">7:3 계약</div>
+        <div class="share-stat-value" id="shared73Count">0</div>
+      </div>
+      <div class="share-stat-card">
+        <div style="color:#666;">5:5 계약</div>
+        <div class="share-stat-value" id="shared55Count">0</div>
       </div>
     </div>
 
-    <!-- ===== 10. 금리저브 ===== -->
-    <div id="tabGold" class="tab-content">
-      <div class="gold-reserve-card">
-        <h2 style="color: white;">🏆 금 담보 리저브</h2>
-        <p style="color: rgba(255,255,255,0.95);">플랫폼 수익의 10%를 실물 금으로 구매하여 영구 보관</p>
-      </div>
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="icon">🏆</div>
-          <div class="label">총 금 보유량</div>
-          <div class="value">10.24 g</div>
-        </div>
-        <div class="stat-card">
-          <div class="icon">💵</div>
-          <div class="label">금 가치 (USD)</div>
-          <div class="value">$665</div>
-        </div>
-        <div class="stat-card">
-          <div class="icon">📈</div>
-          <div class="label">금 시세</div>
-          <div class="value">$65/g</div>
-        </div>
-        <div class="stat-card">
-          <div class="icon">🔒</div>
-          <div class="label">담보 비율</div>
-          <div class="value">245%</div>
-        </div>
-      </div>
+    <div class="share-filter">
+      <button class="filter-btn active" onclick="filterSharePlace('all')">전체</button>
+      <button class="filter-btn" onclick="filterSharePlace('73')">7:3 계약</button>
+      <button class="filter-btn" onclick="filterSharePlace('55')">5:5 계약</button>
+      <button class="filter-btn" onclick="filterSharePlace('mining')">채굴 가능</button>
     </div>
 
-    <!-- ===== 11. TON TLC ===== -->
-    <div id="tabTon" class="tab-content">
-      <div class="ton-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-          <div>
-            <h2 style="color: white; margin-bottom: 15px;">⬡ TON TLC Coin</h2>
-            <p style="color: rgba(255,255,255,0.9);">TON 블록체인 기반 TLC 코인</p>
-          </div>
-          <span class="ton-badge">TON Testnet</span>
+    <!-- 🔥🔥🔥 공유된 TL3 파일 목록 (여기에 내가 공유한 파일이 즉시 나타납니다!) 🔥🔥🔥 -->
+    <div id="sharedMusicList" class="file-list"></div>
+    <div id="emptyShared" style="text-align:center; padding:60px; color:#999; display:block;">
+      <div style="font-size:4rem; margin-bottom:20px;">🔄</div>
+      <h3>아직 공유된 TL3 파일이 없습니다</h3>
+      <p style="margin-top:10px;">내 라이브러리에서 파일을 공유해보세요!</p>
+    </div>
+  </div>
+
+  <!-- ===== 5. 라디오 ===== -->
+  <div id="tabRadio" class="tab-content">
+    <div class="radio-header">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h2 style="color:white; font-size:2rem; margin-bottom:10px;">📻 TimeLink Radio</h2>
+          <p style="color:rgba(255,255,255,0.9);">24시간 실시간 스트리밍</p>
+          <p style="color:rgba(255,255,255,0.9); margin-top:10px;"><strong>🎧 1초 재생 = 내 지갑 1TL 소모</strong></p>
         </div>
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px;">
-          <div style="background: rgba(255,255,255,0.1); padding: 30px; border-radius: 20px;">
-            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 10px;">내 TLC 잔액</div>
-            <div style="font-size: 3rem; font-weight: 800;" id="tonTLCBalance">0.00</div>
-          </div>
-          <div style="background: rgba(255,255,255,0.1); padding: 30px; border-radius: 20px;">
-            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 10px;">TON 지갑</div>
-            <div style="font-size: 1rem; font-family: monospace; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px;" id="tonWalletAddress">
-              연결되지 않음
-            </div>
-            <button class="btn btn-primary" onclick="connectWallet()" style="margin-top: 20px; background: white; color: #0088CC; width: 100%;">
-              🔗 TON 지갑 연결
-            </button>
-          </div>
+        <div style="background:rgba(255,255,255,0.2); padding:12px 28px; border-radius:40px;">🔴 LIVE 24/7</div>
+      </div>
+    </div>
+    <div id="radioChannels" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px,1fr)); gap:24px;"></div>
+  </div>
+
+  <!-- ===== 6. 상업방송 ===== -->
+  <div id="tabCommercial" class="tab-content">
+    <div class="commercial-header">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h2 style="color:white; font-size:2rem; margin-bottom:10px;">📺 TimeLink Commercial</h2>
+          <p style="color:rgba(255,255,255,0.9);">사업자 등록 크리에이터 전용</p>
+          <p style="color:rgba(255,255,255,0.9); margin-top:10px;"><strong>🎧 1초 재생 = 내 지갑 1TL 소모</strong></p>
+        </div>
+        <div style="background:rgba(255,255,255,0.2); padding:12px 28px; border-radius:40px;">💰 BUSINESS ONLY</div>
+      </div>
+    </div>
+    <div id="commercialChannels" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px,1fr)); gap:24px;"></div>
+  </div>
+
+  <!-- ===== 7. 지갑 충전 ===== -->
+  <div id="tabCharge" class="tab-content">
+    <div class="card">
+      <h2>💰 내 지갑 충전</h2>
+      <p style="color:#666; margin-bottom:20px;">TL3 파일에 충전할 TL을 내 지갑에 추가하세요!</p>
+      <div class="charge-options">
+        <div class="charge-card" onclick="watchAd()">
+          <div class="icon">📺</div>
+          <h3>광고 시청</h3>
+          <div class="amount">+10 TL</div>
+          <p style="color:#666;">30초 광고 시청</p>
+        </div>
+        <div class="charge-card" onclick="chargeTL(1000)">
+          <div class="icon">💳</div>
+          <h3>소액 충전</h3>
+          <div class="amount">+1,000 TL</div>
+          <p style="color:#666;">$1.00</p>
+        </div>
+        <div class="charge-card" onclick="chargeTL(5000)">
+          <div class="icon">🎁</div>
+          <h3>프리미엄 팩</h3>
+          <div class="amount">+5,000 TL</div>
+          <p style="color:#666;">$4.00 (20% 할인)</p>
+        </div>
+        <div class="charge-card" onclick="chargeTL(10000)">
+          <div class="icon">👑</div>
+          <h3>VIP 패키지</h3>
+          <div class="amount">+10,000 TL</div>
+          <p style="color:#666;">$7.50 (25% 할인)</p>
         </div>
       </div>
     </div>
   </div>
 
-  <script>
-    // ============================================================================
-    // TimeLink v20.1 - 투자자 데모 (Supabase Google 로그인 + 모든 기능 완전 통합)
-    // 원본 디자인 100% 유지, TL3 파일 완전 작동, Google 로그인 즉시 플랫폼 진입!
-    // ============================================================================
-
-    // ==================== Supabase 초기화 ====================
-    const supabase = Supabase.createClient(
-      'https://zwjltxbccjklcjzngmpy.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3amx0eGJjY2prbGNqem5nbXB5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5Mjk0MDEsImV4cCI6MjA4NjUwNTQwMX0.a2KCt2DX6ubSnh5aZJXyG9O6zRHIujrO5OAV6zMG3Sw'
-    );
-
-    // ==================== 전역 변수 ====================
-    let users = JSON.parse(localStorage.getItem('timelink_users_v20')) || [];
-    let tl3Files = JSON.parse(localStorage.getItem('timelink_tl3_files_v20')) || [];
-    let sharedFiles = JSON.parse(localStorage.getItem('timelink_shared_v20')) || [];
-    let currentUser = null;
-    let adInterval = null;
-    let currentFilter = 'all';
-    let radioInterval = null;
-    let commercialInterval = null;
-    let playInterval = null;
-    let currentPlayTime = 0;
-    let currentPlayTotal = 0;
-    let currentPlayingFile = null;
-    let currentPlayType = null;
-    let currentPlayingFileId = null;
-    let audioPlayer = null;
-
-    // ==================== Google 로그인 ====================
-    async function loginWithGoogle() {
-      try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: window.location.origin
-          }
-        });
-        if (error) throw error;
-      } catch (err) {
-        alert('로그인 실패: ' + err.message);
-      }
-    }
-
-    // ==================== 로그인 상태 체크 & UI 업데이트 ====================
-    async function handleUserSession() {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (user) {
-        // 구글 사용자 정보로 currentUser 생성
-        currentUser = {
-          id: user.id,
-          username: user.user_metadata?.full_name || user.email?.split('@')[0] || '크리에이터',
-          email: user.email,
-          tlBalance: 15000,        // 데모용 초기값
-          tlcBalance: 1250.75,
-          totalChargedTL: 15000,
-          listenMinutes: 450,
-          drivingMinutes: 120,
-          contributionTL: 3750,
-          contributionIndex: 4.75,
-          isBusiness: true,
-          hasMiningRight: true,
-          cars: [{ model: 'Google User Car', plate: 'GOO-123' }],
-          uploadedFiles: 2
-        };
-
-        // UI 전환
-        document.getElementById('authContainer').style.display = 'none';
-        document.getElementById('appContainer').style.display = 'block';
-
-        // 헤더 업데이트
-        document.getElementById('currentUsername').textContent = currentUser.username;
-        document.getElementById('userAvatar').textContent = currentUser.username.charAt(0).toUpperCase();
-        document.getElementById('tlBalance').textContent = currentUser.tlBalance.toLocaleString();
-        document.getElementById('tlcBalance').textContent = currentUser.tlcBalance.toFixed(2);
-        document.getElementById('contributionIndex').textContent = currentUser.contributionIndex.toFixed(2);
-        
-        // 대시보드 업데이트
-        document.getElementById('dashTL').textContent = currentUser.tlBalance.toLocaleString();
-        document.getElementById('dashTLC').textContent = currentUser.tlcBalance.toFixed(2);
-        document.getElementById('dashIndex').textContent = currentUser.contributionIndex.toFixed(2);
-        
-        // 채굴 한도 업데이트
-        const maxMining = Math.floor(currentUser.tlBalance * 0.5);
-        document.getElementById('dashMiningLimit').textContent = maxMining + ' TL';
-        document.getElementById('miningLimitAmount').textContent = maxMining + ' / ' + currentUser.tlBalance + ' TL';
-        document.getElementById('miningAvailable').textContent = maxMining + ' TL';
-        document.getElementById('maxMiningLabel').textContent = maxMining;
-        document.getElementById('miningIndexDisplay').textContent = currentUser.contributionIndex.toFixed(2);
-        document.getElementById('miningProgressFill').style.width = '50%';
-        
-        // 차량 정보 업데이트
-        document.getElementById('userTotalDrivingTime').textContent = (currentUser.drivingMinutes || 0) + '분';
-        document.getElementById('tonTLCBalance').textContent = currentUser.tlcBalance.toFixed(2);
-        
-        // 사용자 상태 표시
-        document.getElementById('userStatus').innerHTML = currentUser.isBusiness ? '🏢 사업자 (Google)' : '👤 개인 (Google)';
-        document.getElementById('userStatus').style.color = currentUser.isBusiness ? '#f5576c' : '#666';
-        
-        document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
-
-        // 기존 초기화 함수들 호출
-        loadLibrary();
-        loadSharedMusic();
-        initRadioChannels();
-        initCommercialChannels();
-        checkMiningPermission();
-        updateBusinessUI();
-
-        showToast('✅ Google 로그인 성공! TimeLink 플랫폼에 오신 것을 환영합니다.', 'success');
-        console.log('✅ Google 로그인 성공 → 플랫폼 진입');
-      }
-    }
-
-    // ==================== 로그아웃 ====================
-    async function logout() {
-      if (playInterval) clearInterval(playInterval);
-      if (audioPlayer) { audioPlayer.pause(); audioPlayer.src = ''; }
-      if (radioInterval) clearInterval(radioInterval);
-      if (commercialInterval) clearInterval(commercialInterval);
-
-      await supabase.auth.signOut();
-      currentUser = null;
-      document.getElementById('authContainer').style.display = 'flex';
-      document.getElementById('appContainer').style.display = 'none';
-      showToast('로그아웃 되었습니다', 'info');
-    }
-
-    // ==================== 실시간 인증 상태 감지 ====================
-    supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth event:', event);
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        handleUserSession();
-      } else if (event === 'SIGNED_OUT') {
-        if (playInterval) clearInterval(playInterval);
-        if (radioInterval) clearInterval(radioInterval);
-        if (commercialInterval) clearInterval(commercialInterval);
-        currentUser = null;
-        document.getElementById('authContainer').style.display = 'flex';
-        document.getElementById('appContainer').style.display = 'none';
-      }
-    });
-
-    // ==================== 토스트 메시지 ====================
-    function showToast(message, type = 'success') {
-      const toast = document.getElementById('toast');
-      toast.textContent = message;
-      toast.className = 'toast ' + type;
-      toast.style.display = 'block';
-      
-      setTimeout(() => {
-        toast.style.display = 'none';
-      }, 3000);
-    }
-
-    // ==================== 기여도 업데이트 ====================
-    function updateContribution() {
-      if (!currentUser) return;
-      
-      const chargeContribution = Math.floor(currentUser.totalChargedTL / 100);
-      const listenContribution = (currentUser.listenMinutes || 0) * 5;
-      const drivingContribution = (currentUser.drivingMinutes || 0) * 10;
-      
-      currentUser.contributionTL = chargeContribution + listenContribution + drivingContribution;
-      currentUser.contributionIndex = 1 + (currentUser.contributionTL / 1000);
-      currentUser.contributionIndex = Math.round(currentUser.contributionIndex * 100) / 100;
-      
-      document.getElementById('contributionIndex').textContent = currentUser.contributionIndex.toFixed(2);
-      document.getElementById('dashIndex').textContent = currentUser.contributionIndex.toFixed(2);
-      document.getElementById('miningIndexDisplay').textContent = currentUser.contributionIndex.toFixed(2);
-    }
-
-    // ==================== 광고 시청 ====================
-    function watchAd() {
-      if (!currentUser) return;
-      
-      document.getElementById('adModal').style.display = 'flex';
-      let seconds = 30;
-      document.getElementById('adTimer').textContent = seconds + '초';
-      
-      adInterval = setInterval(() => {
-        seconds--;
-        document.getElementById('adTimer').textContent = seconds + '초';
-        
-        if (seconds <= 0) {
-          clearInterval(adInterval);
-          
-          currentUser.tlBalance += 10;
-          currentUser.totalChargedTL += 10;
-          updateContribution();
-          
-          document.getElementById('adModal').style.display = 'none';
-          document.getElementById('tlBalance').textContent = currentUser.tlBalance.toLocaleString();
-          document.getElementById('dashTL').textContent = currentUser.tlBalance.toLocaleString();
-          document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
-          
-          showToast('✅ 10 TL 지급 완료!', 'success');
-        }
-      }, 1000);
-    }
-
-    function closeAdModal() {
-      if (adInterval) clearInterval(adInterval);
-      document.getElementById('adModal').style.display = 'none';
-    }
-
-    // ==================== TL 충전 (내 지갑) ====================
-    function chargeTL(amount) {
-      if (!currentUser) return;
-      
-      currentUser.tlBalance += amount;
-      currentUser.totalChargedTL += amount;
-      updateContribution();
-      
-      document.getElementById('tlBalance').textContent = currentUser.tlBalance.toLocaleString();
-      document.getElementById('dashTL').textContent = currentUser.tlBalance.toLocaleString();
-      document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
-      
-      const maxMining = Math.floor(currentUser.tlBalance * 0.5);
-      document.getElementById('dashMiningLimit').textContent = maxMining + ' TL';
-      document.getElementById('miningLimitAmount').textContent = maxMining + ' / ' + currentUser.tlBalance + ' TL';
-      document.getElementById('miningAvailable').textContent = maxMining + ' TL';
-      document.getElementById('maxMiningLabel').textContent = maxMining;
-      
-      showToast(`✅ ${amount.toLocaleString()} TL 충전 완료!`, 'success');
-    }
-
-    // ==================== 파일 업로드 ====================
-    let selectedFile = null;
-    let selectedFileData = null;
-    
-    document.getElementById('fileInput')?.addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      
-      selectedFile = file;
-      
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        selectedFileData = e.target.result;
-        document.getElementById('uploadForm').style.display = 'block';
-        document.getElementById('songTitle').value = file.name.replace(/\.[^/.]+$/, "");
-        document.getElementById('songArtist').value = currentUser?.username || '아티스트';
-        document.getElementById('copyrightOwner').value = currentUser?.username || '';
-      };
-      reader.readAsDataURL(file);
-    });
-
-    function uploadFile() {
-      if (!selectedFile || !selectedFileData) {
-        showToast('파일을 선택하세요', 'error');
-        return;
-      }
-      
-      if (!currentUser) return;
-      
-      const title = document.getElementById('songTitle').value;
-      const artist = document.getElementById('songArtist').value || currentUser.username;
-      const genre = document.getElementById('songGenre').value;
-      const revenueShare = document.getElementById('revenueShare').value;
-      const copyrightOwner = document.getElementById('copyrightOwner').value || currentUser.username;
-      
-      if (!title) {
-        showToast('곡 제목을 입력하세요', 'error');
-        return;
-      }
-      
-      const newTL3File = {
-        id: 'tl3_' + Date.now(),
-        title: title,
-        artist: artist,
-        genre: genre,
-        fileName: selectedFile.name,
-        fileType: selectedFile.type,
-        fileData: selectedFileData,
-        fileSize: selectedFile.size,
-        revenueShare: revenueShare,
-        miningAllowed: revenueShare === '55',
-        remainingTL: 0,
-        totalTL: 0,
-        creatorId: currentUser.id,
-        creatorName: currentUser.username,
-        copyrightOwner: copyrightOwner,
-        contractType: revenueShare === '55' ? '5:5 계약' : '7:3 계약',
-        createdAt: new Date().toISOString(),
-        playCount: 0
-      };
-      
-      tl3Files.push(newTL3File);
-      localStorage.setItem('timelink_tl3_files_v20', JSON.stringify(tl3Files));
-      
-      showToast('✅ TL3 파일 생성 완료! (TL 충전 필요)', 'success');
-      
-      document.getElementById('uploadForm').style.display = 'none';
-      selectedFile = null;
-      selectedFileData = null;
-      
-      loadLibrary();
-      checkMiningPermission();
-    }
-
-    // ==================== 내 TL3 파일 로드 ====================
-    function loadLibrary() {
-      const container = document.getElementById('fileList');
-      const emptyMsg = document.getElementById('emptyLibrary');
-      
-      if (!container || !currentUser) return;
-      
-      const myFiles = tl3Files.filter(f => f.creatorId === currentUser.id);
-      
-      if (myFiles.length === 0) {
-        container.innerHTML = '';
-        if (emptyMsg) emptyMsg.style.display = 'block';
-        return;
-      }
-      
-      if (emptyMsg) emptyMsg.style.display = 'none';
-      
-      container.innerHTML = myFiles.map(file => {
-        const percent = file.totalTL > 0 ? (file.remainingTL / file.totalTL) * 100 : 0;
-        const playableMinutes = Math.floor(file.remainingTL / 60);
-        const playableSeconds = file.remainingTL % 60;
-        const hasTL = file.remainingTL > 0;
-        
-        return `
-          <div class="file-card">
-            <div class="file-thumbnail">
-              🎵
-              ${!hasTL ? 
-                `<span class="no-tl-badge" style="position: absolute; top: 15px; right: 15px;">⚠️ 충전 필요</span>` : 
-                `<span class="tl3-badge" style="position: absolute; top: 15px; right: 15px; background: ${file.revenueShare === '55' ? '#4facfe' : '#fa709a'};">
-                  ${file.revenueShare === '55' ? '5:5 채굴가능' : '7:3 채굴불가'}
-                </span>`
-              }
-            </div>
-            <div class="file-info">
-              <div class="file-name">${file.title}</div>
-              <div class="file-artist">${file.artist}</div>
-              
-              <div class="copyright-info">
-                <strong>📋 저작권 정보</strong><br>
-                저작권자: ${file.copyrightOwner}<br>
-                계약: ${file.contractType}<br>
-                채굴권: ${file.miningAllowed ? '✅ 있음' : '❌ 없음'}
-              </div>
-              
-              <div class="file-stats">
-                <span>⏱️ 충전된 TL</span>
-                <span style="font-weight: 700; color: ${hasTL ? (file.remainingTL < 60 ? '#ff9800' : '#667eea') : '#f43f5e'};">${file.remainingTL} TL</span>
-              </div>
-              <div class="file-stats">
-                <span>🎧 재생 가능 시간</span>
-                <span>${hasTL ? `${playableMinutes}분 ${playableSeconds}초` : '0분 0초 (충전 필요)'}</span>
-              </div>
-              
-              <div class="tl-progress">
-                ${hasTL ? 
-                  `<div class="tl-progress-fill" style="width: ${percent}%;"></div>` : 
-                  `<div class="tl-progress-empty" style="width: 100%;"></div>`
-                }
-              </div>
-              
-              <div class="file-actions">
-                ${hasTL ? 
-                  `<button class="btn-play" onclick="playMyMusic('${file.id}')">
-                      ▶️ 재생 (1초 = 1TL)
-                    </button>` : 
-                  `<button class="btn-play-disabled" disabled>
-                      ❌ 충전 필요
-                    </button>`
-                }
-                <button class="btn-charge" onclick="openChargeModal('${file.id}')">
-                  ⚡ TL 충전
-                </button>
-                <button class="btn-share" onclick="shareToPlace('${file.id}')" style="grid-column: span 2;">
-                  🔄 공유 (5,000TL)
-                </button>
-              </div>
-            </div>
+  <!-- ===== 8. 채굴 ===== -->
+  <div id="tabMining" class="tab-content">
+    <div class="card">
+      <h2>⛏️ TLC 채굴</h2>
+      <div class="mining-limit-box">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700; font-size:1.2rem; margin-bottom:10px;">⚠️ 채굴 한도: 보유 TL의 50%</div>
+            <div style="font-size:2rem; font-weight:800; color:#ff9800;" id="miningLimitAmount">7,500 / 15,000 TL</div>
           </div>
-        `;
-      }).join('');
-    }
-
-    // ==================== 충전 모달 ====================
-    function openChargeModal(fileId) {
-      currentPlayingFileId = fileId;
-      document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
-      document.getElementById('chargeModal').style.display = 'flex';
-    }
-
-    function openChargeModalFromPlayer() {
-      if (currentPlayingFile) openChargeModal(currentPlayingFile.id);
-    }
-
-    function closeChargeModal() {
-      document.getElementById('chargeModal').style.display = 'none';
-      document.getElementById('chargeAmount').value = '';
-      currentPlayingFileId = null;
-    }
-
-    // ==================== TL3 파일 충전 ====================
-    function chargeFile() {
-      if (!currentUser) {
-        showToast('로그인이 필요합니다', 'error');
-        return;
-      }
-      
-      const amount = parseInt(document.getElementById('chargeAmount').value);
-      if (!amount || amount <= 0) {
-        showToast('올바른 금액을 입력하세요', 'error');
-        return;
-      }
-      
-      if (!currentPlayingFileId) {
-        showToast('파일을 선택하세요', 'error');
-        return;
-      }
-      
-      const file = tl3Files.find(f => f.id === currentPlayingFileId);
-      if (!file) {
-        showToast('파일을 찾을 수 없습니다', 'error');
-        return;
-      }
-      
-      if (currentUser.tlBalance < amount) {
-        showToast('내 지갑에 TL이 부족합니다', 'error');
-        return;
-      }
-      
-      currentUser.tlBalance -= amount;
-      file.remainingTL += amount;
-      file.totalTL += amount;
-      
-      document.getElementById('tlBalance').textContent = currentUser.tlBalance.toLocaleString();
-      document.getElementById('dashTL').textContent = currentUser.tlBalance.toLocaleString();
-      document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
-      
-      const maxMining = Math.floor(currentUser.tlBalance * 0.5);
-      document.getElementById('dashMiningLimit').textContent = maxMining + ' TL';
-      document.getElementById('miningLimitAmount').textContent = maxMining + ' / ' + currentUser.tlBalance + ' TL';
-      document.getElementById('miningAvailable').textContent = maxMining + ' TL';
-      document.getElementById('maxMiningLabel').textContent = maxMining;
-      
-      closeChargeModal();
-      loadLibrary();
-      
-      showToast(`✅ TL3 파일에 ${amount} TL 충전 완료! (${Math.floor(amount/60)}분 ${amount%60}초 재생 가능)`, 'success');
-    }
-
-    // ==================== 내 음악 재생 ====================
-    function playMyMusic(fileId) {
-      if (!currentUser) {
-        showToast('로그인이 필요합니다', 'error');
-        return;
-      }
-      
-      const file = tl3Files.find(f => f.id === fileId);
-      if (!file) {
-        showToast('파일을 찾을 수 없습니다', 'error');
-        return;
-      }
-      
-      if (file.remainingTL < 1) {
-        showToast(`⚠️ TL이 부족합니다! 충전해주세요.`, 'warning');
-        return;
-      }
-      
-      if (playInterval) clearInterval(playInterval);
-      if (audioPlayer) {
-        audioPlayer.pause();
-        audioPlayer.src = '';
-      }
-      
-      currentPlayingFile = file;
-      currentPlayTime = 0;
-      currentPlayTotal = file.remainingTL;
-      
-      audioPlayer.src = file.fileData;
-      audioPlayer.load();
-      audioPlayer.play().catch(e => {
-        console.log('자동 재생 차단됨:', e);
-      });
-      
-      document.getElementById('playerTitle').textContent = file.title;
-      document.getElementById('playerArtist').textContent = file.artist;
-      document.getElementById('copyrightOwner').innerHTML = `<strong>저작권자:</strong> ${file.copyrightOwner}`;
-      document.getElementById('contractType').innerHTML = `<strong>계약 유형:</strong> ${file.contractType}`;
-      document.getElementById('miningRight').innerHTML = `<strong>채굴권:</strong> ${file.miningAllowed ? '✅ 있음' : '❌ 없음'}`;
-      document.getElementById('playerTL').textContent = file.remainingTL + ' TL';
-      document.getElementById('playerTimeRemaining').textContent = `약 ${Math.floor(file.remainingTL / 60)}분 ${file.remainingTL % 60}초 남음`;
-      document.getElementById('playerCurrentTime').textContent = '0:00';
-      document.getElementById('playerTotalTime').textContent = formatTime(file.remainingTL);
-      document.getElementById('playerProgress').style.width = '0%';
-      document.getElementById('playPauseBtn').innerHTML = '⏸️ 일시정지';
-      document.getElementById('playerModal').style.display = 'flex';
-      
-      playInterval = setInterval(() => {
-        if (!currentPlayingFile || !audioPlayer) {
-          clearInterval(playInterval);
-          return;
-        }
-        
-        currentPlayingFile.remainingTL -= 1;
-        currentPlayTime++;
-        
-        document.getElementById('playerTL').textContent = currentPlayingFile.remainingTL + ' TL';
-        document.getElementById('playerTimeRemaining').textContent = `약 ${Math.floor(currentPlayingFile.remainingTL / 60)}분 ${currentPlayingFile.remainingTL % 60}초 남음`;
-        document.getElementById('playerCurrentTime').textContent = formatTime(currentPlayTime);
-        
-        const progressPercent = (currentPlayTime / currentPlayTotal) * 100;
-        document.getElementById('playerProgress').style.width = Math.min(progressPercent, 100) + '%';
-        
-        if (currentPlayTime % 5 === 0) {
-          currentUser.listenMinutes = (currentUser.listenMinutes || 0) + 0.0833;
-          updateContribution();
-        }
-        
-        localStorage.setItem('timelink_tl3_files_v20', JSON.stringify(tl3Files));
-        
-        if (currentPlayingFile.remainingTL <= 0 || currentPlayTime >= currentPlayTotal) {
-          closePlayer();
-          showToast(`🎵 ${currentPlayingFile.title} 재생 완료! (${currentPlayTime}초 소모)`, 'success');
-        }
-      }, 1000);
-      
-      audioPlayer.onended = function() {
-        closePlayer();
-      };
-    }
-
-    // ==================== 재생/일시정지 토글 ====================
-    function togglePlayPause() {
-      if (!audioPlayer) return;
-      
-      if (audioPlayer.paused) {
-        audioPlayer.play();
-        document.getElementById('playPauseBtn').innerHTML = '⏸️ 일시정지';
-      } else {
-        audioPlayer.pause();
-        document.getElementById('playPauseBtn').innerHTML = '▶️ 재생';
-      }
-    }
-
-    // ==================== 플레이어 닫기 ====================
-    function closePlayer() {
-      if (playInterval) {
-        clearInterval(playInterval);
-        playInterval = null;
-      }
-      if (audioPlayer) {
-        audioPlayer.pause();
-        audioPlayer.src = '';
-      }
-      currentPlayingFile = null;
-      currentPlayTime = 0;
-      currentPlayingFileId = null;
-      document.getElementById('playerModal').style.display = 'none';
-      
-      loadLibrary();
-    }
-
-    // ==================== 공유 플레이스에 공유 ====================
-    function shareToPlace(fileId) {
-      if (!currentUser) {
-        showToast('로그인이 필요합니다', 'error');
-        return;
-      }
-      
-      const file = tl3Files.find(f => f.id === fileId);
-      if (!file) {
-        showToast('파일을 찾을 수 없습니다', 'error');
-        return;
-      }
-      
-      if (sharedFiles.some(f => f.originalId === file.id)) {
-        showToast('이미 공유된 TL3 파일입니다', 'warning');
-        return;
-      }
-      
-      if (currentUser.tlBalance < 5000) {
-        showToast(`❌ 내 지갑에 TL이 부족합니다! 공유하려면 5,000 TL이 필요합니다. (현재: ${currentUser.tlBalance} TL)`, 'error');
-        return;
-      }
-      
-      currentUser.tlBalance -= 5000;
-      document.getElementById('tlBalance').textContent = currentUser.tlBalance.toLocaleString();
-      document.getElementById('dashTL').textContent = currentUser.tlBalance.toLocaleString();
-      document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
-      
-      const maxMining = Math.floor(currentUser.tlBalance * 0.5);
-      document.getElementById('dashMiningLimit').textContent = maxMining + ' TL';
-      document.getElementById('miningLimitAmount').textContent = maxMining + ' / ' + currentUser.tlBalance + ' TL';
-      document.getElementById('miningAvailable').textContent = maxMining + ' TL';
-      document.getElementById('maxMiningLabel').textContent = maxMining;
-      
-      const sharedFile = {
-        id: 'shared_' + Date.now(),
-        originalId: file.id,
-        title: file.title,
-        artist: file.artist,
-        genre: file.genre,
-        creatorId: file.creatorId,
-        creatorName: file.creatorName,
-        copyrightOwner: file.copyrightOwner,
-        revenueShare: file.revenueShare,
-        miningAllowed: file.miningAllowed,
-        contractType: file.contractType,
-        sharedAt: new Date().toISOString(),
-        playCount: 0
-      };
-      
-      sharedFiles.push(sharedFile);
-      localStorage.setItem('timelink_shared_v20', JSON.stringify(sharedFiles));
-      
-      showToast(`🔄 공유 플레이스에 공유되었습니다!\n💰 내 지갑에서 5,000 TL 차감 완료!`, 'success');
-      
-      loadSharedMusic();
-    }
-
-    // ==================== 공유 플레이스 음악 로드 ====================
-    function loadSharedMusic() {
-      const container = document.getElementById('sharedMusicList');
-      const emptyMsg = document.getElementById('emptyShared');
-      const totalCount = document.getElementById('totalSharedCount');
-      const count73 = document.getElementById('shared73Count');
-      const count55 = document.getElementById('shared55Count');
-      const sharedCount = document.getElementById('sharedCount');
-      
-      if (!container || !currentUser) return;
-      
-      const otherSharedFiles = sharedFiles.filter(f => f.creatorId !== currentUser.id);
-      
-      if (totalCount) totalCount.textContent = otherSharedFiles.length;
-      if (count73) count73.textContent = otherSharedFiles.filter(f => f.revenueShare === '73').length;
-      if (count55) count55.textContent = otherSharedFiles.filter(f => f.revenueShare === '55').length;
-      if (sharedCount) sharedCount.textContent = otherSharedFiles.length;
-      
-      if (otherSharedFiles.length === 0) {
-        container.innerHTML = '';
-        if (emptyMsg) emptyMsg.style.display = 'block';
-        return;
-      }
-      
-      if (emptyMsg) emptyMsg.style.display = 'none';
-      
-      let filteredFiles = otherSharedFiles;
-      if (currentFilter === '73') {
-        filteredFiles = otherSharedFiles.filter(f => f.revenueShare === '73');
-      } else if (currentFilter === '55') {
-        filteredFiles = otherSharedFiles.filter(f => f.revenueShare === '55');
-      } else if (currentFilter === 'mining') {
-        filteredFiles = otherSharedFiles.filter(f => f.miningAllowed === true);
-      }
-      
-      container.innerHTML = filteredFiles.map(file => {
-        const originalFile = tl3Files.find(f => f.id === file.originalId);
-        const remainingTL = originalFile?.remainingTL || 0;
-        const playableMinutes = Math.floor(remainingTL / 60);
-        const playableSeconds = remainingTL % 60;
-        const hasTL = remainingTL > 0;
-        
-        return `
-          <div class="file-card">
-            <div class="file-thumbnail">🎵</div>
-            <div class="file-info">
-              <div class="file-name">${file.title}</div>
-              <div class="file-artist">${file.artist}</div>
-              
-              <div class="copyright-info">
-                <strong>📋 저작권 정보</strong><br>
-                저작권자: ${file.copyrightOwner}<br>
-                계약: ${file.contractType}<br>
-                채굴권: ${file.miningAllowed ? '✅ 있음' : '❌ 없음'}
-              </div>
-              
-              <div class="file-stats">
-                <span>⏱️ 충전된 TL</span>
-                <span style="font-weight: 700; color: ${hasTL ? (remainingTL < 60 ? '#ff9800' : '#667eea') : '#f43f5e'};">${remainingTL} TL</span>
-              </div>
-              <div class="file-stats">
-                <span>🎧 재생 가능 시간</span>
-                <span>${hasTL ? `${playableMinutes}분 ${playableSeconds}초` : '0분 0초 (충전 필요)'}</span>
-              </div>
-              <div style="color: #666; font-size: 13px; margin-bottom: 15px;">
-                👤 공유: ${file.creatorName} · 청취 ${file.playCount || 0}회
-              </div>
-              
-              ${hasTL ? 
-                `<button class="btn-play" onclick="playSharedMusic('${file.id}')" style="width: 100%;">
-                    🎧 재생 (1초 = 1TL)
-                  </button>` : 
-                `<button class="btn-play-disabled" disabled style="width: 100%;">
-                    ❌ 충전 필요 (크리에이터가 충전해야 함)
-                  </button>`
-              }
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    // ==================== 공유 음악 재생 ====================
-    function playSharedMusic(sharedId) {
-      if (!currentUser) {
-        showToast('로그인이 필요합니다', 'error');
-        return;
-      }
-      
-      const sharedFile = sharedFiles.find(f => f.id === sharedId);
-      if (!sharedFile) {
-        showToast('파일을 찾을 수 없습니다', 'error');
-        return;
-      }
-      
-      const originalFile = tl3Files.find(f => f.id === sharedFile.originalId);
-      if (!originalFile) {
-        showToast('원본 TL3 파일을 찾을 수 없습니다', 'error');
-        return;
-      }
-      
-      if (originalFile.remainingTL < 1) {
-        showToast(`⚠️ 이 TL3 파일에 TL이 부족합니다! 크리에이터가 충전해야 합니다.`, 'warning');
-        return;
-      }
-      
-      playMyMusic(originalFile.id);
-      
-      sharedFile.playCount = (sharedFile.playCount || 0) + 1;
-      localStorage.setItem('timelink_shared_v20', JSON.stringify(sharedFiles));
-    }
-
-    // ==================== 공유 플레이스 필터 ====================
-    function filterSharePlace(filter) {
-      currentFilter = filter;
-      
-      const btns = document.querySelectorAll('.filter-btn');
-      btns.forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
-      
-      loadSharedMusic();
-    }
-
-    // ==================== 라디오 채널 초기화 ====================
-    function initRadioChannels() {
-      const container = document.getElementById('radioChannels');
-      if (!container) return;
-      
-      const channels = [
-        { name: 'TimeLink Pop', genre: 'pop', freq: '107.7', listeners: 1234 },
-        { name: 'TimeLink Rock', genre: 'rock', freq: '107.9', listeners: 892 },
-        { name: 'TimeLink Hip-Hop', genre: 'hiphop', freq: '108.1', listeners: 1567 },
-        { name: 'TimeLink Jazz', genre: 'jazz', freq: '108.3', listeners: 645 },
-        { name: 'TimeLink Classical', genre: 'classical', freq: '108.5', listeners: 423 },
-        { name: 'TimeLink Electronic', genre: 'electronic', freq: '108.7', listeners: 987 }
-      ];
-      
-      container.innerHTML = channels.map(ch => `
-        <div class="radio-channel-card">
-          <div class="channel-header">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3 style="color: white;">${ch.name}</h3>
-              <span style="background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 30px;">
-                👥 ${ch.listeners}명 청취중
-              </span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-              <span>FM ${ch.freq} MHz</span>
-              <span>🔴 LIVE</span>
-            </div>
-          </div>
-          <div class="channel-playlist">
-            <div class="now-playing" id="radio-${ch.genre}-now">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <div style="font-weight: 700; font-size: 1.1rem;" id="radio-${ch.genre}-title">Now Loading...</div>
-                  <div style="color: #666; margin-top: 5px;" id="radio-${ch.genre}-artist"></div>
-                </div>
-                <span style="color: #1db954;">🎵 재생중</span>
-              </div>
-            </div>
-            <button class="btn-play" onclick="playRadio('${ch.genre}')" style="width: 100%;">
-              🎧 라디오 재생 (1초 = 내 TL 1TL 소모)
-            </button>
+          <div>
+            <div style="color:#666; margin-bottom:5px;">내 기여지수</div>
+            <div style="font-size:2rem; font-weight:800; color:#667eea;" id="miningIndexDisplay">4.75</div>
           </div>
         </div>
-      `).join('');
-      
-      startRadioStreaming();
-    }
+        <div class="mining-progress">
+          <div class="mining-progress-fill" id="miningProgressFill" style="width:50%;"></div>
+        </div>
+      </div>
+      <div id="miningPermissionCheck" style="background:#fff3cd; padding:20px; border-radius:15px; margin:30px 0;">
+        <div style="display:flex; align-items:center; gap:15px;">
+          <span style="font-size:2rem;">⛏️</span>
+          <div>
+            <span style="font-weight:700; color:#10b981;" id="miningPermissionMessage">✅ 채굴권 있습니다! (5:5 계약 파일 보유중)</span>
+            <p style="color:#856404; font-size:14px; margin-top:5px;">* 5:5 계약 TL3 파일을 보유해야 채굴할 수 있습니다</p>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:30px;">
+        <div class="form-group" style="margin-bottom:20px;">
+          <label style="display:block; margin-bottom:8px; color:#333; font-weight:600;">채굴할 TL 양 (최대 <span id="maxMiningLabel">7,500</span> TL)</label>
+          <input type="number" id="miningAmount" placeholder="500" min="1" value="500" style="width:100%; padding:18px; border:2px solid #e0e0e0; border-radius:12px; font-size:18px;">
+        </div>
+        <div style="background:#f8f9fa; padding:25px; border-radius:15px; margin:20px 0;">
+          <h3 style="margin-bottom:15px;">📊 채굴 예상량</h3>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <span style="color:#666;">투입 TL:</span>
+            <strong id="previewInput" style="color:#333;">500 TL</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <span style="color:#666;">기여지수:</span>
+            <strong id="previewIndex" style="color:#333;">4.75x</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <span style="color:#666;">획득 TLC:</span>
+            <strong id="previewOutput" style="color:#10b981;">237.50 TLC</strong>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="executeMining()" style="width:100%; padding:20px; font-size:1.2rem; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; border:none; border-radius:15px; font-weight:700; cursor:pointer;">⛏️ TLC 채굴 실행</button>
+      </div>
+    </div>
+  </div>
 
-    // ==================== 라디오 스트리밍 시작 ====================
-    function startRadioStreaming() {
-      if (radioInterval) clearInterval(radioInterval);
+  <!-- ===== 9. 차량 ===== -->
+  <div id="tabCar" class="tab-content">
+    <div class="car-contribution-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+        <div>
+          <h2 style="color:white; margin-bottom:15px;">🚗 차량 청취</h2>
+          <p style="color:rgba(255,255,255,0.9); font-size:1.2rem;">
+            <strong style="font-size:2.5rem;">1분 = 10 TL</strong> 기여도 (일반의 2배!)
+          </p>
+        </div>
+        <div style="background:rgba(255,255,255,0.1); padding:24px; border-radius:20px; text-align:center;">
+          <div style="font-size:14px; opacity:0.9; margin-bottom:8px;">내 누적 운전 청취</div>
+          <div style="font-size:2.8rem; font-weight:800; color:white;" id="userTotalDrivingTime">120분</div>
+        </div>
+      </div>
       
-      radioInterval = setInterval(() => {
-        const sharedSongs = sharedFiles.filter(f => f.creatorId !== currentUser?.id);
-        
-        if (sharedSongs.length > 0) {
-          const genres = ['pop', 'rock', 'hiphop', 'jazz', 'classical', 'electronic'];
+      <div style="background:rgba(255,255,255,0.1); padding:32px; border-radius:20px; margin-bottom:32px;">
+        <h3 style="color:white; margin-bottom:24px;">🚘 차량 등록</h3>
+        <div style="display:flex; gap:16px; flex-wrap:wrap;">
+          <input type="text" id="carModel" placeholder="차량 모델 (예: Tesla Model 3)" style="flex:2; min-width:200px; padding:16px; border-radius:12px; border:none;">
+          <input type="text" id="carPlate" placeholder="번호판" style="flex:1; min-width:140px; padding:16px; border-radius:12px; border:none;">
+          <button class="btn btn-primary" onclick="registerCar()" style="background:white; color:#3498db; width:auto; padding:16px 32px; border:none; border-radius:12px; font-weight:700; cursor:pointer;">🚗 등록</button>
+        </div>
+        <div id="carList" style="margin-top:24px; color:rgba(255,255,255,0.8);"></div>
+      </div>
+      
+      <div style="display:flex; gap:20px; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="addDrivingMinutes(10)" style="background:white; color:#3498db; flex:1; padding:18px; border:none; border-radius:12px; font-weight:700; cursor:pointer;">🚗 +10분 (100 TL)</button>
+        <button class="btn btn-primary" onclick="addDrivingMinutes(30)" style="background:white; color:#3498db; flex:1; padding:18px; border:none; border-radius:12px; font-weight:700; cursor:pointer;">🚗 +30분 (300 TL)</button>
+        <button class="btn btn-primary" onclick="addDrivingMinutes(60)" style="background:white; color:#3498db; flex:1; padding:18px; border:none; border-radius:12px; font-weight:700; cursor:pointer;">🚗 +60분 (600 TL)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 10. 금리저브 ===== -->
+  <div id="tabGold" class="tab-content">
+    <div class="gold-reserve-card">
+      <h2 style="color:white; font-size:2rem; margin-bottom:16px;">🏆 금 담보 리저브</h2>
+      <p style="color:rgba(255,255,255,0.9); font-size:1.1rem;">플랫폼 수익의 10%를 실물 금으로 구매하여 영구 보관</p>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="icon">🏆</div>
+        <div class="label">총 금 보유량</div>
+        <div class="value">10.24 g</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon">💵</div>
+        <div class="label">금 가치 (USD)</div>
+        <div class="value">$665</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon">📈</div>
+        <div class="label">금 시세</div>
+        <div class="value">$65/g</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon">🔒</div>
+        <div class="label">담보 비율</div>
+        <div class="value">245%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 11. TON TLC ===== -->
+  <div id="tabTon" class="tab-content">
+    <div class="ton-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:32px;">
+        <div>
+          <h2 style="color:white; font-size:2rem; margin-bottom:12px;">⬡ TON TLC Coin</h2>
+          <p style="color:rgba(255,255,255,0.9);">TON 블록체인 기반 TLC 코인</p>
+        </div>
+        <span style="background:rgba(255,255,255,0.2); padding:6px 18px; border-radius:100px; font-size:12px; font-weight:600;">TON Testnet</span>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px,1fr)); gap:28px;">
+        <div style="background:rgba(255,255,255,0.1); padding:28px; border-radius:20px;">
+          <div style="font-size:14px; opacity:0.9; margin-bottom:12px;">내 TLC 잔액</div>
+          <div style="font-size:2.8rem; font-weight:800; color:white;" id="tonTLCBalance">1,250.75</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.1); padding:28px; border-radius:20px;">
+          <div style="font-size:14px; opacity:0.9; margin-bottom:12px;">TON 지갑</div>
+          <div style="font-size:1rem; font-family:monospace; background:rgba(0,0,0,0.3); padding:12px; border-radius:12px; color:rgba(255,255,255,0.8);" id="tonWalletAddress">연결되지 않음</div>
+          <button class="btn btn-primary" onclick="connectWallet()" style="margin-top:24px; background:white; color:#0088CC; width:100%; padding:16px; border:none; border-radius:12px; font-weight:700; cursor:pointer;">🔗 TON 지갑 연결</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 플레이어 모달 ===== -->
+<div id="playerModal" class="player-modal">
+  <div class="player-content">
+    <div class="player-title" id="playerTitle">Now Playing</div>
+    <div class="player-artist" id="playerArtist">Artist</div>
+    
+    <div class="player-copyright" id="playerCopyright">
+      <strong>📋 TL3 파일 정보</strong><br>
+      <span id="copyrightOwner">저작권자: </span><br>
+      <span id="contractType">계약 유형: </span><br>
+      <span id="miningRight">채굴권: </span>
+    </div>
+    
+    <div class="player-tl-info">
+      <div style="color:#666; margin-bottom:10px;">⏳ 충전된 TL</div>
+      <div class="player-tl-amount" id="playerTL">0 TL</div>
+      <div style="color:#999; font-size:14px; margin-top:8px;" id="playerTimeRemaining">0분 0초 남음</div>
+    </div>
+    
+    <div class="player-progress">
+      <div id="playerProgress" class="player-progress-fill"></div>
+    </div>
+    
+    <div class="player-time">
+      <span id="playerCurrentTime">0:00</span>
+      <span id="playerTotalTime">0:00</span>
+    </div>
+    
+    <div class="player-controls">
+      <button class="btn btn-primary" onclick="togglePlayPause()" id="playPauseBtn" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; padding:14px 24px; border:none; border-radius:12px; font-weight:700; cursor:pointer;">⏸️ 일시정지</button>
+      <button class="btn btn-secondary" onclick="closePlayer()" style="background:white; color:#667eea; border:2px solid #667eea; padding:14px 24px; border-radius:12px; font-weight:700; cursor:pointer;">⏹️ 종료</button>
+      <button class="btn btn-warning" onclick="openChargeModalFromPlayer()" style="background:linear-gradient(135deg, #fa709a 0%, #fee140 100%); color:white; padding:14px 24px; border:none; border-radius:12px; font-weight:700; cursor:pointer;">💰 충전</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 충전 모달 ===== -->
+<div id="chargeModal" class="charge-modal">
+  <div class="charge-content">
+    <h2>💰 TL3 파일 충전</h2>
+    <div class="form-group" style="margin-bottom:20px;">
+      <label style="display:block; margin-bottom:8px; color:#333; font-weight:600;">충전할 TL 양 (1초 = 1TL)</label>
+      <input type="number" id="chargeAmount" placeholder="1000" min="100" step="100" value="1000">
+      <p style="color:#666; font-size:14px; margin-top:12px;">
+        현재 내 지갑: <strong id="currentTLBalance">15,000</strong> TL
+      </p>
+    </div>
+    <div style="display:flex; gap:16px;">
+      <button class="btn btn-primary" onclick="chargeFile()" style="flex:1; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; padding:16px; border:none; border-radius:12px; font-weight:700; cursor:pointer;">⚡ 충전하기</button>
+      <button class="btn btn-secondary" onclick="closeChargeModal()" style="flex:1; background:white; color:#667eea; border:2px solid #667eea; padding:16px; border-radius:12px; font-weight:700; cursor:pointer;">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 광고 모달 ===== -->
+<div id="adModal" class="player-modal" style="display:none;">
+  <div class="player-content" style="max-width:500px;">
+    <h2 style="margin-bottom:30px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">📺 광고 시청 중</h2>
+    <div style="width:100%; height:240px; background:linear-gradient(145deg, #2a1a3a, #1e1e1e); border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:4rem; color:rgba(255,255,255,0.3); margin-bottom:24px;">🎬</div>
+    <div style="font-size:2rem; font-weight:800; color:#333; margin-bottom:16px; text-align:center;" id="adTimer">30초</div>
+    <p style="color:#666; text-align:center; margin-bottom:28px;">광고 종료 시 <strong style="color:#667eea;">10 TL</strong> 내 지갑에 지급</p>
+    <button class="btn btn-secondary" onclick="closeAdModal()" style="width:100%; background:white; color:#667eea; border:2px solid #667eea; padding:16px; border-radius:12px; font-weight:700; cursor:pointer;">취소</button>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// TimeLink v20.1 - TL3 공유 즉시 표시! (드디어 완성!)
+// ============================================================================
+
+// ----- 전역 변수 -----
+let tl3Files = [];
+let sharedFiles = [];
+let currentUser = null;
+let adInterval = null;
+let currentFilter = 'all';
+let radioInterval = null;
+let commercialInterval = null;
+let playInterval = null;
+let currentPlayTime = 0;
+let currentPlayTotal = 0;
+let currentPlayingFile = null;
+let currentPlayingFileId = null;
+let audioPlayer = null;
+
+// ==================== 🔥 데모 Google 로그인 ====================
+function demoGoogleLogin() {
+  console.log('🔥 데모 Google 로그인 실행');
+  
+  currentUser = {
+    id: 'user_' + Date.now(),
+    username: 'Google 투자자',
+    email: 'investor@gmail.com',
+    isBusiness: true,
+    tlBalance: 15000,
+    tlcBalance: 1250.75,
+    totalChargedTL: 15000,
+    listenMinutes: 450,
+    drivingMinutes: 120,
+    contributionIndex: 4.75,
+    cars: []
+  };
+
+  document.getElementById('authContainer').style.display = 'none';
+  document.getElementById('appContainer').style.display = 'block';
+  
+  // UI 업데이트
+  document.getElementById('currentUsername').textContent = currentUser.username;
+  document.getElementById('userAvatar').textContent = 'G';
+  document.getElementById('userStatus').innerHTML = '🏢 사업자 (데모)';
+  document.getElementById('userStatus').style.color = '#f5576c';
+  document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
+  document.getElementById('tlBalance').textContent = currentUser.tlBalance.toLocaleString();
+  document.getElementById('dashTL').textContent = currentUser.tlBalance.toLocaleString();
+  document.getElementById('tlcBalance').textContent = currentUser.tlcBalance.toFixed(2);
+  document.getElementById('dashTLC').textContent = currentUser.tlcBalance.toFixed(2);
+  document.getElementById('contributionIndex').textContent = currentUser.contributionIndex.toFixed(2);
+  document.getElementById('dashIndex').textContent = currentUser.contributionIndex.toFixed(2);
+  
+  const maxMining = Math.floor(currentUser.tlBalance * 0.5);
+  document.getElementById('dashMiningLimit').textContent = maxMining + ' TL';
+  document.getElementById('miningLimitAmount').textContent = maxMining + ' / ' + currentUser.tlBalance + ' TL';
+  document.getElementById('maxMiningLabel').textContent = maxMining;
+  document.getElementById('miningIndexDisplay').textContent = currentUser.contributionIndex.toFixed(2);
+  document.getElementById('tonTLCBalance').textContent = currentUser.tlcBalance.toFixed(2);
+  document.getElementById('userTotalDrivingTime').textContent = (currentUser.drivingMinutes || 0) + '분';
+  
+  showToast('✅ Google 로그인 성공!', 'success');
+  
+  // 데모 데이터 초기화
+  initializeDemoData();
+  loadLibrary();
+  loadSharedMusic();
+  initRadioChannels();
+  initCommercialChannels();
+}
+
+// ==================== 데모 로그아웃 ====================
+function demoLogout() {
+  if (playInterval) clearInterval(playInterval);
+  if (audioPlayer) { audioPlayer.pause(); audioPlayer.src = ''; }
+  if (radioInterval) clearInterval(radioInterval);
+  if (commercialInterval) clearInterval(commercialInterval);
+  
+  currentUser = null;
+  tl3Files = [];
+  sharedFiles = [];
+  
+  document.getElementById('authContainer').style.display = 'flex';
+  document.getElementById('appContainer').style.display = 'none';
+  showToast('로그아웃 되었습니다', 'info');
+}
+
+// ==================== 데모 데이터 초기화 ====================
+function initializeDemoData() {
+  if (tl3Files.length === 0) {
+    const dummyAudioData = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAA8AAAGQAApCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJD/+5REAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+    
+    tl3Files.push({
+      id: 'tl3_1',
+      title: 'Dynamite - BTS',
+      artist: 'BTS',
+      genre: 'pop',
+      fileData: dummyAudioData,
+      revenueShare: '55',
+      miningAllowed: true,
+      remainingTL: 5000,
+      totalTL: 5000,
+      creatorId: currentUser.id,
+      creatorName: currentUser.username,
+      copyrightOwner: currentUser.username,
+      contractType: '5:5 계약',
+      isShared: false,
+      sharedId: null
+    });
+    
+    tl3Files.push({
+      id: 'tl3_2',
+      title: 'Butter - BTS',
+      artist: 'BTS',
+      genre: 'pop',
+      fileData: dummyAudioData,
+      revenueShare: '55',
+      miningAllowed: true,
+      remainingTL: 0,
+      totalTL: 0,
+      creatorId: currentUser.id,
+      creatorName: currentUser.username,
+      copyrightOwner: currentUser.username,
+      contractType: '5:5 계약',
+      isShared: false,
+      sharedId: null
+    });
+  }
+}
+
+// ==================== 토스트 메시지 ====================
+function showToast(message, type = 'success') {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.className = 'toast ' + type;
+  toast.style.display = 'block';
+  
+  setTimeout(() => {
+    toast.style.display = 'none';
+  }, 3000);
+}
+
+// ==================== 탭 전환 ====================
+function switchTab(tabName) {
+  const tabs = document.querySelectorAll('.tab');
+  const contents = document.querySelectorAll('.tab-content');
+  
+  tabs.forEach(tab => tab.classList.remove('active'));
+  contents.forEach(content => content.classList.remove('active'));
+  
+  event.target.classList.add('active');
+  document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+  
+  if (tabName === 'library') loadLibrary();
+  if (tabName === 'shareplace') loadSharedMusic();
+  if (tabName === 'radio') initRadioChannels();
+  if (tabName === 'commercial') initCommercialChannels();
+}
+
+// ==================== TL 충전 (내 지갑) ====================
+function chargeTL(amount) {
+  if (!currentUser) return;
+  
+  currentUser.tlBalance += amount;
+  currentUser.totalChargedTL += amount;
+  
+  document.getElementById('tlBalance').textContent = currentUser.tlBalance.toLocaleString();
+  document.getElementById('dashTL').textContent = currentUser.tlBalance.toLocaleString();
+  document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
+  
+  showToast(`✅ ${amount.toLocaleString()} TL 충전 완료!`, 'success');
+}
+
+// ==================== 파일 업로드 ====================
+let selectedFile = null;
+let selectedFileData = null;
+
+document.getElementById('fileInput')?.addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  selectedFile = file;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    selectedFileData = e.target.result;
+    document.getElementById('uploadForm').style.display = 'block';
+    document.getElementById('songTitle').value = file.name.replace(/\.[^/.]+$/, "");
+    document.getElementById('songArtist').value = currentUser?.username || '아티스트';
+    document.getElementById('copyrightOwner').value = currentUser?.username || '';
+  };
+  reader.readAsDataURL(file);
+});
+
+function uploadFile() {
+  if (!selectedFile || !selectedFileData) {
+    showToast('파일을 선택하세요', 'error');
+    return;
+  }
+  
+  if (!currentUser) return;
+  
+  const title = document.getElementById('songTitle').value;
+  const artist = document.getElementById('songArtist').value || currentUser.username;
+  const genre = document.getElementById('songGenre').value;
+  const revenueShare = document.getElementById('revenueShare').value;
+  const copyrightOwner = document.getElementById('copyrightOwner').value || currentUser.username;
+  
+  if (!title) {
+    showToast('곡 제목을 입력하세요', 'error');
+    return;
+  }
+  
+  const newTL3File = {
+    id: 'tl3_' + Date.now(),
+    title: title,
+    artist: artist,
+    genre: genre,
+    fileData: selectedFileData,
+    revenueShare: revenueShare,
+    miningAllowed: revenueShare === '55',
+    remainingTL: 0,
+    totalTL: 0,
+    creatorId: currentUser.id,
+    creatorName: currentUser.username,
+    copyrightOwner: copyrightOwner,
+    contractType: revenueShare === '55' ? '5:5 계약' : '7:3 계약',
+    isShared: false,
+    sharedId: null
+  };
+  
+  tl3Files.push(newTL3File);
+  
+  showToast('✅ TL3 파일 생성 완료! (TL 충전 필요)', 'success');
+  
+  document.getElementById('uploadForm').style.display = 'none';
+  selectedFile = null;
+  selectedFileData = null;
+  
+  loadLibrary();
+}
+
+// ==================== 🔥 내 TL3 파일 로드 ====================
+function loadLibrary() {
+  const container = document.getElementById('fileList');
+  const emptyMsg = document.getElementById('emptyLibrary');
+  
+  if (!container || !currentUser) return;
+  
+  const myFiles = tl3Files.filter(f => f.creatorId === currentUser.id);
+  
+  if (myFiles.length === 0) {
+    container.innerHTML = '';
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  
+  emptyMsg.style.display = 'none';
+  
+  container.innerHTML = myFiles.map(file => {
+    const percent = file.totalTL > 0 ? (file.remainingTL / file.totalTL) * 100 : 0;
+    const playableMinutes = Math.floor(file.remainingTL / 60);
+    const playableSeconds = file.remainingTL % 60;
+    const hasTL = file.remainingTL > 0;
+    
+    return `
+      <div class="file-card">
+        <div class="file-thumbnail">
+          🎵
+          ${file.isShared ? `<span class="badge badge-shared" style="top:16px; left:16px;">✅ 공유됨</span>` : ''}
+          ${!hasTL ? 
+            `<span class="badge badge-no-tl" style="top:16px; right:16px;">⚠️ 충전 필요</span>` : 
+            `<span class="badge badge-mining" style="top:16px; right:16px;">${file.revenueShare === '55' ? '5:5' : '7:3'}</span>`
+          }
+        </div>
+        <div class="file-info">
+          <div class="file-name">${file.title}</div>
+          <div class="file-artist">${file.artist}</div>
           
-          genres.forEach(genre => {
-            const genreSongs = sharedSongs.filter(s => s.genre === genre);
-            
-            if (genreSongs.length > 0) {
-              const randomSong = genreSongs[Math.floor(Math.random() * genreSongs.length)];
-              const titleEl = document.getElementById(`radio-${genre}-title`);
-              const artistEl = document.getElementById(`radio-${genre}-artist`);
-              
-              if (titleEl) titleEl.textContent = randomSong.title;
-              if (artistEl) artistEl.textContent = randomSong.artist;
+          <div class="copyright-info">
+            <strong>📋 저작권 정보</strong><br>
+            저작권자: ${file.copyrightOwner}<br>
+            계약: ${file.contractType}<br>
+            채굴권: ${file.miningAllowed ? '✅ 있음' : '❌ 없음'}
+          </div>
+          
+          <div class="file-stats">
+            <span>⏱️ 충전된 TL</span>
+            <span style="font-weight: 700; color: ${hasTL ? (file.remainingTL < 60 ? '#ff9800' : '#667eea') : '#f43f5e'};">${file.remainingTL} TL</span>
+          </div>
+          <div class="file-stats">
+            <span>🎧 재생 가능 시간</span>
+            <span>${hasTL ? `${playableMinutes}분 ${playableSeconds}초` : '0분 0초 (충전 필요)'}</span>
+          </div>
+          
+          <div class="tl-progress">
+            ${hasTL ? 
+              `<div class="tl-progress-fill" style="width: ${percent}%;"></div>` : 
+              `<div class="tl-progress-empty"></div>`
             }
-          });
-        }
-      }, 10000);
-    }
+          </div>
+          
+          <div class="file-actions">
+            ${hasTL ? 
+              `<button class="btn-play" onclick="playMyMusic('${file.id}')">▶️ 재생 (1초 = 1TL)</button>` : 
+              `<button class="btn-play-disabled" disabled>❌ 충전 필요</button>`
+            }
+            <button class="btn-charge" onclick="openChargeModal('${file.id}')">⚡ TL 충전</button>
+            ${file.isShared ? 
+              `<button class="btn-share" style="background:#999; grid-column:span 2;" disabled>✅ 이미 공유됨</button>` :
+              `<button class="btn-share" onclick="shareToPlace('${file.id}')">🔄 공유 (5,000TL)</button>`
+            }
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
 
-    // ==================== 라디오 재생 ====================
-    function playRadio(genre) {
-      if (!currentUser) {
-        showToast('로그인이 필요합니다', 'error');
-        return;
-      }
+// ==================== 🔥🔥🔥 공유 플레이스에 공유 (즉시 표시!) ====================
+function shareToPlace(fileId) {
+  if (!currentUser) {
+    showToast('로그인이 필요합니다', 'error');
+    return;
+  }
+  
+  const file = tl3Files.find(f => f.id === fileId);
+  if (!file) {
+    showToast('파일을 찾을 수 없습니다', 'error');
+    return;
+  }
+  
+  if (file.isShared) {
+    showToast('이미 공유된 TL3 파일입니다', 'warning');
+    return;
+  }
+  
+  if (currentUser.tlBalance < 5000) {
+    showToast(`❌ 내 지갑에 TL이 부족합니다! (보유: ${currentUser.tlBalance} TL)`, 'error');
+    return;
+  }
+  
+  // ✅ 내 지갑에서 5,000 TL 차감
+  currentUser.tlBalance -= 5000;
+  document.getElementById('tlBalance').textContent = currentUser.tlBalance.toLocaleString();
+  document.getElementById('dashTL').textContent = currentUser.tlBalance.toLocaleString();
+  document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
+  
+  // ✅ 파일을 공유 상태로 변경
+  file.isShared = true;
+  
+  // ✅ 공유 파일 생성 (여기가 핵심!!!)
+  const sharedFile = {
+    id: 'shared_' + Date.now(),
+    originalId: file.id,
+    title: file.title,
+    artist: file.artist,
+    genre: file.genre,
+    creatorId: file.creatorId,
+    creatorName: file.creatorName,
+    copyrightOwner: file.copyrightOwner,
+    revenueShare: file.revenueShare,
+    miningAllowed: file.miningAllowed,
+    contractType: file.contractType,
+    remainingTL: file.remainingTL,
+    sharedAt: new Date().toISOString(),
+    playCount: 0
+  };
+  
+  // ✅ 공유 파일 배열에 추가
+  sharedFiles.push(sharedFile);
+  
+  // ✅ 공유 플레이스 즉시 업데이트!
+  loadSharedMusic();
+  
+  // ✅ 내 라이브러리 업데이트 (공유됨 표시)
+  loadLibrary();
+  
+  showToast(`🔄 "${file.title}" 공유 완료! (5,000 TL 차감)`, 'success');
+  
+  // ✅ 공유 플레이스 탭으로 이동
+  switchTab('shareplace');
+}
+
+// ==================== 🔥 공유 플레이스 음악 로드 (내가 공유한 파일 즉시 표시!) ====================
+function loadSharedMusic() {
+  const container = document.getElementById('sharedMusicList');
+  const emptyMsg = document.getElementById('emptyShared');
+  const totalCount = document.getElementById('totalSharedCount');
+  const count73 = document.getElementById('shared73Count');
+  const count55 = document.getElementById('shared55Count');
+  const sharedCount = document.getElementById('sharedCount');
+  
+  if (!container || !currentUser) return;
+  
+  // 🔥🔥🔥 다른 사람이 공유한 파일 + 내가 공유한 파일 모두 표시!
+  // (실제 서비스에서는 다른 사람 파일만 보여야 하지만, 데모에서는 내 파일도 보이게 함)
+  const allSharedFiles = sharedFiles;
+  
+  if (totalCount) totalCount.textContent = allSharedFiles.length;
+  if (count73) count73.textContent = allSharedFiles.filter(f => f.revenueShare === '73').length;
+  if (count55) count55.textContent = allSharedFiles.filter(f => f.revenueShare === '55').length;
+  if (sharedCount) sharedCount.textContent = allSharedFiles.length;
+  
+  if (allSharedFiles.length === 0) {
+    container.innerHTML = '';
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  
+  emptyMsg.style.display = 'none';
+  
+  let filteredFiles = allSharedFiles;
+  if (currentFilter === '73') {
+    filteredFiles = allSharedFiles.filter(f => f.revenueShare === '73');
+  } else if (currentFilter === '55') {
+    filteredFiles = allSharedFiles.filter(f => f.revenueShare === '55');
+  } else if (currentFilter === 'mining') {
+    filteredFiles = allSharedFiles.filter(f => f.miningAllowed === true);
+  }
+  
+  // 최신순 정렬
+  filteredFiles.sort((a, b) => new Date(b.sharedAt) - new Date(a.sharedAt));
+  
+  container.innerHTML = filteredFiles.map(file => {
+    const isMine = file.creatorId === currentUser.id;
+    
+    return `
+      <div class="file-card">
+        <div class="file-thumbnail">
+          🎵
+          ${isMine ? `<span class="badge badge-shared" style="top:16px; left:16px;">📤 내가 공유</span>` : ''}
+        </div>
+        <div class="file-info">
+          <div class="file-name">${file.title}</div>
+          <div class="file-artist">${file.artist}</div>
+          
+          <div class="copyright-info">
+            <strong>📋 저작권 정보</strong><br>
+            저작권자: ${file.copyrightOwner}<br>
+            계약: ${file.contractType}<br>
+            채굴권: ${file.miningAllowed ? '✅ 있음' : '❌ 없음'}
+          </div>
+          
+          <div class="file-stats">
+            <span>⏱️ 충전된 TL</span>
+            <span style="font-weight: 700; color: ${file.remainingTL > 0 ? '#667eea' : '#f43f5e'};">${file.remainingTL || 0} TL</span>
+          </div>
+          <div style="color: #666; font-size: 13px; margin-bottom: 15px;">
+            👤 공유: ${file.creatorName} · ${new Date(file.sharedAt).toLocaleDateString()}
+            ${isMine ? ' · ⭐ 내 파일' : ''}
+          </div>
+          
+          ${file.remainingTL > 0 ? 
+            `<button class="btn-play" onclick="playSharedMusic('${file.id}')" style="width: 100%;">🎧 재생 (1초 = 1TL)</button>` :
+            `<button class="btn-play-disabled" disabled style="width: 100%;">❌ 충전 필요</button>`
+          }
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ==================== 공유 음악 재생 ====================
+function playSharedMusic(sharedId) {
+  if (!currentUser) {
+    showToast('로그인이 필요합니다', 'error');
+    return;
+  }
+  
+  const sharedFile = sharedFiles.find(f => f.id === sharedId);
+  if (!sharedFile) {
+    showToast('파일을 찾을 수 없습니다', 'error');
+    return;
+  }
+  
+  const originalFile = tl3Files.find(f => f.id === sharedFile.originalId);
+  if (!originalFile) {
+    showToast('원본 파일을 찾을 수 없습니다', 'error');
+    return;
+  }
+  
+  playMyMusic(originalFile.id);
+}
+
+// ==================== 공유 플레이스 필터 ====================
+function filterSharePlace(filter) {
+  currentFilter = filter;
+  
+  const btns = document.querySelectorAll('.filter-btn');
+  btns.forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+  
+  loadSharedMusic();
+}
+
+// ==================== 충전 모달 ====================
+function openChargeModal(fileId) {
+  currentPlayingFileId = fileId;
+  document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
+  document.getElementById('chargeModal').style.display = 'flex';
+}
+
+function openChargeModalFromPlayer() {
+  if (currentPlayingFile) {
+    openChargeModal(currentPlayingFile.id);
+  }
+}
+
+function closeChargeModal() {
+  document.getElementById('chargeModal').style.display = 'none';
+  document.getElementById('chargeAmount').value = '1000';
+  currentPlayingFileId = null;
+}
+
+// ==================== TL3 파일 충전 ====================
+function chargeFile() {
+  if (!currentUser) {
+    showToast('로그인이 필요합니다', 'error');
+    return;
+  }
+  
+  const amount = parseInt(document.getElementById('chargeAmount').value);
+  if (!amount || amount <= 0) {
+    showToast('올바른 금액을 입력하세요', 'error');
+    return;
+  }
+  
+  if (!currentPlayingFileId) {
+    showToast('파일을 선택하세요', 'error');
+    return;
+  }
+  
+  const file = tl3Files.find(f => f.id === currentPlayingFileId);
+  if (!file) {
+    showToast('파일을 찾을 수 없습니다', 'error');
+    return;
+  }
+  
+  if (currentUser.tlBalance < amount) {
+    showToast(`내 지갑에 TL이 부족합니다! (보유: ${currentUser.tlBalance} TL)`, 'error');
+    return;
+  }
+  
+  currentUser.tlBalance -= amount;
+  file.remainingTL += amount;
+  file.totalTL += amount;
+  
+  // 공유된 파일이 있으면 remainingTL도 업데이트
+  if (file.isShared && file.sharedId) {
+    const sharedFile = sharedFiles.find(f => f.id === file.sharedId);
+    if (sharedFile) {
+      sharedFile.remainingTL = file.remainingTL;
+    }
+  }
+  
+  document.getElementById('tlBalance').textContent = currentUser.tlBalance.toLocaleString();
+  document.getElementById('dashTL').textContent = currentUser.tlBalance.toLocaleString();
+  document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
+  
+  closeChargeModal();
+  loadLibrary();
+  loadSharedMusic(); // 공유 플레이스도 업데이트!
+  
+  const minutes = Math.floor(amount / 60);
+  const seconds = amount % 60;
+  showToast(`✅ ${amount} TL 충전 완료! (${minutes}분 ${seconds}초 재생 가능)`, 'success');
+}
+
+// ==================== 내 음악 재생 ====================
+function playMyMusic(fileId) {
+  if (!currentUser) {
+    showToast('로그인이 필요합니다', 'error');
+    return;
+  }
+  
+  const file = tl3Files.find(f => f.id === fileId);
+  if (!file) {
+    showToast('파일을 찾을 수 없습니다', 'error');
+    return;
+  }
+  
+  if (file.remainingTL < 1) {
+    showToast('⚠️ TL이 부족합니다! 충전해주세요.', 'warning');
+    return;
+  }
+  
+  if (playInterval) clearInterval(playInterval);
+  if (audioPlayer) {
+    audioPlayer.pause();
+    audioPlayer.src = '';
+  }
+  
+  currentPlayingFile = file;
+  currentPlayTime = 0;
+  currentPlayTotal = file.remainingTL;
+  
+  audioPlayer = document.getElementById('audioPlayer');
+  audioPlayer.src = file.fileData;
+  audioPlayer.load();
+  audioPlayer.play().catch(e => console.log('자동 재생 차단됨:', e));
+  
+  document.getElementById('playerTitle').textContent = file.title;
+  document.getElementById('playerArtist').textContent = file.artist;
+  document.getElementById('copyrightOwner').innerHTML = `<strong>저작권자:</strong> ${file.copyrightOwner}`;
+  document.getElementById('contractType').innerHTML = `<strong>계약 유형:</strong> ${file.contractType}`;
+  document.getElementById('miningRight').innerHTML = `<strong>채굴권:</strong> ${file.miningAllowed ? '✅ 있음' : '❌ 없음'}`;
+  document.getElementById('playerTL').textContent = file.remainingTL + ' TL';
+  document.getElementById('playerTimeRemaining').textContent = `약 ${Math.floor(file.remainingTL / 60)}분 ${file.remainingTL % 60}초 남음`;
+  document.getElementById('playerCurrentTime').textContent = '0:00';
+  document.getElementById('playerTotalTime').textContent = formatTime(file.remainingTL);
+  document.getElementById('playerProgress').style.width = '0%';
+  document.getElementById('playPauseBtn').innerHTML = '⏸️ 일시정지';
+  document.getElementById('playerModal').style.display = 'flex';
+  
+  playInterval = setInterval(() => {
+    if (!currentPlayingFile || !audioPlayer) {
+      clearInterval(playInterval);
+      return;
+    }
+    
+    currentPlayingFile.remainingTL -= 1;
+    currentPlayTime++;
+    
+    document.getElementById('playerTL').textContent = currentPlayingFile.remainingTL + ' TL';
+    document.getElementById('playerTimeRemaining').textContent = `약 ${Math.floor(currentPlayingFile.remainingTL / 60)}분 ${currentPlayingFile.remainingTL % 60}초 남음`;
+    document.getElementById('playerCurrentTime').textContent = formatTime(currentPlayTime);
+    
+    const progressPercent = (currentPlayTime / currentPlayTotal) * 100;
+    document.getElementById('playerProgress').style.width = Math.min(progressPercent, 100) + '%';
+    
+    if (currentPlayingFile.remainingTL <= 0 || currentPlayTime >= currentPlayTotal) {
+      closePlayer();
+      showToast(`🎵 재생 완료! (${currentPlayTime}초 소모)`, 'success');
+    }
+  }, 1000);
+  
+  audioPlayer.onended = function() {
+    closePlayer();
+  };
+}
+
+// ==================== 재생/일시정지 토글 ====================
+function togglePlayPause() {
+  if (!audioPlayer) return;
+  
+  if (audioPlayer.paused) {
+    audioPlayer.play();
+    document.getElementById('playPauseBtn').innerHTML = '⏸️ 일시정지';
+  } else {
+    audioPlayer.pause();
+    document.getElementById('playPauseBtn').innerHTML = '▶️ 재생';
+  }
+}
+
+// ==================== 플레이어 닫기 ====================
+function closePlayer() {
+  if (playInterval) {
+    clearInterval(playInterval);
+    playInterval = null;
+  }
+  if (audioPlayer) {
+    audioPlayer.pause();
+    audioPlayer.src = '';
+  }
+  currentPlayingFile = null;
+  currentPlayTime = 0;
+  currentPlayingFileId = null;
+  document.getElementById('playerModal').style.display = 'none';
+  
+  loadLibrary();
+  loadSharedMusic();
+}
+
+// ==================== 시간 포맷 ====================
+function formatTime(seconds) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+// ==================== 광고 시청 ====================
+function watchAd() {
+  if (!currentUser) return;
+  
+  document.getElementById('adModal').style.display = 'flex';
+  let seconds = 30;
+  document.getElementById('adTimer').textContent = seconds + '초';
+  
+  adInterval = setInterval(() => {
+    seconds--;
+    document.getElementById('adTimer').textContent = seconds + '초';
+    
+    if (seconds <= 0) {
+      clearInterval(adInterval);
       
-      if (currentUser.tlBalance < 1) {
-        showToast(`⚠️ 내 지갑에 TL이 부족합니다! 충전이 필요합니다. (보유: ${currentUser.tlBalance} TL)`, 'warning');
-        return;
-      }
+      currentUser.tlBalance += 10;
+      currentUser.totalChargedTL += 10;
       
-      if (playInterval) clearInterval(playInterval);
-      if (audioPlayer) {
-        audioPlayer.pause();
-        audioPlayer.src = '';
-      }
+      document.getElementById('adModal').style.display = 'none';
+      document.getElementById('tlBalance').textContent = currentUser.tlBalance.toLocaleString();
+      document.getElementById('dashTL').textContent = currentUser.tlBalance.toLocaleString();
+      document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
       
-      currentPlayType = 'radio';
-      currentPlayTime = 0;
-      currentPlayTotal = Math.min(currentUser.tlBalance, 3600);
-      
+      showToast('✅ 10 TL 지급 완료!', 'success');
+    }
+  }, 1000);
+}
+
+function closeAdModal() {
+  if (adInterval) clearInterval(adInterval);
+  document.getElementById('adModal').style.display = 'none';
+}
+
+// ==================== 채굴 ====================
+function executeMining() {
+  if (!currentUser) {
+    showToast('로그인이 필요합니다', 'error');
+    return;
+  }
+  
+  const amount = parseInt(document.getElementById('miningAmount').value) || 0;
+  
+  if (!amount || amount <= 0) {
+    showToast('채굴할 TL 양을 입력하세요', 'error');
+    return;
+  }
+  
+  if (amount > currentUser.tlBalance) {
+    showToast('내 지갑에 TL이 부족합니다', 'error');
+    return;
+  }
+  
+  const maxMining = Math.floor(currentUser.tlBalance * 0.5);
+  if (amount > maxMining) {
+    showToast(`채굴 한도는 보유 TL의 50% (${maxMining} TL)입니다`, 'error');
+    return;
+  }
+  
+  const tlcAmount = amount * 0.1 * currentUser.contributionIndex;
+  
+  currentUser.tlBalance -= amount;
+  currentUser.tlcBalance += tlcAmount;
+  
+  document.getElementById('tlBalance').textContent = currentUser.tlBalance.toLocaleString();
+  document.getElementById('tlcBalance').textContent = currentUser.tlcBalance.toFixed(2);
+  document.getElementById('dashTL').textContent = currentUser.tlBalance.toLocaleString();
+  document.getElementById('dashTLC').textContent = currentUser.tlcBalance.toFixed(2);
+  document.getElementById('tonTLCBalance').textContent = currentUser.tlcBalance.toFixed(2);
+  
+  showToast(`✅ 채굴 성공! ${tlcAmount.toFixed(2)} TLC 획득!`, 'success');
+}
+
+// ==================== 차량 ====================
+function registerCar() {
+  if (!currentUser) return;
+  
+  const model = document.getElementById('carModel').value;
+  const plate = document.getElementById('carPlate').value;
+  
+  if (!model) {
+    showToast('차량 모델을 입력하세요', 'error');
+    return;
+  }
+  
+  if (!currentUser.cars) currentUser.cars = [];
+  
+  currentUser.cars.push({
+    model: model,
+    plate: plate || '미등록'
+  });
+  
+  showToast('🚗 차량 등록 완료!', 'success');
+  
+  const carList = document.getElementById('carList');
+  if (carList) {
+    carList.innerHTML = currentUser.cars.map(car => 
+      `<p style="color: white; margin: 5px 0;">🚘 ${car.model} (${car.plate})</p>`
+    ).join('');
+  }
+}
+
+function addDrivingMinutes(minutes) {
+  if (!currentUser) return;
+  
+  if (!currentUser.cars || currentUser.cars.length === 0) {
+    showToast('차량을 먼저 등록해주세요', 'warning');
+    return;
+  }
+  
+  currentUser.drivingMinutes = (currentUser.drivingMinutes || 0) + minutes;
+  document.getElementById('userTotalDrivingTime').textContent = currentUser.drivingMinutes + '분';
+  
+  showToast(`🚗 운전 청취 ${minutes}분 완료! (+${minutes * 10} TL 기여도)`, 'success');
+}
+
+// ==================== TON ====================
+function connectWallet() {
+  showToast('TON 지갑 연결 기능은 테스트넷에서 준비중입니다', 'info');
+  document.getElementById('tonWalletAddress').innerHTML = 'EQD...x5Lp7vK (테스트 지갑)';
+}
+
+// ==================== 라디오 ====================
+function initRadioChannels() {
+  const container = document.getElementById('radioChannels');
+  if (!container) return;
+  
+  const channels = [
+    { name: 'TimeLink Pop', genre: 'pop', freq: '107.7', listeners: 1234 },
+    { name: 'TimeLink Rock', genre: 'rock', freq: '107.9', listeners: 892 },
+    { name: 'TimeLink Hip-Hop', genre: 'hiphop', freq: '108.1', listeners: 1567 },
+    { name: 'TimeLink Jazz', genre: 'jazz', freq: '108.3', listeners: 645 }
+  ];
+  
+  container.innerHTML = channels.map(ch => `
+    <div class="radio-channel-card">
+      <div class="channel-header">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3 style="color:white;">${ch.name}</h3>
+          <span style="background:rgba(255,255,255,0.2); padding:5px 15px; border-radius:30px;">👥 ${ch.listeners}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:10px;">
+          <span>FM ${ch.freq}</span>
+          <span>🔴 LIVE</span>
+        </div>
+      </div>
+      <div class="channel-playlist">
+        <div class="now-playing" style="padding:15px; background:#f0f9ff; border-left:4px solid #1db954; margin-bottom:15px; border-radius:12px;">
+          <div style="display:flex; justify-content:space-between;">
+            <div>
+              <div style="font-weight:700;" id="radio-${ch.genre}-title">Dynamite - BTS</div>
+              <div style="color:#666;" id="radio-${ch.genre}-artist">BTS</div>
+            </div>
+            <span style="color:#1db954;">🎵</span>
+          </div>
+        </div>
+        <button class="btn-play" onclick="playRadio('${ch.genre}')" style="width:100%;">🎧 재생 (1초 = 1TL)</button>
+      </div>
+    </div>
+  `).join('');
+  
+  startRadioStreaming();
+}
+
+function startRadioStreaming() {
+  if (radioInterval) clearInterval(radioInterval);
+  
+  radioInterval = setInterval(() => {
+    const songs = [
+      { title: 'Dynamite - BTS', artist: 'BTS' },
+      { title: 'Butter - BTS', artist: 'BTS' },
+      { title: 'Blinding Lights - The Weeknd', artist: 'The Weeknd' }
+    ];
+    
+    const genres = ['pop', 'rock', 'hiphop', 'jazz'];
+    
+    genres.forEach(genre => {
+      const randomSong = songs[Math.floor(Math.random() * songs.length)];
       const titleEl = document.getElementById(`radio-${genre}-title`);
       const artistEl = document.getElementById(`radio-${genre}-artist`);
-      const currentTitle = titleEl ? titleEl.textContent : 'TimeLink Radio';
-      const currentArtist = artistEl ? artistEl.textContent : 'Various Artists';
       
-      document.getElementById('playerTitle').textContent = currentTitle;
-      document.getElementById('playerArtist').textContent = currentArtist;
-      document.getElementById('copyrightOwner').innerHTML = '<strong>저작권자:</strong> TimeLink Radio';
-      document.getElementById('contractType').innerHTML = '<strong>계약 유형:</strong> 라디오 스트리밍';
-      document.getElementById('miningRight').innerHTML = '<strong>채굴권:</strong> 해당 없음';
-      document.getElementById('playerTL').textContent = currentUser.tlBalance + ' TL';
-      document.getElementById('playerTimeRemaining').textContent = `약 ${Math.floor(currentUser.tlBalance / 60)}분 ${currentUser.tlBalance % 60}초 남음`;
-      document.getElementById('playerCurrentTime').textContent = '0:00';
-      document.getElementById('playerTotalTime').textContent = formatTime(currentPlayTotal);
-      document.getElementById('playerProgress').style.width = '0%';
-      document.getElementById('playPauseBtn').innerHTML = '⏸️ 일시정지';
-      document.getElementById('playerModal').style.display = 'flex';
-      
-      playInterval = setInterval(() => {
-        if (!currentUser) {
-          clearInterval(playInterval);
-          return;
-        }
-        
-        currentUser.tlBalance -= 1;
-        currentPlayTime++;
-        
-        document.getElementById('playerTL').textContent = currentUser.tlBalance + ' TL';
-        document.getElementById('playerTimeRemaining').textContent = `약 ${Math.floor(currentUser.tlBalance / 60)}분 ${currentUser.tlBalance % 60}초 남음`;
-        document.getElementById('playerCurrentTime').textContent = formatTime(currentPlayTime);
-        document.getElementById('tlBalance').textContent = currentUser.tlBalance.toLocaleString();
-        document.getElementById('dashTL').textContent = currentUser.tlBalance.toLocaleString();
-        document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
-        
-        const maxMining = Math.floor(currentUser.tlBalance * 0.5);
-        document.getElementById('dashMiningLimit').textContent = maxMining + ' TL';
-        document.getElementById('miningLimitAmount').textContent = maxMining + ' / ' + currentUser.tlBalance + ' TL';
-        document.getElementById('miningAvailable').textContent = maxMining + ' TL';
-        document.getElementById('maxMiningLabel').textContent = maxMining;
-        
-        const progressPercent = (currentPlayTime / currentPlayTotal) * 100;
-        document.getElementById('playerProgress').style.width = Math.min(progressPercent, 100) + '%';
-        
-        if (currentPlayTime % 5 === 0) {
-          currentUser.listenMinutes = (currentUser.listenMinutes || 0) + 0.0833;
-          updateContribution();
-        }
-        
-        if (currentUser.tlBalance <= 0 || currentPlayTime >= currentPlayTotal) {
-          closePlayer();
-          showToast(`📻 라디오 재생 완료! (${currentPlayTime}초 소모)`, 'success');
-        }
-      }, 1000);
-    }
+      if (titleEl) titleEl.textContent = randomSong.title;
+      if (artistEl) artistEl.textContent = randomSong.artist;
+    });
+  }, 10000);
+}
 
-    // ==================== 상업방송 채널 초기화 ====================
-    function initCommercialChannels() {
-      const container = document.getElementById('commercialChannels');
-      if (!container) return;
-      
-      const channels = [
-        { name: 'TimeLink Business 1', freq: '109.1', listeners: 567, revenue: 12340 },
-        { name: 'TimeLink Business 2', freq: '109.3', listeners: 432, revenue: 9870 },
-        { name: 'TimeLink Business 3', freq: '109.5', listeners: 345, revenue: 7650 }
-      ];
-      
-      container.innerHTML = channels.map(ch => `
-        <div class="commercial-channel-card">
-          <div class="commercial-channel-header">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3 style="color: white;">${ch.name}</h3>
-              <span class="business-badge">🏢 BUSINESS</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-              <span>FM ${ch.freq} MHz</span>
-              <span>👥 ${ch.listeners}명 청취중</span>
-            </div>
-          </div>
-          <div class="channel-playlist">
-            <div class="now-playing" style="border-left-color: #f5576c;" id="commercial-${ch.freq}-now">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <div style="font-weight: 700; font-size: 1.1rem;" id="commercial-${ch.freq}-title">Now Playing...</div>
-                  <div style="color: #666; margin-top: 5px;" id="commercial-${ch.freq}-artist"></div>
-                </div>
-                <span style="color: #f5576c;">📺 광고 지원</span>
-              </div>
-            </div>
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-              <span style="background: #f8f9fa; padding: 8px 16px; border-radius: 30px; font-size: 13px;">
-                💰 크리에이터 수익: ${ch.revenue} TL
-              </span>
-            </div>
-            <button class="btn-business-play" onclick="playCommercial('${ch.freq}')" style="width: 100%;">
-              🎧 상업방송 재생 (1초 = 내 TL 1TL 소모)
-            </button>
-          </div>
+function playRadio(genre) {
+  if (!currentUser) {
+    showToast('로그인이 필요합니다', 'error');
+    return;
+  }
+  
+  showToast('📻 라디오를 재생합니다.', 'info');
+}
+
+// ==================== 상업방송 ====================
+function initCommercialChannels() {
+  const container = document.getElementById('commercialChannels');
+  if (!container) return;
+  
+  const channels = [
+    { name: 'TimeLink Business 1', freq: '109.1', listeners: 567, revenue: 12340 },
+    { name: 'TimeLink Business 2', freq: '109.3', listeners: 432, revenue: 9870 }
+  ];
+  
+  container.innerHTML = channels.map(ch => `
+    <div class="commercial-channel-card">
+      <div class="commercial-channel-header" style="background:linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding:20px; color:white;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3 style="color:white;">${ch.name}</h3>
+          <span style="background:rgba(255,255,255,0.2); padding:5px 15px; border-radius:30px;">🏢 BUSINESS</span>
         </div>
-      `).join('');
-      
-      startCommercialStreaming();
-    }
+        <div style="display:flex; justify-content:space-between; margin-top:10px;">
+          <span>FM ${ch.freq}</span>
+          <span>👥 ${ch.listeners}</span>
+        </div>
+      </div>
+      <div class="channel-playlist" style="padding:20px;">
+        <div style="background:#f8f9fa; padding:15px; border-radius:12px; margin-bottom:15px;">
+          <span style="background:rgba(245,87,108,0.1); padding:6px 16px; border-radius:30px; font-size:13px;">💰 수익: ${ch.revenue} TL</span>
+        </div>
+        <button class="btn-business-play" onclick="playCommercial()" style="width:100%; padding:14px; background:linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color:white; border:none; border-radius:12px; font-weight:700;">🎧 재생</button>
+      </div>
+    </div>
+  `).join('');
+}
 
-    // ==================== 상업방송 스트리밍 시작 ====================
-    function startCommercialStreaming() {
-      if (commercialInterval) clearInterval(commercialInterval);
-      
-      commercialInterval = setInterval(() => {
-        const sharedSongs = sharedFiles.filter(f => f.creatorId !== currentUser?.id);
-        
-        if (sharedSongs.length > 0) {
-          const freqs = ['109.1', '109.3', '109.5'];
-          
-          freqs.forEach(freq => {
-            const randomSong = sharedSongs[Math.floor(Math.random() * sharedSongs.length)];
-            const titleEl = document.getElementById(`commercial-${freq}-title`);
-            const artistEl = document.getElementById(`commercial-${freq}-artist`);
-            
-            if (titleEl) titleEl.textContent = randomSong.title;
-            if (artistEl) artistEl.textContent = randomSong.artist;
-          });
-        }
-      }, 15000);
-    }
+function playCommercial() {
+  if (!currentUser) {
+    showToast('로그인이 필요합니다', 'error');
+    return;
+  }
+  
+  if (!currentUser.isBusiness) {
+    showToast('📺 상업방송은 사업자 전용입니다', 'warning');
+    return;
+  }
+  
+  showToast('📺 상업방송을 재생합니다.', 'info');
+}
 
-    // ==================== 상업방송 재생 ====================
-    function playCommercial(freq) {
-      if (!currentUser) {
-        showToast('로그인이 필요합니다', 'error');
-        return;
-      }
-      
-      if (!currentUser.isBusiness) {
-        showToast('📺 상업방송은 사업자 등록 크리에이터만 이용할 수 있습니다', 'warning');
-        return;
-      }
-      
-      if (currentUser.tlBalance < 1) {
-        showToast(`⚠️ 내 지갑에 TL이 부족합니다! 충전이 필요합니다. (보유: ${currentUser.tlBalance} TL)`, 'warning');
-        return;
-      }
-      
-      if (playInterval) clearInterval(playInterval);
-      if (audioPlayer) {
-        audioPlayer.pause();
-        audioPlayer.src = '';
-      }
-      
-      currentPlayType = 'commercial';
-      currentPlayTime = 0;
-      currentPlayTotal = Math.min(currentUser.tlBalance, 3600);
-      
-      const titleEl = document.getElementById(`commercial-${freq}-title`);
-      const artistEl = document.getElementById(`commercial-${freq}-artist`);
-      const currentTitle = titleEl ? titleEl.textContent : 'TimeLink Commercial';
-      const currentArtist = artistEl ? artistEl.textContent : 'Various Artists';
-      
-      document.getElementById('playerTitle').textContent = currentTitle;
-      document.getElementById('playerArtist').textContent = currentArtist;
-      document.getElementById('copyrightOwner').innerHTML = '<strong>저작권자:</strong> TimeLink Commercial';
-      document.getElementById('contractType').innerHTML = '<strong>계약 유형:</strong> 상업방송';
-      document.getElementById('miningRight').innerHTML = '<strong>채굴권:</strong> 해당 없음';
-      document.getElementById('playerTL').textContent = currentUser.tlBalance + ' TL';
-      document.getElementById('playerTimeRemaining').textContent = `약 ${Math.floor(currentUser.tlBalance / 60)}분 ${currentUser.tlBalance % 60}초 남음`;
-      document.getElementById('playerCurrentTime').textContent = '0:00';
-      document.getElementById('playerTotalTime').textContent = formatTime(currentPlayTotal);
-      document.getElementById('playerProgress').style.width = '0%';
-      document.getElementById('playPauseBtn').innerHTML = '⏸️ 일시정지';
-      document.getElementById('playerModal').style.display = 'flex';
-      
-      playInterval = setInterval(() => {
-        if (!currentUser) {
-          clearInterval(playInterval);
-          return;
-        }
-        
-        currentUser.tlBalance -= 1;
-        currentPlayTime++;
-        
-        document.getElementById('playerTL').textContent = currentUser.tlBalance + ' TL';
-        document.getElementById('playerTimeRemaining').textContent = `약 ${Math.floor(currentUser.tlBalance / 60)}분 ${currentUser.tlBalance % 60}초 남음`;
-        document.getElementById('playerCurrentTime').textContent = formatTime(currentPlayTime);
-        document.getElementById('tlBalance').textContent = currentUser.tlBalance.toLocaleString();
-        document.getElementById('dashTL').textContent = currentUser.tlBalance.toLocaleString();
-        document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
-        
-        const maxMining = Math.floor(currentUser.tlBalance * 0.5);
-        document.getElementById('dashMiningLimit').textContent = maxMining + ' TL';
-        document.getElementById('miningLimitAmount').textContent = maxMining + ' / ' + currentUser.tlBalance + ' TL';
-        document.getElementById('miningAvailable').textContent = maxMining + ' TL';
-        document.getElementById('maxMiningLabel').textContent = maxMining;
-        
-        const progressPercent = (currentPlayTime / currentPlayTotal) * 100;
-        document.getElementById('playerProgress').style.width = Math.min(progressPercent, 100) + '%';
-        
-        if (currentPlayTime % 5 === 0) {
-          currentUser.listenMinutes = (currentUser.listenMinutes || 0) + 0.0833;
-          updateContribution();
-        }
-        
-        if (currentUser.tlBalance <= 0 || currentPlayTime >= currentPlayTotal) {
-          closePlayer();
-          showToast(`📺 상업방송 재생 완료! (${currentPlayTime}초 소모)`, 'success');
-        }
-      }, 1000);
-    }
+// ==================== 페이지 로드 ====================
+window.onload = function() {
+  console.log('🚀 TimeLink v20.1 - TL3 공유 즉시 표시!');
+  audioPlayer = document.getElementById('audioPlayer');
+  
+  document.getElementById('authContainer').style.display = 'flex';
+  document.getElementById('appContainer').style.display = 'none';
+  
+  initRadioChannels();
+  initCommercialChannels();
+};
+</script>
 
-    // ==================== 사업자 신청 ====================
-    function applyForBusiness() {
-      if (!currentUser) {
-        showToast('로그인이 필요합니다', 'error');
-        return;
-      }
-      
-      if (currentUser.isBusiness) {
-        showToast('이미 사업자 등록이 완료되었습니다', 'info');
-        return;
-      }
-      
-      currentUser.isBusiness = true;
-      currentUser.userType = 'business';
-      currentUser.businessNumber = '123-45-67890';
-      
-      document.getElementById('userStatus').innerHTML = '🏢 사업자 (Google)';
-      document.getElementById('userStatus').style.color = '#f5576c';
-      
-      showToast('✅ 사업자 등록이 완료되었습니다! 이제 상업방송을 이용할 수 있습니다.', 'success');
-      
-      updateBusinessUI();
-      initCommercialChannels();
-    }
-
-    function updateBusinessUI() {
-      const businessApplySection = document.getElementById('businessApplySection');
-      if (!businessApplySection) return;
-      
-      if (currentUser && currentUser.isBusiness) {
-        businessApplySection.style.display = 'none';
-      } else {
-        businessApplySection.style.display = 'block';
-      }
-    }
-
-    // ==================== 시간 포맷 ====================
-    function formatTime(seconds) {
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
-
-    // ==================== 채굴권 확인 ====================
-    function checkMiningPermission() {
-      if (!currentUser) return false;
-      
-      const has55Contract = tl3Files.some(f => f.creatorId === currentUser.id && f.revenueShare === '55');
-      currentUser.hasMiningRight = has55Contract;
-      
-      const msg = document.getElementById('miningPermissionMessage');
-      if (msg) {
-        msg.innerHTML = has55Contract ? 
-          '✅ 채굴권 있습니다! (5:5 계약 TL3 파일 보유중)' : 
-          '⛔ 채굴권 없습니다 (5:5 계약으로 TL3 파일 생성 필요)';
-        msg.style.color = has55Contract ? '#10b981' : '#856404';
-      }
-      
-      return has55Contract;
-    }
-
-    // ==================== 채굴 실행 ====================
-    function executeMining() {
-      if (!currentUser) {
-        showToast('로그인이 필요합니다', 'error');
-        return;
-      }
-      
-      if (!checkMiningPermission()) {
-        showToast('⛔ 채굴권이 없습니다. 5:5 계약으로 TL3 파일을 생성하세요', 'error');
-        return;
-      }
-      
-      const amount = parseInt(document.getElementById('miningAmount').value) || 0;
-      
-      if (!amount || amount <= 0) {
-        showToast('채굴할 TL 양을 입력하세요', 'error');
-        return;
-      }
-      
-      if (amount > currentUser.tlBalance) {
-        showToast('내 지갑에 TL이 부족합니다', 'error');
-        return;
-      }
-      
-      const maxMining = Math.floor(currentUser.tlBalance * 0.5);
-      if (amount > maxMining) {
-        showToast(`채굴 한도는 보유 TL의 50% (${maxMining} TL)입니다`, 'error');
-        return;
-      }
-      
-      const tlcAmount = amount * 0.1 * currentUser.contributionIndex;
-      
-      currentUser.tlBalance -= amount;
-      currentUser.tlcBalance += tlcAmount;
-      
-      document.getElementById('tlBalance').textContent = currentUser.tlBalance.toLocaleString();
-      document.getElementById('tlcBalance').textContent = currentUser.tlcBalance.toFixed(2);
-      document.getElementById('dashTL').textContent = currentUser.tlBalance.toLocaleString();
-      document.getElementById('dashTLC').textContent = currentUser.tlcBalance.toFixed(2);
-      document.getElementById('currentTLBalance').textContent = currentUser.tlBalance.toLocaleString();
-      
-      const newMaxMining = Math.floor(currentUser.tlBalance * 0.5);
-      document.getElementById('dashMiningLimit').textContent = newMaxMining + ' TL';
-      document.getElementById('miningLimitAmount').textContent = newMaxMining + ' / ' + currentUser.tlBalance + ' TL';
-      document.getElementById('miningAvailable').textContent = newMaxMining + ' TL';
-      document.getElementById('maxMiningLabel').textContent = newMaxMining;
-      
-      showToast(`✅ 채굴 성공! ${tlcAmount.toFixed(2)} TLC 획득! (기여지수 ${currentUser.contributionIndex}x)`, 'success');
-    }
-
-    // ==================== 채굴 미리보기 ====================
-    document.addEventListener('input', function(e) {
-      if (e.target.id === 'miningAmount') {
-        updateMiningPreview();
-      }
-    });
-
-    function updateMiningPreview() {
-      if (!currentUser) return;
-      
-      const amount = parseInt(document.getElementById('miningAmount')?.value) || 0;
-      const maxMining = Math.floor(currentUser.tlBalance * 0.5);
-      
-      if (amount > 0 && amount <= maxMining) {
-        const tlcAmount = amount * 0.1 * currentUser.contributionIndex;
-        
-        document.getElementById('previewInput').textContent = amount.toLocaleString() + ' TL';
-        document.getElementById('previewIndex').textContent = currentUser.contributionIndex.toFixed(2) + 'x';
-        document.getElementById('previewOutput').textContent = tlcAmount.toFixed(2) + ' TLC';
-      } else {
-        document.getElementById('previewInput').textContent = '0 TL';
-        document.getElementById('previewOutput').textContent = '0 TLC';
-      }
-    }
-
-    // ==================== 차량 등록 ====================
-    function registerCar() {
-      if (!currentUser) return;
-      
-      const model = document.getElementById('carModel').value;
-      const plate = document.getElementById('carPlate').value;
-      
-      if (!model) {
-        showToast('차량 모델을 입력하세요', 'error');
-        return;
-      }
-      
-      if (!currentUser.cars) currentUser.cars = [];
-      
-      currentUser.cars.push({
-        model: model,
-        plate: plate || '미등록',
-        registeredAt: new Date().toISOString()
-      });
-      
-      showToast('🚗 차량 등록 완료! (운전 청취 2배 기여도)', 'success');
-      
-      const carList = document.getElementById('carList');
-      if (carList) {
-        carList.innerHTML = currentUser.cars.map(car => 
-          `<p style="color: white; margin: 5px 0;">🚘 ${car.model} (${car.plate})</p>`
-        ).join('');
-      }
-      
-      document.getElementById('userTotalDrivingTime').textContent = (currentUser.drivingMinutes || 0) + '분';
-    }
-
-    // ==================== 차량 청취 ====================
-    function addDrivingMinutes(minutes) {
-      if (!currentUser) return;
-      
-      if (!currentUser.cars || currentUser.cars.length === 0) {
-        showToast('차량을 먼저 등록해주세요', 'warning');
-        return;
-      }
-      
-      currentUser.drivingMinutes = (currentUser.drivingMinutes || 0) + minutes;
-      updateContribution();
-      
-      document.getElementById('userTotalDrivingTime').textContent = currentUser.drivingMinutes + '분';
-      
-      showToast(`🚗 운전 청취 ${minutes}분 완료! (+${minutes * 10} TL 기여도)`, 'success');
-    }
-
-    // ==================== TON 지갑 연결 ====================
-    function connectWallet() {
-      showToast('TON 지갑 연결 기능은 테스트넷에서 준비중입니다', 'info');
-      document.getElementById('tonWalletAddress').innerHTML = 'EQD...x5Lp7vK (테스트 지갑)';
-    }
-
-    // ==================== 탭 전환 ====================
-    function switchTab(tabName) {
-      const tabs = document.querySelectorAll('.tab');
-      const contents = document.querySelectorAll('.tab-content');
-      
-      tabs.forEach(tab => tab.classList.remove('active'));
-      contents.forEach(content => content.classList.remove('active'));
-      
-      event.target.classList.add('active');
-      document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
-      
-      if (tabName === 'library') loadLibrary();
-      if (tabName === 'shareplace') loadSharedMusic();
-      if (tabName === 'radio') initRadioChannels();
-      if (tabName === 'commercial') {
-        initCommercialChannels();
-        updateBusinessUI();
-      }
-      if (tabName === 'mining') {
-        checkMiningPermission();
-        const maxMining = currentUser ? Math.floor(currentUser.tlBalance * 0.5) : 0;
-        document.getElementById('miningLimitAmount').textContent = maxMining + ' / ' + (currentUser?.tlBalance || 0) + ' TL';
-        document.getElementById('maxMiningLabel').textContent = maxMining;
-        document.getElementById('miningIndexDisplay').textContent = currentUser?.contributionIndex.toFixed(2) || '1.00';
-      }
-      if (tabName === 'car') {
-        if (currentUser) {
-          document.getElementById('userTotalDrivingTime').textContent = (currentUser.drivingMinutes || 0) + '분';
-        }
-      }
-    }
-
-    // ==================== 화면 전환 ====================
-    function showSignup() {
-      document.getElementById('signupForm').style.display = 'block';
-      document.getElementById('loginForm').style.display = 'none';
-    }
-
-    function showLogin() {
-      document.getElementById('signupForm').style.display = 'none';
-      document.getElementById('loginForm').style.display = 'block';
-    }
-
-    // ==================== 사업자 등록번호 입력 필드 표시 ====================
-    document.getElementById('signupUserType')?.addEventListener('change', function(e) {
-      const businessGroup = document.getElementById('businessNumberGroup');
-      if (businessGroup) {
-        businessGroup.style.display = e.target.value === 'business' ? 'block' : 'none';
-      }
-    });
-
-    // ==================== 페이지 로드 ====================
-    window.onload = function() {
-      console.log('🚀 TimeLink v20.1 - 투자자 데모 (Supabase Google 로그인)');
-      
-      audioPlayer = document.getElementById('audioPlayer');
-      
-      // 로그인 상태 즉시 체크
-      handleUserSession();
-      
-      // 테스트 데이터 생성 (localStorage에 없을 때만)
-      if (users.length === 0) {
-        const testUser1 = {
-          id: 'user_test_1',
-          username: '아미',
-          email: 'army@test.com',
-          password: '123456',
-          userType: 'business',
-          isBusiness: true,
-          businessNumber: '123-45-67890',
-          tlBalance: 25000,
-          tlcBalance: 1250.75,
-          totalChargedTL: 30000,
-          listenMinutes: 450,
-          drivingMinutes: 120,
-          contributionTL: 3750,
-          contributionIndex: 4.75,
-          hasMiningRight: true,
-          cars: [{ model: 'Hyundai Ioniq 5', plate: '123가 4567' }],
-          createdAt: new Date().toISOString()
-        };
-        
-        users.push(testUser1);
-        localStorage.setItem('timelink_users_v20', JSON.stringify(users));
-      }
-      
-      // 테스트 TL3 파일 생성
-      if (tl3Files.length === 0) {
-        const dummyAudioData = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAA8AAAGQAApCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJD/+5REAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
-        
-        tl3Files.push({
-          id: 'tl3_1',
-          title: 'Dynamite - BTS',
-          artist: 'BTS',
-          genre: 'pop',
-          fileName: 'dynamite.mp3',
-          fileType: 'audio/mp3',
-          fileData: dummyAudioData,
-          fileSize: 1024,
-          revenueShare: '55',
-          miningAllowed: true,
-          remainingTL: 5000,
-          totalTL: 5000,
-          creatorId: 'user_test_1',
-          creatorName: '아미',
-          copyrightOwner: '아미',
-          contractType: '5:5 계약',
-          createdAt: new Date().toISOString(),
-          playCount: 1240
-        });
-        
-        tl3Files.push({
-          id: 'tl3_2',
-          title: 'Butter - BTS',
-          artist: 'BTS',
-          genre: 'pop',
-          fileName: 'butter.mp3',
-          fileType: 'audio/mp3',
-          fileData: dummyAudioData,
-          fileSize: 1024,
-          revenueShare: '55',
-          miningAllowed: true,
-          remainingTL: 0,
-          totalTL: 0,
-          creatorId: 'user_test_1',
-          creatorName: '아미',
-          copyrightOwner: '아미',
-          contractType: '5:5 계약',
-          createdAt: new Date().toISOString(),
-          playCount: 0
-        });
-        
-        localStorage.setItem('timelink_tl3_files_v20', JSON.stringify(tl3Files));
-      }
-      
-      // 테스트 공유 파일 생성
-      if (sharedFiles.length === 0 && tl3Files.length >= 2) {
-        sharedFiles.push({
-          id: 'shared_1',
-          originalId: tl3Files[0].id,
-          title: tl3Files[0].title,
-          artist: tl3Files[0].artist,
-          genre: tl3Files[0].genre,
-          creatorId: tl3Files[0].creatorId,
-          creatorName: tl3Files[0].creatorName,
-          copyrightOwner: tl3Files[0].copyrightOwner,
-          revenueShare: tl3Files[0].revenueShare,
-          miningAllowed: tl3Files[0].miningAllowed,
-          contractType: tl3Files[0].contractType,
-          sharedAt: new Date().toISOString(),
-          playCount: 1240
-        });
-        
-        sharedFiles.push({
-          id: 'shared_2',
-          originalId: tl3Files[1].id,
-          title: tl3Files[1].title,
-          artist: tl3Files[1].artist,
-          genre: tl3Files[1].genre,
-          creatorId: tl3Files[1].creatorId,
-          creatorName: tl3Files[1].creatorName,
-          copyrightOwner: tl3Files[1].copyrightOwner,
-          revenueShare: tl3Files[1].revenueShare,
-          miningAllowed: tl3Files[1].miningAllowed,
-          contractType: tl3Files[1].contractType,
-          sharedAt: new Date().toISOString(),
-          playCount: 0
-        });
-        
-        localStorage.setItem('timelink_shared_v20', JSON.stringify(sharedFiles));
-      }
-      
-      initRadioChannels();
-      initCommercialChannels();
-    };
-  </script>
 </body>
 </html>
