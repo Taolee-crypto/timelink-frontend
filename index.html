@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TimeLink Global — 완전체 (플레이어 완벽 구현)</title>
+    <title>TimeLink Global — 완전체 (플레이어 모달 완벽 구현)</title>
     
     <!-- Google Fonts & Font Awesome -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -2872,7 +2872,7 @@
 
 <script>
 // ============================================================================
-// TimeLink Global v22.15 - 완전 복구 (플레이어 완벽 구현)
+// TimeLink Global v22.15 - 완전 복구 (플레이어 모달 완벽 구현)
 // ============================================================================
 
 const GENRES = ['pop', 'rock', 'hiphop', 'jazz', 'classic', 'edm', 'rnb', 'country'];
@@ -2970,6 +2970,7 @@ const TimeLinkSystem = {
     currentPlayer: null,
     playingFile: null,
     playInterval: null,
+    playerUpdateInterval: null, // 모달 업데이트용 인터벌
 
     initSampleFiles() {
         if (this.files.length === 0) {
@@ -3157,6 +3158,7 @@ const TimeLinkSystem = {
             document.getElementById('authContainer').style.display = 'flex';
             document.getElementById('appContainer').style.display = 'none';
             if (TimeLinkSystem.playInterval) clearInterval(TimeLinkSystem.playInterval);
+            if (TimeLinkSystem.playerUpdateInterval) clearInterval(TimeLinkSystem.playerUpdateInterval);
             if (TimeLinkSystem.currentPlayer) {
                 TimeLinkSystem.currentPlayer.pause();
                 TimeLinkSystem.currentPlayer = null;
@@ -3248,16 +3250,22 @@ const TimeLinkSystem = {
             const rate = file.tlPerSecond * (TimeLinkSystem.carMode ? 2 : 1);
             const player = file.type === 'TL4' ? document.getElementById('videoPlayer') : document.getElementById('audioPlayer');
             player.src = file.audio.url;
+
+            // 플레이어 모달 표시 (오디오/비디오 모두)
             if (file.type === 'TL4') {
+                // 비디오는 전체화면 컨테이너 사용
                 document.getElementById('videoPlayerContainer').style.display = 'block';
                 document.getElementById('videoTitle').textContent = `${file.metadata.title} - ${file.metadata.artist}`;
                 document.getElementById('videoTimeRemaining').textContent = `TL: ${file.token.balance}`;
                 TimeLinkSystem.currentPlayer = player;
-                player.play().catch(e => TimeLinkSystem.ui.showToast('재생 오류: ' + e.message, 'error'));
             } else {
+                // 오디오는 모달 사용
+                TimeLinkSystem.player.updatePlayerModal(file);
+                document.getElementById('playerModal').style.display = 'flex';
                 TimeLinkSystem.currentPlayer = player;
-                player.play().catch(e => TimeLinkSystem.ui.showToast('재생 오류: ' + e.message, 'error'));
             }
+
+            player.play().catch(e => TimeLinkSystem.ui.showToast('재생 오류: ' + e.message, 'error'));
 
             player.onended = () => TimeLinkSystem.player.stop();
 
@@ -3283,6 +3291,14 @@ const TimeLinkSystem = {
                 TimeLinkSystem.autoRecharge.check();
             }, 1000);
 
+            // 모달 업데이트 인터벌 (오디오용)
+            if (file.type !== 'TL4') {
+                if (TimeLinkSystem.playerUpdateInterval) clearInterval(TimeLinkSystem.playerUpdateInterval);
+                TimeLinkSystem.playerUpdateInterval = setInterval(() => {
+                    TimeLinkSystem.player.updatePlayerModal(file);
+                }, 500);
+            }
+
             TimeLinkSystem.ui.showToast(`▶️ ${file.metadata.title} 재생 중... (${rate}TL/초)`, 'success');
         },
 
@@ -3293,7 +3309,9 @@ const TimeLinkSystem = {
                 TimeLinkSystem.currentPlayer = null;
             }
             document.getElementById('videoPlayerContainer').style.display = 'none';
+            document.getElementById('playerModal').style.display = 'none';
             clearInterval(TimeLinkSystem.playInterval);
+            clearInterval(TimeLinkSystem.playerUpdateInterval);
             TimeLinkSystem.playingFile = null;
         },
 
@@ -3310,6 +3328,44 @@ const TimeLinkSystem = {
             document.getElementById('chargeModal').style.display = 'flex';
             document.getElementById('chargeModal').dataset.targetFile = fileId || '';
             document.getElementById('currentTLBalance').textContent = TimeLinkSystem.wallet.tl.toLocaleString();
+        },
+
+        updatePlayerModal(file) {
+            if (!file || !TimeLinkSystem.currentPlayer) return;
+            const player = TimeLinkSystem.currentPlayer;
+            const rate = file.tlPerSecond * (TimeLinkSystem.carMode ? 2 : 1);
+            
+            document.getElementById('playerTitle').textContent = file.metadata.title;
+            document.getElementById('playerArtist').textContent = file.metadata.artist;
+            document.getElementById('playerTypeBadge').textContent = file.type;
+            document.getElementById('playerRateBadge').textContent = `${rate}TL/초`;
+            document.getElementById('playerTL').textContent = file.token.balance.toLocaleString();
+            document.getElementById('playerTimeRemaining').textContent = `≈ ${Math.floor(file.token.balance / rate)}초 남음`;
+            
+            // 진행 시간
+            const current = player.currentTime || 0;
+            const duration = player.duration || 0;
+            const progress = duration ? (current / duration) * 100 : 0;
+            document.getElementById('playerProgress').style.width = progress + '%';
+            document.getElementById('playerCurrentTime').textContent = TimeLinkSystem.player.formatTime(current);
+            document.getElementById('playerTotalTime').textContent = TimeLinkSystem.player.formatTime(duration);
+            
+            // 저작권 정보 (임시)
+            document.getElementById('playerCopyrightOwner').textContent = file.metadata.copyright?.owner_name || 'Unknown';
+            document.getElementById('playerCopyrightNumber').textContent = file.metadata.copyright?.registration_number || 'N/A';
+            document.getElementById('playerContractType').textContent = file.metadata.contract?.type === '55' ? '5:5 Contract' : '7:3 Contract';
+            document.getElementById('playerCreatorShare').textContent = file.metadata.contract?.type === '55' ? '50%' : '70%';
+            document.getElementById('playerPlatformShare').textContent = file.metadata.contract?.type === '55' ? '50%' : '30%';
+            
+            // 재생/일시정지 버튼 텍스트
+            document.getElementById('playPauseBtn').innerHTML = player.paused ? '▶️ Play' : '⏸️ Pause';
+        },
+
+        formatTime(seconds) {
+            if (isNaN(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
         }
     },
 
