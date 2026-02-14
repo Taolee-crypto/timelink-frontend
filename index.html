@@ -36,6 +36,8 @@
             --warning: #f59e0b;
             --danger: #ef4444;
             --info: #3b82f6;
+            --lecture: #ff7b00;
+            --lecture-glow: rgba(255, 123, 0, 0.3);
             
             --border-color: rgba(255, 255, 255, 0.08);
             --border-hover: rgba(255, 255, 255, 0.15);
@@ -557,6 +559,15 @@
             left: 16px;
             right: auto;
         }
+        .badge-lecture { 
+            background: var(--lecture); 
+            left: 16px;
+            right: auto;
+            top: 60px;
+        }
+        .badge-purchased {
+            background: var(--success);
+        }
 
         .file-info {
             padding: 24px;
@@ -593,6 +604,7 @@
         .copyright-panel { border-left-color: #8b5cf6; }
         .contract-panel { border-left-color: var(--accent); }
         .tl-panel { border-left-color: var(--warning); }
+        .lecture-panel { border-left-color: var(--lecture); }
 
         .file-stats {
             display: flex;
@@ -630,7 +642,7 @@
             margin-top: 20px;
         }
 
-        .btn-play, .btn-charge, .btn-share, .btn-play-disabled {
+        .btn-play, .btn-charge, .btn-share, .btn-lecture, .btn-play-disabled {
             padding: 14px 10px;
             border: none;
             border-radius: var(--radius-md);
@@ -673,11 +685,20 @@
 
         .btn-share {
             background: var(--accent);
-            grid-column: span 2;
         }
 
         .btn-share:hover {
             background: var(--accent-light);
+            transform: translateY(-2px);
+        }
+        
+        .btn-lecture {
+            background: var(--lecture);
+            grid-column: span 2;
+        }
+
+        .btn-lecture:hover {
+            background: #ff9500;
             transform: translateY(-2px);
         }
 
@@ -761,8 +782,16 @@
             margin-bottom: 32px;
         }
 
+        .lecture-header {
+            background: linear-gradient(145deg, #ff7b00, #ff5500);
+            border-radius: var(--radius-xl);
+            padding: 32px;
+            margin-bottom: 32px;
+        }
+
         .radio-channel-card,
-        .commercial-channel-card {
+        .commercial-channel-card,
+        .lecture-channel-card {
             background: var(--bg-card);
             border-radius: var(--radius-xl);
             overflow: hidden;
@@ -771,7 +800,8 @@
         }
 
         .radio-channel-card:hover,
-        .commercial-channel-card:hover {
+        .commercial-channel-card:hover,
+        .lecture-channel-card:hover {
             border-color: var(--accent);
             transform: translateY(-4px);
         }
@@ -784,6 +814,12 @@
 
         .commercial-channel-header {
             background: linear-gradient(145deg, #f093fb, #f5576c);
+            padding: 20px;
+            color: white;
+        }
+
+        .lecture-channel-header {
+            background: linear-gradient(145deg, #ff7b00, #ff5500);
             padding: 20px;
             color: white;
         }
@@ -1022,7 +1058,8 @@
         }
 
         .form-group input,
-        .form-group select {
+        .form-group select,
+        .form-group textarea {
             width: 100%;
             padding: 14px 18px;
             background: rgba(255, 255, 255, 0.05);
@@ -1034,7 +1071,8 @@
         }
 
         .form-group input:focus,
-        .form-group select:focus {
+        .form-group select:focus,
+        .form-group textarea:focus {
             outline: none;
             border-color: var(--accent);
             background: rgba(138, 43, 226, 0.1);
@@ -1150,6 +1188,109 @@
     </div>
 </div>
 
+<!-- Lecture Purchase Modal -->
+<div id="lecturePurchaseModal" class="modal">
+    <div class="modal-content">
+        <h2 style="font-size: 1.8rem; font-weight: 700; margin-bottom: 24px; background: linear-gradient(135deg, #ff7b00, #ff5500); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            📚 Purchase Lecture
+        </h2>
+        <div id="lecturePurchaseInfo" style="margin-bottom: 24px;">
+            <div style="font-size: 1.3rem; color: white; margin-bottom: 12px;" id="lecturePurchaseTitle">Lecture Title</div>
+            <div style="color: var(--text-secondary); margin-bottom: 20px;" id="lecturePurchaseCreator">Creator</div>
+            <div style="background: rgba(255, 123, 0, 0.1); padding: 20px; border-radius: var(--radius-lg); margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                    <span style="color: var(--text-secondary);">강의 가격:</span>
+                    <strong style="color: white; font-size: 1.5rem;" id="lecturePurchasePrice">0 TL</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                    <span style="color: var(--text-secondary);">내 지갑 잔액:</span>
+                    <strong style="color: var(--success);" id="lecturePurchaseBalance">0 TL</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-secondary);">구매 후 잔액:</span>
+                    <strong style="color: white;" id="lecturePurchaseAfter">0 TL</strong>
+                </div>
+            </div>
+            <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: var(--radius-md);">
+                <span style="color: var(--text-secondary);">📌 구매 시 영구 소장 가능하며, 언제든지 다시 시청할 수 있습니다.</span>
+            </div>
+        </div>
+        <div style="display: flex; gap: 16px;">
+            <button class="btn-play" onclick="TimeLinkSystem.lecture.confirmPurchase()" style="flex: 1; background: var(--lecture);">📚 구매하기</button>
+            <button class="btn-play" onclick="TimeLinkSystem.ui.closeLecturePurchaseModal()" style="flex: 1; background: transparent; border: 1px solid var(--border-color);">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Lecture Create Modal -->
+<div id="lectureCreateModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <h2 style="font-size: 1.8rem; font-weight: 700; margin-bottom: 24px; background: linear-gradient(135deg, #ff7b00, #ff5500); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            📚 Create Lecture
+        </h2>
+        <div class="form-group">
+            <label>강의 제목</label>
+            <input type="text" id="lectureTitle" placeholder="예: 블록체인 기초 강의">
+        </div>
+        <div class="form-group">
+            <label>강사명</label>
+            <input type="text" id="lectureInstructor" placeholder="강사 이름">
+        </div>
+        <div class="form-group">
+            <label>강의 설명</label>
+            <textarea id="lectureDescription" rows="3" placeholder="강의에 대한 설명을 입력하세요"></textarea>
+        </div>
+        <div class="form-group">
+            <label>카테고리</label>
+            <select id="lectureCategory">
+                <option value="programming">💻 프로그래밍</option>
+                <option value="business">📊 비즈니스</option>
+                <option value="design">🎨 디자인</option>
+                <option value="language">🌐 언어</option>
+                <option value="marketing">📈 마케팅</option>
+                <option value="finance">💰 재테크</option>
+                <option value="music">🎵 음악</option>
+                <option value="etc">📌 기타</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>가격 설정 (TL)</label>
+            <input type="number" id="lecturePrice" placeholder="5000" min="100" step="100" value="5000">
+            <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">
+                ≈ 약 <span id="lecturePriceKRW">500</span>원
+            </p>
+        </div>
+        <div style="background: rgba(255, 123, 0, 0.1); padding: 20px; border-radius: var(--radius-lg); margin: 24px 0;">
+            <h3 style="color: white; margin-bottom: 16px;">💰 수익 분배</h3>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                <span style="color: var(--text-secondary);">창작자 (강사) 수익:</span>
+                <strong style="color: white;">70%</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                <span style="color: var(--text-secondary);">플랫폼 수익:</span>
+                <strong style="color: white;">30%</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                <span style="color: var(--text-secondary);">판매 1건당 창작자 수익:</span>
+                <strong style="color: var(--lecture);" id="lectureCreatorEarning">3,500 TL</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--text-secondary);">Spotify 1,000회 스트리밍 대비:</span>
+                <strong style="color: var(--success);">약 4.7배 높은 수익</strong>
+            </div>
+        </div>
+        <div class="upload-zone" onclick="document.getElementById('lectureFileInput').click()" style="padding: 30px; margin-bottom: 20px;">
+            <div class="icon">📹</div>
+            <h3>강의 영상/음성 파일 선택</h3>
+            <p>MP4, MP3, WAV (최대 500MB)</p>
+        </div>
+        <input type="file" id="lectureFileInput" style="display: none;" accept="video/*,audio/*">
+        <button class="btn-play" onclick="TimeLinkSystem.lecture.create()" style="width: 100%; padding: 18px; background: var(--lecture); font-size: 1.1rem; margin-top: 12px;">
+            📚 Create Lecture & Publish
+        </button>
+    </div>
+</div>
+
 <!-- Player Modal -->
 <div id="playerModal" class="modal">
     <div class="modal-content player-content">
@@ -1258,7 +1399,7 @@
             <p>TL3 File — Charge to Play Economy</p>
         </div>
         <div class="version-badge">
-            🚀 v20.1 Global · Investor Demo <span class="demo-badge">DEMO</span>
+            🚀 v21.0 Global · Lecture Share <span class="demo-badge">DEMO</span>
         </div>
         
         <button class="google-login-btn" onclick="TimeLinkSystem.demo.login()">
@@ -1266,32 +1407,24 @@
         </button>
         
         <div style="background: rgba(255,255,255,0.03); border-radius: var(--radius-lg); padding: 20px; margin-top: 20px;">
-            <h3 style="color: white; margin-bottom: 16px;">💰 TL Economy</h3>
+            <h3 style="color: white; margin-bottom: 16px;">📚 Lecture Share - 창작자 가격 자율 설정</h3>
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span style="color: var(--text-secondary);">1초 재생</span>
-                <span style="color: white; font-weight: 700;">1 TL 소모</span>
+                <span style="color: var(--text-secondary);">강의 가격</span>
+                <span style="color: white; font-weight: 700;">창작자가 직접 설정 (100 TL~)</span>
             </div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span style="color: var(--text-secondary);">1 TL 가격</span>
-                <span style="color: white; font-weight: 700;">0.1원 (10 TL = 1원)</span>
+                <span style="color: var(--text-secondary);">수익 분배</span>
+                <span style="color: white; font-weight: 700;">창작자 70% / 플랫폼 30%</span>
             </div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span style="color: var(--text-secondary);">1시간 청취</span>
-                <span style="color: white; font-weight: 700;">3,600 TL = 360원</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span style="color: var(--text-secondary);">30초 광고 보상</span>
-                <span style="color: var(--success); font-weight: 700;">30 TL (음악 30초 무료)</span>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-                <span style="color: var(--text-secondary);">크리에이터 수익</span>
-                <span style="color: var(--accent); font-weight: 700;">Spotify의 1.8~2.5배</span>
+                <span style="color: var(--text-secondary);">구매 혜택</span>
+                <span style="color: var(--success); font-weight: 700;">영구 소장 · 무제한 재생</span>
             </div>
         </div>
         
         <p style="color: var(--text-secondary); margin-top: 30px; font-size: 0.85rem; text-align: center;">
-            ⚡ Time-Based Digital Asset Protocol | 1s Play = 1TL Burn<br>
-            <strong style="color: white;">All algorithms simulated: Copyright, TL Charging, Revenue Distribution, TLC Mining, Gold Reserve</strong>
+            ⚡ Time-Based Digital Asset Protocol | 창작자 경제 플랫폼<br>
+            <strong style="color: white;">Lecture Share: 창작자가 가격을 직접 정하는 강의 마켓플레이스</strong>
         </p>
     </div>
 </div>
@@ -1338,6 +1471,7 @@
             <button class="tab active" onclick="TimeLinkSystem.ui.switchTab('dashboard')">📊 Dashboard</button>
             <button class="tab" onclick="TimeLinkSystem.ui.switchTab('upload')">📤 Create TL3</button>
             <button class="tab" onclick="TimeLinkSystem.ui.switchTab('library')">🎵 My TL3 Files</button>
+            <button class="tab" onclick="TimeLinkSystem.ui.switchTab('lecture')">📚 Lecture Share</button>
             <button class="tab" onclick="TimeLinkSystem.ui.switchTab('shareplace')">🔄 Share Place</button>
             <button class="tab" onclick="TimeLinkSystem.ui.switchTab('radio')">📻 Radio</button>
             <button class="tab" onclick="TimeLinkSystem.ui.switchTab('commercial')">📺 Commercial</button>
@@ -1393,9 +1527,9 @@
                 <div style="font-size: 1.8rem; font-weight: 800; color: white;" id="registeredCars">2</div>
             </div>
             <div style="background: var(--bg-card); padding: 20px; border-radius: var(--radius-lg); text-align: center; border: 1px solid var(--border-color);">
-                <div style="font-size: 2rem; margin-bottom: 10px;">⛏️</div>
-                <div style="font-weight: 700; color: var(--text-secondary);">Today's Mining</div>
-                <div style="font-size: 1.8rem; font-weight: 800; color: white;" id="todayMining">0 TLC</div>
+                <div style="font-size: 2rem; margin-bottom: 10px;">📚</div>
+                <div style="font-weight: 700; color: var(--text-secondary);">Lectures</div>
+                <div style="font-size: 1.8rem; font-weight: 800; color: white;" id="totalLectures">0</div>
             </div>
         </div>
         
@@ -1422,10 +1556,10 @@
                     <div style="font-size: 0.9rem; color: var(--text-secondary);">Spotify의 1.8~2.5배</div>
                 </div>
                 <div>
-                    <div style="font-size: 2.5rem; margin-bottom: 12px;">📺</div>
-                    <div style="font-weight: 700; color: white;">Ad Reward</div>
-                    <div style="font-size: 0.9rem; color: var(--text-secondary);">30초 = 30 TL</div>
-                    <div style="font-size: 0.9rem; color: var(--text-secondary);">음악 30초 무료</div>
+                    <div style="font-size: 2.5rem; margin-bottom: 12px;">📚</div>
+                    <div style="font-weight: 700; color: white;">Lecture Share</div>
+                    <div style="font-size: 0.9rem; color: var(--text-secondary);">Creator 70% / Platform 30%</div>
+                    <div style="font-size: 0.9rem; color: var(--text-secondary);">가격 자율 설정</div>
                 </div>
             </div>
         </div>
@@ -1536,7 +1670,38 @@
         </div>
     </div>
 
-    <!-- 4. Share Place -->
+    <!-- 4. Lecture Share (New) -->
+    <div id="tabLecture" class="tab-content">
+        <div class="lecture-header">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="color: white; font-size: 2rem;">📚 Lecture Share</h2>
+                    <p style="color: rgba(255,255,255,0.9);">창작자가 가격을 직접 설정하는 강의 마켓플레이스</p>
+                    <p style="color: rgba(255,255,255,0.9); margin-top: 12px;">
+                        <strong>수익 분배: 창작자 70% / 플랫폼 30%</strong>
+                    </p>
+                </div>
+                <div>
+                    <button class="btn-play" onclick="TimeLinkSystem.lecture.openCreateModal()" style="background: white; color: var(--lecture); padding: 12px 28px; font-weight: 700;">
+                        📚 강의 등록하기
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="share-filter" style="margin-top: 20px;">
+            <button class="filter-btn active" onclick="TimeLinkSystem.lecture.filter('all', event)">📚 전체 강의</button>
+            <button class="filter-btn" onclick="TimeLinkSystem.lecture.filter('programming', event)">💻 프로그래밍</button>
+            <button class="filter-btn" onclick="TimeLinkSystem.lecture.filter('business', event)">📊 비즈니스</button>
+            <button class="filter-btn" onclick="TimeLinkSystem.lecture.filter('design', event)">🎨 디자인</button>
+            <button class="filter-btn" onclick="TimeLinkSystem.lecture.filter('language', event)">🌐 언어</button>
+            <button class="filter-btn" onclick="TimeLinkSystem.lecture.filter('purchased', event)">✅ 내가 구매한 강의</button>
+        </div>
+
+        <div id="lectureList" class="file-list"></div>
+    </div>
+
+    <!-- 5. Share Place -->
     <div id="tabShareplace" class="tab-content">
         <div class="share-header">
             <div>
@@ -1575,7 +1740,7 @@
         <div id="sharedMusicList" class="file-list"></div>
     </div>
 
-    <!-- 5. Radio -->
+    <!-- 6. Radio -->
     <div id="tabRadio" class="tab-content">
         <div class="radio-header">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1592,7 +1757,7 @@
         <div id="radioChannels" class="radio-channels"></div>
     </div>
 
-    <!-- 6. Commercial Broadcast -->
+    <!-- 7. Commercial Broadcast -->
     <div id="tabCommercial" class="tab-content">
         <div class="commercial-header">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1632,7 +1797,7 @@
         </div>
     </div>
 
-    <!-- 7. TLC Mining -->
+    <!-- 8. TLC Mining -->
     <div id="tabMining" class="tab-content">
         <div class="card">
             <h2>⛏️ TLC Mining</h2>
@@ -1695,7 +1860,7 @@
         </div>
     </div>
 
-    <!-- 8. Car Listening -->
+    <!-- 9. Car Listening -->
     <div id="tabCar" class="tab-content">
         <div class="car-contribution-box">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
@@ -1736,7 +1901,7 @@
         </div>
     </div>
 
-    <!-- 9. Gold Reserve -->
+    <!-- 10. Gold Reserve -->
     <div id="tabGold" class="tab-content">
         <div class="gold-reserve-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1777,7 +1942,7 @@
         </div>
     </div>
 
-    <!-- 10. TON Blockchain -->
+    <!-- 11. TON Blockchain -->
     <div id="tabTon" class="tab-content">
         <div class="ton-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
@@ -1820,8 +1985,9 @@
 
 <script>
 // ============================================================================
-// TimeLink Global v20.1 - Complete TL3 File Economy Platform
+// TimeLink Global v21.0 - Complete TL3 File Economy Platform + Lecture Share
 // 경제 모델: 1TL = 0.1원, 1초 재생 = 1TL 소모, 1초 재생 = 0.1TL 수익
+// Lecture Share: 창작자 가격 자율 설정, 수익 70% 창작자 귀속
 // ============================================================================
 
 // ============================================================================
@@ -1867,6 +2033,11 @@ const ECONOMY = {
     // Share Place
     SHARE_COST: 5000,            // 공유 비용 = 5,000 TL
     SHARE_REVENUE_PER_SECOND: 0.01, // 타인 재생 시 수익 = 0.01 TL/초
+    
+    // Lecture Share (New)
+    LECTURE_CREATOR_SHARE: 0.7,   // 강의 판매 수익 중 창작자 몫 70%
+    LECTURE_PLATFORM_SHARE: 0.3,  // 강의 판매 수익 중 플랫폼 몫 30%
+    LECTURE_MIN_PRICE: 100,       // 최소 강의 가격 100 TL
     
     // TL 구매 패키지 (보너스 포함)
     PACKAGES: [
@@ -1964,7 +2135,77 @@ const CopyrightRegistry = {
 };
 
 // ============================================================================
-// 3. TL Wallet Module
+// 3. Lecture Class (New)
+// ============================================================================
+class Lecture {
+    constructor(data) {
+        this.id = 'lec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 12);
+        this.title = data.title;
+        this.instructor = data.instructor;
+        this.description = data.description;
+        this.category = data.category;
+        this.price = data.price; // 창작자가 설정한 가격 (TL)
+        this.creatorId = data.creatorId;
+        this.creatorName = data.creatorName;
+        this.audioUrl = data.audioUrl;
+        this.thumbnail = data.thumbnail || '📚';
+        this.createdAt = new Date().toISOString();
+        this.purchasedBy = []; // 구매자 ID 목록
+        this.salesCount = 0;
+        this.totalRevenue = 0;
+        this.creatorEarned = 0;
+        this.platformEarned = 0;
+        this.isPublished = true;
+    }
+    
+    async purchase(userId, wallet) {
+        if (this.purchasedBy.includes(userId)) {
+            throw new Error('Already purchased this lecture');
+        }
+        
+        if (wallet.balance < this.price) {
+            throw new Error(`Insufficient balance: need ${this.price} TL`);
+        }
+        
+        // 결제 처리
+        await wallet.withdraw(this.price, 'LECTURE_PURCHASE', this.id);
+        
+        // 수익 분배
+        const creatorShare = this.price * ECONOMY.LECTURE_CREATOR_SHARE;
+        const platformShare = this.price * ECONOMY.LECTURE_PLATFORM_SHARE;
+        
+        this.purchasedBy.push(userId);
+        this.salesCount++;
+        this.totalRevenue += this.price;
+        this.creatorEarned += creatorShare;
+        this.platformEarned += platformShare;
+        
+        // 블록체인 기록
+        await Blockchain.record({
+            type: 'LECTURE_PURCHASED',
+            lecture_id: this.id,
+            lecture_title: this.title,
+            buyer: userId,
+            price: this.price,
+            creator_share: creatorShare,
+            platform_share: platformShare,
+            timestamp: Date.now()
+        });
+        
+        return {
+            success: true,
+            creatorShare,
+            platformShare
+        };
+    }
+    
+    hasUserPurchased(userId) {
+        return this.purchasedBy.includes(userId);
+    }
+}
+
+// ============================================================================
+// 4. TL Wallet Module
 // ============================================================================
 class TLWallet {
     constructor(userId) {
@@ -2101,7 +2342,7 @@ class TLWallet {
 }
 
 // ============================================================================
-// 4. TL3 File Class
+// 5. TL3 File Class
 // ============================================================================
 class TL3File {
     constructor(data) {
@@ -2201,7 +2442,7 @@ class TL3File {
 }
 
 // ============================================================================
-// 5. Revenue Distribution & Gold Reserve Module
+// 6. Revenue Distribution & Gold Reserve Module
 // ============================================================================
 const RoyaltyDistributor = {
     goldReserve: {
@@ -2284,7 +2525,7 @@ const RoyaltyDistributor = {
 };
 
 // ============================================================================
-// 6. Mining System Module
+// 7. Mining System Module
 // ============================================================================
 const MiningSystem = {
     contributionIndex: 4.75,
@@ -2305,7 +2546,7 @@ const MiningSystem = {
 };
 
 // ============================================================================
-// 7. Car System Module
+// 8. Car System Module
 // ============================================================================
 const CarSystem = {
     cars: [
@@ -2335,7 +2576,7 @@ const CarSystem = {
 };
 
 // ============================================================================
-// 8. Radio / Commercial System Module
+// 9. Radio / Commercial System Module
 // ============================================================================
 const RadioSystem = {
     channels: [
@@ -2364,7 +2605,7 @@ const RadioSystem = {
 };
 
 // ============================================================================
-// 9. TON System Module
+// 10. TON System Module
 // ============================================================================
 const TONSystem = {
     walletAddress: 'EQD4XhVpE_y6hF6lQr4YgB7KZQhJx2qQ8CQnQXq3Zx5Lp7vK',
@@ -2389,7 +2630,7 @@ const TONSystem = {
 };
 
 // ============================================================================
-// 10. Ad System Module
+// 11. Ad System Module
 // ============================================================================
 const AdSystem = {
     async watchAd(userId, wallet) {
@@ -2414,18 +2655,22 @@ const AdSystem = {
 };
 
 // ============================================================================
-// 11. Main System Controller
+// 12. Main System Controller
 // ============================================================================
 const TimeLinkSystem = {
     currentUser: null,
     wallet: null,
     files: [],
+    lectures: [], // 강의 목록
+    purchasedLectures: [], // 구매한 강의 ID 목록
     sharedFiles: [],
     currentPlayingFile: null,
     playInterval: null,
     audioPlayer: null,
     currentPlayTime: 0,
     currentFilter: 'all',
+    currentLectureFilter: 'all',
+    pendingLecturePurchase: null, // 구매 대기 중인 강의
     
     // ===== Demo Login =====
     demo: {
@@ -2452,6 +2697,8 @@ const TimeLinkSystem = {
             TimeLinkSystem.ui.updateGoldReserve();
             TimeLinkSystem.ui.updateCarList();
             TimeLinkSystem.ui.initPurchasePackages();
+            TimeLinkSystem.lecture.initSampleData(); // 샘플 강의 데이터 초기화
+            TimeLinkSystem.lecture.updateList();
             
             TimeLinkSystem.ui.showToast('✅ Welcome to TimeLink Global! (1TL = 0.1원)', 'success');
         },
@@ -2469,6 +2716,8 @@ const TimeLinkSystem = {
             TimeLinkSystem.currentUser = null;
             TimeLinkSystem.wallet = null;
             TimeLinkSystem.files = [];
+            TimeLinkSystem.lectures = [];
+            TimeLinkSystem.purchasedLectures = [];
             TimeLinkSystem.sharedFiles = [];
             
             document.getElementById('authContainer').style.display = 'flex';
@@ -2531,6 +2780,344 @@ const TimeLinkSystem = {
                 
                 TimeLinkSystem.files.push(file1, file2);
             }
+        }
+    },
+    
+    // ===== Lecture Share System (New) =====
+    lecture: {
+        selectedFile: null,
+        selectedFileData: null,
+        
+        initSampleData: function() {
+            if (TimeLinkSystem.lectures.length > 0) return;
+            
+            // 샘플 강의 데이터 생성
+            const dummyAudioData = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAA8AAAGQAApCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJD/+5REAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+            
+            const lectures = [
+                {
+                    title: '블록체인 개발 마스터클래스',
+                    instructor: '박 블록',
+                    description: '이더리움, 솔라나, TON 블록체인 개발 완전 정복. 스마트 컨트랙트부터 DApp 개발까지.',
+                    category: 'programming',
+                    price: 15000,
+                    creatorId: 'creator_1',
+                    creatorName: '박 블록'
+                },
+                {
+                    title: '주식 투자의 정석',
+                    instructor: '김 투자',
+                    description: '워렌 버핏도 인정한 가치투자법. PER, PBR, ROE 분석부터 실전 매매 전략까지.',
+                    category: 'finance',
+                    price: 12000,
+                    creatorId: 'creator_2',
+                    creatorName: '김 투자'
+                },
+                {
+                    title: '프리미어 프로 마스터',
+                    instructor: '이 에디터',
+                    description: '유튜버, 크리에이터를 위한 영상 편집 올인원 패키지. 컷편집부터 색보정, 모션그래픽까지.',
+                    category: 'design',
+                    price: 8000,
+                    creatorId: 'creator_3',
+                    creatorName: '이 에디터'
+                },
+                {
+                    title: '비즈니스 영어 회화',
+                    instructor: '제인 박',
+                    description: '영어로 프레젠테이션, 미팅, 협상하기. 비즈니스 현장에서 바로 써먹는 실전 영어.',
+                    category: 'language',
+                    price: 10000,
+                    creatorId: 'creator_4',
+                    creatorName: '제인 박'
+                },
+                {
+                    title: '1인 기업 마케팅 전략',
+                    instructor: '최 마케터',
+                    description: '인스타그램, 유튜브, 블로그 마케팅으로 월 1000만원 버는 비법 공개',
+                    category: 'marketing',
+                    price: 9000,
+                    creatorId: 'creator_5',
+                    creatorName: '최 마케터'
+                }
+            ];
+            
+            lectures.forEach(lec => {
+                const lecture = new Lecture({
+                    title: lec.title,
+                    instructor: lec.instructor,
+                    description: lec.description,
+                    category: lec.category,
+                    price: lec.price,
+                    creatorId: lec.creatorId,
+                    creatorName: lec.creatorName,
+                    audioUrl: dummyAudioData
+                });
+                
+                // 샘플 구매자 추가
+                if (Math.random() > 0.5) {
+                    lecture.salesCount = Math.floor(Math.random() * 20) + 5;
+                    lecture.totalRevenue = lecture.salesCount * lecture.price;
+                    lecture.creatorEarned = lecture.totalRevenue * ECONOMY.LECTURE_CREATOR_SHARE;
+                    lecture.platformEarned = lecture.totalRevenue * ECONOMY.LECTURE_PLATFORM_SHARE;
+                }
+                
+                TimeLinkSystem.lectures.push(lecture);
+            });
+        },
+        
+        openCreateModal: function() {
+            document.getElementById('lectureTitle').value = '';
+            document.getElementById('lectureInstructor').value = TimeLinkSystem.currentUser?.username || '';
+            document.getElementById('lectureDescription').value = '';
+            document.getElementById('lectureCategory').value = 'programming';
+            document.getElementById('lecturePrice').value = '5000';
+            document.getElementById('lecturePriceKRW').textContent = '500';
+            document.getElementById('lectureCreatorEarning').textContent = '3,500 TL';
+            TimeLinkSystem.lecture.selectedFile = null;
+            TimeLinkSystem.lecture.selectedFileData = null;
+            document.getElementById('lectureCreateModal').style.display = 'flex';
+        },
+        
+        handleFileSelect: function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            TimeLinkSystem.lecture.selectedFile = file;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                TimeLinkSystem.lecture.selectedFileData = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        },
+        
+        create: async function() {
+            const title = document.getElementById('lectureTitle').value;
+            const instructor = document.getElementById('lectureInstructor').value;
+            const description = document.getElementById('lectureDescription').value;
+            const category = document.getElementById('lectureCategory').value;
+            const price = parseInt(document.getElementById('lecturePrice').value);
+            
+            if (!title) {
+                TimeLinkSystem.ui.showToast('강의 제목을 입력하세요', 'error');
+                return;
+            }
+            
+            if (!instructor) {
+                TimeLinkSystem.ui.showToast('강사명을 입력하세요', 'error');
+                return;
+            }
+            
+            if (price < ECONOMY.LECTURE_MIN_PRICE) {
+                TimeLinkSystem.ui.showToast(`최소 가격은 ${ECONOMY.LECTURE_MIN_PRICE} TL입니다`, 'error');
+                return;
+            }
+            
+            if (!TimeLinkSystem.lecture.selectedFile) {
+                TimeLinkSystem.ui.showToast('강의 파일을 선택하세요', 'error');
+                return;
+            }
+            
+            const lecture = new Lecture({
+                title: title,
+                instructor: instructor,
+                description: description,
+                category: category,
+                price: price,
+                creatorId: TimeLinkSystem.currentUser.id,
+                creatorName: TimeLinkSystem.currentUser.username,
+                audioUrl: TimeLinkSystem.lecture.selectedFileData
+            });
+            
+            TimeLinkSystem.lectures.push(lecture);
+            
+            await Blockchain.record({
+                type: 'LECTURE_CREATED',
+                lecture_id: lecture.id,
+                title: title,
+                creator: TimeLinkSystem.currentUser.id,
+                price: price,
+                timestamp: Date.now()
+            });
+            
+            TimeLinkSystem.ui.showToast('✅ 강의가 등록되었습니다!', 'success');
+            document.getElementById('lectureCreateModal').style.display = 'none';
+            TimeLinkSystem.lecture.updateList();
+            TimeLinkSystem.ui.updateAllUI();
+        },
+        
+        filter: function(filter, event) {
+            TimeLinkSystem.currentLectureFilter = filter;
+            
+            const btns = document.querySelectorAll('#tabLecture .filter-btn');
+            btns.forEach(btn => btn.classList.remove('active'));
+            if (event) event.target.classList.add('active');
+            
+            TimeLinkSystem.lecture.updateList();
+        },
+        
+        updateList: function() {
+            const container = document.getElementById('lectureList');
+            if (!container) return;
+            
+            let filteredLectures = TimeLinkSystem.lectures;
+            
+            if (TimeLinkSystem.currentLectureFilter === 'purchased') {
+                filteredLectures = TimeLinkSystem.lectures.filter(lec => 
+                    lec.hasUserPurchased(TimeLinkSystem.currentUser?.id)
+                );
+            } else if (TimeLinkSystem.currentLectureFilter !== 'all') {
+                filteredLectures = TimeLinkSystem.lectures.filter(lec => 
+                    lec.category === TimeLinkSystem.currentLectureFilter
+                );
+            }
+            
+            document.getElementById('totalLectures').textContent = TimeLinkSystem.lectures.length;
+            
+            if (filteredLectures.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 80px; background: var(--bg-card); border-radius: var(--radius-xl);">
+                        <div style="font-size: 5rem; margin-bottom: 20px;">📚</div>
+                        <h3 style="color: white; margin-bottom: 12px;">강의가 없습니다</h3>
+                        <p style="color: var(--text-secondary);">첫 번째 강의를 등록해보세요!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = filteredLectures.map(lec => {
+                const isPurchased = lec.hasUserPurchased(TimeLinkSystem.currentUser?.id);
+                const isCreator = lec.creatorId === TimeLinkSystem.currentUser?.id;
+                const priceKRW = Math.floor(lec.price * ECONOMY.TL_PRICE_KRW);
+                
+                return `
+                <div class="file-card">
+                    <div class="file-thumbnail" style="background: linear-gradient(145deg, #ff7b00, #ff5500);">
+                        ${lec.thumbnail}
+                        <span class="badge badge-lecture">📚 ${lec.category === 'programming' ? '프로그래밍' : 
+                            lec.category === 'business' ? '비즈니스' : 
+                            lec.category === 'design' ? '디자인' : 
+                            lec.category === 'language' ? '언어' : 
+                            lec.category === 'marketing' ? '마케팅' : 
+                            lec.category === 'finance' ? '재테크' : '기타'}</span>
+                        ${isPurchased ? '<span class="badge badge-purchased" style="right: 16px;">✅ 구매완료</span>' : ''}
+                        ${isCreator ? '<span class="badge badge-mining" style="right: 16px; background: var(--accent);">👑 나의 강의</span>' : ''}
+                    </div>
+                    <div class="file-info">
+                        <div class="file-name">${lec.title}</div>
+                        <div class="file-artist">${lec.instructor} 강사</div>
+                        
+                        <div class="info-panel lecture-panel">
+                            <strong>📝 강의 소개</strong><br>
+                            ${lec.description}
+                        </div>
+                        
+                        <div class="info-panel contract-panel" style="border-left-color: var(--lecture);">
+                            <strong>💰 가격</strong><br>
+                            <span style="font-size: 1.8rem; color: white; font-weight: 700;">${lec.price.toLocaleString()} TL</span>
+                            <span style="color: var(--text-secondary);">≈ ${priceKRW}원</span>
+                        </div>
+                        
+                        <div class="file-stats">
+                            <span>📊 판매: ${lec.salesCount}회</span>
+                            <span>👥 창작자 수익: ${lec.creatorEarned.toFixed(0)} TL</span>
+                        </div>
+                        
+                        <div style="background: rgba(255,123,0,0.1); padding: 12px; border-radius: var(--radius-md); margin: 16px 0;">
+                            <span style="color: var(--text-secondary);">수익 분배:</span>
+                            <span style="color: white;">창작자 70% (${(lec.price * 0.7).toLocaleString()} TL) / 플랫폼 30%</span>
+                        </div>
+                        
+                        <div class="file-actions">
+                            ${isPurchased ? 
+                                `<button class="btn-play" onclick="TimeLinkSystem.lecture.play('${lec.id}')" style="grid-column: span 2; background: var(--success);">
+                                    📚 강의 시청하기
+                                </button>` : 
+                                isCreator ?
+                                `<button class="btn-play" disabled style="grid-column: span 2; background: #333; cursor: default;">
+                                    👑 등록한 강의
+                                </button>` :
+                                `<button class="btn-lecture" onclick="TimeLinkSystem.lecture.openPurchaseModal('${lec.id}')">
+                                    📚 구매하기 (${lec.price.toLocaleString()} TL)
+                                </button>`
+                            }
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+        },
+        
+        openPurchaseModal: function(lectureId) {
+            const lecture = TimeLinkSystem.lectures.find(l => l.id === lectureId);
+            if (!lecture) return;
+            
+            if (lecture.hasUserPurchased(TimeLinkSystem.currentUser?.id)) {
+                TimeLinkSystem.ui.showToast('이미 구매한 강의입니다', 'info');
+                return;
+            }
+            
+            TimeLinkSystem.pendingLecturePurchase = lecture;
+            
+            document.getElementById('lecturePurchaseTitle').textContent = lecture.title;
+            document.getElementById('lecturePurchaseCreator').textContent = `${lecture.instructor} 강사`;
+            document.getElementById('lecturePurchasePrice').textContent = lecture.price.toLocaleString() + ' TL';
+            document.getElementById('lecturePurchaseBalance').textContent = TimeLinkSystem.wallet.balance.toLocaleString() + ' TL';
+            
+            const afterBalance = TimeLinkSystem.wallet.balance - lecture.price;
+            document.getElementById('lecturePurchaseAfter').textContent = afterBalance.toLocaleString() + ' TL';
+            
+            document.getElementById('lecturePurchaseModal').style.display = 'flex';
+        },
+        
+        confirmPurchase: async function() {
+            if (!TimeLinkSystem.pendingLecturePurchase) {
+                TimeLinkSystem.ui.closeLecturePurchaseModal();
+                return;
+            }
+            
+            const lecture = TimeLinkSystem.pendingLecturePurchase;
+            
+            try {
+                await lecture.purchase(TimeLinkSystem.currentUser.id, TimeLinkSystem.wallet);
+                
+                TimeLinkSystem.purchasedLectures.push(lecture.id);
+                
+                TimeLinkSystem.ui.updateAllUI();
+                TimeLinkSystem.lecture.updateList();
+                
+                TimeLinkSystem.ui.showToast(`✅ "${lecture.title}" 구매 완료!`, 'success');
+                
+            } catch (error) {
+                TimeLinkSystem.ui.showToast(error.message, 'error');
+            }
+            
+            TimeLinkSystem.ui.closeLecturePurchaseModal();
+        },
+        
+        play: function(lectureId) {
+            const lecture = TimeLinkSystem.lectures.find(l => l.id === lectureId);
+            if (!lecture) return;
+            
+            if (!lecture.hasUserPurchased(TimeLinkSystem.currentUser?.id)) {
+                TimeLinkSystem.ui.showToast('구매한 강의만 시청할 수 있습니다', 'error');
+                return;
+            }
+            
+            // 강의 재생 (TL3 플레이어 활용)
+            TimeLinkSystem.ui.showToast(`📚 "${lecture.title}" 강의를 시청합니다 (구매 완료)`, 'success');
+            
+            // 여기서는 간단히 알림만 표시하고, 실제로는 플레이어 모달을 열어서 재생
+            // TL3 플레이어와 연동하여 재생 (TL 소모 없이)
+        },
+        
+        updatePriceKRW: function() {
+            const price = parseInt(document.getElementById('lecturePrice').value) || 0;
+            const krw = Math.floor(price * ECONOMY.TL_PRICE_KRW);
+            document.getElementById('lecturePriceKRW').textContent = krw;
+            
+            const creatorEarning = Math.floor(price * 0.7);
+            document.getElementById('lectureCreatorEarning').textContent = creatorEarning.toLocaleString() + ' TL';
         }
     },
     
@@ -2695,7 +3282,7 @@ const TimeLinkSystem = {
         filter: function(filter, event) {
             TimeLinkSystem.currentFilter = filter;
             
-            const btns = document.querySelectorAll('.share-filter .filter-btn');
+            const btns = document.querySelectorAll('#tabShareplace .filter-btn');
             btns.forEach(btn => btn.classList.remove('active'));
             if (event) event.target.classList.add('active');
             
@@ -3178,6 +3765,8 @@ const TimeLinkSystem = {
                 TimeLinkSystem.ui.updateLibrary();
             } else if (tab === 'shareplace') {
                 TimeLinkSystem.ui.updateSharePlace();
+            } else if (tab === 'lecture') {
+                TimeLinkSystem.lecture.updateList();
             }
         },
         
@@ -3474,6 +4063,11 @@ const TimeLinkSystem = {
             document.getElementById('chargeModal').style.display = 'none';
         },
         
+        closeLecturePurchaseModal: function() {
+            document.getElementById('lecturePurchaseModal').style.display = 'none';
+            TimeLinkSystem.pendingLecturePurchase = null;
+        },
+        
         showToast: function(message, type = 'info') {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -3497,6 +4091,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Lecture file input listener
+    const lectureFileInput = document.getElementById('lectureFileInput');
+    if (lectureFileInput) {
+        lectureFileInput.addEventListener('change', function(e) {
+            TimeLinkSystem.lecture.handleFileSelect(e);
+        });
+    }
+    
+    // Lecture price listener
+    const lecturePrice = document.getElementById('lecturePrice');
+    if (lecturePrice) {
+        lecturePrice.addEventListener('input', function() {
+            TimeLinkSystem.lecture.updatePriceKRW();
+        });
+    }
+    
     // Mining amount listener
     const miningInput = document.getElementById('miningAmount');
     if (miningInput) {
@@ -3509,6 +4119,9 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('click', function(e) {
         if (e.target.classList.contains('modal')) {
             e.target.style.display = 'none';
+            if (e.target.id === 'lecturePurchaseModal') {
+                TimeLinkSystem.pendingLecturePurchase = null;
+            }
         }
     });
     
@@ -3542,6 +4155,12 @@ window.RadioSystem = RadioSystem;
 window.TONSystem = TONSystem;
 window.AdSystem = AdSystem;
 </script>
+
+<!-- Lecture Share Badge -->
+<div style="position: fixed; bottom: 20px; right: 20px; background: rgba(26, 26, 26, 0.95); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: var(--radius-full); border: 1px solid var(--border-color); font-size: 12px; z-index: 999; display: flex; align-items: center; gap: 8px;">
+    <span style="color: var(--lecture);">📚 Lecture Share</span>
+    <span style="color: var(--text-secondary);">| 창작자 가격 자율 설정</span>
+</div>
 
 </body>
 </html>
