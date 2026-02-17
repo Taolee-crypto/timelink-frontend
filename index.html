@@ -422,6 +422,14 @@
         <!-- Register Form -->
         <div id="registerForm" class="auth-form" style="display:none;">
             <div class="form-group">
+                <label>회원 유형</label>
+                <select id="accountType" style="margin-bottom:16px;">
+                    <option value="personal">👤 일반 회원</option>
+                    <option value="business">☕ 사업자 회원 (카페 운영)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
                 <label>이름</label>
                 <input type="text" id="regName" placeholder="홍길동">
             </div>
@@ -433,6 +441,36 @@
                 <label>비밀번호</label>
                 <input type="password" id="regPassword" placeholder="••••••••">
             </div>
+            
+            <!-- 사업자 추가 정보 -->
+            <div id="businessInfo" style="display:none;">
+                <div style="padding:16px; background:rgba(139,92,46,0.1); border:1px solid #8b5c2e; border-radius:12px; margin-bottom:16px;">
+                    <div style="font-weight:700; margin-bottom:12px; color:#8b5c2e;">☕ 카페 정보</div>
+                    
+                    <div class="form-group">
+                        <label>카페 이름</label>
+                        <input type="text" id="cafeName" placeholder="예: 커피앤뮤직 강남점">
+                    </div>
+                    <div class="form-group">
+                        <label>카페 주소</label>
+                        <input type="text" id="cafeLocation" placeholder="서울 강남구 테헤란로 123">
+                    </div>
+                    <div class="form-group">
+                        <label>카페 소개</label>
+                        <textarea id="cafeDescription" rows="3" placeholder="카페의 특징과 분위기를 소개해주세요"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>카페 이미지 URL</label>
+                        <input type="text" id="cafeImage" placeholder="https://example.com/cafe.jpg">
+                        <div style="font-size:11px; color:#999; margin-top:4px;">※ 카페 외관 또는 내부 사진</div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>영업 시간</label>
+                        <input type="text" id="cafeHours" placeholder="평일 09:00-22:00, 주말 10:00-23:00">
+                    </div>
+                </div>
+            </div>
+            
             <button class="auth-btn" onclick="Auth.register()">회원가입</button>
             <div class="auth-switch">
                 이미 계정이 있으신가요? <a onclick="Auth.switchAuthMode('login')">로그인</a>
@@ -501,13 +539,12 @@
         <button class="tab" onclick="App.switchTab('create', event)">📤 Create</button>
         <button class="tab" onclick="App.switchTab('myfiles', event)">🎵 My Files</button>
         <button class="tab" onclick="App.switchTab('share', event)">🔄 Share Place</button>
-        <button class="tab" onclick="App.switchTab('radio', event)">📻 Radio</button>
-        <button class="tab" onclick="App.switchTab('commercial', event)">📺 Commercial</button>
+        <button class="tab" onclick="App.switchTab('cafe', event)">☕ Cafe</button>
         <button class="tab" onclick="App.switchTab('car', event)">🚗🚶 Car & Walk</button>
         <button class="tab" onclick="App.switchTab('mining', event)">⛏️ Mining</button>
         <button class="tab" onclick="App.switchTab('lecture', event)">📚 Lecture</button>
         <button class="tab" onclick="App.switchTab('gold', event)">🏆 Gold</button>
-        <button class="tab" onclick="App.switchTab('ton', event)">⬡ TON</button>
+        <button class="tab" onclick="App.switchTab('ton', event)">⬡ TLC Wallet</button>
     </div>
 
     <!-- Dashboard -->
@@ -717,27 +754,169 @@
         </div>
     </div>
 
-    <!-- Radio -->
-    <div id="tabRadio" class="tab-content">
-        <div class="card">
-            <h2>📻 Radio</h2>
-            <p style="color:#999;">24/7 자동 재생 라디오 (향후 구현)</p>
+    <!-- Cafe Broadcasting -->
+    <div id="tabCafe" class="tab-content">
+        <!-- 사업자 회원용 카페 관리 섹션 -->
+        <div id="cafeManagement" class="card" style="display:none;">
+            <h2>☕ 내 카페 관리</h2>
+            
+            <div id="myCafeInfo" style="display:none;">
+                <div class="panel" style="background:rgba(139,92,46,0.1); border-color:#8b5c2e;">
+                    <strong>카페 정보</strong><br>
+                    <div style="margin-top:12px;">
+                        <div style="font-size:1.3rem; font-weight:700; color:#8b5c2e;" id="myCafeName">-</div>
+                        <div style="color:#999; margin-top:4px;" id="myCafeLocation">-</div>
+                    </div>
+                </div>
+                
+                <div style="margin-top:16px;">
+                    <button class="btn" onclick="App.editCafe()" style="background:#8b5c2e; color:white; padding:14px; width:100%;">
+                        ✏️ 카페 정보 수정
+                    </button>
+                </div>
+            </div>
+            
+            <div id="registerCafeForm" style="display:none;">
+                <p style="color:#999; margin-bottom:16px;">카페 정보를 등록하여 TimeLink 카페 방송을 시작하세요</p>
+                
+                <div class="form-group">
+                    <label>☕ 카페 이름</label>
+                    <input type="text" id="editCafeName" placeholder="예: 스타벅스 강남점">
+                </div>
+                <div class="form-group">
+                    <label>📍 위치</label>
+                    <input type="text" id="editCafeLocation" placeholder="예: 서울 강남구 테헤란로 123">
+                </div>
+                <div class="form-group">
+                    <label>📝 소개</label>
+                    <textarea id="editCafeDesc" rows="3" placeholder="카페 소개를 입력하세요"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>🏷️ 카테고리</label>
+                    <select id="editCafeCategory">
+                        <option value="cafe">☕ 카페</option>
+                        <option value="restaurant">🍽️ 레스토랑</option>
+                        <option value="bar">🍺 바/펍</option>
+                        <option value="lounge">🎵 라운지</option>
+                        <option value="bookstore">📚 북카페</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-play" onclick="App.saveCafeInfo()" style="width:100%; padding:16px;">
+                    ✅ 카페 정보 저장
+                </button>
+            </div>
         </div>
-    </div>
 
-    <!-- Commercial -->
-    <div id="tabCommercial" class="tab-content">
+        <!-- 모든 회원용 카페 방송 -->
         <div class="card">
-            <h2>📺 Commercial</h2>
-            <p style="color:#999;">광고 삽입 시스템 (향후 구현)</p>
+            <h2>☕ Cafe Broadcasting - AI DJ</h2>
+            <p style="color:#999; margin-bottom:24px;">AI DJ에게 원하는 음악 분위기를 말해보세요</p>
+            
+            <!-- AI DJ 입력창 -->
+            <div class="panel" style="background:rgba(138,43,226,0.1); border-color:#8a2be2;">
+                <strong>🤖 AI DJ에게 요청하기</strong><br>
+                <div style="margin-top:12px;">
+                    <textarea id="aiDjRequest" rows="3" placeholder="예시:&#10;- 오늘은 비 오는 날 분위기로 재즈 음악 틀어줘&#10;- 크리스마스 느낌의 따뜻한 음악&#10;- 활기찬 아침 운동할 때 듣기 좋은 음악&#10;- 잔잔한 기타 연주곡으로 집중 공부용" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px; color:white; font-size:14px; resize:vertical;"></textarea>
+                </div>
+                <button class="btn btn-play" onclick="App.requestAiDj()" style="width:100%; margin-top:12px; padding:14px;">
+                    🎵 AI DJ 큐레이션 시작
+                </button>
+            </div>
+            
+            <!-- 현재 재생 중 -->
+            <div class="panel" style="margin-top:16px; background:rgba(101,67,33,0.1); border-color:#654321;">
+                <strong>🎵 Now Playing</strong><br>
+                <div style="font-size:1.3rem; font-weight:700; margin-top:8px; color:#8b5c2e;" id="cafeNowPlaying">AI DJ 대기 중...</div>
+                <div style="color:#999; margin-top:4px; font-size:13px;" id="cafeCreator">-</div>
+                <div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.05);">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:#999; font-size:13px;">AI 큐레이션</span>
+                        <span style="font-weight:700; color:#8a2be2;" id="aiDjTheme">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 재생 컨트롤 -->
+            <div style="display:flex; gap:12px; margin-top:20px;">
+                <button class="btn btn-play" onclick="App.startCafe()" style="flex:1; padding:16px;">
+                    ▶️ 재생
+                </button>
+                <button class="btn" onclick="App.skipCafeSong()" style="flex:1; background:#f59e0b; color:white; padding:16px;">
+                    ⏭️ 다음 곡
+                </button>
+                <button class="btn" onclick="App.stopCafe()" style="flex:1; background:#f44; color:white; padding:16px;">
+                    ⏹️ 정지
+                </button>
+            </div>
+        </div>
+
+        <!-- 등록된 카페 갤러리 -->
+        <div class="card" style="margin-top:24px;">
+            <h2>🏪 등록된 카페 갤러리</h2>
+            <p style="color:#999; margin-bottom:20px;">TimeLink를 사용하는 카페들의 방송과 분위기</p>
+            
+            <div id="cafeGallery" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:20px;">
+                <!-- 카페 카드가 여기에 렌더링됩니다 -->
+            </div>
         </div>
     </div>
 
     <!-- Car & Walk -->
     <div id="tabCar" class="tab-content">
         <div class="card">
-            <h2>🚗🚶 Car & Walk</h2>
-            <p style="color:#999;">이동 중 청취 보상 (향후 구현)</p>
+            <h2>🚗🚶 Car & Walk - 이동 중 AI DJ & 2배 보상</h2>
+            <p style="color:#999; margin-bottom:24px;">이동 중 음악을 들으면 최대 2배 TL 보상!</p>
+            
+            <!-- AI DJ 요청 (Car & Walk 전용) -->
+            <div class="panel" style="background:linear-gradient(135deg, rgba(59,130,246,0.2), rgba(37,99,235,0.1)); border-color:#3b82f6;">
+                <strong>🎧 이동 중 AI DJ</strong><br>
+                <div style="margin-top:12px;">
+                    <textarea id="carAiDjPrompt" rows="2" placeholder="예: 드라이브하기 좋은 신나는 팝송&#10;예: 조깅할 때 듣기 좋은 경쾌한 음악" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px; color:white; resize:vertical;"></textarea>
+                    
+                    <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+                        <button class="genre-btn" onclick="App.setCarAiDjPrompt('드라이브하기 좋은 신나는 팝송')">🚗 드라이브</button>
+                        <button class="genre-btn" onclick="App.setCarAiDjPrompt('조깅할 때 듣기 좋은 경쾌한 음악')">🏃 조깅</button>
+                        <button class="genre-btn" onclick="App.setCarAiDjPrompt('출퇴근길 지하철에서 듣기 좋은 음악')">🚇 출퇴근</button>
+                        <button class="genre-btn" onclick="App.setCarAiDjPrompt('산책하며 듣기 좋은 잔잔한 음악')">🚶 산책</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel" style="margin-top:16px; background:rgba(59,130,246,0.1); border-color:#3b82f6;">
+                <strong>🏃 Movement AI 상태</strong><br>
+                <div style="font-size:1.5rem; font-weight:800; margin-top:8px; color:#3b82f6;" id="movementStatus">정지 중</div>
+                <div style="color:#999; font-size:13px; margin-top:4px;" id="movementType">-</div>
+            </div>
+            
+            <div class="panel" style="margin-top:16px;">
+                <strong>💰 현재 보상 배율</strong><br>
+                <div style="font-size:2rem; font-weight:800; margin-top:8px;" id="rewardMultiplier">×1.0</div>
+                <div style="color:#999; font-size:13px; margin-top:4px;">이동 속도에 따라 자동 변경</div>
+            </div>
+            
+            <div class="panel" style="margin-top:16px;">
+                <strong>🎵 현재 재생 중</strong><br>
+                <div style="font-size:1.2rem; font-weight:700; margin-top:8px;" id="carNowPlaying">대기 중...</div>
+                <div style="color:#999; margin-top:4px;" id="carCreator">-</div>
+                <div style="margin-top:8px; font-size:12px; color:#3b82f6;" id="carAiReason">-</div>
+            </div>
+            
+            <div style="display:flex; gap:12px; margin-top:20px;">
+                <button class="btn btn-play" onclick="App.startCarWalk()" style="flex:1; padding:18px; font-size:1.1rem;">
+                    🚗 이동 모드 시작
+                </button>
+                <button class="btn" onclick="App.stopCarWalk()" style="flex:1; background:#f44; color:white; padding:18px; font-size:1.1rem;">
+                    ⏹️ 정지
+                </button>
+            </div>
+            
+            <div style="margin-top:20px; color:#999; font-size:14px; line-height:1.6;">
+                <p>• 걷기 (도보): TL 소비 <span style="color:#3b82f6; font-weight:600;">×1.5배</span> 보상</p>
+                <p>• 달리기/자전거: TL 소비 <span style="color:#3b82f6; font-weight:600;">×1.7배</span> 보상</p>
+                <p>• 차량/대중교통: TL 소비 <span style="color:#3b82f6; font-weight:600;">×2.0배</span> 보상</p>
+                <p style="color:#f59e0b;">※ Movement AI가 이동 상태를 자동 감지하고 AI DJ가 적합한 음악을 선곡합니다</p>
+            </div>
         </div>
     </div>
 
@@ -771,53 +950,149 @@
     <!-- Lecture -->
     <div id="tabLecture" class="tab-content">
         <div class="card">
-            <h2>📚 Lecture</h2>
-            <p style="color:#999;">교육 콘텐츠 시스템 (향후 구현)</p>
+            <h2>📚 Lecture - 교육 콘텐츠</h2>
+            <p style="color:#999; margin-bottom:24px;">학습하며 TL을 획득하세요</p>
+            
+            <div class="panel" style="background:rgba(168,85,247,0.1); border-color:#a855f7;">
+                <strong>🎓 학습 진행률</strong><br>
+                <div style="margin-top:12px;">
+                    <div style="background:rgba(255,255,255,0.1); height:24px; border-radius:12px; overflow:hidden;">
+                        <div id="lectureProgress" style="background:linear-gradient(90deg, #a855f7, #ec4899); height:100%; width:0%; transition:width 0.3s;"></div>
+                    </div>
+                    <div style="text-align:center; margin-top:8px; font-weight:700;" id="lectureProgressText">0%</div>
+                </div>
+            </div>
+            
+            <div class="panel" style="margin-top:16px;">
+                <strong>🎵 현재 강의</strong><br>
+                <div style="font-size:1.2rem; font-weight:700; margin-top:8px;" id="lectureNowPlaying">강의 선택 대기 중...</div>
+                <div style="color:#999; margin-top:4px;" id="lectureCreator">-</div>
+            </div>
+            
+            <div class="panel" style="margin-top:16px; background:rgba(34,197,94,0.1); border-color:#22c55e;">
+                <strong>💡 학습 보상</strong><br>
+                <div style="font-size:1.1rem; margin-top:8px;">강의 완료 시 <span style="color:#22c55e; font-weight:800;">+100 TL</span> 보너스!</div>
+            </div>
+            
+            <div style="display:flex; gap:12px; margin-top:20px;">
+                <button class="btn btn-play" onclick="App.startLecture()" style="flex:1; padding:18px; font-size:1.1rem;">
+                    📚 강의 시작
+                </button>
+                <button class="btn" onclick="App.stopLecture()" style="flex:1; background:#f44; color:white; padding:18px; font-size:1.1rem;">
+                    ⏹️ 정지
+                </button>
+            </div>
+            
+            <div style="margin-top:20px; color:#999; font-size:14px; line-height:1.6;">
+                <p>• Share Place의 교육/강의 콘텐츠만 자동 재생</p>
+                <p>• 학습 진행률이 실시간으로 표시됩니다</p>
+                <p>• 강의 완료 시 <span style="color:#22c55e; font-weight:600;">+100 TL</span> 보너스 지급</p>
+                <p>• 건너뛰기 방지: 정상 속도로만 재생 가능</p>
+            </div>
         </div>
     </div>
 
     <!-- Gold -->
     <div id="tabGold" class="tab-content">
         <div class="card">
-            <h2>🏆 Gold Reserve</h2>
+            <h2>🏆 Gold Reserve - TLC 가치 안정화</h2>
+            <p style="color:#999; margin-bottom:24px;">플랫폼 수익의 10%로 금을 구매하여 TLC 가치를 유지합니다</p>
             
-            <div class="panel">
-                <strong>보유 금</strong><br>
-                <span style="font-size:2rem; font-weight:800;" id="goldAmount">0.0000 g</span>
+            <div class="panel" style="background:rgba(255,215,0,0.1); border-color:#ffd700;">
+                <strong>💰 보유 금</strong><br>
+                <span style="font-size:2.5rem; font-weight:800; color:#ffd700;" id="goldAmount">0.0000 g</span>
+            </div>
+            
+            <div style="margin-top:24px; display:flex; gap:12px; justify-content:center;">
+                <button class="genre-btn" onclick="App.setGoldPeriod('day')" id="goldDay" style="font-size:14px;">일간</button>
+                <button class="genre-btn active" onclick="App.setGoldPeriod('week')" id="goldWeek" style="font-size:14px;">주간</button>
+                <button class="genre-btn" onclick="App.setGoldPeriod('month')" id="goldMonth" style="font-size:14px;">월간</button>
+                <button class="genre-btn" onclick="App.setGoldPeriod('year')" id="goldYear" style="font-size:14px;">연간</button>
+            </div>
+            
+            <div style="margin-top:20px; background:rgba(0,0,0,0.3); padding:20px; border-radius:16px;">
+                <canvas id="goldChart" width="600" height="300" style="max-width:100%;"></canvas>
             </div>
             
             <div style="margin-top:20px; color:#999; font-size:14px; line-height:1.6;">
-                <p>• 플랫폼 수익의 10%로 금 구매</p>
-                <p>• TLC 가치 안정화 메커니즘</p>
-                <p>• 실물 자산 담보</p>
+                <p>• <span style="color:#ffd700; font-weight:600;">플랫폼 수익의 10%</span>를 금 구매에 사용</p>
+                <p>• 금 보유량에 따라 TLC의 최소 가치 보장</p>
+                <p>• 실물 자산 담보로 암호화폐 안정성 확보</p>
+                <p>• 그래프는 금 축적 추이를 실시간 표시</p>
             </div>
         </div>
     </div>
 
-    <!-- TON -->
+    <!-- Mining & TLC -->
     <div id="tabTon" class="tab-content">
         <div class="card">
-            <h2>⬡ TON Blockchain</h2>
-            <p style="color:#999; margin-bottom:20px;">TLC 코인을 TON 블록체인으로 전송하거나 입금할 수 있습니다.</p>
+            <h2>⛏️ Mining & TLC Wallet</h2>
+            <p style="color:#999; margin-bottom:24px;">TL을 채굴하여 TLC를 획득하고 지갑으로 전송하세요</p>
             
-            <div class="form-group">
-                <label>지갑 주소</label>
-                <input type="text" placeholder="TON 지갑 주소를 입력하세요">
+            <!-- TLC 지갑 정보 -->
+            <div class="panel" style="background:rgba(138,43,226,0.1); border-color:#8a2be2;">
+                <strong>💎 TLC 지갑</strong><br>
+                <div style="font-size:2.5rem; font-weight:800; color:#8a2be2; margin-top:8px;" id="tlcWalletAmount">0.00 TLC</div>
+                <div style="color:#999; font-size:13px; margin-top:8px;">≈ $<span id="tlcUsdValue">0.00</span> USD</div>
             </div>
             
-            <div class="form-group">
-                <label>전송 TLC</label>
-                <input type="number" placeholder="0.00" step="0.01">
+            <!-- 채굴 섹션 -->
+            <div style="margin-top:24px;">
+                <h3 style="font-size:1.2rem; margin-bottom:16px;">⛏️ TLC 채굴</h3>
+                
+                <div class="panel">
+                    <strong>기여 지수 (CI)</strong><br>
+                    <span style="font-size:2rem; font-weight:800;" id="ciValueWallet">1.00x</span>
+                </div>
+                
+                <div class="form-group" style="margin-top:16px;">
+                    <label>채굴할 TL (최대: <span id="miningMaxWallet">5000</span> TL)</label>
+                    <input type="number" id="miningAmountWallet" value="100" min="1">
+                </div>
+                
+                <button class="btn btn-play" onclick="App.mineToWallet()" style="width:100%; padding:18px;">
+                    ⛏️ TLC 채굴하기
+                </button>
+                
+                <div style="margin-top:12px; color:#999; font-size:13px; text-align:center;">
+                    100 TL = 1 TLC × CI (기여지수)
+                </div>
             </div>
             
-            <button class="btn btn-play" style="width:100%; padding:18px;">
-                ⬡ TON으로 전송
-            </button>
+            <!-- TON 전송 섹션 -->
+            <div style="margin-top:32px; padding-top:24px; border-top:1px solid rgba(255,255,255,0.1);">
+                <h3 style="font-size:1.2rem; margin-bottom:16px;">⬡ TON 블록체인 전송</h3>
+                
+                <div class="form-group">
+                    <label>TON 지갑 주소</label>
+                    <input type="text" id="tonWalletAddress" placeholder="UQxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                </div>
+                
+                <div class="form-group">
+                    <label>전송할 TLC</label>
+                    <input type="number" id="tonTransferAmount" placeholder="0.00" step="0.01" min="0.01">
+                </div>
+                
+                <button class="btn" onclick="App.transferToTon()" style="width:100%; background:#0098ea; color:white; padding:18px;">
+                    ⬡ TON으로 전송
+                </button>
+            </div>
+            
+            <!-- 거래 내역 -->
+            <div style="margin-top:32px; padding-top:24px; border-top:1px solid rgba(255,255,255,0.1);">
+                <h3 style="font-size:1.2rem; margin-bottom:16px;">📜 거래 내역</h3>
+                <div id="walletHistory" style="max-height:200px; overflow-y:auto;">
+                    <div style="text-align:center; padding:40px; color:#666;">
+                        아직 거래 내역이 없습니다
+                    </div>
+                </div>
+            </div>
             
             <div style="margin-top:20px; color:#999; font-size:14px; line-height:1.6;">
+                <p>• TL의 최대 50%를 TLC로 채굴 가능</p>
+                <p>• 플랫폼 수수료 10% (금 구매에 사용)</p>
                 <p>• TLC는 TON 블록체인 기반 토큰</p>
                 <p>• 실시간 블록체인 전송 가능</p>
-                <p>• 거래소 상장 준비 중</p>
             </div>
         </div>
     </div>
@@ -1177,6 +1452,10 @@ const App = {
     wallet: { tl: 10000, tlc: 0 },
     files: [],
     gold: 0,
+    goldHistory: [], // 금 축적 내역
+    goldPeriod: 'week', // 그래프 기간
+    walletHistory: [], // TLC 지갑 거래 내역
+    tlcPrice: 1.00, // TLC 가격 (USD)
     type: 'audio',
     selectedFile: null,
     selectedFileDuration: 0,
@@ -1185,6 +1464,17 @@ const App = {
     currentFile: null,
     currentGenre: 'all',
     ci: 1.0,
+    // 각 모드별 상태
+    cafeActive: false,
+    cafeMood: 'chill',
+    cafeQueue: [],
+    cafeIndex: 0,
+    cafeListeners: 0,
+    cafeTotalPlays: 0,
+    carWalkActive: false,
+    movementMultiplier: 1.0,
+    lectureActive: false,
+    lectureProgress: 0,
 
     init() {
         const fileInput = document.getElementById('fileInput');
@@ -1253,7 +1543,14 @@ const App = {
             App.ci = 1.0 + Math.random();
             const ciEl = document.getElementById('ciValue');
             if (ciEl) ciEl.textContent = App.ci.toFixed(2) + 'x';
+            const ciWalletEl = document.getElementById('ciValueWallet');
+            if (ciWalletEl) ciWalletEl.textContent = App.ci.toFixed(2) + 'x';
         }, 3000);
+
+        // 초기 금 차트 그리기
+        setTimeout(() => {
+            App.drawGoldChart();
+        }, 1000);
 
         App.updateAll();
     },
@@ -1897,6 +2194,533 @@ const App = {
         }
     },
 
+    // ==================== CAFE BROADCASTING 기능 ====================
+    setCafeMood(mood) {
+        this.cafeMood = mood;
+        
+        // 버튼 활성화 상태 변경
+        const moods = ['chill', 'jazz', 'acoustic', 'study', 'morning', 'night'];
+        moods.forEach(m => {
+            const btn = document.getElementById('cafe' + m.charAt(0).toUpperCase() + m.slice(1));
+            if (btn) {
+                if (m === mood) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            }
+        });
+        
+        // 현재 분위기 텍스트 업데이트
+        const moodTexts = {
+            chill: '😌 Chill Cafe',
+            jazz: '🎺 Jazz Lounge',
+            acoustic: '🎸 Acoustic',
+            study: '📚 Study Cafe',
+            morning: '🌅 Morning',
+            night: '🌙 Night'
+        };
+        
+        const currentMoodEl = document.getElementById('cafeCurrentMood');
+        if (currentMoodEl) {
+            currentMoodEl.textContent = moodTexts[mood] || '😌 Chill Cafe';
+        }
+        
+        // 카페 재생 중이면 큐 업데이트
+        if (this.cafeActive) {
+            this.updateCafeQueue();
+            this.toast(`☕ 분위기 변경: ${moodTexts[mood]}`);
+        }
+    },
+
+    updateCafeQueue() {
+        // 선택된 분위기에 맞는 파일 필터링
+        const sharedFiles = this.files.filter(f => f.shared);
+        let filteredFiles = [];
+        
+        switch(this.cafeMood) {
+            case 'chill':
+                filteredFiles = sharedFiles.filter(f => f.mood === 'chill' || f.mood === 'happy');
+                break;
+            case 'jazz':
+                filteredFiles = sharedFiles.filter(f => f.genre === 'jazz' || f.mood === 'romantic');
+                break;
+            case 'acoustic':
+                filteredFiles = sharedFiles.filter(f => f.genre === 'indie' || f.genre === 'pop');
+                break;
+            case 'study':
+                filteredFiles = sharedFiles.filter(f => f.mood === 'focus' || f.genre === 'classic');
+                break;
+            case 'morning':
+                filteredFiles = sharedFiles.filter(f => f.mood === 'energetic' || f.mood === 'happy');
+                break;
+            case 'night':
+                filteredFiles = sharedFiles.filter(f => f.mood === 'sleep' || f.mood === 'chill');
+                break;
+        }
+        
+        // 필터링된 파일이 없으면 전체 파일 사용
+        if (filteredFiles.length === 0) {
+            filteredFiles = sharedFiles;
+        }
+        
+        // 랜덤 셔플
+        this.cafeQueue = filteredFiles.sort(() => Math.random() - 0.5);
+        this.cafeIndex = 0;
+        
+        this.renderCafePlaylist();
+    },
+
+    renderCafePlaylist() {
+        const playlistEl = document.getElementById('cafePlaylist');
+        if (!playlistEl) return;
+        
+        if (this.cafeQueue.length === 0) {
+            playlistEl.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">재생목록이 비어있습니다</div>';
+            return;
+        }
+        
+        const upcoming = this.cafeQueue.slice(this.cafeIndex + 1, this.cafeIndex + 6);
+        playlistEl.innerHTML = upcoming.map((f, i) => `
+            <div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-weight:600; font-size:13px;">${i + 1}. ${f.title}</div>
+                    <div style="color:#999; font-size:11px;">${f.creator}</div>
+                </div>
+                <div style="color:#8b5c2e; font-size:11px;">${f.duration || 0}초</div>
+            </div>
+        `).join('') || '<div style="text-align:center; color:#666; padding:20px;">다음 곡이 없습니다</div>';
+    },
+
+    async startCafe() {
+        const sharedFiles = this.files.filter(f => f.shared);
+        if (sharedFiles.length === 0) {
+            return this.toast('공유된 파일이 없습니다');
+        }
+        if (this.wallet.tl <= 0) {
+            return this.toast('TL이 부족합니다');
+        }
+
+        this.cafeActive = true;
+        this.updateCafeQueue();
+        
+        // 청취자 수 시뮬레이션
+        this.cafeListeners = Math.floor(Math.random() * 50) + 10;
+        document.getElementById('cafeListeners').textContent = this.cafeListeners;
+        
+        this.toast('☕ 카페 방송 시작!');
+        await this.playNextCafe();
+        
+        // 청취자 수 실시간 업데이트
+        setInterval(() => {
+            if (this.cafeActive) {
+                this.cafeListeners += Math.floor(Math.random() * 5) - 2;
+                this.cafeListeners = Math.max(1, Math.min(100, this.cafeListeners));
+                document.getElementById('cafeListeners').textContent = this.cafeListeners;
+            }
+        }, 5000);
+    },
+
+    async playNextCafe() {
+        if (!this.cafeActive || this.cafeQueue.length === 0) return;
+        
+        const file = this.cafeQueue[this.cafeIndex];
+        
+        document.getElementById('cafeNowPlaying').textContent = file.title;
+        document.getElementById('cafeCreator').textContent = file.creator;
+        
+        // 총 재생 수 증가
+        this.cafeTotalPlays++;
+        document.getElementById('cafeTotalPlays').textContent = this.cafeTotalPlays;
+        
+        this.renderCafePlaylist();
+        
+        await this.listenShared(file.id);
+        
+        // 곡이 끝나면 다음 곡으로
+        const audio = document.getElementById('audioPlayer');
+        audio.onended = () => {
+            this.cafeIndex = (this.cafeIndex + 1) % this.cafeQueue.length;
+            
+            // 큐가 한 바퀴 돌면 다시 셔플
+            if (this.cafeIndex === 0) {
+                this.updateCafeQueue();
+            }
+            
+            if (this.cafeActive) {
+                setTimeout(() => this.playNextCafe(), 1000);
+            }
+        };
+    },
+
+    stopCafe() {
+        this.cafeActive = false;
+        this.stopPlay();
+        
+        document.getElementById('cafeNowPlaying').textContent = '카페 방송 시작 대기 중...';
+        document.getElementById('cafeCreator').textContent = '-';
+        document.getElementById('cafePlaylist').innerHTML = '<div style="text-align:center; color:#666; padding:20px;">카페 방송 시작 후 재생목록이 표시됩니다</div>';
+        
+        this.toast('☕ 카페 방송 정지');
+    },
+
+    // ==================== CAR & WALK 기능 ====================
+    async startCarWalk() {
+        const sharedFiles = this.files.filter(f => f.shared);
+        if (sharedFiles.length === 0) {
+            return this.toast('공유된 파일이 없습니다');
+        }
+        if (this.wallet.tl <= 0) {
+            return this.toast('TL이 부족합니다');
+        }
+
+        this.carWalkActive = true;
+        
+        // Movement AI 시뮬레이션
+        this.simulateMovement();
+        
+        this.toast('🚗 이동 모드 시작!');
+        await this.playCarWalkCycle();
+    },
+
+    simulateMovement() {
+        setInterval(() => {
+            if (!this.carWalkActive) return;
+            
+            // 랜덤 이동 상태 시뮬레이션
+            const states = [
+                { status: '🚶 걷는 중', multiplier: 1.5, type: '도보' },
+                { status: '🏃 달리는 중', multiplier: 1.7, type: '조깅' },
+                { status: '🚗 주행 중', multiplier: 2.0, type: '차량' },
+                { status: '🚇 이동 중', multiplier: 1.8, type: '대중교통' }
+            ];
+            
+            const state = states[Math.floor(Math.random() * states.length)];
+            this.movementMultiplier = state.multiplier;
+            
+            document.getElementById('movementStatus').textContent = state.status;
+            document.getElementById('movementType').textContent = state.type;
+            document.getElementById('rewardMultiplier').textContent = `×${state.multiplier.toFixed(1)}`;
+        }, 5000);
+    },
+
+    async playCarWalkCycle() {
+        if (!this.carWalkActive) return;
+        
+        const sharedFiles = this.files.filter(f => f.shared);
+        const file = sharedFiles[Math.floor(Math.random() * sharedFiles.length)];
+        
+        document.getElementById('carNowPlaying').textContent = file.title;
+        document.getElementById('carCreator').textContent = file.creator;
+        
+        // 이동 보너스 적용
+        const originalShare = file.revenue === '55' ? 0.5 : 0.7;
+        file.tempShare = originalShare * this.movementMultiplier;
+        
+        await this.listenShared(file.id);
+        
+        const audio = document.getElementById('audioPlayer');
+        audio.onended = () => {
+            if (this.carWalkActive) {
+                setTimeout(() => this.playCarWalkCycle(), 1000);
+            }
+        };
+    },
+
+    stopCarWalk() {
+        this.carWalkActive = false;
+        this.stopPlay();
+        document.getElementById('movementStatus').textContent = '정지 중';
+        document.getElementById('movementType').textContent = '-';
+        document.getElementById('rewardMultiplier').textContent = '×1.0';
+        document.getElementById('carNowPlaying').textContent = '대기 중...';
+        document.getElementById('carCreator').textContent = '-';
+        this.toast('🚗 이동 모드 정지');
+    },
+
+    // ==================== LECTURE 기능 ====================
+    async startLecture() {
+        const sharedFiles = this.files.filter(f => f.shared);
+        if (sharedFiles.length === 0) {
+            return this.toast('공유된 파일이 없습니다');
+        }
+        if (this.wallet.tl <= 0) {
+            return this.toast('TL이 부족합니다');
+        }
+
+        this.lectureActive = true;
+        this.lectureProgress = 0;
+        
+        this.toast('📚 강의 시작!');
+        await this.playLectureCycle();
+    },
+
+    async playLectureCycle() {
+        if (!this.lectureActive) return;
+        
+        const sharedFiles = this.files.filter(f => f.shared);
+        const file = sharedFiles[Math.floor(Math.random() * sharedFiles.length)];
+        
+        document.getElementById('lectureNowPlaying').textContent = file.title;
+        document.getElementById('lectureCreator').textContent = file.creator;
+        
+        await this.listenShared(file.id);
+        
+        // 진행률 업데이트
+        const audio = document.getElementById('audioPlayer');
+        const progressInterval = setInterval(() => {
+            if (!audio.paused && audio.duration) {
+                this.lectureProgress = (audio.currentTime / audio.duration) * 100;
+                document.getElementById('lectureProgress').style.width = this.lectureProgress + '%';
+                document.getElementById('lectureProgressText').textContent = Math.floor(this.lectureProgress) + '%';
+            }
+        }, 1000);
+        
+        audio.onended = async () => {
+            clearInterval(progressInterval);
+            
+            // 강의 완료 보너스
+            this.wallet.tl += 100;
+            await Auth.saveUserData();
+            this.updateAll();
+            this.toast('✅ 강의 완료! +100 TL 보너스');
+            
+            this.lectureProgress = 0;
+            document.getElementById('lectureProgress').style.width = '0%';
+            document.getElementById('lectureProgressText').textContent = '0%';
+            
+            if (this.lectureActive) {
+                setTimeout(() => this.playLectureCycle(), 2000);
+            }
+        };
+    },
+
+    stopLecture() {
+        this.lectureActive = false;
+        this.stopPlay();
+        this.lectureProgress = 0;
+        document.getElementById('lectureProgress').style.width = '0%';
+        document.getElementById('lectureProgressText').textContent = '0%';
+        document.getElementById('lectureNowPlaying').textContent = '강의 선택 대기 중...';
+        document.getElementById('lectureCreator').textContent = '-';
+        this.toast('📚 강의 정지');
+    },
+
+    // ==================== GOLD CHART 기능 ====================
+    setGoldPeriod(period) {
+        this.goldPeriod = period;
+        document.querySelectorAll('#goldDay, #goldWeek, #goldMonth, #goldYear').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.getElementById('gold' + period.charAt(0).toUpperCase() + period.slice(1)).classList.add('active');
+        this.drawGoldChart();
+    },
+
+    drawGoldChart() {
+        const canvas = document.getElementById('goldChart');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        
+        // 캔버스 초기화
+        ctx.clearRect(0, 0, width, height);
+        
+        // 가상 데이터 생성
+        let dataPoints = [];
+        let labels = [];
+        
+        switch(this.goldPeriod) {
+            case 'day':
+                // 24시간 데이터
+                for (let i = 0; i < 24; i++) {
+                    dataPoints.push(this.gold * (0.5 + Math.random() * 0.5) * (i / 24));
+                    labels.push(i + ':00');
+                }
+                break;
+            case 'week':
+                // 7일 데이터
+                for (let i = 0; i < 7; i++) {
+                    dataPoints.push(this.gold * (0.5 + Math.random() * 0.5) * (i / 7));
+                    labels.push(['일', '월', '화', '수', '목', '금', '토'][i]);
+                }
+                break;
+            case 'month':
+                // 30일 데이터
+                for (let i = 1; i <= 30; i++) {
+                    dataPoints.push(this.gold * (0.5 + Math.random() * 0.5) * (i / 30));
+                    labels.push(i + '일');
+                }
+                break;
+            case 'year':
+                // 12개월 데이터
+                for (let i = 1; i <= 12; i++) {
+                    dataPoints.push(this.gold * (0.5 + Math.random() * 0.5) * (i / 12));
+                    labels.push(i + '월');
+                }
+                break;
+        }
+        
+        const maxValue = Math.max(...dataPoints, 0.001);
+        const padding = 50;
+        const chartWidth = width - padding * 2;
+        const chartHeight = height - padding * 2;
+        
+        // 그리드 그리기
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 5; i++) {
+            const y = padding + (chartHeight / 5) * i;
+            ctx.beginPath();
+            ctx.moveTo(padding, y);
+            ctx.lineTo(width - padding, y);
+            ctx.stroke();
+            
+            // Y축 라벨
+            ctx.fillStyle = '#999';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText((maxValue * (1 - i / 5)).toFixed(4) + ' g', padding - 10, y + 4);
+        }
+        
+        // 선 그래프 그리기
+        ctx.strokeStyle = '#ffd700';
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.2)';
+        ctx.lineWidth = 3;
+        
+        ctx.beginPath();
+        ctx.moveTo(padding, height - padding);
+        
+        dataPoints.forEach((value, index) => {
+            const x = padding + (chartWidth / (dataPoints.length - 1)) * index;
+            const y = height - padding - (value / maxValue) * chartHeight;
+            
+            if (index === 0) {
+                ctx.lineTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        
+        ctx.stroke();
+        
+        // 영역 채우기
+        ctx.lineTo(width - padding, height - padding);
+        ctx.lineTo(padding, height - padding);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 점 그리기
+        dataPoints.forEach((value, index) => {
+            const x = padding + (chartWidth / (dataPoints.length - 1)) * index;
+            const y = height - padding - (value / maxValue) * chartHeight;
+            
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        
+        // X축 라벨
+        ctx.fillStyle = '#999';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        labels.forEach((label, index) => {
+            if (index % Math.ceil(labels.length / 8) === 0) {
+                const x = padding + (chartWidth / (labels.length - 1)) * index;
+                ctx.fillText(label, x, height - padding + 20);
+            }
+        });
+    },
+
+    // ==================== TLC WALLET 기능 ====================
+    async mineToWallet() {
+        const amt = parseInt(document.getElementById('miningAmountWallet').value) || 100;
+        const max = Math.floor(this.wallet.tl * 0.5);
+        
+        if (amt > max) return this.toast(`한도 초과! 최대 ${max} TL`);
+        if (this.wallet.tl < amt) return this.toast('TL 부족');
+        
+        const tlc = (amt * 0.01) * this.ci;
+        this.wallet.tl -= amt;
+        this.wallet.tlc += tlc;
+        
+        const platformFee = amt * 0.1;
+        this.gold += (platformFee * 0.1) / 1000;
+        
+        // 거래 내역 추가
+        this.walletHistory.unshift({
+            type: 'mine',
+            amount: tlc,
+            timestamp: new Date().toISOString(),
+            description: `TL → TLC 채굴 (${amt} TL)`
+        });
+        
+        await Auth.saveUserData();
+        this.updateAll();
+        this.updateWalletDisplay();
+        this.toast(`⛏️ ${tlc.toFixed(2)} TLC 채굴 완료!`);
+    },
+
+    async transferToTon() {
+        const address = document.getElementById('tonWalletAddress').value.trim();
+        const amount = parseFloat(document.getElementById('tonTransferAmount').value) || 0;
+        
+        if (!address) return this.toast('TON 지갑 주소를 입력하세요');
+        if (amount <= 0) return this.toast('전송할 금액을 입력하세요');
+        if (amount > this.wallet.tlc) return this.toast('TLC 잔액이 부족합니다');
+        
+        this.wallet.tlc -= amount;
+        
+        // 거래 내역 추가
+        this.walletHistory.unshift({
+            type: 'transfer',
+            amount: -amount,
+            timestamp: new Date().toISOString(),
+            description: `TON 전송 (${address.substring(0, 8)}...)`
+        });
+        
+        await Auth.saveUserData();
+        this.updateAll();
+        this.updateWalletDisplay();
+        this.toast(`✅ ${amount.toFixed(2)} TLC를 TON으로 전송했습니다`);
+        
+        // 입력 필드 초기화
+        document.getElementById('tonWalletAddress').value = '';
+        document.getElementById('tonTransferAmount').value = '';
+    },
+
+    updateWalletDisplay() {
+        document.getElementById('tlcWalletAmount').textContent = this.wallet.tlc.toFixed(2) + ' TLC';
+        document.getElementById('tlcUsdValue').textContent = (this.wallet.tlc * this.tlcPrice).toFixed(2);
+        document.getElementById('ciValueWallet').textContent = this.ci.toFixed(2) + 'x';
+        document.getElementById('miningMaxWallet').textContent = Math.floor(this.wallet.tl * 0.5).toLocaleString();
+        
+        // 거래 내역 표시
+        const historyEl = document.getElementById('walletHistory');
+        if (this.walletHistory.length === 0) {
+            historyEl.innerHTML = '<div style="text-align:center; padding:40px; color:#666;">아직 거래 내역이 없습니다</div>';
+        } else {
+            historyEl.innerHTML = this.walletHistory.slice(0, 10).map(tx => {
+                const date = new Date(tx.timestamp);
+                const icon = tx.type === 'mine' ? '⛏️' : '⬡';
+                const color = tx.amount > 0 ? '#22c55e' : '#ef4444';
+                return `
+                    <div style="padding:12px; border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div style="font-weight:600;">${icon} ${tx.description}</div>
+                                <div style="font-size:11px; color:#999;">${date.toLocaleString()}</div>
+                            </div>
+                            <div style="font-weight:700; color:${color};">${tx.amount > 0 ? '+' : ''}${tx.amount.toFixed(2)} TLC</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    },
+
     switchTab(name, evt) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -1933,6 +2757,246 @@ const App = {
         this.chargeTarget = null;
     },
 
+    // ==================== CAFE GALLERY & COMMENTS ====================
+    renderCafeGallery() {
+        const galleryEl = document.getElementById('cafeGallery');
+        if (!galleryEl) return;
+        
+        // 모든 사용자에서 카페 정보가 있는 사람 찾기
+        const allUsers = JSON.parse(localStorage.getItem('timelink_users') || '[]');
+        const cafes = allUsers.filter(u => u.cafeInfo && u.cafeInfo.name);
+        
+        if (cafes.length === 0) {
+            galleryEl.innerHTML = '<div style="text-align:center; padding:60px; color:#666; grid-column:1/-1;">등록된 카페가 없습니다</div>';
+            return;
+        }
+        
+        galleryEl.innerHTML = cafes.map(cafe => {
+            const info = cafe.cafeInfo;
+            const comments = info.comments || [];
+            
+            return `
+                <div style="background:rgba(139,92,46,0.05); border:2px solid #8b5c2e; border-radius:16px; overflow:hidden; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
+                    <!-- 카페 이미지 (액자 스타일) -->
+                    <div style="position:relative; height:200px; background:linear-gradient(135deg, #8b5c2e, #654321); overflow:hidden;">
+                        ${info.image ? 
+                            `<img src="${info.image}" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'">` :
+                            `<div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:4rem;">☕</div>`
+                        }
+                        <div style="position:absolute; top:12px; right:12px; background:rgba(0,0,0,0.7); padding:6px 12px; border-radius:20px; font-size:12px; font-weight:700;">
+                            🎵 LIVE
+                        </div>
+                    </div>
+                    
+                    <!-- 카페 정보 -->
+                    <div style="padding:16px;">
+                        <div style="font-size:1.3rem; font-weight:800; color:#8b5c2e; margin-bottom:4px;">${info.name}</div>
+                        <div style="color:#999; font-size:13px; margin-bottom:8px;">📍 ${info.location || '위치 미등록'}</div>
+                        <div style="color:#ccc; font-size:14px; line-height:1.5; margin-bottom:12px;">${info.description || '소개글이 없습니다'}</div>
+                        
+                        <!-- 방송 버튼 -->
+                        <button class="btn btn-play" onclick="App.listenCafe('${cafe.email}')" style="width:100%; padding:12px; font-size:13px;">
+                            🎧 이 카페 방송 듣기
+                        </button>
+                        
+                        <!-- 댓글 섹션 -->
+                        <div style="margin-top:16px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.05);">
+                            <div style="font-weight:700; margin-bottom:12px; font-size:14px;">💬 댓글 (${comments.length})</div>
+                            
+                            <!-- 댓글 목록 -->
+                            <div style="max-height:150px; overflow-y:auto; margin-bottom:12px;">
+                                ${comments.length === 0 ? 
+                                    '<div style="text-align:center; padding:20px; color:#666; font-size:12px;">첫 댓글을 남겨보세요!</div>' :
+                                    comments.slice(-5).reverse().map(comment => `
+                                        <div style="padding:8px; background:rgba(0,0,0,0.2); border-radius:8px; margin-bottom:8px;">
+                                            <div style="font-weight:600; font-size:12px; color:#8b5c2e;">${comment.user}</div>
+                                            <div style="font-size:13px; color:#ddd; margin-top:4px;">${comment.text}</div>
+                                            <div style="font-size:10px; color:#666; margin-top:4px;">${new Date(comment.timestamp).toLocaleString()}</div>
+                                        </div>
+                                    `).join('')
+                                }
+                            </div>
+                            
+                            <!-- 댓글 입력 -->
+                            <div style="display:flex; gap:8px;">
+                                <input type="text" id="comment_${cafe.email}" placeholder="댓글을 입력하세요..." style="flex:1; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:8px; color:white; font-size:12px;">
+                                <button class="btn" onclick="App.addCafeComment('${cafe.email}')" style="padding:8px 16px; font-size:12px; background:#8b5c2e;">
+                                    등록
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    async addCafeComment(cafeEmail) {
+        const inputEl = document.getElementById('comment_' + cafeEmail);
+        const text = inputEl.value.trim();
+        
+        if (!text) return this.toast('댓글을 입력하세요');
+        
+        const allUsers = JSON.parse(localStorage.getItem('timelink_users') || '[]');
+        const cafeIndex = allUsers.findIndex(u => u.email === cafeEmail);
+        
+        if (cafeIndex === -1) return;
+        
+        if (!allUsers[cafeIndex].cafeInfo.comments) {
+            allUsers[cafeIndex].cafeInfo.comments = [];
+        }
+        
+        allUsers[cafeIndex].cafeInfo.comments.push({
+            user: Auth.currentUser.name,
+            text: text,
+            timestamp: new Date().toISOString()
+        });
+        
+        localStorage.setItem('timelink_users', JSON.stringify(allUsers));
+        
+        inputEl.value = '';
+        this.renderCafeGallery();
+        this.toast('💬 댓글이 등록되었습니다');
+    },
+
+    async listenCafe(cafeEmail) {
+        // 해당 카페의 AI DJ 설정 또는 기본 음악 재생
+        this.toast(`☕ ${cafeEmail} 카페 방송을 시작합니다`);
+        
+        // Share Place에서 랜덤 음악 재생
+        const sharedFiles = this.files.filter(f => f.shared);
+        if (sharedFiles.length > 0) {
+            const randomFile = sharedFiles[Math.floor(Math.random() * sharedFiles.length)];
+            await this.listenShared(randomFile.id);
+        }
+    },
+
+    // AI DJ 프롬프트 설정
+    setAiDjPrompt(prompt) {
+        document.getElementById('aiDjRequest').value = prompt;
+    },
+
+    setCarAiDjPrompt(prompt) {
+        document.getElementById('carAiDjPrompt').value = prompt;
+    },
+
+    // AI DJ 큐레이션 로직
+    async requestAiDj() {
+        const prompt = document.getElementById('aiDjRequest').value.trim();
+        
+        if (!prompt) {
+            return this.toast('AI DJ에게 요청할 음악 분위기를 입력하세요');
+        }
+        
+        this.cafeActive = true;
+        this.aiDjPrompt = prompt;
+        
+        // 프롬프트 분석 (키워드 기반)
+        const playlist = this.analyzeAndCurate(prompt);
+        
+        if (playlist.length === 0) {
+            this.cafeActive = false;
+            return this.toast('요청하신 분위기에 맞는 음악이 없습니다');
+        }
+        
+        this.cafeQueue = playlist;
+        this.cafeIndex = 0;
+        
+        document.getElementById('aiDjTheme').textContent = this.extractTheme(prompt);
+        
+        this.toast(`🎧 AI DJ가 ${playlist.length}곡을 선곡했습니다!`);
+        await this.playNextCafe();
+    },
+
+    analyzeAndCurate(prompt) {
+        const sharedFiles = this.files.filter(f => f.shared);
+        let filtered = [];
+        
+        const lower = prompt.toLowerCase();
+        
+        // 날씨 관련
+        if (lower.includes('비') || lower.includes('rain')) {
+            filtered = sharedFiles.filter(f => 
+                f.mood === 'chill' || f.mood === 'sad' || f.genre === 'jazz'
+            );
+        }
+        // 시간대
+        else if (lower.includes('아침') || lower.includes('morning')) {
+            filtered = sharedFiles.filter(f =>
+                f.mood === 'energetic' || f.mood === 'happy'
+            );
+        }
+        else if (lower.includes('저녁') || lower.includes('밤') || lower.includes('night')) {
+            filtered = sharedFiles.filter(f =>
+                f.mood === 'chill' || f.mood === 'sleep' || f.mood === 'romantic'
+            );
+        }
+        // 활동
+        else if (lower.includes('운동') || lower.includes('workout') || lower.includes('조깅')) {
+            filtered = sharedFiles.filter(f =>
+                f.mood === 'energetic' || f.mood === 'workout'
+            );
+        }
+        else if (lower.includes('공부') || lower.includes('study') || lower.includes('집중')) {
+            filtered = sharedFiles.filter(f =>
+                f.mood === 'focus' || f.genre === 'classic'
+            );
+        }
+        else if (lower.includes('드라이브') || lower.includes('drive')) {
+            filtered = sharedFiles.filter(f =>
+                f.genre === 'pop' || f.genre === 'rock'
+            );
+        }
+        // 분위기
+        else if (lower.includes('잔잔') || lower.includes('chill')) {
+            filtered = sharedFiles.filter(f => f.mood === 'chill');
+        }
+        else if (lower.includes('신나') || lower.includes('경쾌')) {
+            filtered = sharedFiles.filter(f => 
+                f.mood === 'energetic' || f.mood === 'happy'
+            );
+        }
+        else if (lower.includes('로맨틱') || lower.includes('데이트')) {
+            filtered = sharedFiles.filter(f => f.mood === 'romantic');
+        }
+        // 장르
+        else if (lower.includes('재즈') || lower.includes('jazz')) {
+            filtered = sharedFiles.filter(f => f.genre === 'jazz');
+        }
+        else if (lower.includes('팝') || lower.includes('pop')) {
+            filtered = sharedFiles.filter(f => f.genre === 'pop');
+        }
+        else if (lower.includes('클래식') || lower.includes('classic')) {
+            filtered = sharedFiles.filter(f => f.genre === 'classic');
+        }
+        // 기념일
+        else if (lower.includes('크리스마스') || lower.includes('christmas')) {
+            filtered = sharedFiles.filter(f =>
+                f.mood === 'happy' || f.genre === 'pop'
+            );
+        }
+        
+        // 필터링된 결과가 없으면 전체 사용
+        if (filtered.length === 0) {
+            filtered = sharedFiles;
+        }
+        
+        // 랜덤 셔플
+        return filtered.sort(() => Math.random() - 0.5);
+    },
+
+    extractTheme(prompt) {
+        if (prompt.includes('비')) return '🌧️ 비오는 날';
+        if (prompt.includes('아침')) return '🌅 상쾌한 아침';
+        if (prompt.includes('밤')) return '🌙 편안한 밤';
+        if (prompt.includes('운동')) return '💪 운동 모드';
+        if (prompt.includes('공부')) return '📚 집중 학습';
+        if (prompt.includes('드라이브')) return '🚗 드라이브';
+        if (prompt.includes('재즈')) return '🎺 재즈 라운지';
+        if (prompt.includes('크리스마스')) return '🎄 크리스마스';
+        return '🎵 AI 큐레이션';
+    },
+
     updateAll() {
         document.getElementById('walletTL').textContent = this.wallet.tl.toLocaleString();
         document.getElementById('walletTLC').textContent = this.wallet.tlc.toFixed(2);
@@ -1941,6 +3005,9 @@ const App = {
         
         this.renderMyFiles();
         this.renderSharePlace();
+        this.renderCafeGallery();
+        this.updateWalletDisplay();
+        this.drawGoldChart();
     },
 
     toast(msg) {
