@@ -1311,6 +1311,7 @@ const Auth = {
         const name = document.getElementById('regName').value.trim();
         const email = document.getElementById('regEmail').value.trim().toLowerCase();
         const password = document.getElementById('regPassword').value;
+        const accountType = document.getElementById('accountType').value;
 
         if (!name || !email || !password) {
             this.showAuthMessage('모든 필드를 입력하세요', 'error');
@@ -1332,11 +1333,30 @@ const Auth = {
             name,
             email,
             password,
+            accountType: accountType || 'personal',
             createdAt: Date.now(),
             wallet: { tl: 10000, tlc: 0 },
             files: [],
             gold: 0
         };
+        
+        // 사업자 회원인 경우 카페 정보 추가
+        if (accountType === 'business') {
+            const cafeName = document.getElementById('cafeName').value.trim();
+            const cafeLocation = document.getElementById('cafeLocation').value.trim();
+            const cafeDescription = document.getElementById('cafeDescription').value.trim();
+            const cafeImage = document.getElementById('cafeImage').value.trim();
+            const cafeHours = document.getElementById('cafeHours').value.trim();
+            
+            newUser.cafeInfo = {
+                name: cafeName || '',
+                location: cafeLocation || '',
+                description: cafeDescription || '',
+                image: cafeImage || '',
+                hours: cafeHours || '',
+                comments: []
+            };
+        }
 
         users[email] = newUser;
         localStorage.setItem('timelink_users', JSON.stringify(users));
@@ -1344,7 +1364,12 @@ const Auth = {
         this.currentUser = newUser;
         localStorage.setItem('timelink_current_user', JSON.stringify(newUser));
         this.showMainApp();
-        App.toast('✅ 회원가입 완료! 자동 로그인되었습니다.');
+        
+        if (accountType === 'business') {
+            App.toast('✅ 사업자 회원가입 완료! 카페가 등록되었습니다.');
+        } else {
+            App.toast('✅ 회원가입 완료! 자동 로그인되었습니다.');
+        }
     },
 
     async login() {
@@ -2762,12 +2787,26 @@ const App = {
         const galleryEl = document.getElementById('cafeGallery');
         if (!galleryEl) return;
         
-        // 모든 사용자에서 카페 정보가 있는 사람 찾기
-        const allUsers = JSON.parse(localStorage.getItem('timelink_users') || '[]');
+        // 안전하게 사용자 목록 가져오기 (객체 → 배열 변환)
+        let allUsers = [];
+        try {
+            const usersData = localStorage.getItem('timelink_users');
+            if (usersData) {
+                const parsed = JSON.parse(usersData);
+                // 객체인 경우 배열로 변환
+                allUsers = typeof parsed === 'object' && !Array.isArray(parsed) 
+                    ? Object.values(parsed) 
+                    : (Array.isArray(parsed) ? parsed : []);
+            }
+        } catch (error) {
+            console.error('사용자 데이터 로딩 오류:', error);
+            allUsers = [];
+        }
+        
         const cafes = allUsers.filter(u => u.cafeInfo && u.cafeInfo.name);
         
         if (cafes.length === 0) {
-            galleryEl.innerHTML = '<div style="text-align:center; padding:60px; color:#666; grid-column:1/-1;">등록된 카페가 없습니다</div>';
+            galleryEl.innerHTML = '<div style="text-align:center; padding:60px; color:#666; grid-column:1/-1;">등록된 카페가 없습니다<br><div style="margin-top:12px; font-size:14px;">사업자 회원으로 가입하여 카페를 등록해보세요!</div></div>';
             return;
         }
         
@@ -2833,30 +2872,51 @@ const App = {
 
     async addCafeComment(cafeEmail) {
         const inputEl = document.getElementById('comment_' + cafeEmail);
+        if (!inputEl) return;
+        
         const text = inputEl.value.trim();
         
         if (!text) return this.toast('댓글을 입력하세요');
         
-        const allUsers = JSON.parse(localStorage.getItem('timelink_users') || '[]');
-        const cafeIndex = allUsers.findIndex(u => u.email === cafeEmail);
-        
-        if (cafeIndex === -1) return;
-        
-        if (!allUsers[cafeIndex].cafeInfo.comments) {
-            allUsers[cafeIndex].cafeInfo.comments = [];
+        // 안전하게 사용자 목록 가져오기 (객체 형태)
+        let allUsers = {};
+        try {
+            const usersData = localStorage.getItem('timelink_users');
+            if (usersData) {
+                allUsers = JSON.parse(usersData);
+            }
+        } catch (error) {
+            console.error('사용자 데이터 로딩 오류:', error);
+            return this.toast('댓글 등록 중 오류가 발생했습니다');
         }
         
-        allUsers[cafeIndex].cafeInfo.comments.push({
+        if (!allUsers[cafeEmail]) {
+            return this.toast('카페를 찾을 수 없습니다');
+        }
+        
+        if (!allUsers[cafeEmail].cafeInfo) {
+            allUsers[cafeEmail].cafeInfo = {};
+        }
+        
+        if (!allUsers[cafeEmail].cafeInfo.comments) {
+            allUsers[cafeEmail].cafeInfo.comments = [];
+        }
+        
+        allUsers[cafeEmail].cafeInfo.comments.push({
             user: Auth.currentUser.name,
             text: text,
             timestamp: new Date().toISOString()
         });
         
-        localStorage.setItem('timelink_users', JSON.stringify(allUsers));
-        
-        inputEl.value = '';
-        this.renderCafeGallery();
-        this.toast('💬 댓글이 등록되었습니다');
+        try {
+            localStorage.setItem('timelink_users', JSON.stringify(allUsers));
+            inputEl.value = '';
+            this.renderCafeGallery();
+            this.toast('💬 댓글이 등록되었습니다');
+        } catch (error) {
+            console.error('댓글 저장 오류:', error);
+            this.toast('댓글 저장 중 오류가 발생했습니다');
+        }
     },
 
     async listenCafe(cafeEmail) {
