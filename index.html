@@ -1269,7 +1269,7 @@
             <strong style="color:#f59e0b; display:block;">TL 잔액이 부족합니다!</strong>
             <span style="font-size:13px; color:#999;">광고 시청이나 TL 구매를 통해 충전하세요</span>
         </div>
-        <button class="recharge-btn" onclick="App.openRechargeModal('low')">
+        <button class="recharge-btn recharge-low-btn">
             💰 지금 충전
         </button>
     </div>
@@ -1278,7 +1278,7 @@
         <h1>⏰ TimeLink</h1>
         <div class="user-info">
             <div class="balances">
-                <div class="balance" id="tlBalance" onclick="App.openRechargeModal('header')" title="클릭하여 TL 충전">
+                <div class="balance recharge-header-balance" id="tlBalance" title="클릭하여 TL 충전" style="cursor:pointer;">
                     <div class="lbl">💰 TL <span style="font-size:9px; opacity:0.6;">충전 ▲</span></div>
                     <div class="amt" id="walletTL">10,000</div>
                 </div>
@@ -1287,7 +1287,7 @@
                     <div class="amt" id="walletTLC">0.00</div>
                 </div>
             </div>
-            <button class="recharge-btn" onclick="App.openRechargeModal('header')">
+            <button class="recharge-btn recharge-header-btn">
                 💰 TL 충전
             </button>
             <div class="user-name">👤 <span id="userName">User</span></div>
@@ -2727,7 +2727,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ 리셋 버튼 리스너 등록');
     }
     
-    console.log('✅ 모든 이벤트 리스너 등록 완료!');
+    console.log('✅ Auth 이벤트 리스너 등록 완료!');
 });
 
 // Enable auth buttons (keep for backward compatibility)
@@ -2908,11 +2908,25 @@ const App = {
             adButtons.innerHTML = `<div style="width:100%; text-align:center; padding:14px; background:rgba(255,255,255,0.03); border-radius:12px; color:#666; font-size:14px;">오늘 광고 시청 횟수를 모두 사용했습니다<br><span style="font-size:12px;">내일 다시 시청하세요 (매일 5회 초기화)</span></div>`;
         } else {
             adButtons.innerHTML = `
-                <button class="btn" onclick="App.watchAd(15, 500)" style="flex:1; background:rgba(59,130,246,0.2); color:#60a5fa; border:1px solid rgba(59,130,246,0.4); padding:12px; font-size:13px;">▶️ 15초 → +500 TL</button>
-                <button class="btn" onclick="App.watchAd(30, 1500)" style="flex:1; background:rgba(59,130,246,0.4); color:#60a5fa; border:1px solid rgba(59,130,246,0.6); padding:12px; font-size:13px;">▶️ 30초 → +1,500 TL ⭐</button>
-                <button class="btn" onclick="App.watchAd(60, 3000)" style="flex:1; background:rgba(59,130,246,0.2); color:#60a5fa; border:1px solid rgba(59,130,246,0.4); padding:12px; font-size:13px;">▶️ 60초 → +3,000 TL</button>
+                <button class="btn watch-ad-btn" data-seconds="15" data-reward="500" style="flex:1; background:rgba(59,130,246,0.2); color:#60a5fa; border:1px solid rgba(59,130,246,0.4); padding:12px; font-size:13px;">▶️ 15초 → +500 TL</button>
+                <button class="btn watch-ad-btn" data-seconds="30" data-reward="1500" style="flex:1; background:rgba(59,130,246,0.4); color:#60a5fa; border:1px solid rgba(59,130,246,0.6); padding:12px; font-size:13px;">▶️ 30초 → +1,500 TL ⭐</button>
+                <button class="btn watch-ad-btn" data-seconds="60" data-reward="3000" style="flex:1; background:rgba(59,130,246,0.2); color:#60a5fa; border:1px solid rgba(59,130,246,0.4); padding:12px; font-size:13px;">▶️ 60초 → +3,000 TL</button>
             `;
             adButtons.style.display = 'flex';
+            
+            // 광고 버튼 이벤트 리스너 등록
+            setTimeout(() => {
+                const watchAdButtons = document.querySelectorAll('.watch-ad-btn');
+                watchAdButtons.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const seconds = parseInt(btn.dataset.seconds);
+                        const reward = parseInt(btn.dataset.reward);
+                        console.log(`▶️ 광고 시청 버튼 클릭: ${seconds}초, ${reward} TL`);
+                        this.watchAd(seconds, reward);
+                    });
+                });
+                console.log(`✅ 광고 시청 버튼 ${watchAdButtons.length}개 등록`);
+            }, 0);
         }
         
         // 진행 중인 광고 초기화
@@ -3241,7 +3255,7 @@ const App = {
                     </ul>
                 </div>
                 
-                <button onclick="App.closeTL3Info()" style="width:100%; padding:14px; background:linear-gradient(135deg,#8a2be2,#b983ff); color:white; border:none; border-radius:12px; font-weight:700; cursor:pointer; font-size:15px;">
+                <button class="close-tl3-info-btn" style="width:100%; padding:14px; background:linear-gradient(135deg,#8a2be2,#b983ff); color:white; border:none; border-radius:12px; font-weight:700; cursor:pointer; font-size:15px;">
                     확인
                 </button>
             </div>
@@ -3311,21 +3325,21 @@ const App = {
                     <div class="panel"><strong>⏳ TL Balance</strong><br><span style="font-size:1.6rem;font-weight:800;">${f.balance.toLocaleString()}</span> TL</div>
                     <div class="actions">
                         ${f.balance > 0 ?
-                            `<button class="btn btn-play" onclick="App.play(${f.id})">▶️ 재생</button>` :
-                            `<button class="btn btn-charge" onclick="App.openRechargeModal('noBalance')" style="background:#ef4444; color:white;">⚠️ TL 충전</button>`
+                            `<button class="btn btn-play play-btn" data-file-id="${f.id}">▶️ 재생</button>` :
+                            `<button class="btn btn-charge no-balance-btn" style="background:#ef4444; color:white;">⚠️ TL 충전</button>`
                         }
-                        <button class="btn btn-charge" onclick="App.openCharge(${f.id})">💰 충전</button>
+                        <button class="btn btn-charge charge-btn" data-file-id="${f.id}">💰 충전</button>
                         ${f.isTL3 ? 
-                            `<button class="btn" onclick="App.downloadTL3(${f.id})" style="background:#8a2be2;color:white;">🔗 TL3 다운로드</button>
+                            `<button class="btn download-tl3-btn" data-file-id="${f.id}" style="background:#8a2be2;color:white;">🔗 TL3 다운로드</button>
                              ${f.isOriginalCreator !== false ?  // 기존 파일은 undefined이므로 공유 가능
                                 (!f.shared ?
-                                    `<button class="btn btn-share" onclick="App.share(${f.id})" title="Share Place 공유 비용: 5,000 TL">🔄 공유 (5K TL)</button>`:
+                                    `<button class="btn btn-share share-btn" data-file-id="${f.id}" title="Share Place 공유 비용: 5,000 TL">🔄 공유 (5K TL)</button>`:
                                     `<button class="btn" style="background:#555;color:#999;" disabled>✓ 공유됨</button>`
                                 ) :
                                 `<button class="btn" style="background:#333;color:#666;cursor:not-allowed;" disabled title="저작권 보호: 최초 업로더만 공유 가능">🔒 공유 불가</button>`
                              }` :
                             (!f.shared ?
-                                `<button class="btn btn-share" onclick="App.share(${f.id})" style="grid-column:span 2;" title="Share Place 공유 비용: 5,000 TL">🔄 공유 (5K TL)</button>`:
+                                `<button class="btn btn-share share-btn" data-file-id="${f.id}" style="grid-column:span 2;" title="Share Place 공유 비용: 5,000 TL">🔄 공유 (5K TL)</button>`:
                                 `<button class="btn" style="background:#555;color:#999;grid-column:span 2;" disabled>✓ 공유됨</button>`
                             )
                         }
@@ -3333,6 +3347,65 @@ const App = {
                 </div>
             </div>
         `).join('');
+        
+        // 버튼 이벤트 리스너 등록
+        setTimeout(() => {
+            // 재생 버튼
+            const playButtons = document.querySelectorAll('.play-btn');
+            playButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const fileId = parseInt(btn.dataset.fileId);
+                    console.log('▶️ 재생 버튼 클릭:', fileId);
+                    this.play(fileId);
+                });
+            });
+            console.log(`✅ 재생 버튼 ${playButtons.length}개 등록`);
+            
+            // TL 충전 필요 버튼
+            const noBalanceButtons = document.querySelectorAll('.no-balance-btn');
+            noBalanceButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    console.log('⚠️ TL 충전 필요 버튼 클릭');
+                    this.openRechargeModal('noBalance');
+                });
+            });
+            console.log(`✅ TL 충전 필요 버튼 ${noBalanceButtons.length}개 등록`);
+            
+            // 충전 버튼
+            const chargeButtons = document.querySelectorAll('.charge-btn');
+            chargeButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const fileId = parseInt(btn.dataset.fileId);
+                    console.log('💰 충전 버튼 클릭:', fileId);
+                    this.openCharge(fileId);
+                });
+            });
+            console.log(`✅ 충전 버튼 ${chargeButtons.length}개 등록`);
+            
+            // TL3 다운로드 버튼
+            const downloadButtons = document.querySelectorAll('.download-tl3-btn');
+            downloadButtons.forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const fileId = parseInt(btn.dataset.fileId);
+                    console.log('🔗 TL3 다운로드 버튼 클릭:', fileId);
+                    await this.downloadTL3(fileId);
+                });
+            });
+            console.log(`✅ TL3 다운로드 버튼 ${downloadButtons.length}개 등록`);
+            
+            // 공유 버튼
+            const shareButtons = document.querySelectorAll('.share-btn');
+            shareButtons.forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const fileId = parseInt(btn.dataset.fileId);
+                    console.log('🔄 공유 버튼 클릭:', fileId);
+                    await this.share(fileId);
+                });
+            });
+            console.log(`✅ 공유 버튼 ${shareButtons.length}개 등록`);
+            
+            console.log('✅ My Files 모든 버튼 이벤트 리스너 등록 완료!');
+        }, 0);
     },
 
     async downloadTL3(fileId) {
@@ -5407,6 +5480,51 @@ const App = {
 // Make App globally available
 window.App = App;
 console.log('✅ App 객체 정의 완료');
+
+// TL 충전 관련 이벤트 리스너 등록 (App 정의 후)
+setTimeout(() => {
+    console.log('🔧 TL 충전 버튼 이벤트 리스너 등록 시작');
+    
+    // TL Recharge buttons
+    const rechargeLowBtn = document.querySelector('.recharge-low-btn');
+    if (rechargeLowBtn) {
+        rechargeLowBtn.addEventListener('click', function() {
+            console.log('💰 잔액 부족 충전 버튼 클릭');
+            App.openRechargeModal('low');
+        });
+        console.log('✅ 잔액 부족 충전 버튼 리스너 등록');
+    }
+    
+    const rechargeHeaderBtn = document.querySelector('.recharge-header-btn');
+    if (rechargeHeaderBtn) {
+        rechargeHeaderBtn.addEventListener('click', function() {
+            console.log('💰 헤더 충전 버튼 클릭');
+            App.openRechargeModal('header');
+        });
+        console.log('✅ 헤더 충전 버튼 리스너 등록');
+    }
+    
+    const rechargeHeaderBalance = document.querySelector('.recharge-header-balance');
+    if (rechargeHeaderBalance) {
+        rechargeHeaderBalance.addEventListener('click', function() {
+            console.log('💰 TL 잔액 클릭');
+            App.openRechargeModal('header');
+        });
+        console.log('✅ TL 잔액 클릭 리스너 등록');
+    }
+    
+    // TL3 Info close button
+    const closeTL3InfoBtn = document.querySelector('.close-tl3-info-btn');
+    if (closeTL3InfoBtn) {
+        closeTL3InfoBtn.addEventListener('click', function() {
+            console.log('❌ TL3 정보 닫기 버튼 클릭');
+            App.closeTL3Info();
+        });
+        console.log('✅ TL3 정보 닫기 버튼 리스너 등록');
+    }
+    
+    console.log('✅ TL 충전 이벤트 리스너 등록 완료!');
+}, 100);
 
 // 초기화
 (async () => {
