@@ -2848,6 +2848,20 @@ const App = {
         // ==================== COPYRIGHT REGISTRY ====================
         // First-to-File 창작권 증명 시스템
         this.copyrightRegistry = this.loadCopyrightRegistry();
+        
+        // 저작권 위반 이력 로드
+        this.copyrightViolations = this.loadCopyrightViolations();
+        console.log('🛡️ 저작권 보호 시스템 로드 완료');
+        
+        // 위반 이력 확인
+        const userViolations = this.copyrightViolations[Auth.currentUser?.email];
+        if (userViolations) {
+            console.warn(`⚠️ 저작권 위반 이력: ${userViolations.totalCount}회`);
+            if (userViolations.banned) {
+                console.error('🚫 공유 기능 정지 상태');
+            }
+        }
+        
         this.uploadQueue = [];
 
         // TL3 Player 초기화
@@ -3770,7 +3784,23 @@ const App = {
         const file = this.files.find(f => f.id === id);
         if (!file) return;
         
-        // 창작권 검증 (canShare 속성 확인)
+        // 🚨 1차 검증: 저작권 위반 이력 확인
+        const sharePermission = this.canShare();
+        if (!sharePermission.allowed) {
+            if (sharePermission.reason === 'banned') {
+                const bannedDate = new Date(sharePermission.bannedAt).toLocaleString();
+                this.toast(`🚫 공유 기능 영구 정지\n\n저작권 위반 ${sharePermission.violationCount}회 누적으로 공유 기능이 정지되었습니다.\n\n정지일: ${bannedDate}\n\n타인의 저작물을 무단으로 공유할 수 없습니다.`);
+                console.error('🚫 공유 차단: 위반 이력으로 인한 영구 정지');
+                return;
+            }
+        }
+        
+        // 위반 이력 경고 표시
+        if (sharePermission.violationCount > 0) {
+            console.warn(`⚠️ 저작권 위반 이력: ${sharePermission.violationCount}회`);
+        }
+        
+        // 🚨 2차 검증: 창작권 검증 (canShare 속성 확인)
         if (file.canShare === false) {
             this.toast('⚠️ 이 파일은 공유할 수 없습니다 (다른 사용자가 먼저 등록함)');
             
@@ -3778,18 +3808,19 @@ const App = {
             if (file.contentHash) {
                 const copyrightInfo = this.verifyCopyright(file.contentHash);
                 if (copyrightInfo.exists && !copyrightInfo.isOwner) {
-                    this.toast(`🏆 원작자: ${copyrightInfo.owner}`);
+                    this.toast(`🏆 실제 권리자: ${copyrightInfo.owner}\n📅 등록일: ${new Date(copyrightInfo.timestamp).toLocaleString()}\n\n저작권 보호 대상입니다.`);
                 }
             }
             return;
         }
 
-        // TL3 파일의 경우 원작자 여부 확인
+        // 🚨 3차 검증: TL3 파일의 경우 원작자 여부 확인
         if (file.isTL3 && !file.isOriginalOwner) {
             this.toast('⚠️ 최초 업로더만 공유할 수 있습니다 (저작권 보호)');
             return;
         }
         
+        // 🚨 4차 검증: 파일 인증 확인
         if (!file.certified && !file.isTL3) {
             return this.toast('인증이 필요합니다');
         }
@@ -4946,18 +4977,28 @@ const App = {
                     success: true,
                     isOriginal: true,
                     originalOwner: existingRecord.owner,
+                    originalOwnerName: existingRecord.ownerName,
                     originalDate: existingRecord.timestamp,
                     message: '✅ 본인이 먼저 등록한 파일입니다 (재업로드 가능)'
                 };
             } else {
-                // 다른 사람이 먼저 등록한 파일 - 공유 불가
-                console.log('⚠️ 다른 사용자가 먼저 등록한 파일입니다');
+                // 🚨 저작권 위반 시도 감지!
+                console.warn('🚨 저작권 위반 시도 감지!');
+                console.warn(`파일: ${metadata.title}`);
+                console.warn(`실제 권리자: ${existingRecord.ownerName} (${existingRecord.owner})`);
+                console.warn(`위반 시도자: ${Auth.currentUser.name} (${Auth.currentUser.email})`);
+                
+                // 위반 이력 기록
+                this.recordCopyrightViolation(contentHash, existingRecord);
+                
                 return {
                     success: false,
                     isOriginal: false,
                     originalOwner: existingRecord.owner,
+                    originalOwnerName: existingRecord.ownerName,
                     originalDate: existingRecord.timestamp,
-                    message: '이 곡은 이미 다른 사용자가 먼저 등록했습니다'
+                    blockchainHash: existingRecord.blockchainHash,
+                    message: '⚠️ 저작권 보호: 다른 사용자가 먼저 등록한 파일입니다'
                 };
             }
         }
@@ -4970,7 +5011,8 @@ const App = {
             timestamp: Date.now(),
             blockchainHash: metadata.blockchainHash,
             title: metadata.title,
-            certified: true
+            certified: true,
+            registrationDate: new Date().toISOString()
         };
 
         this.saveCopyrightRegistry();
@@ -4979,6 +5021,89 @@ const App = {
             success: true,
             isOriginal: true,
             message: '🏆 창작권이 블록체인에 등록되었습니다!'
+        };
+    },
+
+    // 🚨 저작권 위반 이력 기록
+    recordCopyrightViolation(contentHash, copyrightRecord) {
+        const userEmail = Auth.currentUser.email;
+        
+        // 위반 이력 초기화
+        if (!this.copyrightViolations) {
+            this.copyrightViolations = {};
+        }
+        
+        if (!this.copyrightViolations[userEmail]) {
+            this.copyrightViolations[userEmail] = {
+                violations: [],
+                totalCount: 0,
+                banned: false
+            };
+        }
+        
+        // 위반 기록 추가
+        const violation = {
+            timestamp: Date.now(),
+            contentHash: contentHash,
+            attemptedTitle: copyrightRecord.title,
+            actualOwner: copyrightRecord.ownerName,
+            actualOwnerEmail: copyrightRecord.owner,
+            blockchainHash: copyrightRecord.blockchainHash
+        };
+        
+        this.copyrightViolations[userEmail].violations.push(violation);
+        this.copyrightViolations[userEmail].totalCount++;
+        
+        const violationCount = this.copyrightViolations[userEmail].totalCount;
+        
+        console.warn(`📊 누적 위반 횟수: ${violationCount}회`);
+        
+        // 3진 아웃 제도
+        if (violationCount >= 3 && !this.copyrightViolations[userEmail].banned) {
+            this.copyrightViolations[userEmail].banned = true;
+            this.copyrightViolations[userEmail].bannedAt = Date.now();
+            console.error('🚫 3회 위반! 공유 기능 영구 정지!');
+            
+            this.toast('🚫 저작권 위반 3회 누적!\n공유 기능이 영구 정지되었습니다.\n\n타인의 저작물을 무단으로 공유할 수 없습니다.');
+        } else if (violationCount === 2) {
+            console.warn('⚠️ 경고: 2회 위반! 1회 더 위반 시 영구 정지!');
+            this.toast('⚠️ 저작권 위반 경고 (2/3)\n\n한 번 더 위반 시 공유 기능이 영구 정지됩니다!\n타인의 저작물을 무단으로 공유하지 마세요.');
+        } else if (violationCount === 1) {
+            console.warn('⚠️ 저작권 위반 1회');
+            this.toast('⚠️ 저작권 위반 경고 (1/3)\n\n이 파일은 다른 사용자가 먼저 등록했습니다.\n타인의 저작물을 무단으로 공유할 수 없습니다.');
+        }
+        
+        // localStorage에 저장
+        localStorage.setItem('copyright_violations', JSON.stringify(this.copyrightViolations));
+    },
+    
+    // 저작권 위반 이력 로드
+    loadCopyrightViolations() {
+        const saved = localStorage.getItem('copyright_violations');
+        return saved ? JSON.parse(saved) : {};
+    },
+    
+    // 공유 가능 여부 확인 (위반 이력 체크)
+    canShare(userEmail = Auth.currentUser.email) {
+        if (!this.copyrightViolations) {
+            this.copyrightViolations = this.loadCopyrightViolations();
+        }
+        
+        const userRecord = this.copyrightViolations[userEmail];
+        
+        if (userRecord && userRecord.banned) {
+            console.error('🚫 공유 금지: 저작권 위반 3회로 영구 정지됨');
+            return {
+                allowed: false,
+                reason: 'banned',
+                violationCount: userRecord.totalCount,
+                bannedAt: userRecord.bannedAt
+            };
+        }
+        
+        return {
+            allowed: true,
+            violationCount: userRecord ? userRecord.totalCount : 0
         };
     },
 
@@ -5107,11 +5232,18 @@ const App = {
                     </div>
                     
                     ${!result.isOriginal ? `
-                        <div style="background: rgba(239,68,68,0.1); padding: 12px; border-radius: 8px; margin-top: 8px;">
-                            <div style="color: #ef4444; font-size: 0.9rem; line-height: 1.6;">
-                                <strong>⚠️ 공유 불가</strong><br>
-                                ${result.originalOwner}님이 먼저 등록한 곡입니다<br>
-                                <span style="font-size: 0.8rem; color: #999;">등록일: ${new Date(result.originalDate).toLocaleString()}</span>
+                        <div style="background: rgba(239,68,68,0.15); padding: 14px; border-radius: 8px; margin-top: 8px; border: 2px solid rgba(239,68,68,0.5);">
+                            <div style="color: #ef4444; font-size: 0.95rem; line-height: 1.7;">
+                                <strong style="font-size: 1.05rem;">🚨 저작권 보호 대상</strong><br>
+                                <div style="margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px;">
+                                    <div><strong>실제 권리자:</strong> ${result.originalOwnerName || result.originalOwner}</div>
+                                    <div style="font-size: 0.85rem; color: #999; margin-top: 4px;">등록일: ${new Date(result.originalDate).toLocaleString()}</div>
+                                    ${result.blockchainHash ? `<div style="font-size: 0.75rem; color: #666; margin-top: 4px; font-family: monospace;">블록체인: ${result.blockchainHash.substring(0, 16)}...</div>` : ''}
+                                </div>
+                                <div style="margin-top: 10px; padding: 10px; background: rgba(255,0,0,0.1); border-radius: 4px; font-size: 0.85rem;">
+                                    <strong>⚠️ 주의:</strong> 이 파일은 My Files에 추가할 수 있지만<br>
+                                    <strong style="color: #ff4444;">Share Place 공유는 불가능</strong>합니다 (저작권 보호)
+                                </div>
                             </div>
                         </div>
                     ` : result.message && result.message.includes('재업로드') ? `
