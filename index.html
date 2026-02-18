@@ -1681,7 +1681,24 @@
         <!-- Hero Banner -->
         <div class="tab-hero" style="background-image: url('https://images.unsplash.com/photo-1571330735066-03aaa9429d89?auto=format&fit=crop&w=2000&q=80');">
             <div class="tab-hero-content">
-                <h2>📤 Create TL3/TL4</h2>
+                <h2>📤 Create TL3/TL4</h2>   
+                
+            <div style="margin-bottom:24px; padding:18px; border-radius:14px; border:1px solid rgba(138,43,226,0.35); background:rgba(138,43,226,0.08);">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+                    <h3 style="margin:0; font-size:1.1rem;">🔗 회원별 AI API 연동</h3>
+                    <span style="font-size:12px; color:#c4b5fd;">현재 로그인 계정에만 저장됩니다</span>
+                </div>
+                <p style="font-size:13px; color:#bfbfbf; margin-bottom:14px;">Suno/Udio/OpenAI/Anthropic 키를 회원 계정별로 저장해 AI 기능을 개인화할 수 있습니다.</p>
+                <div id="aiApiConnectionStatus" style="font-size:12px; color:#f59e0b; margin-bottom:12px;">연동 상태 확인 중...</div>
+                <div style="display:grid; gap:10px;">
+                    <input id="apiKeySuno" type="password" placeholder="Suno API Key (선택)" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:rgba(0,0,0,0.3); color:white;">
+                    <input id="apiKeyUdio" type="password" placeholder="Udio API Key (선택)" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:rgba(0,0,0,0.3); color:white;">
+                    <input id="apiKeyOpenai" type="password" placeholder="OpenAI API Key (선택)" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:rgba(0,0,0,0.3); color:white;">
+                    <input id="apiKeyAnthropic" type="password" placeholder="Anthropic API Key (선택)" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:rgba(0,0,0,0.3); color:white;">
+                </div>
+                <button class="btn btn-share" onclick="App.saveAiApiConnections()" style="width:100%; margin-top:12px;">💾 AI API 연동 저장</button>
+            </div>
+
                 <p>블록체인 기반 파일 생성 • AI 자동 인증 • IPFS 탈중앙화 스토리지</p>
             </div>
         </div>
@@ -1727,6 +1744,9 @@
                         <option value="udio">🎵 Udio AI (자동 인증)</option>
                         <option value="custom">🎹 직접 작곡 (수동 검토)</option>
                     </select>
+                      <p style="margin-top:10px; color:#c4b5fd; font-size:12px; line-height:1.5;">
+                        Suno 인증은 <strong>Account</strong> 화면에서 현재 플랜/결제 주기/다음 결제일/남은 크레딧이 보이도록 스크린샷 캡처 후 업로드해 주세요.
+                    </p>
                 </div>
                  <div class="proof-panel" id="creatorProofGuide">
                     <strong>TL3 창작권 인증 정책 (중요)</strong><br>
@@ -2500,6 +2520,24 @@ const DB = {
 // ==================== AUTH ====================
 const Auth = {
     currentUser: null,
+    
+ getDefaultAiConnections() {
+        return {
+            suno: '',
+            udio: '',
+            openai: '',
+            anthropic: ''
+        };
+    },
+
+    normalizeUserData(user) {
+        if (!user) return user;
+        user.aiApiConnections = {
+            ...this.getDefaultAiConnections(),
+            ...(user.aiApiConnections || {})
+        };
+        return user;
+    },
 
     async init() {
         try {
@@ -2510,7 +2548,7 @@ const Auth = {
         }
         const savedUser = localStorage.getItem('timelink_current_user');
         if (savedUser) {
-            this.currentUser = JSON.parse(savedUser);
+        this.currentUser = this.normalizeUserData(JSON.parse(savedUser));
             await App.loadUserData();
             this.showMainApp();
         } else {
@@ -2558,6 +2596,7 @@ const Auth = {
                 accountType: accountType || 'personal',
                 createdAt: Date.now(),
                 wallet: { tl: 10000, tlc: 0 },  // 가입 보너스 10,000 TL
+                aiApiConnections: this.getDefaultAiConnections(),
                 files: [],
                 gold: 0,
                 adWatchedToday: 0,
@@ -2618,7 +2657,7 @@ const Auth = {
             if (!email || !password) return this.showAuthMessage('이메일과 비밀번호를 입력하세요', 'error');
 
             const users = this.getAllUsers();
-            const user = users[email];
+            const user = this.normalizeUserData(users[email]);
             if (!user) return this.showAuthMessage('존재하지 않는 이메일입니다', 'error');
             if (user.password !== password) return this.showAuthMessage('비밀번호가 일치하지 않습니다', 'error');
 
@@ -2658,7 +2697,12 @@ const Auth = {
 
     getAllUsers() {
         const d = localStorage.getItem('timelink_users');
-        return d ? JSON.parse(d) : {};
+      if (!d) return {};
+        const parsed = JSON.parse(d);
+        Object.keys(parsed).forEach((email) => {
+            parsed[email] = this.normalizeUserData(parsed[email]);
+        });
+        return parsed;
     },
 
     async saveUserData() {
@@ -2667,6 +2711,7 @@ const Auth = {
         const userCopy = { ...this.currentUser };
         userCopy.files = App.files.map(f => { const { url, ...meta } = f; return meta; });
         userCopy.wallet = App.wallet;
+        userCopy.aiApiConnections = App.aiApiConnections;
         userCopy.gold = App.gold;
         userCopy.adWatchedToday = App.adWatchedToday;
         userCopy.adLastDate = App.adLastDate;
@@ -2786,6 +2831,12 @@ setTimeout(() => {
 
 // ==================== MAIN APP ====================
 const App = {
+     aiApiConnections: {
+        suno: '',
+        udio: '',
+        openai: '',
+        anthropic: ''
+    },
     wallet: { tl: 10000, tlc: 0 },
     files: [],
     gold: 0,
@@ -3122,12 +3173,58 @@ const App = {
     async loadUserData() {
         if (!Auth.currentUser) return;
         this.wallet = Auth.currentUser.wallet || { tl: 10000, tlc: 0 };
+         this.aiApiConnections = {
+            ...Auth.getDefaultAiConnections(),
+            ...(Auth.currentUser.aiApiConnections || {})
+        };
         this.gold = Auth.currentUser.gold || 0;
         this.adWatchedToday = Auth.currentUser.adWatchedToday || 0;
         this.adLastDate = Auth.currentUser.adLastDate || new Date().toDateString();
         this.checkAdDailyReset();
         this.files = [...(Auth.currentUser.files || [])];
         this.updateAll();
+    },
+
+     getConnectedAiProviders() {
+        const providerNames = { suno: 'Suno', udio: 'Udio', openai: 'OpenAI', anthropic: 'Anthropic' };
+        return Object.entries(this.aiApiConnections)
+            .filter(([, apiKey]) => Boolean((apiKey || '').trim()))
+            .map(([provider]) => providerNames[provider] || provider);
+    },
+
+    renderAiApiConnections() {
+        const inputMap = {
+            suno: document.getElementById('apiKeySuno'),
+            udio: document.getElementById('apiKeyUdio'),
+            openai: document.getElementById('apiKeyOpenai'),
+            anthropic: document.getElementById('apiKeyAnthropic')
+        };
+        Object.entries(inputMap).forEach(([provider, input]) => {
+            if (input) input.value = this.aiApiConnections[provider] || '';
+        });
+
+        const statusEl = document.getElementById('aiApiConnectionStatus');
+        if (!statusEl) return;
+        const connected = this.getConnectedAiProviders();
+        statusEl.textContent = connected.length > 0
+            ? `연동됨: ${connected.join(', ')}`
+            : '연동된 API가 없습니다. 필요한 API Key를 저장해 주세요.';
+        statusEl.style.color = connected.length > 0 ? '#1db954' : '#f59e0b';
+    },
+
+    async saveAiApiConnections() {
+        this.aiApiConnections = {
+            suno: document.getElementById('apiKeySuno')?.value.trim() || '',
+            udio: document.getElementById('apiKeyUdio')?.value.trim() || '',
+            openai: document.getElementById('apiKeyOpenai')?.value.trim() || '',
+            anthropic: document.getElementById('apiKeyAnthropic')?.value.trim() || ''
+        };
+
+        if (!Auth.currentUser) return this.toast('로그인 후 API 연동을 저장할 수 있습니다.');
+        Auth.currentUser.aiApiConnections = { ...this.aiApiConnections };
+        await Auth.saveUserData();
+        this.renderAiApiConnections();
+        this.toast('✅ 회원 계정에 AI API 연동 정보가 저장되었습니다.');
     },
 
     selectType(type) {
