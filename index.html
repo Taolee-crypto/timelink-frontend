@@ -1680,8 +1680,15 @@
 
     <!-- Share Place -->
     <div id="tabShare" class="tab-content">
+        <!-- Hero Banner -->
+        <div class="tab-hero" style="background-image: url('https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=2000&q=80');">
+            <div class="tab-hero-content">
+                <h2>🔄 Share Place</h2>
+                <p>글로벌 음악 마켓플레이스 • TL3 다운로드 • 창작자 직접 지원</p>
+            </div>
+        </div>
+
         <div class="card">
-            <h2>🔄 Share Place</h2>
             <div class="search-box">
                 <span style="font-size:1.2rem;">🔍</span>
                 <input type="text" placeholder="검색..." onkeyup="App.searchShare()">
@@ -2998,7 +3005,11 @@ const App = {
                         }
                         <button class="btn btn-charge" onclick="App.openCharge(${f.id})">💰 충전</button>
                         ${f.isTL3 ? 
-                            `<button class="btn" onclick="App.downloadTL3(${f.id})" style="background:#8a2be2;color:white;grid-column:span 2;">🔗 TL3 다운로드</button>` :
+                            `<button class="btn" onclick="App.downloadTL3(${f.id})" style="background:#8a2be2;color:white;">🔗 TL3 다운로드</button>
+                             ${!f.shared ?
+                                `<button class="btn btn-share" onclick="App.share(${f.id})">🔄 공유</button>`:
+                                `<button class="btn" style="background:#555;color:#999;" disabled>✓ 공유됨</button>`
+                             }` :
                             (!f.shared ?
                                 `<button class="btn btn-share" onclick="App.share(${f.id})" style="grid-column:span 2;">🔄 공유</button>`:
                                 `<button class="btn" style="background:#555;color:#999;grid-column:span 2;" disabled>✓ 공유됨</button>`
@@ -3059,6 +3070,65 @@ const App = {
         }
     },
 
+    async downloadSharedTL3(fileId) {
+        // Share Place에서 TL3 다운로드
+        // 기능은 downloadTL3와 동일하지만 사용자에게 공유 감사 메시지 추가
+        try {
+            const file = this.files.find(f => f.id === fileId);
+            if (!file) return this.toast('파일을 찾을 수 없습니다');
+            
+            this.toast('⏳ TL3 파일 다운로드 중...');
+            
+            // IndexedDB에서 원본 데이터 가져오기
+            const fileData = await DB.getFile(file.id);
+            if (!fileData || !fileData.arrayBuffer) {
+                return this.toast('원본 파일 데이터가 없습니다');
+            }
+            
+            // TL3 메타데이터 재생성
+            const metadata = fileData.tl3Metadata || TL3.createMetadata(
+                { type: file.mimeType, size: fileData.arrayBuffer.byteLength, name: file.title },
+                { wallet: file.creator, name: file.creator },
+                {
+                    title: file.title,
+                    duration: file.duration,
+                    aiTool: file.tool,
+                    genre: file.genre,
+                    mood: file.mood,
+                    revenueShare: parseInt(file.revenue === '55' ? 50 : 70)
+                }
+            );
+            
+            metadata.blockchainHash = file.blockchainHash;
+            
+            const ipfsData = {
+                cid: file.ipfsCID,
+                url: file.ipfsUrl,
+                gateway: file.ipfsUrl
+            };
+            
+            // TL3 파일 생성
+            const tl3File = await TL3.createTL3File(fileData.arrayBuffer, metadata, ipfsData);
+            
+            // 다운로드
+            const tl3FileName = file.title.replace(/\.(mp3|mp4|wav|flac|m4a)$/i, '') + '.tl3';
+            TL3.downloadFile(tl3File, tl3FileName);
+            
+            this.toast(`✅ TL3 다운로드 완료! 재생 시 ${file.creator}에게 자동 정산됩니다.`);
+            
+            // 기여도 점수 추가 (TL3 다운로드 = 확산 기여)
+            this.contribution.today += 5;
+            this.contribution.total += 5;
+            this.contribution.monthly += 5;
+            localStorage.setItem('contribution', JSON.stringify(this.contribution));
+            this.updateContributionDisplay();
+            
+        } catch (error) {
+            console.error('TL3 다운로드 오류:', error);
+            this.toast('TL3 다운로드 중 오류: ' + error.message);
+        }
+    },
+
     renderSharePlace() {
         const el = document.getElementById('sharePlaceContent');
         const sharedFiles = this.files.filter(f => f.shared);
@@ -3080,13 +3150,20 @@ const App = {
                     <div class="thumb thumb-media ${f.fileType}" style="background-image:linear-gradient(130deg,rgba(0,0,0,0.2),rgba(0,0,0,0.65)),url('${this.getCoverImage(f)}');">
                         <div class="thumb-icon">${f.type==='TL4'?'🎬':'🎵'}</div>
                         <span class="badge badge-type">${f.type}</span>
+                        ${f.isTL3 ? '<span class="badge" style="right:12px;bottom:12px;background:rgba(138,43,226,0.9);">🔗 TL3</span>' : ''}
                         <span class="badge badge-genre" style="background:${genreColor[f.genre]||'#666'}">${genreEmoji[f.genre]||'🎵'}</span>
                     </div>
                     <div class="info">
                         <div class="name">${f.title}</div>
                         <div class="creator">${f.creator}</div>
                         <div class="panel"><strong>수익 계약</strong><br>${f.revenue==='55'?'창작자 50%':'창작자 70%'}</div>
-                        <button class="btn btn-play" onclick="event.stopPropagation();App.listenShared(${f.id})" style="width:100%;">🎧 청취 (1 TL/sec)</button>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <button class="btn btn-play" onclick="event.stopPropagation();App.listenShared(${f.id})">🎧 청취</button>
+                            ${f.isTL3 ? 
+                                `<button class="btn" onclick="event.stopPropagation();App.downloadSharedTL3(${f.id})" style="background:#8a2be2;color:white;">📥 TL3</button>` :
+                                `<button class="btn" style="background:#555;color:#999;" disabled>-</button>`
+                            }
+                        </div>
                     </div>
                 </div>
             `).join('')}</div></div>`;
