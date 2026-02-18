@@ -1294,22 +1294,18 @@
     </div>
 
     <div class="tabs">
-        <button class="tab active" onclick="App.switchTab('dashboard', event)">📊 Dashboard</button>
-        <button class="tab" onclick="App.switchTab('player', event)">🎧 TL3 Player</button>
-        <button class="tab" onclick="App.switchTab('contribution', event)">🏆 Contribution</button>
+        <button class="tab active" onclick="App.switchTab('discover', event)">🔥 Discover</button>
+        <button class="tab" onclick="App.switchTab('player', event)">🎧 Player</button>
         <button class="tab" onclick="App.switchTab('create', event)">📤 Create</button>
         <button class="tab" onclick="App.switchTab('myfiles', event)">🎵 My Files</button>
-        <button class="tab" onclick="App.switchTab('share', event)">🔄 Share Place</button>
-        <button class="tab" onclick="App.switchTab('cafe', event)">☕ Cafe</button>
-        <button class="tab" onclick="App.switchTab('car', event)">🚗🚶 Car & Walk</button>
-        <button class="tab" onclick="App.switchTab('mining', event)">⛏️ TLC Mining</button>
-        <button class="tab" onclick="App.switchTab('lecture', event)">📚 Lecture</button>
-        <button class="tab" onclick="App.switchTab('gold', event)">💰 Gold Reserve</button>
-        <button class="tab" onclick="App.switchTab('ton', event)">⬡ TLC Wallet</button>
+        <button class="tab" onclick="App.switchTab('contribution', event)">🏆 Rewards</button>
+        <button class="tab" onclick="App.switchTab('mining', event)">⛏️ Mining</button>
+        <button class="tab" onclick="App.switchTab('gold', event)">💰 Gold</button>
+        <button class="tab" onclick="App.switchTab('about', event)">ℹ️ About</button>
     </div>
 
     <!-- Dashboard -->
-    <div id="tabDashboard" class="tab-content active">
+    <div id="tabAbout" class="tab-content">
         <!-- Hero Fullscreen -->
         <div class="hero-fullscreen">
             <div class="hero-bg"></div>
@@ -1434,7 +1430,7 @@
                 <div style="color: #666; font-size: 0.75rem;">
                     <p>
                         For licensing inquiries or partnership opportunities:<br>
-                        📧 legal@timelink.io | 🌐 www.timelink.io
+                        📧 <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a9c5cccec8c5e9ddc0c4ccc5c0c7c287c0c6">[email&#160;protected]</a> | 🌐 www.timelink.io
                     </p>
                 </div>
             </div>
@@ -1749,7 +1745,7 @@
     </div>
 
     <!-- Share Place -->
-    <div id="tabShare" class="tab-content">
+    <div id="tabDiscover" class="tab-content active">
         <!-- Hero Banner -->
         <div class="tab-hero" style="background-image: url('https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=2000&q=80');">
             <div class="tab-hero-content">
@@ -2111,7 +2107,7 @@
 
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ==================== TL3 CONFIGURATION ====================
 const TL3_CONFIG = {
     version: "1.0.0",
@@ -2649,6 +2645,9 @@ const App = {
         if (miningInput) {
             miningInput.addEventListener('input', () => App.updateMiningPreview());
         }
+
+        // Discover 페이지 초기 렌더링
+        App.renderDiscover();
     },
 
     // ==================== 광고 & 구매 시스템 ====================
@@ -3241,6 +3240,162 @@ const App = {
         el.innerHTML = html;
     },
 
+    // ==================== DISCOVER PAGE ====================
+    discoverGenre: 'all',
+    discoverSearchQuery: '',
+
+    renderDiscover() {
+        this.updateDiscoverStats();
+        this.renderHotTracks();
+        this.renderNewReleases();
+        this.renderDiscoverGenre();
+    },
+
+    updateDiscoverStats() {
+        const sharedFiles = this.files.filter(f => f.shared);
+        const totalPlays = sharedFiles.reduce((sum, f) => sum + (f.plays || 0), 0);
+        const creators = new Set(sharedFiles.map(f => f.creator)).size;
+
+        if (document.getElementById('discoverTotalTracks')) {
+            document.getElementById('discoverTotalTracks').textContent = sharedFiles.length;
+        }
+        if (document.getElementById('discoverTotalPlays')) {
+            document.getElementById('discoverTotalPlays').textContent = totalPlays.toLocaleString();
+        }
+        if (document.getElementById('discoverTotalCreators')) {
+            document.getElementById('discoverTotalCreators').textContent = creators;
+        }
+
+        // Show/hide empty state
+        const emptyEl = document.getElementById('discoverEmpty');
+        if (emptyEl) {
+            emptyEl.style.display = sharedFiles.length === 0 ? 'block' : 'none';
+        }
+    },
+
+    renderHotTracks() {
+        const el = document.getElementById('hotTracks');
+        if (!el) return;
+
+        let sharedFiles = this.files.filter(f => f.shared);
+        if (sharedFiles.length === 0) {
+            el.innerHTML = '<div style="text-align:center;padding:40px;color:#666;">🔥 아직 인기 곡이 없습니다</div>';
+            return;
+        }
+
+        // Sort by plays (simulate plays based on duration and creation time)
+        sharedFiles = sharedFiles.map(f => ({
+            ...f,
+            plays: f.plays || Math.floor(Math.random() * 1000) + 100
+        })).sort((a, b) => b.plays - a.plays).slice(0, 10);
+
+        el.innerHTML = this.renderTrackCards(sharedFiles);
+    },
+
+    renderNewReleases() {
+        const el = document.getElementById('newReleases');
+        if (!el) return;
+
+        let sharedFiles = this.files.filter(f => f.shared);
+        if (sharedFiles.length === 0) {
+            el.innerHTML = '<div style="text-align:center;padding:40px;color:#666;">🆕 아직 신곡이 없습니다</div>';
+            return;
+        }
+
+        // Sort by ID (latest first) and take 20
+        sharedFiles = sharedFiles.sort((a, b) => b.id - a.id).slice(0, 20);
+
+        el.innerHTML = this.renderTrackCards(sharedFiles);
+    },
+
+    renderDiscoverGenre() {
+        const el = document.getElementById('genreContent');
+        if (!el) return;
+
+        let sharedFiles = this.files.filter(f => f.shared);
+        
+        // Apply genre filter
+        if (this.discoverGenre !== 'all') {
+            sharedFiles = sharedFiles.filter(f => f.genre === this.discoverGenre);
+        }
+
+        // Apply search filter
+        if (this.discoverSearchQuery) {
+            const query = this.discoverSearchQuery.toLowerCase();
+            sharedFiles = sharedFiles.filter(f => 
+                f.title.toLowerCase().includes(query) ||
+                f.creator.toLowerCase().includes(query) ||
+                f.genre.toLowerCase().includes(query) ||
+                (f.mood && f.mood.toLowerCase().includes(query))
+            );
+        }
+
+        if (sharedFiles.length === 0) {
+            el.innerHTML = '<div style="text-align:center;padding:60px;color:#666;"><div style="font-size:3rem;margin-bottom:16px;">🔍</div><h3 style="color:#999;">검색 결과가 없습니다</h3></div>';
+            return;
+        }
+
+        // Group by mood
+        const moods = { energetic:'🔥 Energetic', chill:'😌 Chill', focus:'🎯 Focus', workout:'💪 Workout', romantic:'💕 Romantic', sad:'😢 Sad', happy:'😊 Happy', sleep:'😴 Sleep' };
+        let html = '';
+        
+        Object.keys(moods).forEach(mood => {
+            const moodFiles = sharedFiles.filter(f => f.mood === mood);
+            if (moodFiles.length === 0) return;
+            html += `<div class="card" style="margin-bottom:24px;"><h3 style="margin-bottom:20px;font-size:1.4rem;">${moods[mood]}</h3><div class="grid">${this.renderTrackCards(moodFiles)}</div></div>`;
+        });
+
+        el.innerHTML = html;
+    },
+
+    renderTrackCards(tracks) {
+        const genreEmoji = {pop:'🎤',rock:'🎸',hiphop:'🎧',jazz:'🎺',classic:'🎻',edm:'💿',kpop:'🇰🇷',indie:'🎹'};
+        const genreColor = {pop:'#ff6b6b',rock:'#4ecdc4',hiphop:'#ffd93d',jazz:'#a8e6cf',classic:'#b39eb5',edm:'#ff8a5c',kpop:'#ff1493',indie:'#9370db'};
+        
+        return tracks.map(f => `
+            <div class="file-card" onclick="App.listenShared(${f.id})">
+                <div class="thumb thumb-media ${f.fileType}" style="background-image:linear-gradient(130deg,rgba(0,0,0,0.2),rgba(0,0,0,0.65)),url('${this.getCoverImage(f)}');">
+                    <div class="thumb-icon">${f.type==='TL4'?'🎬':'🎵'}</div>
+                    <span class="badge badge-type">${f.type}</span>
+                    ${f.isTL3 ? '<span class="badge" style="right:12px;bottom:12px;background:rgba(138,43,226,0.9);">🔗 TL3</span>' : ''}
+                    <span class="badge badge-genre" style="background:${genreColor[f.genre]||'#666'}">${genreEmoji[f.genre]||'🎵'}</span>
+                    ${f.plays ? `<span class="badge" style="left:12px;bottom:12px;background:rgba(239,68,68,0.9);">🔥 ${f.plays}</span>` : ''}
+                </div>
+                <div class="info">
+                    <div class="name">${f.title}</div>
+                    <div class="creator">${f.creator}</div>
+                    <div class="panel"><strong>수익 계약</strong><br>${f.revenue==='55'?'창작자 50%':'창작자 70%'}</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <button class="btn btn-play" onclick="event.stopPropagation();App.listenShared(${f.id})">🎧 청취</button>
+                        ${f.isTL3 ? 
+                            `<button class="btn" onclick="event.stopPropagation();App.downloadSharedTL3(${f.id})" style="background:#8a2be2;color:white;">📥 TL3</button>` :
+                            `<button class="btn" style="background:#555;color:#999;" disabled>-</button>`
+                        }
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    searchDiscover() {
+        const input = document.getElementById('discoverSearch');
+        if (!input) return;
+        this.discoverSearchQuery = input.value;
+        this.renderDiscoverGenre();
+    },
+
+    filterDiscoverGenre(genre) {
+        this.discoverGenre = genre;
+        
+        // Update active button
+        document.querySelectorAll('.genre-filter .genre-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+        
+        this.renderDiscoverGenre();
+    },
+
     openCharge(id) {
         const file = this.files.find(f => f.id === id);
         if (!file) return this.toast('파일을 찾을 수 없습니다');
@@ -3758,6 +3913,7 @@ const App = {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         if (evt && evt.target) evt.target.classList.add('active');
         document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+        if (name === 'discover') this.renderDiscover();
         if (name === 'myfiles') this.renderMyFiles();
         if (name === 'share') this.renderSharePlace();
         if (name === 'mining') { const el = document.getElementById('miningMax'); if(el) el.textContent = Math.floor(this.wallet.tl * 0.5).toLocaleString(); }
@@ -4250,11 +4406,4 @@ const App = {
 })();
 
 window.addEventListener('click', (e) => {
-    if (e.target.id === 'tlRechargeModal') App.closeRechargeModal();
-    if (e.target.classList.contains('modal') && !e.target.id === 'tlRechargeModal') App.closeModal();
-});
-
-window.addEventListener('beforeunload', () => Auth.saveUserData());
-</script>
-</body>
-</html>
+    if (e.target.id === 'tlRechargeModal')
