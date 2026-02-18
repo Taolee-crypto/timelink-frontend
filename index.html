@@ -1488,7 +1488,7 @@
                     <!-- Audio Player -->
                     <audio id="tl3Audio" controls style="width: 100%; margin-bottom: 16px;"></audio>
 
-               <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
                         <div style="background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.35); border-radius:10px; padding:8px 12px; font-size:0.9rem;">
                             파일 TL: <strong id="playerFileTL">0</strong> TL
                         </div>
@@ -1498,7 +1498,7 @@
                         </div>
                         <button id="playerChooseAnotherBtn" class="btn" style="padding:10px 14px; background:#333; color:#fff;">📁 다른 곡 선택</button>
                     </div>
-                    
+
                     <!-- 재생 시간 표시 -->
                     <div style="display: flex; justify-content: space-between; font-size: 0.9rem; color: #999; margin-bottom: 8px;">
                         <span id="playerCurrentTime">0:00</span>
@@ -4271,6 +4271,7 @@ const App = {
     playerInterval: null,
     playerPlayedSeconds: 0,
     playerFileTL: 0,
+
     initTL3Player() {
         const dropZone = document.getElementById('tl3DropZone');
         const fileInput = document.getElementById('tl3FileInput');
@@ -4278,9 +4279,11 @@ const App = {
         const chooseBtn = document.getElementById('playerChooseAnotherBtn');
 
         if (!dropZone || !fileInput) return;
+
         // 클릭 시 파일 선택
         dropZone.addEventListener('click', () => fileInput.click());
-       // 버튼 이벤트를 JS에서도 명시적으로 바인딩(브라우저별 inline onclick 이슈 대비)
+
+        // 버튼 이벤트를 JS에서도 명시적으로 바인딩(브라우저별 inline onclick 이슈 대비)
         if (chargeBtn) {
             chargeBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -4319,12 +4322,11 @@ const App = {
         });
     },
 
-        async loadTL3File(file) {
+    async loadTL3File(file) {
         try {
             this.toast('⏳ TL3 파일 로딩 중...');
-        this.stopPlayerPayment();
-        this.stopPlayerPayment();
-            
+            this.stopPlayerPayment();
+
             // TL3 메타데이터 추출 시도
             let metadata, audioBlob;
             
@@ -4350,14 +4352,14 @@ const App = {
             this.playerMetadata = metadata;
             this.playerPlayedSeconds = 0;
             this.playerFileTL = Math.max(0, Math.floor(metadata.availableTL || metadata.prepaidTL || 0));
-            
+
             // 플레이어 UI 표시
             document.getElementById('playerUI').style.display = 'block';
             document.getElementById('tl3DropZone').style.display = 'none';
 
             // 이전 파일 인증 배지 상태 초기화
             document.getElementById('playerCertified').style.display = 'none';
-                     
+
             // 메타데이터 표시
             document.getElementById('playerTrackTitle').textContent = metadata.title || file.name;
             document.getElementById('playerCreator').textContent = `👤 ${metadata.creatorName || metadata.creator || 'Unknown'}`;
@@ -4375,20 +4377,6 @@ const App = {
             document.getElementById('playerCreatorSharePercent').textContent = creatorShare;
             document.getElementById('playerPlatformSharePercent').textContent = platformShare;
             document.getElementById('playerFileTL').textContent = this.playerFileTL.toLocaleString();
-            document.getElementById('playerFileTL').textContent = this.playerFileTL.toLocaleString();
-            const chargeInput = document.getElementById('playerChargeAmount');
-            if (chargeInput) {
-                const suggest = Math.max(1, Math.floor(this.wallet.tl || 0));
-                chargeInput.value = suggest;
-            }
-
-            // 정산 통계 초기화
-            document.getElementById('playerPlayedSeconds').textContent = '0';
-            document.getElementById('playerConsumedTL').textContent = '0';
-            document.getElementById('playerCreatorEarned').textContent = '0';
-            document.getElementById('playerPlatformEarned').textContent = '0';
-            document.getElementById('paymentAnimation').innerHTML = '<span style="color: #999; font-size: 0.9rem;">▶️ 재생 시작 시 1초마다 자동 정산됩니다</span>';
-
             const chargeInput = document.getElementById('playerChargeAmount');
             if (chargeInput) {
                 const suggest = Math.max(1, Math.floor(this.wallet.tl || 0));
@@ -4404,15 +4392,16 @@ const App = {
 
             // 오디오 로드
             const audioElement = document.getElementById('tl3Audio');
-         if (audioElement.src) {
+            if (audioElement.src) {
                 URL.revokeObjectURL(audioElement.src);
             }
             audioElement.src = URL.createObjectURL(audioBlob);
-           
+
             // 재생 시작 시 정산 시작
             audioElement.onplay = () => this.startPlayerPayment();
             audioElement.onpause = () => this.stopPlayerPayment();
             audioElement.onended = () => this.stopPlayerPayment();
+
             // 파일 길이(초)를 충전 입력 기본값으로 제안
             audioElement.onloadedmetadata = () => {
                 const duration = Math.ceil(audioElement.duration || 0);
@@ -4443,7 +4432,7 @@ const App = {
     },
 
     startPlayerPayment() {
-         if (this.playerInterval) {
+        if (this.playerInterval) {
             clearInterval(this.playerInterval);
             this.playerInterval = null;
         }
@@ -4458,12 +4447,7 @@ const App = {
         this.playerPlayedSeconds = 0;
         
         this.playerInterval = setInterval(() => {
-            this.playerPlayedSeconds++;
-            
-            // 사용자 TL 차감
-            if (this.wallet.tl > 0) {
-                this.wallet.tl--;
-             if (this.playerFileTL <= 0) {
+            if (this.playerFileTL <= 0) {
                 this.stopPlayerPayment();
                 const audioElement = document.getElementById('tl3Audio');
                 audioElement.pause();
@@ -4485,12 +4469,9 @@ const App = {
             document.getElementById('playerCreatorEarned').textContent = creatorShare;
             document.getElementById('playerPlatformEarned').textContent = platformShare;
             document.getElementById('playerFileTL').textContent = this.playerFileTL.toLocaleString();
-                
+
             // 정산 애니메이션
             this.showPaymentAnimation(creatorShare);
-
-            // TL 업데이트
-            this.updateAll();
 
         }, 1000);
     },
@@ -4501,7 +4482,8 @@ const App = {
             this.playerInterval = null;
         }
     },
- chargeTL3Playback() {
+
+    chargeTL3Playback() {
         if (this.wallet.tl <= 0) {
             this.toast('지갑 TL이 부족합니다.');
             this.openRechargeModal('insufficient');
