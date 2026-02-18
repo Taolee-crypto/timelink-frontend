@@ -4472,7 +4472,7 @@ const App = {
 
         listEl.innerHTML = this.uploadQueue.map((item, index) => `
             <div style="background: rgba(138,43,226,0.1); border: 1px solid rgba(138,43,226,0.3); border-radius: 12px; padding: 16px; position: relative;">
-                <button onclick="App.removeFromQueue(${index})" style="position: absolute; top: 8px; right: 8px; background: rgba(255,68,68,0.2); color: #ff4444; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-size: 14px;">✕</button>
+                <button class="remove-queue-btn" data-index="${index}" style="position: absolute; top: 8px; right: 8px; background: rgba(255,68,68,0.2); color: #ff4444; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-size: 14px;">✕</button>
                 
                 <div style="display: flex; gap: 16px; align-items: start;">
                     <div style="font-size: 2.5rem; flex-shrink: 0;">${item.metadata.format === 'TL4' ? '🎬' : '🎵'}</div>
@@ -4520,6 +4520,19 @@ const App = {
                 </div>
             </div>
         `).join('');
+        
+        // Remove 버튼 이벤트 연결
+        setTimeout(() => {
+            const removeButtons = document.querySelectorAll('.remove-queue-btn');
+            removeButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const index = parseInt(btn.dataset.index);
+                    console.log('🗑️ 큐에서 제거:', index);
+                    this.removeFromQueue(index);
+                });
+            });
+            console.log(`✅ ${removeButtons.length}개 제거 버튼 이벤트 등록`);
+        }, 0);
     },
 
     removeFromQueue(index) {
@@ -5032,7 +5045,12 @@ const App = {
         }
 
         queueEl.style.display = 'block';
-        document.getElementById('queueCount').textContent = this.uploadQueue.length;
+        
+        // Update queue count if element exists
+        const queueCountEl = document.getElementById('queueCount');
+        if (queueCountEl) {
+            queueCountEl.textContent = this.uploadQueue.length;
+        }
 
         listEl.innerHTML = this.uploadQueue.map((item, index) => {
             const result = item.copyrightResult;
@@ -5077,19 +5095,50 @@ const App = {
         }).join('');
 
         // 버튼 이벤트 연결
+        console.log('🔧 버튼 이벤트 연결 시작');
         const processBtn = document.getElementById('processUploadsBtn');
         const clearBtn = document.getElementById('clearQueueBtn');
         
+        console.log('processBtn:', processBtn);
+        console.log('clearBtn:', clearBtn);
+        
         if (processBtn) {
-            processBtn.onclick = () => this.processUploadQueue();
+            // 기존 이벤트 제거
+            processBtn.onclick = null;
+            
+            // 새 이벤트 등록
+            processBtn.addEventListener('click', () => {
+                console.log('🎯 My Files 추가 버튼 클릭!');
+                this.processUploadQueue();
+            });
+            console.log('✅ processBtn 이벤트 등록 완료');
+        } else {
+            console.error('❌ processBtn을 찾을 수 없음');
         }
+        
         if (clearBtn) {
-            clearBtn.onclick = () => this.clearUploadQueue();
+            // 기존 이벤트 제거
+            clearBtn.onclick = null;
+            
+            // 새 이벤트 등록
+            clearBtn.addEventListener('click', () => {
+                console.log('🗑️ 대기열 지우기 버튼 클릭!');
+                this.clearUploadQueue();
+            });
+            console.log('✅ clearBtn 이벤트 등록 완료');
+        } else {
+            console.error('❌ clearBtn을 찾을 수 없음');
         }
     },
 
     async processUploadQueue() {
-        if (this.uploadQueue.length === 0) return;
+        console.log('🎯 processUploadQueue 시작');
+        console.log('📦 큐 길이:', this.uploadQueue.length);
+        
+        if (this.uploadQueue.length === 0) {
+            console.log('⚠️ 큐가 비어있음');
+            return;
+        }
 
         this.toast('⏳ My Files에 추가 중...');
 
@@ -5168,9 +5217,14 @@ const App = {
     },
 
     clearUploadQueue() {
+        console.log('🗑️ clearUploadQueue 시작');
+        console.log('📦 삭제 전 큐 길이:', this.uploadQueue.length);
+        
         this.uploadQueue = [];
         this.displayUploadQueue();
         this.toast('🗑️ 대기열을 비웠습니다');
+        
+        console.log('✅ 대기열 초기화 완료');
     }
 };
 
