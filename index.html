@@ -3288,6 +3288,15 @@ const App = {
     },
 
     renderMyFiles() {
+        console.log('🎨 renderMyFiles 호출');
+        console.log('📁 파일 개수:', this.files.length);
+        if (this.files.length > 0) {
+            console.log('📋 파일 목록:');
+            this.files.forEach((f, index) => {
+                console.log(`  ${index + 1}. ID: ${f.id}, 제목: ${f.title}, shared: ${f.shared}, isTL3: ${f.isTL3}`);
+            });
+        }
+        
         const el = document.getElementById('myFilesList');
         if (this.files.length === 0) {
             el.innerHTML = '<div style="text-align:center;padding:60px;color:#666">📁 파일이 없습니다</div>';
@@ -3957,14 +3966,108 @@ const App = {
     },
 
     async resetDatabase() {
-        if (confirm('⚠️ 모든 파일 데이터가 삭제됩니다. 계속하시겠습니까?')) {
-            try {
-                await DB.reset(); await DB.open();
-                this.files = [];
-                await Auth.saveUserData();
-                this.updateAll();
-                this.toast('✅ 데이터베이스 초기화 완료!');
-            } catch (error) { this.toast('오류: ' + error.message); }
+        const confirmMsg = `🚨 완전 초기화 경고 🚨
+
+다음 데이터가 영구적으로 삭제됩니다:
+
+✅ 모든 파일 (IndexedDB)
+✅ 저작권 레지스트리 (블록체인 기록)
+✅ 저작권 위반 이력
+✅ 사용자 데이터
+✅ 광고 시청 이력
+✅ 기여도 점수
+
+⚠️ 이 작업은 되돌릴 수 없습니다!
+
+계속하시겠습니까?`;
+
+        if (!confirm(confirmMsg)) {
+            console.log('❌ 초기화 취소됨');
+            return;
+        }
+        
+        // 2차 확인
+        const finalConfirm = confirm('⚠️ 최종 확인: 정말로 모든 데이터를 삭제하시겠습니까?');
+        if (!finalConfirm) {
+            console.log('❌ 초기화 취소됨 (2차 확인)');
+            return;
+        }
+        
+        try {
+            console.log('🔥 완전 초기화 시작...');
+            
+            // 1. IndexedDB 초기화
+            console.log('1️⃣ IndexedDB 삭제 중...');
+            await DB.reset();
+            await DB.open();
+            console.log('   ✅ IndexedDB 삭제 완료');
+            
+            // 2. 저작권 레지스트리 삭제
+            console.log('2️⃣ 저작권 레지스트리 삭제 중...');
+            const registryCount = Object.keys(this.copyrightRegistry || {}).length;
+            localStorage.removeItem('copyright_registry');
+            this.copyrightRegistry = {};
+            console.log(`   ✅ ${registryCount}개 저작권 기록 삭제 완료`);
+            
+            // 3. 저작권 위반 이력 삭제
+            console.log('3️⃣ 저작권 위반 이력 삭제 중...');
+            const violationsCount = Object.keys(this.copyrightViolations || {}).length;
+            localStorage.removeItem('copyright_violations');
+            this.copyrightViolations = {};
+            console.log(`   ✅ ${violationsCount}개 위반 이력 삭제 완료`);
+            
+            // 4. 파일 데이터 초기화
+            console.log('4️⃣ 파일 데이터 초기화 중...');
+            const filesCount = this.files.length;
+            this.files = [];
+            console.log(`   ✅ ${filesCount}개 파일 삭제 완료`);
+            
+            // 5. 업로드 큐 초기화
+            console.log('5️⃣ 업로드 큐 초기화 중...');
+            this.uploadQueue = [];
+            console.log('   ✅ 업로드 큐 삭제 완료');
+            
+            // 6. 광고 시청 이력 초기화
+            console.log('6️⃣ 광고 이력 초기화 중...');
+            localStorage.removeItem('ad_watched_today');
+            localStorage.removeItem('ad_last_date');
+            this.adWatchedToday = 0;
+            console.log('   ✅ 광고 이력 삭제 완료');
+            
+            // 7. 기여도 시스템 초기화
+            console.log('7️⃣ 기여도 시스템 초기화 중...');
+            localStorage.removeItem('contribution_scores');
+            if (this.contributionScores) {
+                this.contributionScores = {};
+            }
+            console.log('   ✅ 기여도 데이터 삭제 완료');
+            
+            // 8. 사용자 데이터 저장
+            console.log('8️⃣ 사용자 데이터 업데이트 중...');
+            await Auth.saveUserData();
+            console.log('   ✅ 사용자 데이터 저장 완료');
+            
+            // 9. UI 업데이트
+            console.log('9️⃣ UI 업데이트 중...');
+            this.updateAll();
+            console.log('   ✅ UI 업데이트 완료');
+            
+            console.log('🎉 완전 초기화 완료!');
+            console.log('');
+            console.log('📊 초기화 요약:');
+            console.log(`   - 삭제된 파일: ${filesCount}개`);
+            console.log(`   - 삭제된 저작권 기록: ${registryCount}개`);
+            console.log(`   - 삭제된 위반 이력: ${violationsCount}개`);
+            console.log('   - IndexedDB: 완전 삭제');
+            console.log('   - localStorage: 관련 데이터 완전 삭제');
+            console.log('');
+            console.log('✨ 시스템이 깨끗하게 초기화되었습니다!');
+            
+            this.toast('✅ 완전 초기화 완료!\n\n모든 데이터가 삭제되었습니다.\n새로운 시작을 준비하세요!');
+            
+        } catch (error) {
+            console.error('❌ 초기화 오류:', error);
+            this.toast('❌ 초기화 오류: ' + error.message);
         }
     },
 
@@ -5051,28 +5154,58 @@ const App = {
 
     // 창작권 등록 (First-to-File)
     async registerCopyright(contentHash, metadata) {
+        const now = Date.now();
+        const registrationId = `REG_${now}_${Math.random().toString(36).substr(2, 9)}`;
+        
         if (this.copyrightRegistry[contentHash]) {
             // 이미 등록된 컨텐츠
             const existingRecord = this.copyrightRegistry[contentHash];
             const isOwner = existingRecord.owner === Auth.currentUser.email;
             
+            console.log('🔍 저작권 레지스트리 조회:', {
+                contentHash: contentHash.substring(0, 16) + '...',
+                registeredBy: existingRecord.ownerName,
+                registeredAt: new Date(existingRecord.timestamp).toISOString(),
+                registrationId: existingRecord.registrationId,
+                blockchainHash: existingRecord.blockchainHash?.substring(0, 16) + '...',
+                currentUser: Auth.currentUser.email,
+                isOwner: isOwner
+            });
+            
             if (isOwner) {
                 // 본인이 먼저 등록한 파일 - 다시 추가 가능!
                 console.log('✅ 본인이 먼저 등록한 파일입니다');
+                
+                // 재업로드 이력 추가
+                if (!existingRecord.reuploadHistory) {
+                    existingRecord.reuploadHistory = [];
+                }
+                existingRecord.reuploadHistory.push({
+                    timestamp: now,
+                    reuploadId: registrationId,
+                    action: 'reupload'
+                });
+                this.saveCopyrightRegistry();
+                
                 return {
                     success: true,
                     isOriginal: true,
                     originalOwner: existingRecord.owner,
                     originalOwnerName: existingRecord.ownerName,
                     originalDate: existingRecord.timestamp,
+                    registrationId: existingRecord.registrationId,
+                    blockchainHash: existingRecord.blockchainHash,
                     message: '✅ 본인이 먼저 등록한 파일입니다 (재업로드 가능)'
                 };
             } else {
                 // 🚨 저작권 위반 시도 감지!
                 console.warn('🚨 저작권 위반 시도 감지!');
-                console.warn(`파일: ${metadata.title}`);
-                console.warn(`실제 권리자: ${existingRecord.ownerName} (${existingRecord.owner})`);
-                console.warn(`위반 시도자: ${Auth.currentUser.name} (${Auth.currentUser.email})`);
+                console.warn('파일:', metadata.title);
+                console.warn('실제 권리자:', existingRecord.ownerName, `(${existingRecord.owner})`);
+                console.warn('등록일시:', new Date(existingRecord.timestamp).toISOString());
+                console.warn('등록 ID:', existingRecord.registrationId);
+                console.warn('블록체인 해시:', existingRecord.blockchainHash);
+                console.warn('위반 시도자:', Auth.currentUser.name, `(${Auth.currentUser.email})`);
                 
                 // 위반 이력 기록
                 this.recordCopyrightViolation(contentHash, existingRecord);
@@ -5083,22 +5216,54 @@ const App = {
                     originalOwner: existingRecord.owner,
                     originalOwnerName: existingRecord.ownerName,
                     originalDate: existingRecord.timestamp,
+                    registrationId: existingRecord.registrationId,
                     blockchainHash: existingRecord.blockchainHash,
                     message: '⚠️ 저작권 보호: 다른 사용자가 먼저 등록한 파일입니다'
                 };
             }
         }
 
-        // 최초 등록
+        // 🏆 최초 등록 - 블록체인 기록 생성
         console.log('🏆 최초 등록 - 창작권 등록');
-        this.copyrightRegistry[contentHash] = {
+        console.log('📋 등록 정보:', {
+            registrationId: registrationId,
             owner: Auth.currentUser.email,
             ownerName: Auth.currentUser.name,
-            timestamp: Date.now(),
+            timestamp: new Date(now).toISOString(),
+            contentHash: contentHash.substring(0, 16) + '...',
+            blockchainHash: metadata.blockchainHash?.substring(0, 16) + '...',
+            title: metadata.title
+        });
+        
+        this.copyrightRegistry[contentHash] = {
+            // 블록체인 추적 정보
+            registrationId: registrationId,
+            contentHash: contentHash,
             blockchainHash: metadata.blockchainHash,
+            
+            // 등록자 정보
+            owner: Auth.currentUser.email,
+            ownerName: Auth.currentUser.name,
+            
+            // 타임스탬프
+            timestamp: now,
+            registrationDate: new Date(now).toISOString(),
+            
+            // 메타데이터
             title: metadata.title,
             certified: true,
-            registrationDate: new Date().toISOString()
+            
+            // 이력 추적
+            registrationHistory: [{
+                timestamp: now,
+                action: 'first_registration',
+                registrationId: registrationId,
+                ip: 'client-side', // 프로덕션에서는 서버에서 기록
+                userAgent: navigator.userAgent.substring(0, 50)
+            }],
+            
+            // 재업로드 이력
+            reuploadHistory: []
         };
 
         this.saveCopyrightRegistry();
@@ -5106,6 +5271,7 @@ const App = {
         return {
             success: true,
             isOriginal: true,
+            registrationId: registrationId,
             message: '🏆 창작권이 블록체인에 등록되었습니다!'
         };
     },
@@ -5321,10 +5487,13 @@ const App = {
                         <div style="background: rgba(239,68,68,0.15); padding: 14px; border-radius: 8px; margin-top: 8px; border: 2px solid rgba(239,68,68,0.5);">
                             <div style="color: #ef4444; font-size: 0.95rem; line-height: 1.7;">
                                 <strong style="font-size: 1.05rem;">🚨 저작권 보호 대상</strong><br>
-                                <div style="margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px;">
-                                    <div><strong>실제 권리자:</strong> ${result.originalOwnerName || result.originalOwner}</div>
-                                    <div style="font-size: 0.85rem; color: #999; margin-top: 4px;">등록일: ${new Date(result.originalDate).toLocaleString()}</div>
-                                    ${result.blockchainHash ? `<div style="font-size: 0.75rem; color: #666; margin-top: 4px; font-family: monospace;">블록체인: ${result.blockchainHash.substring(0, 16)}...</div>` : ''}
+                                <div style="margin-top: 8px; padding: 10px; background: rgba(0,0,0,0.4); border-radius: 6px; border-left: 3px solid #ef4444;">
+                                    <div style="font-weight: 700; font-size: 1rem; margin-bottom: 6px;">🔗 블록체인 등록 정보</div>
+                                    <div><strong>👤 실제 권리자:</strong> ${result.originalOwnerName || result.originalOwner}</div>
+                                    <div style="font-size: 0.85rem; color: #ccc; margin-top: 4px;">📧 ${result.originalOwner}</div>
+                                    <div style="font-size: 0.85rem; color: #999; margin-top: 4px;">📅 등록일시: ${new Date(result.originalDate).toLocaleString('ko-KR')}</div>
+                                    ${result.registrationId ? `<div style="font-size: 0.75rem; color: #999; margin-top: 4px; font-family: monospace;">🆔 등록 ID: ${result.registrationId}</div>` : ''}
+                                    ${result.blockchainHash ? `<div style="font-size: 0.75rem; color: #666; margin-top: 4px; font-family: monospace; word-break: break-all;">⛓️ 블록체인: ${result.blockchainHash.substring(0, 32)}...</div>` : ''}
                                 </div>
                                 <div style="margin-top: 10px; padding: 10px; background: rgba(255,0,0,0.1); border-radius: 4px; font-size: 0.85rem;">
                                     <strong>⚠️ 주의:</strong> 이 파일은 My Files에 추가할 수 있지만<br>
@@ -5337,20 +5506,25 @@ const App = {
                             <div style="color: #1db954; font-size: 0.9rem; line-height: 1.6;">
                                 <strong>✅ 본인이 먼저 등록한 파일</strong><br>
                                 이미 My Files에 있을 수 있지만 다시 추가 가능합니다<br>
-                                <span style="font-size: 0.8rem; color: #999;">최초 등록일: ${new Date(result.originalDate).toLocaleString()}</span>
+                                <div style="margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px;">
+                                    <div style="font-size: 0.8rem; color: #ccc;">📅 최초 등록일: ${new Date(result.originalDate).toLocaleString('ko-KR')}</div>
+                                    ${result.registrationId ? `<div style="font-size: 0.75rem; color: #999; margin-top: 4px; font-family: monospace;">🆔 등록 ID: ${result.registrationId}</div>` : ''}
+                                </div>
                             </div>
                         </div>
                     ` : `
                         <div style="background: rgba(29,185,84,0.1); padding: 12px; border-radius: 8px; margin-top: 8px;">
                             <div style="color: #1db954; font-size: 0.9rem; line-height: 1.6;">
-                                <strong>✅ Share Place 공유 가능</strong><br>
-                                당신이 이 곡의 최초 업로더입니다!
+                                <strong>🏆 최초 등록 - Share Place 공유 가능</strong><br>
+                                당신이 이 곡의 최초 업로더입니다!<br>
+                                ${result.registrationId ? `<div style="margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px;"><div style="font-size: 0.75rem; color: #ccc; font-family: monospace;">🆔 신규 등록 ID: ${result.registrationId}</div></div>` : ''}
                             </div>
                         </div>
                     `}
                     
-                    <div style="margin-top: 12px; font-size: 0.8rem; color: #666; font-family: monospace; word-break: break-all;">
-                        Hash: ${item.contentHash.substring(0, 16)}...
+                    <div style="margin-top: 12px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                        <div style="font-size: 0.75rem; color: #999; font-weight: 700; margin-bottom: 4px;">🔐 컨텐츠 해시 (파일 지문)</div>
+                        <div style="font-size: 0.75rem; color: #666; font-family: monospace; word-break: break-all;">${item.contentHash}</div>
                     </div>
                 </div>
             `;
@@ -5409,9 +5583,13 @@ const App = {
 
         for (const item of this.uploadQueue) {
             try {
+                // 고유 ID 한 번만 생성
+                const fileId = Date.now() + Math.random();
+                console.log('📁 파일 추가 ID:', fileId, '제목:', item.metadata.title);
+                
                 // IndexedDB에 저장
                 await DB.saveFile({
-                    id: Date.now() + Math.random(),
+                    id: fileId,
                     arrayBuffer: item.arrayBuffer,
                     mimeType: item.file.type,
                     tl3Metadata: item.metadata
@@ -5419,7 +5597,7 @@ const App = {
 
                 // files 배열에 추가
                 const newFile = {
-                    id: Date.now() + Math.random(),
+                    id: fileId,  // 같은 ID 사용!
                     title: item.metadata.title,
                     creator: item.metadata.creatorName || Auth.currentUser.name,
                     tool: item.metadata.aiTool || 'custom',
@@ -5446,6 +5624,7 @@ const App = {
                 };
 
                 this.files.push(newFile);
+                console.log('✅ 파일 추가 완료 - ID:', newFile.id, '제목:', newFile.title);
 
                 if (item.copyrightResult.isOriginal) {
                     successCount++;
