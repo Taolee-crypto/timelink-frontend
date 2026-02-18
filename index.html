@@ -2421,6 +2421,7 @@ const Auth = {
         document.getElementById('authScreen').style.display = 'none';
         document.getElementById('mainApp').style.display = 'block';
         document.getElementById('userName').textContent = this.currentUser.name;
+        App.loadUserData();  // 사용자 데이터 로드 (wallet 포함)
         App.updateAll();
     },
 
@@ -2468,6 +2469,7 @@ const Auth = {
         localStorage.setItem('timelink_users', JSON.stringify(users));
         this.currentUser = newUser;
         localStorage.setItem('timelink_current_user', JSON.stringify(newUser));
+        await App.loadUserData();  // 지갑 데이터 즉시 로드
         this.showMainApp();
         App.toast('🎁 가입 완료! 10,000 TL이 지급되었습니다!');
     },
@@ -2646,8 +2648,14 @@ const App = {
             miningInput.addEventListener('input', () => App.updateMiningPreview());
         }
 
-        // Discover 페이지 초기 렌더링
-        App.renderDiscover();
+        // Discover 페이지 초기 렌더링 (지연 실행으로 안전하게)
+        setTimeout(() => {
+            try {
+                App.renderDiscover();
+            } catch (error) {
+                console.error('Discover 렌더링 오류:', error);
+            }
+        }, 100);
     },
 
     // ==================== 광고 & 구매 시스템 ====================
@@ -4401,8 +4409,40 @@ const App = {
 
 // 초기화
 (async () => {
-    await Auth.init();
-    App.init();
+    console.log('🚀 TimeLink 초기화 시작');
+    
+    try {
+        // Auth 객체 확인
+        console.log('1️⃣ Auth 객체 확인:', typeof Auth);
+        if (typeof Auth === 'undefined') {
+            throw new Error('Auth 객체가 정의되지 않았습니다!');
+        }
+        console.log('   ✅ Auth 객체 존재');
+
+        // Auth 초기화
+        console.log('2️⃣ Auth.init() 호출 중...');
+        await Auth.init();
+        console.log('   ✅ Auth 초기화 완료');
+        console.log('   - currentUser:', Auth.currentUser ? Auth.currentUser.email : 'null');
+        
+        // App 객체 확인
+        console.log('3️⃣ App 객체 확인:', typeof App);
+        if (typeof App === 'undefined') {
+            throw new Error('App 객체가 정의되지 않았습니다!');
+        }
+        console.log('   ✅ App 객체 존재');
+
+        // App 초기화
+        console.log('4️⃣ App.init() 호출 중...');
+        App.init();
+        console.log('   ✅ App 초기화 완료');
+        
+        console.log('✅ TimeLink 초기화 성공!');
+    } catch (error) {
+        console.error('❌ 초기화 오류:', error);
+        console.error('   Stack:', error.stack);
+        alert('초기화 중 오류가 발생했습니다.\n\n' + error.message + '\n\n개발자 도구(F12)에서 자세한 내용을 확인하세요.');
+    }
 })();
 
 window.addEventListener('click', (e) => {
