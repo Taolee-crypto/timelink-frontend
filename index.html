@@ -1677,6 +1677,28 @@
 
         <div class="card">
             <h2>📤 Create TL3/TL4</h2>
+
+            <div style="margin-bottom:24px; padding:18px; border-radius:14px; border:1px solid rgba(138,43,226,0.35); background:rgba(138,43,226,0.08);">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+                    <h3 style="margin:0; font-size:1.1rem;">🔗 회원별 AI API 연동</h3>
+                    <span style="font-size:12px; color:#c4b5fd;">현재 로그인 계정에만 저장됩니다</span>
+                </div>
+                <p style="font-size:13px; color:#bfbfbf; margin-bottom:14px;">Suno/Udio/OpenAI/Anthropic 키를 회원 계정별로 저장해 AI 기능을 개인화할 수 있습니다.</p>
+                <div id="aiApiConnectionStatus" style="font-size:12px; color:#f59e0b; margin-bottom:12px;">연동 상태 확인 중...</div>
+                <div id="aiApiConnectionLastCheck" style="font-size:11px; color:#777; margin-bottom:12px;">최근 검증: 없음</div>
+                <div style="display:grid; gap:10px;">
+                    <input id="apiKeySuno" type="password" placeholder="Suno API Key (선택)" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:rgba(0,0,0,0.3); color:white;">
+                    <input id="apiKeyUdio" type="password" placeholder="Udio API Key (선택)" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:rgba(0,0,0,0.3); color:white;">
+                    <input id="apiKeyOpenai" type="password" placeholder="OpenAI API Key (선택)" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:rgba(0,0,0,0.3); color:white;">
+                    <input id="apiKeyAnthropic" type="password" placeholder="Anthropic API Key (선택)" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:rgba(0,0,0,0.3); color:white;">
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;">
+                    <button class="btn btn-share" onclick="App.testAiApiConnections()" style="width:100%;">🧪 API 키 검증</button>
+                    <button class="btn" onclick="App.clearAiApiConnections()" style="width:100%; background:#4b5563; color:white;">🗑️ 연동 초기화</button>
+                </div>
+                <button class="btn btn-share" onclick="App.saveAiApiConnections()" style="width:100%; margin-top:8px;">💾 AI API 연동 저장</button>
+            </div>
+
             <div class="type-selector">
                 <div class="type-card audio selected" id="audioCard" onclick="App.selectType('audio')">
                     <div style="font-size:3rem;">🎵</div>
@@ -2462,6 +2484,44 @@ const DB = {
 const Auth = {
     currentUser: null,
 
+    getDefaultAiConnections() {
+        return {
+            suno: '',
+            udio: '',
+            openai: '',
+            anthropic: ''
+        };
+    },
+
+    getDefaultAiConnectionMeta() {
+        return {
+            lastCheckedAt: null,
+            validation: {
+                suno: 'unknown',
+                udio: 'unknown',
+                openai: 'unknown',
+                anthropic: 'unknown'
+            }
+        };
+    },
+
+    normalizeUserData(user) {
+        if (!user) return user;
+        user.aiApiConnections = {
+            ...this.getDefaultAiConnections(),
+            ...(user.aiApiConnections || {})
+        };
+        user.aiApiMeta = {
+            ...this.getDefaultAiConnectionMeta(),
+            ...(user.aiApiMeta || {}),
+            validation: {
+                ...this.getDefaultAiConnectionMeta().validation,
+                ...((user.aiApiMeta && user.aiApiMeta.validation) || {})
+            }
+        };
+        return user;
+    },
+
     async init() {
         try {
             await DB.open();
@@ -2471,7 +2531,7 @@ const Auth = {
         }
         const savedUser = localStorage.getItem('timelink_current_user');
         if (savedUser) {
-            this.currentUser = JSON.parse(savedUser);
+            this.currentUser = this.normalizeUserData(JSON.parse(savedUser));
             await App.loadUserData();
             this.showMainApp();
         } else {
@@ -2519,6 +2579,8 @@ const Auth = {
                 accountType: accountType || 'personal',
                 createdAt: Date.now(),
                 wallet: { tl: 10000, tlc: 0 },  // 가입 보너스 10,000 TL
+                aiApiConnections: this.getDefaultAiConnections(),
+                aiApiMeta: this.getDefaultAiConnectionMeta(),
                 files: [],
                 gold: 0,
                 adWatchedToday: 0,
@@ -2579,7 +2641,7 @@ const Auth = {
             if (!email || !password) return this.showAuthMessage('이메일과 비밀번호를 입력하세요', 'error');
 
             const users = this.getAllUsers();
-            const user = users[email];
+            const user = this.normalizeUserData(users[email]);
             if (!user) return this.showAuthMessage('존재하지 않는 이메일입니다', 'error');
             if (user.password !== password) return this.showAuthMessage('비밀번호가 일치하지 않습니다', 'error');
 
@@ -2619,7 +2681,12 @@ const Auth = {
 
     getAllUsers() {
         const d = localStorage.getItem('timelink_users');
-        return d ? JSON.parse(d) : {};
+        if (!d) return {};
+        const parsed = JSON.parse(d);
+        Object.keys(parsed).forEach((email) => {
+            parsed[email] = this.normalizeUserData(parsed[email]);
+        });
+        return parsed;
     },
 
     async saveUserData() {
@@ -2628,6 +2695,8 @@ const Auth = {
         const userCopy = { ...this.currentUser };
         userCopy.files = App.files.map(f => { const { url, ...meta } = f; return meta; });
         userCopy.wallet = App.wallet;
+        userCopy.aiApiConnections = App.aiApiConnections;
+        userCopy.aiApiMeta = App.aiApiMeta;
         userCopy.gold = App.gold;
         userCopy.adWatchedToday = App.adWatchedToday;
         userCopy.adLastDate = App.adLastDate;
@@ -2747,6 +2816,21 @@ setTimeout(() => {
 
 // ==================== MAIN APP ====================
 const App = {
+    aiApiConnections: {
+        suno: '',
+        udio: '',
+        openai: '',
+        anthropic: ''
+    },
+    aiApiMeta: {
+        lastCheckedAt: null,
+        validation: {
+            suno: 'unknown',
+            udio: 'unknown',
+            openai: 'unknown',
+            anthropic: 'unknown'
+        }
+    },
     wallet: { tl: 10000, tlc: 0 },
     files: [],
     gold: 0,
@@ -3078,12 +3162,140 @@ const App = {
     async loadUserData() {
         if (!Auth.currentUser) return;
         this.wallet = Auth.currentUser.wallet || { tl: 10000, tlc: 0 };
+        this.aiApiConnections = {
+            ...Auth.getDefaultAiConnections(),
+            ...(Auth.currentUser.aiApiConnections || {})
+        };
+        this.aiApiMeta = {
+            ...Auth.getDefaultAiConnectionMeta(),
+            ...(Auth.currentUser.aiApiMeta || {}),
+            validation: {
+                ...Auth.getDefaultAiConnectionMeta().validation,
+                ...((Auth.currentUser.aiApiMeta && Auth.currentUser.aiApiMeta.validation) || {})
+            }
+        };
         this.gold = Auth.currentUser.gold || 0;
         this.adWatchedToday = Auth.currentUser.adWatchedToday || 0;
         this.adLastDate = Auth.currentUser.adLastDate || new Date().toDateString();
         this.checkAdDailyReset();
         this.files = [...(Auth.currentUser.files || [])];
         this.updateAll();
+    },
+
+    getConnectedAiProviders() {
+        const providerNames = { suno: 'Suno', udio: 'Udio', openai: 'OpenAI', anthropic: 'Anthropic' };
+        return Object.entries(this.aiApiConnections)
+            .filter(([, apiKey]) => Boolean((apiKey || '').trim()))
+            .map(([provider]) => providerNames[provider] || provider);
+    },
+
+    renderAiApiConnections() {
+        const inputMap = {
+            suno: document.getElementById('apiKeySuno'),
+            udio: document.getElementById('apiKeyUdio'),
+            openai: document.getElementById('apiKeyOpenai'),
+            anthropic: document.getElementById('apiKeyAnthropic')
+        };
+        Object.entries(inputMap).forEach(([provider, input]) => {
+            if (input) input.value = this.aiApiConnections[provider] || '';
+        });
+
+        const statusEl = document.getElementById('aiApiConnectionStatus');
+        if (!statusEl) return;
+        const connected = this.getConnectedAiProviders();
+        const providerNames = { suno: 'Suno', udio: 'Udio', openai: 'OpenAI', anthropic: 'Anthropic' };
+        const validationParts = Object.entries(this.aiApiMeta.validation || {})
+            .filter(([provider]) => Boolean((this.aiApiConnections[provider] || '').trim()))
+            .map(([provider, state]) => {
+                const emoji = state === 'valid' ? '✅' : state === 'invalid' ? '❌' : '⚪';
+                return `${emoji} ${providerNames[provider]}`;
+            });
+        statusEl.textContent = connected.length > 0
+            ? `연동됨: ${connected.join(', ')}${validationParts.length ? ` · ${validationParts.join(' / ')}` : ''}`
+            : '연동된 API가 없습니다. 필요한 API Key를 저장해 주세요.';
+        statusEl.style.color = connected.length > 0 ? '#1db954' : '#f59e0b';
+
+        const lastCheckEl = document.getElementById('aiApiConnectionLastCheck');
+        if (lastCheckEl) {
+            if (this.aiApiMeta.lastCheckedAt) {
+                const dt = new Date(this.aiApiMeta.lastCheckedAt);
+                lastCheckEl.textContent = `최근 검증: ${dt.toLocaleString()}`;
+            } else {
+                lastCheckEl.textContent = '최근 검증: 없음';
+            }
+        }
+    },
+
+    getProviderKeyRegex(provider) {
+        const regexMap = {
+            suno: /^su[a-zA-Z0-9_\-]{8,}$/,
+            udio: /^ud[a-zA-Z0-9_\-]{8,}$/,
+            openai: /^sk-[a-zA-Z0-9_-]{16,}$/,
+            anthropic: /^sk-ant-[a-zA-Z0-9_-]{16,}$/
+        };
+        return regexMap[provider] || /^.{8,}$/;
+    },
+
+    async testAiApiConnections() {
+        const providers = ['suno', 'udio', 'openai', 'anthropic'];
+        const validation = { ...Auth.getDefaultAiConnectionMeta().validation };
+        let checked = 0;
+        let passed = 0;
+
+        providers.forEach((provider) => {
+            const key = (this.aiApiConnections[provider] || '').trim();
+            if (!key) {
+                validation[provider] = 'unknown';
+                return;
+            }
+            checked += 1;
+            const ok = this.getProviderKeyRegex(provider).test(key);
+            validation[provider] = ok ? 'valid' : 'invalid';
+            if (ok) passed += 1;
+        });
+
+        this.aiApiMeta = {
+            ...this.aiApiMeta,
+            lastCheckedAt: new Date().toISOString(),
+            validation
+        };
+
+        if (Auth.currentUser) {
+            Auth.currentUser.aiApiMeta = { ...this.aiApiMeta };
+            await Auth.saveUserData();
+        }
+
+        this.renderAiApiConnections();
+        if (checked === 0) return this.toast('검증할 API 키가 없습니다. 먼저 입력해 주세요.');
+        this.toast(`🧪 API 키 검증 완료: ${passed}/${checked} 통과`);
+    },
+
+    async clearAiApiConnections() {
+        this.aiApiConnections = { ...Auth.getDefaultAiConnections() };
+        this.aiApiMeta = { ...Auth.getDefaultAiConnectionMeta() };
+        if (Auth.currentUser) {
+            Auth.currentUser.aiApiConnections = { ...this.aiApiConnections };
+            Auth.currentUser.aiApiMeta = { ...this.aiApiMeta };
+            await Auth.saveUserData();
+        }
+        this.renderAiApiConnections();
+        this.toast('🗑️ AI API 연동 정보를 초기화했습니다.');
+    },
+
+    async saveAiApiConnections() {
+        this.aiApiConnections = {
+            suno: document.getElementById('apiKeySuno')?.value.trim() || '',
+            udio: document.getElementById('apiKeyUdio')?.value.trim() || '',
+            openai: document.getElementById('apiKeyOpenai')?.value.trim() || '',
+            anthropic: document.getElementById('apiKeyAnthropic')?.value.trim() || ''
+        };
+
+        if (!Auth.currentUser) return this.toast('로그인 후 API 연동을 저장할 수 있습니다.');
+        Auth.currentUser.aiApiConnections = { ...this.aiApiConnections };
+        Auth.currentUser.aiApiMeta = { ...this.aiApiMeta };
+        await Auth.saveUserData();
+        this.renderAiApiConnections();
+        this.toast('✅ 회원 계정에 AI API 연동 정보가 저장되었습니다.');
     },
 
     selectType(type) {
@@ -4325,7 +4537,9 @@ const App = {
         if (playlist.length === 0) { this.cafeActive = false; return this.toast('요청하신 분위기에 맞는 음악이 없습니다'); }
         this.cafeQueue = playlist; this.cafeIndex = 0;
         document.getElementById('aiDjTheme').textContent = this.extractTheme(prompt);
-        this.toast(`🎧 AI DJ가 ${playlist.length}곡을 선곡했습니다!`);
+        const connectedProviders = this.getConnectedAiProviders();
+        const providerText = connectedProviders.length > 0 ? ` (${connectedProviders[0]} 연동)` : '';
+        this.toast(`🎧 AI DJ가 ${playlist.length}곡을 선곡했습니다!${providerText}`);
         await this.playNextCafe();
     },
 
@@ -4419,6 +4633,7 @@ const App = {
         if (name === 'discover') this.renderDiscover();
         if (name === 'myfiles') this.renderMyFiles();
         if (name === 'share') this.renderSharePlace();
+        if (name === 'create') this.renderAiApiConnections();
         if (name === 'mining') { const el = document.getElementById('miningMax'); if(el) el.textContent = Math.floor(this.wallet.tl * 0.5).toLocaleString(); }
     },
 
@@ -4472,6 +4687,7 @@ const App = {
         this.updateTlStatus();
         this.updateMiningDisplay();
         this.updateGoldReserveDisplay();
+        this.renderAiApiConnections();
     },
 
     // ==================== MINING DISPLAY ====================
