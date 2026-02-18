@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TimeLink — Time-Based Media Economy</title>
     
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>🎵</text></svg>" type="image/svg+xml">
+    
     <!-- TL3 Core Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
@@ -1026,9 +1029,9 @@
                 <label>비밀번호</label>
                 <input type="password" id="loginPassword" placeholder="••••••••">
             </div>
-            <button class="auth-btn" onclick="Auth.login()">로그인</button>
+            <button class="auth-btn" id="loginBtn">로그인</button>
             <div class="auth-switch">
-                계정이 없으신가요? <a onclick="Auth.switchAuthMode('register')">회원가입</a>
+                계정이 없으신가요? <a id="switchToRegister" style="cursor:pointer">회원가입</a>
             </div>
         </div>
         
@@ -1091,9 +1094,9 @@
                 </div>
             </div>
             
-            <button class="auth-btn" onclick="Auth.register()">🎁 가입하고 10,000 TL 받기</button>
+            <button class="auth-btn" id="registerBtn">🎁 가입하고 10,000 TL 받기</button>
             <div class="auth-switch">
-                이미 계정이 있으신가요? <a onclick="Auth.switchAuthMode('login')">로그인</a>
+                이미 계정이 있으신가요? <a id="switchToLogin" style="cursor:pointer">로그인</a>
             </div>
         </div>
     </div>
@@ -1288,8 +1291,8 @@
                 💰 TL 충전
             </button>
             <div class="user-name">👤 <span id="userName">User</span></div>
-            <button class="logout-btn" onclick="App.resetDatabase()" style="background:rgba(255,165,0,0.2); color:#ffa500; border-color:rgba(255,165,0,0.3);">🔄 리셋</button>
-            <button class="logout-btn" onclick="Auth.logout()">로그아웃</button>
+            <button class="logout-btn" id="resetBtn" style="background:rgba(255,165,0,0.2); color:#ffa500; border-color:rgba(255,165,0,0.3);">🔄 리셋</button>
+            <button class="logout-btn" id="logoutBtn">로그아웃</button>
         </div>
     </div>
 
@@ -2431,64 +2434,109 @@ const Auth = {
     },
 
     async register() {
-        const name = document.getElementById('regName').value.trim();
-        const email = document.getElementById('regEmail').value.trim().toLowerCase();
-        const password = document.getElementById('regPassword').value;
-        const accountType = document.getElementById('accountType').value;
+        try {
+            console.log('🎯 회원가입 시작');
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim().toLowerCase();
+            const password = document.getElementById('regPassword').value;
+            const accountType = document.getElementById('accountType').value;
 
-        if (!name || !email || !password) return this.showAuthMessage('모든 필드를 입력하세요', 'error');
-        if (password.length < 6) return this.showAuthMessage('비밀번호는 최소 6자 이상이어야 합니다', 'error');
+            console.log('입력값:', { name, email, accountType });
 
-        const users = this.getAllUsers();
-        if (users[email]) return this.showAuthMessage('이미 존재하는 이메일입니다', 'error');
+            if (!name || !email || !password) return this.showAuthMessage('모든 필드를 입력하세요', 'error');
+            if (password.length < 6) return this.showAuthMessage('비밀번호는 최소 6자 이상이어야 합니다', 'error');
 
-        // ✅ 신규 가입 시 10,000 TL 지급
-        const newUser = {
-            name, email, password,
-            accountType: accountType || 'personal',
-            createdAt: Date.now(),
-            wallet: { tl: 10000, tlc: 0 },  // 가입 보너스 10,000 TL
-            files: [],
-            gold: 0,
-            adWatchedToday: 0,
-            adLastDate: new Date().toDateString()
-        };
+            const users = this.getAllUsers();
+            if (users[email]) return this.showAuthMessage('이미 존재하는 이메일입니다', 'error');
 
-        if (accountType === 'business') {
-            newUser.cafeInfo = {
-                name: document.getElementById('cafeName').value.trim() || '',
-                location: document.getElementById('cafeLocation').value.trim() || '',
-                description: document.getElementById('cafeDescription').value.trim() || '',
-                image: document.getElementById('cafeImage').value.trim() || '',
-                hours: document.getElementById('cafeHours').value.trim() || '',
-                comments: []
+            // ✅ 신규 가입 시 10,000 TL 지급
+            const newUser = {
+                name, email, password,
+                accountType: accountType || 'personal',
+                createdAt: Date.now(),
+                wallet: { tl: 10000, tlc: 0 },  // 가입 보너스 10,000 TL
+                files: [],
+                gold: 0,
+                adWatchedToday: 0,
+                adLastDate: new Date().toDateString()
             };
-        }
 
-        users[email] = newUser;
-        localStorage.setItem('timelink_users', JSON.stringify(users));
-        this.currentUser = newUser;
-        localStorage.setItem('timelink_current_user', JSON.stringify(newUser));
-        await App.loadUserData();  // 지갑 데이터 즉시 로드
-        this.showMainApp();
-        App.toast('🎁 가입 완료! 10,000 TL이 지급되었습니다!');
+            if (accountType === 'business') {
+                newUser.cafeInfo = {
+                    name: document.getElementById('cafeName').value.trim() || '',
+                    location: document.getElementById('cafeLocation').value.trim() || '',
+                    description: document.getElementById('cafeDescription').value.trim() || '',
+                    image: document.getElementById('cafeImage').value.trim() || '',
+                    hours: document.getElementById('cafeHours').value.trim() || '',
+                    comments: []
+                };
+            }
+
+            console.log('✅ 사용자 생성:', newUser);
+
+            users[email] = newUser;
+            localStorage.setItem('timelink_users', JSON.stringify(users));
+            this.currentUser = newUser;
+            localStorage.setItem('timelink_current_user', JSON.stringify(newUser));
+            
+            console.log('✅ localStorage 저장 완료');
+
+            // App이 정의되어 있는지 확인
+            if (typeof App !== 'undefined' && App.loadUserData) {
+                console.log('✅ App.loadUserData() 호출');
+                await App.loadUserData();
+            } else {
+                console.warn('⚠️ App이 아직 정의되지 않음');
+            }
+            
+            this.showMainApp();
+            
+            // Toast는 App이 준비된 후에 호출
+            setTimeout(() => {
+                if (typeof App !== 'undefined' && App.toast) {
+                    App.toast('🎁 가입 완료! 10,000 TL이 지급되었습니다!');
+                } else {
+                    alert('🎁 가입 완료! 10,000 TL이 지급되었습니다!');
+                }
+            }, 500);
+            
+            console.log('✅ 회원가입 완료');
+        } catch (error) {
+            console.error('❌ 회원가입 에러:', error);
+            alert('회원가입 중 오류가 발생했습니다:\n\n' + error.message + '\n\n개발자 도구(F12) 콘솔을 확인하세요.');
+        }
     },
 
     async login() {
-        const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-        const password = document.getElementById('loginPassword').value;
-        if (!email || !password) return this.showAuthMessage('이메일과 비밀번호를 입력하세요', 'error');
+        try {
+            console.log('🔐 로그인 시작');
+            const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+            const password = document.getElementById('loginPassword').value;
+            if (!email || !password) return this.showAuthMessage('이메일과 비밀번호를 입력하세요', 'error');
 
-        const users = this.getAllUsers();
-        const user = users[email];
-        if (!user) return this.showAuthMessage('존재하지 않는 이메일입니다', 'error');
-        if (user.password !== password) return this.showAuthMessage('비밀번호가 일치하지 않습니다', 'error');
+            const users = this.getAllUsers();
+            const user = users[email];
+            if (!user) return this.showAuthMessage('존재하지 않는 이메일입니다', 'error');
+            if (user.password !== password) return this.showAuthMessage('비밀번호가 일치하지 않습니다', 'error');
 
-        this.currentUser = user;
-        localStorage.setItem('timelink_current_user', JSON.stringify(user));
-        await App.loadUserData();
-        this.showAuthMessage('✅ 로그인 성공!', 'success');
-        setTimeout(() => this.showMainApp(), 500);
+            console.log('✅ 사용자 확인:', user.email);
+
+            this.currentUser = user;
+            localStorage.setItem('timelink_current_user', JSON.stringify(user));
+            
+            if (typeof App !== 'undefined' && App.loadUserData) {
+                console.log('✅ App.loadUserData() 호출');
+                await App.loadUserData();
+            }
+            
+            this.showAuthMessage('✅ 로그인 성공!', 'success');
+            setTimeout(() => this.showMainApp(), 500);
+            
+            console.log('✅ 로그인 완료');
+        } catch (error) {
+            console.error('❌ 로그인 에러:', error);
+            alert('로그인 중 오류가 발생했습니다:\n\n' + error.message);
+        }
     },
 
     async logout() {
@@ -2537,11 +2585,101 @@ const Auth = {
         el.style.color = type === 'success' ? '#1db954' : '#ff4444';
         el.style.border = `1px solid ${type === 'success' ? '#1db954' : '#ff4444'}`;
         setTimeout(() => el.style.display = 'none', 3000);
+    },
+
+    // 테스트 함수
+    test() {
+        alert('✅ Auth 객체가 정상적으로 작동합니다!');
+        console.log('Auth 객체:', this);
+        return true;
     }
 };
 
 // Make Auth globally available
 window.Auth = Auth;
+console.log('✅ Auth 객체 정의 완료');
+console.log('✅ window.Auth:', typeof window.Auth);
+console.log('✅ Auth.register:', typeof Auth.register);
+
+// Setup event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🎯 이벤트 리스너 등록 시작');
+    
+    // Login button
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', function() {
+            console.log('🔐 로그인 버튼 클릭');
+            Auth.login();
+        });
+        console.log('✅ 로그인 버튼 리스너 등록');
+    }
+    
+    // Register button
+    const registerBtn = document.getElementById('registerBtn');
+    if (registerBtn) {
+        registerBtn.addEventListener('click', function() {
+            console.log('🎯 회원가입 버튼 클릭');
+            Auth.register();
+        });
+        console.log('✅ 회원가입 버튼 리스너 등록');
+    }
+    
+    // Switch to register
+    const switchToRegister = document.getElementById('switchToRegister');
+    if (switchToRegister) {
+        switchToRegister.addEventListener('click', function() {
+            Auth.switchAuthMode('register');
+        });
+        console.log('✅ 회원가입 전환 리스너 등록');
+    }
+    
+    // Switch to login
+    const switchToLogin = document.getElementById('switchToLogin');
+    if (switchToLogin) {
+        switchToLogin.addEventListener('click', function() {
+            Auth.switchAuthMode('login');
+        });
+        console.log('✅ 로그인 전환 리스너 등록');
+    }
+    
+    // Logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            Auth.logout();
+        });
+        console.log('✅ 로그아웃 버튼 리스너 등록');
+    }
+    
+    // Reset button
+    const resetBtn = document.getElementById('resetBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            if (typeof App !== 'undefined' && App.resetDatabase) {
+                App.resetDatabase();
+            }
+        });
+        console.log('✅ 리셋 버튼 리스너 등록');
+    }
+    
+    console.log('✅ 모든 이벤트 리스너 등록 완료!');
+});
+
+// Enable auth buttons (keep for backward compatibility)
+setTimeout(() => {
+    const loginBtn = document.getElementById('loginBtn');
+    const registerBtn = document.getElementById('registerBtn');
+    if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.style.opacity = '1';
+    }
+    if (registerBtn) {
+        registerBtn.disabled = false;
+        registerBtn.style.opacity = '1';
+    }
+    console.log('✅ Auth 버튼 활성화 완료');
+}, 100);
 
 // ==================== MAIN APP ====================
 const App = {
@@ -4412,6 +4550,7 @@ const App = {
 
 // Make App globally available
 window.App = App;
+console.log('✅ App 객체 정의 완료');
 
 // 초기화
 (async () => {
@@ -4452,4 +4591,15 @@ window.App = App;
 })();
 
 window.addEventListener('click', (e) => {
-    if (e.target.id === 'tlRechargeModal')
+    if (e.target.id === 'tlRechargeModal') {
+        App.closeRechargeModal();
+    }
+    if (e.target.classList.contains('modal') && e.target.id !== 'tlRechargeModal') {
+        App.closeModal();
+    }
+});
+
+window.addEventListener('beforeunload', () => Auth.saveUserData());
+</script>
+</body>
+</html>
