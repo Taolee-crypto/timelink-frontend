@@ -1451,8 +1451,8 @@
         </div>
 
         <div class="card">
-            <h2>🎧 TL3 Player - 실시간 정산 데모</h2>
-            <p style="color:#999; margin-bottom:20px;">TL3 파일을 드래그앤드롭하면 자동으로 창작자에게 정산됩니다</p>
+            <h2>🎧 TL3 Player - 다중 파일 업로드 & 창작권 증명</h2>
+            <p style="color:#999; margin-bottom:20px;">여러 TL3/TL4 파일을 업로드하여 My Files에 추가하고 공유할 수 있습니다</p>
             
             <!-- Drop Zone -->
             <div id="tl3DropZone" style="
@@ -1466,9 +1466,24 @@
                 margin-bottom: 24px;
             ">
                 <div style="font-size: 4rem; margin-bottom: 16px;">📁</div>
-                <h3 style="margin-bottom: 12px;">TL3 파일을 여기에 드롭하세요</h3>
-                <p style="color: #999;">또는 클릭하여 파일 선택</p>
-                <input type="file" id="tl3FileInput" accept=".tl3,.mp3" style="display:none;">
+                <h3 style="margin-bottom: 12px;">TL3/TL4 파일을 여기에 드롭하세요</h3>
+                <p style="color: #999; margin-bottom: 8px;">또는 클릭하여 파일 선택 (다중 선택 가능)</p>
+                <p style="color: #666; font-size: 13px;">💡 블록체인 해시로 최초 업로더만 공유 권한을 받습니다</p>
+                <input type="file" id="tl3FileInput" accept=".tl3,.mp4,.mp3" multiple style="display:none;">
+            </div>
+
+            <!-- Upload Queue -->
+            <div id="uploadQueue" style="display:none; margin-bottom: 24px;">
+                <h3 style="margin-bottom: 16px; color: #8a2be2;">📋 업로드 대기열</h3>
+                <div id="uploadQueueList" style="display: grid; gap: 12px;"></div>
+                <div style="display: flex; gap: 12px; margin-top: 16px;">
+                    <button id="processUploadsBtn" class="btn btn-play" style="flex: 1; padding: 16px;">
+                        ✨ My Files에 추가하기
+                    </button>
+                    <button id="clearQueueBtn" class="btn" style="background: #333; color: white; padding: 16px;">
+                        🗑️ 대기열 지우기
+                    </button>
+                </div>
             </div>
 
             <!-- Player UI (초기 숨김) -->
@@ -1487,17 +1502,6 @@
 
                     <!-- Audio Player -->
                     <audio id="tl3Audio" controls style="width: 100%; margin-bottom: 16px;"></audio>
-
-                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
-                        <div style="background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.35); border-radius:10px; padding:8px 12px; font-size:0.9rem;">
-                            파일 TL: <strong id="playerFileTL">0</strong> TL
-                        </div>
-                        <div style="display:flex; gap:8px; align-items:center;">
-                            <input id="playerChargeAmount" type="number" min="1" step="1" value="100" style="width:100px; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:#1f1f1f; color:#fff;" placeholder="파일 길이(초)">
-                            <button id="playerChargeBtn" class="btn btn-charge" style="padding:10px 14px;">💰 파일에 충전</button>
-                        </div>
-                        <button id="playerChooseAnotherBtn" class="btn" style="padding:10px 14px; background:#333; color:#fff;">📁 다른 곡 선택</button>
-                    </div>
 
                     <!-- 재생 시간 표시 -->
                     <div style="display: flex; justify-content: space-between; font-size: 0.9rem; color: #999; margin-bottom: 8px;">
@@ -2122,6 +2126,53 @@
 </div>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+// ==================== GLOBAL BLOCKCHAIN REGISTRY ====================
+const BlockchainRegistry = {
+    // 블록체인 해시 → 최초 업로더 정보
+    registry: {},
+
+    init() {
+        const saved = localStorage.getItem('blockchain_registry');
+        if (saved) {
+            try {
+                this.registry = JSON.parse(saved);
+            } catch (e) {
+                this.registry = {};
+            }
+        }
+    },
+
+    save() {
+        localStorage.setItem('blockchain_registry', JSON.stringify(this.registry));
+    },
+
+    // 블록체인 해시 등록 (최초 업로더)
+    register(blockchainHash, creator) {
+        if (this.registry[blockchainHash]) {
+            return false; // 이미 등록됨
+        }
+        this.registry[blockchainHash] = {
+            creator: creator.email || creator,
+            creatorName: creator.name || 'Unknown',
+            timestamp: Date.now()
+        };
+        this.save();
+        return true;
+    },
+
+    // 블록체인 해시 체크
+    check(blockchainHash) {
+        return this.registry[blockchainHash] || null;
+    },
+
+    // 현재 사용자가 최초 업로더인지 확인
+    isOriginalCreator(blockchainHash, userEmail) {
+        const record = this.registry[blockchainHash];
+        if (!record) return false;
+        return record.creator === userEmail;
+    }
+};
+
 // ==================== TL3 CONFIGURATION ====================
 const TL3_CONFIG = {
     version: "1.0.0",
@@ -2726,6 +2777,9 @@ const App = {
     adTimer: null,
 
     init() {
+        // 블록체인 레지스트리 초기화
+        BlockchainRegistry.init();
+        
         const fileInput = document.getElementById('fileInput');
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -2787,6 +2841,12 @@ const App = {
         
         // 날짜 변경 시 광고 카운트 리셋
         App.checkAdDailyReset();
+
+
+        // ==================== COPYRIGHT REGISTRY ====================
+        // First-to-File 창작권 증명 시스템
+        this.copyrightRegistry = this.loadCopyrightRegistry();
+        this.uploadQueue = [];
 
         // TL3 Player 초기화
         App.initTL3Player();
@@ -3223,6 +3283,12 @@ const App = {
                             <div style="font-size:10px;color:#999;margin-bottom:4px;">TL3 블록체인 해시</div>
                             <div style="font-size:11px;font-family:monospace;word-break:break-all;color:#b983ff;">${f.blockchainHash?.substring(0,16)}...${f.blockchainHash?.substring(f.blockchainHash.length-8)}</div>
                             ${f.ipfsUrl ? `<a href="${f.ipfsUrl}" target="_blank" style="font-size:10px;color:#1db954;text-decoration:underline;margin-top:4px;display:block;">📦 IPFS에서 보기</a>` : ''}
+                            ${f.isOriginalCreator !== undefined ? 
+                                (f.isOriginalCreator ? 
+                                    `<div style="margin-top:8px;padding:6px;background:rgba(29,185,84,0.15);border-radius:6px;border:1px solid rgba(29,185,84,0.3);"><span style="color:#1db954;font-size:11px;font-weight:700;">✓ 최초 업로더 (공유 가능)</span></div>` :
+                                    `<div style="margin-top:8px;padding:6px;background:rgba(239,68,68,0.15);border-radius:6px;border:1px solid rgba(239,68,68,0.3);"><span style="color:#ef4444;font-size:11px;font-weight:700;">🔒 복사본 (공유 불가)</span></div>`
+                                ) : ''
+                            }
                         </div>
                     ` : ''}
                     
@@ -3235,9 +3301,12 @@ const App = {
                         <button class="btn btn-charge" onclick="App.openCharge(${f.id})">💰 충전</button>
                         ${f.isTL3 ? 
                             `<button class="btn" onclick="App.downloadTL3(${f.id})" style="background:#8a2be2;color:white;">🔗 TL3 다운로드</button>
-                             ${!f.shared ?
-                                `<button class="btn btn-share" onclick="App.share(${f.id})">🔄 공유</button>`:
-                                `<button class="btn" style="background:#555;color:#999;" disabled>✓ 공유됨</button>`
+                             ${f.isOriginalCreator !== false ?  // 기존 파일은 undefined이므로 공유 가능
+                                (!f.shared ?
+                                    `<button class="btn btn-share" onclick="App.share(${f.id})">🔄 공유하기</button>`:
+                                    `<button class="btn" style="background:#555;color:#999;" disabled>✓ 공유됨</button>`
+                                ) :
+                                `<button class="btn" style="background:#333;color:#666;cursor:not-allowed;" disabled title="저작권 보호: 최초 업로더만 공유 가능">🔒 공유 불가</button>`
                              }` :
                             (!f.shared ?
                                 `<button class="btn btn-share" onclick="App.share(${f.id})" style="grid-column:span 2;">🔄 공유</button>`:
@@ -3698,7 +3767,31 @@ const App = {
     async share(id) {
         const file = this.files.find(f => f.id === id);
         if (!file) return;
-        if (!file.certified) return this.toast('인증이 필요합니다');
+        
+        // 창작권 검증 (canShare 속성 확인)
+        if (file.canShare === false) {
+            this.toast('⚠️ 이 파일은 공유할 수 없습니다 (다른 사용자가 먼저 등록함)');
+            
+            // 창작권 정보 표시
+            if (file.contentHash) {
+                const copyrightInfo = this.verifyCopyright(file.contentHash);
+                if (copyrightInfo.exists && !copyrightInfo.isOwner) {
+                    this.toast(`🏆 원작자: ${copyrightInfo.owner}`);
+                }
+            }
+            return;
+        }
+
+        // TL3 파일의 경우 원작자 여부 확인
+        if (file.isTL3 && !file.isOriginalOwner) {
+            this.toast('⚠️ 최초 업로더만 공유할 수 있습니다 (저작권 보호)');
+            return;
+        }
+        
+        if (!file.certified && !file.isTL3) {
+            return this.toast('인증이 필요합니다');
+        }
+        
         file.shared = true;
         await Auth.saveUserData();
         this.toast(`🔄 ${file.title} Share Place로 이동!`);
@@ -4271,37 +4364,24 @@ const App = {
     playerInterval: null,
     playerPlayedSeconds: 0,
     playerFileTL: 0,
+    uploadQueue: [], // 업로드 대기열
 
     initTL3Player() {
         const dropZone = document.getElementById('tl3DropZone');
         const fileInput = document.getElementById('tl3FileInput');
-        const chargeBtn = document.getElementById('playerChargeBtn');
-        const chooseBtn = document.getElementById('playerChooseAnotherBtn');
 
         if (!dropZone || !fileInput) return;
 
         // 클릭 시 파일 선택
         dropZone.addEventListener('click', () => fileInput.click());
 
-        // 버튼 이벤트를 JS에서도 명시적으로 바인딩(브라우저별 inline onclick 이슈 대비)
-        if (chargeBtn) {
-            chargeBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.chargeTL3Playback();
-            });
-        }
-
-        if (chooseBtn) {
-            chooseBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.chooseAnotherTL3File();
-            });
-        }
-
-        // 파일 선택 시
+        // 파일 선택 시 (다중 선택 지원)
         fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) this.loadTL3File(file);
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                this.handleMultipleFiles(files);
+            }
+            fileInput.value = ''; // 초기화하여 같은 파일 재선택 가능
         });
 
         // 드래그 앤 드롭
@@ -4317,15 +4397,239 @@ const App = {
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.classList.remove('dragging');
-            const file = e.dataTransfer.files[0];
-            if (file) this.loadTL3File(file);
+            const files = Array.from(e.dataTransfer.files);
+            if (files.length > 0) {
+                this.handleMultipleFiles(files);
+            }
         });
+    },
+
+    async addFilesToQueue(files) {
+        this.toast(`⏳ ${files.length}개 파일 분석 중...`);
+
+        for (const file of files) {
+            try {
+                // TL3 메타데이터 추출 시도
+                let metadata, audioBlob;
+                
+                try {
+                    const extracted = await TL3.extractMetadata(file);
+                    metadata = extracted.metadata;
+                    audioBlob = extracted.audioBlob;
+                } catch (error) {
+                    // TL3 파일이 아닌 경우 일반 파일로 처리
+                    metadata = {
+                        title: file.name.replace(/\.[^/.]+$/, ''),
+                        creator: Auth.currentUser?.email || 'anonymous',
+                        creatorName: Auth.currentUser?.name || 'Unknown',
+                        revenueShare: 70,
+                        blockchainHash: await TL3.createBlockchainHash({
+                            creator: Auth.currentUser?.email || 'anonymous',
+                            timestamp: Date.now(),
+                            title: file.name,
+                            duration: 0
+                        }),
+                        certified: false,
+                        format: 'TL3',
+                        fileSize: file.size,
+                        mimeType: file.type
+                    };
+                    audioBlob = file;
+                }
+
+                // 블록체인 레지스트리 체크
+                const existing = BlockchainRegistry.check(metadata.blockchainHash);
+                
+                this.uploadQueue.push({
+                    id: Date.now() + Math.random(),
+                    file: file,
+                    metadata: metadata,
+                    audioBlob: audioBlob,
+                    existing: existing,
+                    canShare: !existing || (existing.creator === Auth.currentUser?.email)
+                });
+
+            } catch (error) {
+                console.error('파일 분석 오류:', error);
+                this.toast(`${file.name} 분석 실패`);
+            }
+        }
+
+        this.renderUploadQueue();
+        this.toast(`✅ ${files.length}개 파일 추가됨`);
+    },
+
+    renderUploadQueue() {
+        const queueEl = document.getElementById('uploadQueue');
+        const listEl = document.getElementById('uploadQueueList');
+
+        if (this.uploadQueue.length === 0) {
+            queueEl.style.display = 'none';
+            return;
+        }
+
+        queueEl.style.display = 'block';
+
+        listEl.innerHTML = this.uploadQueue.map((item, index) => `
+            <div style="background: rgba(138,43,226,0.1); border: 1px solid rgba(138,43,226,0.3); border-radius: 12px; padding: 16px; position: relative;">
+                <button onclick="App.removeFromQueue(${index})" style="position: absolute; top: 8px; right: 8px; background: rgba(255,68,68,0.2); color: #ff4444; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-size: 14px;">✕</button>
+                
+                <div style="display: flex; gap: 16px; align-items: start;">
+                    <div style="font-size: 2.5rem; flex-shrink: 0;">${item.metadata.format === 'TL4' ? '🎬' : '🎵'}</div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; color: white;">${item.metadata.title}</div>
+                        <div style="color: #999; font-size: 0.9rem; margin-bottom: 8px;">👤 ${item.metadata.creatorName}</div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 12px;">
+                            <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; font-size: 11px;">
+                                <div style="color: #999;">파일 크기</div>
+                                <div style="color: white; font-weight: 600;">${(item.file.size / 1024 / 1024).toFixed(2)} MB</div>
+                            </div>
+                            <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; font-size: 11px;">
+                                <div style="color: #999;">수익 배분</div>
+                                <div style="color: white; font-weight: 600;">창작자 ${item.metadata.revenueShare}%</div>
+                            </div>
+                            <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; font-size: 11px;">
+                                <div style="color: #999;">인증 여부</div>
+                                <div style="color: ${item.metadata.certified ? '#1db954' : '#999'}; font-weight: 600;">${item.metadata.certified ? '✓ 인증됨' : '미인증'}</div>
+                            </div>
+                        </div>
+
+                        ${item.existing ? `
+                            <div style="background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+                                <div style="color: #ef4444; font-weight: 700; margin-bottom: 4px;">⚠️ 이미 등록된 파일</div>
+                                <div style="color: #999; font-size: 12px;">최초 업로더: ${item.existing.creatorName}</div>
+                                <div style="color: #999; font-size: 12px;">등록 시각: ${new Date(item.existing.timestamp).toLocaleString()}</div>
+                                ${item.canShare ? 
+                                    `<div style="color: #1db954; font-size: 12px; margin-top: 4px;">✓ 본인이 최초 업로더이므로 공유 가능</div>` :
+                                    `<div style="color: #ef4444; font-size: 12px; margin-top: 4px;">✕ 공유 불가 (저작권 보호)</div>`
+                                }
+                            </div>
+                        ` : `
+                            <div style="background: rgba(29,185,84,0.15); border: 1px solid rgba(29,185,84,0.4); border-radius: 8px; padding: 12px;">
+                                <div style="color: #1db954; font-weight: 700; margin-bottom: 4px;">✓ 새로운 파일 (최초 업로더)</div>
+                                <div style="color: #999; font-size: 12px;">블록체인 레지스트리에 등록되며 공유 권한을 받습니다</div>
+                            </div>
+                        `}
+
+                        <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; margin-top: 8px; font-family: monospace; font-size: 10px; word-break: break-all;">
+                            <div style="color: #8a2be2; margin-bottom: 2px;">🔗 블록체인 해시</div>
+                            <div style="color: #b983ff;">${item.metadata.blockchainHash?.substring(0, 32)}...${item.metadata.blockchainHash?.substring(item.metadata.blockchainHash.length - 8)}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    removeFromQueue(index) {
+        this.uploadQueue.splice(index, 1);
+        this.renderUploadQueue();
+        this.toast('파일 제거됨');
+    },
+
+    clearUploadQueue() {
+        if (this.uploadQueue.length === 0) return;
+        if (!confirm(`대기열의 ${this.uploadQueue.length}개 파일을 삭제하시겠습니까?`)) return;
+        
+        this.uploadQueue = [];
+        this.renderUploadQueue();
+        this.toast('대기열 초기화됨');
+    },
+
+    async processUploadQueue() {
+        if (this.uploadQueue.length === 0) {
+            this.toast('업로드할 파일이 없습니다');
+            return;
+        }
+
+        this.toast(`⏳ ${this.uploadQueue.length}개 파일 처리 중...`);
+
+        let successCount = 0;
+        let skippedCount = 0;
+
+        for (const item of this.uploadQueue) {
+            try {
+                // 블록체인 레지스트리에 등록 시도
+                let isOriginalCreator = false;
+                if (!item.existing) {
+                    // 새 파일 - 레지스트리에 등록
+                    const registered = BlockchainRegistry.register(
+                        item.metadata.blockchainHash,
+                        {
+                            email: Auth.currentUser?.email || 'anonymous',
+                            name: Auth.currentUser?.name || 'Unknown'
+                        }
+                    );
+                    isOriginalCreator = registered;
+                } else {
+                    // 기존 파일 - 본인 여부 확인
+                    isOriginalCreator = item.canShare;
+                }
+
+                // My Files에 추가
+                const newFile = {
+                    id: Date.now() + Math.random(),
+                    title: item.metadata.title,
+                    creator: item.metadata.creatorName,
+                    tool: item.metadata.aiTool || 'custom',
+                    genre: item.metadata.genre || 'unknown',
+                    mood: item.metadata.mood || 'neutral',
+                    desc: item.metadata.description || '',
+                    type: item.metadata.format || 'TL3',
+                    fileType: item.metadata.format === 'TL4' ? 'video' : 'audio',
+                    mimeType: item.metadata.mimeType || item.file.type,
+                    certified: item.metadata.certified || false,
+                    revenue: item.metadata.revenueShare === 50 ? '55' : '73',
+                    balance: 0,
+                    duration: item.metadata.duration || 0,
+                    fileSizeMB: (item.file.size / 1024 / 1024).toFixed(1),
+                    shared: false,
+                    createdAt: new Date().toISOString(),
+                    blockchainHash: item.metadata.blockchainHash,
+                    ipfsCID: item.metadata.ipfs?.cid || 'N/A',
+                    ipfsUrl: item.metadata.ipfs?.url || 'N/A',
+                    isTL3: true,
+                    isOriginalCreator: isOriginalCreator, // 🔑 핵심: 최초 업로더 여부
+                    uploadedBy: Auth.currentUser?.email || 'anonymous'
+                };
+
+                // IndexedDB에 저장
+                const arrayBuffer = await item.audioBlob.arrayBuffer();
+                await DB.saveFile({
+                    id: newFile.id,
+                    arrayBuffer: arrayBuffer,
+                    mimeType: newFile.mimeType,
+                    tl3Metadata: item.metadata
+                });
+
+                this.files.push(newFile);
+                successCount++;
+
+            } catch (error) {
+                console.error('파일 처리 오류:', error);
+                skippedCount++;
+            }
+        }
+
+        // 저장
+        await Auth.saveUserData();
+
+        // 대기열 초기화
+        this.uploadQueue = [];
+        this.renderUploadQueue();
+
+        // UI 업데이트
+        this.updateAll();
+        this.switchTab('myfiles');
+
+        // 결과 알림
+        this.toast(`✅ ${successCount}개 추가됨 ${skippedCount > 0 ? `(${skippedCount}개 실패)` : ''}`);
     },
 
     async loadTL3File(file) {
         try {
             this.toast('⏳ TL3 파일 로딩 중...');
-            this.stopPlayerPayment();
 
             // TL3 메타데이터 추출 시도
             let metadata, audioBlob;
@@ -4350,15 +4654,10 @@ const App = {
             }
 
             this.playerMetadata = metadata;
-            this.playerPlayedSeconds = 0;
-            this.playerFileTL = Math.max(0, Math.floor(metadata.availableTL || metadata.prepaidTL || 0));
 
             // 플레이어 UI 표시
             document.getElementById('playerUI').style.display = 'block';
             document.getElementById('tl3DropZone').style.display = 'none';
-
-            // 이전 파일 인증 배지 상태 초기화
-            document.getElementById('playerCertified').style.display = 'none';
 
             // 메타데이터 표시
             document.getElementById('playerTrackTitle').textContent = metadata.title || file.name;
@@ -4376,40 +4675,15 @@ const App = {
             const platformShare = 100 - creatorShare;
             document.getElementById('playerCreatorSharePercent').textContent = creatorShare;
             document.getElementById('playerPlatformSharePercent').textContent = platformShare;
-            document.getElementById('playerFileTL').textContent = this.playerFileTL.toLocaleString();
-            const chargeInput = document.getElementById('playerChargeAmount');
-            if (chargeInput) {
-                const suggest = Math.max(1, Math.floor(this.wallet.tl || 0));
-                chargeInput.value = suggest;
-            }
-
-            // 정산 통계 초기화
-            document.getElementById('playerPlayedSeconds').textContent = '0';
-            document.getElementById('playerConsumedTL').textContent = '0';
-            document.getElementById('playerCreatorEarned').textContent = '0';
-            document.getElementById('playerPlatformEarned').textContent = '0';
-            document.getElementById('paymentAnimation').innerHTML = '<span style="color: #999; font-size: 0.9rem;">▶️ 재생 시작 시 1초마다 자동 정산됩니다</span>';
 
             // 오디오 로드
             const audioElement = document.getElementById('tl3Audio');
-            if (audioElement.src) {
-                URL.revokeObjectURL(audioElement.src);
-            }
             audioElement.src = URL.createObjectURL(audioBlob);
 
             // 재생 시작 시 정산 시작
             audioElement.onplay = () => this.startPlayerPayment();
             audioElement.onpause = () => this.stopPlayerPayment();
             audioElement.onended = () => this.stopPlayerPayment();
-
-            // 파일 길이(초)를 충전 입력 기본값으로 제안
-            audioElement.onloadedmetadata = () => {
-                const duration = Math.ceil(audioElement.duration || 0);
-                const chargeInput = document.getElementById('playerChargeAmount');
-                if (chargeInput && duration > 0) {
-                    chargeInput.value = duration;
-                }
-            };
 
             // 시간 업데이트
             audioElement.ontimeupdate = () => {
@@ -4432,31 +4706,15 @@ const App = {
     },
 
     startPlayerPayment() {
-        if (this.playerInterval) {
-            clearInterval(this.playerInterval);
-            this.playerInterval = null;
-        }
-
-        if (this.playerFileTL <= 0) {
-            const audioElement = document.getElementById('tl3Audio');
-            audioElement.pause();
-            this.toast('파일 TL이 없습니다. 지갑에서 충전 후 재생하세요.');
-            return;
-        }
-
         this.playerPlayedSeconds = 0;
         
         this.playerInterval = setInterval(() => {
-            if (this.playerFileTL <= 0) {
-                this.stopPlayerPayment();
-                const audioElement = document.getElementById('tl3Audio');
-                audioElement.pause();
-                this.toast('⏹️ 파일 TL이 모두 소진되었습니다.');
-                return;
-            }
-
             this.playerPlayedSeconds++;
-            this.playerFileTL--;
+            
+            // 사용자 TL 차감
+            if (this.wallet.tl > 0) {
+                this.wallet.tl--;
+            }
 
             // 정산 계산
             const consumed = this.playerPlayedSeconds;
@@ -4468,10 +4726,12 @@ const App = {
             document.getElementById('playerConsumedTL').textContent = consumed;
             document.getElementById('playerCreatorEarned').textContent = creatorShare;
             document.getElementById('playerPlatformEarned').textContent = platformShare;
-            document.getElementById('playerFileTL').textContent = this.playerFileTL.toLocaleString();
 
             // 정산 애니메이션
             this.showPaymentAnimation(creatorShare);
+
+            // TL 업데이트
+            this.updateAll();
 
         }, 1000);
     },
@@ -4481,98 +4741,6 @@ const App = {
             clearInterval(this.playerInterval);
             this.playerInterval = null;
         }
-    },
-
-    chargeTL3Playback() {
-        if (this.wallet.tl <= 0) {
-            this.toast('지갑 TL이 부족합니다.');
-            this.openRechargeModal('insufficient');
-            return;
-        }
-
-        const input = document.getElementById('playerChargeAmount');
-        const amount = parseInt(input?.value || '', 10);
-
-        // 파일 길이(초) 기준 충전 금액
-        if (!Number.isInteger(amount) || amount <= 0) {
-            this.toast('파일 길이(초)를 올바르게 입력하세요.');
-            if (input) input.focus();
-            return;
-        }
-
-        if (amount > this.wallet.tl) {
-            this.toast(`지갑 TL이 부족합니다. (현재 ${this.wallet.tl.toLocaleString()} TL)`);
-            this.openRechargeModal('insufficient');
-            return;
-        }
-
-        this.wallet.tl -= amount;
-        this.playerFileTL += amount;
-        document.getElementById('playerFileTL').textContent = this.playerFileTL.toLocaleString();
-        this.updateAll();
-
-        if (input) {
-            input.value = String(amount);
-        }
-
-        this.toast(`✅ 파일에 ${amount.toLocaleString()} TL 충전 완료`);
-    },
-
-
-    chooseAnotherTL3File() {
-        const fileInput = document.getElementById('tl3FileInput');
-        if (!fileInput) return;
-
-        this.stopPlayerPayment();
-        const audioElement = document.getElementById('tl3Audio');
-        if (audioElement) audioElement.pause();
-
-        // 취소하면 현재 곡 상태를 유지하고, 선택하면 loadTL3File이 새 곡으로 교체함
-        try {
-            if (typeof fileInput.showPicker === 'function') {
-                fileInput.showPicker();
-            } else {
-                fileInput.click();
-            }
-        } catch (error) {
-            try {
-                fileInput.click();
-            } catch (clickError) {
-                this.toast('파일 선택창이 차단되었습니다. 드롭존을 직접 클릭해 주세요.');
-            }
-        }
-    },
-
-    resetTL3Player() {
-        this.stopPlayerPayment();
-        const audioElement = document.getElementById('tl3Audio');
-        audioElement.pause();
-        audioElement.currentTime = 0;
-        if (audioElement.src) {
-            URL.revokeObjectURL(audioElement.src);
-        }
-        audioElement.src = '';
-
-        this.playerMetadata = null;
-        this.playerPlayedSeconds = 0;
-        this.playerFileTL = 0;
-
-        const fileInput = document.getElementById('tl3FileInput');
-        fileInput.value = '';
-
-        document.getElementById('playerTrackTitle').textContent = '-';
-        document.getElementById('playerCreator').textContent = '-';
-        document.getElementById('playerCertified').style.display = 'none';
-        document.getElementById('playerFileTL').textContent = '0';
-
-        const chargeInput = document.getElementById('playerChargeAmount');
-        if (chargeInput) {
-            const suggest = Math.max(1, Math.floor(this.wallet.tl || 0));
-            chargeInput.value = suggest;
-        }
-
-        document.getElementById('playerUI').style.display = 'none';
-        document.getElementById('tl3DropZone').style.display = 'block';
     },
 
     showPaymentAnimation(amount) {
@@ -4713,6 +4881,296 @@ const App = {
         setTimeout(() => {
             this.toast(`✨ ${actionNames[action]}: +${score}점`);
         }, 100);
+    },
+
+    // ==================== COPYRIGHT REGISTRY SYSTEM ====================
+    
+    loadCopyrightRegistry() {
+        const registry = localStorage.getItem('copyright_registry');
+        return registry ? JSON.parse(registry) : {};
+    },
+
+    saveCopyrightRegistry() {
+        localStorage.setItem('copyright_registry', JSON.stringify(this.copyrightRegistry));
+    },
+
+    // 파일의 컨텐츠 해시 생성 (MD5 기반)
+    async generateContentHash(arrayBuffer) {
+        const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
+        const hash = CryptoJS.MD5(wordArray).toString();
+        return hash;
+    },
+
+    // 창작권 등록 (First-to-File)
+    async registerCopyright(contentHash, metadata) {
+        if (this.copyrightRegistry[contentHash]) {
+            // 이미 등록된 컨텐츠
+            return {
+                success: false,
+                isOriginal: false,
+                originalOwner: this.copyrightRegistry[contentHash].owner,
+                originalDate: this.copyrightRegistry[contentHash].timestamp,
+                message: '이 곡은 이미 다른 사용자가 먼저 등록했습니다'
+            };
+        }
+
+        // 최초 등록
+        this.copyrightRegistry[contentHash] = {
+            owner: Auth.currentUser.email,
+            ownerName: Auth.currentUser.name,
+            timestamp: Date.now(),
+            blockchainHash: metadata.blockchainHash,
+            title: metadata.title,
+            certified: true
+        };
+
+        this.saveCopyrightRegistry();
+
+        return {
+            success: true,
+            isOriginal: true,
+            message: '🏆 창작권이 블록체인에 등록되었습니다!'
+        };
+    },
+
+    // 창작권 검증
+    verifyCopyright(contentHash) {
+        if (!this.copyrightRegistry[contentHash]) {
+            return { exists: false };
+        }
+
+        const record = this.copyrightRegistry[contentHash];
+        const isOwner = record.owner === Auth.currentUser.email;
+
+        return {
+            exists: true,
+            isOwner,
+            owner: record.ownerName,
+            ownerEmail: record.owner,
+            timestamp: record.timestamp,
+            title: record.title
+        };
+    },
+
+    // ==================== MULTI-FILE UPLOAD ====================
+    
+    async handleMultipleFiles(files) {
+        this.uploadQueue = [];
+        
+        for (let file of files) {
+            try {
+                this.toast(`📝 처리 중: ${file.name}...`);
+                
+                // 파일 읽기
+                const arrayBuffer = await this.readFileAsArrayBuffer(file);
+                
+                // TL3 메타데이터 추출 시도
+                let metadata, audioBlob, contentHash;
+                
+                try {
+                    const extracted = await TL3.extractMetadata(file);
+                    metadata = extracted.metadata;
+                    audioBlob = extracted.audioBlob;
+                    
+                    // 오디오 데이터로 컨텐츠 해시 생성
+                    const audioBuffer = await audioBlob.arrayBuffer();
+                    contentHash = await this.generateContentHash(audioBuffer);
+                } catch (error) {
+                    // 일반 MP3 파일
+                    metadata = {
+                        title: file.name.replace(/\.[^/.]+$/, ''),
+                        creator: Auth.currentUser.name,
+                        creatorName: Auth.currentUser.name,
+                        revenueShare: 70,
+                        certified: false,
+                        isTL3: false
+                    };
+                    audioBlob = file;
+                    contentHash = await this.generateContentHash(arrayBuffer);
+                }
+
+                // 창작권 등록 시도
+                metadata.blockchainHash = metadata.blockchainHash || await TL3.createBlockchainHash(metadata);
+                const copyrightResult = await this.registerCopyright(contentHash, metadata);
+
+                // 큐에 추가
+                this.uploadQueue.push({
+                    file,
+                    metadata,
+                    audioBlob,
+                    arrayBuffer,
+                    contentHash,
+                    copyrightResult
+                });
+
+            } catch (error) {
+                console.error('파일 처리 오류:', file.name, error);
+                this.toast(`❌ ${file.name} 처리 실패: ${error.message}`);
+            }
+        }
+
+        // 큐 UI 표시
+        this.displayUploadQueue();
+    },
+
+    readFileAsArrayBuffer(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = () => reject(new Error('파일 읽기 실패'));
+            reader.readAsArrayBuffer(file);
+        });
+    },
+
+    displayUploadQueue() {
+        const queueEl = document.getElementById('uploadQueue');
+        const listEl = document.getElementById('uploadQueueList');
+        
+        if (this.uploadQueue.length === 0) {
+            queueEl.style.display = 'none';
+            return;
+        }
+
+        queueEl.style.display = 'block';
+        document.getElementById('queueCount').textContent = this.uploadQueue.length;
+
+        listEl.innerHTML = this.uploadQueue.map((item, index) => {
+            const result = item.copyrightResult;
+            const statusColor = result.isOriginal ? '#1db954' : '#ef4444';
+            const statusIcon = result.isOriginal ? '🏆' : '⚠️';
+            const statusText = result.isOriginal ? '원작자 인증' : '중복 파일';
+
+            return `
+                <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; border-left: 4px solid ${statusColor};">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">${item.metadata.title}</div>
+                            <div style="color: #999; font-size: 0.9rem;">📁 ${item.file.name}</div>
+                        </div>
+                        <div style="background: rgba(${result.isOriginal ? '29,185,84' : '239,68,68'}, 0.2); padding: 6px 12px; border-radius: 8px; border: 1px solid ${statusColor};">
+                            <span style="color: ${statusColor}; font-size: 0.85rem; font-weight: 700;">${statusIcon} ${statusText}</span>
+                        </div>
+                    </div>
+                    
+                    ${!result.isOriginal ? `
+                        <div style="background: rgba(239,68,68,0.1); padding: 12px; border-radius: 8px; margin-top: 8px;">
+                            <div style="color: #ef4444; font-size: 0.9rem; line-height: 1.6;">
+                                <strong>⚠️ 공유 불가</strong><br>
+                                ${result.originalOwner}님이 먼저 등록한 곡입니다<br>
+                                <span style="font-size: 0.8rem; color: #999;">등록일: ${new Date(result.originalDate).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    ` : `
+                        <div style="background: rgba(29,185,84,0.1); padding: 12px; border-radius: 8px; margin-top: 8px;">
+                            <div style="color: #1db954; font-size: 0.9rem; line-height: 1.6;">
+                                <strong>✅ Share Place 공유 가능</strong><br>
+                                당신이 이 곡의 최초 업로더입니다!
+                            </div>
+                        </div>
+                    `}
+                    
+                    <div style="margin-top: 12px; font-size: 0.8rem; color: #666; font-family: monospace; word-break: break-all;">
+                        Hash: ${item.contentHash.substring(0, 16)}...
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // 버튼 이벤트 연결
+        const processBtn = document.getElementById('processUploadsBtn');
+        const clearBtn = document.getElementById('clearQueueBtn');
+        
+        if (processBtn) {
+            processBtn.onclick = () => this.processUploadQueue();
+        }
+        if (clearBtn) {
+            clearBtn.onclick = () => this.clearUploadQueue();
+        }
+    },
+
+    async processUploadQueue() {
+        if (this.uploadQueue.length === 0) return;
+
+        this.toast('⏳ My Files에 추가 중...');
+
+        let successCount = 0;
+        let duplicateCount = 0;
+
+        for (const item of this.uploadQueue) {
+            try {
+                // IndexedDB에 저장
+                await DB.saveFile({
+                    id: Date.now() + Math.random(),
+                    arrayBuffer: item.arrayBuffer,
+                    mimeType: item.file.type,
+                    tl3Metadata: item.metadata
+                });
+
+                // files 배열에 추가
+                const newFile = {
+                    id: Date.now() + Math.random(),
+                    title: item.metadata.title,
+                    creator: item.metadata.creatorName || Auth.currentUser.name,
+                    tool: item.metadata.aiTool || 'custom',
+                    genre: item.metadata.genre || 'pop',
+                    mood: item.metadata.mood || 'chill',
+                    desc: item.metadata.description || '',
+                    type: item.file.type.startsWith('video') ? 'TL4' : 'TL3',
+                    fileType: item.file.type.startsWith('video') ? 'video' : 'audio',
+                    mimeType: item.file.type,
+                    certified: item.metadata.certified || false,
+                    revenue: item.metadata.revenueShare >= 70 ? '73' : '55',
+                    balance: 0,
+                    duration: item.metadata.duration || 180,
+                    fileSizeMB: (item.file.size / 1024 / 1024).toFixed(1),
+                    shared: false,
+                    canShare: item.copyrightResult.isOriginal, // 원작자만 공유 가능
+                    createdAt: new Date().toISOString(),
+                    blockchainHash: item.metadata.blockchainHash,
+                    contentHash: item.contentHash,
+                    ipfsCID: item.metadata.ipfs?.cid,
+                    ipfsUrl: item.metadata.ipfs?.url,
+                    isTL3: true,
+                    isOriginalOwner: item.copyrightResult.isOriginal
+                };
+
+                this.files.push(newFile);
+
+                if (item.copyrightResult.isOriginal) {
+                    successCount++;
+                } else {
+                    duplicateCount++;
+                }
+
+            } catch (error) {
+                console.error('파일 저장 오류:', error);
+            }
+        }
+
+        await Auth.saveUserData();
+        this.updateAll();
+
+        // 큐 초기화
+        this.uploadQueue = [];
+        this.displayUploadQueue();
+
+        // 결과 알림
+        if (successCount > 0 && duplicateCount > 0) {
+            this.toast(`✅ ${successCount}개 추가 (원작), ⚠️ ${duplicateCount}개 추가 (중복, 공유 불가)`);
+        } else if (successCount > 0) {
+            this.toast(`🎉 ${successCount}개 파일이 My Files에 추가되었습니다!`);
+        } else if (duplicateCount > 0) {
+            this.toast(`⚠️ ${duplicateCount}개 파일 추가 (중복 파일로 공유 불가)`);
+        }
+
+        // My Files 탭으로 전환
+        this.switchTab('myfiles');
+    },
+
+    clearUploadQueue() {
+        this.uploadQueue = [];
+        this.displayUploadQueue();
+        this.toast('🗑️ 대기열을 비웠습니다');
     }
 };
 
