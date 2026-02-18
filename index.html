@@ -3350,8 +3350,11 @@ const App = {
         
         // 버튼 이벤트 리스너 등록
         setTimeout(() => {
+            // My Files 컨테이너 내의 버튼만 선택
+            const container = document.getElementById('myFilesList');
+            
             // 재생 버튼
-            const playButtons = document.querySelectorAll('.play-btn');
+            const playButtons = container.querySelectorAll('.play-btn');
             playButtons.forEach(btn => {
                 btn.addEventListener('click', () => {
                     const fileId = parseInt(btn.dataset.fileId);
@@ -3362,7 +3365,7 @@ const App = {
             console.log(`✅ 재생 버튼 ${playButtons.length}개 등록`);
             
             // TL 충전 필요 버튼
-            const noBalanceButtons = document.querySelectorAll('.no-balance-btn');
+            const noBalanceButtons = container.querySelectorAll('.no-balance-btn');
             noBalanceButtons.forEach(btn => {
                 btn.addEventListener('click', () => {
                     console.log('⚠️ TL 충전 필요 버튼 클릭');
@@ -3372,7 +3375,7 @@ const App = {
             console.log(`✅ TL 충전 필요 버튼 ${noBalanceButtons.length}개 등록`);
             
             // 충전 버튼
-            const chargeButtons = document.querySelectorAll('.charge-btn');
+            const chargeButtons = container.querySelectorAll('.charge-btn');
             chargeButtons.forEach(btn => {
                 btn.addEventListener('click', () => {
                     const fileId = parseInt(btn.dataset.fileId);
@@ -3383,7 +3386,7 @@ const App = {
             console.log(`✅ 충전 버튼 ${chargeButtons.length}개 등록`);
             
             // TL3 다운로드 버튼
-            const downloadButtons = document.querySelectorAll('.download-tl3-btn');
+            const downloadButtons = container.querySelectorAll('.download-tl3-btn');
             downloadButtons.forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const fileId = parseInt(btn.dataset.fileId);
@@ -3394,7 +3397,7 @@ const App = {
             console.log(`✅ TL3 다운로드 버튼 ${downloadButtons.length}개 등록`);
             
             // 공유 버튼
-            const shareButtons = document.querySelectorAll('.share-btn');
+            const shareButtons = container.querySelectorAll('.share-btn');
             shareButtons.forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const fileId = parseInt(btn.dataset.fileId);
@@ -3854,11 +3857,21 @@ const App = {
     },
 
     async share(id) {
+        console.log('🔄 share() 함수 호출됨, id:', id);
+        
         const file = this.files.find(f => f.id === id);
-        if (!file) return;
+        if (!file) {
+            console.error('❌ 파일을 찾을 수 없음, id:', id);
+            console.log('현재 files 배열:', this.files.map(f => ({ id: f.id, title: f.title })));
+            return;
+        }
+        
+        console.log('✅ 파일 찾음:', file.title);
         
         // 🚨 1차 검증: 저작권 위반 이력 확인
         const sharePermission = this.canShare();
+        console.log('1차 검증 - 저작권 위반 이력:', sharePermission);
+        
         if (!sharePermission.allowed) {
             if (sharePermission.reason === 'banned') {
                 const bannedDate = new Date(sharePermission.bannedAt).toLocaleString();
