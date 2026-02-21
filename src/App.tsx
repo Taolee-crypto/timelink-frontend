@@ -1,7 +1,33 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+const WORKER_URL = 'https://timelink-backend.youraccount.workers.dev' // 실제 Worker URL로 바꿔
 
 function App() {
+  const [tracks, setTracks] = useState([])
   const [boosts, setBoosts] = useState(0)
+
+  // 트랙 목록 불러오기
+  useEffect(() => {
+    fetch(`${WORKER_URL}/tracks`)
+      .then(res => res.json())
+      .then(data => setTracks(data))
+      .catch(err => console.error('트랙 로드 실패', err))
+  }, [])
+
+  const handleBoost = async (trackId) => {
+    try {
+      const res = await fetch(`${WORKER_URL}/boost/${trackId}`, { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        setBoosts(prev => prev + 100)
+        // 트랙 목록 새로고침
+        const fresh = await fetch(`${WORKER_URL}/tracks`).then(r => r.json())
+        setTracks(fresh)
+      }
+    } catch (err) {
+      alert('Boost 실패: ' + err.message)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black text-white p-6 md:p-12">
@@ -14,9 +40,6 @@ function App() {
             <div className="text-lg">
               Live: <span className="text-amber-400 font-bold">{2847 + boosts}</span>
             </div>
-            <button className="px-6 py-3 bg-violet-600 hover:bg-violet-500 rounded-full font-bold transition">
-              Create Track
-            </button>
           </div>
         </div>
       </header>
@@ -29,34 +52,37 @@ function App() {
           <p className="text-xl md:text-2xl text-slate-300 mb-10">
             네가 듣는 1초가 누군가의 돈이 된다
           </p>
-          <button 
-            onClick={() => setBoosts(boosts + 100)}
-            className="px-12 py-6 bg-gradient-to-r from-amber-600 to-amber-500 text-black text-2xl font-black rounded-2xl hover:brightness-110 transition shadow-2xl shadow-amber-900/50"
-          >
-            Boost +100 TL ({boosts})
-          </button>
         </div>
 
         <section>
           <h3 className="text-3xl font-bold mb-8 text-center">Hot Pulse</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="bg-slate-900/60 rounded-2xl overflow-hidden border border-slate-800 hover:border-amber-500/50 transition-all hover:scale-105">
-                <div className="h-64 bg-gradient-to-br from-slate-800 to-slate-700 flex items-center justify-center text-8xl">
-                  🎵
-                </div>
-                <div className="p-6">
-                  <h4 className="text-2xl font-bold mb-2">Track {i+1}</h4>
-                  <p className="text-slate-400 mb-4">@creator</p>
-                  <div className="flex justify-between items-center">
-                    <div className="text-amber-400 font-bold text-xl">+{(i+1)*1200} TL</div>
-                    <button className="px-6 py-2 bg-amber-600 hover:bg-amber-500 rounded-full font-bold transition">
-                      Boost
-                    </button>
+            {tracks.length === 0 ? (
+              <p className="col-span-full text-center text-slate-400 py-20">
+                아직 트랙이 없습니다. Create Track으로 추가하세요!
+              </p>
+            ) : (
+              tracks.map(track => (
+                <div key={track.id} className="bg-slate-900/60 rounded-2xl overflow-hidden border border-slate-800 hover:border-amber-500/50 transition-all hover:scale-105">
+                  <div className="h-64 bg-gradient-to-br from-slate-800 to-slate-700 flex items-center justify-center text-8xl">
+                    🎵
+                  </div>
+                  <div className="p-6">
+                    <h4 className="text-2xl font-bold mb-2">{track.title}</h4>
+                    <p className="text-slate-400 mb-4">{track.creator_handle}</p>
+                    <div className="flex justify-between items-center">
+                      <div className="text-amber-400 font-bold text-xl">+{track.earnings} TL</div>
+                      <button 
+                        onClick={() => handleBoost(track.id)}
+                        className="px-6 py-2 bg-amber-600 hover:bg-amber-500 rounded-full font-bold transition"
+                      >
+                        Boost
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </section>
       </main>
