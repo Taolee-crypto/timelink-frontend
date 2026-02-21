@@ -32,3 +32,25 @@ timelink/
 ├── CNAME                       # 기존 파일 유지 (timelink.github.io → 커스텀 도메인)
 ├── .nojekyll                   # 기존 파일 유지
 └── README.md                   # 새로 작성 (프로젝트 설명 + 설치 방법)
+# TimeLink Front-End
+
+TimeLink 플랫폼의 프론트엔드 (정적 웹사이트)
+
+## 기술 스택
+- HTML/CSS/JS
+- Tailwind CSS 또는 Glassmorphism 스타일
+- WebSocket 클라이언트 (auth.js, mining.js, player.js 등)
+
+## 디렉토리 구조
+├── public/         # 정적 파일 (favicon, manifest, assets)
+├── src/
+│   ├── css/        # 스타일 파일
+│   ├── js/         # 기능별 스크립트 (auth, mining, player, ui 등)
+│   └── components/ # 재사용 컴포넌트 (hero, stats-card 등)
+├── templates/      # 서버사이드 템플릿 (필요 시)
+└── tests/          # 테스트 코드
+
+## 배포
+GitHub Pages 또는 Vercel/Netlify에 연결됨
+
+백엔드 API: https://api.timelink.digital (또는 별도 저장소)
