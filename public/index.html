@@ -77,7 +77,13 @@
 
 <!-- 스크립트 -->
 <script src="src/js/main.js"></script>
+<button id="check-balance" style="padding: 10px 20px; font-size: 16px; margin-top: 20px;">
+    TL 잔고 확인하기
+</button>
 
+<div id="balance-result" style="margin-top: 20px; font-size: 18px; color: #00d4ff;">
+    <!-- 여기에 결과가 표시됩니다 -->
+</div>
 <script>
 // tsParticles 초기화 (별 + 네온 느낌)
 tsParticles.load("particles-js", {
@@ -98,6 +104,27 @@ gsap.from(".hero-title",       { y: 80, opacity: 0, duration: 1.4, delay: 0.3, e
 gsap.from(".hero-subtitle",    { y: 60, opacity: 0, duration: 1.3, delay: 0.6 });
 gsap.from(".hero-cta button",  { y: 40, opacity: 0, duration: 1, stagger: 0.2, delay: 0.9 });
 gsap.from(".hero-stats .hero-stat", { y: 50, opacity: 0, duration: 1.2, stagger: 0.15, delay: 1.2 });
+
+document.getElementById('check-balance').addEventListener('click', async () => {
+  const resultDiv = document.getElementById('balance-result');
+  resultDiv.innerHTML = '잔고 확인 중...';
+
+  try {
+    const response = await fetch('http://localhost:8000/tl/balance');
+    if (!response.ok) {
+      throw new Error('서버 응답 오류: ' + response.status);
+    }
+    const data = await response.json();
+    resultDiv.innerHTML = `
+      사용자: ${data.user_id}<br>
+      TL 잔고: ${data.tl_balance} TL<br>
+      TLC 잔고: ${data.tlc_balance}
+    `;
+  } catch (error) {
+    resultDiv.innerHTML = '에러 발생: ' + error.message + '<br>백엔드가 켜져 있는지 확인해주세요!';
+    console.error(error);
+  }
+});
 </script>
 </body>
 </html>
