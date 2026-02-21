@@ -78,16 +78,16 @@
 <!-- 스크립트 (기존 main.js 로드 유지 + 새 기능) -->
 <script src="src/js/main.js"></script>
 
-<!-- TL 잔고 확인 스크립트 -->
+<script>
 // 잔고 확인 기능
 function checkBalance(showLoading = true) {
   const resultDiv = document.getElementById('balance-result');
-  if (showLoading) resultDiv.innerHTML = '<p>잔고 확인 중...</p>';
+  if (showLoading) resultDiv.innerHTML = '<p style="color:#00d4ff;">잔고 확인 중...</p>';
   resultDiv.style.display = 'block';
 
   fetch('http://localhost:8000/tl/balance')
     .then(response => {
-      if (!response.ok) throw new Error('서버 응답 오류: ' + response.status);
+      if (!response.ok) throw new Error('서버 오류: ' + response.status);
       return response.json();
     })
     .then(data => {
@@ -98,15 +98,12 @@ function checkBalance(showLoading = true) {
       `;
     })
     .catch(error => {
-      resultDiv.innerHTML = `<p style="color:#ef4444;">에러: ${error.message}</p>`;
+      resultDiv.innerHTML = `<p style="color:#ef4444;">에러: ${error.message}<br>백엔드가 켜져 있는지 확인해주세요!</p>`;
       console.error(error);
     });
 }
 
-// 잔고 확인 버튼
-document.getElementById('check-balance').addEventListener('click', () => checkBalance());
-
-// 충전 버튼
+// 충전 기능
 document.getElementById('charge-tl').addEventListener('click', async () => {
   const amountInput = document.getElementById('charge-amount');
   const amount = parseInt(amountInput.value);
@@ -117,14 +114,26 @@ document.getElementById('charge-tl').addEventListener('click', async () => {
     return;
   }
 
-  resultDiv.innerHTML += '<br>충전 중...';
+  resultDiv.innerHTML += '<br><span style="color:#22c55e;">충전 중...</span>';
 
   try {
-    const response = await fetch(`http://localhost:8000/tl/charge?amount=${amount}`, { method: 'POST' });
+    const response = await fetch(`http://localhost:8000/tl/charge?amount=${amount}`, {
+      method: 'POST'
+    });
+
     if (!response.ok) throw new Error('충전 실패: ' + response.status);
+
     const data = await response.json();
-    resultDiv.innerHTML = `충전 성공!<br>${data.message}<br>새 잔고: ${data.new_balance} TL`;
-    checkBalance(false);  // 자동 갱신 (로딩 메시지 없이)
+
+    resultDiv.innerHTML = `
+      충전 성공!<br>
+      ${data.message}<br>
+      새 잔고: ${data.new_balance} TL
+    `;
+
+    // 충전 후 자동 잔고 확인 (로딩 없이)
+    checkBalance(false);
+    amountInput.value = ''; // 입력창 초기화
   } catch (error) {
     resultDiv.innerHTML += '<br><span style="color:#ef4444;">에러: ' + error.message + '</span>';
   }
@@ -132,5 +141,6 @@ document.getElementById('charge-tl').addEventListener('click', async () => {
 
 // 페이지 로드 시 자동 잔고 확인
 window.addEventListener('load', () => checkBalance());
+</script>
 </body>
 </html>
