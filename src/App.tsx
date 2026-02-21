@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import axios from 'axios'
 
 const WORKER_URL = 'https://timelink-backend.mununglee.workers.dev'
 
@@ -6,12 +7,10 @@ function App() {
   const [tracks, setTracks] = useState([])
   const [boosts, setBoosts] = useState(0)
 
-  // 트랙 목록 불러오기 (마운트 시 + boost 후 새로고침)
   const loadTracks = async () => {
     try {
-      const res = await fetch(`${WORKER_URL}/tracks`)
-      const data = await res.json()
-      setTracks(data || [])
+      const res = await axios.get(`${WORKER_URL}/tracks`)
+      setTracks(res.data || [])
     } catch (err) {
       console.error('트랙 로드 실패', err)
     }
@@ -23,14 +22,11 @@ function App() {
 
   const handleBoost = async (trackId) => {
     try {
-      const res = await fetch(`${WORKER_URL}/boost/${trackId}`, { method: 'POST' })
-      const data = await res.json()
-      if (data.success) {
-        setBoosts(prev => prev + 100)
-        loadTracks()  // 실시간 갱신
-      }
+      await axios.post(`${WORKER_URL}/boost/${trackId}`)
+      setBoosts(prev => prev + 100)
+      loadTracks()
     } catch (err) {
-      alert('Boost 실패: ' + err.message)
+      alert('Boost 실패')
     }
   }
 
@@ -45,9 +41,9 @@ function App() {
             <div className="text-lg">
               Live: <span className="text-amber-400 font-bold">{2847 + boosts}</span>
             </div>
-            <button className="px-6 py-3 bg-violet-600 hover:bg-violet-500 rounded-full font-bold transition">
+            <a href="/create" className="px-6 py-3 bg-violet-600 hover:bg-violet-500 rounded-full font-bold transition">
               Create Track
-            </button>
+            </a>
           </div>
         </div>
       </header>
