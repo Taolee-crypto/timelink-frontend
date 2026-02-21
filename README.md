@@ -61,3 +61,12 @@ GitHub Pages 또는 Vercel/Netlify에 연결됨
 
 - 버튼 클릭 시 백엔드 API 호출 → 잔고 실시간 표시 성공
 - 백엔드: http://localhost:8000/tl/balance
+
+## 현재 MVP 작동 화면 (2026.02.21 기준)
+
+<image-card alt="MVP 잔고 확인 & 충전" <img width="620" height="243" alt="image" src="https://github.com/user-attachments/assets/2fe889df-cf2d-4511-b436-b2105885c36a" />
+" ></image-card>
+
+- TL 잔고 확인 버튼 → 실시간 잔고 표시
+- 충전 입력 → 잔고 증가 & 자동 갱신
+- 백엔드 API 연결 성공 (localhost:8000 → 공개 도메인 반영)
