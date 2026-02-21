@@ -2,6 +2,8 @@ import { useState } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 
+const WORKER_URL = 'https://timelink-api.mununglee.workers.dev'
+
 function Create() {
   const [title, setTitle] = useState('')
   const [creator, setCreator] = useState('')
@@ -12,7 +14,7 @@ function Create() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!title || !creator || !file) {
-      setStatus('모든 필드를 채워주세요')
+      setStatus('모든 필드 채워')
       return
     }
 
@@ -22,62 +24,48 @@ function Create() {
     formData.append('file', file)
 
     try {
-      const res = await axios.post('http://localhost:8000/create', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-      setStatus('업로드 성공! Pulse로 이동합니다...')
+      const res = await axios.post(`${WORKER_URL}/create`, formData)
+      setStatus('업로드 성공! Pulse로 이동...')
       setTimeout(() => navigate('/'), 1500)
     } catch (err) {
-      setStatus('업로드 실패: ' + (err.response?.data?.detail || err.message))
+      setStatus('실패: ' + err.message)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black text-white flex flex-col items-center p-8">
-      <h1 className="text-5xl md:text-7xl font-black mb-12 bg-gradient-to-r from-violet-500 to-amber-500 bg-clip-text text-transparent">
-        Create Track
-      </h1>
-
-      <form onSubmit={handleSubmit} className="w-full max-w-lg space-y-8">
-        <div>
-          <label className="block text-xl mb-3">Title</label>
+    <div className="min-h-screen bg-black text-white flex items-center justify-center p-8">
+      <div className="w-full max-w-lg">
+        <h1 className="text-5xl font-black mb-12 text-center text-violet-500">Create Track</h1>
+        <form onSubmit={handleSubmit} className="space-y-6">
           <input
             type="text"
+            placeholder="Title"
             value={title}
             onChange={e => setTitle(e.target.value)}
-            className="w-full p-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl focus:border-violet-500 outline-none"
+            className="w-full p-4 bg-slate-800 border border-slate-700 rounded-xl text-white"
             required
           />
-        </div>
-
-        <div>
-          <label className="block text-xl mb-3">Creator</label>
           <input
             type="text"
+            placeholder="Creator"
             value={creator}
             onChange={e => setCreator(e.target.value)}
-            className="w-full p-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl focus:border-violet-500 outline-none"
+            className="w-full p-4 bg-slate-800 border border-slate-700 rounded-xl text-white"
             required
           />
-        </div>
-
-        <div>
-          <label className="block text-xl mb-3">Audio/Video File</label>
           <input
             type="file"
             accept="audio/*,video/*"
-            onChange={e => setFile(e.target.files?.[0] || null)}
-            className="w-full p-4 bg-slate-800 border border-slate-700 rounded-xl text-white file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-600 file:text-white hover:file:bg-violet-500"
+            onChange={e => setFile(e.target.files[0])}
+            className="w-full p-4 bg-slate-800 border border-slate-700 rounded-xl text-white"
             required
           />
-        </div>
-
-        <button type="submit" className="w-full py-5 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 rounded-2xl text-2xl font-bold transition shadow-2xl shadow-violet-900/50">
-          Upload to Pulse
-        </button>
-
-        {status && <p className="text-center text-xl mt-6 text-amber-400">{status}</p>}
-      </form>
+          <button type="submit" className="w-full py-4 bg-violet-600 hover:bg-violet-500 rounded-xl text-xl font-bold">
+            Upload
+          </button>
+          {status && <p className="text-center mt-4 text-amber-400">{status}</p>}
+        </form>
+      </div>
     </div>
   )
 }
