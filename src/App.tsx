@@ -4,8 +4,7 @@ function App() {
   const [boosts, setBoosts] = useState(0)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black text-white p-6 md:p-12 font-sans">
-      {/* 헤더 */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black text-white p-6 md:p-12">
       <header className="fixed top-0 left-0 right-0 bg-black/80 backdrop-blur-md border-b border-slate-800/50 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <h1 className="text-4xl md:text-6xl font-black bg-gradient-to-r from-violet-500 to-amber-500 bg-clip-text text-transparent">
@@ -22,7 +21,6 @@ function App() {
         </div>
       </header>
 
-      {/* Hero */}
       <main className="pt-24 pb-20 px-6 max-w-7xl mx-auto">
         <div className="text-center mb-20">
           <h2 className="text-5xl md:text-7xl font-black mb-6">
@@ -39,7 +37,6 @@ function App() {
           </button>
         </div>
 
-        {/* Hot Pulse */}
         <section>
           <h3 className="text-3xl font-bold mb-8 text-center">Hot Pulse</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -67,36 +64,4 @@ function App() {
   )
 }
 
-export default App// App.tsx 맨 위에
-import axios from 'axios'
-
-// ... App 함수 안 어딘가에 버튼 예시 추가
-<button 
-  onClick={async () => {
-    try {
-      const res = await axios.get('http://localhost:8000/tracks')
-      alert('백엔드 연결 성공! 트랙 개수: ' + res.data.length)
-    } catch (e) {
-      alert('연결 실패: ' + e.message)
-    }
-  }}
-  className="px-8 py-4 bg-green-600 text-white rounded-xl"
->
-  백엔드 연결 테스트
-</button>
-export default function App() {
-  return (
-    <div style={{
-      height: '100vh',
-      background: '#000',
-      color: '#fff',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '5rem',
-      fontWeight: 'bold'
-    }}>
-      PULSE 여기 떴다 새끼야!!!
-    </div>
-  )
-}
+export default App
