@@ -79,15 +79,20 @@
 <script src="src/js/main.js"></script>
 
 <script>
-// 잔고 확인 기능
+// 잔고 확인 기능 (showLoading = true일 때 로딩 메시지 표시)
 function checkBalance(showLoading = true) {
   const resultDiv = document.getElementById('balance-result');
-  if (showLoading) resultDiv.innerHTML = '<p style="color:#00d4ff;">잔고 확인 중...</p>';
+  
+  if (showLoading) {
+    resultDiv.innerHTML = '<p style="color:#00d4ff; font-weight:bold;">잔고 확인 중...</p>';
+  }
   resultDiv.style.display = 'block';
 
   fetch('http://localhost:8000/tl/balance')
     .then(response => {
-      if (!response.ok) throw new Error('서버 오류: ' + response.status);
+      if (!response.ok) {
+        throw new Error(`서버 오류: ${response.status} (${response.statusText})`);
+      }
       return response.json();
     })
     .then(data => {
@@ -98,8 +103,9 @@ function checkBalance(showLoading = true) {
       `;
     })
     .catch(error => {
-      resultDiv.innerHTML = `<p style="color:#ef4444;">에러: ${error.message}<br>백엔드가 켜져 있는지 확인해주세요!</p>`;
-      console.error(error);
+      resultDiv.innerHTML = `<p style="color:#ff6b6b; font-weight:bold;">에러 발생: ${error.message}</p>
+                             <small>백엔드 서버가 켜져 있는지 확인해주세요!</small>`;
+      console.error('잔고 확인 실패:', error);
     });
 }
 
@@ -110,7 +116,7 @@ document.getElementById('charge-tl').addEventListener('click', async () => {
   const resultDiv = document.getElementById('balance-result');
 
   if (!amount || amount <= 0) {
-    resultDiv.innerHTML += '<br><span style="color:#ef4444;">충전 금액을 입력해주세요!</span>';
+    resultDiv.innerHTML += '<br><span style="color:#ef4444; font-weight:bold;">충전 금액을 올바르게 입력해주세요!</span>';
     return;
   }
 
@@ -121,26 +127,33 @@ document.getElementById('charge-tl').addEventListener('click', async () => {
       method: 'POST'
     });
 
-    if (!response.ok) throw new Error('충전 실패: ' + response.status);
+    if (!response.ok) {
+      throw new Error(`충전 실패: ${response.status} (${response.statusText})`);
+    }
 
     const data = await response.json();
 
     resultDiv.innerHTML = `
-      충전 성공!<br>
+      <strong>충전 성공!</strong><br>
       ${data.message}<br>
       새 잔고: ${data.new_balance} TL
     `;
 
-    // 충전 후 자동 잔고 확인 (로딩 없이)
+    // 충전 후 자동 잔고 확인 (로딩 메시지 없이)
     checkBalance(false);
-    amountInput.value = ''; // 입력창 초기화
+
+    // 입력창 초기화
+    amountInput.value = '';
   } catch (error) {
-    resultDiv.innerHTML += '<br><span style="color:#ef4444;">에러: ' + error.message + '</span>';
+    resultDiv.innerHTML += `<br><span style="color:#ef4444;">에러: ${error.message}</span>`;
+    console.error('충전 실패:', error);
   }
 });
 
-// 페이지 로드 시 자동 잔고 확인
-window.addEventListener('load', () => checkBalance());
+// 페이지 로드 시 자동 잔고 확인 (최초 로딩 시 잔고 표시)
+window.addEventListener('load', () => {
+  checkBalance();
+});
 </script>
 </body>
 </html>
