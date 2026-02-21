@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const WORKER_URL = 'https://timelink-backend.youraccount.workers.dev' // 실제 Worker URL로 바꿔
+const WORKER_URL = 'https://timelink-api.mununglee.workers.dev' // 실제 Worker URL로 바꿔
 
 function App() {
   const [tracks, setTracks] = useState([])
