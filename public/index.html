@@ -88,23 +88,29 @@
 
 <!-- TL 잔고 확인 스크립트 -->
 <script>
-document.getElementById('check-balance').addEventListener('click', async () => {
+document.getElementById('charge-tl').addEventListener('click', async () => {
+  const amountInput = document.getElementById('charge-amount');
+  const amount = parseInt(amountInput.value);
   const resultDiv = document.getElementById('balance-result');
-  resultDiv.style.display = 'block';
-  resultDiv.innerHTML = '잔고 확인 중...';
+
+  if (!amount || amount <= 0) {
+    resultDiv.innerHTML += '<br><span style="color:#ef4444;">충전 금액을 입력해주세요!</span>';
+    return;
+  }
+
+  resultDiv.innerHTML += '<br>충전 중...';
 
   try {
-    const response = await fetch('http://localhost:8000/tl/balance');
-    if (!response.ok) throw new Error('서버 응답 오류: ' + response.status);
+    const response = await fetch(`http://localhost:8000/tl/charge?amount=${amount}`, {
+      method: 'POST'
+    });
+    if (!response.ok) throw new Error('충전 실패: ' + response.status);
     const data = await response.json();
-    resultDiv.innerHTML = `
-      <strong>사용자:</strong> ${data.user_id}<br>
-      <strong>TL 잔고:</strong> ${data.tl_balance} TL<br>
-      <strong>TLC 잔고:</strong> ${data.tlc_balance}
-    `;
+    resultDiv.innerHTML = `충전 성공!<br>${data.message}<br>새 잔고: ${data.new_balance} TL`;
+    // 잔고 다시 확인
+    checkBalance();  // 기존 함수 재호출
   } catch (error) {
-    resultDiv.innerHTML = '에러: ' + error.message + '<br>백엔드가 켜져 있는지 확인해주세요!';
-    console.error(error);
+    resultDiv.innerHTML += '<br><span style="color:#ef4444;">에러: ' + error.message + '</span>';
   }
 });
 </script>
