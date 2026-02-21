@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 
-const WORKER_URL = 'https://timelink-backend.mununglee.workers.dev'
+const WORKER_URL = 'https://timelink-api.mununglee.workers.dev'
 
 function App() {
   const [tracks, setTracks] = useState([])
