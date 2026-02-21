@@ -54,3 +54,10 @@ TimeLink 플랫폼의 프론트엔드 (정적 웹사이트)
 GitHub Pages 또는 Vercel/Netlify에 연결됨
 
 백엔드 API: https://api.timelink.digital (또는 별도 저장소)
+
+## 현재 MVP 작동 화면 (로컬 테스트)
+
+<image-card alt="MVP 잔고 확인 화면" src="https://user-images.githubusercontent.com/너의아이디/이미지링크.png" ></image-card>
+
+- 버튼 클릭 시 백엔드 API 호출 → 잔고 실시간 표시 성공
+- 백엔드: http://localhost:8000/tl/balance
