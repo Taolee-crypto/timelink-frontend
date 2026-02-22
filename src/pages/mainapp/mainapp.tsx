@@ -106,4 +106,60 @@ export const MainApp: React.FC<MainAppProps> = ({ onLogout }) => {
           zIndex: 2000
         }}>
           <div style={{
-            background: '#1
+            background: '#1e1e1e',
+            padding: '32px',
+            borderRadius: '20px',
+            width: '400px'
+          }}>
+            <h3 style={{ marginBottom: '20px' }}>💰 TL 충전</h3>
+            <input
+              type="number"
+              value={chargeAmount}
+              onChange={(e) => setChargeAmount(parseInt(e.target.value) || 0)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: '#333',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                marginBottom: '20px'
+              }}
+            />
+            <button
+              onClick={handleCharge}
+              className="btn-play"
+              style={{
+                background: 'var(--success)',
+                padding: '10px',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontWeight: 600,
+                cursor: 'pointer',
+                width: '100%'
+              }}
+            >
+              충전하기
+            </button>
+            <button
+              onClick={() => setShowChargeModal(false)}
+              style={{
+                marginTop: '12px',
+                width: '100%',
+                padding: '12px',
+                background: 'transparent',
+                border: '1px solid #444',
+                borderRadius: '8px',
+                color: 'white',
+                cursor: 'pointer'
+              }}
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
