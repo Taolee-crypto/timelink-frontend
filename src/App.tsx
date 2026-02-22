@@ -47,7 +47,6 @@ function App() {
           </div>
         </div>
       </header>
-
       <main className="pt-24 pb-20 px-6 max-w-7xl mx-auto">
         <div className="text-center mb-20">
           <h2 className="text-5xl md:text-7xl font-black mb-6">
@@ -57,7 +56,6 @@ function App() {
             네가 듣는 1초가 누군가의 돈이 된다
           </p>
         </div>
-
         <section>
           <h3 className="text-3xl font-bold mb-8 text-center">Hot Pulse</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -76,7 +74,7 @@ function App() {
                     <p className="text-slate-400 mb-4">{track.creator_handle}</p>
                     <div className="flex justify-between items-center">
                       <div className="text-amber-400 font-bold text-xl">+{track.earnings} TL</div>
-                      <button 
+                      <button
                         onClick={() => handleBoost(track.id)}
                         className="px-6 py-2 bg-amber-600 hover:bg-amber-500 rounded-full font-bold transition"
                       >
