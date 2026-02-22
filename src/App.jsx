@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
-import axios from 'axios'
+import { useState, useEffect } from "react"
+import axios from "axios"
 
-const WORKER_URL = 'https://timelink-api.mununglee.workers.dev'
+const WORKER_URL = "https://timelink-api.mununglee.workers.dev"
 
 function App() {
   const [tracks, setTracks] = useState([])
@@ -12,7 +12,7 @@ function App() {
       const res = await axios.get(`${WORKER_URL}/tracks`)
       setTracks(res.data || [])
     } catch (err) {
-      console.error('트랙 로드 실패', err)
+      console.error("트랙 로드 실패", err)
     }
   }
 
@@ -26,7 +26,7 @@ function App() {
       setBoosts(prev => prev + 100)
       loadTracks()
     } catch (err) {
-      alert('Boost 실패')
+      alert("Boost 실패")
     }
   }
 
