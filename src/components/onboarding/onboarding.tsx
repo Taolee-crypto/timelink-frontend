@@ -325,4 +325,93 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
 
                             <div style={{ textAlign: 'center', margin: '50px 0' }}>
                                 <div style={{ fontSize: '6rem', marginBottom: '30px' }}>⏰ → 🎵 → 💰</div>
-                                <p style={{ color: 'var(--text-secondary)', fontSize: '1.2rem' }}>시간
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '1.2rem' }}>시간을 음악으로, 음악을 자산으로</p>
+                            </div>
+
+                            <div className="feature-grid">
+                                <div className="feature-card">
+                                    <div className="feature-icon">🎯</div>
+                                    <div className="feature-title">비전</div>
+                                    <div className="feature-desc">음악 스트리밍의 패러다임 전환. 단순한 소비가 아닌 경제 활동으로의 진화.</div>
+                                </div>
+                                <div className="feature-card">
+                                    <div className="feature-icon">💎</div>
+                                    <div className="feature-title">핵심 가치</div>
+                                    <div className="feature-desc">1초의 가치를 창출하다. 모든 청취가 크리에이터와 플랫폼에 공정한 수익으로.</div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="step-indicator" style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: '16px',
+                    margin: '30px 0 20px'
+                }}>
+                    {[1, 2, 3, 4].map(i => (
+                        <span
+                            key={i}
+                            className={`step-dot ${currentSlide === i ? 'active' : ''}`}
+                            onClick={() => goToSlide(i)}
+                            style={{
+                                width: '12px',
+                                height: '12px',
+                                borderRadius: '50%',
+                                background: currentSlide === i ? 'var(--accent)' : 'var(--text-tertiary)',
+                                cursor: 'pointer',
+                                transition: 'var(--transition)',
+                                transform: currentSlide === i ? 'scale(1.3)' : 'scale(1)',
+                                boxShadow: currentSlide === i ? '0 0 20px var(--accent-glow)' : 'none'
+                            }}
+                        />
+                    ))}
+                </div>
+
+                <div className="onboarding-footer" style={{
+                    padding: '20px 40px 40px',
+                    textAlign: 'center',
+                    borderTop: '1px solid var(--border-color)'
+                }}>
+                    <button
+                        className="btn-start"
+                        onClick={nextSlide}
+                        style={{
+                            background: 'linear-gradient(135deg, var(--accent), var(--success))',
+                            color: 'white',
+                            border: 'none',
+                            padding: '18px 60px',
+                            borderRadius: 'var(--radius-full)',
+                            fontWeight: 700,
+                            fontSize: '1.3rem',
+                            cursor: 'pointer',
+                            transition: 'var(--transition)',
+                            boxShadow: '0 8px 20px rgba(138, 43, 226, 0.3)'
+                        }}
+                    >
+                        {currentSlide === 4 ? '🚀 TimeLink 시작하기' : '다음'}
+                    </button>
+                    <button
+                        className="btn-skip"
+                        onClick={onSkip}
+                        style={{
+                            background: 'transparent',
+                            color: 'var(--text-secondary)',
+                            border: '1px solid var(--border-color)',
+                            padding: '14px 40px',
+                            borderRadius: 'var(--radius-full)',
+                            fontWeight: 600,
+                            marginTop: '20px',
+                            cursor: 'pointer',
+                            transition: 'var(--transition)',
+                            fontSize: '1.1rem'
+                        }}
+                    >
+                        {currentSlide === 4 ? '나중에 둘러보기' : '건너뛰기'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
