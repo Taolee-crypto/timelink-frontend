@@ -40,6 +40,19 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .car-ind{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:var(--rf);font-size:12px;font-weight:700;transition:var(--tr)}
 .car-ind.off{background:rgba(255,255,255,.04);color:var(--t2);border:1px solid var(--bd)}
 .car-ind.on{background:var(--ca-d);color:var(--ca);border:1px solid rgba(245,158,11,.3)}
+/* AVATAR DROPDOWN */
+.avatar-wrap{position:relative}
+.avatar-btn{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#060610;cursor:pointer;border:2px solid transparent;transition:var(--tr);user-select:none}
+.avatar-btn:hover{border-color:var(--ac);box-shadow:0 0 0 3px rgba(0,245,160,.15)}
+.nav-dropdown{position:absolute;top:calc(100% + 10px);right:0;width:200px;background:#12121f;border:1px solid var(--bd);border-radius:var(--rm);padding:8px;z-index:999;box-shadow:0 12px 40px rgba(0,0,0,.6);animation:ddIn .15s ease}
+@keyframes ddIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.dd-user{padding:10px 12px;border-bottom:1px solid var(--bd);margin-bottom:6px}
+.dd-username{font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dd-email{font-size:11px;color:var(--t2);margin-top:2px}
+.dd-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--rs);cursor:pointer;font-size:13px;font-weight:600;transition:var(--tr);color:var(--t1)}
+.dd-item:hover{background:var(--card-h)}
+.dd-item.danger{color:var(--da)}
+.dd-item.danger:hover{background:rgba(255,79,79,.08)}
 /* TABS */
 .tabs-bar{position:sticky;top:64px;z-index:190;padding:7px 24px;background:rgba(6,6,16,.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--bd);display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 .tabs-bar::-webkit-scrollbar{display:none}
@@ -243,18 +256,33 @@ video{width:100%;height:100%;object-fit:contain}
     <div class="logo-icon">⚡</div>
     <span class="logo-text">Time<span>Link</span></span>
   </a>
-  <div id="nav-bal" class="bal-row hidden">
-    <div class="bal-col"><span class="bal-lbl">TL</span><span class="bal-val" id="nb-tl">0</span></div>
-    <div class="bal-sep"></div>
-    <div class="bal-col"><span class="bal-lbl">🔒</span><span class="bal-val locked" id="nb-lo">0</span></div>
-    <div class="bal-sep"></div>
-    <div class="bal-col"><span class="bal-lbl">TLC</span><span class="bal-val tlc" id="nb-tlc">0.0000</span></div>
+  <!-- 비로그인 -->
+  <div id="nav-guest" class="nav-right">
+    <a href="login.html" class="btn btn-ghost btn-sm">로그인</a>
+    <a href="signup.html" class="btn btn-primary btn-sm">Get Started →</a>
   </div>
-  <div class="nav-right">
+  <!-- 로그인 후 -->
+  <div id="nav-auth" class="nav-right hidden">
+    <div class="bal-row">
+      <div class="bal-col"><span class="bal-lbl">TL</span><span class="bal-val" id="nb-tl">0</span></div>
+      <div class="bal-sep"></div>
+      <div class="bal-col"><span class="bal-lbl">🔒</span><span class="bal-val locked" id="nb-lo">0</span></div>
+      <div class="bal-sep"></div>
+      <div class="bal-col"><span class="bal-lbl">TLC</span><span class="bal-val tlc" id="nb-tlc">0.0000</span></div>
+    </div>
     <span id="car-ind" class="car-ind off">🚗 Off</span>
-    <span class="mono mu" id="nav-user" style="font-size:13px">Demo</span>
-    <button class="btn btn-ghost btn-sm" onclick="openModal('recharge-modal')">충전</button>
-    <button class="btn btn-ghost btn-sm" onclick="doLogout()">로그아웃</button>
+    <div class="avatar-wrap">
+      <div class="avatar-btn" id="nav-avatar" onclick="toggleNavDD()">D</div>
+      <div class="nav-dropdown hidden" id="nav-dd">
+        <div class="dd-user">
+          <div class="dd-username" id="dd-name">Demo</div>
+          <div class="dd-email" id="dd-email">demo@timelink.digital</div>
+        </div>
+        <div class="dd-item" onclick="openModal('recharge-modal')">💰 TL 충전</div>
+        <div class="dd-item" onclick="toast('설정 준비 중','i')">⚙️ 설정</div>
+        <div class="dd-item danger" onclick="doLogout()">🚪 로그아웃</div>
+      </div>
+    </div>
   </div>
 </nav>
 
@@ -1545,14 +1573,27 @@ function claimTLC(){
 }
 
 // =================== LOGOUT ===================
+function toggleNavDD(){
+  const dd=$('nav-dd');
+  if(dd)dd.classList.toggle('hidden');
+}
+// 외부 클릭 시 드롭다운 닫기
+document.addEventListener('click',function(e){
+  const wrap=document.querySelector('.avatar-wrap');
+  if(wrap&&!wrap.contains(e.target)){const dd=$('nav-dd');if(dd)dd.classList.add('hidden');}
+});
 function doLogout(){localStorage.removeItem('tl_token');localStorage.removeItem('tl_user');toast('로그아웃','i');setTimeout(()=>window.location.href='login.html',500);}
 
 // =================== INIT ===================
 (function init(){
   const user=JSON.parse(localStorage.getItem('tl_user')||'{}');
-  const nu=$('nav-user');if(nu)nu.textContent=user.username||'Demo';
+  // avatar 업데이트
+  const av=$('nav-avatar');if(av){const n=user.username||'Demo';av.textContent=n.charAt(0).toUpperCase();}
+  const dn=$('dd-name');if(dn)dn.textContent=user.username||'Demo';
+  const de=$('dd-email');if(de)de.textContent=user.email||'demo@timelink.digital';
   if(user.tl)S.wallet.tl=user.tl;
-  $('nav-bal').classList.remove('hidden');
+  $('nav-guest').classList.add('hidden');
+  $('nav-auth').classList.remove('hidden');
   updateBal();updateTrust();updateRate();
   renderHotPulse();renderRadio();renderLibResults();renderShare();
   renderGenreChips();setEngine('tl');
