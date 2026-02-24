@@ -166,7 +166,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
       <div class="nav-dropdown hidden" id="nav-dd">
         <div class="dd-user">
           <div class="dd-username" id="dd-name">Demo</div>
-          <div class="dd-email" id="dd-email">demo@timelink.digital</div>
+          <div class="dd-email" id="dd-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="4a2e2f27250a3e23272f26232421642e232d233e2b26">[email&#160;protected]</a></div>
         </div>
         <div class="dd-item" onclick="window.location.href='index.html'">💰 TL 충전</div>
         <div class="dd-item">⚙️ 설정</div>
@@ -212,6 +212,29 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     <div class="fg">
       <label class="fl">생성된 음원 URL *</label>
       <input type="text" id="ai-url" class="fi ai" placeholder="https://suno.com/song/...">
+    </div>
+
+    <!-- 음원 생성 화면 캡처 -->
+    <div class="fg">
+      <label class="fl">음원 생성 화면 캡처 <span style="font-weight:400;color:var(--t3)">(선택)</span>
+        <span style="font-weight:400;color:var(--pu);margin-left:8px">💡 Ctrl+V 붙여넣기 가능</span>
+      </label>
+      <div id="pz-song" class="proof-zone" style="padding:12px"
+        ondragover="event.preventDefault();this.classList.add('over')"
+        ondragleave="this.classList.remove('over')"
+        ondrop="handleProofDrop(event,'song')"
+        onclick="document.getElementById('pf-song').click()">
+        <input type="file" id="pf-song" accept="image/*" style="display:none" onchange="handleProofFile(this,'song')">
+        <div id="pz-song-preview" style="display:none;position:relative;margin-bottom:6px">
+          <img id="pz-song-thumb" style="max-width:100%;max-height:100px;border-radius:6px;object-fit:cover">
+          <button onclick="event.stopPropagation();clearProof('song')" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#ff4f4f;color:#fff;border:none;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
+        </div>
+        <div id="pz-song-placeholder" style="display:flex;align-items:center;justify-content:center;gap:10px">
+          <span style="font-size:20px">🖼️</span>
+          <span style="font-size:12px;color:var(--t2)">음원 생성 시간이 보이는 스크린샷 · 클릭 · 드래그 · <b style="color:var(--pu)">Ctrl+V</b></span>
+        </div>
+        <div class="pz-check" id="pz-song-name"></div>
+      </div>
     </div>
 
     <div class="two-col" style="margin-bottom:14px">
@@ -431,7 +454,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 
 </div><!-- .page -->
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 const AI_PLATFORMS={
   suno:{name:'Suno',icon:'🎵',url:'suno.com'},udio:{name:'Udio',icon:'🎶',url:'udio.com'},
   mubert:{name:'Mubert',icon:'🌊',url:'mubert.com'},aiva:{name:'AIVA',icon:'🎻',url:'aiva.ai'},
@@ -505,7 +528,7 @@ function convertAI(){
 }
 
 // ===== PROOF =====
-var proofFiles = {img: null, doc: null};
+var proofFiles = {img: null, doc: null, song: null};
 
 function handleProofDrop(e, type){
   e.preventDefault(); e.currentTarget.classList.remove('over');
@@ -519,11 +542,11 @@ function handleProofFile(input, type){
 function applyProofFile(f, type){
   proofFiles[type] = f;
   const isImg = f.type.startsWith('image/');
-  const thumbId = type==='img' ? 'pz-img-thumb' : 'pz-doc-thumb';
-  const prevId  = type==='img' ? 'pz-img-preview' : 'pz-doc-preview';
-  const phId    = type==='img' ? 'pz-img-placeholder' : 'pz-doc-placeholder';
-  const nameId  = type==='img' ? 'pz-img-name' : 'pz-doc-name';
-  const zoneId  = type==='img' ? 'pz-img' : 'pz-doc';
+  const thumbId = type==='img' ? 'pz-img-thumb' : type==='song' ? 'pz-song-thumb' : 'pz-doc-thumb';
+  const prevId  = type==='img' ? 'pz-img-preview' : type==='song' ? 'pz-song-preview' : 'pz-doc-preview';
+  const phId    = type==='img' ? 'pz-img-placeholder' : type==='song' ? 'pz-song-placeholder' : 'pz-doc-placeholder';
+  const nameId  = type==='img' ? 'pz-img-name' : type==='song' ? 'pz-song-name' : 'pz-doc-name';
+  const zoneId  = type==='img' ? 'pz-img' : type==='song' ? 'pz-song' : 'pz-doc';
 
   if(isImg){
     const reader = new FileReader();
@@ -542,11 +565,11 @@ function applyProofFile(f, type){
 }
 function clearProof(type){
   proofFiles[type] = null;
-  const thumbId = type==='img' ? 'pz-img-thumb' : 'pz-doc-thumb';
-  const prevId  = type==='img' ? 'pz-img-preview' : 'pz-doc-preview';
-  const phId    = type==='img' ? 'pz-img-placeholder' : 'pz-doc-placeholder';
-  const nameId  = type==='img' ? 'pz-img-name' : 'pz-doc-name';
-  const zoneId  = type==='img' ? 'pz-img' : 'pz-doc';
+  const thumbId = type==='img' ? 'pz-img-thumb' : type==='song' ? 'pz-song-thumb' : 'pz-doc-thumb';
+  const prevId  = type==='img' ? 'pz-img-preview' : type==='song' ? 'pz-song-preview' : 'pz-doc-preview';
+  const phId    = type==='img' ? 'pz-img-placeholder' : type==='song' ? 'pz-song-placeholder' : 'pz-doc-placeholder';
+  const nameId  = type==='img' ? 'pz-img-name' : type==='song' ? 'pz-song-name' : 'pz-doc-name';
+  const zoneId  = type==='img' ? 'pz-img' : type==='song' ? 'pz-song' : 'pz-doc';
   $(thumbId).src = '';
   $(prevId).style.display = 'none';
   $(phId).style.display = 'block';
@@ -649,10 +672,4 @@ function initNavbar(){
 function toggleNavDD(){var dd=document.getElementById('nav-dd');if(dd)dd.classList.toggle('hidden');}
 function navLogout(){localStorage.removeItem('tl_token');localStorage.removeItem('tl_user');window.location.href='login.html';}
 document.addEventListener('click',function(e){
-  var wrap=document.querySelector('.avatar-wrap');
-  if(wrap&&!wrap.contains(e.target)){var dd=document.getElementById('nav-dd');if(dd)dd.classList.add('hidden');}
-});
-initNav();
-</script>
-</body>
-</html>
+  var wrap=documen
