@@ -94,6 +94,19 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 @keyframes ti{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 .hidden{display:none!important}
 @media(max-width:600px){.nav-links{display:none}.share-grid{grid-template-columns:1fr}}
+/* AVATAR DROPDOWN */
+.avatar-wrap{position:relative}
+.avatar-btn{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#060610;cursor:pointer;border:2px solid transparent;transition:var(--tr);user-select:none}
+.avatar-btn:hover{border-color:var(--ac);box-shadow:0 0 0 3px rgba(0,245,160,.15)}
+.nav-dropdown{position:absolute;top:calc(100% + 10px);right:0;width:200px;background:#12121f;border:1px solid var(--bd);border-radius:var(--rm);padding:8px;z-index:999;box-shadow:0 12px 40px rgba(0,0,0,.6);animation:ddIn .15s ease}
+@keyframes ddIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.dd-user{padding:10px 12px;border-bottom:1px solid var(--bd);margin-bottom:6px}
+.dd-username{font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dd-email{font-size:11px;color:var(--t2);margin-top:2px}
+.dd-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--rs);cursor:pointer;font-size:13px;font-weight:600;transition:var(--tr);color:var(--t1)}
+.dd-item:hover{background:var(--card-h)}
+.dd-item.danger{color:var(--da)}
+.dd-item.danger:hover{background:rgba(255,79,79,.08)}
 </style>
 </head>
 <body>
@@ -101,23 +114,40 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 <div id="toast-box"></div>
 
 <nav class="navbar">
-  <a class="logo" href="index.html"><div class="logo-icon">⚡</div><span class="logo-text">Time<span>Link</span></span></a>
+  <a class="logo" href="https://www.timelink.digital/index.html"><div class="logo-icon">⚡</div><span class="logo-text">Time<span>Link</span></span></a>
   <div class="nav-links">
-    <a href="index.html" class="nav-link">📊 Dashboard</a>
-    <a href="create.html" class="nav-link">📤 Create</a>
-    <a href="library.html" class="nav-link">🔍 Library</a>
-    <a href="player.html" class="nav-link">🎬 Player</a>
-    <a href="shareplace.html" class="nav-link active">🔄 Share</a>
-    <a href="radio.html" class="nav-link">📻 Radio</a>
-    <a href="car.html" class="nav-link">🚗 Car</a>
+    <a href="https://www.timelink.digital/index.html" class="nav-link">📊 Dashboard</a>
+    <a href="https://www.timelink.digital/create.html" class="nav-link">📤 Create</a>
+    <a href="https://www.timelink.digital/library.html" class="nav-link">🔍 Library</a>
+    <a href="https://www.timelink.digital/player.html" class="nav-link">🎬 Player</a>
+    <a href="https://www.timelink.digital/shareplace.html" class="nav-link active">🔄 Share</a>
+    <a href="https://www.timelink.digital/radio.html" class="nav-link">📻 Radio</a>
+    <a href="https://www.timelink.digital/car.html" class="nav-link">🚗 Car</a>
   </div>
-  <div style="display:flex;align-items:center;gap:8px">
+  <!-- 비로그인 -->
+  <div id="nav-guest" class="nav-right hidden">
+    <a href="https://www.timelink.digital/login.html" class="btn btn-ghost btn-sm">로그인</a>
+    <a href="https://www.timelink.digital/signup.html" class="btn btn-primary btn-sm">Get Started →</a>
+  </div>
+  <!-- 로그인 후 -->
+  <div id="nav-auth" class="nav-right">
     <div class="bal-row">
-      <div class="bal-col"><span class="bal-lbl">TL</span><span class="bal-val" id="nb-tl">—</span></div>
+      <div class="bal-col"><span class="bal-lbl">TL</span><span class="bal-val" id="nb-tl">10,000</span></div>
       <div class="bal-sep"></div>
-      <div class="bal-col"><span class="bal-lbl">TLC</span><span class="bal-val" style="color:var(--pu)" id="nb-tlc">—</span></div>
+      <div class="bal-col"><span class="bal-lbl">TLC</span><span class="bal-val" style="color:var(--pu)" id="nb-tlc">0.0000</span></div>
     </div>
-    <a href="create.html" class="btn btn-primary btn-sm">+ 업로드</a>
+    <div class="avatar-wrap">
+      <div class="avatar-btn" id="nav-avatar" onclick="toggleNavDD()">D</div>
+      <div class="nav-dropdown hidden" id="nav-dd">
+        <div class="dd-user">
+          <div class="dd-username" id="dd-name">demo</div>
+          <div class="dd-email" id="dd-email">demo@timelink.digital</div>
+        </div>
+        <div class="dd-item" onclick="window.location.href=&#39;index.html&#39;">💰 TL 충전</div>
+        <div class="dd-item">⚙️ 설정</div>
+        <div class="dd-item danger" onclick="navLogout()">🚪 로그아웃</div>
+      </div>
+    </div>
   </div>
 </nav>
 
@@ -325,10 +355,31 @@ loadWallet();renderGrid();renderTrending();
 // 반응형: 모바일에서 2컬럼 → 1컬럼
 if(window.innerWidth<900){$('main-grid').style.gridTemplateColumns='1fr';}
 window.addEventListener('resize',()=>{$('main-grid').style.gridTemplateColumns=window.innerWidth<900?'1fr':'1fr 340px';});
+
+// ===== NAVBAR AUTH =====
+function initNavbar(){
+  var user=JSON.parse(localStorage.getItem('tl_user')||'null');
+  var guest=document.getElementById('nav-guest');
+  var auth=document.getElementById('nav-auth');
+  if(!guest||!auth)return;
+  if(user&&user.username){
+    guest.classList.add('hidden');
+    auth.classList.remove('hidden');
+    var av=document.getElementById('nav-avatar');
+    if(av)av.textContent=user.username.charAt(0).toUpperCase();
+    var dn=document.getElementById('dd-name');if(dn)dn.textContent=user.username;
+    var de=document.getElementById('dd-email');if(de)de.textContent=user.email||'';
+    var tl=document.getElementById('nb-tl');if(tl)tl.textContent=Number(user.tl||10000).toLocaleString();
+    var tlc=document.getElementById('nb-tlc');if(tlc)tlc.textContent=Number(user.tlc||0).toFixed(4);
+  }
+}
+function toggleNavDD(){var dd=document.getElementById('nav-dd');if(dd)dd.classList.toggle('hidden');}
+function navLogout(){localStorage.removeItem('tl_token');localStorage.removeItem('tl_user');window.location.href='login.html';}
+document.addEventListener('click',function(e){
+  var wrap=document.querySelector('.avatar-wrap');
+  if(wrap&&!wrap.contains(e.target)){var dd=document.getElementById('nav-dd');if(dd)dd.classList.add('hidden');}
+});
+window.addEventListener('DOMContentLoaded',initNavbar);
 </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"1271d078e0ec49ac83bc8dd8b8fac63b","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"1271d078e0ec49ac83bc8dd8b8fac63b","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"1271d078e0ec49ac83bc8dd8b8fac63b","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"1271d078e0ec49ac83bc8dd8b8fac63b","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
