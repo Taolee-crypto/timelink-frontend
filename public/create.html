@@ -239,18 +239,27 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   </div>
 
   <!-- 인증 자료 -->
-  <div style="font-size:11px;color:var(--t2);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
-    인증 자료 업로드 <span style="font-weight:400;color:var(--t3)">(1개 이상 필수)</span>
+  <div style="font-size:11px;color:var(--t2);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
+    인증 자료 <span style="font-weight:400;color:var(--t3)">(1개 이상 필수)</span>
+    <span style="font-weight:400;color:var(--pu);margin-left:8px">💡 스크린샷 후 Ctrl+V 로 바로 붙여넣기 가능</span>
   </div>
   <div class="proof-grid">
-    <!-- 영수증 이미지 -->
-    <div class="proof-zone" id="pz-img" onclick="document.getElementById('pf-img').click()"
-      ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')"
-      ondrop="handleProofDrop(event,'img')">
+    <!-- 영수증 / 스크린샷 1 -->
+    <div class="proof-zone" id="pz-img"
+      ondragover="event.preventDefault();this.classList.add('over')"
+      ondragleave="this.classList.remove('over')"
+      ondrop="handleProofDrop(event,'img')"
+      onclick="document.getElementById('pf-img').click()">
       <input type="file" id="pf-img" accept="image/*,.pdf" style="display:none" onchange="handleProofFile(this,'img')">
-      <div class="pz-icon">🧾</div>
-      <div class="pz-name">결제 영수증</div>
-      <div class="pz-sub">이미지 · PDF</div>
+      <div id="pz-img-preview" style="display:none;position:relative;margin-bottom:6px">
+        <img id="pz-img-thumb" style="max-width:100%;max-height:80px;border-radius:6px;object-fit:cover">
+        <button onclick="event.stopPropagation();clearProof('img')" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#ff4f4f;color:#fff;border:none;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
+      </div>
+      <div id="pz-img-placeholder">
+        <div class="pz-icon">🧾</div>
+        <div class="pz-name">결제 영수증</div>
+        <div class="pz-sub">클릭 · 드래그 · <b style="color:var(--pu)">Ctrl+V</b></div>
+      </div>
       <div class="pz-check" id="pz-img-name"></div>
     </div>
     <!-- 구글 이메일 -->
@@ -260,12 +269,22 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
       <input type="email" id="pf-email" class="fi ai" style="font-size:12px;padding:8px 12px;text-align:center" placeholder="결제 이메일" oninput="checkEmailFilled()">
       <div class="pz-sub" style="margin-top:4px">Google Pay · Gmail</div>
     </div>
-    <!-- 기타 증빙 -->
-    <div class="proof-zone" id="pz-doc" onclick="document.getElementById('pf-doc').click()">
+    <!-- 기타 증빙 스크린샷 -->
+    <div class="proof-zone" id="pz-doc"
+      ondragover="event.preventDefault();this.classList.add('over')"
+      ondragleave="this.classList.remove('over')"
+      ondrop="handleProofDrop(event,'doc')"
+      onclick="document.getElementById('pf-doc').click()">
       <input type="file" id="pf-doc" accept="image/*,.pdf,.txt,.doc,.docx" style="display:none" onchange="handleProofFile(this,'doc')">
-      <div class="pz-icon">📄</div>
-      <div class="pz-name">기타 증빙</div>
-      <div class="pz-sub">스크린샷 · 문서</div>
+      <div id="pz-doc-preview" style="display:none;position:relative;margin-bottom:6px">
+        <img id="pz-doc-thumb" style="max-width:100%;max-height:80px;border-radius:6px;object-fit:cover">
+        <button onclick="event.stopPropagation();clearProof('doc')" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#ff4f4f;color:#fff;border:none;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
+      </div>
+      <div id="pz-doc-placeholder">
+        <div class="pz-icon">📸</div>
+        <div class="pz-name">기타 증빙</div>
+        <div class="pz-sub">클릭 · 드래그 · <b style="color:var(--pu)">Ctrl+V</b></div>
+      </div>
       <div class="pz-check" id="pz-doc-name"></div>
     </div>
   </div>
@@ -486,19 +505,75 @@ function convertAI(){
 }
 
 // ===== PROOF =====
-function handleProofDrop(e,type){
-  e.preventDefault();e.currentTarget.classList.remove('over');
-  handleProofFile({files:e.dataTransfer.files},type);
+var proofFiles = {img: null, doc: null};
+
+function handleProofDrop(e, type){
+  e.preventDefault(); e.currentTarget.classList.remove('over');
+  const f = e.dataTransfer.files[0]; if(!f) return;
+  applyProofFile(f, type);
 }
-function handleProofFile(input,type){
-  const f=input.files[0];if(!f)return;
-  if(type==='img'){$('pz-img-name').textContent='✓ '+f.name;$('pz-img').classList.add('filled');}
-  if(type==='doc'){$('pz-doc-name').textContent='✓ '+f.name;$('pz-doc').classList.add('filled');}
+function handleProofFile(input, type){
+  const f = input.files[0]; if(!f) return;
+  applyProofFile(f, type);
+}
+function applyProofFile(f, type){
+  proofFiles[type] = f;
+  const isImg = f.type.startsWith('image/');
+  const thumbId = type==='img' ? 'pz-img-thumb' : 'pz-doc-thumb';
+  const prevId  = type==='img' ? 'pz-img-preview' : 'pz-doc-preview';
+  const phId    = type==='img' ? 'pz-img-placeholder' : 'pz-doc-placeholder';
+  const nameId  = type==='img' ? 'pz-img-name' : 'pz-doc-name';
+  const zoneId  = type==='img' ? 'pz-img' : 'pz-doc';
+
+  if(isImg){
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      $(thumbId).src = ev.target.result;
+      $(prevId).style.display = 'block';
+      $(phId).style.display = 'none';
+    };
+    reader.readAsDataURL(f);
+  } else {
+    $(prevId).style.display = 'none';
+    $(phId).style.display = 'block';
+  }
+  $(nameId).textContent = '✓ ' + f.name;
+  $(zoneId).classList.add('filled');
+}
+function clearProof(type){
+  proofFiles[type] = null;
+  const thumbId = type==='img' ? 'pz-img-thumb' : 'pz-doc-thumb';
+  const prevId  = type==='img' ? 'pz-img-preview' : 'pz-doc-preview';
+  const phId    = type==='img' ? 'pz-img-placeholder' : 'pz-doc-placeholder';
+  const nameId  = type==='img' ? 'pz-img-name' : 'pz-doc-name';
+  const zoneId  = type==='img' ? 'pz-img' : 'pz-doc';
+  $(thumbId).src = '';
+  $(prevId).style.display = 'none';
+  $(phId).style.display = 'block';
+  $(nameId).textContent = '';
+  $(zoneId).classList.remove('filled');
 }
 function checkEmailFilled(){
-  const v=$('pf-email').value.trim();
-  document.querySelector('.proof-zone:nth-child(2)').classList.toggle('filled',v.length>0);
+  const v = $('pf-email').value.trim();
+  document.querySelector('.proof-zone:nth-child(2)').classList.toggle('filled', v.length>0);
 }
+
+// ===== 클립보드 붙여넣기 (Ctrl+V) =====
+document.addEventListener('paste', function(e){
+  const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+  for(let i=0; i<items.length; i++){
+    if(items[i].type.startsWith('image/')){
+      const f = items[i].getAsFile();
+      if(!f) continue;
+      // img가 비어있으면 img에, 아니면 doc에
+      const target = proofFiles.img ? 'doc' : 'img';
+      applyProofFile(f, target);
+      toast('📋 스크린샷 붙여넣기 완료 ('+(target==='img'?'결제 영수증':'기타 증빙')+')','s');
+      e.preventDefault();
+      break;
+    }
+  }
+});
 
 // ===== UPLOAD =====
 function selType(t){
