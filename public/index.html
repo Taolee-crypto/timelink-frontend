@@ -67,21 +67,16 @@ body { font-family: 'Inter', sans-serif; background: #ffffff; color: #1f2937; li
 .dropdown-item:hover { background: #f3f4f6; }
 .dropdown-item.danger { color: #ef4444; }
 
-/* 저작권 배너 */
-.creation-rights-banner {
-  background: #e0f2fe; border: 1px solid #7dd3fc; border-radius: 12px;
-  padding: 12px 20px; margin: 16px 24px; display: flex; align-items: center; gap: 16px;
-}
-
-/* 페이지 푸터 */
+/* 페이지 푸터 - 여기에 저작권 보호정책 조그맣게 */
 .page-footer {
-  background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 16px 24px;
-  text-align: center; font-size: 12px; color: #6b7280; margin-top: 40px;
+  background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 20px 24px;
+  text-align: center; font-size: 11px; color: #6b7280; margin-top: 60px;
 }
-.footer-links { display: flex; justify-content: center; gap: 24px; margin-bottom: 8px; flex-wrap: wrap; }
-.footer-links a { color: #4b5563; text-decoration: none; }
+.footer-links { display: flex; justify-content: center; gap: 20px; margin-bottom: 12px; flex-wrap: wrap; }
+.footer-links a { color: #6b7280; text-decoration: none; font-size: 11px; }
 .footer-links a:hover { color: #10b981; }
 .footer-links a:last-child { color: #ef4444; }
+.footer-copyright { font-size: 10px; color: #9ca3af; margin-top: 8px; }
 
 /* 히어로 섹션 */
 .hero {
@@ -130,14 +125,6 @@ body { font-family: 'Inter', sans-serif; background: #ffffff; color: #1f2937; li
 </style>
 </head>
 <body>
-<div class="creation-rights-banner">
-  <div style="font-size: 22px;">🎨</div>
-  <div style="flex: 1;">
-    <div style="font-weight: 700; margin-bottom: 2px;">창작권 보호 정책</div>
-    <div style="font-size: 12px;">모든 파일의 창작권은 창작자에게 있습니다.</div>
-  </div>
-  <a href="#" style="color: #0284c7; font-weight: 600;">자세히</a>
-</div>
 
 <nav class="navbar">
   <a href="index.html" class="logo"><div class="logo-icon">⚡</div><div>Time<span>Link</span></div></a>
@@ -218,63 +205,60 @@ body { font-family: 'Inter', sans-serif; background: #ffffff; color: #1f2937; li
   </div>
 </div>
 
+<!-- ========== 푸터 ========== -->
 <footer class="page-footer">
   <div class="footer-links">
-    <a href="#">저작권 정책</a>
     <a href="#">이용약관</a>
     <a href="#">개인정보처리방침</a>
     <a href="#">저작권 침해 신고</a>
   </div>
-  <div>⚖️ 모든 미인증 파일의 법적 책임은 업로더에게 100% 있습니다.</div>
+  <div class="footer-copyright">
+    ⚖️ 모든 파일의 창작권은 창작자에게 있습니다. 무단 도용 시 법적 조치를 받을 수 있습니다.
+  </div>
 </footer>
 
 <script>
-// TimeLink API Configuration
-const API_URL = 'https://timelink-api.mununglee.workers.dev';
-
-async function apiRequest(endpoint, options = {}) {
-  const token = localStorage.getItem('auth_token');
-  
-  try {
-    const response = await fetch(${API_URL}, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? Bearer  : '',
-        ...options.headers
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(API Error: );
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('API Request Failed:', error);
-    throw error;
-  }
-}
-
-// 사용자 상태 관리
-let currentUser = JSON.parse(localStorage.getItem('tl_user') || 'null');
-
-function updateNavbar() {
-  // 모든 페이지의 네비게이션 업데이트 로직
+(function() {
+  const currentUser = JSON.parse(localStorage.getItem('tl_user') || 'null');
   const navAuth = document.getElementById('nav-auth');
   const navGuest = document.getElementById('nav-guest');
   
   if (currentUser) {
     if (navAuth) navAuth.classList.remove('hidden');
     if (navGuest) navGuest.classList.add('hidden');
+    const balanceTl = document.getElementById('balance-tl');
+    const balanceTlc = document.getElementById('balance-tlc');
+    const avatarLetter = document.getElementById('avatar-letter');
+    if (balanceTl) balanceTl.textContent = (currentUser.tl || 0).toLocaleString();
+    if (balanceTlc) balanceTlc.textContent = (currentUser.tlc || 0).toFixed(4);
+    if (avatarLetter) avatarLetter.textContent = (currentUser.username || 'U').charAt(0).toUpperCase();
   } else {
     if (navAuth) navAuth.classList.add('hidden');
     if (navGuest) navGuest.classList.remove('hidden');
   }
+  
+  const carMode = localStorage.getItem('tl_car') === 'true';
+  const carStatus = document.getElementById('car-status');
+  const carIndicator = document.getElementById('car-indicator');
+  if (carStatus) carStatus.textContent = carMode ? 'ON' : 'Off';
+  if (carIndicator) carIndicator.className = 'car-indicator' + (carMode ? ' on' : '');
+})();
+
+function toggleDropdown() {
+  document.getElementById('dropdown')?.classList.toggle('show');
 }
 
-// 페이지 로드시 실행
-document.addEventListener('DOMContentLoaded', updateNavbar);
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.avatar')) {
+    document.getElementById('dropdown')?.classList.remove('show');
+  }
+});
+
+function logout() {
+  localStorage.removeItem('tl_user');
+  localStorage.removeItem('auth_token');
+  window.location.href = 'index.html';
+}
 </script>
 </body>
 </html>
