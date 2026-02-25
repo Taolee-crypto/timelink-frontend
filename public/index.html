@@ -229,51 +229,52 @@ body { font-family: 'Inter', sans-serif; background: #ffffff; color: #1f2937; li
 </footer>
 
 <script>
-(function() {
-  const currentUser = JSON.parse(localStorage.getItem('tl_user') || 'null');
+// TimeLink API Configuration
+const API_URL = 'https://timelink-api.mununglee.workers.dev';
+
+async function apiRequest(endpoint, options = {}) {
+  const token = localStorage.getItem('auth_token');
   
+  try {
+    const response = await fetch(${API_URL}, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? Bearer  : '',
+        ...options.headers
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(API Error: );
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('API Request Failed:', error);
+    throw error;
+  }
+}
+
+// 사용자 상태 관리
+let currentUser = JSON.parse(localStorage.getItem('tl_user') || 'null');
+
+function updateNavbar() {
+  // 모든 페이지의 네비게이션 업데이트 로직
   const navAuth = document.getElementById('nav-auth');
   const navGuest = document.getElementById('nav-guest');
   
   if (currentUser) {
     if (navAuth) navAuth.classList.remove('hidden');
     if (navGuest) navGuest.classList.add('hidden');
-    
-    const balanceTl = document.getElementById('balance-tl');
-    const balanceTlc = document.getElementById('balance-tlc');
-    const avatarLetter = document.getElementById('avatar-letter');
-    
-    if (balanceTl) balanceTl.textContent = (currentUser.tl || 0).toLocaleString();
-    if (balanceTlc) balanceTlc.textContent = (currentUser.tlc || 0).toFixed(4);
-    if (avatarLetter) avatarLetter.textContent = (currentUser.username || 'U').charAt(0).toUpperCase();
   } else {
     if (navAuth) navAuth.classList.add('hidden');
     if (navGuest) navGuest.classList.remove('hidden');
   }
-  
-  const carMode = localStorage.getItem('tl_car') === 'true';
-  const carStatus = document.getElementById('car-status');
-  const carIndicator = document.getElementById('car-indicator');
-  
-  if (carStatus) carStatus.textContent = carMode ? 'ON' : 'Off';
-  if (carIndicator) carIndicator.className = 'car-indicator' + (carMode ? ' on' : '');
-})();
-
-function toggleDropdown() {
-  document.getElementById('dropdown')?.classList.toggle('show');
 }
 
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.avatar')) {
-    document.getElementById('dropdown')?.classList.remove('show');
-  }
-});
-
-function logout() {
-  localStorage.removeItem('tl_user');
-  localStorage.removeItem('auth_token');
-  window.location.href = 'index.html';
-}
+// 페이지 로드시 실행
+document.addEventListener('DOMContentLoaded', updateNavbar);
 </script>
 </body>
 </html>
