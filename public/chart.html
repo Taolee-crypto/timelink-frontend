@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TimeLink - 차트</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', sans-serif; background: #f9fafb; color: #1f2937; }
+
+/* 네비게이션 */
+.navbar { background: white; border-bottom: 1px solid #e5e7eb; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 800; text-decoration: none; color: #1f2937; }
+.logo-icon { width: 32px; height: 32px; background: #10b981; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; }
+.logo span { color: #10b981; }
+.nav-right { display: flex; align-items: center; gap: 12px; }
+
+/* 버튼 */
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 8px 16px; border-radius: 999px; font-weight: 600; font-size: 14px; cursor: pointer; border: none; text-decoration: none; }
+.btn-primary { background: #10b981; color: white; }
+.btn-primary:hover { background: #059669; }
+.btn-outline { background: white; color: #1f2937; border: 1px solid #e5e7eb; }
+.btn-outline:hover { background: #f3f4f6; }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+
+/* 밸런스 */
+.balance { background: #f3f4f6; border-radius: 999px; padding: 6px 16px; display: flex; align-items: center; gap: 16px; }
+.balance-item { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.balance-label { color: #6b7280; font-weight: 500; }
+.balance-value { font-weight: 700; color: #10b981; }
+
+/* 아바타 */
+.avatar { width: 36px; height: 36px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; cursor: pointer; position: relative; }
+.dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border: 1px solid #e5e7eb; border-radius: 12px; width: 200px; display: none; z-index: 1000; }
+.dropdown.show { display: block; }
+.dropdown-item { padding: 12px 16px; cursor: pointer; font-size: 14px; color: #1f2937; text-decoration: none; display: block; }
+.dropdown-item:hover { background: #f3f4f6; }
+.dropdown-item.danger { color: #ef4444; }
+
+/* 카 인디케이터 */
+.car-indicator { background: #f3f4f6; border-radius: 999px; padding: 6px 12px; display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.car-indicator.on { background: #ffedd5; color: #f59e0b; }
+
+/* 탭 메뉴 - 중앙 정렬 */
+.tabs { background: white; border-bottom: 1px solid #e5e7eb; padding: 0 24px; display: flex; justify-content: center; gap: 4px; position: sticky; top: 64px; z-index: 90; }
+.tab { padding: 12px 20px; font-size: 14px; font-weight: 600; color: #6b7280; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+.tab:hover { color: #10b981; }
+.tab.active { color: #10b981; border-bottom-color: #10b981; }
+
+/* 메인 컨테이너 */
+.container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+
+/* 차트 헤더 */
+.chart-header { text-align: center; margin-bottom: 48px; }
+.chart-header h1 { font-size: 36px; font-weight: 800; margin-bottom: 8px; color: #1f2937; }
+.chart-header p { color: #6b7280; font-size: 16px; }
+
+/* 차트 그리드 */
+.chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; }
+
+/* 차트 카드 */
+.chart-card { background: white; border-radius: 24px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transition: transform 0.2s; }
+.chart-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+
+/* 차트 제목 */
+.chart-title { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #f3f4f6; }
+
+/* 랭킹 아이템 */
+.rank-item { display: flex; align-items: center; gap: 12px; padding: 12px; margin-bottom: 8px; background: #f9fafb; border-radius: 12px; transition: background 0.2s; }
+.rank-item:hover { background: #f3f4f6; }
+
+/* 랭킹 번호 */
+.rank-number { width: 28px; height: 28px; background: #e5e7eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: #4b5563; flex-shrink: 0; }
+.rank-number.gold { background: #ffd700; color: #1f2937; }
+.rank-number.silver { background: #c0c0c0; color: #1f2937; }
+.rank-number.bronze { background: #cd7f32; color: white; }
+
+/* 랭킹 정보 */
+.rank-info { flex: 1; min-width: 0; }
+.rank-title { font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-meta { font-size: 12px; color: #6b7280; }
+
+/* 랭킹 값 */
+.rank-value { font-weight: 700; color: #10b981; font-size: 16px; white-space: nowrap; }
+
+/* 푸터 */
+.page-footer { background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 40px 24px; text-align: center; margin-top: 60px; }
+.footer-links { display: flex; justify-content: center; gap: 24px; margin-bottom: 16px; flex-wrap: wrap; }
+.footer-links a { color: #6b7280; text-decoration: none; font-size: 13px; transition: color 0.2s; }
+.footer-links a:hover { color: #10b981; }
+.footer-links a:last-child { color: #ef4444; }
+.footer-copyright { font-size: 11px; color: #9ca3af; }
+
+/* 유틸리티 */
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="logo"><div class="logo-icon">⚡</div><div>Time<span>Link</span></div></a>
+  <div class="nav-right" id="nav-guest">
+    <a href="login.html" class="btn btn-outline btn-sm">로그인</a>
+    <a href="signup.html" class="btn btn-primary btn-sm">시작하기</a>
+  </div>
+  <div class="nav-right hidden" id="nav-auth">
+    <div class="balance">
+      <div class="balance-item"><span class="balance-label">TL</span><span class="balance-value" id="balance-tl">10,000</span></div>
+      <div class="balance-item"><span class="balance-label">TLC</span><span class="balance-value" id="balance-tlc">0.0000</span></div>
+    </div>
+    <div class="car-indicator" id="car-indicator" onclick="window.location.href='car.html'">
+      <span>🚗</span><span id="car-status">Off</span>
+    </div>
+    <div class="avatar" onclick="toggleDropdown()">
+      <span id="avatar-letter">U</span>
+      <div class="dropdown" id="dropdown">
+        <a href="wallet.html" class="dropdown-item">👛 내 지갑</a>
+        <a href="library.html" class="dropdown-item">🔍 내 라이브러리</a>
+        <a href="create.html" class="dropdown-item">📤 업로드</a>
+        <a href="settings.html" class="dropdown-item">⚙️ 설정</a>
+        <div class="dropdown-item danger" onclick="logout()">🚪 로그아웃</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="tabs">
+  <a href="index.html" class="tab">🏠 홈</a>
+  <a href="shareplace.html" class="tab">🛍️ SharePlace</a>
+  <a href="library.html" class="tab">🔍 라이브러리</a>
+  <a href="create.html" class="tab">📤 업로드</a>
+  <a href="player.html" class="tab">🎬 플레이어</a>
+  <a href="radio.html" class="tab">☕ 카페방송</a>
+  <a href="car.html" class="tab">🚗 Car</a>
+  <a href="ads.html" class="tab">📣 광고</a>
+  <a href="wallet.html" class="tab">👛 지갑</a>
+  <a href="chart.html" class="tab active">📊 차트</a>
+</div>
+
+<div class="container">
+  <div class="chart-header">
+    <h1>📊 TimeLink 차트</h1>
+    <p>창작자 기여도 및 인기 콘텐츠 랭킹</p>
+  </div>
+
+  <div class="chart-grid">
+    <!-- 기여도 TOP 10 -->
+    <div class="chart-card">
+      <div class="chart-title">
+        <span>👑</span> 창작자 기여도 TOP 10
+      </div>
+      <div>
+        <div class="rank-item"><span class="rank-number gold">1</span><div class="rank-info"><div class="rank-title">Synthwave Studio</div><div class="rank-meta">Electronic · 32개 트랙</div></div><span class="rank-value">84.2K</span></div>
+        <div class="rank-item"><span class="rank-number silver">2</span><div class="rank-info"><div class="rank-title">K-Pop Studio</div><div class="rank-meta">K-POP · 28개 트랙</div></div><span class="rank-value">67.3K</span></div>
+        <div class="rank-item"><span class="rank-number bronze">3</span><div class="rank-info"><div class="rank-title">Chill Collective</div><div class="rank-meta">Chill · 19개 트랙</div></div><span class="rank-value">42.9K</span></div>
+        <div class="rank-item"><span class="rank-number">4</span><div class="rank-info"><div class="rank-title">Neon Flow</div><div class="rank-meta">Electronic · 15개 트랙</div></div><span class="rank-value">38.5K</span></div>
+        <div class="rank-item"><span class="rank-number">5</span><div class="rank-info"><div class="rank-title">Lo-Fi Girl</div><div class="rank-meta">Lo-Fi · 22개 트랙</div></div><span class="rank-value">31.2K</span></div>
+        <div class="rank-item"><span class="rank-number">6</span><div class="rank-info"><div class="rank-title">Jazz Cat</div><div class="rank-meta">Jazz · 17개 트랙</div></div><span class="rank-value">28.7K</span></div>
+        <div class="rank-item"><span class="rank-number">7</span><div class="rank-info"><div class="rank-title">DJ Pulse</div><div class="rank-meta">Electronic · 21개 트랙</div></div><span class="rank-value">25.3K</span></div>
+        <div class="rank-item"><span class="rank-number">8</span><div class="rank-info"><div class="rank-title">Acoustic Vibes</div><div class="rank-meta">Acoustic · 14개 트랙</div></div><span class="rank-value">22.1K</span></div>
+        <div class="rank-item"><span class="rank-number">9</span><div class="rank-info"><div class="rank-title">Hip-Hop Crew</div><div class="rank-meta">Hip-Hop · 16개 트랙</div></div><span class="rank-value">19.8K</span></div>
+        <div class="rank-item"><span class="rank-number">10</span><div class="rank-info"><div class="rank-title">Classic Piano</div><div class="rank-meta">Classical · 12개 트랙</div></div><span class="rank-value">17.4K</span></div>
+      </div>
+    </div>
+
+    <!-- 스트리밍 TOP 10 -->
+    <div class="chart-card">
+      <div class="chart-title">
+        <span>🎵</span> 실시간 스트리밍 TOP 10
+      </div>
+      <div>
+        <div class="rank-item"><span class="rank-number gold">1</span><div class="rank-info"><div class="rank-title">Midnight Vibe</div><div class="rank-meta">Synthwave Studio</div></div><span class="rank-value">1.2K</span></div>
+        <div class="rank-item"><span class="rank-number silver">2</span><div class="rank-info"><div class="rank-title">Seoul Nights</div><div class="rank-meta">K-Pop Studio</div></div><span class="rank-value">987</span></div>
+        <div class="rank-item"><span class="rank-number bronze">3</span><div class="rank-info"><div class="rank-title">Electric Dreams</div><div class="rank-meta">Neon Flow</div></div><span class="rank-value">842</span></div>
+        <div class="rank-item"><span class="rank-number">4</span><div class="rank-info"><div class="rank-title">Sunset Groove</div><div class="rank-meta">Chill Collective</div></div><span class="rank-value">756</span></div>
+        <div class="rank-item"><span class="rank-number">5</span><div class="rank-info"><div class="rank-title">Study Session</div><div class="rank-meta">Lo-Fi Girl</div></div><span class="rank-value">621</span></div>
+        <div class="rank-item"><span class="rank-number">6</span><div class="rank-info"><div class="rank-title">Summer Vibes</div><div class="rank-meta">Various Artists</div></div><span class="rank-value">589</span></div>
+        <div class="rank-item"><span class="rank-number">7</span><div class="rank-info"><div class="rank-title">Workout Mix</div><div class="rank-meta">DJ Pulse</div></div><span class="rank-value">543</span></div>
+        <div class="rank-item"><span class="rank-number">8</span><div class="rank-info"><div class="rank-title">Jazz Night</div><div class="rank-meta">Jazz Cat</div></div><span class="rank-value">498</span></div>
+        <div class="rank-item"><span class="rank-number">9</span><div class="rank-info"><div class="rank-title">Morning Coffee</div><div class="rank-meta">Acoustic Vibes</div></div><span class="rank-value">432</span></div>
+        <div class="rank-item"><span class="rank-number">10</span><div class="rank-info"><div class="rank-title">Beat Drop</div><div class="rank-meta">Hip-Hop Crew</div></div><span class="rank-value">387</span></div>
+      </div>
+    </div>
+
+    <!-- 주간 인기 TOP 10 -->
+    <div class="chart-card">
+      <div class="chart-title">
+        <span>🔥</span> 주간 인기 TOP 10
+      </div>
+      <div>
+        <div class="rank-item"><span class="rank-number gold">1</span><div class="rank-info"><div class="rank-title">Summer Vibes 2026</div><div class="rank-meta">Various Artists</div></div><span class="rank-value">+245%</span></div>
+        <div class="rank-item"><span class="rank-number silver">2</span><div class="rank-info"><div class="rank-title">Workout Mix</div><div class="rank-meta">DJ Pulse</div></div><span class="rank-value">+189%</span></div>
+        <div class="rank-item"><span class="rank-number bronze">3</span><div class="rank-info"><div class="rank-title">Study with me</div><div class="rank-meta">Lo-Fi Girl</div></div><span class="rank-value">+156%</span></div>
+        <div class="rank-item"><span class="rank-number">4</span><div class="rank-info"><div class="rank-title">K-POP 2026</div><div class="rank-meta">K-Pop Studio</div></div><span class="rank-value">+134%</span></div>
+        <div class="rank-item"><span class="rank-number">5</span><div class="rank-info"><div class="rank-title">Jazz Night</div><div class="rank-meta">Jazz Cat</div></div><span class="rank-value">+112%</span></div>
+        <div class="rank-item"><span class="rank-number">6</span><div class="rank-info"><div class="rank-title">Midnight Drive</div><div class="rank-meta">Synthwave Studio</div></div><span class="rank-value">+98%</span></div>
+        <div class="rank-item"><span class="rank-number">7</span><div class="rank-info"><div class="rank-title">Beach Party</div><div class="rank-meta">Various Artists</div></div><span class="rank-value">+87%</span></div>
+        <div class="rank-item"><span class="rank-number">8</span><div class="rank-info"><div class="rank-title">Rainy Day</div><div class="rank-meta">Acoustic Vibes</div></div><span class="rank-value">+76%</span></div>
+        <div class="rank-item"><span class="rank-number">9</span><div class="rank-info"><div class="rank-title">Street Beat</div><div class="rank-meta">Hip-Hop Crew</div></div><span class="rank-value">+65%</span></div>
+        <div class="rank-item"><span class="rank-number">10</span><div class="rank-info"><div class="rank-title">Classical Study</div><div class="rank-meta">Classic Piano</div></div><span class="rank-value">+54%</span></div>
+      </div>
+    </div>
+
+    <!-- 신규 창작자 TOP 10 -->
+    <div class="chart-card">
+      <div class="chart-title">
+        <span>🌱</span> 신규 창작자 TOP 10
+      </div>
+      <div>
+        <div class="rank-item"><span class="rank-number gold">1</span><div class="rank-info"><div class="rank-title">NewKid Music</div><div class="rank-meta">3일 전 가입</div></div><span class="rank-value">1.2K</span></div>
+        <div class="rank-item"><span class="rank-number silver">2</span><div class="rank-info"><div class="rank-title">Beat Maker Pro</div><div class="rank-meta">5일 전 가입</div></div><span class="rank-value">987</span></div>
+        <div class="rank-item"><span class="rank-number bronze">3</span><div class="rank-info"><div class="rank-title">Indie Star</div><div class="rank-meta">1주일 전</div></div><span class="rank-value">756</span></div>
+        <div class="rank-item"><span class="rank-number">4</span><div class="rank-info"><div class="rank-title">Producer Kim</div><div class="rank-meta">1주일 전</div></div><span class="rank-value">621</span></div>
+        <div class="rank-item"><span class="rank-number">5</span><div class="rank-info"><div class="rank-title">Studio 2026</div><div class="rank-meta">2주일 전</div></div><span class="rank-value">543</span></div>
+        <div class="rank-item"><span class="rank-number">6</span><div class="rank-info"><div class="rank-title">DJ Fresh</div><div class="rank-meta">2주일 전</div></div><span class="rank-value">487</span></div>
+        <div class="rank-item"><span class="rank-number">7</span><div class="rank-info"><div class="rank-title">Vocal Queen</div><div class="rank-meta">2주일 전</div></div><span class="rank-value">412</span></div>
+        <div class="rank-item"><span class="rank-number">8</span><div class="rank-info"><div class="rank-title">Guitar Man</div><div class="rank-meta">3주일 전</div></div><span class="rank-value">365</span></div>
+        <div class="rank-item"><span class="rank-number">9</span><div class="rank-info"><div class="rank-title">Piano Girl</div><div class="rank-meta">3주일 전</div></div><span class="rank-value">321</span></div>
+        <div class="rank-item"><span class="rank-number">10</span><div class="rank-info"><div class="rank-title">Band New</div><div class="rank-meta">3주일 전</div></div><span class="rank-value">298</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="page-footer">
+  <div class="footer-links">
+    <a href="#">이용약관</a>
+    <a href="#">개인정보처리방침</a>
+    <a href="#">저작권 정책</a>
+    <a href="#" style="color:#ef4444;">저작권 침해 신고</a>
+  </div>
+  <div class="footer-copyright">
+    ⚖️ 모든 파일의 창작권은 창작자에게 있습니다. 무단 도용 시 법적 조치를 받을 수 있습니다.
+  </div>
+</footer>
+
+<script>
+function toggleDropdown() { document.getElementById('dropdown')?.classList.toggle('show'); }
+document.addEventListener('click', function(e) { if (!e.target.closest('.avatar')) document.getElementById('dropdown')?.classList.remove('show'); });
+function logout() { localStorage.removeItem('tl_user'); localStorage.removeItem('auth_token'); window.location.href = 'index.html'; }
+
+(function() {
+  const user = JSON.parse(localStorage.getItem('tl_user') || 'null');
+  const navAuth = document.getElementById('nav-auth');
+  const navGuest = document.getElementById('nav-guest');
+  
+  if (user) {
+    navAuth?.classList.remove('hidden');
+    navGuest?.classList.add('hidden');
+    document.getElementById('balance-tl').textContent = (user.tl || 0).toLocaleString();
+    document.getElementById('balance-tlc').textContent = (user.tlc || 0).toFixed(4);
+    document.getElementById('avatar-letter').textContent = (user.username || 'U').charAt(0).toUpperCase();
+  } else {
+    navAuth?.classList.add('hidden');
+    navGuest?.classList.remove('hidden');
+  }
+  
+  const carMode = localStorage.getItem('tl_car') === 'true';
+  document.getElementById('car-status').textContent = carMode ? 'ON' : 'Off';
+  document.getElementById('car-indicator').className = 'car-indicator' + (carMode ? ' on' : '');
+})();
+</script>
+</body>
+</html>
