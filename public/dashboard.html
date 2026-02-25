@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내 대시보드 - TimeLink</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter',sans-serif; background:#f8fafc; color:#0f172a; }
+.navbar { background:white; border-bottom:1px solid #e2e8f0; padding:0 24px; height:64px; display:flex; align-items:center; justify-content:space-between; }
+.logo { display:flex; align-items:center; gap:10px; font-size:20px; font-weight:800; text-decoration:none; color:#0f172a; }
+.logo-icon { width:32px; height:32px; background:#8b5cf6; border-radius:8px; display:flex; align-items:center; justify-content:center; color:white; }
+.tabs { background:white; border-bottom:1px solid #e2e8f0; padding:0 24px; display:flex; justify-content:center; gap:4px; }
+.tab { padding:12px 20px; font-size:14px; font-weight:600; color:#6b7280; text-decoration:none; border-bottom:2px solid transparent; }
+.tab:hover { color:#8b5cf6; }
+.tab.active { color:#8b5cf6; border-bottom-color:#8b5cf6; }
+.container { max-width:1200px; margin:0 auto; padding:40px 24px; }
+.poc-card { background:white; border-radius:20px; padding:24px; margin-bottom:24px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); display:flex; align-items:center; justify-content:space-between; }
+.poc-score { font-size:48px; font-weight:800; color:#8b5cf6; }
+.chart-row { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:40px; }
+.chart-container { background:white; border-radius:20px; padding:24px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); }
+.ranking-section { background:white; border-radius:20px; padding:24px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); }
+.ranking-tabs { display:flex; gap:8px; margin:20px 0; }
+.rank-tab { padding:8px 16px; border-radius:999px; border:1px solid #e2e8f0; background:white; cursor:pointer; }
+.rank-tab.active { background:#8b5cf6; color:white; border-color:#8b5cf6; }
+.ranking-table { width:100%; border-collapse:collapse; }
+.ranking-table th { text-align:left; padding:12px; background:#f1f5f9; }
+.ranking-table td { padding:12px; border-bottom:1px solid #f1f5f9; }
+.page-footer { background:#f9fafb; border-top:1px solid #e5e7eb; padding:40px 24px; text-align:center; }
+</style>
+  <script src="/activity.js"></script>`n</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="logo"><div class="logo-icon">⚡</div><div>Time<span>Link</span></div></a>
+  <div class="nav-right"></div>
+</nav>
+
+<div class="tabs">
+  <a href="index.html" class="tab">🏠 홈</a>
+  <a href="shareplace.html" class="tab">🛍️ SharePlace</a>
+  <a href="library.html" class="tab">🔍 라이브러리</a>
+  <a href="create.html" class="tab">📤 업로드</a>
+  <a href="player.html" class="tab">🎬 플레이어</a>
+  <a href="radio.html" class="tab">☕ 카페방송</a>
+  <a href="wallet.html" class="tab">👛 지갑</a>
+  <a href="dashboard.html" class="tab active">📊 대시보드</a>
+</div>
+
+<div class="container">
+  <h1 style="margin-bottom:32px;">📊 내 대시보드</h1>
+  
+  <div class="poc-card">
+    <div>
+      <h3 style="margin-bottom:8px;">⚡ 기여도 점수 (POC)</h3>
+      <div style="color:#64748b;">누적 활동 점수 (마이너스 가능)</div>
+    </div>
+    <div class="poc-score" id="poc-score">0</div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-container">
+      <h4 style="margin-bottom:16px;">📈 일별 TLC 채굴량</h4>
+      <canvas id="tlcChart" height="200"></canvas>
+    </div>
+    <div class="chart-container">
+      <h4 style="margin-bottom:16px;">📊 주간 TL 사용량</h4>
+      <canvas id="tlChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="ranking-section">
+    <h3>🏆 주간 랭킹</h3>
+    <div class="ranking-tabs">
+      <button class="rank-tab active" onclick="loadRanking('tlc', this)">TLC 채굴</button>
+      <button class="rank-tab" onclick="loadRanking('points', this)">기여도</button>
+    </div>
+    <table class="ranking-table">
+      <thead><tr><th>순위</th><th>사용자</th><th>값</th></tr></thead>
+      <tbody id="ranking-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<footer class="page-footer">
+  <div>⚖️ 모든 저작권은 창작자에게 있습니다.</div>
+</footer>
+
+<script>
+const API_BASE = 'https://timelink-api.mununglee.workers.dev';
+let user = JSON.parse(localStorage.getItem('tl_user') || 'null');
+if (!user) location.href = 'login.html';
+
+async function loadPOC() {
+  const res = await fetch(`${API_BASE}/api/user-stats?user_id=${user.id}&period=month`);
+  const data = await res.json();
+  document.getElementById('poc-score').textContent = data.total_points;
+}
+
+function loadCharts() {
+  // 샘플 데이터 (실제로는 API에서 가져와야 함)
+  new Chart(document.getElementById('tlcChart'), {
+    type: 'line',
+    data: {
+      labels: ['월','화','수','목','금','토','일'],
+      datasets: [{
+        label: 'TLC 채굴',
+        data: [12, 19, 3, 5, 2, 3, 10],
+        borderColor: '#8b5cf6',
+        tension: 0.1
+      }]
+    }
+  });
+  new Chart(document.getElementById('tlChart'), {
+    type: 'bar',
+    data: {
+      labels: ['1주','2주','3주','4주'],
+      datasets: [{
+        label: 'TL 사용',
+        data: [120, 190, 30, 50],
+        backgroundColor: '#8b5cf6'
+      }]
+    }
+  });
+}
+
+async function loadRanking(type, btn) {
+  document.querySelectorAll('.rank-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  
+  const res = await fetch(`${API_BASE}/api/ranking?type=${type}&period=week&limit=10`);
+  const ranks = await res.json();
+  let html = '';
+  ranks.forEach((item, idx) => {
+    html += `<tr><td>${idx+1}</td><td>User ${item.user_id}</td><td>${item.value}</td></tr>`;
+  });
+  document.getElementById('ranking-body').innerHTML = html;
+}
+
+loadPOC();
+loadCharts();
+loadRanking('tlc', document.querySelector('.rank-tab'));
+</script>
+</body>
+</html>
+
