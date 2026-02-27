@@ -625,24 +625,45 @@ function verifyAI() {
   const title = prompt('음원 제목을 입력하세요:', 'AI Generated Track');
   if (!title) return;
   
-  alert('✅ AI 인증이 완료되었습니다. 음원이 등록됩니다.');
+  // 플랫폼 이름 가져오기
+  const platformName = document.querySelector('.platform-btn.active .platform-name')?.textContent || selectedPlatform;
+  
+  // 현재 사용자 정보 확인
+  const savedUser = localStorage.getItem('tl_user');
+  currentUser = savedUser ? JSON.parse(savedUser) : { username: 'User', tl: 10000 };
   
   // 내 파일 목록에 저장
   const myFiles = JSON.parse(localStorage.getItem('tl_myfiles') || '[]');
   const newFile = {
     id: 'ai_' + Date.now(),
     title: title,
-    artist: 'AI Creator',
-    platform: selectedPlatform,
+    artist: currentUser?.username || 'User',
+    platform: platformName,
     type: 'audio',
     fileTL: 1000,
     maxFileTL: 1000,
     authStatus: 'verified',
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    coverImage: '🎵',
+    category: 'AI Music',
+    pulse: Math.floor(Math.random() * 50000) + 10000
   };
+  
   myFiles.unshift(newFile);
   localStorage.setItem('tl_myfiles', JSON.stringify(myFiles));
   
+  // 사용자 TL 업데이트 (선택사항)
+  if (currentUser) {
+    currentUser.tl = (currentUser.tl || 10000) - 0; // 인증 비용이 있다면 여기서 차감
+    localStorage.setItem('tl_user', JSON.stringify(currentUser));
+  }
+  
+  console.log('✅ AI 음원 저장 완료:', newFile);
+  console.log('📁 전체 파일 목록:', myFiles);
+  
+  alert(`✅ AI 인증이 완료되었습니다. "${title}" 음원이 등록되었습니다.`);
+  
+  // 라이브러리로 이동
   setTimeout(() => {
     window.location.href = 'library.html';
   }, 1500);
@@ -652,6 +673,7 @@ function verifyAI() {
 function uploadDirect() {
   const title = document.getElementById('direct-title').value.trim();
   const file = document.getElementById('direct-file').files[0];
+  const category = document.getElementById('direct-category').value;
   
   if (!title) {
     alert('제목을 입력하세요');
@@ -665,7 +687,9 @@ function uploadDirect() {
   
   const tlAmount = parseInt(document.getElementById('direct-tl').value) || 1000;
   
-  alert(`✅ 업로드 완료! (TL ${tlAmount} 충전됨)`);
+  // 현재 사용자 정보 확인
+  const savedUser = localStorage.getItem('tl_user');
+  currentUser = savedUser ? JSON.parse(savedUser) : { username: 'User', tl: 10000 };
   
   // 내 파일 목록에 저장
   const myFiles = JSON.parse(localStorage.getItem('tl_myfiles') || '[]');
@@ -677,10 +701,19 @@ function uploadDirect() {
     fileTL: tlAmount,
     maxFileTL: tlAmount,
     authStatus: 'unverified',
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    coverImage: uploadState.albumCover ? '🖼️' : '🎵',
+    category: category,
+    pulse: Math.floor(Math.random() * 30000) + 5000
   };
+  
   myFiles.unshift(newFile);
   localStorage.setItem('tl_myfiles', JSON.stringify(myFiles));
+  
+  console.log('✅ 직접 업로드 완료:', newFile);
+  console.log('📁 전체 파일 목록:', myFiles);
+  
+  alert(`✅ 업로드 완료! "${title}" (TL ${tlAmount} 충전됨)`);
   
   setTimeout(() => {
     window.location.href = 'library.html';
