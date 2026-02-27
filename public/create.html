@@ -382,6 +382,9 @@ let uploadState = {
   albumCover: false
 };
 
+// 마지막으로 선택된 업로드 영역
+let lastSelectedArea = 'profile'; // 기본값: 프로필
+
 // 초기화
 (function() {
   try {
@@ -389,23 +392,80 @@ let uploadState = {
     currentUser = savedUser ? JSON.parse(savedUser) : { username: 'User', tl: 10000 };
     
     if (currentUser) {
-      document.getElementById('nav-auth')?.classList.remove('hidden');
-      document.getElementById('nav-guest')?.classList.add('hidden');
-      document.getElementById('user-tl').innerText = currentUser.tl?.toLocaleString() || '10,000';
-      document.getElementById('avatar-letter').innerText = (currentUser.username || 'U').charAt(0).toUpperCase();
+      const navAuth = document.getElementById('nav-auth');
+      const navGuest = document.getElementById('nav-guest');
+      if (navAuth) navAuth.classList.remove('hidden');
+      if (navGuest) navGuest.classList.add('hidden');
+      
+      const userTl = document.getElementById('user-tl');
+      if (userTl) userTl.innerText = currentUser.tl?.toLocaleString() || '10,000';
+      
+      const avatarLetter = document.getElementById('avatar-letter');
+      if (avatarLetter) avatarLetter.innerText = (currentUser.username || 'U').charAt(0).toUpperCase();
     }
+    
+    // 각 업로드 영역에 클릭 이벤트 추가
+    const profileArea = document.getElementById('profile-upload-area');
+    const paymentArea = document.getElementById('payment-upload-area');
+    const creationArea = document.getElementById('creation-upload-area');
+    
+    if (profileArea) {
+      profileArea.addEventListener('click', function() {
+        lastSelectedArea = 'profile';
+        console.log('선택된 영역: 프로필');
+      });
+    }
+    
+    if (paymentArea) {
+      paymentArea.addEventListener('click', function() {
+        lastSelectedArea = 'payment';
+        console.log('선택된 영역: 결제');
+      });
+    }
+    
+    if (creationArea) {
+      creationArea.addEventListener('click', function() {
+        lastSelectedArea = 'creation';
+        console.log('선택된 영역: 생성');
+      });
+    }
+    
+    // URL 입력 필드 클릭시 해당 영역 유지
+    const profileUrl = document.getElementById('profile-url');
+    if (profileUrl) {
+      profileUrl.addEventListener('click', function() {
+        lastSelectedArea = 'profile';
+      });
+    }
+    
+    const paymentEmail = document.getElementById('payment-email');
+    if (paymentEmail) {
+      paymentEmail.addEventListener('click', function() {
+        lastSelectedArea = 'payment';
+      });
+    }
+    
+    const songUrl = document.getElementById('song-url');
+    if (songUrl) {
+      songUrl.addEventListener('click', function() {
+        lastSelectedArea = 'creation';
+      });
+    }
+    
   } catch (e) {
     console.error('초기화 오류:', e);
   }
 })();
 
 function toggleDropdown() { 
-  document.getElementById('dropdown')?.classList.toggle('show'); 
+  const dropdown = document.getElementById('dropdown');
+  if (dropdown) dropdown.classList.toggle('show'); 
 }
 
-document.addEventListener('click', e => { 
+document.addEventListener('click', function(e) { 
   if (!e.target.closest('.avatar')) {
-    document.getElementById('dropdown')?.classList.remove('show'); 
+    const dropdown = document.getElementById('dropdown');
+    if (dropdown) dropdown.classList.remove('show'); 
   }
 });
 
@@ -429,16 +489,21 @@ function switchTab(tab, element) {
   document.querySelectorAll('.upload-tab').forEach(t => t.classList.remove('active'));
   element.classList.add('active');
   
-  document.getElementById('ai-tab').style.display = tab === 'ai' ? 'block' : 'none';
-  document.getElementById('direct-tab').style.display = tab === 'ai' ? 'none' : 'block';
+  const aiTab = document.getElementById('ai-tab');
+  const directTab = document.getElementById('direct-tab');
+  
+  if (aiTab) aiTab.style.display = tab === 'ai' ? 'block' : 'none';
+  if (directTab) directTab.style.display = tab === 'ai' ? 'none' : 'block';
 }
 
 // ===== 파일 타입 선택 =====
 function selectType(type, element) {
   document.querySelectorAll('[onclick^="selectType"]').forEach(el => {
-    el.closest('.platform-btn')?.classList.remove('active');
+    const btn = el.closest('.platform-btn');
+    if (btn) btn.classList.remove('active');
   });
-  element.closest('.platform-btn').classList.add('active');
+  const btn = element.closest('.platform-btn');
+  if (btn) btn.classList.add('active');
 }
 
 // ===== 이미지 업로드 처리 =====
@@ -457,12 +522,15 @@ function displayImage(file, previewId, cardId) {
   const reader = new FileReader();
   reader.onload = function(e) {
     const preview = document.getElementById(previewId);
-    preview.src = e.target.result;
-    preview.style.display = 'block';
-    preview.classList.add('show');
+    if (preview) {
+      preview.src = e.target.result;
+      preview.style.display = 'block';
+      preview.classList.add('show');
+    }
     
     // 카드 스타일 변경
-    document.getElementById(cardId).classList.add('uploaded');
+    const card = document.getElementById(cardId);
+    if (card) card.classList.add('uploaded');
     
     // 상태 업데이트
     if (cardId === 'profile-card') uploadState.profile = true;
@@ -477,30 +545,26 @@ function displayImage(file, previewId, cardId) {
 // ===== 클립보드 붙여넣기 기능 =====
 document.addEventListener('paste', function(e) {
   const items = e.clipboardData.items;
+  
   for (let i = 0; i < items.length; i++) {
     if (items[i].type.indexOf('image') !== -1) {
       const file = items[i].getAsFile();
       
-      // 현재 포커스된 요소 확인
-      const activeElement = document.activeElement;
-      
-      // 프로필 영역에 붙여넣기
-      if (activeElement && activeElement.closest('#profile-upload-area')) {
+      // lastSelectedArea에 따라 다른 영역에 붙여넣기
+      if (lastSelectedArea === 'profile') {
         displayImage(file, 'profile-preview', 'profile-card');
         showToast('프로필 이미지가 붙여넣기 되었습니다.');
       }
-      // 결제 영역에 붙여넣기
-      else if (activeElement && activeElement.closest('#payment-upload-area')) {
+      else if (lastSelectedArea === 'payment') {
         displayImage(file, 'payment-preview', 'payment-card');
         showToast('결제 증빙 이미지가 붙여넣기 되었습니다.');
       }
-      // 생성 영역에 붙여넣기
-      else if (activeElement && activeElement.closest('#creation-upload-area')) {
+      else if (lastSelectedArea === 'creation') {
         displayImage(file, 'creation-preview', 'creation-card');
         showToast('생성 증빙 이미지가 붙여넣기 되었습니다.');
       }
-      // 기본: 빈 곳에 붙여넣으면 프로필로
       else {
+        // 기본값: 프로필
         displayImage(file, 'profile-preview', 'profile-card');
         showToast('프로필 이미지가 붙여넣기 되었습니다.');
       }
@@ -543,10 +607,13 @@ function previewAlbumCover(input) {
     reader.onload = function(e) {
       const preview = document.getElementById('album-cover-preview');
       const placeholder = document.getElementById('album-cover-placeholder');
-      preview.src = e.target.result;
-      preview.style.display = 'block';
-      placeholder.style.display = 'none';
-      document.getElementById('album-cover-container').classList.add('has-image');
+      if (preview) preview.src = e.target.result;
+      if (preview) preview.style.display = 'block';
+      if (placeholder) placeholder.style.display = 'none';
+      
+      const container = document.getElementById('album-cover-container');
+      if (container) container.classList.add('has-image');
+      
       uploadState.albumCover = true;
     };
     reader.readAsDataURL(file);
@@ -562,15 +629,20 @@ function previewAudioFile(input) {
       return;
     }
     const preview = document.getElementById('ai-audio-preview');
-    preview.innerHTML = `
-      <div class="file-icon">🎵</div>
-      <div class="file-info">
-        <div class="file-name">${file.name}</div>
-        <div class="file-size">${(file.size / 1024 / 1024).toFixed(1)} MB</div>
-      </div>
-    `;
-    preview.classList.add('show');
-    document.getElementById('ai-audio-area').classList.add('has-file');
+    if (preview) {
+      preview.innerHTML = `
+        <div class="file-icon">🎵</div>
+        <div class="file-info">
+          <div class="file-name">${file.name}</div>
+          <div class="file-size">${(file.size / 1024 / 1024).toFixed(1)} MB</div>
+        </div>
+      `;
+      preview.classList.add('show');
+    }
+    
+    const area = document.getElementById('ai-audio-area');
+    if (area) area.classList.add('has-file');
+    
     uploadState.audio = true;
     showToast('음원 파일이 선택되었습니다.');
   }
@@ -586,15 +658,21 @@ function previewDirectFile(input) {
     }
     const preview = document.getElementById('direct-preview');
     const icon = file.type.startsWith('video/') ? '🎬' : '🎵';
-    preview.innerHTML = `
-      <div class="file-icon">${icon}</div>
-      <div class="file-info">
-        <div class="file-name">${file.name}</div>
-        <div class="file-size">${(file.size / 1024 / 1024).toFixed(1)} MB</div>
-      </div>
-    `;
-    preview.classList.add('show');
-    document.getElementById('direct-upload-area').classList.add('has-file');
+    
+    if (preview) {
+      preview.innerHTML = `
+        <div class="file-icon">${icon}</div>
+        <div class="file-info">
+          <div class="file-name">${file.name}</div>
+          <div class="file-size">${(file.size / 1024 / 1024).toFixed(1)} MB</div>
+        </div>
+      `;
+      preview.classList.add('show');
+    }
+    
+    const area = document.getElementById('direct-upload-area');
+    if (area) area.classList.add('has-file');
+    
     uploadState.directFile = true;
     showToast('파일이 선택되었습니다.');
   }
@@ -626,7 +704,8 @@ function verifyAI() {
   if (!title) return;
   
   // 플랫폼 이름 가져오기
-  const platformName = document.querySelector('.platform-btn.active .platform-name')?.textContent || selectedPlatform;
+  const activePlatform = document.querySelector('.platform-btn.active .platform-name');
+  const platformName = activePlatform ? activePlatform.textContent : selectedPlatform;
   
   // 현재 사용자 정보 확인
   const savedUser = localStorage.getItem('tl_user');
@@ -652,12 +731,6 @@ function verifyAI() {
   myFiles.unshift(newFile);
   localStorage.setItem('tl_myfiles', JSON.stringify(myFiles));
   
-  // 사용자 TL 업데이트 (선택사항)
-  if (currentUser) {
-    currentUser.tl = (currentUser.tl || 10000) - 0; // 인증 비용이 있다면 여기서 차감
-    localStorage.setItem('tl_user', JSON.stringify(currentUser));
-  }
-  
   console.log('✅ AI 음원 저장 완료:', newFile);
   console.log('📁 전체 파일 목록:', myFiles);
   
@@ -671,9 +744,14 @@ function verifyAI() {
 
 // ===== 직접 업로드 =====
 function uploadDirect() {
-  const title = document.getElementById('direct-title').value.trim();
-  const file = document.getElementById('direct-file').files[0];
-  const category = document.getElementById('direct-category').value;
+  const titleInput = document.getElementById('direct-title');
+  const fileInput = document.getElementById('direct-file');
+  const categorySelect = document.getElementById('direct-category');
+  const tlInput = document.getElementById('direct-tl');
+  
+  const title = titleInput ? titleInput.value.trim() : '';
+  const file = fileInput ? fileInput.files[0] : null;
+  const category = categorySelect ? categorySelect.value : 'K-POP';
   
   if (!title) {
     alert('제목을 입력하세요');
@@ -685,7 +763,7 @@ function uploadDirect() {
     return;
   }
   
-  const tlAmount = parseInt(document.getElementById('direct-tl').value) || 1000;
+  const tlAmount = tlInput ? parseInt(tlInput.value) || 1000 : 1000;
   
   // 현재 사용자 정보 확인
   const savedUser = localStorage.getItem('tl_user');
