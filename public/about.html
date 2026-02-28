@@ -291,6 +291,161 @@ body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; li
   </div>
 
 </div>
+
+
+<!-- ── 글로벌 브랜치 맵 ── -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+#world-map { height: 460px; border-radius: 0 0 20px 20px; z-index: 1; }
+.leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+.leaflet-popup-content { margin: 0; padding: 0; }
+.bp { padding: 18px; min-width: 220px; }
+.bp h4 { font-size: 15px; font-weight: 800; margin: 0 0 2px; font-family: 'Inter', sans-serif; }
+.bp .role { font-size: 12px; color: #8b5cf6; font-weight: 700; margin-bottom: 8px; }
+.bp p { font-size: 12px; color: #374151; margin: 3px 0; }
+.bp .mkt { font-size: 11px; color: #6b7280; line-height: 1.5; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f1f5f9; }
+.bp .stbadge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:10px; font-weight:700; margin-top:8px; }
+.bc { background:white; border-radius:16px; padding:18px; border:1px solid #f1f5f9; box-shadow:0 2px 8px rgba(0,0,0,0.06); cursor:pointer; transition:all 0.2s; }
+.bc:hover { border-color:#8b5cf6; transform:translateY(-3px); box-shadow:0 8px 24px rgba(139,92,246,0.15); }
+.bc .flag { font-size:28px; margin-bottom:8px; }
+.bc h4 { font-size:14px; font-weight:800; margin:0 0 2px; }
+.bc .city-lbl { font-size:11px; color:#6b7280; margin-bottom:6px; }
+.bc .role-lbl { font-size:10px; font-weight:700; color:#8b5cf6; background:#ede9fe; padding:2px 8px; border-radius:20px; }
+</style>
+
+<div style="max-width:1100px; margin:0 auto 64px; padding:0 24px;">
+  <div class="section-title">🌍 글로벌 브랜치</div>
+  <div class="section-sub">K-pop·블록체인·스트리밍 핵심 시장에 구축하는 TimeLink 세계 거점</div>
+
+  <!-- 지도 -->
+  <div style="border-radius:20px; overflow:hidden; border:1px solid #e5e7eb; box-shadow:0 4px 24px rgba(0,0,0,0.08); margin-bottom:28px;">
+    <!-- 지도 상단 헤더 -->
+    <div style="background:linear-gradient(135deg,#1e1b4b,#312e81); padding:16px 24px; display:flex; align-items:center; justify-content:space-between;">
+      <div>
+        <span style="color:#a78bfa; font-size:11px; font-weight:700; letter-spacing:2px;">GLOBAL PRESENCE</span>
+        <div style="color:white; font-size:16px; font-weight:800; margin-top:2px;">TimeLink World HQ Map</div>
+      </div>
+      <div style="display:flex; gap:16px; font-size:12px; color:rgba(255,255,255,0.7);">
+        <span>🟢 운영 중 <span id="open-count" style="font-weight:700;color:#10b981;">1</span></span>
+        <span>🟡 준비 중 <span id="planned-count" style="font-weight:700;color:#f59e0b;">7</span></span>
+      </div>
+    </div>
+    <div id="world-map"></div>
+  </div>
+
+  <!-- 브랜치 카드 -->
+  <div id="branch-grid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px;"></div>
+</div>
+
+<script>
+const DEFAULT_BRANCHES = [
+  { id:1, flag:'🇰🇷', country:'대한민국', city:'인천 · 서울', role:'본사 · 아시아 총괄',
+    address:'인천광역시 서구 청라동', phone:'+82-32-000-0000', email:'hq@timelink.kr',
+    status:'open', lat:37.40, lng:126.65,
+    market:'K-pop 본거지. 플랫폼 전체 운영 총괄. 한국·일본·동남아 시장 리드.' },
+  { id:2, flag:'🇯🇵', country:'일본', city:'도쿄 · 시부야', role:'J-pop · 애니 OST 허브',
+    address:'東京都渋谷区 TimeLink Japan', phone:'+81-3-0000-0000', email:'japan@timelink.kr',
+    status:'planned', lat:35.658, lng:139.701,
+    market:'세계 2위 음악 시장. J-pop·애니 OST 라이선싱 특화. 창작자 선점 공략.' },
+  { id:3, flag:'🇺🇸', country:'미국', city:'Los Angeles', role:'K-pop 서구 거점 · 엔터',
+    address:'6255 Sunset Blvd, Hollywood CA', phone:'+1-323-000-0000', email:'us@timelink.kr',
+    status:'planned', lat:34.098, lng:-118.327,
+    market:'세계 최대 음악 소비국. K-pop 미주 팬덤 + 현지 아티스트 온보딩 집중.' },
+  { id:4, flag:'🇬🇧', country:'영국', city:'London', role:'유럽 총괄',
+    address:'20 Farringdon St, London EC4A', phone:'+44-20-0000-0000', email:'eu@timelink.kr',
+    status:'planned', lat:51.519, lng:-0.103,
+    market:'유럽 최대 음악 시장. EU 규제 대응 및 유럽 창작자 생태계 구축.' },
+  { id:5, flag:'🇸🇬', country:'싱가포르', city:'Singapore', role:'동남아 · 블록체인 허브',
+    address:'1 Raffles Place, Singapore 048616', phone:'+65-6000-0000', email:'sg@timelink.kr',
+    status:'planned', lat:1.284, lng:103.851,
+    market:'동남아 금융·블록체인 허브. TON 체인 연동 및 동남아 7국 시장 총괄.' },
+  { id:6, flag:'🇧🇷', country:'브라질', city:'São Paulo', role:'중남미 총괄',
+    address:'Av. Paulista 1374, São Paulo', phone:'+55-11-0000-0000', email:'latam@timelink.kr',
+    status:'planned', lat:-23.561, lng:-46.656,
+    market:'K-pop 남미 팬덤 폭발적 성장. 신흥 스트리밍 최대국. 바일레 현지화.' },
+  { id:7, flag:'🇦🇪', country:'UAE', city:'Dubai', role:'중동 · 아프리카 총괄',
+    address:'Dubai Media City, Building 4', phone:'+971-4-000-0000', email:'mena@timelink.kr',
+    status:'planned', lat:25.093, lng:55.156,
+    market:'중동 미디어·핀테크 허브. 아프리카 신흥 음악 시장 선점.' },
+  { id:8, flag:'🇮🇳', country:'인도', city:'Mumbai', role:'남아시아 총괄',
+    address:'Bandra Kurla Complex, Mumbai', phone:'+91-22-0000-0000', email:'india@timelink.kr',
+    status:'planned', lat:19.059, lng:72.865,
+    market:'14억 인구·볼리우드. 세계 최고 스트리밍 성장률. UPI 결제 연동 예정.' }
+];
+
+function loadBranches() {
+  try {
+    const s = localStorage.getItem('tl_branches');
+    return s ? JSON.parse(s) : DEFAULT_BRANCHES;
+  } catch(e) { return DEFAULT_BRANCHES; }
+}
+
+// 지도
+const map = L.map('world-map', { center:[20,15], zoom:2, minZoom:2, maxZoom:8, worldCopyJump:true });
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  { attribution:'© OpenStreetMap © CARTO', subdomains:'abcd', maxZoom:19 }).addTo(map);
+
+let markers = [];
+function renderMap() {
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+  const branches = loadBranches();
+  let openCnt = 0, plannedCnt = 0;
+
+  branches.forEach(b => {
+    if(b.status === 'open') openCnt++; else plannedCnt++;
+    const col = b.status === 'open' ? '#10b981' : '#f59e0b';
+    const bg  = b.status === 'open' ? '#8b5cf6' : '#374151';
+    const icon = L.divIcon({
+      className:'',
+      html:`<div style="width:38px;height:38px;border-radius:50%;background:${bg};border:3px solid ${col};display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;box-shadow:0 0 0 5px ${col}33;">${b.flag}</div>`,
+      iconSize:[38,38], iconAnchor:[19,19], popupAnchor:[0,-20]
+    });
+    const m = L.marker([b.lat, b.lng], {icon}).addTo(map);
+    m.bindPopup(`<div class="bp">
+      <div style="font-size:26px;margin-bottom:6px;">${b.flag}</div>
+      <h4>${b.country} · ${b.city}</h4>
+      <div class="role">${b.role}</div>
+      <p>📍 ${b.address}</p>
+      <p>📞 ${b.phone}</p>
+      <p>✉️ ${b.email}</p>
+      <div class="mkt">${b.market}</div>
+      <span class="stbadge" style="${b.status==='open'?'background:#d1fae5;color:#065f46;':'background:#fef3c7;color:#92400e;'}">${b.status==='open'?'✅ 운영 중':'🔜 준비 중'}</span>
+    </div>`, {maxWidth:280});
+    markers.push(m);
+  });
+
+  const oc = document.getElementById('open-count');
+  const pc = document.getElementById('planned-count');
+  if(oc) oc.textContent = openCnt;
+  if(pc) pc.textContent = plannedCnt;
+}
+
+function renderCards() {
+  const branches = loadBranches();
+  const g = document.getElementById('branch-grid');
+  g.innerHTML = branches.map(b => `
+    <div class="bc" onclick="flyTo(${b.lat},${b.lng})">
+      <div class="flag">${b.flag}</div>
+      <h4>${b.country}</h4>
+      <div class="city-lbl">🏙 ${b.city}</div>
+      <div class="role-lbl">${b.role}</div>
+      <p style="font-size:11px;color:#9ca3af;margin-top:8px;line-height:1.4;">${b.market.substring(0,55)}…</p>
+      <div style="margin-top:10px;">
+        <span style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;${b.status==='open'?'background:#d1fae5;color:#065f46;':'background:#fef3c7;color:#92400e;'}">
+          ${b.status==='open'?'✅ 운영 중':'🔜 준비 중'}
+        </span>
+      </div>
+    </div>`).join('');
+}
+
+function flyTo(lat,lng) { map.flyTo([lat,lng], 5, {duration:1.2}); }
+
+window.addEventListener('DOMContentLoaded', ()=>{ renderMap(); renderCards(); });
+window.addEventListener('storage', e => { if(e.key==='tl_branches'){renderMap();renderCards();} });
+</script>
+
 <footer class="page-footer">
   <div class="footer-grid">
     <div class="footer-col">
@@ -308,6 +463,7 @@ body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; li
       <div class="footer-col-title">회사</div>
       <a href="about.html">🏢 회사 소개</a>
       <a href="tokenomics.html">⚡ 토큰 경제</a>
+      <a href="poc.html">📊 기여도 시스템</a>
       <a href="roadmap.html">🗺️ 로드맵</a>
       <a href="faq.html">❓ FAQ</a>
     </div>

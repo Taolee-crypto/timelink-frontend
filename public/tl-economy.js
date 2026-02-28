@@ -7,11 +7,39 @@ const TL = {
 
   // ── 소모율 테이블 ──
   RATES: {
-    audio:  1.0,   // 음악 (오디오)
-    video:  2.0,   // 영상
+    audio:   1.0,  // 음악 (오디오)
+    video:   2.0,  // 영상
     lecture: 1.5,  // 강의
-    cafe:   0.5,   // 카페방송 (사업자)
-    moving: 0.8,   // Moving Radio
+    cafe:    0.5,  // 카페방송 (사업자)
+    moving:  0.8,  // Moving Radio
+  },
+
+  // ── 광고 보상율 (1초 시청 = 2 TL) ──
+  AD_REWARD_RATE: 2,
+  AD_DAILY_LIMIT: 5000,
+  AD_TYPES: {
+    video: { label: '영상 광고', icon: '🎬' },
+    audio: { label: '오디오 광고', icon: '🔊' },
+  },
+
+  calcAdReward(durationSec) {
+    return durationSec * this.AD_REWARD_RATE;
+  },
+
+  earnAdTL(durationSec) {
+    const reward = this.calcAdReward(durationSec);
+    const user = this.getUser();
+    if (!user) return 0;
+    const todayKey = 'tl_ad_' + new Date().toDateString();
+    const todayEarned = parseInt(localStorage.getItem(todayKey) || '0');
+    const actual = Math.min(reward, this.AD_DAILY_LIMIT - todayEarned);
+    if (actual <= 0) return 0;
+    user.tl = (user.tl || 0) + actual;
+    user.tl_ad_earned = (user.tl_ad_earned || 0) + actual;
+    localStorage.setItem('tl_user', JSON.stringify(user));
+    localStorage.setItem(todayKey, String(todayEarned + actual));
+    this.updateNavUI(user);
+    return actual;
   },
 
   // ── 수익 분배 ──

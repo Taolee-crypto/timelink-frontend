@@ -478,7 +478,36 @@ document.addEventListener(DOMContentLoaded, displayLocalTime);
   <a href="dashboard.html" class="tab">📊 대시보드</a>
 </div>
 
+  <!-- 어드민 탭 버튼 -->
+  <div style="background:white;border-bottom:1px solid #e5e7eb;padding:0 24px;display:flex;gap:4px;overflow-x:auto;">
+    <button class="admin-tab-btn active" onclick="showAdminTab('dashboard',this)">📊 대시보드</button>
+    <button class="admin-tab-btn" onclick="showAdminTab('users',this)">👥 사용자</button>
+    <button class="admin-tab-btn" onclick="showAdminTab('tracks',this)">🎵 트랙</button>
+    <button class="admin-tab-btn" onclick="showAdminTab('exchanges',this)">💳 환전</button>
+    <button class="admin-tab-btn" onclick="showAdminTab('branches',this)">🌍 글로벌 브랜치</button>
+    <button class="admin-tab-btn" onclick="showAdminTab('settings',this)">⚙️ 설정</button>
+  </div>
+  <style>
+  .admin-tab-btn { padding:12px 20px;background:none;border:none;border-bottom:3px solid transparent;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;color:#64748b;font-family:'Inter',sans-serif;transition:all 0.2s; }
+  .admin-tab-btn:hover { color:#8b5cf6; }
+  .admin-tab-btn.active { color:#8b5cf6;border-bottom-color:#8b5cf6; }
+  .branch-admin-card { background:white;border:1px solid #e5e7eb;border-radius:16px;padding:20px;position:relative; }
+  .branch-admin-card .badge { position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;padding:2px 10px;border-radius:20px; }
+  </style>
+
   <div class="container">
+
+    <!-- 글로벌 브랜치 관리 -->
+    <div id="branches-tab" class="hidden">
+      <div class="data-card">
+        <div class="card-header">
+          <div class="card-title">🌍 글로벌 브랜치 관리</div>
+          <button class="btn btn-primary btn-sm" onclick="openBranchModal(null)">+ 브랜치 추가</button>
+        </div>
+        <div id="branch-admin-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:8px 0;"></div>
+      </div>
+    </div>
+
     <!-- 대시보드 -->
     <div id="dashboard-tab">
       <div class="stats-grid">
@@ -683,15 +712,190 @@ function logout() {
 
 // 탭 전환
 function showTab(tab) {
-  document.querySelectorAll(.tab).forEach(t => t.classList.remove("active"));
-  event.target.classList.add("active");
-  
-  document.querySelectorAll([id$="-tab"]).forEach(t => t.classList.add("hidden"));
-  document.getElementById(`${tab}-tab`).classList.remove("hidden");
-  
-  if (tab === users) loadUsers();
-  if (tab === tracks) loadTracks();
-  if (tab === exchanges) loadExchanges();
+  document.querySelectorAll('.admin-tab-btn').forEach(t => t.classList.remove('active'));
+  if (event && event.target) event.target.classList.add('active');
+  document.querySelectorAll('[id$="-tab"]').forEach(t => t.classList.add('hidden'));
+  document.getElementById(`${tab}-tab`).classList.remove('hidden');
+  if (tab === 'users') loadUsers();
+  if (tab === 'tracks') loadTracks();
+  if (tab === 'exchanges') loadExchanges();
+  if (tab === 'branches') loadBranchAdmin();
+}
+
+function showAdminTab(tab, btn) {
+  document.querySelectorAll('.admin-tab-btn').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.querySelectorAll('[id$="-tab"]').forEach(t => t.classList.add('hidden'));
+  document.getElementById(`${tab}-tab`).classList.remove('hidden');
+  if (tab === 'users') loadUsers();
+  if (tab === 'tracks') loadTracks();
+  if (tab === 'exchanges') loadExchanges();
+  if (tab === 'branches') loadBranchAdmin();
+}
+
+// ── 브랜치 CRUD ──
+const BRANCH_DEFAULTS = [
+  { id:1, flag:'🇰🇷', country:'대한민국', city:'인천 · 서울', role:'본사 · 아시아 총괄',
+    address:'인천광역시 서구 청라동', phone:'+82-32-000-0000', email:'hq@timelink.kr',
+    status:'open', lat:37.40, lng:126.65,
+    market:'K-pop 본거지. 플랫폼 전체 운영 총괄. 한국·일본·동남아 시장 리드.' },
+  { id:2, flag:'🇯🇵', country:'일본', city:'도쿄 · 시부야', role:'J-pop · 애니 OST 허브',
+    address:'東京都渋谷区 TimeLink Japan', phone:'+81-3-0000-0000', email:'japan@timelink.kr',
+    status:'planned', lat:35.658, lng:139.701,
+    market:'세계 2위 음악 시장. J-pop·애니 OST 라이선싱 특화.' },
+  { id:3, flag:'🇺🇸', country:'미국', city:'Los Angeles', role:'K-pop 서구 거점 · 엔터',
+    address:'6255 Sunset Blvd, Hollywood CA', phone:'+1-323-000-0000', email:'us@timelink.kr',
+    status:'planned', lat:34.098, lng:-118.327,
+    market:'세계 최대 음악 소비국. K-pop 미주 팬덤 집중.' },
+  { id:4, flag:'🇬🇧', country:'영국', city:'London', role:'유럽 총괄',
+    address:'20 Farringdon St, London EC4A', phone:'+44-20-0000-0000', email:'eu@timelink.kr',
+    status:'planned', lat:51.519, lng:-0.103,
+    market:'유럽 최대 음악 시장. EU 규제 대응.' },
+  { id:5, flag:'🇸🇬', country:'싱가포르', city:'Singapore', role:'동남아 · 블록체인 허브',
+    address:'1 Raffles Place, Singapore 048616', phone:'+65-6000-0000', email:'sg@timelink.kr',
+    status:'planned', lat:1.284, lng:103.851,
+    market:'동남아 금융·블록체인 허브. TON 체인 연동.' },
+  { id:6, flag:'🇧🇷', country:'브라질', city:'São Paulo', role:'중남미 총괄',
+    address:'Av. Paulista 1374, São Paulo', phone:'+55-11-0000-0000', email:'latam@timelink.kr',
+    status:'planned', lat:-23.561, lng:-46.656,
+    market:'K-pop 남미 팬덤 + 신흥 스트리밍 최대국.' },
+  { id:7, flag:'🇦🇪', country:'UAE', city:'Dubai', role:'중동 · 아프리카 총괄',
+    address:'Dubai Media City, Building 4', phone:'+971-4-000-0000', email:'mena@timelink.kr',
+    status:'planned', lat:25.093, lng:55.156,
+    market:'중동 미디어·핀테크 허브. 아프리카 선점.' },
+  { id:8, flag:'🇮🇳', country:'인도', city:'Mumbai', role:'남아시아 총괄',
+    address:'Bandra Kurla Complex, Mumbai', phone:'+91-22-0000-0000', email:'india@timelink.kr',
+    status:'planned', lat:19.059, lng:72.865,
+    market:'14억 인구·볼리우드. 세계 최고 스트리밍 성장률.' }
+];
+
+function getBranches() {
+  try { const s = localStorage.getItem('tl_branches'); return s ? JSON.parse(s) : BRANCH_DEFAULTS; }
+  catch(e) { return BRANCH_DEFAULTS; }
+}
+function saveBranches(branches) {
+  localStorage.setItem('tl_branches', JSON.stringify(branches));
+  // about.html의 지도도 갱신 (storage 이벤트)
+  window.dispatchEvent(new StorageEvent('storage', {key:'tl_branches'}));
+}
+
+function loadBranchAdmin() {
+  const branches = getBranches();
+  const g = document.getElementById('branch-admin-grid');
+  g.innerHTML = branches.map(b => `
+    <div class="branch-admin-card">
+      <span class="badge" style="${b.status==='open'?'background:#d1fae5;color:#065f46;':'background:#fef3c7;color:#92400e;'}">
+        ${b.status==='open'?'✅ 운영 중':'🔜 준비 중'}
+      </span>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <span style="font-size:32px;">${b.flag}</span>
+        <div>
+          <div style="font-size:16px;font-weight:800;">${b.country}</div>
+          <div style="font-size:12px;color:#6b7280;">🏙 ${b.city}</div>
+          <div style="font-size:11px;color:#8b5cf6;font-weight:700;margin-top:2px;">${b.role}</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:#374151;display:flex;flex-direction:column;gap:4px;margin-bottom:14px;">
+        <span>📍 ${b.address}</span>
+        <span>📞 ${b.phone}</span>
+        <span>✉️ ${b.email}</span>
+        <span style="color:#6b7280;font-size:11px;margin-top:4px;">${b.market}</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="openBranchModal(${b.id})" style="flex:1;padding:8px;background:#ede9fe;color:#8b5cf6;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">✏️ 수정</button>
+        <button onclick="toggleBranchStatus(${b.id})" style="flex:1;padding:8px;background:#f1f5f9;color:#374151;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">${b.status==='open'?'⏸ 준비중으로':'▶ 운영중으로'}</button>
+        <button onclick="deleteBranch(${b.id})" style="padding:8px 12px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+let editingBranchId = null;
+function openBranchModal(id) {
+  editingBranchId = id;
+  const branches = getBranches();
+  const b = id ? branches.find(x => x.id === id) : null;
+  const modal = document.createElement('div');
+  modal.id = 'branch-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:32px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+        <h3 style="font-size:18px;font-weight:800;">${id ? '✏️ 브랜치 수정' : '+ 브랜치 추가'}</h3>
+        <button onclick="document.getElementById('branch-modal').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af;">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        ${field('flag','국기 이모지', b?.flag||'🏳')}
+        ${field('country','국가명', b?.country||'')}
+        ${field('city','도시', b?.city||'')}
+        ${field('role','역할', b?.role||'')}
+        ${field('address','주소', b?.address||'')}
+        ${field('phone','전화번호', b?.phone||'')}
+        ${field('email','이메일', b?.email||'')}
+        <div>
+          <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px;">상태</label>
+          <select id="bf-status" style="width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;">
+            <option value="open" ${b?.status==='open'?'selected':''}>✅ 운영 중</option>
+            <option value="planned" ${b?.status!=='open'?'selected':''}>🔜 준비 중</option>
+          </select>
+        </div>
+        ${field('lat','위도', b?.lat||0)}
+        ${field('lng','경도', b?.lng||0)}
+      </div>
+      <div style="margin-top:12px;">
+        <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px;">시장 설명</label>
+        <textarea id="bf-market" style="width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;height:80px;resize:none;">${b?.market||''}</textarea>
+      </div>
+      <button onclick="saveBranchModal()" style="width:100%;margin-top:20px;padding:14px;background:#8b5cf6;color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;">💾 저장</button>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function field(id, label, val) {
+  return `<div>
+    <label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px;">${label}</label>
+    <input id="bf-${id}" value="${val}" style="width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;" onfocus="this.style.borderColor='#8b5cf6'" onblur="this.style.borderColor='#e5e7eb'">
+  </div>`;
+}
+
+function saveBranchModal() {
+  const branches = getBranches();
+  const newB = {
+    id: editingBranchId || Date.now(),
+    flag:    document.getElementById('bf-flag').value,
+    country: document.getElementById('bf-country').value,
+    city:    document.getElementById('bf-city').value,
+    role:    document.getElementById('bf-role').value,
+    address: document.getElementById('bf-address').value,
+    phone:   document.getElementById('bf-phone').value,
+    email:   document.getElementById('bf-email').value,
+    status:  document.getElementById('bf-status').value,
+    lat:     parseFloat(document.getElementById('bf-lat').value) || 0,
+    lng:     parseFloat(document.getElementById('bf-lng').value) || 0,
+    market:  document.getElementById('bf-market').value,
+  };
+  if (editingBranchId) {
+    const idx = branches.findIndex(b => b.id === editingBranchId);
+    if (idx > -1) branches[idx] = newB;
+  } else {
+    branches.push(newB);
+  }
+  saveBranches(branches);
+  document.getElementById('branch-modal').remove();
+  loadBranchAdmin();
+  alert('✅ 브랜치 정보가 저장되었습니다. about.html 지도에 자동 반영됩니다.');
+}
+
+function toggleBranchStatus(id) {
+  const branches = getBranches();
+  const b = branches.find(x => x.id === id);
+  if (b) { b.status = b.status === 'open' ? 'planned' : 'open'; saveBranches(branches); loadBranchAdmin(); }
+}
+
+function deleteBranch(id) {
+  if (!confirm('이 브랜치를 삭제하시겠습니까?')) return;
+  const branches = getBranches().filter(b => b.id !== id);
+  saveBranches(branches);
+  loadBranchAdmin();
 }
 
 // ====== 이메일 인증 관련 함수 ======
@@ -911,6 +1115,7 @@ function confirmCode() { alert(인증 확인); }
       <div class="footer-col-title">회사</div>
       <a href="about.html">🏢 회사 소개</a>
       <a href="tokenomics.html">⚡ 토큰 경제</a>
+      <a href="poc.html">📊 기여도 시스템</a>
       <a href="roadmap.html">🗺️ 로드맵</a>
       <a href="faq.html">❓ FAQ</a>
     </div>
