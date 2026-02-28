@@ -28,6 +28,41 @@
   --surface: #f8fafc;
   --font: 'Inter', 'Noto Sans KR', sans-serif;
 }
+
+/* ── 네비바 공통 CSS ── */
+.balance{background:#f3f4f6;border-radius:999px;padding:6px 16px;display:flex;align-items:center;gap:16px;}
+.balance-item{display:flex;align-items:center;gap:6px;font-size:14px;}
+.balance-label{color:#6b7280;font-weight:500;}
+.balance-value{font-weight:700;color:#8b5cf6;}
+.avatar{width:36px;height:36px;background:#8b5cf6;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:15px;cursor:pointer;position:relative;user-select:none;}
+.dropdown{position:absolute;top:calc(100% + 8px);right:0;background:white;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 15px -3px rgba(0,0,0,.1);width:200px;display:none;z-index:1000;overflow:hidden;}
+.dropdown.show{display:block;}
+.dropdown-item{padding:12px 16px;cursor:pointer;font-size:14px;color:#1f2937;text-decoration:none;display:block;transition:background .15s;}
+.dropdown-item:hover{background:#f3f4f6;}
+.dropdown-item.danger{color:#ef4444;}
+.dropdown-item.charge{color:#8b5cf6;font-weight:700;}
+.dropdown-divider{height:1px;background:#e5e7eb;margin:4px 0;}
+.navbar{background:white;border-bottom:1px solid #e5e7eb;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;color:#1f2937;text-decoration:none;}
+.logo-icon{width:32px;height:32px;background:#8b5cf6;border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:16px;}
+.logo span{color:#8b5cf6;}
+.nav-right{display:flex;align-items:center;gap:12px;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 20px;border-radius:999px;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;border:none;text-decoration:none;}
+
+
+
+
+.btn-sm{padding:6px 14px;font-size:13px;}
+#global-controls button{background:rgba(139,92,246,.08)!important;border:1px solid rgba(139,92,246,.2)!important;color:#374151!important;}
+#global-controls button:hover{background:rgba(139,92,246,.15)!important;}
+
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 20px;border-radius:999px;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.2s;border:none;text-decoration:none;}
+.btn-sm{padding:6px 14px;font-size:13px;}
+.btn-primary{background:#8b5cf6;color:white;}
+.btn-primary:hover{background:#7c3aed;}
+.btn-outline{background:white;color:#1f2937;border:1px solid #e5e7eb;}
+.btn-outline:hover{background:#f9fafb;}
 </style>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -605,29 +640,74 @@ function goStep(n) {
   }
 }
 
-function finalSignup() {
+async function finalSignup() {
   const req = ['check-terms', 'check-privacy', 'check-copyright', 'check-token'];
   for (const id of req) {
-    if (!document.getElementById(id).checked) { alert('필수 약관에 모두 동의해 주세요.'); return; }
+    if (!document.getElementById(id)?.checked) { alert('필수 약관에 모두 동의해 주세요.'); return; }
   }
-  const user = {
-    id: Date.now(),
-    uid: 'tl_' + Date.now(),
-    email: verifiedEmail,
+
+  const password = document.getElementById('password').value;
+  const payload = {
+    email:          verifiedEmail,
     email_verified: true,
-    auth_provider: gmailVerified ? 'google' : 'email',
-    username: document.getElementById('username').value,
-    account_type: selectedType,
-    tl: 10000, tlc: 0,
-    identity_verified: false,
-    has_bank: !!document.getElementById('bank-account').value,
-    marketing_agree: document.getElementById('check-marketing').checked,
-    created_at: new Date().toISOString()
-    // ⚠️ 실명, 생년월일, 전화번호, 계좌번호는 localStorage 미저장
-    // 실제 환경에서는 HTTPS + AES-256 암호화 후 서버 DB에만 저장
+    auth_provider:  'email',
+    username:       document.getElementById('username').value,
+    account_type:   selectedType,
+    real_name:      document.getElementById('real-name').value,
+    birth_date:     document.getElementById('birth-date').value,
+    phone:          document.getElementById('phone').value,
+    nationality:    document.getElementById('nationality').value,
+    country:        document.getElementById('country').value,
+    bank_name:      document.getElementById('bank-name').value,
+    bank_holder:    document.getElementById('bank-holder').value,
+    bank_account:   document.getElementById('bank-account').value,
+    business_name:  document.getElementById('business-name')?.value || '',
+    business_no:    document.getElementById('business-no')?.value || '',
+    marketing_agree: document.getElementById('check-marketing')?.checked || false,
+    password
   };
-  localStorage.setItem('tl_user', JSON.stringify(user));
-  goStep('done');
+
+  // ── 백엔드 DB 저장 ──
+  try {
+    const res = await fetch('https://timelink-backend.mununglee.workers.dev/api/v1/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok && (data.success || data.token || data.user)) {
+      // 토큰 저장
+      const token = data.token || data.access_token || data.jwt || '';
+      localStorage.setItem('auth_token', token);
+      // 유저 정보 정규화
+      const u = data.user || data.data || {};
+      const userLocal = {
+        id:           u.id || Date.now(),
+        uid:          u.uid || 'tl_' + Date.now(),
+        email:        verifiedEmail,
+        username:     payload.username,
+        account_type: payload.account_type,
+        tl:           u.tl ?? u.tl_balance ?? 10000,
+        tlc:          u.tlc ?? u.tlc_balance ?? 0,
+        created_at:   new Date().toISOString()
+      };
+      localStorage.setItem('tl_user', JSON.stringify(userLocal));
+      goStep('done');
+    } else {
+      alert('가입 오류: ' + (data.message || data.error || data.msg || '잠시 후 다시 시도해주세요.'));
+    }
+  } catch(e) {
+    // 네트워크 오류 → 로컬 저장 후 완료
+    console.warn('API 오류, 로컬 저장:', e.message);
+    const userLocal = {
+      id: Date.now(), uid: 'tl_' + Date.now(),
+      email: verifiedEmail, username: payload.username,
+      account_type: payload.account_type, tl: 10000, tlc: 0,
+      created_at: new Date().toISOString()
+    };
+    localStorage.setItem('tl_user', JSON.stringify(userLocal));
+    goStep('done');
+  }
 }
 </script>
 <script src="i18n.js"></script>
