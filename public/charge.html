@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TL 충전 - TimeLink</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: Inter, sans-serif; background: #f8fafc; color: #0f172a; line-height: 1.5; }
+.navbar { background: white; border-bottom: 1px solid #e2e8f0; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 800; color: #0f172a; text-decoration: none; }
+.logo-icon { width: 32px; height: 32px; background: #8b5cf6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; }
+.logo span { color: #8b5cf6; }
+.nav-right { display: flex; align-items: center; gap: 12px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border-radius: 999px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; border: none; text-decoration: none; }
+.btn-primary { background: #8b5cf6; color: white; }
+.btn-primary:hover { background: #7c3aed; }
+.btn-outline { background: white; color: #1f2937; border: 1px solid #e5e7eb; }
+.btn-outline:hover { background: #f9fafb; }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+.balance { background: #f3f4f6; border-radius: 999px; padding: 6px 16px; display: flex; align-items: center; gap: 16px; }
+.balance-item { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.balance-label { color: #6b7280; font-weight: 500; }
+.balance-value { font-weight: 700; color: #8b5cf6; }
+.avatar { width: 36px; height: 36px; background: #8b5cf6; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; cursor: pointer; position: relative; }
+.dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); width: 200px; display: none; z-index: 1000; }
+.dropdown.show { display: block; }
+.dropdown-item { padding: 12px 16px; cursor: pointer; font-size: 14px; color: #1f2937; text-decoration: none; display: block; }
+.dropdown-item:hover { background: #f3f4f6; }
+.dropdown-item.danger { color: #ef4444; }
+.dropdown-item.charge { color: #8b5cf6; font-weight: 700; }
+.dropdown-divider { height: 1px; background: #f1f5f9; margin: 4px 0; }
+.tabs { background: white; border-bottom: 1px solid #e5e7eb; padding: 0 24px; display: flex; justify-content: center; gap: 4px; position: sticky; top: 64px; z-index: 90; overflow-x: auto; }
+.tab { padding: 12px 20px; font-size: 14px; font-weight: 600; color: #6b7280; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+.tab:hover { color: #8b5cf6; }
+.tab.active { color: #8b5cf6; border-bottom-color: #8b5cf6; }
+.hidden { display: none !important; }
+.container { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
+
+/* 현재 잔액 */
+.balance-card { background: linear-gradient(135deg, #1e1b4b, #312e81); border-radius: 24px; padding: 32px; color: white; margin-bottom: 40px; display: flex; align-items: center; justify-content: space-between; }
+.balance-card .tl-amount { font-size: 48px; font-weight: 800; color: #a78bfa; }
+.balance-card .tl-label { font-size: 14px; color: rgba(255,255,255,0.6); margin-bottom: 4px; }
+.balance-card .tlc-row { margin-top: 12px; font-size: 14px; color: rgba(255,255,255,0.7); }
+.balance-card .tlc-row span { color: #fbbf24; font-weight: 700; }
+
+/* 탭 선택 */
+.method-tabs { display: flex; gap: 4px; background: #f1f5f9; border-radius: 12px; padding: 4px; margin-bottom: 32px; }
+.method-tab { flex: 1; padding: 12px; border-radius: 8px; text-align: center; font-weight: 700; font-size: 15px; cursor: pointer; transition: all 0.2s; color: #6b7280; border: none; background: none; font-family: Inter, sans-serif; }
+.method-tab.active { background: white; color: #8b5cf6; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+/* 직접구매 섹션 */
+.section { display: none; }
+.section.active { display: block; }
+
+.package-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+.package-card { background: white; border-radius: 20px; padding: 24px; text-align: center; border: 2px solid #f1f5f9; cursor: pointer; transition: all 0.2s; position: relative; }
+.package-card:hover { border-color: #c4b5fd; transform: translateY(-4px); box-shadow: 0 8px 20px rgba(139,92,246,0.15); }
+.package-card.selected { border-color: #8b5cf6; background: #faf5ff; }
+.package-card.popular::before { content: '🔥 인기'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #8b5cf6; color: white; font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 999px; white-space: nowrap; }
+.package-tl { font-size: 28px; font-weight: 800; color: #8b5cf6; margin-bottom: 4px; }
+.package-price { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.package-bonus { font-size: 12px; color: #10b981; font-weight: 600; min-height: 18px; }
+.package-per { font-size: 11px; color: #9ca3af; margin-top: 8px; }
+
+.payment-box { background: white; border-radius: 20px; padding: 28px; border: 1px solid #f1f5f9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07); }
+.payment-box h3 { font-size: 16px; font-weight: 800; margin-bottom: 20px; }
+.pay-methods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
+.pay-method { border: 2px solid #e5e7eb; border-radius: 12px; padding: 14px 10px; text-align: center; cursor: pointer; transition: all 0.2s; font-size: 13px; font-weight: 600; color: #4b5563; }
+.pay-method:hover { border-color: #8b5cf6; color: #8b5cf6; }
+.pay-method.selected { border-color: #8b5cf6; background: #ede9fe; color: #8b5cf6; }
+.pay-method .pay-icon { font-size: 22px; display: block; margin-bottom: 6px; }
+.order-summary { background: #f8fafc; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+.order-row { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; }
+.order-row.total { font-weight: 800; font-size: 16px; border-top: 1px solid #e5e7eb; margin-top: 8px; padding-top: 12px; }
+
+/* 광고 시청 섹션 */
+.ad-hero { background: linear-gradient(135deg, #fef3c7, #fffbeb); border-radius: 20px; padding: 28px; text-align: center; margin-bottom: 28px; border: 1px solid #fde68a; }
+.ad-hero h3 { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+.ad-hero p { color: #6b7280; font-size: 14px; margin-bottom: 16px; }
+.ad-reward { display: inline-flex; align-items: center; gap: 8px; background: #f59e0b; color: white; padding: 8px 20px; border-radius: 999px; font-weight: 700; font-size: 16px; }
+
+.ad-grid { display: grid; gap: 14px; margin-bottom: 28px; }
+.ad-item { background: white; border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 16px; border: 1px solid #f1f5f9; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.ad-thumb { width: 64px; height: 64px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; }
+.ad-info { flex: 1; }
+.ad-title { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+.ad-desc { font-size: 13px; color: #6b7280; margin-bottom: 8px; }
+.ad-meta { display: flex; align-items: center; gap: 12px; }
+.ad-duration { font-size: 12px; color: #9ca3af; }
+.ad-tl-reward { font-size: 13px; font-weight: 700; color: #f59e0b; background: #fef3c7; padding: 3px 10px; border-radius: 999px; }
+.ad-btn { padding: 8px 20px; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; font-family: Inter, sans-serif; }
+.ad-btn.watch { background: #8b5cf6; color: white; }
+.ad-btn.watch:hover { background: #7c3aed; }
+.ad-btn.done { background: #d1fae5; color: #059669; cursor: default; }
+
+.daily-limit { background: #ede9fe; border-radius: 12px; padding: 16px; text-align: center; }
+.daily-limit p { font-size: 14px; color: #6b7280; }
+.daily-limit strong { color: #8b5cf6; }
+
+/* 광고 시청 모달 */
+.ad-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+.ad-modal.show { display: flex; }
+.ad-modal-box { background: #0f172a; border-radius: 24px; padding: 32px; width: 90%; max-width: 480px; text-align: center; color: white; }
+.ad-video-placeholder { background: linear-gradient(135deg, #1e293b, #334155); border-radius: 16px; height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 20px; }
+.ad-timer { font-size: 40px; font-weight: 800; color: #a78bfa; }
+.ad-skip { font-size: 13px; color: #6b7280; margin-top: 8px; }
+.ad-modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #e2e8f0; }
+.ad-progress { background: #334155; border-radius: 999px; height: 6px; overflow: hidden; margin-bottom: 12px; }
+.ad-progress-fill { background: #a78bfa; height: 100%; border-radius: 999px; transition: width 1s linear; }
+
+/* 푸터 */
+.page-footer { background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 48px 24px 24px; margin-top: 60px; }
+.footer-grid { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+.footer-logo { font-size: 18px; font-weight: 800; margin-bottom: 10px; color: #0f172a; }
+.footer-tagline { font-size: 13px; color: #9ca3af; line-height: 1.6; }
+.footer-col-title { font-size: 12px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; }
+.footer-col a { display: block; font-size: 14px; color: #6b7280; text-decoration: none; margin-bottom: 8px; transition: color 0.2s; }
+.footer-col a:hover { color: #8b5cf6; }
+.footer-bottom { max-width: 1100px; margin: 0 auto; padding-top: 24px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af; text-align: center; }
+@media (max-width: 768px) { .footer-grid { grid-template-columns: 1fr 1fr; gap: 28px; } .package-grid { grid-template-columns: repeat(2, 1fr); } .pay-methods { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="logo"><div class="logo-icon">⚡</div><div>Time<span>Link</span></div></a>
+  <div class="nav-right" id="nav-guest">
+    <a href="login.html" class="btn btn-outline btn-sm">로그인</a>
+    <a href="signup.html" class="btn btn-primary btn-sm">시작하기</a>
+  </div>
+  <div class="nav-right hidden" id="nav-auth">
+    <div class="balance">
+      <div class="balance-item"><span class="balance-label">TL</span><span class="balance-value" id="balance-tl">10,000</span></div>
+      <div class="balance-item"><span class="balance-label">TLC</span><span class="balance-value" id="balance-tlc">0.0000</span></div>
+    </div>
+    <div class="avatar" onclick="toggleDropdown()">
+      <span id="avatar-letter">U</span>
+      <div class="dropdown" id="dropdown">
+        <a href="wallet.html" class="dropdown-item">👛 지갑</a>
+        <a href="library.html" class="dropdown-item">🔍 라이브러리</a>
+        <a href="create.html" class="dropdown-item">📤 업로드</a>
+        <a href="dashboard.html" class="dropdown-item">📊 대시보드</a>
+        <div class="dropdown-divider"></div>
+        <a href="charge.html" class="dropdown-item charge">💳 TL 충전</a>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item danger" onclick="logout()">🚪 로그아웃</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="tabs">
+  <a href="index.html" class="tab">🏠 홈</a>
+  <a href="shareplace.html" class="tab">🛍️ SharePlace</a>
+  <a href="library.html" class="tab">🔍 라이브러리</a>
+  <a href="create.html" class="tab">📤 업로드</a>
+  <a href="radio.html" class="tab">☕ 카페방송</a>
+  <a href="car.html" class="tab">🎧 Moving Radio</a>
+  <a href="ads.html" class="tab">📣 광고</a>
+  <a href="wallet.html" class="tab">👛 지갑</a>
+  <a href="chart.html" class="tab">📊 차트</a>
+  <a href="dashboard.html" class="tab">📊 대시보드</a>
+</div>
+
+<div class="container">
+
+  <div style="margin-bottom:32px;">
+    <h1 style="font-size:28px; font-weight:800; margin-bottom:6px;">💳 TL 충전</h1>
+    <p style="color:#6b7280; font-size:14px;">광고 시청으로 무료 충전하거나, 직접 구매하세요.</p>
+  </div>
+
+  <!-- 현재 잔액 -->
+  <div class="balance-card">
+    <div>
+      <div class="tl-label">현재 TL 잔액</div>
+      <div class="tl-amount" id="cur-tl">10,000</div>
+      <div class="tlc-row">TLC 잔액 <span id="cur-tlc">0.0000</span></div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:13px; color:rgba(255,255,255,0.5); margin-bottom:8px;">오늘 충전한 TL</div>
+      <div style="font-size:24px; font-weight:800; color:#10b981;" id="today-charged">+0</div>
+      <div style="font-size:11px; color:rgba(255,255,255,0.4);">광고 시청 포함</div>
+    </div>
+  </div>
+
+  <!-- 방법 선택 탭 -->
+  <div class="method-tabs">
+    <button class="method-tab active" onclick="switchMethod('ad', this)">📺 광고 시청 (무료)</button>
+    <button class="method-tab" onclick="switchMethod('buy', this)">💳 직접 구매</button>
+  </div>
+
+  <!-- ── 광고 시청 섹션 ── -->
+  <div class="section active" id="section-ad">
+
+    <div class="ad-hero">
+      <h3>📺 광고 보고 TL 무료 충전!</h3>
+      <p>광고 1편을 시청하면 TL을 무료로 받을 수 있어요. 하루 최대 5,000 TL 충전 가능.</p>
+      <div class="ad-reward">⚡ 광고 1편 = 최대 500 TL</div>
+    </div>
+
+    <div class="ad-grid">
+      <div class="ad-item">
+        <div class="ad-thumb" style="background:#dbeafe;">🛒</div>
+        <div class="ad-info">
+          <div class="ad-title">쿠팡 로켓배송</div>
+          <div class="ad-desc">오늘 주문하면 내일 도착! 쿠팡 로켓배송</div>
+          <div class="ad-meta">
+            <span class="ad-duration">⏱ 30초</span>
+            <span class="ad-tl-reward">+300 TL</span>
+          </div>
+        </div>
+        <button class="ad-btn watch" onclick="watchAd(this, 300, 30)">시청하기</button>
+      </div>
+      <div class="ad-item">
+        <div class="ad-thumb" style="background:#dcfce7;">🎮</div>
+        <div class="ad-info">
+          <div class="ad-title">넥슨 신작 게임</div>
+          <div class="ad-desc">2024 기대작! 지금 사전등록하세요</div>
+          <div class="ad-meta">
+            <span class="ad-duration">⏱ 15초</span>
+            <span class="ad-tl-reward">+150 TL</span>
+          </div>
+        </div>
+        <button class="ad-btn watch" onclick="watchAd(this, 150, 15)">시청하기</button>
+      </div>
+      <div class="ad-item">
+        <div class="ad-thumb" style="background:#fef3c7;">🍔</div>
+        <div class="ad-info">
+          <div class="ad-title">배달의민족 특가</div>
+          <div class="ad-desc">지금 주문하면 할인 쿠폰 증정!</div>
+          <div class="ad-meta">
+            <span class="ad-duration">⏱ 30초</span>
+            <span class="ad-tl-reward">+300 TL</span>
+          </div>
+        </div>
+        <button class="ad-btn watch" onclick="watchAd(this, 300, 30)">시청하기</button>
+      </div>
+      <div class="ad-item">
+        <div class="ad-thumb" style="background:#fce7f3;">💄</div>
+        <div class="ad-info">
+          <div class="ad-title">올리브영 뷰티</div>
+          <div class="ad-desc">이번 주 올리브영 베스트 아이템</div>
+          <div class="ad-meta">
+            <span class="ad-duration">⏱ 60초</span>
+            <span class="ad-tl-reward">+500 TL</span>
+          </div>
+        </div>
+        <button class="ad-btn watch" onclick="watchAd(this, 500, 60)">시청하기</button>
+      </div>
+      <div class="ad-item">
+        <div class="ad-thumb" style="background:#ede9fe;">📱</div>
+        <div class="ad-info">
+          <div class="ad-title">삼성 갤럭시 신제품</div>
+          <div class="ad-desc">Galaxy S24 지금 만나보세요</div>
+          <div class="ad-meta">
+            <span class="ad-duration">⏱ 30초</span>
+            <span class="ad-tl-reward">+300 TL</span>
+          </div>
+        </div>
+        <button class="ad-btn watch" onclick="watchAd(this, 300, 30)">시청하기</button>
+      </div>
+      <div class="ad-item">
+        <div class="ad-thumb" style="background:#ecfdf5;">✈️</div>
+        <div class="ad-info">
+          <div class="ad-title">야놀자 여행 특가</div>
+          <div class="ad-desc">이번 주말 여행, 야놀자에서!</div>
+          <div class="ad-meta">
+            <span class="ad-duration">⏱ 15초</span>
+            <span class="ad-tl-reward">+150 TL</span>
+          </div>
+        </div>
+        <button class="ad-btn watch" onclick="watchAd(this, 150, 15)">시청하기</button>
+      </div>
+    </div>
+
+    <div class="daily-limit">
+      <p>오늘 남은 광고 시청 가능 횟수: <strong id="ad-remaining">10</strong>회 · 최대 <strong>5,000 TL</strong> 충전 가능</p>
+    </div>
+  </div>
+
+  <!-- ── 직접 구매 섹션 ── -->
+  <div class="section" id="section-buy">
+
+    <div class="package-grid">
+      <div class="package-card" onclick="selectPackage(this, 1000, 990)">
+        <div class="package-tl">1,000 TL</div>
+        <div class="package-price">₩990</div>
+        <div class="package-bonus"></div>
+        <div class="package-per">1 TL = ₩0.99</div>
+      </div>
+      <div class="package-card" onclick="selectPackage(this, 5000, 4500)">
+        <div class="package-tl">5,000 TL</div>
+        <div class="package-price">₩4,500</div>
+        <div class="package-bonus">+500 TL 보너스</div>
+        <div class="package-per">1 TL = ₩0.90</div>
+      </div>
+      <div class="package-card popular" onclick="selectPackage(this, 10000, 8900)">
+        <div class="package-tl">10,000 TL</div>
+        <div class="package-price">₩8,900</div>
+        <div class="package-bonus">+1,500 TL 보너스</div>
+        <div class="package-per">1 TL = ₩0.89</div>
+      </div>
+      <div class="package-card" onclick="selectPackage(this, 30000, 24900)">
+        <div class="package-tl">30,000 TL</div>
+        <div class="package-price">₩24,900</div>
+        <div class="package-bonus">+5,000 TL 보너스</div>
+        <div class="package-per">1 TL = ₩0.83</div>
+      </div>
+      <div class="package-card" onclick="selectPackage(this, 50000, 39900)">
+        <div class="package-tl">50,000 TL</div>
+        <div class="package-price">₩39,900</div>
+        <div class="package-bonus">+10,000 TL 보너스</div>
+        <div class="package-per">1 TL = ₩0.80</div>
+      </div>
+      <div class="package-card" onclick="selectPackage(this, 100000, 74900)">
+        <div class="package-tl">100,000 TL</div>
+        <div class="package-price">₩74,900</div>
+        <div class="package-bonus">+25,000 TL 보너스</div>
+        <div class="package-per">1 TL = ₩0.75</div>
+      </div>
+    </div>
+
+    <div class="payment-box">
+      <h3>💳 결제 수단 선택</h3>
+      <div class="pay-methods">
+        <div class="pay-method selected" onclick="selectPay(this)">
+          <span class="pay-icon">💳</span>신용카드
+        </div>
+        <div class="pay-method" onclick="selectPay(this)">
+          <span class="pay-icon">🏦</span>계좌이체
+        </div>
+        <div class="pay-method" onclick="selectPay(this)">
+          <span class="pay-icon">📱</span>카카오페이
+        </div>
+        <div class="pay-method" onclick="selectPay(this)">
+          <span class="pay-icon">🍎</span>애플페이
+        </div>
+      </div>
+
+      <div class="order-summary">
+        <div class="order-row"><span>선택한 패키지</span><span id="summary-tl">—</span></div>
+        <div class="order-row"><span>보너스 TL</span><span id="summary-bonus" style="color:#10b981;">—</span></div>
+        <div class="order-row total"><span>결제 금액</span><span id="summary-price">—</span></div>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%; justify-content:center; font-size:16px; padding:14px;" onclick="purchase()">
+        지금 충전하기 ⚡
+      </button>
+      <p style="text-align:center; font-size:12px; color:#9ca3af; margin-top:12px;">결제는 안전하게 암호화되어 처리됩니다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 광고 시청 모달 -->
+<div class="ad-modal" id="ad-modal">
+  <div class="ad-modal-box">
+    <div class="ad-video-placeholder">
+      <div style="font-size:14px; color:#94a3b8; margin-bottom:16px;">📺 광고 재생 중...</div>
+      <div class="ad-timer" id="ad-timer">15</div>
+      <div class="ad-skip" id="ad-skip-msg">잠시 후 종료됩니다</div>
+    </div>
+    <div class="ad-modal-title" id="ad-modal-title">광고를 끝까지 시청하면 TL이 지급됩니다</div>
+    <div class="ad-progress">
+      <div class="ad-progress-fill" id="ad-progress-fill" style="width:0%"></div>
+    </div>
+    <button class="btn btn-outline" id="ad-close-btn" style="width:100%; justify-content:center; display:none;" onclick="closeAd()">
+      ✅ 완료 — TL 수령하기
+    </button>
+  </div>
+</div>
+
+<footer class="page-footer">
+  <div class="footer-grid">
+    <div class="footer-col">
+      <div class="footer-logo"><span style="background:#8b5cf6;border-radius:6px;padding:2px 8px;color:white;font-weight:800;">⚡</span> TimeLink</div>
+      <p class="footer-tagline">창작자를 위한 새로운 수익 플랫폼</p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">서비스</div>
+      <a href="shareplace.html">🛍️ SharePlace</a>
+      <a href="creator.html">🎵 창작자 프로그램</a>
+      <a href="pricing.html">💳 요금제</a>
+      <a href="radio.html">☕ 카페방송</a>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">회사</div>
+      <a href="about.html">🏢 회사 소개</a>
+      <a href="tokenomics.html">⚡ 토큰 경제</a>
+      <a href="roadmap.html">🗺️ 로드맵</a>
+      <a href="faq.html">❓ FAQ</a>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">법무</div>
+      <a href="terms.html">이용약관</a>
+      <a href="privacy.html">개인정보처리방침</a>
+      <a href="copyright.html">저작권 정책</a>
+      <a href="copyright.html#report" style="color:#ef4444;">저작권 침해 신고</a>
+    </div>
+  </div>
+  <div class="footer-bottom">⚖️ 모든 파일의 창작권은 창작자에게 있습니다. © 2024 TimeLink. All rights reserved.</div>
+</footer>
+
+<script>
+// 방법 전환
+function switchMethod(method, btn) {
+  document.querySelectorAll('.method-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('section-' + method).classList.add('active');
+}
+
+// 패키지 선택
+let selectedTL = 0, selectedPrice = 0, selectedBonus = 0;
+const bonusMap = {1000:0, 5000:500, 10000:1500, 30000:5000, 50000:10000, 100000:25000};
+
+function selectPackage(card, tl, price) {
+  document.querySelectorAll('.package-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  selectedTL = tl;
+  selectedPrice = price;
+  selectedBonus = bonusMap[tl] || 0;
+  document.getElementById('summary-tl').textContent = tl.toLocaleString() + ' TL';
+  document.getElementById('summary-bonus').textContent = selectedBonus > 0 ? '+' + selectedBonus.toLocaleString() + ' TL' : '없음';
+  document.getElementById('summary-price').textContent = '₩' + price.toLocaleString();
+}
+
+function selectPay(el) {
+  document.querySelectorAll('.pay-method').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function purchase() {
+  if (!selectedTL) { alert('패키지를 선택해주세요!'); return; }
+  const total = selectedTL + selectedBonus;
+  const user = JSON.parse(localStorage.getItem('tl_user') || '{}');
+  user.tl = (user.tl || 10000) + total;
+  localStorage.setItem('tl_user', JSON.stringify(user));
+  document.getElementById('cur-tl').textContent = user.tl.toLocaleString();
+  document.getElementById('balance-tl').textContent = user.tl.toLocaleString();
+  const today = (parseInt(document.getElementById('today-charged').textContent.replace('+','').replace(',','')) || 0) + total;
+  document.getElementById('today-charged').textContent = '+' + today.toLocaleString();
+  alert(`✅ ${total.toLocaleString()} TL 충전 완료!\n현재 잔액: ${user.tl.toLocaleString()} TL`);
+}
+
+// 광고 시청
+let adTimer = null, adReward = 0, adBtn = null;
+
+function watchAd(btn, reward, duration) {
+  adReward = reward;
+  adBtn = btn;
+  document.getElementById('ad-timer').textContent = duration;
+  document.getElementById('ad-modal-title').textContent = `광고를 끝까지 시청하면 ${reward} TL이 지급됩니다`;
+  document.getElementById('ad-progress-fill').style.width = '0%';
+  document.getElementById('ad-close-btn').style.display = 'none';
+  document.getElementById('ad-skip-msg').textContent = '잠시 후 종료됩니다';
+  document.getElementById('ad-modal').classList.add('show');
+
+  let remaining = duration;
+  adTimer = setInterval(() => {
+    remaining--;
+    document.getElementById('ad-timer').textContent = remaining;
+    document.getElementById('ad-progress-fill').style.width = ((duration - remaining) / duration * 100) + '%';
+    if (remaining <= 0) {
+      clearInterval(adTimer);
+      document.getElementById('ad-timer').textContent = '✓';
+      document.getElementById('ad-skip-msg').textContent = '시청 완료!';
+      document.getElementById('ad-close-btn').style.display = 'flex';
+    }
+  }, 1000);
+}
+
+function closeAd() {
+  clearInterval(adTimer);
+  document.getElementById('ad-modal').classList.remove('show');
+  const user = JSON.parse(localStorage.getItem('tl_user') || '{}');
+  user.tl = (user.tl || 10000) + adReward;
+  localStorage.setItem('tl_user', JSON.stringify(user));
+  document.getElementById('cur-tl').textContent = user.tl.toLocaleString();
+  document.getElementById('balance-tl').textContent = user.tl.toLocaleString();
+  const today = (parseInt(document.getElementById('today-charged').textContent.replace('+','').replace(',','')) || 0) + adReward;
+  document.getElementById('today-charged').textContent = '+' + today.toLocaleString();
+  const rem = parseInt(document.getElementById('ad-remaining').textContent) - 1;
+  document.getElementById('ad-remaining').textContent = Math.max(0, rem);
+  if (adBtn) { adBtn.className = 'ad-btn done'; adBtn.textContent = '✅ 완료'; adBtn.onclick = null; }
+  alert(`🎉 ${adReward} TL 지급 완료!`);
+}
+
+// 네비게이션
+function toggleDropdown() { document.getElementById('dropdown')?.classList.toggle('show'); }
+document.addEventListener('click', e => { if (!e.target.closest('.avatar')) document.getElementById('dropdown')?.classList.remove('show'); });
+function logout() { localStorage.removeItem('tl_user'); window.location.href = 'index.html'; }
+(function() {
+  const user = JSON.parse(localStorage.getItem('tl_user') || 'null');
+  if (user) {
+    document.getElementById('nav-auth')?.classList.remove('hidden');
+    document.getElementById('nav-guest')?.classList.add('hidden');
+    const tl = document.getElementById('balance-tl'); if (tl) tl.textContent = (user.tl || 10000).toLocaleString();
+    const tlc = document.getElementById('balance-tlc'); if (tlc) tlc.textContent = (user.tlc || 0).toFixed(4);
+    const av = document.getElementById('avatar-letter'); if (av) av.textContent = (user.username || 'U').charAt(0).toUpperCase();
+    document.getElementById('cur-tl').textContent = (user.tl || 10000).toLocaleString();
+    document.getElementById('cur-tlc').textContent = (user.tlc || 0).toFixed(4);
+  } else {
+    document.getElementById('nav-auth')?.classList.add('hidden');
+    document.getElementById('nav-guest')?.classList.remove('hidden');
+  }
+})();
+</script>
+</body>
+</html>
