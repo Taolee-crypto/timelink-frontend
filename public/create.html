@@ -1,13 +1,41 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+<style>
+:root {
+  --purple: #8b5cf6;
+  --purple-dark: #7c3aed;
+  --purple-darker: #6d28d9;
+  --purple-light: #ede9fe;
+  --purple-pale: #f5f3ff;
+  --green: #10b981;
+  --green-light: #d1fae5;
+  --yellow: #f59e0b;
+  --yellow-light: #fef3c7;
+  --red: #ef4444;
+  --red-light: #fee2e2;
+  --blue: #3b82f6;
+  --blue-light: #dbeafe;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-500: #6b7280;
+  --gray-700: #374151;
+  --gray-900: #111827;
+  --text: #0f172a;
+  --border: #e5e7eb;
+  --surface: #f8fafc;
+  --font: 'Inter', 'Noto Sans KR', sans-serif;
+}
+</style>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>업로드 - TimeLink</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; line-height: 1.5; }
+body { font-family: var(--font); background: #f8fafc; color: #0f172a; line-height: 1.5; }
 
 /* 네비게이션 */
 .navbar { background: white; border-bottom: 1px solid #e2e8f0; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
@@ -222,16 +250,31 @@ nav #global-controls button:hover {
   background: rgba(139,92,246,0.15) !important;
 }
 </style>
+  <meta property="og:title" content="업로드 - TimeLink">
+  <meta property="og:description" content="당신의 음악을 업로드하고 수익을 받으세요. 1초 재생 = 1 TL.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://taolee-crypto.github.io/timelink-frontend/public/create.html">
+  <meta property="og:image" content="https://taolee-crypto.github.io/timelink-frontend/public/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="업로드 - TimeLink">
+  <meta name="twitter:description" content="당신의 음악을 업로드하고 수익을 받으세요. 1초 재생 = 1 TL.">
+  <meta name="description" content="당신의 음악을 업로드하고 수익을 받으세요. 1초 재생 = 1 TL.">
+  <link rel="canonical" href="https://taolee-crypto.github.io/timelink-frontend/public/create.html">
 </head>
 <body>
 
 <nav class="navbar">
   <a href="index.html" class="logo"><div class="logo-icon">⚡</div><div>Time<span>Link</span></div></a>
+  <div id="global-controls" style="display:flex;align-items:center;gap:6px;margin-left:auto;margin-right:12px;"><div id="lang-selector"></div><div id="currency-selector"></div></div>
   <div class="nav-right" id="nav-guest">
     <a href="login.html" class="btn btn-outline btn-sm" data-i18n="nav_login">로그인</a>
     <a href="signup.html" class="btn btn-primary btn-sm">시작하기</a>
   </div>
   <div class="nav-right hidden" id="nav-auth">
+    <div class="balance">
+      <div class="balance-item"><span class="balance-label">TL</span><span class="balance-value" id="balance-tl">0</span></div>
+      <div class="balance-item"><span class="balance-label">TLC</span><span class="balance-value" id="balance-tlc">0.0000</span></div>
+    </div>
     <div class="balance">
       <div class="balance-item"><span class="balance-label">TL</span><span class="balance-value" id="user-tl">10,000</span></div>
     </div>
@@ -241,6 +284,8 @@ nav #global-controls button:hover {
         <a href="wallet.html" class="dropdown-item">👛 지갑</a>
         <a href="library.html" class="dropdown-item">🔍 라이브러리</a>
         <a href="create.html" class="dropdown-item">📤 업로드</a>
+        <a href="charge.html" class="dropdown-item charge">💳 TL 충전</a>
+        <div class="dropdown-divider"></div>
         <div class="dropdown-item danger" onclick="logout()">🚪 로그아웃</div>
       </div>
     </div>
@@ -525,7 +570,7 @@ nav #global-controls button:hover {
     </div>
   </div>
   <div class="footer-bottom">
-    ⚖️ 모든 파일의 창작권은 창작자에게 있습니다. © 2024 TimeLink. All rights reserved.
+    ⚖️ 모든 파일의 창작권은 창작자에게 있습니다. © 2025 TimeLink. All rights reserved.
   </div>
 </footer>
 
@@ -994,6 +1039,51 @@ document.addEventListener("DOMContentLoaded", function() {
     CURRENCY.renderSelector("currency-selector");
   }
 });
+</script>
+<script>
+// ── 공통 인증 & 글로벌 초기화 ──
+(function(){
+  var currentUser = null;
+  try { currentUser = JSON.parse(localStorage.getItem('tl_user') || 'null'); } catch(e){}
+
+  function toggleDropdown(){ var d=document.getElementById('dropdown'); if(d) d.classList.toggle('show'); }
+  window.toggleDropdown = toggleDropdown;
+
+  function logout(){ localStorage.removeItem('tl_user'); localStorage.removeItem('auth_token'); window.location.href='index.html'; }
+  window.logout = logout;
+
+  function updateNavbar(){
+    var navAuth=document.getElementById('nav-auth');
+    var navGuest=document.getElementById('nav-guest');
+    var balTl=document.getElementById('balance-tl');
+    var balTlc=document.getElementById('balance-tlc');
+    var avL=document.getElementById('avatar-letter');
+    if(currentUser){
+      if(navAuth) navAuth.classList.remove('hidden');
+      if(navGuest) navGuest.classList.add('hidden');
+      if(balTl) balTl.textContent = (currentUser.tl||0).toLocaleString();
+      if(balTlc) balTlc.textContent = parseFloat(currentUser.tlc||0).toFixed(4);
+      if(avL) avL.textContent = (currentUser.username||'U').charAt(0).toUpperCase();
+    } else {
+      if(navAuth) navAuth.classList.add('hidden');
+      if(navGuest) navGuest.classList.remove('hidden');
+    }
+  }
+  window.updateNavbar = updateNavbar;
+
+  document.addEventListener('click', function(e){
+    if(!e.target.closest('.avatar') && !e.target.closest('#dropdown')){
+      var d=document.getElementById('dropdown');
+      if(d) d.classList.remove('show');
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', function(){
+    updateNavbar();
+    if(typeof I18N!=='undefined'){ I18N.lang=I18N.detect(); I18N.renderSelector('lang-selector'); I18N.applyAll(); }
+    if(typeof CURRENCY!=='undefined'){ CURRENCY.current=CURRENCY.detect(); CURRENCY.renderSelector('currency-selector'); CURRENCY.applyAll(); }
+  });
+})();
 </script>
 </body>
 </html>
