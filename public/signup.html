@@ -122,7 +122,6 @@ body { font-family: Inter, sans-serif; background: #f8fafc; color: #0f172a; line
 select.input-field { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
 .hidden { display: none !important; }
 </style>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -151,39 +150,9 @@ select.input-field { appearance: none; background-image: url("data:image/svg+xml
     <!-- STEP 1: Gmail 인증 -->
     <div class="step active" id="step-1">
       <div class="step-title">Gmail로 본인 확인</div>
-      <div class="step-desc">Google 계정으로 이메일 인증을 완료하세요. 수익 정산 시 본인 확인에 사용됩니다.</div>
-      <!-- Google Identity Services 공식 버튼 -->
-      <!-- ⚠️ CLIENT_ID를 Google Cloud Console에서 발급받은 값으로 교체하세요 -->
-      <div id="g_id_onload"
-        data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
-        data-context="signup"
-        data-ux_mode="popup"
-        data-callback="handleGoogleCallback"
-        data-auto_prompt="false">
-      </div>
-      <div class="g_id_signin"
-        data-type="standard"
-        data-shape="rectangular"
-        data-theme="outline"
-        data-text="continue_with"
-        data-size="large"
-        data-locale="ko"
-        data-width="440"
-        style="display:flex; justify-content:center; margin-bottom:16px;">
-      </div>
-      <!-- Client ID 미설정 시 폴백 버튼 -->
-      <div id="google-fallback" style="display:none;">
-        <button class="btn-google" onclick="googleAuthDemo()">
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          Google 계정으로 계속하기 (데모)
-        </button>
-      </div>
-      <div class="divider">또는 이메일로 직접 가입</div>
+      <div class="step-desc">이메일로 인증코드를 받아 본인 확인을 완료하세요. 수익 정산 시 본인 확인에 사용됩니다.</div>
+      <!-- 이메일 인증 (email-worker.mununglee.workers.dev 연동) -->
+      
       <div class="input-group">
         <label class="input-label">이메일 주소 <span class="required">*</span></label>
         <div style="display:flex;gap:8px;">
@@ -197,7 +166,7 @@ select.input-field { appearance: none; background-image: url("data:image/svg+xml
           <input type="text" id="verify-code" class="input-field" placeholder="6자리 코드" maxlength="6" style="flex:1;letter-spacing:4px;font-size:18px;font-weight:700;text-align:center;">
           <button onclick="checkCode()" style="padding:12px 16px;background:#10b981;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;">확인</button>
         </div>
-        <div class="input-hint" id="code-hint">이메일로 발송된 6자리 코드를 입력하세요. (데모 코드: <strong>123456</strong>)</div>
+        <div class="input-hint" id="code-hint">이메일로 발송된 6자리 코드를 입력하세요.</div>
       </div>
     </div>
 
@@ -397,73 +366,104 @@ select.input-field { appearance: none; background-image: url("data:image/svg+xml
 <script>
 let currentStep = 1, gmailVerified = false, verifiedEmail = '', selectedType = 'personal';
 
-// ── Google OAuth 콜백 ──
-// Google Identity Services가 JWT credential을 반환
-function handleGoogleCallback(response) {
+// ── 이메일 인증 (email-worker.mununglee.workers.dev) ──
+const EMAIL_WORKER = 'https://email-worker.mununglee.workers.dev';
+let generatedCode = '';
+
+async function sendVerifyCode() {
+  const email = document.getElementById('email').value.trim();
+  if (!email || !email.includes('@')) { alert('올바른 이메일 주소를 입력해주세요.'); return; }
+
+  const btn = document.getElementById('send-btn');
+  btn.textContent = '발송 중...';
+  btn.disabled = true;
+
+  // 6자리 랜덤 코드 생성
+  generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+  verifiedEmail = email;
+
+  const htmlBody = `
+    <div style="font-family:Inter,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:16px;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="background:#8b5cf6;display:inline-block;padding:8px 16px;border-radius:8px;color:white;font-size:20px;font-weight:800;">⚡ TimeLink</div>
+      </div>
+      <h2 style="font-size:22px;font-weight:800;margin-bottom:8px;">이메일 인증 코드</h2>
+      <p style="color:#6b7280;margin-bottom:24px;">아래 6자리 코드를 입력해 이메일 인증을 완료하세요.</p>
+      <div style="background:white;border-radius:12px;padding:24px;text-align:center;border:2px solid #8b5cf6;margin-bottom:24px;">
+        <div style="font-size:40px;font-weight:800;letter-spacing:12px;color:#8b5cf6;">${generatedCode}</div>
+      </div>
+      <p style="font-size:12px;color:#9ca3af;">이 코드는 10분간 유효합니다. 본인이 요청하지 않은 경우 이 이메일을 무시하세요.</p>
+    </div>`;
+
   try {
-    // JWT payload 디코딩 (서버 검증 없이 클라이언트 파싱 - 데모용)
-    // 실제 환경에서는 반드시 서버에서 google.oauth2.id_token.verify_oauth2_token()으로 검증
-    const payload = JSON.parse(atob(response.credential.split('.')[1]));
-    verifiedEmail = payload.email;
-    gmailVerified = true;
-
-    // 닉네임 자동 채우기
-    const suggestName = payload.name?.replace(/\s/g, '') || payload.email.split('@')[0];
-    document.getElementById('username').value = suggestName;
-
-    // 인증 완료 배지 업데이트
-    document.getElementById('gmail-email-display').textContent = verifiedEmail;
-    document.getElementById('gmail-badge').classList.remove('hidden');
-
-    goStep(2);
+    const res = await fetch(EMAIL_WORKER + '/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: email,
+        subject: '[TimeLink] 이메일 인증 코드',
+        body: htmlBody
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('verify-group').classList.remove('hidden');
+      btn.textContent = '재발송';
+      btn.disabled = false;
+      btn.style.background = '#6b7280';
+      // 코드 만료 타이머 (10분)
+      setTimeout(() => { generatedCode = ''; }, 600000);
+      // 카운트다운 표시
+      startCountdown();
+    } else {
+      throw new Error(data.error || '발송 실패');
+    }
   } catch(e) {
-    console.error('Google 인증 오류:', e);
-    alert('Google 인증 처리 중 오류가 발생했습니다. 이메일로 가입해주세요.');
+    console.error(e);
+    alert('이메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.\n오류: ' + e.message);
+    btn.textContent = '인증코드 발송';
+    btn.disabled = false;
   }
 }
 
-// Client ID 미설정 시 데모 모드
-function googleAuthDemo() {
-  verifiedEmail = 'demo@gmail.com';
-  gmailVerified = true;
-  document.getElementById('username').value = 'demo_user';
-  goStep(2);
-}
-
-// Google GIS 로드 확인 - Client ID가 없으면 폴백 버튼 표시
-window.addEventListener('load', function() {
-  setTimeout(function() {
-    const gBtn = document.querySelector('.g_id_signin iframe');
-    const clientId = document.getElementById('g_id_onload')?.getAttribute('data-client_id');
-    if (!gBtn || !clientId || clientId.includes('YOUR_GOOGLE')) {
-      document.getElementById('google-fallback').style.display = 'block';
+function startCountdown() {
+  let sec = 180;
+  const hint = document.getElementById('code-hint');
+  const timer = setInterval(() => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    hint.textContent = `코드 유효 시간: ${m}:${s.toString().padStart(2,'0')} (10분 이내 입력)`;
+    hint.style.color = '#6b7280';
+    sec--;
+    if (sec < 0) {
+      clearInterval(timer);
+      hint.textContent = '⏰ 코드가 만료되었습니다. 재발송해주세요.';
+      hint.style.color = '#ef4444';
     }
-  }, 2000);
-});
-
-function sendVerifyCode() {
-  const email = document.getElementById('email').value;
-  if (!email || !email.includes('@')) { alert('올바른 이메일을 입력해주세요.'); return; }
-  verifiedEmail = email;
-  document.getElementById('verify-group').classList.remove('hidden');
-  document.getElementById('send-btn').textContent = '재발송';
-  document.getElementById('send-btn').style.background = '#6b7280';
-  alert('[데모] ' + email + '로 인증코드 발송\n테스트 코드: 123456');
+  }, 1000);
 }
 
 function checkCode() {
-  if (document.getElementById('verify-code').value === '123456') {
+  const input = document.getElementById('verify-code').value.trim();
+  const hint = document.getElementById('code-hint');
+  if (!generatedCode) {
+    hint.textContent = '⏰ 코드가 만료되었습니다. 재발송해주세요.';
+    hint.style.color = '#ef4444';
+    return;
+  }
+  if (input === generatedCode) {
     gmailVerified = true;
-    const hint = document.getElementById('code-hint');
     hint.textContent = '✅ 이메일 인증 완료!';
     hint.style.color = '#10b981';
+    document.getElementById('gmail-email-display').textContent = verifiedEmail;
     setTimeout(() => goStep(2), 700);
   } else {
-    const hint = document.getElementById('code-hint');
-    hint.textContent = '❌ 코드가 올바르지 않습니다.';
+    hint.textContent = '❌ 코드가 올바르지 않습니다. 다시 확인해주세요.';
     hint.style.color = '#ef4444';
   }
 }
+
+
 
 function selectType(type) {
   selectedType = type;
