@@ -5,68 +5,542 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>회원가입 - TimeLink</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!--
+  ══════════════════════════════════════════════════════
+  [DB 테이블 설계 - 추후 백엔드 구현 시 사용]
+
+  TABLE: users
+  ─────────────────────────────────────────────────────
+  id                BIGINT AUTO_INCREMENT PRIMARY KEY
+  uid               VARCHAR(64) UNIQUE          -- Google UID 또는 자체 발급
+  email             VARCHAR(255) UNIQUE NOT NULL
+  email_verified    BOOLEAN DEFAULT FALSE
+  username          VARCHAR(50) UNIQUE NOT NULL
+  password_hash     VARCHAR(255)                -- bcrypt, Google 로그인 시 NULL
+  auth_provider     ENUM("google","email")      -- 로그인 방식
+
+  -- 개인 정보 (수익 정산용 / 암호화 저장)
+  real_name         VARCHAR(100)                -- 실명
+  birth_date        DATE                        -- 생년월일
+  phone             VARCHAR(20)                 -- 전화번호
+  phone_verified    BOOLEAN DEFAULT FALSE
+  nationality       VARCHAR(10)                 -- 국적 코드 (KR, US ...)
+  country           VARCHAR(10)                 -- 거주 국가
+
+  -- 계정 유형
+  account_type      ENUM("personal","business") DEFAULT "personal"
+  business_name     VARCHAR(200)                -- 사업자명
+  business_no       VARCHAR(20)                 -- 사업자등록번호
+
+  -- 수익 정산 계좌 (암호화 저장 필수)
+  bank_name         VARCHAR(50)
+  bank_account      VARCHAR(255)                -- AES-256 암호화
+  bank_holder       VARCHAR(100)
+  account_verified  BOOLEAN DEFAULT FALSE       -- 1원 인증 여부
+
+  -- TL / TLC 잔액
+  tl_balance        BIGINT DEFAULT 10000
+  tlc_balance       DECIMAL(18,8) DEFAULT 0
+
+  -- 본인인증 (송금 시 필요)
+  identity_verified BOOLEAN DEFAULT FALSE       -- PASS/아이핀 인증 여부
+  identity_method   VARCHAR(50)                 -- pass, ipin, bank
+  identity_at       DATETIME
+
+  -- 마케팅
+  marketing_agree   BOOLEAN DEFAULT FALSE
+
+  -- 메타
+  created_at        DATETIME DEFAULT NOW()
+  updated_at        DATETIME
+  last_login_at     DATETIME
+  status            ENUM("active","suspended","deleted") DEFAULT "active"
+  ══════════════════════════════════════════════════════
+-->
+
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; line-height: 1.5; }
+body { font-family: Inter, sans-serif; background: #f8fafc; color: #0f172a; line-height: 1.5; min-height: 100vh; }
 .navbar { background: white; border-bottom: 1px solid #e2e8f0; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
 .logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 800; text-decoration: none; color: #0f172a; }
-.logo-icon { width: 32px; height: 32px; background: #8b5cf6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; }
+.logo-icon { width: 32px; height: 32px; background: #8b5cf6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; }
 .logo span { color: #8b5cf6; }
-.main-content { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 64px); padding: 20px; }
-.signup-card { background: white; border-radius: 24px; padding: 32px; width: 100%; max-width: 440px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-.title { font-size: 24px; font-weight: 800; text-align: center; margin-bottom: 8px; }
-.subtitle { color: #64748b; text-align: center; margin-bottom: 24px; }
+.main-content { display: flex; align-items: flex-start; justify-content: center; min-height: calc(100vh - 64px); padding: 40px 20px 80px; }
+.signup-card { background: white; border-radius: 24px; padding: 40px; width: 100%; max-width: 520px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+
+/* 진행 바 */
+.progress-bar { display: flex; align-items: center; margin-bottom: 36px; }
+.step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; transition: all 0.3s; }
+.step-dot.done { background: #8b5cf6; color: white; }
+.step-dot.active { background: #8b5cf6; color: white; box-shadow: 0 0 0 4px #ede9fe; }
+.step-dot.pending { background: #f1f5f9; color: #9ca3af; }
+.step-line { flex: 1; height: 2px; background: #f1f5f9; margin: 0 4px; transition: background 0.3s; }
+.step-line.done { background: #8b5cf6; }
+.step { display: none; }
+.step.active { display: block; }
+.step-title { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+.step-desc { font-size: 14px; color: #6b7280; margin-bottom: 28px; }
+
+/* 입력 */
 .input-group { margin-bottom: 16px; }
-.input-group input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; }
-.btn { width: 100%; padding: 12px; background: #8b5cf6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.input-label { font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 6px; display: block; }
+.required { color: #ef4444; margin-left: 2px; }
+.optional { color: #9ca3af; font-weight: 400; font-size: 12px; margin-left: 4px; }
+.input-field { width: 100%; padding: 12px 16px; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 14px; font-family: Inter, sans-serif; outline: none; transition: border-color 0.2s; }
+.input-field:focus { border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139,92,246,0.1); }
+.input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.input-hint { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+.input-hint.err { color: #ef4444; }
+.btn-primary { width: 100%; padding: 14px; background: #8b5cf6; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: Inter, sans-serif; margin-top: 8px; }
+.btn-primary:hover { background: #7c3aed; }
+.btn-secondary { width: 100%; padding: 12px; background: white; color: #6b7280; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: Inter, sans-serif; margin-top: 8px; }
+.btn-google { width: 100%; padding: 14px; background: white; color: #374151; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: Inter, sans-serif; display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px; transition: all 0.2s; }
+.btn-google:hover { background: #f9fafb; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: #9ca3af; font-size: 13px; }
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: #f1f5f9; }
+.gmail-verified { background: #d1fae5; border: 1px solid #6ee7b7; border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.gmail-check { width: 36px; height: 36px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0; }
+.type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.type-card { border: 2px solid #e5e7eb; border-radius: 16px; padding: 24px 16px; text-align: center; cursor: pointer; transition: all 0.2s; }
+.type-card:hover { border-color: #c4b5fd; }
+.type-card.selected { border-color: #8b5cf6; background: #faf5ff; }
+.type-card .icon { font-size: 36px; margin-bottom: 10px; }
+.type-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.type-card p { font-size: 12px; color: #6b7280; }
+.check-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+.check-item:last-child { border-bottom: none; }
+.check-item input { width: 18px; height: 18px; accent-color: #8b5cf6; flex-shrink: 0; margin-top: 2px; cursor: pointer; }
+.check-item label { font-size: 14px; cursor: pointer; flex: 1; }
+.check-item label a { color: #8b5cf6; text-decoration: none; }
+.check-all { border-bottom: 2px solid #e5e7eb !important; }
+.check-all label { font-weight: 700; }
+.skip-notice { background: #fef3c7; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #92400e; margin-bottom: 16px; }
+.success-box { text-align: center; padding: 20px 0; }
+.tl-grant { background: linear-gradient(135deg, #ede9fe, #faf5ff); border-radius: 16px; padding: 20px; margin: 20px 0; }
+.tl-amount { font-size: 36px; font-weight: 800; color: #8b5cf6; }
+select.input-field { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+.hidden { display: none !important; }
 </style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
+
 <nav class="navbar">
   <a href="index.html" class="logo"><div class="logo-icon">⚡</div><div>Time<span>Link</span></div></a>
+  <a href="login.html" style="font-size:14px;color:#6b7280;text-decoration:none;">이미 계정이 있나요? <strong style="color:#8b5cf6;">로그인</strong></a>
 </nav>
 
 <div class="main-content">
   <div class="signup-card">
-    <div class="title">계정 만들기</div>
-    <div class="subtitle">지금 가입하면 10,000 TL 무료</div>
-    
-    <form onsubmit="handleSignup(event)">
-      <div class="input-group"><input type="text" id="username" placeholder="닉네임" required></div>
-      <div class="input-group"><input type="email" id="email" placeholder="이메일" required></div>
-      <div class="input-group"><input type="password" id="password" placeholder="비밀번호" required></div>
-      <button type="submit" class="btn">가입하기</button>
-    </form>
-    
-    <div style="text-align: center; margin-top: 16px;">
-      이미 계정이 있나요? <a href="login.html" style="color: #8b5cf6;">로그인</a>
+
+    <div class="progress-bar" id="progress-bar">
+      <div class="step-dot active" id="dot-1">1</div>
+      <div class="step-line" id="line-1"></div>
+      <div class="step-dot pending" id="dot-2">2</div>
+      <div class="step-line" id="line-2"></div>
+      <div class="step-dot pending" id="dot-3">3</div>
+      <div class="step-line" id="line-3"></div>
+      <div class="step-dot pending" id="dot-4">4</div>
+      <div class="step-line" id="line-4"></div>
+      <div class="step-dot pending" id="dot-5">5</div>
+      <div class="step-line" id="line-5"></div>
+      <div class="step-dot pending" id="dot-6">✓</div>
     </div>
+
+    <!-- STEP 1: Gmail 인증 -->
+    <div class="step active" id="step-1">
+      <div class="step-title">Gmail로 본인 확인</div>
+      <div class="step-desc">Google 계정으로 이메일 인증을 완료하세요. 수익 정산 시 본인 확인에 사용됩니다.</div>
+      <!-- Google Identity Services 공식 버튼 -->
+      <!-- ⚠️ CLIENT_ID를 Google Cloud Console에서 발급받은 값으로 교체하세요 -->
+      <div id="g_id_onload"
+        data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+        data-context="signup"
+        data-ux_mode="popup"
+        data-callback="handleGoogleCallback"
+        data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin"
+        data-type="standard"
+        data-shape="rectangular"
+        data-theme="outline"
+        data-text="continue_with"
+        data-size="large"
+        data-locale="ko"
+        data-width="440"
+        style="display:flex; justify-content:center; margin-bottom:16px;">
+      </div>
+      <!-- Client ID 미설정 시 폴백 버튼 -->
+      <div id="google-fallback" style="display:none;">
+        <button class="btn-google" onclick="googleAuthDemo()">
+          <svg width="20" height="20" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          Google 계정으로 계속하기 (데모)
+        </button>
+      </div>
+      <div class="divider">또는 이메일로 직접 가입</div>
+      <div class="input-group">
+        <label class="input-label">이메일 주소 <span class="required">*</span></label>
+        <div style="display:flex;gap:8px;">
+          <input type="email" id="email" class="input-field" placeholder="example@gmail.com" style="flex:1;">
+          <button onclick="sendVerifyCode()" style="padding:12px 16px;background:#8b5cf6;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:Inter,sans-serif;" id="send-btn">인증코드 발송</button>
+        </div>
+      </div>
+      <div class="input-group hidden" id="verify-group">
+        <label class="input-label">인증 코드 <span class="required">*</span></label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="verify-code" class="input-field" placeholder="6자리 코드" maxlength="6" style="flex:1;letter-spacing:4px;font-size:18px;font-weight:700;text-align:center;">
+          <button onclick="checkCode()" style="padding:12px 16px;background:#10b981;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;">확인</button>
+        </div>
+        <div class="input-hint" id="code-hint">이메일로 발송된 6자리 코드를 입력하세요. (데모 코드: <strong>123456</strong>)</div>
+      </div>
+    </div>
+
+    <!-- STEP 2: 기본 정보 -->
+    <div class="step" id="step-2">
+      <div class="step-title">기본 정보 입력</div>
+      <div class="step-desc">플랫폼에서 사용할 닉네임과 비밀번호를 설정하세요.</div>
+      <div class="gmail-verified hidden" id="gmail-badge">
+        <div class="gmail-check">✓</div>
+        <div><strong id="gmail-email-display" style="display:block;font-weight:700;font-size:14px;color:#065f46;"></strong><span style="font-size:13px;color:#059669;">이메일 인증 완료</span></div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">닉네임 <span class="required">*</span></label>
+        <input type="text" id="username" class="input-field" placeholder="사용할 닉네임 (2~20자)">
+        <div class="input-hint">다른 창작자들에게 보이는 이름입니다.</div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">비밀번호 <span class="required">*</span></label>
+        <input type="password" id="password" class="input-field" placeholder="8자 이상, 영문+숫자 포함">
+      </div>
+      <div class="input-group">
+        <label class="input-label">비밀번호 확인 <span class="required">*</span></label>
+        <input type="password" id="password-confirm" class="input-field" placeholder="비밀번호를 다시 입력">
+        <div class="input-hint err hidden" id="pw-error">비밀번호가 일치하지 않습니다.</div>
+      </div>
+      <button class="btn-primary" onclick="goStep(3)">다음 →</button>
+    </div>
+
+    <!-- STEP 3: 개인 정보 -->
+    <div class="step" id="step-3">
+      <div class="step-title">개인 정보</div>
+      <div class="step-desc">수익 정산 및 저작권 관리를 위한 정보입니다. 암호화되어 안전하게 저장됩니다.</div>
+      <div class="input-row">
+        <div class="input-group">
+          <label class="input-label">실명 <span class="required">*</span></label>
+          <input type="text" id="real-name" class="input-field" placeholder="홍길동">
+        </div>
+        <div class="input-group">
+          <label class="input-label">생년월일 <span class="required">*</span></label>
+          <input type="date" id="birth-date" class="input-field">
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">전화번호 <span class="required">*</span></label>
+        <div style="display:flex;gap:8px;">
+          <input type="tel" id="phone" class="input-field" placeholder="010-0000-0000" style="flex:1;">
+          <button onclick="alert('📱 PASS 인증은 추후 연동 예정입니다.')" style="padding:12px 14px;background:#f1f5f9;color:#6b7280;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:Inter,sans-serif;">인증<br><span style="font-size:10px;">(추후)</span></button>
+        </div>
+        <div class="input-hint">송금 시 본인인증에 사용됩니다.</div>
+      </div>
+      <div class="input-row">
+        <div class="input-group">
+          <label class="input-label">국적 <span class="required">*</span></label>
+          <select id="nationality" class="input-field">
+            <option value="">선택</option>
+            <option value="KR" selected>🇰🇷 대한민국</option>
+            <option value="US">🇺🇸 미국</option>
+            <option value="JP">🇯🇵 일본</option>
+            <option value="CN">🇨🇳 중국</option>
+            <option value="GB">🇬🇧 영국</option>
+            <option value="OTHER">기타</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label class="input-label">거주 국가 <span class="required">*</span></label>
+          <select id="country" class="input-field">
+            <option value="">선택</option>
+            <option value="KR" selected>🇰🇷 대한민국</option>
+            <option value="US">🇺🇸 미국</option>
+            <option value="JP">🇯🇵 일본</option>
+            <option value="CN">🇨🇳 중국</option>
+            <option value="GB">🇬🇧 영국</option>
+            <option value="OTHER">기타</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="goStep(4)">다음 →</button>
+      <button class="btn-secondary" onclick="goStep(2)">← 이전</button>
+    </div>
+
+    <!-- STEP 4: 계정 유형 -->
+    <div class="step" id="step-4">
+      <div class="step-title">계정 유형 선택</div>
+      <div class="step-desc">어떤 목적으로 TimeLink를 사용하실 건가요? 나중에 변경 가능합니다.</div>
+      <div class="type-grid">
+        <div class="type-card selected" id="type-personal" onclick="selectType('personal')">
+          <div class="icon">🎵</div>
+          <h3>개인 창작자</h3>
+          <p>음악, 영상, 강의를 만들고 수익을 창출하는 개인</p>
+        </div>
+        <div class="type-card" id="type-business" onclick="selectType('business')">
+          <div class="icon">🏢</div>
+          <h3>사업자</h3>
+          <p>카페, 매장 등 사업자등록증이 있는 경우</p>
+        </div>
+      </div>
+      <div class="hidden" id="business-fields">
+        <div class="input-group">
+          <label class="input-label">사업자명 <span class="required">*</span></label>
+          <input type="text" id="business-name" class="input-field" placeholder="상호명">
+        </div>
+        <div class="input-group">
+          <label class="input-label">사업자등록번호 <span class="required">*</span></label>
+          <input type="text" id="business-no" class="input-field" placeholder="000-00-00000">
+        </div>
+      </div>
+      <button class="btn-primary" onclick="goStep(5)">다음 →</button>
+      <button class="btn-secondary" onclick="goStep(3)">← 이전</button>
+    </div>
+
+    <!-- STEP 5: 정산 계좌 -->
+    <div class="step" id="step-5">
+      <div class="step-title">수익 정산 계좌</div>
+      <div class="step-desc">TL 수익을 현금으로 받기 위한 계좌입니다. 지금 입력하지 않아도 됩니다.</div>
+      <div class="skip-notice">💡 지금은 건너뛰고 나중에 <strong>지갑 → 계좌 설정</strong>에서 등록 가능합니다. 미등록 시 TL 출금이 제한됩니다.</div>
+      <div class="input-row">
+        <div class="input-group">
+          <label class="input-label">은행명 <span class="optional">(선택)</span></label>
+          <select id="bank-name" class="input-field">
+            <option value="">선택 안 함</option>
+            <option>카카오뱅크</option><option>토스뱅크</option><option>국민은행</option>
+            <option>신한은행</option><option>우리은행</option><option>하나은행</option>
+            <option>농협은행</option><option>기업은행</option><option>SC제일은행</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label class="input-label">예금주 <span class="optional">(선택)</span></label>
+          <input type="text" id="bank-holder" class="input-field" placeholder="실명과 동일">
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">계좌번호 <span class="optional">(선택)</span></label>
+        <input type="text" id="bank-account" class="input-field" placeholder="- 없이 숫자만 입력">
+        <div class="input-hint">계좌번호는 AES-256 암호화되어 서버에만 저장됩니다.</div>
+      </div>
+      <button class="btn-primary" onclick="goStep(6)">다음 →</button>
+      <button class="btn-secondary" onclick="goStep(4)">← 이전</button>
+    </div>
+
+    <!-- STEP 6: 약관 동의 -->
+    <div class="step" id="step-6">
+      <div class="step-title">약관 동의</div>
+      <div class="step-desc">TimeLink 서비스 이용을 위한 약관에 동의해 주세요.</div>
+      <div style="border:1px solid #f1f5f9;border-radius:12px;padding:4px 16px;margin-bottom:20px;">
+        <div class="check-item check-all">
+          <input type="checkbox" id="check-all" onchange="toggleAll(this)">
+          <label for="check-all">전체 동의 (필수 + 선택 포함)</label>
+        </div>
+        <div class="check-item">
+          <input type="checkbox" id="check-terms" class="chk-req">
+          <label for="check-terms"><strong>[필수]</strong> <a href="terms.html" target="_blank">이용약관</a> 동의</label>
+        </div>
+        <div class="check-item">
+          <input type="checkbox" id="check-privacy" class="chk-req">
+          <label for="check-privacy"><strong>[필수]</strong> <a href="privacy.html" target="_blank">개인정보처리방침</a> 동의</label>
+        </div>
+        <div class="check-item">
+          <input type="checkbox" id="check-copyright" class="chk-req">
+          <label for="check-copyright"><strong>[필수]</strong> <a href="copyright.html" target="_blank">저작권 정책</a> 동의</label>
+        </div>
+        <div class="check-item">
+          <input type="checkbox" id="check-token" class="chk-req">
+          <label for="check-token"><strong>[필수]</strong> TL/TLC 토큰 경제 시스템 이용 동의</label>
+        </div>
+        <div class="check-item">
+          <input type="checkbox" id="check-marketing">
+          <label for="check-marketing">[선택] 마케팅 정보 수신 동의 (이메일, SMS)</label>
+        </div>
+        <div class="check-item">
+          <input type="checkbox" id="check-identity">
+          <label for="check-identity">[선택] 수익 출금 시 본인인증 필요 사항 안내 확인</label>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="finalSignup()">🎉 TimeLink 시작하기</button>
+      <button class="btn-secondary" onclick="goStep(5)">← 이전</button>
+    </div>
+
+    <!-- 완료 -->
+    <div class="step" id="step-done">
+      <div class="success-box">
+        <div style="font-size:64px;margin-bottom:16px;">🎉</div>
+        <h2 style="font-size:24px;font-weight:800;margin-bottom:8px;">가입 완료!</h2>
+        <p style="color:#6b7280;margin-bottom:4px;">TimeLink 창작자 커뮤니티에 오신 걸 환영합니다.</p>
+        <div class="tl-grant">
+          <div class="tl-amount">10,000 TL</div>
+          <div style="font-size:14px;color:#6b7280;">회원가입 보너스 지급 완료 ✅</div>
+        </div>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:24px;">⚠️ TL 수익 출금을 위해서는 계좌 등록 및 본인인증이 필요합니다.<br>지갑 메뉴에서 언제든지 등록하실 수 있습니다.</p>
+        <a href="index.html" style="display:block;width:100%;padding:14px;background:#8b5cf6;color:white;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;text-align:center;margin-bottom:8px;">홈으로 이동 →</a>
+        <a href="create.html" style="display:block;width:100%;padding:12px;background:white;color:#8b5cf6;border:1.5px solid #8b5cf6;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;text-align:center;">📤 첫 트랙 업로드하기</a>
+      </div>
+    </div>
+
   </div>
 </div>
 
 <script>
-function handleSignup(e) {
-    e.preventDefault();
-    const username = document.getElementById('username').value;
-    const email = document.getElementById('email').value;
-    
-    const user = {
-        id: Date.now(),
-        username: username,
-        email: email,
-        tl: 10000,
-        tlc: 0,
-        purchaseTL: 5000,
-        earnedTL: 2300
-    };
-    
-    localStorage.setItem('tl_user', JSON.stringify(user));
-    alert('🎉 회원가입 완료! 10,000 TL 지급!');
-    window.location.href = 'index.html';
+let currentStep = 1, gmailVerified = false, verifiedEmail = '', selectedType = 'personal';
+
+// ── Google OAuth 콜백 ──
+// Google Identity Services가 JWT credential을 반환
+function handleGoogleCallback(response) {
+  try {
+    // JWT payload 디코딩 (서버 검증 없이 클라이언트 파싱 - 데모용)
+    // 실제 환경에서는 반드시 서버에서 google.oauth2.id_token.verify_oauth2_token()으로 검증
+    const payload = JSON.parse(atob(response.credential.split('.')[1]));
+    verifiedEmail = payload.email;
+    gmailVerified = true;
+
+    // 닉네임 자동 채우기
+    const suggestName = payload.name?.replace(/\s/g, '') || payload.email.split('@')[0];
+    document.getElementById('username').value = suggestName;
+
+    // 인증 완료 배지 업데이트
+    document.getElementById('gmail-email-display').textContent = verifiedEmail;
+    document.getElementById('gmail-badge').classList.remove('hidden');
+
+    goStep(2);
+  } catch(e) {
+    console.error('Google 인증 오류:', e);
+    alert('Google 인증 처리 중 오류가 발생했습니다. 이메일로 가입해주세요.');
+  }
+}
+
+// Client ID 미설정 시 데모 모드
+function googleAuthDemo() {
+  verifiedEmail = 'demo@gmail.com';
+  gmailVerified = true;
+  document.getElementById('username').value = 'demo_user';
+  goStep(2);
+}
+
+// Google GIS 로드 확인 - Client ID가 없으면 폴백 버튼 표시
+window.addEventListener('load', function() {
+  setTimeout(function() {
+    const gBtn = document.querySelector('.g_id_signin iframe');
+    const clientId = document.getElementById('g_id_onload')?.getAttribute('data-client_id');
+    if (!gBtn || !clientId || clientId.includes('YOUR_GOOGLE')) {
+      document.getElementById('google-fallback').style.display = 'block';
+    }
+  }, 2000);
+});
+
+function sendVerifyCode() {
+  const email = document.getElementById('email').value;
+  if (!email || !email.includes('@')) { alert('올바른 이메일을 입력해주세요.'); return; }
+  verifiedEmail = email;
+  document.getElementById('verify-group').classList.remove('hidden');
+  document.getElementById('send-btn').textContent = '재발송';
+  document.getElementById('send-btn').style.background = '#6b7280';
+  alert('[데모] ' + email + '로 인증코드 발송\n테스트 코드: 123456');
+}
+
+function checkCode() {
+  if (document.getElementById('verify-code').value === '123456') {
+    gmailVerified = true;
+    const hint = document.getElementById('code-hint');
+    hint.textContent = '✅ 이메일 인증 완료!';
+    hint.style.color = '#10b981';
+    setTimeout(() => goStep(2), 700);
+  } else {
+    const hint = document.getElementById('code-hint');
+    hint.textContent = '❌ 코드가 올바르지 않습니다.';
+    hint.style.color = '#ef4444';
+  }
+}
+
+function selectType(type) {
+  selectedType = type;
+  document.getElementById('type-personal').classList.toggle('selected', type === 'personal');
+  document.getElementById('type-business').classList.toggle('selected', type === 'business');
+  document.getElementById('business-fields').classList.toggle('hidden', type !== 'business');
+}
+
+function toggleAll(el) {
+  document.querySelectorAll('#step-6 input[type=checkbox]').forEach(c => c.checked = el.checked);
+}
+
+function goStep(n) {
+  if (n === 2 && !gmailVerified && !verifiedEmail) { alert('먼저 이메일 인증을 완료해주세요.'); return; }
+  if (n === 3) {
+    const un = document.getElementById('username').value;
+    const pw = document.getElementById('password').value;
+    const pwc = document.getElementById('password-confirm').value;
+    if (!un || un.length < 2) { alert('닉네임을 2자 이상 입력해주세요.'); return; }
+    if (!pw || pw.length < 8) { alert('비밀번호를 8자 이상 입력해주세요.'); return; }
+    if (pw !== pwc) { document.getElementById('pw-error').classList.remove('hidden'); return; }
+    document.getElementById('pw-error').classList.add('hidden');
+  }
+  if (n === 4) {
+    if (!document.getElementById('real-name').value) { alert('실명을 입력해주세요.'); return; }
+    if (!document.getElementById('birth-date').value) { alert('생년월일을 입력해주세요.'); return; }
+    if (!document.getElementById('phone').value) { alert('전화번호를 입력해주세요.'); return; }
+  }
+
+  if (n === 'done') {
+    document.getElementById('progress-bar').style.display = 'none';
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById('step-done').classList.add('active');
+    return;
+  }
+
+  currentStep = n;
+  document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('active', i === n - 1));
+
+  for (let i = 1; i <= 6; i++) {
+    const dot = document.getElementById('dot-' + i);
+    if (i < n) { dot.className = 'step-dot done'; dot.textContent = '✓'; }
+    else if (i === n) { dot.className = 'step-dot active'; dot.textContent = i < 6 ? i : '✓'; }
+    else { dot.className = 'step-dot pending'; dot.textContent = i < 6 ? i : '✓'; }
+    if (i < 6) document.getElementById('line-' + i).className = 'step-line' + (i < n ? ' done' : '');
+  }
+  if (n === 2 && (gmailVerified || verifiedEmail)) {
+    const badge = document.getElementById('gmail-badge');
+    badge.classList.remove('hidden');
+    document.getElementById('gmail-email-display').textContent = verifiedEmail;
+  }
+}
+
+function finalSignup() {
+  const req = ['check-terms', 'check-privacy', 'check-copyright', 'check-token'];
+  for (const id of req) {
+    if (!document.getElementById(id).checked) { alert('필수 약관에 모두 동의해 주세요.'); return; }
+  }
+  const user = {
+    id: Date.now(),
+    uid: 'tl_' + Date.now(),
+    email: verifiedEmail,
+    email_verified: true,
+    auth_provider: gmailVerified ? 'google' : 'email',
+    username: document.getElementById('username').value,
+    account_type: selectedType,
+    tl: 10000, tlc: 0,
+    identity_verified: false,
+    has_bank: !!document.getElementById('bank-account').value,
+    marketing_agree: document.getElementById('check-marketing').checked,
+    created_at: new Date().toISOString()
+    // ⚠️ 실명, 생년월일, 전화번호, 계좌번호는 localStorage 미저장
+    // 실제 환경에서는 HTTPS + AES-256 암호화 후 서버 DB에만 저장
+  };
+  localStorage.setItem('tl_user', JSON.stringify(user));
+  goStep('done');
 }
 </script>
 </body>
 </html>
-
-
-
