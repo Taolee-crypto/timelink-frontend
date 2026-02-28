@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moving Radio - TimeLink</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: Inter, sans-serif; background: #f8fafc; color: #0f172a; line-height: 1.5; }
+.navbar { background: white; border-bottom: 1px solid #e2e8f0; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 800; color: #0f172a; text-decoration: none; }
+.logo-icon { width: 32px; height: 32px; background: #8b5cf6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; }
+.logo span { color: #8b5cf6; }
+.nav-right { display: flex; align-items: center; gap: 12px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border-radius: 999px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; border: none; text-decoration: none; }
+.btn-primary { background: #8b5cf6; color: white; }
+.btn-primary:hover { background: #7c3aed; }
+.btn-outline { background: white; color: #1f2937; border: 1px solid #e5e7eb; }
+.btn-outline:hover { background: #f9fafb; }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+.balance { background: #f3f4f6; border-radius: 999px; padding: 6px 16px; display: flex; align-items: center; gap: 16px; }
+.balance-item { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.balance-label { color: #6b7280; font-weight: 500; }
+.balance-value { font-weight: 700; color: #8b5cf6; }
+.avatar { width: 36px; height: 36px; background: #8b5cf6; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; cursor: pointer; position: relative; }
+.dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); width: 200px; display: none; z-index: 1000; }
+.dropdown.show { display: block; }
+.dropdown-item { padding: 12px 16px; cursor: pointer; font-size: 14px; color: #1f2937; text-decoration: none; display: block; }
+.dropdown-item:hover { background: #f3f4f6; }
+.dropdown-item.danger { color: #ef4444; }
+.tabs { background: white; border-bottom: 1px solid #e5e7eb; padding: 0 24px; display: flex; justify-content: center; gap: 4px; position: sticky; top: 64px; z-index: 90; overflow-x: auto; }
+.tab { padding: 12px 20px; font-size: 14px; font-weight: 600; color: #6b7280; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+.tab:hover { color: #8b5cf6; }
+.tab.active { color: #8b5cf6; border-bottom-color: #8b5cf6; }
+.container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+
+/* 모드 선택 */
+.mode-selector { display: flex; gap: 12px; margin-bottom: 32px; }
+.mode-btn { flex: 1; padding: 20px; border-radius: 16px; border: 2px solid #e5e7eb; background: white; cursor: pointer; text-align: center; transition: all 0.2s; font-family: Inter, sans-serif; }
+.mode-btn.active { border-color: #8b5cf6; background: #ede9fe; }
+.mode-btn .mode-icon { font-size: 32px; margin-bottom: 8px; }
+.mode-btn .mode-name { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.mode-btn .mode-desc { font-size: 12px; color: #6b7280; }
+
+/* 현재 재생 */
+.now-playing { background: linear-gradient(135deg, #1e1b4b, #312e81); border-radius: 24px; padding: 32px; color: white; margin-bottom: 32px; display: flex; align-items: center; gap: 28px; }
+.album-art { width: 100px; height: 100px; background: linear-gradient(135deg, #8b5cf6, #a78bfa); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 44px; flex-shrink: 0; animation: spin 8s linear infinite paused; }
+.album-art.playing { animation-play-state: running; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.track-info { flex: 1; }
+.track-title { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.track-artist { font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 16px; }
+.progress-bar { background: rgba(255,255,255,0.2); border-radius: 999px; height: 4px; margin-bottom: 8px; cursor: pointer; }
+.progress-fill { background: #a78bfa; height: 100%; border-radius: 999px; width: 35%; transition: width 0.5s; }
+.time-row { display: flex; justify-content: space-between; font-size: 12px; color: rgba(255,255,255,0.6); }
+.controls { display: flex; align-items: center; gap: 20px; }
+.ctrl-btn { background: none; border: none; color: white; font-size: 24px; cursor: pointer; opacity: 0.8; transition: opacity 0.2s; }
+.ctrl-btn:hover { opacity: 1; }
+.ctrl-btn.play { width: 52px; height: 52px; background: white; color: #8b5cf6; border-radius: 50%; font-size: 20px; display: flex; align-items: center; justify-content: center; }
+.tl-badge { background: rgba(255,255,255,0.15); border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 700; color: #a78bfa; margin-top: 12px; display: inline-block; }
+
+/* 레이아웃 */
+.car-layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; }
+
+/* 사이드바 - BPM 필터 */
+.sidebar { background: white; border-radius: 20px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07); border: 1px solid #f1f5f9; height: fit-content; position: sticky; top: 140px; }
+.sidebar-title { font-size: 16px; font-weight: 800; margin-bottom: 20px; }
+.filter-group { margin-bottom: 24px; }
+.filter-label { font-size: 13px; font-weight: 700; color: #6b7280; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.bpm-slider { width: 100%; accent-color: #8b5cf6; margin-bottom: 8px; }
+.bpm-value { font-size: 20px; font-weight: 800; color: #8b5cf6; text-align: center; }
+.bpm-desc { font-size: 12px; color: #9ca3af; text-align: center; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { padding: 6px 12px; border-radius: 999px; border: 1px solid #e5e7eb; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: white; color: #6b7280; }
+.chip.active { background: #ede9fe; border-color: #8b5cf6; color: #8b5cf6; }
+.ai-recommendation { background: linear-gradient(135deg, #ede9fe, #f5f3ff); border-radius: 12px; padding: 16px; margin-top: 8px; }
+.ai-recommendation .ai-label { font-size: 11px; font-weight: 700; color: #8b5cf6; margin-bottom: 6px; }
+.ai-recommendation p { font-size: 13px; color: #4b5563; }
+
+/* 트랙 목록 */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.section-title { font-size: 18px; font-weight: 800; }
+.track-list { display: grid; gap: 10px; margin-bottom: 32px; }
+.track-item { background: white; border-radius: 16px; padding: 16px 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #f1f5f9; cursor: pointer; transition: all 0.2s; }
+.track-item:hover { box-shadow: 0 4px 12px rgba(139,92,246,0.15); border-color: #c4b5fd; transform: translateY(-1px); }
+.track-item.active { border-color: #8b5cf6; background: #faf5ff; }
+.track-num { font-size: 13px; color: #9ca3af; width: 20px; text-align: center; }
+.track-thumb { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #8b5cf6, #a78bfa); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.track-meta { flex: 1; }
+.track-name { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+.track-artist-sm { font-size: 12px; color: #6b7280; }
+.track-bpm { font-size: 12px; font-weight: 700; color: #8b5cf6; background: #ede9fe; padding: 3px 10px; border-radius: 999px; }
+.track-tl { font-size: 12px; color: #9ca3af; }
+.track-duration { font-size: 13px; color: #9ca3af; }
+
+/* 큐 */
+.queue-section { background: white; border-radius: 20px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07); border: 1px solid #f1f5f9; }
+
+.hidden { display: none !important; }
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .car-layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; }
+  .mode-selector { flex-direction: column; }
+  .now-playing { flex-direction: column; text-align: center; }
+  .controls { justify-content: center; }
+}
+
+/* 푸터 */
+.page-footer { background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 48px 24px 24px; margin-top: 60px; }
+.footer-grid { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+.footer-logo { font-size: 18px; font-weight: 800; margin-bottom: 10px; color: #0f172a; }
+.footer-tagline { font-size: 13px; color: #9ca3af; line-height: 1.6; }
+.footer-col-title { font-size: 12px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; }
+.footer-col a { display: block; font-size: 14px; color: #6b7280; text-decoration: none; margin-bottom: 8px; transition: color 0.2s; }
+.footer-col a:hover { color: #8b5cf6; }
+.footer-bottom { max-width: 1100px; margin: 0 auto; padding-top: 24px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af; text-align: center; }
+@media (max-width: 768px) { .footer-grid { grid-template-columns: 1fr 1fr; gap: 28px; } }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="logo"><div class="logo-icon">⚡</div><div>Time<span>Link</span></div></a>
+  <div class="nav-right" id="nav-guest">
+    <a href="login.html" class="btn btn-outline btn-sm">로그인</a>
+    <a href="signup.html" class="btn btn-primary btn-sm">시작하기</a>
+  </div>
+  <div class="nav-right hidden" id="nav-auth">
+    <div class="balance">
+      <div class="balance-item"><span class="balance-label">TL</span><span class="balance-value" id="balance-tl">10,000</span></div>
+      <div class="balance-item"><span class="balance-label">TLC</span><span class="balance-value" id="balance-tlc">0.0000</span></div>
+    </div>
+    <div class="avatar" onclick="toggleDropdown()">
+      <span id="avatar-letter">U</span>
+      <div class="dropdown" id="dropdown">
+        <a href="wallet.html" class="dropdown-item">👛 지갑</a>
+        <a href="library.html" class="dropdown-item">🔍 라이브러리</a>
+        <a href="create.html" class="dropdown-item">📤 업로드</a>
+        <a href="dashboard.html" class="dropdown-item">📊 대시보드</a>
+        <div class="dropdown-item danger" onclick="logout()">🚪 로그아웃</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="tabs">
+  <a href="index.html" class="tab">🏠 홈</a>
+  <a href="shareplace.html" class="tab">🛍️ SharePlace</a>
+  <a href="library.html" class="tab">🔍 라이브러리</a>
+  <a href="create.html" class="tab">📤 업로드</a>
+  <a href="radio.html" class="tab">☕ 카페방송</a>
+  <a href="car.html" class="tab active">🎧 Moving Radio</a>
+  <a href="ads.html" class="tab">📣 광고</a>
+  <a href="wallet.html" class="tab">👛 지갑</a>
+  <a href="chart.html" class="tab">📊 차트</a>
+  <a href="dashboard.html" class="tab">📊 대시보드</a>
+</div>
+
+<div class="container">
+
+  <!-- 페이지 타이틀 -->
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
+    <div>
+      <h1 style="font-size:28px; font-weight:800; display:flex; align-items:center; gap:10px;">🎧 Moving Radio</h1>
+      <p style="color:#6b7280; font-size:14px; margin-top:4px;">이동 중 최적화된 음악 추천 — BPM, 상황에 맞게 자동 큐레이션</p>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="shuffleAll()">🔀 전체 셔플</button>
+  </div>
+
+  <!-- 모드 선택 -->
+  <div class="mode-selector">
+    <button class="mode-btn active" onclick="setMode(this, 'walk')">
+      <div class="mode-icon">🚶</div>
+      <div class="mode-name">Walk Mode</div>
+      <div class="mode-desc">85–110 BPM · 산책, 조깅</div>
+    </button>
+    <button class="mode-btn" onclick="setMode(this, 'run')">
+      <div class="mode-icon">🏃</div>
+      <div class="mode-name">Run Mode</div>
+      <div class="mode-desc">140–180 BPM · 달리기, 운동</div>
+    </button>
+    <button class="mode-btn" onclick="setMode(this, 'drive')">
+      <div class="mode-icon">🚗</div>
+      <div class="mode-name">Drive Mode</div>
+      <div class="mode-desc">100–130 BPM · 드라이브</div>
+    </button>
+    <button class="mode-btn" onclick="setMode(this, 'focus')">
+      <div class="mode-icon">🎯</div>
+      <div class="mode-name">Focus Mode</div>
+      <div class="mode-desc">60–80 BPM · 집중, 독서</div>
+    </button>
+  </div>
+
+  <!-- 현재 재생 -->
+  <div class="now-playing">
+    <div class="album-art playing" id="album-art">🎵</div>
+    <div class="track-info">
+      <div class="track-title" id="now-title">Midnight Drive</div>
+      <div class="track-artist" id="now-artist">DJ Horizon · Electronic</div>
+      <div class="progress-bar" onclick="seekTrack(event, this)">
+        <div class="progress-fill" id="progress"></div>
+      </div>
+      <div class="time-row">
+        <span id="cur-time">1:12</span>
+        <span id="tot-time">3:28</span>
+      </div>
+      <div class="tl-badge">⚡ 재생 중 · 1 TL/초 소모</div>
+    </div>
+    <div class="controls">
+      <button class="ctrl-btn" onclick="prevTrack()">⏮</button>
+      <button class="ctrl-btn play" id="play-btn" onclick="togglePlay()">⏸</button>
+      <button class="ctrl-btn" onclick="nextTrack()">⏭</button>
+      <button class="ctrl-btn" id="shuffle-btn" onclick="toggleShuffle()" title="셔플">🔀</button>
+    </div>
+  </div>
+
+  <!-- 메인 레이아웃 -->
+  <div class="car-layout">
+
+    <!-- 사이드바 -->
+    <div class="sidebar">
+      <div class="sidebar-title">🎛️ 필터</div>
+
+      <div class="filter-group">
+        <div class="filter-label">BPM 범위</div>
+        <input type="range" class="bpm-slider" min="60" max="200" value="95" oninput="updateBPM(this.value)" id="bpm-slider">
+        <div class="bpm-value" id="bpm-display">95 BPM</div>
+        <div class="bpm-desc" id="bpm-desc">걷기 · 산책에 최적</div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">장르</div>
+        <div class="filter-chips">
+          <span class="chip active" onclick="toggleChip(this)">전체</span>
+          <span class="chip" onclick="toggleChip(this)">Electronic</span>
+          <span class="chip" onclick="toggleChip(this)">Hip-Hop</span>
+          <span class="chip" onclick="toggleChip(this)">Pop</span>
+          <span class="chip" onclick="toggleChip(this)">Rock</span>
+          <span class="chip" onclick="toggleChip(this)">K-Pop</span>
+          <span class="chip" onclick="toggleChip(this)">Jazz</span>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">분위기</div>
+        <div class="filter-chips">
+          <span class="chip active" onclick="toggleChip(this)">에너지</span>
+          <span class="chip" onclick="toggleChip(this)">릴렉스</span>
+          <span class="chip" onclick="toggleChip(this)">업비트</span>
+          <span class="chip" onclick="toggleChip(this)">다크</span>
+        </div>
+      </div>
+
+      <div class="ai-recommendation">
+        <div class="ai-label">🤖 AI 추천</div>
+        <p id="ai-msg">현재 Walk Mode에 맞는 85–110 BPM 트랙을 추천하고 있습니다.</p>
+      </div>
+    </div>
+
+    <!-- 트랙 목록 -->
+    <div>
+      <div class="section-header">
+        <div class="section-title">🎵 추천 트랙</div>
+        <span style="font-size:13px; color:#9ca3af;" id="track-count">12 트랙</span>
+      </div>
+
+      <div class="track-list" id="track-list">
+        <div class="track-item active" onclick="playTrack(this, 0)">
+          <div class="track-num">▶</div>
+          <div class="track-thumb">🌌</div>
+          <div class="track-meta">
+            <div class="track-name">Midnight Drive</div>
+            <div class="track-artist-sm">DJ Horizon</div>
+          </div>
+          <div class="track-bpm">95 BPM</div>
+          <div class="track-tl">1 TL/초</div>
+          <div class="track-duration">3:28</div>
+        </div>
+        <div class="track-item" onclick="playTrack(this, 1)">
+          <div class="track-num">2</div>
+          <div class="track-thumb">🌊</div>
+          <div class="track-meta">
+            <div class="track-name">Ocean Walk</div>
+            <div class="track-artist-sm">Wave Collective</div>
+          </div>
+          <div class="track-bpm">88 BPM</div>
+          <div class="track-tl">1 TL/초</div>
+          <div class="track-duration">4:02</div>
+        </div>
+        <div class="track-item" onclick="playTrack(this, 2)">
+          <div class="track-num">3</div>
+          <div class="track-thumb">🔥</div>
+          <div class="track-meta">
+            <div class="track-name">Urban Pulse</div>
+            <div class="track-artist-sm">Metro Sound</div>
+          </div>
+          <div class="track-bpm">102 BPM</div>
+          <div class="track-tl">1 TL/초</div>
+          <div class="track-duration">3:15</div>
+        </div>
+        <div class="track-item" onclick="playTrack(this, 3)">
+          <div class="track-num">4</div>
+          <div class="track-thumb">🌙</div>
+          <div class="track-meta">
+            <div class="track-name">Night Rider</div>
+            <div class="track-artist-sm">Neon City</div>
+          </div>
+          <div class="track-bpm">110 BPM</div>
+          <div class="track-tl">1 TL/초</div>
+          <div class="track-duration">3:55</div>
+        </div>
+        <div class="track-item" onclick="playTrack(this, 4)">
+          <div class="track-num">5</div>
+          <div class="track-thumb">⚡</div>
+          <div class="track-meta">
+            <div class="track-name">Run Free</div>
+            <div class="track-artist-sm">Pulse Runner</div>
+          </div>
+          <div class="track-bpm">145 BPM</div>
+          <div class="track-tl">1 TL/초</div>
+          <div class="track-duration">3:40</div>
+        </div>
+        <div class="track-item" onclick="playTrack(this, 5)">
+          <div class="track-num">6</div>
+          <div class="track-thumb">🌸</div>
+          <div class="track-meta">
+            <div class="track-name">Spring Morning</div>
+            <div class="track-artist-sm">Acoustic Garden</div>
+          </div>
+          <div class="track-bpm">78 BPM</div>
+          <div class="track-tl">1 TL/초</div>
+          <div class="track-duration">4:18</div>
+        </div>
+        <div class="track-item" onclick="playTrack(this, 6)">
+          <div class="track-num">7</div>
+          <div class="track-thumb">🎸</div>
+          <div class="track-meta">
+            <div class="track-name">Street Beat</div>
+            <div class="track-artist-sm">Urban Folk</div>
+          </div>
+          <div class="track-bpm">92 BPM</div>
+          <div class="track-tl">1 TL/초</div>
+          <div class="track-duration">3:22</div>
+        </div>
+        <div class="track-item" onclick="playTrack(this, 7)">
+          <div class="track-num">8</div>
+          <div class="track-thumb">🚀</div>
+          <div class="track-meta">
+            <div class="track-name">Hyperdrive</div>
+            <div class="track-artist-sm">Synthwave X</div>
+          </div>
+          <div class="track-bpm">128 BPM</div>
+          <div class="track-tl">1 TL/초</div>
+          <div class="track-duration">4:05</div>
+        </div>
+      </div>
+
+      <!-- 다음 재생 큐 -->
+      <div class="queue-section">
+        <div style="font-size:16px; font-weight:800; margin-bottom:16px;">📋 다음 재생</div>
+        <div style="display:grid; gap:8px;">
+          <div style="display:flex; align-items:center; gap:12px; padding:10px; border-radius:10px; background:#f8fafc;">
+            <div style="font-size:18px;">🌊</div>
+            <div style="flex:1;"><div style="font-size:14px; font-weight:600;">Ocean Walk</div><div style="font-size:12px; color:#9ca3af;">Wave Collective · 88 BPM</div></div>
+            <div style="font-size:12px; color:#9ca3af;">4:02</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; padding:10px; border-radius:10px; background:#f8fafc;">
+            <div style="font-size:18px;">🔥</div>
+            <div style="flex:1;"><div style="font-size:14px; font-weight:600;">Urban Pulse</div><div style="font-size:12px; color:#9ca3af;">Metro Sound · 102 BPM</div></div>
+            <div style="font-size:12px; color:#9ca3af;">3:15</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; padding:10px; border-radius:10px; background:#f8fafc;">
+            <div style="font-size:18px;">🌙</div>
+            <div style="flex:1;"><div style="font-size:14px; font-weight:600;">Night Rider</div><div style="font-size:12px; color:#9ca3af;">Neon City · 110 BPM</div></div>
+            <div style="font-size:12px; color:#9ca3af;">3:55</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="page-footer">
+  <div class="footer-grid">
+    <div class="footer-col">
+      <div class="footer-logo"><span style="background:#8b5cf6;border-radius:6px;padding:2px 8px;color:white;font-weight:800;">⚡</span> TimeLink</div>
+      <p class="footer-tagline">창작자를 위한 새로운 수익 플랫폼</p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">서비스</div>
+      <a href="shareplace.html">🛍️ SharePlace</a>
+      <a href="creator.html">🎵 창작자 프로그램</a>
+      <a href="pricing.html">💳 요금제</a>
+      <a href="radio.html">☕ 카페방송</a>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">회사</div>
+      <a href="about.html">🏢 회사 소개</a>
+      <a href="tokenomics.html">⚡ 토큰 경제</a>
+      <a href="roadmap.html">🗺️ 로드맵</a>
+      <a href="faq.html">❓ FAQ</a>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">법무</div>
+      <a href="terms.html">이용약관</a>
+      <a href="privacy.html">개인정보처리방침</a>
+      <a href="copyright.html">저작권 정책</a>
+      <a href="copyright.html#report" style="color:#ef4444;">저작권 침해 신고</a>
+    </div>
+  </div>
+  <div class="footer-bottom">⚖️ 모든 파일의 창작권은 창작자에게 있습니다. © 2024 TimeLink. All rights reserved.</div>
+</footer>
+
+<script>
+// 모드 설정
+const modeData = {
+  walk:  { bpm: 95,  desc: '걷기 · 산책에 최적', ai: '현재 Walk Mode에 맞는 85–110 BPM 트랙을 추천하고 있습니다.' },
+  run:   { bpm: 155, desc: '달리기 · 운동에 최적', ai: 'Run Mode: 140–180 BPM 고에너지 트랙으로 구성됩니다.' },
+  drive: { bpm: 115, desc: '드라이브에 최적', ai: 'Drive Mode: 100–130 BPM 리드미컬한 트랙을 추천합니다.' },
+  focus: { bpm: 70,  desc: '집중 · 독서에 최적', ai: 'Focus Mode: 60–80 BPM 로우템포 트랙으로 집중력을 높입니다.' },
+};
+
+function setMode(btn, mode) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const d = modeData[mode];
+  document.getElementById('bpm-slider').value = d.bpm;
+  updateBPM(d.bpm);
+  document.getElementById('ai-msg').textContent = d.ai;
+}
+
+function updateBPM(val) {
+  document.getElementById('bpm-display').textContent = val + ' BPM';
+  const v = parseInt(val);
+  let desc = '집중 · 명상';
+  if (v >= 80 && v < 100) desc = '걷기 · 산책에 최적';
+  else if (v >= 100 && v < 130) desc = '빠른 걷기 · 드라이브';
+  else if (v >= 130 && v < 160) desc = '달리기 · 운동';
+  else if (v >= 160) desc = '고강도 트레이닝';
+  document.getElementById('bpm-desc').textContent = desc;
+}
+
+// 플레이어
+let isPlaying = true;
+let currentIdx = 0;
+const tracks = [
+  { title: 'Midnight Drive', artist: 'DJ Horizon', emoji: '🌌', duration: '3:28' },
+  { title: 'Ocean Walk', artist: 'Wave Collective', emoji: '🌊', duration: '4:02' },
+  { title: 'Urban Pulse', artist: 'Metro Sound', emoji: '🔥', duration: '3:15' },
+  { title: 'Night Rider', artist: 'Neon City', emoji: '🌙', duration: '3:55' },
+  { title: 'Run Free', artist: 'Pulse Runner', emoji: '⚡', duration: '3:40' },
+  { title: 'Spring Morning', artist: 'Acoustic Garden', emoji: '🌸', duration: '4:18' },
+  { title: 'Street Beat', artist: 'Urban Folk', emoji: '🎸', duration: '3:22' },
+  { title: 'Hyperdrive', artist: 'Synthwave X', emoji: '🚀', duration: '4:05' },
+];
+
+function playTrack(el, idx) {
+  document.querySelectorAll('.track-item').forEach((t, i) => {
+    t.classList.remove('active');
+    t.querySelector('.track-num').textContent = i + 1;
+  });
+  el.classList.add('active');
+  el.querySelector('.track-num').textContent = '▶';
+  currentIdx = idx;
+  const t = tracks[idx];
+  document.getElementById('now-title').textContent = t.title;
+  document.getElementById('now-artist').textContent = t.artist + ' · Electronic';
+  document.getElementById('album-art').textContent = t.emoji;
+  document.getElementById('tot-time').textContent = t.duration;
+  document.getElementById('progress').style.width = '0%';
+  isPlaying = true;
+  document.getElementById('play-btn').textContent = '⏸';
+  document.getElementById('album-art').classList.add('playing');
+}
+
+function togglePlay() {
+  isPlaying = !isPlaying;
+  document.getElementById('play-btn').textContent = isPlaying ? '⏸' : '▶';
+  const art = document.getElementById('album-art');
+  isPlaying ? art.classList.add('playing') : art.classList.remove('playing');
+}
+
+function nextTrack() {
+  const items = document.querySelectorAll('.track-item');
+  currentIdx = (currentIdx + 1) % items.length;
+  playTrack(items[currentIdx], currentIdx);
+}
+
+function prevTrack() {
+  const items = document.querySelectorAll('.track-item');
+  currentIdx = (currentIdx - 1 + items.length) % items.length;
+  playTrack(items[currentIdx], currentIdx);
+}
+
+function shuffleAll() {
+  const items = document.querySelectorAll('.track-item');
+  const rand = Math.floor(Math.random() * items.length);
+  playTrack(items[rand], rand);
+}
+
+let shuffleOn = false;
+function toggleShuffle() {
+  shuffleOn = !shuffleOn;
+  document.getElementById('shuffle-btn').style.opacity = shuffleOn ? '1' : '0.5';
+}
+
+function toggleChip(el) {
+  el.classList.toggle('active');
+}
+
+function seekTrack(e, bar) {
+  const pct = e.offsetX / bar.offsetWidth * 100;
+  document.getElementById('progress').style.width = pct + '%';
+}
+
+// 진행 바 자동 업데이트 (데모)
+let prog = 35;
+setInterval(() => {
+  if (isPlaying) {
+    prog = (prog + 0.05) % 100;
+    document.getElementById('progress').style.width = prog + '%';
+  }
+}, 300);
+
+// 네비게이션
+function toggleDropdown() { document.getElementById('dropdown')?.classList.toggle('show'); }
+document.addEventListener('click', function(e) { if (!e.target.closest('.avatar')) document.getElementById('dropdown')?.classList.remove('show'); });
+function logout() { localStorage.removeItem('tl_user'); window.location.href = 'index.html'; }
+(function() {
+  const user = JSON.parse(localStorage.getItem('tl_user') || 'null');
+  if (user) {
+    document.getElementById('nav-auth')?.classList.remove('hidden');
+    document.getElementById('nav-guest')?.classList.add('hidden');
+    const tl = document.getElementById('balance-tl'); if (tl) tl.textContent = (user.tl || 10000).toLocaleString();
+    const tlc = document.getElementById('balance-tlc'); if (tlc) tlc.textContent = (user.tlc || 0).toFixed(4);
+    const av = document.getElementById('avatar-letter'); if (av) av.textContent = (user.username || 'U').charAt(0).toUpperCase();
+  } else {
+    document.getElementById('nav-auth')?.classList.add('hidden');
+    document.getElementById('nav-guest')?.classList.remove('hidden');
+  }
+})();
+</script>
+</body>
+</html>
