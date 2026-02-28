@@ -902,15 +902,54 @@ body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; li
 </footer>
 
 <script>
+// ── 실제 TL 경제 알고리즘 연동 ──
+// 1 TL = 1원 | 최소 출금: 10,000 TL | 수수료: 1% (최대 500원)
+const WITHDRAWAL_MIN   = 10000;  // 최소 출금 TL
+const WITHDRAWAL_FEE   = 0.01;   // 수수료 1%
+const WITHDRAWAL_FEE_MAX = 500;  // 최대 수수료 500원
+const BURN_RATIO       = 0.005;  // 수수료의 50%는 소각
+const PLAN_A_CREATOR   = 0.70;
+const PLAN_B_CREATOR   = 0.50;
+
 let userData = {
-  purchaseTL: 5000,
-  earnedTL: 2300,
-  usedEarnedTL: 1495,
-  totalPurchase: 25000,
-  exchangedPurchase: 20000,
-  totalEarned: 8450,
+  purchaseTL: 0,
+  earnedTL: 0,
+  usedEarnedTL: 0,
+  totalPurchase: 0,
+  exchangedPurchase: 0,
+  totalEarned: 0,
   exchangeRate: 1
 };
+
+// localStorage에서 실제 데이터 로드
+function loadUserData() {
+  const user = JSON.parse(localStorage.getItem('tl_user') || '{}');
+  const earnings = JSON.parse(localStorage.getItem('tl_earnings') || '{}');
+  const creatorId = user.username || 'user';
+  const earnedTL = earnings[creatorId] || 0;
+  const spentTL  = user.tl_spent || 0;
+
+  userData = {
+    purchaseTL:       user.tl || 0,
+    earnedTL:         earnedTL,
+    usedEarnedTL:     spentTL,
+    totalPurchase:    user.tl_charged || 0,
+    exchangedPurchase: user.tl_withdrawn || 0,
+    totalEarned:      earnedTL,
+    exchangeRate:     1,
+    plan:             user.plan || 'A',
+    identity_verified: user.identity_verified || false,
+    has_bank:         user.has_bank || false,
+  };
+}
+
+// 출금 수수료 계산
+function calcFee(amount) {
+  const fee = Math.min(Math.floor(amount * WITHDRAWAL_FEE), WITHDRAWAL_FEE_MAX);
+  const burn = Math.floor(fee * BURN_RATIO);   // 소각분
+  const net  = amount - fee;                    // 실수령액
+  return { fee, burn, net };
+}
 
 let selectedPayment = 'kakao';
 
@@ -967,28 +1006,56 @@ function calculateUsage() {
 
 function processExchange() {
   const amount = parseInt(document.getElementById('exchange-amount').value);
-  
+  if (!amount || isNaN(amount)) { alert('출금할 TL을 입력해주세요.'); return; }
+
+  // 최소 출금 검사
+  if (amount < WITHDRAWAL_MIN) {
+    alert(`최소 출금액은 ${WITHDRAWAL_MIN.toLocaleString()} TL (${WITHDRAWAL_MIN.toLocaleString()}원)입니다.`); return;
+  }
+
+  // 본인인증 검사
+  if (!userData.identity_verified) {
+    alert('⚠️ 출금 시 본인인증(PASS)이 필요합니다.\n지갑 → 본인인증에서 완료해주세요.'); return;
+  }
+
+  // 계좌 등록 검사
+  if (!userData.has_bank) {
+    alert('⚠️ 등록된 출금 계좌가 없습니다.\n지갑 → 계좌 설정에서 등록해주세요.'); return;
+  }
+
   let exchangeable = userData.purchaseTL;
   const usageRate = Math.round(userData.usedEarnedTL / userData.earnedTL * 100) || 0;
   const isEligible = usageRate >= 70;
-  
   if (isEligible) exchangeable += userData.earnedTL;
-  
+
   if (amount > exchangeable) {
-    alert('환전 가능 금액을 초과했습니다.');
-    return;
+    alert(`출금 가능 금액(${exchangeable.toLocaleString()} TL)을 초과했습니다.`); return;
   }
-  
-  if (amount <= userData.purchaseTL) {
-    userData.purchaseTL -= amount;
-  } else {
-    const remaining = amount - userData.purchaseTL;
-    userData.purchaseTL = 0;
-    userData.earnedTL -= remaining;
-  }
-  
-  alert(`✅ 환전 요청 완료! ${amount} TL → ${amount}원 (${selectedPayment})`);
+
+  // 수수료 계산
+  const { fee, burn, net } = calcFee(amount);
+
+  const confirmed = confirm(
+    `출금 신청 내역\n` +
+    `──────────────────\n` +
+    `출금 신청액: ${amount.toLocaleString()} TL\n` +
+    `수수료 (1%): -${fee.toLocaleString()}원\n` +
+    `소각분 (0.5%): -${burn.toLocaleString()}원\n` +
+    `실 수령액: ${net.toLocaleString()}원\n` +
+    `──────────────────\n` +
+    `계속하시겠습니까?`
+  );
+  if (!confirmed) return;
+
+  // TL 차감
+  const user = JSON.parse(localStorage.getItem('tl_user') || '{}');
+  user.tl = Math.max(0, (user.tl || 0) - amount);
+  user.tl_withdrawn = (user.tl_withdrawn || 0) + amount;
+  localStorage.setItem('tl_user', JSON.stringify(user));
+
+  loadUserData();
   updateUI();
+  alert(`✅ 출금 신청 완료!\n실 수령액: ${net.toLocaleString()}원\n영업일 기준 1~3일 내 입금됩니다.`);
 }
 
 function updateUI() {
@@ -1019,7 +1086,15 @@ function filterHistory(type, el) {
     if (document.getElementById('avatar-letter')) {
       document.getElementById('avatar-letter').textContent = (user.username || 'U').charAt(0).toUpperCase();
     }
+    loadUserData();
     updateUI();
+
+    // 출금 안내 동적 업데이트
+    const minEl = document.getElementById('withdrawal-min');
+    if (minEl) minEl.textContent = WITHDRAWAL_MIN.toLocaleString();
+    const feeEl = document.getElementById('withdrawal-fee');
+    if (feeEl) feeEl.textContent = `1% (최대 ${WITHDRAWAL_FEE_MAX}원)`;
+
   } else {
     navAuth?.classList.add('hidden');
     navGuest?.classList.remove('hidden');
@@ -1027,5 +1102,6 @@ function filterHistory(type, el) {
 })();
 </script>
 <script src="/activity.js"></script>
+<script src="tl-economy.js"></script>
 </body>
 </html>

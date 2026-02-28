@@ -560,10 +560,85 @@ function loadRanking(type, btn) {
   document.getElementById('ranking-body').innerHTML = html;
 }
 
+// ── POC 실제 계산 및 대시보드 업데이트 ──
+function updatePOCStats() {
+  const user = JSON.parse(localStorage.getItem('tl_user') || '{}');
+  const files = JSON.parse(localStorage.getItem('tl_files') || '[]');
+  const earnings = JSON.parse(localStorage.getItem('tl_earnings') || '{}');
+  const creatorId = user.username || 'user';
+
+  // 전체 파일 통계 합산
+  const totalPlaytime  = files.reduce((s, f) => s + (f.totalPlaySec || 0), 0);
+  const totalReplay    = files.reduce((s, f) => s + Math.max(0, (f.pulse || 0) - 1), 0);
+  const totalShare     = files.reduce((s, f) => s + (f.shareCount || 0), 0);
+  const avgRating      = files.length ? files.reduce((s, f) => s + (f.rating || 3), 0) / files.length : 3;
+
+  // POC 점수 계산 (tl-economy.js TL.calcPOC)
+  let pocScore = 0;
+  if (typeof TL !== 'undefined') {
+    pocScore = TL.calcPOC({ playtimeSec: totalPlaytime, replayCount: totalReplay, shareCount: totalShare, avgRating });
+  }
+
+  // TLC 채굴량 계산
+  const totalTLMined = (user.tl_charged || 50000);
+  let tlcMined = 0;
+  if (typeof TL !== 'undefined') {
+    tlcMined = TL.calcTLC(pocScore, totalTLMined);
+  }
+
+  // 창작자 수익
+  const earned = earnings[creatorId] || 0;
+  const plan = user.plan || 'A';
+  const splitLabel = plan === 'A' ? '70% (Plan A)' : '50% + TLC (Plan B)';
+
+  // UI 업데이트
+  const pocEl = document.getElementById('poc-score');
+  if (pocEl) pocEl.textContent = pocScore.toLocaleString();
+
+  // POC 상세 인포 추가
+  const pocCard = document.querySelector('.poc-card');
+  if (pocCard) {
+    let statsEl = document.getElementById('poc-stats-detail');
+    if (!statsEl) {
+      statsEl = document.createElement('div');
+      statsEl.id = 'poc-stats-detail';
+      statsEl.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;font-size:13px;';
+      pocCard.appendChild(statsEl);
+    }
+    statsEl.innerHTML = `
+      <div style="background:#f8fafc;border-radius:8px;padding:10px;">
+        <div style="color:#9ca3af;font-size:11px;font-weight:700;margin-bottom:2px;">재생시간 (40%)</div>
+        <div style="font-weight:700;">${Math.floor(totalPlaytime/60).toLocaleString()}분</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:8px;padding:10px;">
+        <div style="color:#9ca3af;font-size:11px;font-weight:700;margin-bottom:2px;">반복재생 (30%)</div>
+        <div style="font-weight:700;">${totalReplay.toLocaleString()}회</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:8px;padding:10px;">
+        <div style="color:#9ca3af;font-size:11px;font-weight:700;margin-bottom:2px;">공유수 (20%)</div>
+        <div style="font-weight:700;">${totalShare.toLocaleString()}회</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:8px;padding:10px;">
+        <div style="color:#9ca3af;font-size:11px;font-weight:700;margin-bottom:2px;">평점 (10%)</div>
+        <div style="font-weight:700;">${avgRating.toFixed(1)} / 5.0</div>
+      </div>
+      <div style="background:#ede9fe;border-radius:8px;padding:10px;grid-column:span 2;">
+        <div style="color:#8b5cf6;font-size:11px;font-weight:700;margin-bottom:2px;">오늘 채굴 가능 TLC</div>
+        <div style="font-weight:800;color:#8b5cf6;font-size:18px;">${tlcMined} TLC</div>
+      </div>
+      <div style="background:#f0fdf4;border-radius:8px;padding:10px;grid-column:span 2;">
+        <div style="color:#059669;font-size:11px;font-weight:700;margin-bottom:2px;">누적 창작자 수익 (${splitLabel})</div>
+        <div style="font-weight:800;color:#059669;font-size:18px;">${earned.toLocaleString()} TL</div>
+      </div>
+    `;
+  }
+}
+
 // 초기화
 updateNavbar();
 loadCharts();
 loadRanking('tlc', document.querySelector('.rank-tab'));
+updatePOCStats();
 
 // 로그인 상태 변경 감지
 window.addEventListener('storage', function(e) {
@@ -574,5 +649,6 @@ window.addEventListener('storage', function(e) {
 });
 </script>
 <script src="/activity.js"></script>
+<script src="tl-economy.js"></script>
 </body>
 </html>
