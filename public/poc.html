@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>기여도 분석 시스템 — TimeLink POC</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --purple: #8b5cf6;
+  --purple-dark: #6d28d9;
+  --purple-light: #ede9fe;
+  --green: #10b981;
+  --yellow: #f59e0b;
+  --red: #ef4444;
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --surface2: #1a1a28;
+  --border: rgba(139,92,246,0.2);
+  --text: #f1f0ff;
+  --muted: #6b6b8a;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Noto Sans KR', sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.6; overflow-x: hidden; }
+
+/* 배경 그리드 */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(139,92,246,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139,92,246,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+/* 네비 */
+.navbar {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,10,15,0.9); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.logo { display:flex; align-items:center; gap:10px; font-size:18px; font-weight:900; text-decoration:none; color:var(--text); font-family:var(--sans); }
+.logo-icon { width:30px; height:30px; background:var(--purple); border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:14px; }
+.logo span { color:var(--purple); }
+.nav-links { display:flex; gap:24px; align-items:center; }
+.nav-links a { font-size:13px; color:var(--muted); text-decoration:none; transition:color 0.2s; font-family:var(--mono); }
+.nav-links a:hover { color:var(--purple); }
+.nav-badge { background:var(--purple); color:white; font-size:10px; padding:2px 8px; border-radius:20px; font-weight:700; margin-left:8px; }
+
+/* 히어로 */
+.hero {
+  position: relative; z-index: 1;
+  padding: 100px 32px 80px;
+  max-width: 900px; margin: 0 auto; text-align: center;
+}
+.hero-tag {
+  display: inline-flex; align-items: center; gap:8px;
+  border: 1px solid var(--border); border-radius: 20px;
+  padding: 6px 16px; margin-bottom: 32px;
+  font-family: var(--mono); font-size: 12px; color: var(--purple);
+  background: rgba(139,92,246,0.08);
+}
+.hero-tag::before { content: ''; width:6px; height:6px; background:var(--green); border-radius:50%; animation: pulse-dot 2s infinite; }
+@keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.3)} }
+.hero h1 {
+  font-size: clamp(36px, 6vw, 64px); font-weight: 900; line-height: 1.1;
+  margin-bottom: 20px; letter-spacing: -1px;
+}
+.hero h1 em { color: var(--purple); font-style: normal; }
+.hero p { font-size: 17px; color: var(--muted); max-width: 600px; margin: 0 auto 40px; line-height: 1.7; }
+.hero-formula {
+  display: inline-block;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px 32px;
+  font-family: var(--mono); font-size: 15px; color: var(--purple);
+  letter-spacing: 1px;
+}
+
+/* 섹션 */
+.section { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 80px 32px; }
+.section-label { font-family: var(--mono); font-size: 11px; color: var(--purple); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px; }
+.section-title { font-size: 32px; font-weight: 900; margin-bottom: 40px; }
+.section-title span { color: var(--purple); }
+.divider { border: none; border-top: 1px solid var(--border); max-width: 1100px; margin: 0 auto; }
+
+/* 1초=1TL 카드 */
+.unit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 60px; }
+.unit-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 28px 24px; position: relative; overflow: hidden;
+  transition: border-color 0.3s, transform 0.3s;
+}
+.unit-card:hover { border-color: var(--purple); transform: translateY(-3px); }
+.unit-card::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--purple), transparent);
+}
+.unit-num { font-family: var(--mono); font-size: 36px; font-weight: 700; color: var(--purple); }
+.unit-eq { font-family: var(--mono); font-size: 14px; color: var(--muted); margin: 4px 0; }
+.unit-label { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+.unit-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+/* 소모율 테이블 */
+.rate-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.rate-table th { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); padding: 12px 16px; border-bottom: 1px solid var(--border); text-align: left; }
+.rate-table td { padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.rate-table tr:last-child td { border-bottom: none; }
+.rate-table tr:hover td { background: var(--surface2); }
+.rate-badge { display: inline-block; background: rgba(139,92,246,0.15); color: var(--purple); font-family: var(--mono); font-size: 12px; padding: 3px 10px; border-radius: 6px; font-weight: 700; }
+.rate-bar { height: 4px; border-radius: 2px; background: var(--purple); margin-top: 6px; transition: width 0.8s ease; }
+
+/* POC 알고리즘 */
+.poc-visual {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+  padding: 40px; margin-bottom: 40px;
+}
+.poc-formula {
+  font-family: var(--mono); font-size: 15px; color: var(--text);
+  background: var(--bg); border-radius: 12px; padding: 24px;
+  border: 1px solid var(--border); margin-bottom: 32px; line-height: 2;
+}
+.poc-formula .var { color: var(--purple); font-weight: 700; }
+.poc-formula .op  { color: var(--muted); }
+.poc-formula .coef { color: var(--yellow); }
+.poc-weights { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.poc-weight-item {
+  background: var(--bg); border-radius: 12px; padding: 20px 16px; text-align: center;
+  border: 1px solid var(--border); position: relative; overflow: hidden;
+}
+.poc-weight-pct { font-family: var(--mono); font-size: 28px; font-weight: 700; color: var(--purple); }
+.poc-weight-label { font-size: 13px; font-weight: 700; margin: 6px 0 4px; }
+.poc-weight-desc { font-size: 11px; color: var(--muted); }
+.poc-weight-bar {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--purple);
+}
+
+/* 수익 분배 다이어그램 */
+.split-diagram { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.split-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 28px; position: relative; overflow: hidden;
+}
+.split-card.plan-b { border-color: rgba(16,185,129,0.3); }
+.split-card.plan-b::after {
+  content: '추천';
+  position: absolute; top: 16px; right: 16px;
+  background: var(--green); color: white; font-size: 10px; font-weight: 700;
+  padding: 3px 10px; border-radius: 10px; font-family: var(--mono);
+}
+.plan-label { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 2px; margin-bottom: 8px; }
+.plan-name { font-size: 18px; font-weight: 900; margin-bottom: 20px; }
+.split-bar { height: 12px; border-radius: 6px; overflow: hidden; display: flex; margin-bottom: 16px; }
+.split-bar-seg { height: 100%; transition: width 0.8s ease; }
+.split-legend { display: flex; flex-direction: column; gap: 8px; }
+.split-legend-item { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.split-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.split-pct { font-family: var(--mono); font-weight: 700; margin-left: auto; }
+
+/* TLC 채굴 */
+.mining-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.mining-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px;
+}
+.mining-formula { font-family: var(--mono); font-size: 13px; color: var(--purple); background: var(--bg); padding: 16px; border-radius: 10px; line-height: 1.8; margin: 16px 0; word-break: break-all; }
+.mining-limit { display: flex; flex-direction: column; gap: 10px; }
+.limit-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg); border-radius: 10px; font-size: 13px; }
+.limit-val { font-family: var(--mono); color: var(--purple); font-weight: 700; }
+
+/* 인플레이션 방지 */
+.shield-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.shield-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 24px 20px; text-align: center;
+}
+.shield-icon { font-size: 32px; margin-bottom: 12px; }
+.shield-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.shield-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+/* 실시간 시뮬레이터 */
+.simulator {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 40px;
+}
+.sim-title { font-size: 20px; font-weight: 900; margin-bottom: 24px; }
+.sim-inputs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+.sim-input-group label { font-size: 12px; font-family: var(--mono); color: var(--muted); display: block; margin-bottom: 6px; letter-spacing: 1px; }
+.sim-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-family: var(--mono); font-size: 14px; outline: none; }
+.sim-input:focus { border-color: var(--purple); }
+.sim-slider { width: 100%; accent-color: var(--purple); }
+.sim-results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.sim-result {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px; text-align: center;
+}
+.sim-result-val { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--purple); }
+.sim-result-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.sim-btn {
+  width: 100%; margin-top: 20px; padding: 14px;
+  background: var(--purple); color: white; border: none; border-radius: 12px;
+  font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--sans);
+  transition: background 0.2s;
+}
+.sim-btn:hover { background: var(--purple-dark); }
+
+/* 출금 정책 */
+.policy-table { width: 100%; border-collapse: collapse; }
+.policy-table th { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); padding: 12px 16px; border-bottom: 1px solid var(--border); text-align: left; }
+.policy-table td { padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 14px; }
+.policy-table tr:hover td { background: var(--surface2); }
+.tag { display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; font-family: var(--mono); }
+.tag.info { background: rgba(139,92,246,0.15); color: var(--purple); }
+.tag.warn { background: rgba(245,158,11,0.15); color: var(--yellow); }
+.tag.ok   { background: rgba(16,185,129,0.15); color: var(--green); }
+
+/* 타임라인 */
+.timeline { display: flex; gap: 0; position: relative; }
+.timeline::before { content: ''; position: absolute; top: 24px; left: 0; right: 0; height: 2px; background: var(--border); z-index: 0; }
+.phase {
+  flex: 1; position: relative; z-index: 1; text-align: center; padding-top: 56px;
+}
+.phase-dot {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border);
+  background: var(--bg); display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-family: var(--mono); font-weight: 700;
+}
+.phase-dot.active { background: var(--purple); border-color: var(--purple); color: white; box-shadow: 0 0 0 6px rgba(139,92,246,0.2); }
+.phase-dot.upcoming { background: var(--surface); color: var(--muted); }
+.phase-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-bottom: 6px; }
+.phase-name { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.phase-desc { font-size: 11px; color: var(--muted); line-height: 1.4; padding: 0 8px; }
+
+/* CTA */
+.cta-section {
+  position: relative; z-index: 1;
+  text-align: center; padding: 80px 32px;
+  background: linear-gradient(180deg, transparent, rgba(139,92,246,0.05));
+}
+.cta-section h2 { font-size: 36px; font-weight: 900; margin-bottom: 16px; }
+.cta-section p { color: var(--muted); margin-bottom: 32px; }
+.cta-btns { display: flex; gap: 12px; justify-content: center; }
+.btn-primary { padding: 14px 32px; background: var(--purple); color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; text-decoration: none; font-family: var(--sans); transition: all 0.2s; }
+.btn-primary:hover { background: var(--purple-dark); transform: translateY(-2px); }
+.btn-outline { padding: 14px 32px; background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; text-decoration: none; font-family: var(--sans); transition: all 0.2s; }
+.btn-outline:hover { border-color: var(--purple); color: var(--purple); }
+
+/* 푸터 */
+footer { border-top: 1px solid var(--border); padding: 40px 32px; text-align: center; position: relative; z-index: 1; }
+footer p { font-size: 13px; color: var(--muted); }
+
+/* 애니메이션 */
+.fade-in { opacity: 0; transform: translateY(20px); transition: all 0.6s ease; }
+.fade-in.visible { opacity: 1; transform: translateY(0); }
+
+@media (max-width: 768px) {
+  .unit-grid { grid-template-columns: 1fr; }
+  .poc-weights { grid-template-columns: 1fr 1fr; }
+  .split-diagram { grid-template-columns: 1fr; }
+  .mining-grid { grid-template-columns: 1fr; }
+  .shield-grid { grid-template-columns: 1fr 1fr; }
+  .sim-inputs { grid-template-columns: 1fr; }
+  .sim-results { grid-template-columns: 1fr; }
+  .timeline { flex-direction: column; }
+  .timeline::before { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- 네비 -->
+<nav class="navbar">
+  <a href="index.html" class="logo">
+    <div class="logo-icon">⚡</div>
+    <div>Time<span>Link</span></div>
+  </a>
+  <div class="nav-links">
+    <a href="#algorithm">알고리즘</a>
+    <a href="#revenue">수익 분배</a>
+    <a href="#simulator">시뮬레이터</a>
+    <a href="#roadmap">로드맵</a>
+    <a href="tokenomics.html">토큰 경제 <span class="nav-badge">NEW</span></a>
+  </div>
+</nav>
+
+<!-- 히어로 -->
+<section class="hero">
+  <div class="hero-tag">
+    <span>시스템 공개</span>
+    <span>POC v1.0 운영 중</span>
+  </div>
+  <h1>투명한 <em>기여도 분석</em><br>시스템을 공개합니다</h1>
+  <p>TimeLink는 창작자의 기여가 어떻게 측정되고 보상으로 연결되는지 알고리즘 전체를 공개합니다. 블랙박스 없이, 모든 계산 공식을 여기서 확인하세요.</p>
+  <div class="hero-formula">
+    1초 재생 = 1 TL 소모 = 1원
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- 기본 단위 -->
+<section class="section fade-in" id="basic">
+  <div class="section-label">§ 01 — 기본 단위</div>
+  <h2 class="section-title">모든 계산의 <span>기준점</span></h2>
+  <div class="unit-grid">
+    <div class="unit-card">
+      <div class="unit-num">1초</div>
+      <div class="unit-eq">= 1 TL = 1원</div>
+      <div class="unit-label">오디오 기본 단위</div>
+      <div class="unit-desc">음악 스트리밍의 최소 과금 단위. 실제 재생된 시간만 정확하게 측정합니다.</div>
+    </div>
+    <div class="unit-card">
+      <div class="unit-num">2초</div>
+      <div class="unit-eq">= 2 TL = 2원</div>
+      <div class="unit-label">영상 단위</div>
+      <div class="unit-desc">영상은 데이터 처리량과 기술적 난이도를 반영해 오디오의 2배로 산정됩니다.</div>
+    </div>
+    <div class="unit-card">
+      <div class="unit-num">10,000</div>
+      <div class="unit-eq">TL = 10,000원</div>
+      <div class="unit-label">최소 출금 단위</div>
+      <div class="unit-desc">수익 정산의 최소 단위. 수수료 1% (최대 500원)를 제하고 실수령합니다.</div>
+    </div>
+  </div>
+
+  <!-- 소모율 테이블 -->
+  <table class="rate-table">
+    <thead>
+      <tr>
+        <th>콘텐츠 유형</th>
+        <th>TL 소모율</th>
+        <th>근거</th>
+        <th>시각화</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>🎵 음악 (오디오)</td>
+        <td><span class="rate-badge">1.0 TL/초</span></td>
+        <td style="color:#6b6b8a;font-size:13px;">기본값</td>
+        <td><div class="rate-bar" style="width:20%"></div></td>
+      </tr>
+      <tr>
+        <td>🎬 영상 (비디오)</td>
+        <td><span class="rate-badge">2.0 TL/초</span></td>
+        <td style="color:#6b6b8a;font-size:13px;">데이터량 2배</td>
+        <td><div class="rate-bar" style="width:40%"></div></td>
+      </tr>
+      <tr>
+        <td>📚 강의</td>
+        <td><span class="rate-badge">1.5 TL/초</span></td>
+        <td style="color:#6b6b8a;font-size:13px;">교육 콘텐츠 프리미엄</td>
+        <td><div class="rate-bar" style="width:30%"></div></td>
+      </tr>
+      <tr>
+        <td>☕ 카페방송</td>
+        <td><span class="rate-badge">0.5 TL/초×청취자수</span></td>
+        <td style="color:#6b6b8a;font-size:13px;">사업자 대량 사용</td>
+        <td><div class="rate-bar" style="width:10%"></div></td>
+      </tr>
+      <tr>
+        <td>🚗 Moving Radio</td>
+        <td><span class="rate-badge">0.8 TL/초</span></td>
+        <td style="color:#6b6b8a;font-size:13px;">이동 중 경량 모드</td>
+        <td><div class="rate-bar" style="width:16%"></div></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<hr class="divider">
+
+<!-- POC 알고리즘 -->
+<section class="section fade-in" id="algorithm">
+  <div class="section-label">§ 02 — POC 알고리즘</div>
+  <h2 class="section-title">기여도 점수 <span>계산 공식</span></h2>
+
+  <div class="poc-visual">
+    <div class="poc-formula">
+      <span class="var">POC_Score</span> <span class="op">=</span><br>
+      &nbsp;&nbsp;( <span class="var">재생시간</span><sub style="font-size:10px;">정규화</sub> <span class="op">×</span> <span class="coef">0.40</span> )<br>
+      &nbsp;&nbsp;+ ( <span class="var">반복재생</span><sub style="font-size:10px;">정규화</sub> <span class="op">×</span> <span class="coef">0.30</span> )<br>
+      &nbsp;&nbsp;+ ( <span class="var">공유수</span><sub style="font-size:10px;">정규화</sub> <span class="op">×</span> <span class="coef">0.20</span> )<br>
+      &nbsp;&nbsp;+ ( <span class="var">평점</span><sub style="font-size:10px;">정규화</sub> <span class="op">×</span> <span class="coef">0.10</span> )
+    </div>
+
+    <div class="poc-weights">
+      <div class="poc-weight-item">
+        <div class="poc-weight-pct">40%</div>
+        <div class="poc-weight-label">⏱ 재생시간</div>
+        <div class="poc-weight-desc">총 누적 재생시간<br>(최대 100시간 기준 정규화)</div>
+        <div class="poc-weight-bar" style="opacity:1;"></div>
+      </div>
+      <div class="poc-weight-item">
+        <div class="poc-weight-pct">30%</div>
+        <div class="poc-weight-label">🔁 반복재생</div>
+        <div class="poc-weight-desc">동일 청취자의<br>재청취 횟수 (최대 100회)</div>
+        <div class="poc-weight-bar" style="opacity:0.75;"></div>
+      </div>
+      <div class="poc-weight-item">
+        <div class="poc-weight-pct">20%</div>
+        <div class="poc-weight-label">📤 공유수</div>
+        <div class="poc-weight-desc">SharePlace 등록 및<br>외부 공유 건수 (최대 50회)</div>
+        <div class="poc-weight-bar" style="opacity:0.5;"></div>
+      </div>
+      <div class="poc-weight-item">
+        <div class="poc-weight-pct">10%</div>
+        <div class="poc-weight-label">⭐ 평점</div>
+        <div class="poc-weight-desc">5점 만점 평균<br>청취자 직접 평가</div>
+        <div class="poc-weight-bar" style="opacity:0.25;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pulse 가중치 -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;margin-top:20px;">
+    <h3 style="font-size:16px;font-weight:900;margin-bottom:6px;">⚡ Pulse 가중치 — TL 소모 배수</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">인기 트랙일수록 더 많은 TL이 소모됩니다. Pulse는 누적 재생 횟수입니다.</p>
+    <table class="rate-table">
+      <thead><tr><th>Pulse 범위</th><th>TL 배수</th><th>의미</th></tr></thead>
+      <tbody>
+        <tr><td style="font-family:var(--mono)">0 ~ 100</td><td><span class="rate-badge">×1.0</span></td><td style="color:var(--muted);font-size:13px;">일반 트랙</td></tr>
+        <tr><td style="font-family:var(--mono)">101 ~ 500</td><td><span class="rate-badge">×2.0</span></td><td style="color:var(--muted);font-size:13px;">인기 상승</td></tr>
+        <tr><td style="font-family:var(--mono)">501 ~ 2,000</td><td><span class="rate-badge">×3.0</span></td><td style="color:var(--muted);font-size:13px;">핫 트랙</td></tr>
+        <tr><td style="font-family:var(--mono)">2,001 ~ 5,000</td><td><span class="rate-badge">×5.0</span></td><td style="color:var(--muted);font-size:13px;">베스트 트랙</td></tr>
+        <tr><td style="font-family:var(--mono)">5,001+</td><td><span class="rate-badge">×10.0</span></td><td style="color:var(--muted);font-size:13px;">레전드 트랙</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- 수익 분배 -->
+<section class="section fade-in" id="revenue">
+  <div class="section-label">§ 03 — 수익 분배</div>
+  <h2 class="section-title">수익이 <span>어떻게 나뉘는가</span></h2>
+
+  <div class="split-diagram">
+    <!-- Plan A -->
+    <div class="split-card">
+      <div class="plan-label">PLAN A</div>
+      <div class="plan-name">즉시 정산형</div>
+      <div class="split-bar">
+        <div class="split-bar-seg" style="width:70%;background:#8b5cf6;"></div>
+        <div class="split-bar-seg" style="width:20%;background:#374151;"></div>
+        <div class="split-bar-seg" style="width:10%;background:#f59e0b;"></div>
+      </div>
+      <div class="split-legend">
+        <div class="split-legend-item"><div class="split-dot" style="background:#8b5cf6;"></div>창작자 수익<span class="split-pct">70%</span></div>
+        <div class="split-legend-item"><div class="split-dot" style="background:#374151;"></div>플랫폼 운영<span class="split-pct">20%</span></div>
+        <div class="split-legend-item"><div class="split-dot" style="background:#f59e0b;"></div>금 준비금 적립<span class="split-pct">10%</span></div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-top:16px;line-height:1.5;">창작자 70% TL을 즉시 지급합니다. 안정적인 수익을 원하는 창작자에게 적합합니다.</p>
+    </div>
+    <!-- Plan B -->
+    <div class="split-card plan-b">
+      <div class="plan-label">PLAN B</div>
+      <div class="plan-name">TLC 채굴형</div>
+      <div class="split-bar">
+        <div class="split-bar-seg" style="width:50%;background:#8b5cf6;"></div>
+        <div class="split-bar-seg" style="width:20%;background:#10b981;"></div>
+        <div class="split-bar-seg" style="width:20%;background:#374151;"></div>
+        <div class="split-bar-seg" style="width:10%;background:#f59e0b;"></div>
+      </div>
+      <div class="split-legend">
+        <div class="split-legend-item"><div class="split-dot" style="background:#8b5cf6;"></div>창작자 즉시 수익<span class="split-pct">50%</span></div>
+        <div class="split-legend-item"><div class="split-dot" style="background:#10b981;"></div>TLC 채굴 기회<span class="split-pct">20%</span></div>
+        <div class="split-legend-item"><div class="split-dot" style="background:#374151;"></div>플랫폼 운영<span class="split-pct">20%</span></div>
+        <div class="split-legend-item"><div class="split-dot" style="background:#f59e0b;"></div>금 준비금 적립<span class="split-pct">10%</span></div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-top:16px;line-height:1.5;">즉시 수익은 낮지만 POC 점수 기반 TLC를 채굴합니다. TLC 가치 상승 시 장기적으로 유리합니다.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- TLC 채굴 -->
+<section class="section fade-in">
+  <div class="section-label">§ 04 — TLC 채굴</div>
+  <h2 class="section-title">TLC 채굴 <span>공식</span></h2>
+  <div class="mining-grid">
+    <div class="mining-card">
+      <h3 style="font-size:16px;font-weight:900;margin-bottom:8px;">채굴량 계산</h3>
+      <p style="font-size:13px;color:var(--muted);">POC 점수를 기반으로 일일 채굴량이 결정됩니다.</p>
+      <div class="mining-formula">
+TLC_채굴량 = POC_Score × 0.01<br><br>
+단, MAX(일일) = 전체_TL발행량 × 0.001<br>
+개인_한도 = MAX(일일) × 0.50
+      </div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.5;">POC 점수 1점 = 0.01 TLC. 전체 TL 발행량 대비 0.1%를 일일 상한으로 설정해 인플레이션을 방지합니다.</p>
+    </div>
+    <div class="mining-card">
+      <h3 style="font-size:16px;font-weight:900;margin-bottom:8px;">채굴 상한선</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">시스템 안정성을 위한 이중 상한선.</p>
+      <div class="mining-limit">
+        <div class="limit-item">
+          <span>일일 전체 최대</span>
+          <span class="limit-val">발행량 × 0.1%</span>
+        </div>
+        <div class="limit-item">
+          <span>개인 최대 (일일)</span>
+          <span class="limit-val">전체 상한의 50%</span>
+        </div>
+        <div class="limit-item">
+          <span>총 TLC 상한</span>
+          <span class="limit-val">전체 TL의 50%</span>
+        </div>
+        <div class="limit-item">
+          <span>TLC 가치 산정</span>
+          <span class="limit-val">금 준비금 ÷ 발행량</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- 인플레이션 방지 -->
+<section class="section fade-in">
+  <div class="section-label">§ 05 — 안정성</div>
+  <h2 class="section-title">인플레이션 <span>방지 장치</span></h2>
+  <div class="shield-grid">
+    <div class="shield-card">
+      <div class="shield-icon">🔥</div>
+      <div class="shield-title">TL 소각</div>
+      <div class="shield-desc">출금 수수료의 50%는 영구 소각됩니다. TL 총 공급량을 지속적으로 감소시킵니다.</div>
+    </div>
+    <div class="shield-card">
+      <div class="shield-icon">⛏️</div>
+      <div class="shield-title">TLC 채굴 상한</div>
+      <div class="shield-desc">TLC는 전체 TL의 최대 50%까지만 채굴 가능합니다. 과도한 발행을 방지합니다.</div>
+    </div>
+    <div class="shield-card">
+      <div class="shield-icon">🏦</div>
+      <div class="shield-title">금 준비금</div>
+      <div class="shield-desc">매출 10%를 금 준비금으로 적립. TLC의 실물 가치를 담보하고 신뢰성을 보장합니다.</div>
+    </div>
+    <div class="shield-card">
+      <div class="shield-icon">🔄</div>
+      <div class="shield-title">광고 수익 환류</div>
+      <div class="shield-desc">광고 TL 수익은 창작자 풀로 재투입됩니다. 시스템 내 순환 경제를 형성합니다.</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- 실시간 시뮬레이터 -->
+<section class="section fade-in" id="simulator">
+  <div class="section-label">§ 06 — 시뮬레이터</div>
+  <h2 class="section-title">내 수익 <span>미리 계산</span></h2>
+  <div class="simulator">
+    <div class="sim-title">📊 창작자 수익 시뮬레이터</div>
+    <div class="sim-inputs">
+      <div class="sim-input-group">
+        <label>월간 누적 재생시간 (분)</label>
+        <input type="number" class="sim-input" id="sim-playtime" value="500" min="0">
+      </div>
+      <div class="sim-input-group">
+        <label>평균 Pulse (재생 횟수)</label>
+        <input type="number" class="sim-input" id="sim-pulse" value="150" min="0">
+      </div>
+      <div class="sim-input-group">
+        <label>콘텐츠 유형</label>
+        <select class="sim-input" id="sim-type">
+          <option value="1.0">🎵 음악 (1.0 TL/초)</option>
+          <option value="2.0">🎬 영상 (2.0 TL/초)</option>
+          <option value="1.5">📚 강의 (1.5 TL/초)</option>
+        </select>
+      </div>
+      <div class="sim-input-group">
+        <label>수익 플랜</label>
+        <select class="sim-input" id="sim-plan">
+          <option value="0.7">Plan A (70%)</option>
+          <option value="0.5">Plan B (50% + TLC)</option>
+        </select>
+      </div>
+    </div>
+    <div class="sim-results">
+      <div class="sim-result">
+        <div class="sim-result-val" id="sim-total-tl">0</div>
+        <div class="sim-result-label">총 소모 TL</div>
+      </div>
+      <div class="sim-result">
+        <div class="sim-result-val" id="sim-creator-tl">0</div>
+        <div class="sim-result-label">창작자 수익 (TL)</div>
+      </div>
+      <div class="sim-result">
+        <div class="sim-result-val" id="sim-creator-krw">0원</div>
+        <div class="sim-result-label">창작자 수익 (원)</div>
+      </div>
+    </div>
+    <button class="sim-btn" onclick="simulate()">💰 수익 계산하기</button>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- 출금 정책 -->
+<section class="section fade-in">
+  <div class="section-label">§ 07 — 출금 정책</div>
+  <h2 class="section-title">수익 출금 <span>규칙</span></h2>
+  <table class="policy-table">
+    <thead>
+      <tr>
+        <th>항목</th>
+        <th>기준</th>
+        <th>비고</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>최소 출금액</td><td style="font-family:var(--mono);">10,000 TL (10,000원)</td><td><span class="tag info">필수</span></td></tr>
+      <tr><td>출금 수수료</td><td style="font-family:var(--mono);">1% (최대 500원)</td><td><span class="tag warn">차감</span></td></tr>
+      <tr><td>소각분</td><td style="font-family:var(--mono);">수수료의 50%</td><td><span class="tag warn">소각</span></td></tr>
+      <tr><td>실수령액</td><td style="font-family:var(--mono);">출금액 - 수수료</td><td><span class="tag ok">지급</span></td></tr>
+      <tr><td>본인인증</td><td>PASS 인증 필수 (추후)</td><td><span class="tag info">보안</span></td></tr>
+      <tr><td>처리 기간</td><td>영업일 기준 1~3일</td><td><span class="tag ok">자동</span></td></tr>
+      <tr><td>지원 은행</td><td>국내 주요 은행 전체</td><td><span class="tag ok">지원</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<hr class="divider">
+
+<!-- 로드맵 -->
+<section class="section fade-in" id="roadmap">
+  <div class="section-label">§ 08 — 로드맵</div>
+  <h2 class="section-title">단계별 <span>구현 계획</span></h2>
+  <div class="timeline">
+    <div class="phase">
+      <div class="phase-dot active">1</div>
+      <div class="phase-label">진행 중</div>
+      <div class="phase-name">Phase 1</div>
+      <div class="phase-desc">TL 충전/소모/정산 기본 흐름. 창작자 수익 분배.</div>
+    </div>
+    <div class="phase">
+      <div class="phase-dot upcoming">2</div>
+      <div class="phase-label">D1 DB 구축 후</div>
+      <div class="phase-name">Phase 2</div>
+      <div class="phase-desc">POC 점수 서버 계산 + TLC 실시간 채굴.</div>
+    </div>
+    <div class="phase">
+      <div class="phase-dot upcoming">3</div>
+      <div class="phase-label">사용자 1만 명 후</div>
+      <div class="phase-name">Phase 3</div>
+      <div class="phase-desc">TLC ↔ TL 교환 마켓. PASS 본인인증 연동.</div>
+    </div>
+    <div class="phase">
+      <div class="phase-dot upcoming">4</div>
+      <div class="phase-label">법인 설립 후</div>
+      <div class="phase-name">Phase 4</div>
+      <div class="phase-desc">TON 블록체인 TLC 상장. STO 2차 사업 전개.</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- CTA -->
+<section class="cta-section fade-in">
+  <h2>지금 창작을 시작하세요</h2>
+  <p>투명한 알고리즘 위에서 공정하게 보상받는 첫 번째 창작자가 되세요.</p>
+  <div class="cta-btns">
+    <a href="signup.html" class="btn-primary">⚡ 무료로 시작하기</a>
+    <a href="tokenomics.html" class="btn-outline">토큰 경제 자세히 보기</a>
+  </div>
+</section>
+
+<footer>
+  <div style="max-width:1100px;margin:0 auto;">
+    <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:40px;margin-bottom:28px;text-align:left;">
+      <div>
+        <div style="font-size:16px;font-weight:900;margin-bottom:8px;"><span style="background:var(--purple);border-radius:5px;padding:2px 8px;color:white;font-weight:900;">⚡</span> TimeLink</div>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6;">창작자를 위한 새로운 수익 플랫폼</p>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-family:var(--mono);">서비스</div>
+        <a href="shareplace.html" style="display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;">🛍️ SharePlace</a>
+        <a href="creator.html" style="display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;">🎵 창작자 프로그램</a>
+        <a href="pricing.html" style="display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;">💳 요금제</a>
+        <a href="radio.html" style="display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;">☕ 카페방송</a>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-family:var(--mono);">회사</div>
+        <a href="about.html" style="display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;">🏢 회사 소개</a>
+        <a href="tokenomics.html" style="display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;">⚡ 토큰 경제</a>
+        <a href="roadmap.html" style="display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;">🗺️ 로드맵</a>
+        <a href="faq.html" style="display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;">❓ FAQ</a>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-family:var(--mono);">법무</div>
+        <a href="terms.html" style="display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;">이용약관</a>
+        <a href="privacy.html" style="display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;">개인정보처리방침</a>
+        <a href="copyright.html" style="display:block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:8px;">저작권 정책</a>
+        <a href="copyright.html#report" style="display:block;font-size:13px;color:#ef4444;text-decoration:none;margin-bottom:8px;">저작권 침해 신고</a>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:20px;font-size:12px;color:var(--muted);">
+      ⚖️ 모든 파일의 창작권은 창작자에게 있습니다. © 2024 TimeLink. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<script src="tl-economy.js"></script>
+<script>
+// 시뮬레이터
+function simulate() {
+  const playtimeMin = parseFloat(document.getElementById('sim-playtime').value) || 0;
+  const pulse       = parseFloat(document.getElementById('sim-pulse').value) || 0;
+  const rate        = parseFloat(document.getElementById('sim-type').value) || 1.0;
+  const creatorRatio = parseFloat(document.getElementById('sim-plan').value) || 0.7;
+
+  // Pulse 배수
+  let multiplier = 1.0;
+  if (pulse > 5000)      multiplier = 10.0;
+  else if (pulse > 2000) multiplier = 5.0;
+  else if (pulse > 500)  multiplier = 3.0;
+  else if (pulse > 100)  multiplier = 2.0;
+
+  const totalSec  = playtimeMin * 60;
+  const totalTL   = Math.ceil(totalSec * rate * multiplier);
+  const creatorTL = Math.floor(totalTL * creatorRatio);
+
+  document.getElementById('sim-total-tl').textContent   = totalTL.toLocaleString() + ' TL';
+  document.getElementById('sim-creator-tl').textContent = creatorTL.toLocaleString() + ' TL';
+  document.getElementById('sim-creator-krw').textContent = creatorTL.toLocaleString() + '원';
+}
+
+// 스크롤 페이드인
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+// 초기 계산
+simulate();
+</script>
+</body>
+</html>
