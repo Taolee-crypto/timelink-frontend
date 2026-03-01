@@ -578,7 +578,16 @@ nav #global-controls button:hover {
 </div>
 
 <div class="container">
-  <!-- 듀얼 지갑 표시 -->
+
+  <!-- 모드 탭: 시청자 / 광고주 -->
+  <div class="ads-mode-tabs">
+    <button class="ads-mode-tab active" onclick="switchAdsMode('viewer',this)" data-i18n="adv_viewer">🎬 광고 시청</button>
+    <button class="ads-mode-tab" onclick="switchAdsMode('advertiser',this)" data-i18n="adv_portal">📣 광고주 포털</button>
+  </div>
+
+  <!-- ① 시청자 모드 -->
+  <div id="ads-panel-viewer">
+<!-- 듀얼 지갑 표시 -->
   <div class="wallet-container">
     <div class="wallet-card purchase">
       <div class="wallet-header">
@@ -990,9 +999,332 @@ nav #global-controls button:hover {
   font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif;
 }
 .ad-filter-btn.active { background: #8b5cf6; color: white; }
-</style>
 
-<footer class="page-footer">
+.ads-mode-tabs { display:flex; gap:4px; background:#f1f5f9; padding:4px; border-radius:12px; margin-bottom:24px; max-width:400px; }
+.ads-mode-tab { flex:1; padding:10px 20px; border:none; background:transparent; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; color:#6b7280; transition:all 0.2s; }
+.ads-mode-tab.active { background:white; color:#8b5cf6; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
+
+.adv-sub-tabs { display:flex; gap:4px; background:#f1f5f9; padding:4px; border-radius:12px; margin-bottom:24px; overflow-x:auto; }
+.adv-sub-tab { flex:1; padding:10px; border:none; background:transparent; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; color:#6b7280; transition:all 0.2s; white-space:nowrap; }
+.adv-sub-tab.active { background:white; color:#8b5cf6; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
+.adv-panel.hidden { display:none !important; }
+
+.adv-stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+.adv-stat-card { background:white; border-radius:16px; padding:20px; border:1.5px solid #e5e7eb; display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+.adv-stat-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.adv-stat-value { font-size:24px; font-weight:900; color:#0f172a; }
+.adv-stat-label { font-size:12px; color:#6b7280; font-weight:600; }
+.adv-stat-change { font-size:11px; font-weight:600; }
+.adv-stat-change.positive { color:#10b981; }
+.adv-stat-change.neutral { color:#6b7280; }
+
+.adv-section { background:white; border-radius:20px; padding:24px; border:1.5px solid #e5e7eb; margin-bottom:16px; }
+.campaign-list { display:flex; flex-direction:column; gap:16px; }
+.campaign-card { border:1.5px solid #e5e7eb; border-radius:16px; padding:20px; }
+.campaign-header { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+.campaign-type { padding:4px 10px; border-radius:20px; font-size:12px; font-weight:700; background:#ede9fe; color:#7c3aed; }
+.campaign-name { font-size:16px; font-weight:800; flex:1; }
+.campaign-status { padding:4px 12px; border-radius:20px; font-size:11px; font-weight:700; }
+.active-badge { background:#d1fae5; color:#059669; }
+.campaign-stats { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; background:#f8fafc; border-radius:10px; padding:12px; margin-bottom:12px; }
+.c-stat-n { font-size:14px; font-weight:800; text-align:center; }
+.c-stat-l { font-size:11px; color:#6b7280; text-align:center; margin-top:2px; }
+.campaign-progress { margin-top:8px; }
+
+.ad-type-card { border:1.5px solid #e5e7eb; border-radius:14px; padding:20px; text-align:center; cursor:pointer; transition:all 0.2s; }
+.ad-type-card.active { border-color:#8b5cf6; background:#faf5ff; }
+.ad-type-card:hover { border-color:#c4b5fd; }
+
+.pkg-card { border:1.5px solid #e5e7eb; border-radius:14px; padding:20px; cursor:pointer; transition:all 0.2s; position:relative; }
+.pkg-card.active-pkg { border-color:#8b5cf6; background:#faf5ff; }
+.pkg-badge-tag { position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:#8b5cf6; color:white; padding:2px 12px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
+.pkg-name { font-size:15px; font-weight:800; margin-bottom:6px; }
+.pkg-price { font-size:22px; font-weight:900; color:#8b5cf6; margin-bottom:12px; }
+.pkg-features { font-size:13px; color:#374151; display:flex; flex-direction:column; gap:4px; }
+
+.report-chart-placeholder { border:1.5px solid #e5e7eb; border-radius:12px; background:#f8fafc; }
+
+@media(max-width:768px) {
+  .adv-stats-grid { grid-template-columns:repeat(2,1fr); }
+  .campaign-stats { grid-template-columns:repeat(3,1fr); }
+}
+</style>
+  </div><!-- /viewer panel -->
+
+  <!-- ② 광고주 포털 -->
+  <div id="ads-panel-advertiser" class="hidden">
+
+    <!-- 광고주 대시보드 탭 -->
+    <div class="adv-sub-tabs">
+      <button class="adv-sub-tab active" onclick="switchAdvTab('dashboard',this)" data-i18n="adv_dashboard">📊 캠페인 관리</button>
+      <button class="adv-sub-tab" onclick="switchAdvTab('create',this)" data-i18n="adv_new">➕ 새 광고 만들기</button>
+      <button class="adv-sub-tab" onclick="switchAdvTab('report',this)" data-i18n="adv_report">📈 성과 리포트</button>
+      <button class="adv-sub-tab" onclick="switchAdvTab('register',this)" data-i18n="adv_register">🏢 광고주 등록</button>
+    </div>
+
+    <!-- 캠페인 대시보드 -->
+    <div id="adv-panel-dashboard" class="adv-panel">
+      <!-- 요약 통계 -->
+      <div class="adv-stats-grid">
+        <div class="adv-stat-card">
+          <div class="adv-stat-icon" style="background:#ede9fe;color:#7c3aed;">👁️</div>
+          <div class="adv-stat-value" id="total-impressions">248,300</div>
+          <div class="adv-stat-label" data-i18n="adv_impressions">노출 수</div>
+          <div class="adv-stat-change positive">↑ 12.4% vs 지난달</div>
+        </div>
+        <div class="adv-stat-card">
+          <div class="adv-stat-icon" style="background:#d1fae5;color:#059669;">🖱️</div>
+          <div class="adv-stat-value" id="total-clicks">7,941</div>
+          <div class="adv-stat-label" data-i18n="adv_clicks">클릭 수</div>
+          <div class="adv-stat-change positive">↑ 8.7%</div>
+        </div>
+        <div class="adv-stat-card">
+          <div class="adv-stat-icon" style="background:#fef3c7;color:#d97706;">📊</div>
+          <div class="adv-stat-value">3.2%</div>
+          <div class="adv-stat-label" data-i18n="adv_ctr">클릭률(CTR)</div>
+          <div class="adv-stat-change positive">↑ 0.3%p</div>
+        </div>
+        <div class="adv-stat-card">
+          <div class="adv-stat-icon" style="background:#fee2e2;color:#dc2626;">💸</div>
+          <div class="adv-stat-value">₩620,000</div>
+          <div class="adv-stat-label" data-i18n="adv_spent">지출</div>
+          <div class="adv-stat-change neutral">₩380,000 남음</div>
+        </div>
+      </div>
+
+      <!-- 캠페인 목록 -->
+      <div class="adv-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h3 style="font-size:16px;font-weight:800;">진행 중인 캠페인</h3>
+          <button class="btn btn-primary btn-sm" onclick="switchAdvTab('create',document.querySelector('.adv-sub-tab:nth-child(2)'))" data-i18n="adv_new">+ 새 광고</button>
+        </div>
+        <div class="campaign-list">
+          <div class="campaign-card">
+            <div class="campaign-header">
+              <div class="campaign-type video">🎬 영상</div>
+              <div class="campaign-name">현대자동차 신차 캠페인</div>
+              <span class="campaign-status active-badge" data-i18n="adv_active">진행 중</span>
+            </div>
+            <div class="campaign-stats">
+              <div><div class="c-stat-n">124,800</div><div class="c-stat-l" data-i18n="adv_impressions">노출</div></div>
+              <div><div class="c-stat-n">3,994</div><div class="c-stat-l" data-i18n="adv_clicks">클릭</div></div>
+              <div><div class="c-stat-n">3.2%</div><div class="c-stat-l" data-i18n="adv_ctr">CTR</div></div>
+              <div><div class="c-stat-n">₩310,000</div><div class="c-stat-l" data-i18n="adv_spent">지출</div></div>
+              <div><div class="c-stat-n">₩190,000</div><div class="c-stat-l" data-i18n="adv_remaining">남은예산</div></div>
+            </div>
+            <div class="campaign-progress">
+              <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">예산 소진율 62%</div>
+              <div style="height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;">
+                <div style="height:100%;width:62%;background:#8b5cf6;border-radius:3px;"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:14px;">
+              <button class="btn btn-outline btn-sm" style="flex:1;" onclick="pauseCampaign(this)" data-i18n="adv_paused">일시정지</button>
+              <button class="btn btn-outline btn-sm" style="flex:1;">편집</button>
+              <button class="btn btn-primary btn-sm" style="flex:1;">리포트 보기</button>
+            </div>
+          </div>
+
+          <div class="campaign-card">
+            <div class="campaign-header">
+              <div class="campaign-type audio" style="background:#d1fae5;color:#059669;">🔊 오디오</div>
+              <div class="campaign-name">스타벅스 봄 신메뉴</div>
+              <span class="campaign-status" style="background:#fef3c7;color:#92400e;" data-i18n="adv_paused">일시정지</span>
+            </div>
+            <div class="campaign-stats">
+              <div><div class="c-stat-n">123,500</div><div class="c-stat-l" data-i18n="adv_impressions">노출</div></div>
+              <div><div class="c-stat-n">3,947</div><div class="c-stat-l" data-i18n="adv_clicks">클릭</div></div>
+              <div><div class="c-stat-n">3.2%</div><div class="c-stat-l" data-i18n="adv_ctr">CTR</div></div>
+              <div><div class="c-stat-n">₩310,000</div><div class="c-stat-l" data-i18n="adv_spent">지출</div></div>
+              <div><div class="c-stat-n">₩0</div><div class="c-stat-l" data-i18n="adv_remaining">남은예산</div></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:14px;">
+              <button class="btn btn-primary btn-sm" style="flex:1;">재시작</button>
+              <button class="btn btn-outline btn-sm" style="flex:1;">편집</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 새 광고 만들기 -->
+    <div id="adv-panel-create" class="adv-panel hidden">
+      <!-- 기존 광고 만들기 폼 (ads.html에 이미 있음) -->
+      <div class="adv-section">
+        <h3 style="font-size:18px;font-weight:800;margin-bottom:20px;" data-i18n="adv_new">새 광고 만들기</h3>
+
+        <!-- 광고 유형 선택 -->
+        <div style="margin-bottom:24px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:12px;">광고 유형 선택</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+            <div class="ad-type-card active" onclick="selectAdType(this,'video')">
+              <div style="font-size:28px;margin-bottom:8px;">🎬</div>
+              <div style="font-weight:700;" data-i18n="adv_type_video">영상 광고</div>
+              <div style="font-size:12px;color:#6b7280;">MP4 · 15-60초</div>
+              <div style="font-size:13px;font-weight:700;color:#8b5cf6;margin-top:8px;">+2 TL/초</div>
+            </div>
+            <div class="ad-type-card" onclick="selectAdType(this,'audio')">
+              <div style="font-size:28px;margin-bottom:8px;">🔊</div>
+              <div style="font-weight:700;" data-i18n="adv_type_audio">오디오 광고</div>
+              <div style="font-size:12px;color:#6b7280;">MP3 · 10-30초</div>
+              <div style="font-size:13px;font-weight:700;color:#8b5cf6;margin-top:8px;">+1.5 TL/초</div>
+            </div>
+            <div class="ad-type-card" onclick="selectAdType(this,'banner')">
+              <div style="font-size:28px;margin-bottom:8px;">🖼️</div>
+              <div style="font-weight:700;" data-i18n="adv_type_banner">배너 광고</div>
+              <div style="font-size:12px;color:#6b7280;">JPG/PNG</div>
+              <div style="font-size:13px;font-weight:700;color:#8b5cf6;margin-top:8px;">+0.5 TL/노출</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 패키지 선택 -->
+        <div style="margin-bottom:24px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:12px;" data-i18n="adv_packages">광고 패키지</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+            <div class="pkg-card" onclick="selectPkg(this,'basic',100000)">
+              <div class="pkg-name" data-i18n="adv_pkg_basic">베이직</div>
+              <div class="pkg-price">₩100,000</div>
+              <div class="pkg-features">
+                <div>노출 12,000회</div>
+                <div>전국 타겟팅</div>
+                <div>기본 리포트</div>
+              </div>
+            </div>
+            <div class="pkg-card active-pkg" onclick="selectPkg(this,'pro',300000)">
+              <div class="pkg-badge-tag">추천</div>
+              <div class="pkg-name" data-i18n="adv_pkg_pro">프로</div>
+              <div class="pkg-price">₩300,000</div>
+              <div class="pkg-features">
+                <div>노출 40,000회</div>
+                <div>지역 타겟팅</div>
+                <div>상세 리포트</div>
+                <div>A/B 테스트</div>
+              </div>
+            </div>
+            <div class="pkg-card" onclick="selectPkg(this,'premium',1000000)">
+              <div class="pkg-name" data-i18n="adv_pkg_premium">프리미엄</div>
+              <div class="pkg-price">₩1,000,000</div>
+              <div class="pkg-features">
+                <div>노출 150,000회</div>
+                <div>정밀 타겟팅</div>
+                <div>실시간 리포트</div>
+                <div>담당자 배정</div>
+                <div>카페방송 연동</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 소재 업로드 -->
+        <div style="margin-bottom:24px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:12px;" data-i18n="adv_upload">광고 소재 업로드</div>
+          <div style="border:2px dashed #e5e7eb;border-radius:12px;padding:32px;text-align:center;cursor:pointer;" onclick="document.getElementById('new-ad-file').click()">
+            <div style="font-size:36px;margin-bottom:8px;">📁</div>
+            <div style="font-weight:700;margin-bottom:4px;">파일을 드래그하거나 클릭해서 업로드</div>
+            <div style="font-size:13px;color:#6b7280;">MP4, MP3, JPG, PNG 지원 · 최대 100MB</div>
+            <input type="file" id="new-ad-file" style="display:none" onchange="handleNewAdFile(this)">
+          </div>
+        </div>
+
+        <!-- 광고주 정보 + 타겟 설정 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+          <div>
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;" data-i18n="adv_company">회사/브랜드명</label>
+            <input type="text" placeholder="예) 스타벅스 코리아" style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;font-family:inherit;">
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;">광고 목표 URL</label>
+            <input type="url" placeholder="https://example.com" style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;font-family:inherit;">
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;">광고 기간</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="date" style="flex:1;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;">
+              <span style="color:#6b7280;">~</span>
+              <input type="date" style="flex:1;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;">
+            </div>
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;" data-i18n="adv_budget">일 예산</label>
+            <input type="number" placeholder="최소 10,000원" style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;font-family:inherit;">
+          </div>
+        </div>
+
+        <button onclick="submitNewAd()" style="width:100%;padding:16px;background:#8b5cf6;color:white;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;">
+          📣 광고 등록 신청하기
+        </button>
+        <p style="font-size:12px;color:#9ca3af;text-align:center;margin-top:12px;">광고 심사 후 24시간 내 노출 시작 · 문의: ads@timelink.io</p>
+      </div>
+    </div>
+
+    <!-- 성과 리포트 -->
+    <div id="adv-panel-report" class="adv-panel hidden">
+      <div class="adv-section">
+        <h3 style="font-size:18px;font-weight:800;margin-bottom:20px;" data-i18n="adv_report">📈 성과 리포트</h3>
+        <div style="display:flex;gap:8px;margin-bottom:20px;">
+          <button class="btn btn-primary btn-sm" onclick="setReportPeriod(this,'7')">7일</button>
+          <button class="btn btn-outline btn-sm" onclick="setReportPeriod(this,'30')">30일</button>
+          <button class="btn btn-outline btn-sm" onclick="setReportPeriod(this,'90')">90일</button>
+        </div>
+        <div class="report-chart-placeholder">
+          <div style="text-align:center;padding:60px;color:#9ca3af;">
+            <div style="font-size:48px;margin-bottom:12px;">📊</div>
+            <div style="font-size:16px;font-weight:700;">노출/클릭 추이 차트</div>
+            <div style="font-size:13px;margin-top:4px;">광고 집행 후 데이터가 표시됩니다</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px;">
+          <div style="background:#f8fafc;border-radius:12px;padding:16px;text-align:center;">
+            <div style="font-size:22px;font-weight:800;color:#8b5cf6;">248,300</div>
+            <div style="font-size:12px;color:#6b7280;" data-i18n="adv_impressions">총 노출</div>
+          </div>
+          <div style="background:#f8fafc;border-radius:12px;padding:16px;text-align:center;">
+            <div style="font-size:22px;font-weight:800;color:#10b981;">7,941</div>
+            <div style="font-size:12px;color:#6b7280;" data-i18n="adv_clicks">총 클릭</div>
+          </div>
+          <div style="background:#f8fafc;border-radius:12px;padding:16px;text-align:center;">
+            <div style="font-size:22px;font-weight:800;color:#f59e0b;">3.2%</div>
+            <div style="font-size:12px;color:#6b7280;" data-i18n="adv_ctr">평균 CTR</div>
+          </div>
+          <div style="background:#f8fafc;border-radius:12px;padding:16px;text-align:center;">
+            <div style="font-size:22px;font-weight:800;color:#0f172a;">₩620K</div>
+            <div style="font-size:12px;color:#6b7280;" data-i18n="adv_spent">총 지출</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 광고주 등록 -->
+    <div id="adv-panel-register" class="adv-panel hidden">
+      <div class="adv-section" style="max-width:560px;">
+        <h3 style="font-size:18px;font-weight:800;margin-bottom:8px;" data-i18n="adv_register">광고주 등록</h3>
+        <p style="color:#6b7280;margin-bottom:24px;">TimeLink 광고주로 등록하면 더 정밀한 타겟팅과 상세 리포트를 이용할 수 있습니다.</p>
+        <div style="display:grid;gap:16px;">
+          <div>
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;" data-i18n="adv_company">회사/브랜드명</label>
+            <input type="text" placeholder="회사 또는 브랜드명 입력" style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;font-family:inherit;">
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;" data-i18n="adv_business_no">사업자 등록번호</label>
+            <input type="text" placeholder="000-00-00000" style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;font-family:inherit;">
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;" data-i18n="adv_contact">담당자 연락처</label>
+            <input type="tel" placeholder="010-0000-0000" style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;font-family:inherit;">
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;">담당자 이메일</label>
+            <input type="email" placeholder="ads@company.com" style="width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;outline:none;font-family:inherit;">
+          </div>
+          <button onclick="registerAdvertiser()" style="padding:16px;background:#8b5cf6;color:white;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;" data-i18n="adv_register">광고주 등록하기</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /advertiser panel -->
+
+</div><footer class="page-footer">
   <div class="footer-grid">
     <div class="footer-col">
       <div class="footer-logo"><span style="background:#8b5cf6;border-radius:6px;padding:2px 8px;color:white;font-weight:800;">⚡</span> TimeLink</div>
@@ -1523,6 +1855,59 @@ function updateUI() {
     if(typeof CURRENCY!=='undefined'){ CURRENCY.current=CURRENCY.detect(); CURRENCY.renderSelector('currency-selector'); CURRENCY.applyAll(); }
   });
 })();
+</script>
+
+<script>
+function switchAdsMode(mode, btn) {
+  document.querySelectorAll('.ads-mode-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('ads-panel-viewer').style.display = mode === 'viewer' ? '' : 'none';
+  const advPanel = document.getElementById('ads-panel-advertiser');
+  if (advPanel) advPanel.classList.toggle('hidden', mode !== 'advertiser');
+}
+
+function switchAdvTab(name, btn) {
+  document.querySelectorAll('.adv-sub-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.adv-panel').forEach(p => p.classList.add('hidden'));
+  const panel = document.getElementById('adv-panel-' + name);
+  if (panel) panel.classList.remove('hidden');
+}
+
+function selectAdType(el, type) {
+  document.querySelectorAll('.ad-type-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function selectPkg(el, name, price) {
+  document.querySelectorAll('.pkg-card').forEach(c => c.classList.remove('active-pkg'));
+  el.classList.add('active-pkg');
+}
+
+function pauseCampaign(btn) {
+  showAdsToast('캠페인이 일시정지되었습니다');
+  btn.textContent = '재시작';
+  btn.style.background = '#10b981';
+  btn.style.color = 'white';
+}
+
+function setReportPeriod(btn, period) {
+  document.querySelectorAll('[onclick^="setReportPeriod"]').forEach(b => { b.className = 'btn btn-outline btn-sm'; });
+  btn.className = 'btn btn-primary btn-sm';
+}
+
+function submitNewAd() { showAdsToast('📣 광고 등록이 신청되었습니다. 24시간 내 검토 후 노출됩니다.', 'success'); }
+function registerAdvertiser() { showAdsToast('🏢 광고주 등록이 완료되었습니다!', 'success'); }
+function handleNewAdFile(input) { if(input.files[0]) showAdsToast('파일 업로드 완료: ' + input.files[0].name, 'success'); }
+
+function showAdsToast(msg, type='info') {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:${type==='success'?'#10b981':'#0f172a'};color:white;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;max-width:90vw;text-align:center;`;
+  document.body.appendChild(t);
+  setTimeout(() => t.style.opacity='1', 10);
+  setTimeout(() => { t.style.opacity='0'; setTimeout(() => t.remove(),300); }, 3000);
+}
 </script>
 </body>
 </html>
