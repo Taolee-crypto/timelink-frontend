@@ -538,7 +538,7 @@ nav #global-controls button:hover {
 }
 
 /* Google Translate 커스텀 스타일 */
-#google_translate_element { display: inline-flex; align-items: center; }
+
 #google_translate_element .goog-te-gadget-simple {
   background: rgba(139,92,246,0.08) !important;
   border: 1px solid rgba(139,92,246,0.2) !important;
@@ -554,10 +554,42 @@ nav #global-controls button:hover {
 }
 #google_translate_element .goog-te-gadget-simple span { color: #374151 !important; }
 #google_translate_element .goog-te-gadget-simple .goog-te-menu-value span:first-child { color: #374151 !important; }
-.goog-te-banner-frame { display: none !important; }
-body { top: 0 !important; }
+
+
 .goog-logo-link { display: none !important; }
 .goog-te-gadget { font-size: 0 !important; }
+
+/* ── 하단 플레이어 바 ── */
+.bottom-player {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: white;
+  border-top: 2px solid #e5e7eb;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
+  z-index: 500;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.bottom-player.visible { transform: translateY(0); }
+.bp-progress { height: 4px; background: #e5e7eb; cursor: pointer; }
+.bp-progress-fill { height: 100%; background: linear-gradient(90deg,#8b5cf6,#7c3aed); width: 0%; transition: width 0.5s; }
+.bp-body { display: flex; align-items: center; gap: 16px; padding: 10px 24px; }
+.bp-thumb { width: 44px; height: 44px; border-radius: 10px; background: #ede9fe; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; overflow: hidden; }
+.bp-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.bp-info { flex: 1; min-width: 0; }
+.bp-title { font-size: 14px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bp-artist { font-size: 12px; color: #6b7280; }
+.bp-controls { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.bp-btn { width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all 0.15s; }
+.bp-play { background: #8b5cf6; color: white; }
+.bp-play:hover { background: #7c3aed; transform: scale(1.05); }
+.bp-skip { background: #f3f4f6; color: #374151; }
+.bp-skip:hover { background: #e5e7eb; }
+.bp-tl { font-size: 13px; font-weight: 800; color: #ef4444; min-width: 70px; text-align: center; }
+.bp-tl-label { font-size: 10px; color: #6b7280; text-align: center; }
+.bp-close { background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 18px; padding: 4px; }
+.bp-close:hover { color: #374151; }
+/* 콘텐츠가 플레이어 바에 가리지 않도록 */
+body.player-active { padding-bottom: 80px; }
 </style>
   <meta property="og:title" content="라이브러리 - TimeLink">
   <meta property="og:description" content="TimeLink 음악 라이브러리. 전 세계 창작자의 음악을 탐색하세요.">
@@ -604,7 +636,7 @@ function googleTranslateElementInit() {
       <div class="dropdown" id="dropdown">
         <a href="create.html" class="dropdown-item" data-i18n="tab_upload">📤 업로드</a>
         <a href="shareplace.html" class="dropdown-item" data-i18n="footer_shareplace">🛍️ SharePlace</a>
-        <a href="player.html" class="dropdown-item">🎬 플레이어</a>
+        
         <a href="index.html" class="dropdown-item" data-i18n="tab_dashboard">📊 대시보드</a>
         <a href="charge.html" class="dropdown-item charge">💳 TL 충전</a>
         <div class="dropdown-divider"></div>
@@ -1554,7 +1586,7 @@ function confirmPlay() {
   localStorage.setItem('tl_current_play', JSON.stringify(currentPlayFile));
   closePlayModal();
   showToast('▶ 재생 시작 (-' + cost + ' TL)', 'success');
-  setTimeout(function(){ window.location.href = 'player.html'; }, 800);
+  startBottomPlayer(currentPlayFile);
 }
 
 // ===== 공유 링크 =====
@@ -1879,7 +1911,7 @@ function openPlayerPanel(f) {
       '<input type="file" id="direct-file-input" accept="audio/*,video/*" style="display:none" onchange="loadDirectFile(this)">' +
       '<button style="margin-top:4px;padding:8px 20px;background:#8b5cf6;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer" onclick="document.getElementById(\\"direct-file-input\\").click()">📂 파일 직접 열기</button>' +
       '<div style="margin-top:6px;font-size:11px;color:#b45309">이 기기에서 IndexedDB에 저장됩니다</div>' +
-      '</div>' +
+      '</div>';
     wrap.style.display = 'block';
   }
 
@@ -2091,7 +2123,7 @@ function searchEditSpotify() {
     window._editSpotifyAlbums = data.albums;
     resultsEl.innerHTML = data.albums.map(function(a, i) {
       var img = a.coverImage || a.thumbnail || '';
-      return '<div onclick="selectEditSpotify(' + i + ')" style="cursor:pointer;border:2px solid #e5e7eb;border-radius:8px;overflow:hidden;" onmouseover="this.style.borderColor='#1db954'" onmouseout="this.style.borderColor='#e5e7eb'">'
+      return '<div onclick="selectEditSpotify(' + i + ')" style="cursor:pointer;border:2px solid #e5e7eb;border-radius:8px;overflow:hidden;">'
         + '<img src="' + img + '" style="width:100%;aspect-ratio:1;object-fit:cover;">'
         + '<div style="padding:4px 6px;font-size:10px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (a.name || '') + '</div></div>';
     }).join('');
@@ -2145,6 +2177,33 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 
 </script>
+
+<!-- ── 하단 고정 플레이어 바 ── -->
+<div id="bottom-player" class="bottom-player">
+  <div class="bp-progress" onclick="seekAudio(event)"><div class="bp-progress-fill" id="bp-fill"></div></div>
+  <div class="bp-body">
+    <div class="bp-thumb" id="bp-thumb">🎵</div>
+    <div class="bp-info">
+      <div class="bp-title" id="bp-title">—</div>
+      <div class="bp-artist" id="bp-artist">—</div>
+    </div>
+    <div style="font-size:11px;color:#6b7280;text-align:center;min-width:60px;">
+      <div class="bp-tl" id="bp-tl-used">0 TL</div>
+      <div class="bp-tl-label">사용</div>
+    </div>
+    <div style="font-size:11px;color:#6b7280;text-align:center;min-width:60px;font-size:12px;" id="bp-time">0:00 / 0:00</div>
+    <div class="bp-controls">
+      <button class="bp-btn bp-skip" onclick="prevTrack()" title="이전">⏮</button>
+      <button class="bp-btn bp-play" id="bp-play-btn" onclick="toggleBottomPlay()">⏸</button>
+      <button class="bp-btn bp-skip" onclick="nextTrack()" title="다음">⏭</button>
+    </div>
+    <input type="range" min="0" max="1" step="0.01" value="1" 
+           style="width:80px;accent-color:#8b5cf6;" oninput="setVolume(this.value)" title="볼륨">
+    <button class="bp-close" onclick="closeBottomPlayer()" title="닫기">✕</button>
+  </div>
+  <audio id="bp-audio"></audio>
+</div>
+
 <footer class="page-footer">
   <div class="footer-grid">
     <div class="footer-col">
@@ -2237,7 +2296,125 @@ document.addEventListener("DOMContentLoaded", function() {
     if(typeof CURRENCY!=='undefined'){ CURRENCY.current=CURRENCY.detect(); CURRENCY.renderSelector('currency-selector'); CURRENCY.applyAll(); }
   });
 })();
+
+// ══════ 하단 플레이어 바 ══════
+var bpAudio = null;
+var bpFile = null;
+var bpInterval = null;
+var bpTLInterval = null;
+var bpTotalTL = 0;
+
+function startBottomPlayer(file) {
+  bpFile = file;
+  bpTotalTL = 0;
+  
+  var player = $('bottom-player');
+  var audio = $('bp-audio');
+  bpAudio = audio;
+  
+  // 커버 이미지
+  var thumb = $('bp-thumb');
+  if (file.coverImage) {
+    thumb.innerHTML = '<img src="' + file.coverImage + '">';
+  } else {
+    thumb.textContent = file.type === 'video' ? '🎬' : '🎵';
+  }
+  
+  $('bp-title').textContent = file.title || '제목 없음';
+  $('bp-artist').textContent = file.artist || '아티스트 미상';
+  $('bp-play-btn').textContent = '⏸';
+  $('bp-fill').style.width = '0%';
+  $('bp-tl-used').textContent = '0 TL';
+  $('bp-time').textContent = '0:00 / 0:00';
+  
+  // 오디오 소스 설정
+  if (file.dataUrl || file.url) {
+    audio.src = file.dataUrl || file.url;
+    audio.play().catch(function(e) { showToast('재생 오류: ' + e.message, 'error'); });
+  } else {
+    showToast('재생할 파일이 없습니다', 'error');
+    return;
+  }
+  
+  // 플레이어 바 표시
+  player.classList.add('visible');
+  document.body.classList.add('player-active');
+  
+  // 진행 바 업데이트
+  clearInterval(bpInterval);
+  bpInterval = setInterval(function() {
+    if (!bpAudio || bpAudio.paused) return;
+    var pct = bpAudio.duration ? (bpAudio.currentTime / bpAudio.duration * 100) : 0;
+    $('bp-fill').style.width = pct + '%';
+    $('bp-time').textContent = formatTime(bpAudio.currentTime) + ' / ' + formatTime(bpAudio.duration || 0);
+  }, 500);
+  
+  // TL 차감 (1초마다)
+  clearInterval(bpTLInterval);
+  bpTLInterval = setInterval(function() {
+    if (!bpAudio || bpAudio.paused) return;
+    var cost = (file.type === 'video') ? 2 : 1;
+    var user = JSON.parse(localStorage.getItem('tl_user') || '{}');
+    var bal = Number(user.tl || 0);
+    if (bal <= 0) {
+      bpAudio.pause();
+      $('bp-play-btn').textContent = '▶';
+      showToast('TL이 소진되었습니다. 충전해주세요.', 'error');
+      clearInterval(bpTLInterval);
+      return;
+    }
+    user.tl = bal - cost;
+    bpTotalTL += cost;
+    localStorage.setItem('tl_user', JSON.stringify(user));
+    updateNavBalance(user);
+    $('bp-tl-used').textContent = bpTotalTL + ' TL';
+  }, 1000);
+  
+  // 재생 종료
+  audio.onended = function() {
+    $('bp-play-btn').textContent = '▶';
+    clearInterval(bpTLInterval);
+  };
+}
+
+function toggleBottomPlay() {
+  if (!bpAudio) return;
+  if (bpAudio.paused) {
+    bpAudio.play();
+    $('bp-play-btn').textContent = '⏸';
+  } else {
+    bpAudio.pause();
+    $('bp-play-btn').textContent = '▶';
+  }
+}
+
+function closeBottomPlayer() {
+  if (bpAudio) { bpAudio.pause(); bpAudio.src = ''; }
+  clearInterval(bpInterval);
+  clearInterval(bpTLInterval);
+  $('bottom-player').classList.remove('visible');
+  document.body.classList.remove('player-active');
+  bpFile = null;
+}
+
+function seekAudio(e) {
+  if (!bpAudio || !bpAudio.duration) return;
+  var rect = e.currentTarget.getBoundingClientRect();
+  var pct = (e.clientX - rect.left) / rect.width;
+  bpAudio.currentTime = bpAudio.duration * pct;
+}
+
+function setVolume(v) { if (bpAudio) bpAudio.volume = v; }
+
+function prevTrack() { showToast('이전 트랙', 'info'); }
+function nextTrack() { showToast('다음 트랙', 'info'); }
+
+function formatTime(sec) {
+  if (!sec || isNaN(sec)) return '0:00';
+  var m = Math.floor(sec / 60);
+  var s = Math.floor(sec % 60);
+  return m + ':' + (s < 10 ? '0' : '') + s;
+}
 </script>
 </body>
 </html>
-
