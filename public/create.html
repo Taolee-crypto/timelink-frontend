@@ -174,6 +174,22 @@ body { font-family:var(--font); background:#f8fafc; color:#0f172a; line-height:1
   .stepper { gap:0; }
   .step-line { width:32px; }
 }
+
+/* ── 증빙 이미지 그리드 ── */
+.proof-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
+.proof-card { border:2px dashed #d1d5db; border-radius:14px; overflow:hidden; transition:all .2s; background:#fafafa; }
+.proof-card.has-img { border-color:#8b5cf6; border-style:solid; background:#f5f3ff; }
+.proof-card-label { font-size:11px; font-weight:700; color:#6b7280; text-align:center; padding:10px 8px 6px; text-transform:uppercase; letter-spacing:.5px; }
+.proof-drop { position:relative; aspect-ratio:1; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px; }
+.proof-drop input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; z-index:10; }
+.proof-drop img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none; border-radius:0; }
+.proof-card.has-img .proof-drop img { display:block; }
+.proof-card.has-img .proof-drop .proof-placeholder { display:none; }
+.proof-placeholder { text-align:center; pointer-events:none; }
+.proof-placeholder .picon { font-size:24px; margin-bottom:4px; }
+.proof-placeholder .phint { font-size:10px; color:#9ca3af; }
+.proof-paste-hint { font-size:10px; color:#8b5cf6; text-align:center; padding:0 8px 8px; }
+@media(max-width:480px){ .proof-grid { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -434,6 +450,51 @@ body { font-family:var(--font); background:#f8fafc; color:#0f172a; line-height:1
         <div class="form-group">
           <label class="form-label">저작권 등록 번호 <span style="color:#9ca3af;font-weight:400;">(선택)</span></label>
           <input type="text" class="form-input" id="a-regnum" placeholder="한국저작권위원회 등록번호">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">증빙 이미지 <span style="color:#9ca3af;font-weight:400;">(선택 · Ctrl+V 붙여넣기 가능)</span></label>
+        <div class="proof-grid">
+          <!-- 1. 프로필 인증 -->
+          <div class="proof-card" id="proof-card-1">
+            <div class="proof-card-label">① 프로필 증명</div>
+            <div class="proof-drop" id="proof-drop-1">
+              <input type="file" accept="image/*" onchange="handleProofFile(this,1)">
+              <img id="proof-img-1" alt="">
+              <div class="proof-placeholder">
+                <div class="picon">📸</div>
+                <div class="phint">클릭 업로드</div>
+              </div>
+            </div>
+            <div class="proof-paste-hint">Ctrl+V 붙여넣기</div>
+          </div>
+          <!-- 2. 결제 증명 -->
+          <div class="proof-card" id="proof-card-2">
+            <div class="proof-card-label">② 결제 증명</div>
+            <div class="proof-drop" id="proof-drop-2">
+              <input type="file" accept="image/*" onchange="handleProofFile(this,2)">
+              <img id="proof-img-2" alt="">
+              <div class="proof-placeholder">
+                <div class="picon">💳</div>
+                <div class="phint">클릭 업로드</div>
+              </div>
+            </div>
+            <div class="proof-paste-hint">Ctrl+V 붙여넣기</div>
+          </div>
+          <!-- 3. 생성 증명 -->
+          <div class="proof-card" id="proof-card-3">
+            <div class="proof-card-label">③ 생성 증명</div>
+            <div class="proof-drop" id="proof-drop-3">
+              <input type="file" accept="image/*" onchange="handleProofFile(this,3)">
+              <img id="proof-img-3" alt="">
+              <div class="proof-placeholder">
+                <div class="picon">🎵</div>
+                <div class="phint">클릭 업로드</div>
+              </div>
+            </div>
+            <div class="proof-paste-hint">Ctrl+V 붙여넣기</div>
+          </div>
         </div>
       </div>
 
@@ -759,6 +820,7 @@ async function submitAuth() {
     isrc:       document.getElementById('a-isrc').value.trim(),
     regNum:     document.getElementById('a-regnum').value.trim(),
     description: document.getElementById('a-desc').value.trim(),
+    proofImages:  proofImages,
     registeredAt: new Date().toISOString(),
   };
 
@@ -851,6 +913,29 @@ async function finalizeUpload() {
   myFiles.unshift(newFile);
   localStorage.setItem('tl_myfiles', JSON.stringify(myFiles));
 
+  // D1에 트랙 등록 (coverImage는 data URL이면 용량 때문에 제외)
+  try {
+    var cover = coverImage && coverImage.startsWith('http') ? coverImage : null;
+    await fetch('https://timelink-backend.mununglee.workers.dev/api/tracks', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        id:          fileId,
+        title:       state.title,
+        artist:      state.artist,
+        genre:       state.genre,
+        coverImage:  cover,
+        duration:    state.audioDuration,
+        pricePerSec: isVideo ? 2 : 1,
+        authMethod:  state.authMethod,
+        authStatus:  state.authMethod === 'spotify' ? 'spotify_verified' : 'manual_verified',
+        username:    user.username || 'unknown',
+      })
+    });
+  } catch(e) {
+    console.warn('D1 트랙 등록 실패 (로컬만 저장됨):', e.message);
+  }
+
   // 완료 화면
   document.getElementById('done-title').textContent = '"' + state.title + '" 등록 완료!';
   document.getElementById('done-sub').textContent =
@@ -885,6 +970,61 @@ function idbSave(id, file) {
     req.onerror = function() { reject(req.error); };
   });
 }
+
+
+// ══════════════════════════════════════════════
+// 증빙 이미지 처리
+// ══════════════════════════════════════════════
+var proofImages = {1: null, 2: null, 3: null};
+var activeProofSlot = 1;  // 마지막으로 클릭한 슬롯
+
+function handleProofFile(input, slot) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) { applyProofImage(slot, e.target.result); };
+  reader.readAsDataURL(file);
+}
+
+function applyProofImage(slot, dataUrl) {
+  proofImages[slot] = dataUrl;
+  document.getElementById('proof-img-' + slot).src = dataUrl;
+  document.getElementById('proof-card-' + slot).classList.add('has-img');
+}
+
+// 각 드롭존 클릭 시 활성 슬롯 기록
+document.addEventListener('DOMContentLoaded', function() {
+  [1,2,3].forEach(function(i) {
+    var drop = document.getElementById('proof-drop-' + i);
+    if (drop) drop.addEventListener('click', function() { activeProofSlot = i; });
+  });
+});
+
+// 클립보드 붙여넣기 (step3b 활성 시)
+document.addEventListener('paste', function(e) {
+  var step3 = document.getElementById('step3b');
+  if (!step3 || step3.style.display === 'none') return;
+
+  var items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].type.indexOf('image') !== -1) {
+      var file = items[i].getAsFile();
+      var reader = new FileReader();
+      (function(slot) {
+        reader.onload = function(ev) { applyProofImage(slot, ev.target.result); };
+      })(activeProofSlot);
+      reader.readAsDataURL(file);
+      e.preventDefault();
+
+      // 다음 빈 슬롯으로 자동 이동
+      var next = activeProofSlot < 3 ? activeProofSlot + 1 : 1;
+      activeProofSlot = next;
+      showToast('이미지 붙여넣기 완료 (슬롯 ' + (activeProofSlot === 1 ? 3 : activeProofSlot - 1) + ')', 'success');
+      break;
+    }
+  }
+});
 
 // ══════════════════════════════════════════════
 // 유틸

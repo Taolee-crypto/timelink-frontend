@@ -416,6 +416,25 @@ function googleTranslateElementInit() {
 
 <!-- 푸터 -->
 
+<!-- ── 파일 TL 없음 확인 모달 ── -->
+<div id="ntl-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2100;align-items:center;justify-content:center;">
+  <div style="background:#1e1e2e;border-radius:24px;padding:32px;width:100%;max-width:400px;margin:16px;border:1px solid rgba(255,255,255,.1);text-align:center;">
+    <div style="font-size:40px;margin-bottom:16px;">💳</div>
+    <div style="font-size:17px;font-weight:900;color:white;margin-bottom:8px;" id="ntl-title"></div>
+    <div style="font-size:14px;color:rgba(255,255,255,.5);margin-bottom:28px;line-height:1.6;">
+      이 파일에 충전된 TL이 없습니다.<br>파일에 TL을 충전하시겠습니까?
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="noTLWallet()" style="flex:1;padding:14px;background:rgba(255,255,255,.08);border:none;border-radius:12px;color:rgba(255,255,255,.7);font-weight:700;cursor:pointer;font-size:14px;">
+        아니오<br><span style="font-size:11px;color:rgba(255,255,255,.4);">내 지갑에서 차감</span>
+      </button>
+      <button onclick="noTLCharge()" style="flex:1;padding:14px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;border-radius:12px;color:white;font-weight:700;cursor:pointer;font-size:14px;">
+        예, 충전<br><span style="font-size:11px;color:rgba(255,255,255,.7);">충전 후 자동 재생</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ── 충전 모달 ── -->
 <div id="charge-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;align-items:center;justify-content:center;">
   <div style="background:#1e1e2e;border-radius:24px;padding:32px;width:100%;max-width:420px;margin:16px;border:1px solid rgba(255,255,255,.1);">
@@ -596,36 +615,62 @@ function renderTrending(){
 
 function playTrack(id){
   const t=TRACKS.find(x=>x.id===id); if(!t) return;
-
-  // TL 잔액 체크 (파일 충전 TL 또는 내 지갑)
   const user=JSON.parse(localStorage.getItem('tl_user')||'{}');
   const walletTL=Number(user.tl||0);
   const fileTL=Number(t.fileTL||0);
 
-  if(fileTL<=0 && walletTL<=0){
-    toast('TL이 부족합니다. 지갑을 충전하세요.','e');
+  if(fileTL > 0){
+    // 파일에 충전된 TL로 바로 재생
+    curId=id; pulse=0; curChargeMode=true;
+    loadAndPlay(t);
+  } else {
+    // 파일 TL 없음 → 충전 여부 확인 모달
+    showNoTLModal(id);
+  }
+}
+
+var curChargeMode=false;
+
+// 파일 TL 없을 때 확인 모달
+function showNoTLModal(id){
+  noTLTrackId=id;
+  const t=TRACKS.find(x=>x.id===id); if(!t) return;
+  $('ntl-title').textContent=t.title;
+  $('ntl-modal').style.display='flex';
+}
+
+var noTLTrackId=null;
+
+function noTLCharge(){
+  // 예 → 충전 모달 열기, 충전 후 자동 재생
+  $('ntl-modal').style.display='none';
+  openChargeModal(noTLTrackId, true); // autoPlay=true
+}
+
+function noTLWallet(){
+  // 아니오 → 내 지갑으로 강제 차감 재생
+  $('ntl-modal').style.display='none';
+  const t=TRACKS.find(x=>x.id===noTLTrackId); if(!t) return;
+  const user=JSON.parse(localStorage.getItem('tl_user')||'{}');
+  if(Number(user.tl||0)<=0){
+    toast('지갑 TL도 없습니다. 충전 후 이용하세요.','e');
+    setTimeout(function(){ window.location.href='charge.html'; },1500);
     return;
   }
+  curId=noTLTrackId; pulse=0; curChargeMode=false;
+  loadAndPlay(t);
+}
 
-  curId=id; pulse=0;
-  curChargeMode = fileTL > 0; // 파일 충전 TL로 재생할지 여부
-
-  // IDB에서 파일 읽기 시도, 없으면 url 사용
+function loadAndPlay(t){
   if(t.idbStored){
-    idbLoad(id).then(function(file){
-      if(file){
-        var url=URL.createObjectURL(file);
-        startPlay(t, url, true);
-      } else {
-        startPlay(t, t.url||null, false);
-      }
+    idbLoad(t.id).then(function(file){
+      if(file){ startPlay(t, URL.createObjectURL(file), true); }
+      else { startPlay(t, t.url||null, false); }
     }).catch(function(){ startPlay(t, t.url||null, false); });
   } else {
     startPlay(t, t.url||null, false);
   }
 }
-
-var curChargeMode=false;
 
 function startPlay(t, src, isBlob){
   if(!src){ toast('재생할 파일이 없습니다. 라이브러리에서 업로드하세요.','e'); return; }
@@ -685,9 +730,23 @@ function startTimer(){
       }
     }
 
-    // 창작자 TL 누적 (7:3 분배 - 추후 백엔드 처리)
-    t.fileTL=(t.fileTL||0)+pricePerSec; // 창작자 누적
+    // 창작자 TL 누적
+    t.creatorTL=(t.creatorTL||0)+pricePerSec;
     t.pulse=(t.pulse||0)+1;
+
+    // 10초마다 D1에 재생 기록 동기화
+    if(pulse % 10 === 0){
+      var user2=JSON.parse(localStorage.getItem('tl_user')||'{}');
+      fetch('https://timelink-backend.mununglee.workers.dev/api/tracks/'+curId+'/play',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          seconds:10,
+          mode: curChargeMode?'file':'wallet',
+          username: user2.username||'anonymous'
+        })
+      }).catch(function(){});
+    }
 
   },1000);
 }
@@ -704,8 +763,10 @@ function shareTrack(id){
 
 // ══ 충전 모달 ══
 var cmTrackId=null;
-function openChargeModal(id){
+var cmAutoPlay=false;
+function openChargeModal(id, autoPlay){
   cmTrackId=id;
+  cmAutoPlay=!!autoPlay;
   const t=TRACKS.find(x=>x.id===id); if(!t) return;
   const user=JSON.parse(localStorage.getItem('tl_user')||'{}');
   $('cm-title').textContent='💰 '+t.title+' · 파일 TL 충전';
@@ -741,6 +802,16 @@ function confirmCharge(){
   closeChargeModal();
   renderGrid();
   toast('💰 '+fmtFull(amount)+' TL 충전 완료!','s');
+
+  // 충전 후 자동 재생
+  if(cmAutoPlay && cmTrackId){
+    var autoId=cmTrackId;
+    setTimeout(function(){
+      curId=autoId; pulse=0; curChargeMode=true;
+      var t2=TRACKS.find(function(x){return x.id===autoId;});
+      if(t2) loadAndPlay(t2);
+    }, 400);
+  }
 }
 
 // ══ 다운로드(라이브러리 저장) ══
@@ -878,37 +949,45 @@ initNavbar();
     });
     renderGrid();renderTrending();
   }catch(e){}
-  // load from D1
+  // D1에서 트랙 로드
   try{
     var res=await Promise.race([
       fetch(API+'/api/tracks'),
-      new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),5000))
+      new Promise(function(_,reject){setTimeout(function(){reject(new Error('timeout'));},6000);})
     ]);
     if(res.ok){
       var data=await res.json();
-      (data.tracks||data||[]).forEach(t=>{
-        if(!TRACKS.find(x=>x.id===(t.id||t.file_id))){
+      (data.tracks||[]).forEach(function(t){
+        var existing=TRACKS.find(function(x){return x.id===t.id;});
+        if(existing){
+          // 로컬에 있으면 D1의 최신 TL/pulse 값으로 업데이트
+          existing.fileTL   = Number(t.file_tl||0);
+          existing.pulse    = Number(t.pulse||0);
+          existing.creatorTL= Number(t.creator_tl||0);
+        } else {
+          // D1에만 있는 트랙 (다른 사용자가 등록한 것)
           TRACKS.push({
-            id:          t.id||t.file_id,
+            id:          t.id,
             title:       t.title||'무제',
             artist:      t.artist||'',
             genre:       t.genre||'기타',
             icon:        '🎵',
             pulse:       Number(t.pulse||0),
-            fileTL:      Number(t.file_tl||t.fileTL||0),   // 실제 창작자 TL 잔액
-            maxFileTL:   Number(t.max_file_tl||t.maxFileTL||0),
-            pricePerSec: Number(t.price_per_sec||t.pricePerSec||1),
+            fileTL:      Number(t.file_tl||0),
+            creatorTL:   Number(t.creator_tl||0),
+            pricePerSec: Number(t.price_per_sec||1),
             art:         'linear-gradient(135deg,#7b61ff,#060610)',
-            coverImage:  t.cover_image||t.coverImage||null,
-            url:         t.stream_url||t.streamUrl||null,
+            coverImage:  t.cover_image||null,
             authMethod:  t.auth_method||'manual',
+            authStatus:  t.auth_status||'verified',
             duration:    Number(t.duration||0),
+            idbStored:   false,
           });
         }
       });
       renderGrid();renderTrending();
     }
-  }catch(e){console.log('D1 offline:',e.message);}
+  }catch(e){ /* D1 오프라인 - 로컬 데이터로 동작 */ }
 })();
 
 
