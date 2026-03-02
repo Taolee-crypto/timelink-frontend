@@ -663,17 +663,35 @@ function noTLWallet(){
 
 function loadAndPlay(t){
   if(t.idbStored){
+    // 내가 올린 파일 → IDB에서 직접 재생
     idbLoad(t.id).then(function(file){
       if(file){ startPlay(t, URL.createObjectURL(file), true); }
-      else { startPlay(t, t.url||null, false); }
-    }).catch(function(){ startPlay(t, t.url||null, false); });
+      else { tryStreamPlay(t); }
+    }).catch(function(){ tryStreamPlay(t); });
   } else {
-    startPlay(t, t.url||null, false);
+    tryStreamPlay(t);
+  }
+}
+
+function tryStreamPlay(t){
+  if(t.url){
+    // R2 스트리밍 URL 바로 사용
+    startPlay(t, t.url, false);
+  } else {
+    // Worker에서 stream URL 조회
+    fetch('https://timelink-backend.mununglee.workers.dev/api/stream/'+t.id)
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d.url){ t.url=d.url; startPlay(t, d.url, false); }
+        else { toast('이 음원은 아직 스트리밍이 준비되지 않았습니다','e'); }
+      })
+      .catch(function(){ toast('재생 오류: 네트워크를 확인해주세요','e'); });
   }
 }
 
 function startPlay(t, src, isBlob){
   if(!src){ toast('재생할 파일이 없습니다. 라이브러리에서 업로드하세요.','e'); return; }
+
   aud.src=src; aud.load(); aud.volume=0.85;
   aud.play().then(()=>{
     setPlaying(true); startTimer();
@@ -886,6 +904,23 @@ document.addEventListener('click',function(e){
 });
 
 loadWallet();renderGrid();renderTrending();
+
+// 신규 유저 환영 배너
+(function(){
+  var dismissed = localStorage.getItem('sp_welcome_dismissed');
+  var user = JSON.parse(localStorage.getItem('tl_user') || 'null');
+  if (!dismissed && user) {
+    // 가입 후 24시간 이내면 표시
+    var created = user.created_at ? new Date(user.created_at).getTime() : 0;
+    var isNew = created && (Date.now() - created < 24 * 60 * 60 * 1000);
+    if (isNew) document.getElementById('welcome-banner').style.display = 'block';
+  }
+})();
+function dismissWelcome() {
+  document.getElementById('welcome-banner').style.display = 'none';
+  localStorage.setItem('sp_welcome_dismissed', '1');
+}
+
 
 // 반응형: 모바일에서 2컬럼 → 1컬럼
 if(window.innerWidth<900){$('main-grid').style.gridTemplateColumns='1fr';}
