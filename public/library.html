@@ -1565,28 +1565,42 @@ function idbDelete(fileId) {
 var API = 'https://timelink-backend.mununglee.workers.dev';
 
 function syncFileToDB(file) {
-  // 인증 완료 + SharePlace 등록 파일만 D1에 올림
   if (file.authStatus !== 'verified' || !file.shared) return;
   var user = JSON.parse(localStorage.getItem('tl_user') || '{}');
-  var cover = (file.coverImage && file.coverImage.startsWith('http')) ? file.coverImage : null;
+  var cover = (file.coverImage && typeof file.coverImage === 'string' && file.coverImage.startsWith('http')) ? file.coverImage : null;
+  var payload = {
+    id:          file.id,
+    title:       file.title || '무제',
+    artist:      file.artist || 'Unknown',
+    genre:       file.genre || '기타',
+    coverImage:  cover,
+    duration:    Number(file.duration) || 0,
+    pricePerSec: Number(file.pricePerSec) || 1,
+    authMethod:  file.authMethod || 'manual',
+    authStatus:  'verified',
+    username:    user.username || 'unknown',
+  };
+  console.log('[D1] 등록 시도:', payload.title);
   fetch(API + '/api/tracks', {
     method: 'POST',
+    mode: 'cors',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      id:          file.id,
-      title:       file.title,
-      artist:      file.artist,
-      genre:       file.genre || '기타',
-      coverImage:  cover,
-      duration:    file.duration || 0,
-      pricePerSec: file.pricePerSec || 1,
-      authMethod:  file.authMethod || 'manual',
-      authStatus:  'verified',
-      username:    user.username || 'unknown',
-    })
-  }).then(function(r){ return r.json(); })
-    .then(function(d){ console.log('D1 등록:', d.action, file.title); })
-    .catch(function(e){ console.log('D1 sync 실패:', e.message); });
+    body: JSON.stringify(payload)
+  })
+  .then(function(r){
+    console.log('[D1] 응답 status:', r.status);
+    return r.text();
+  })
+  .then(function(text){
+    console.log('[D1] 응답 body:', text.substring(0, 200));
+    try {
+      var d = JSON.parse(text);
+      if (d.ok) showToast('☁️ ' + file.title + ' SharePlace 등록 완료', 'success');
+    } catch(e) {}
+  })
+  .catch(function(e){
+    console.error('[D1] 네트워크 오류:', e.name, e.message);
+  });
 }
 
 function checkDBConnection() {
