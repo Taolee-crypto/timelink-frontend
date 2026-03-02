@@ -305,10 +305,14 @@ async function loadTrack() {
       var data = await res.json();
       var d1 = (data.tracks||[]).find(function(t){ return t.id === trackId; });
       if (d1) {
+        // localStorage fileTL 우선 사용 (충전값 보존)
+        var localFileTL = local ? Number(local.fileTL||0) : 0;
+        var d1FileTL    = Number(d1.file_tl||0);
+        var finalFileTL = Math.max(localFileTL, d1FileTL); // 둘 중 큰 값
         renderTrack({
           id: d1.id, title: d1.title, artist: d1.artist, genre: d1.genre,
           coverImage: d1.cover_image, duration: d1.duration,
-          fileTL: d1.file_tl||0, creatorTL: d1.creator_tl||0, pulse: d1.pulse||0,
+          fileTL: finalFileTL, creatorTL: d1.creator_tl||0, pulse: d1.pulse||0,
           pricePerSec: d1.price_per_sec||1, authMethod: d1.auth_method||'manual',
           authStatus: d1.auth_status||'verified', streamUrl: d1.stream_url||null,
           createdAt: d1.created_at, idbStored: !!local,
@@ -367,7 +371,12 @@ function renderTrack(t) {
 
 function doPlay() {
   if (!trackData) return;
-  window.location.href = 'shareplace.html?play=' + trackData.id;
+  // fileTL이 있으면 바로 재생, 없으면 충전 모달
+  if (Number(trackData.fileTL||0) > 0) {
+    window.location.href = 'shareplace.html?play=' + trackData.id;
+  } else {
+    openCharge();
+  }
 }
 
 function doDownload() {
@@ -409,8 +418,25 @@ function confirmCharge() {
       document.getElementById('t-tl-bar').style.width=Math.min(100,d.file_tl/Math.max(d.file_tl,10000)*100)+'%';
     }
   }).catch(function(){});
+  // localStorage tl_myfiles 동기화
+  var myFiles = JSON.parse(localStorage.getItem('tl_myfiles')||'[]');
+  var fi = myFiles.findIndex(function(f){ return f.id===trackId; });
+  if(fi > -1){
+    myFiles[fi].fileTL = (Number(myFiles[fi].fileTL)||0) + amount;
+    localStorage.setItem('tl_myfiles', JSON.stringify(myFiles));
+  }
+  // trackData 메모리도 업데이트
+  if(trackData){
+    trackData.fileTL = (Number(trackData.fileTL)||0) + amount;
+    document.getElementById('t-file-tl').textContent = fmt(trackData.fileTL) + ' TL';
+    document.getElementById('t-tl-bar').style.width = Math.min(100, trackData.fileTL/Math.max(trackData.fileTL,10000)*100) + '%';
+    document.getElementById('t-tl-hint').textContent = '약 ' + fmtT(trackData.fileTL/(trackData.pricePerSec||1)) + ' 분량 충전되어 있습니다';
+  }
+  // 지갑 잔액 navbar 업데이트
+  var bt = document.getElementById('balance-tl');
+  if(bt) bt.textContent = fmt(user.tl);
   closeCharge();
-  toast('💰 '+fmt(amount)+' TL 충전 완료!','s');
+  toast('💰 '+fmt(amount)+' TL 충전 완료! 재생 버튼을 눌러 시작하세요','s');
 }
 document.addEventListener('click',function(e){ if(e.target.id==='charge-modal') closeCharge(); });
 

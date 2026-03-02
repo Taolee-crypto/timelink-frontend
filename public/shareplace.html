@@ -899,10 +899,21 @@ function confirmCharge(){
   const t=TRACKS.find(x=>x.id===cmTrackId);
   if(t){ t.fileTL=(t.fileTL||0)+amount; }
 
-  // localStorage 파일 메타도 업데이트
+  // localStorage 파일 메타도 업데이트 (없으면 새로 추가)
   var myFiles=JSON.parse(localStorage.getItem('tl_myfiles')||'[]');
-  var f=myFiles.find(function(x){return x.id===cmTrackId;});
-  if(f){ f.fileTL=(f.fileTL||0)+amount; localStorage.setItem('tl_myfiles',JSON.stringify(myFiles)); }
+  var fIdx=myFiles.findIndex(function(x){return x.id===cmTrackId;});
+  if(fIdx > -1){
+    myFiles[fIdx].fileTL=(Number(myFiles[fIdx].fileTL)||0)+amount;
+  } else if(t) {
+    // 내 파일 목록에 없는 트랙 → 충전 정보만 추가
+    myFiles.unshift({
+      id:t.id, title:t.title, artist:t.artist, genre:t.genre,
+      fileTL:amount, pricePerSec:t.pricePerSec||1,
+      coverImage:t.coverImage||null, authStatus:'verified',
+      downloadedFrom:'shareplace', createdAt:Date.now()
+    });
+  }
+  localStorage.setItem('tl_myfiles',JSON.stringify(myFiles));
 
   closeChargeModal();
   renderGrid();
