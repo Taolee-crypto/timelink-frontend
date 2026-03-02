@@ -336,7 +336,10 @@ body { font-family:var(--font); background:#f8fafc; color:#0f172a; line-height:1
       </div>
 
       <div class="info-box purple">
-        🎁 등록 완료 시 <strong>오디오 +300 TL / 영상 +500 TL</strong> 즉시 지급됩니다
+        🎁 업로드 보상 <strong>오디오 +300 TL / 영상 +500 TL</strong> 즉시 지급
+      </div>
+      <div class="info-box yellow" style="margin-top:8px;">
+        💳 SharePlace 등록 수수료 <strong>-5,000 TL</strong> (플랫폼 정책)
       </div>
 
       <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="goStep2()">
@@ -533,6 +536,7 @@ body { font-family:var(--font); background:#f8fafc; color:#0f172a; line-height:1
         <div class="done-title" id="done-title">등록 완료!</div>
         <div class="done-sub" id="done-sub">음원이 성공적으로 등록되었습니다</div>
         <div class="tl-reward" id="done-reward">+300 TL 지급!</div>
+        <div id="done-fee" style="font-size:13px;color:#9ca3af;margin-top:-20px;margin-bottom:20px;"></div>
         <div id="done-sp-badge" style="display:none;margin-bottom:24px;">
           <div style="background:#d1fae5;color:#065f46;border-radius:12px;padding:12px 20px;font-weight:700;">
             📣 SharePlace에 공개되었습니다
@@ -862,11 +866,21 @@ async function submitAuth() {
 async function finalizeUpload() {
   var isVideo = state.audioFile.type.startsWith('video/');
   var REWARD = isVideo ? 500 : 300;
+  var SP_FEE = 5000; // SharePlace 등록 수수료 (플랫폼 부과)
 
-  // 사용자 TL 보상 지급
   var user = JSON.parse(localStorage.getItem('tl_user') || '{}');
-  user.tl = (Number(user.tl) || 0) + REWARD;
+  var walletTL = Number(user.tl) || 0;
+
+  // SharePlace 등록 수수료 차감 확인
+  if (walletTL < SP_FEE) {
+    showToast('SharePlace 등록 수수료 5,000 TL이 부족합니다 (보유: ' + walletTL.toLocaleString() + ' TL)', 'error');
+    return;
+  }
+
+  // 수수료 차감 + 업로드 보상 지급
+  user.tl = walletTL - SP_FEE + REWARD;
   localStorage.setItem('tl_user', JSON.stringify(user));
+  if (typeof updateNavbar === 'function') updateNavbar();
 
   // IDB에 음원 파일 저장
   var fileId = state.tlFileId;
@@ -942,6 +956,7 @@ async function finalizeUpload() {
   document.getElementById('done-sub').textContent =
     state.authMethod === 'spotify' ? 'Spotify 공식 음원으로 인증되었습니다' : '저작권 정보가 인증 서버에 저장되었습니다';
   document.getElementById('done-reward').textContent = '+' + REWARD + ' TL 지급!';
+  document.getElementById('done-fee').textContent = 'SharePlace 등록 수수료 -5,000 TL · 업로드 보상 +' + REWARD + ' TL';
   document.getElementById('done-sp-badge').style.display = 'block';
   document.getElementById('done-auth-badge').style.display = state.authMethod === 'manual' ? 'block' : 'none';
 

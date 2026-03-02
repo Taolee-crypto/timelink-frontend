@@ -405,9 +405,12 @@ function googleTranslateElementInit() {
     <div style="font-size:12px;color:var(--gray-500)" id="pb-sub">—</div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+    <div style="text-align:right;">
+      <div style="font-size:11px;color:rgba(255,255,255,.4);" id="pb-mode-label">지갑 차감 중</div>
+      <div style="font-size:13px;font-weight:800;color:#f87171;" id="pb-tl-display">-0 TL</div>
+    </div>
     <span class="badge badge-purple">⚡ <span id="pb-pulse">0</span></span>
     <button id="pb-btn" onclick="togglePlay()" class="pb-play">⏸</button>
-    
   </div>
 </div>
 
@@ -562,9 +565,10 @@ function renderGrid(){
   const data=getFiltered();
   $('grid-title').textContent=curQuery?`"${esc(curQuery)}" 검색 결과 (${data.length})`:`커뮤니티 트랙 (${data.length})`;
   $('share-grid').innerHTML=data.length?data.map(t=>`
-    <div class="share-card">
-      <div class="share-art" style="background:${t.art}">
-        <span style="position:relative;z-index:1;font-size:36px">${t.icon}</span>
+    <div class="share-card" style="cursor:pointer;" onclick="goTrackPage('${t.id}')">
+      <div class="share-art" style="background:${t.art};position:relative;">
+        ${t.coverImage && t.coverImage.startsWith('http') ? '<img src="'+t.coverImage+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:16px 16px 0 0;">' : ''}
+        <span style="position:relative;z-index:1;font-size:36px">${t.coverImage && t.coverImage.startsWith('http') ? '' : (t.icon||'🎵')}</span>
       </div>
       <div class="share-body">
         <div class="share-title">${esc(t.title)}</div>
@@ -582,7 +586,7 @@ function renderGrid(){
             <div style="height:100%;width:${t.fileTL>0?Math.min(100,(t.fileTL/Math.max(t.fileTL,1000)*100).toFixed(0)):2}%;background:linear-gradient(90deg,#8b5cf6,#6ee7b7);border-radius:2px;transition:width .5s;"></div>
           </div>
         </div>
-        <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <div style="display:flex;gap:6px;margin-bottom:6px;" onclick="event.stopPropagation()">
           <button class="btn btn-outline btn-sm" style="flex:2" onclick="playTrack('${t.id}')">▶ 재생</button>
           <button class="btn btn-ghost btn-sm" style="flex:2;background:rgba(139,92,246,.15);color:#c4b5fd;" onclick="openChargeModal('${t.id}')">💰 충전</button>
           <button class="btn btn-ghost btn-sm" style="flex:1" onclick="downloadTrack('${t.id}')">📥</button>
@@ -722,6 +726,19 @@ function startTimer(){
     pulse++;
     if($('pb-pulse')) $('pb-pulse').textContent=fmtFull(pulse);
     if(aud.duration) $('pb-fill').style.width=(aud.currentTime/aud.duration*100).toFixed(1)+'%';
+    // TL 차감 실시간 표시
+    var priceLabel = (t ? (t.pricePerSec||1) : 1);
+    if($('pb-tl-display')){
+      if(curChargeMode){
+        $('pb-tl-display').textContent = '-'+priceLabel+' TL/초 (파일)';
+        $('pb-tl-display').style.color = '#6ee7b7';
+        if($('pb-mode-label')) $('pb-mode-label').textContent = '파일 충전 TL';
+      } else {
+        $('pb-tl-display').textContent = '-'+priceLabel+' TL/초';
+        $('pb-tl-display').style.color = '#f87171';
+        if($('pb-mode-label')) $('pb-mode-label').textContent = '내 지갑 차감 중';
+      }
+    }
 
     const t=TRACKS.find(function(x){return x.id===curId;});
     if(!t) return;
@@ -904,6 +921,28 @@ document.addEventListener('click',function(e){
 });
 
 loadWallet();renderGrid();renderTrending();
+
+// track.html에서 넘어온 자동재생 처리
+(function(){
+  var params = new URLSearchParams(location.search);
+  var playId = params.get('play');
+  if(playId){
+    // 트랙 로드 후 재생
+    var tries = 0;
+    var wait = setInterval(function(){
+      var t = TRACKS.find(function(x){ return x.id === playId; });
+      if(t){ clearInterval(wait); playTrack(playId); }
+      if(++tries > 20) clearInterval(wait);
+    }, 300);
+  }
+})();
+
+
+
+// 트랙 상품 페이지로 이동
+function goTrackPage(id){
+  window.location.href = 'track.html?id=' + id;
+}
 
 // 신규 유저 환영 배너
 (function(){
