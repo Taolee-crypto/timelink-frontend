@@ -1027,27 +1027,31 @@ function approveAll(){ toast('전체 환전 승인 완료','success'); }
 async function loadUsers(){
   const d=await api('/api/admin/users');
   const tb=g('u-tbody');
-  if(!d||!d.users){ tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">API 연결 실패</td></tr>'; return; }
+  if(!d){ tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">API 연결 실패</td></tr>'; return; }
+  if(!d.users||!d.users.length){ tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">등록된 사용자 없음</td></tr>'; return; }
   const q=g('u-search').value.toLowerCase();
   const type=g('u-type').value;
   let us=d.users;
   if(q) us=us.filter(u=>(u.username||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q));
-  if(type!=='all') us=us.filter(u=>type==='business'?u.is_business:!u.is_business);
+  // account_type 기반 필터 (is_business 컬럼 없음)
+  if(type==='business') us=us.filter(u=>u.account_type==='business');
+  else if(type==='personal') us=us.filter(u=>u.account_type!=='business');
+  if(!us.length){ tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">결과 없음</td></tr>'; return; }
   tb.innerHTML=us.map(u=>`
     <tr>
       <td><span class="badge bgr">#${u.id}</span></td>
-      <td><strong>${esc(u.username)}</strong></td>
-      <td style="font-size:12px;color:var(--g500)">${esc(u.email)}</td>
-      <td>${u.is_business?'<span class="badge bb">사업자</span>':'<span class="badge bgr">개인</span>'}</td>
-      <td style="font-family:var(--mono)">⚡ ${fmt(u.tl_balance||u.tl||0)}</td>
-      <td style="font-family:var(--mono);font-size:12px">${(u.tlc_balance||u.tlc||0).toFixed(4)}</td>
+      <td><strong>${esc(u.username||'-')}</strong></td>
+      <td style="font-size:12px;color:var(--g500)">${esc(u.email||'-')}</td>
+      <td>${u.account_type==='business'?'<span class="badge bb">사업자</span>':'<span class="badge bgr">개인</span>'}</td>
+      <td style="font-family:var(--mono)">⚡ ${fmt(u.tl||10000)}</td>
+      <td style="font-family:var(--mono);font-size:12px">${Number(u.tlc||0).toFixed(4)}</td>
       <td style="font-size:12px;color:var(--g500)">${(u.created_at||'').substring(0,10)||'-'}</td>
-      <td>${u.is_active!==0?'<span class="badge bg">활성</span>':'<span class="badge br">정지</span>'}</td>
+      <td><span class="badge bg">활성</span></td>
       <td><div style="display:flex;gap:4px">
         <button class="btn btn-outline btn-xs" onclick="toast('수정 예정','info')">수정</button>
         <button class="btn btn-danger btn-xs" onclick="if(confirm('정지?'))toast('정지됨','success')">정지</button>
       </div></td>
-    </tr>`).join('')||'<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">결과 없음</td></tr>';
+    </tr>`).join('');
 }
 
 // ── 트랙 ──
