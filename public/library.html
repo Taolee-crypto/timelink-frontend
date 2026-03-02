@@ -442,6 +442,15 @@ body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; li
 </head>
 <body>
 <script>
+// ── Admin 감지 헬퍼 ──
+function isAdmin() {
+  try { var u=JSON.parse(localStorage.getItem('tl_user')||'null'); return u&&u.email==='admin@timelink.digital'; } catch(e){return false;}
+}
+function adminUnlimitedTL() {
+  if(!isAdmin()) return;
+  var u=JSON.parse(localStorage.getItem('tl_user')||'{}');
+  if(Number(u.tl||0)<9999999){ u.tl=9999999; localStorage.setItem('tl_user',JSON.stringify(u)); }
+}
 (function(){
   var user = null;
   try { user = JSON.parse(localStorage.getItem('tl_user')||'null'); } catch(e){}
@@ -1266,9 +1275,10 @@ document.addEventListener('paste', function(e) {
 // ===== 인증 제출 =====
 function submitAuth() {
   if (!currentFile) return;
+  adminUnlimitedTL(); // admin이면 TL 무제한 보충
   var user = JSON.parse(localStorage.getItem('tl_user') || '{}');
   var tl = Number(user.tl || 0);
-  if (tl < 5000) { showToast('TL이 부족합니다. 5,000 TL 필요', 'error'); return; }
+  if (!isAdmin() && tl < 5000) { showToast('TL이 부족합니다. 5,000 TL 필요', 'error'); return; }
 
   if (authMethod === 'spotify') {
     if (!spotifySelected) { showToast('Spotify 앨범을 선택하세요', 'error'); return; }
@@ -1277,9 +1287,8 @@ function submitAuth() {
     if (count < 1) { showToast('최소 1개 이상의 증빙 자료가 필요합니다', 'error'); return; }
   }
 
-  // TL 차감
-  user.tl = tl - 5000;
-  localStorage.setItem('tl_user', JSON.stringify(user));
+  // TL 차감 (admin 면제)
+  if (!isAdmin()) { user.tl = tl - 5000; localStorage.setItem('tl_user', JSON.stringify(user)); }
 
   // 파일 업데이트
   var files = getFiles();
@@ -2013,6 +2022,7 @@ document.getElementById('edit-modal').addEventListener('click', function(e) {
 });
 
 window.addEventListener('DOMContentLoaded', function() {
+  adminUnlimitedTL(); // admin 자동 TL 보충
   // 기존 인증 완료 파일 D1 일괄 동기화
   setTimeout(function(){
     var files = getFiles();

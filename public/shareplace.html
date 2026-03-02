@@ -562,7 +562,11 @@ function googleTranslateElementInit() {
 
 <script>
 
-const TRACKS=[];  // 실제 등록 음원만 표시 (가짜 샘플 제거)
+const TRACKS=[];
+// ── Admin 감지 헬퍼 ──
+function isAdmin(){try{var u=JSON.parse(localStorage.getItem('tl_user')||'null');return u&&u.email==='admin@timelink.digital';}catch(e){return false;}}
+function adminUnlimitedTL(){if(!isAdmin())return;var u=JSON.parse(localStorage.getItem('tl_user')||'{}');if(Number(u.tl||0)<9999999){u.tl=9999999;localStorage.setItem('tl_user',JSON.stringify(u));}}
+  // 실제 등록 음원만 표시 (가짜 샘플 제거)
 
 let curId=null,isPlaying=false,pulse=0,uiTimer=null,selGenre='all',curQuery='';
 const aud=document.getElementById('aud');
@@ -575,6 +579,7 @@ function toast(msg,t='i'){const el=document.createElement('div');el.className=`t
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 function loadWallet(){
+  adminUnlimitedTL();
   const u=JSON.parse(localStorage.getItem('tl_user')||'{}');
   const tlVal = Number(u.tl) || 0;
   const tlcVal = Number(u.tlc) || 0;
@@ -660,12 +665,17 @@ function playTrack(id){
   const t=TRACKS.find(x=>x.id===id); if(!t) return;
   const fileTL=Number(t.fileTL||0);
 
+  if(isAdmin()){
+    // admin: TL 체크 없이 바로 재생
+    adminUnlimitedTL();
+    curId=id; pulse=0; curChargeMode=false;
+    loadAndPlay(t);
+    return;
+  }
   if(fileTL > 0){
-    // 파일 충전 TL 있음 → 바로 재생
     curId=id; pulse=0; curChargeMode=true;
     loadAndPlay(t);
   } else {
-    // 파일 TL 없음 → 무조건 충전 모달 (지갑→파일 충전 or TL 구매/광고)
     openChargeModal(id, true);
   }
 }
@@ -783,17 +793,20 @@ function startTimer(){
 
     var pricePerSec=t.pricePerSec||1;
 
+    // admin은 TL 차감 없음
+    if(isAdmin()){
+      t.creatorTL=(t.creatorTL||0)+pricePerSec; t.pulse=(t.pulse||0)+1;
+      return;
+    }
     // 파일 충전 TL로만 재생 - 소진 시 즉시 정지
     t.fileTL=Math.max(0, (t.fileTL||0)-pricePerSec);
     if(t.fileTL<=0){
       t.fileTL=0;
       aud.pause(); setPlaying(false); clearInterval(uiTimer);
       toast('파일 충전 TL이 소진되었습니다. 충전 후 재생하세요.','e');
-      // 충전 모달 자동 오픈
       setTimeout(function(){ openChargeModal(curId, true); }, 800);
       return;
     }
-    // 지갑 TL 차감은 없음 - 파일 TL만 사용
 
     // 창작자 TL 누적
     t.creatorTL=(t.creatorTL||0)+pricePerSec;

@@ -249,6 +249,7 @@ input:checked+.slider::before{transform:translateX(20px)}
       <div class="nav-sec-title">사용자</div>
       <div class="nav-item" onclick="go('users',this)"><span class="nav-ico">👥</span><span>사용자 관리</span></div>
       <div class="nav-item" onclick="go('tracks',this)"><span class="nav-ico">🎵</span><span>트랙 관리</span></div>
+      <div class="nav-item" onclick="go('bulk',this)"><span class="nav-ico">⚡</span><span>대량 관리</span></div>
     </div>
     <div class="nav-sec">
       <div class="nav-sec-title">광고</div>
@@ -761,6 +762,52 @@ input:checked+.slider::before{transform:translateX(20px)}
       </div>
 
       <!-- ════ 🛍️ SHAREPLACE ════ -->
+
+      <div id="tp-bulk" class="tab-panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">⚡ 대량 관리 (Admin 전용)</div>
+            <div class="panel-sub">음원 대량 업로드 · Spotify 대량 인증</div>
+          </div>
+        </div>
+
+        <!-- Spotify 대량 인증 -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px;">
+          <div style="font-size:15px;font-weight:800;color:var(--fg);margin-bottom:4px;">🎵 Spotify 대량 인증</div>
+          <div style="font-size:12px;color:var(--g500);margin-bottom:16px;">곡명과 아티스트를 한 줄씩 입력 → 자동 Spotify 검색 · 인증</div>
+          <div style="font-size:12px;color:var(--g500);margin-bottom:8px;">형식: 곡명|아티스트 (예: Blinding Lights|The Weeknd)</div>
+          <textarea id="bulk-spotify-input" placeholder="Blinding Lights|The Weeknd&#10;Shape of You|Ed Sheeran&#10;Dynamite|BTS" style="width:100%;height:160px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;color:var(--fg);padding:12px;font-size:13px;font-family:var(--mono);box-sizing:border-box;resize:vertical;outline:none;"></textarea>
+          <div style="display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="runBulkSpotify()">🔍 대량 인증 시작</button>
+            <button class="btn btn-outline btn-sm" onclick="g('bulk-spotify-input').value=''">초기화</button>
+            <span id="bulk-spotify-status" style="font-size:12px;color:var(--g500);"></span>
+          </div>
+          <div id="bulk-spotify-results" style="margin-top:16px;max-height:400px;overflow-y:auto;"></div>
+        </div>
+
+        <!-- 대량 파일 업로드 -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;">
+          <div style="font-size:15px;font-weight:800;color:var(--fg);margin-bottom:4px;">📁 대량 파일 업로드</div>
+          <div style="font-size:12px;color:var(--g500);margin-bottom:16px;">여러 음원 파일을 한번에 업로드하고 SharePlace에 등록합니다</div>
+          <div id="bulk-drop-zone" style="border:2px dashed var(--border);border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:all .2s;" 
+               onclick="g('bulk-file-input').click()"
+               ondragover="event.preventDefault();this.style.borderColor='var(--purple)'"
+               ondragleave="this.style.borderColor='var(--border)'"
+               ondrop="handleBulkDrop(event)">
+            <div style="font-size:32px;margin-bottom:8px;">📂</div>
+            <div style="font-size:14px;font-weight:700;color:var(--fg);">클릭하거나 파일을 드래그하세요</div>
+            <div style="font-size:12px;color:var(--g500);margin-top:4px;">MP3, WAV, FLAC, M4A · 여러 파일 동시 선택 가능</div>
+          </div>
+          <input type="file" id="bulk-file-input" multiple accept="audio/*" style="display:none" onchange="handleBulkFiles(this.files)">
+          <div id="bulk-file-list" style="margin-top:16px;"></div>
+          <div style="display:flex;gap:10px;margin-top:12px;">
+            <button class="btn btn-primary" id="bulk-upload-btn" onclick="startBulkUpload()" style="display:none;">⬆️ 전체 업로드 &amp; 등록</button>
+            <button class="btn btn-outline btn-sm" onclick="clearBulkFiles()" style="display:none;" id="bulk-clear-btn">초기화</button>
+          </div>
+          <div id="bulk-upload-progress" style="margin-top:12px;"></div>
+        </div>
+      </div>
+
       <div id="tp-shareplace" class="tab-panel">
         <div class="pg-title">🛍️ SharePlace 관리</div>
         <div class="pg-sub">커뮤니티 마켓플레이스 트랙 모니터링 및 수익 분배 확인</div>
@@ -937,7 +984,7 @@ function go(name, el){
   g('tp-'+name).classList.add('active');
   if(el) el.classList.add('active');
   g('topbar-title').textContent = TITLES[name]||name;
-  const loaders={dashboard:loadDashboard,users:loadUsers,tracks:loadTracks,cafe:loadCafe,revenue:loadRevenue,exchange:loadExchanges,logs:refreshLogs,ads:loadAds,advertisers:loadAds,shareplace:loadShareplaceAdmin,radio:loadRadio,settings:loadSettings};
+  const loaders={dashboard:loadDashboard,users:loadUsers,tracks:loadTracks,cafe:loadCafe,revenue:loadRevenue,exchange:loadExchanges,logs:refreshLogs,ads:loadAds,advertisers:loadAds,shareplace:loadShareplaceAdmin,bulk:loadBulk,radio:loadRadio,settings:loadSettings};
   if(loaders[name]) loaders[name]();
   log(`[NAV] ${TITLES[name]}`);
 }
