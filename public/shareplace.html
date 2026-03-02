@@ -627,11 +627,15 @@ function playTrack(id){
   const fileTL=Number(t.fileTL||0);
 
   if(fileTL > 0){
-    // 파일에 충전된 TL로 바로 재생
+    // 파일 충전 TL로 재생
     curId=id; pulse=0; curChargeMode=true;
     loadAndPlay(t);
+  } else if(walletTL > 0){
+    // 내 지갑 TL로 바로 재생 (모달 없이)
+    curId=id; pulse=0; curChargeMode=false;
+    loadAndPlay(t);
   } else {
-    // 파일 TL 없음 → 충전 여부 확인 모달
+    // 지갑도 없음 → 충전 모달
     showNoTLModal(id);
   }
 }
@@ -669,15 +673,16 @@ function noTLWallet(){
 }
 
 function loadAndPlay(t){
-  if(t.idbStored){
-    // 내가 올린 파일 → IDB에서 직접 재생
-    idbLoad(t.id).then(function(file){
-      if(file){ startPlay(t, URL.createObjectURL(file), true); }
-      else { tryStreamPlay(t); }
-    }).catch(function(){ tryStreamPlay(t); });
-  } else {
+  // 항상 IDB 먼저 시도 (내가 올린 파일이면 있음)
+  idbLoad(t.id).then(function(file){
+    if(file){
+      startPlay(t, URL.createObjectURL(file), true);
+    } else {
+      tryStreamPlay(t);
+    }
+  }).catch(function(){
     tryStreamPlay(t);
-  }
+  });
 }
 
 function tryStreamPlay(t){
