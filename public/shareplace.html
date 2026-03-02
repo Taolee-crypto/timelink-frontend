@@ -456,8 +456,9 @@ function googleTranslateElementInit() {
         <span style="color:#6ee7b7;font-weight:800;" id="cm-wallet-tl">0 TL</span>
       </div>
     </div>
-    <div style="margin-bottom:16px;">
-      <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:8px;">충전량 선택</div>
+    <!-- 지갑 TL 있을 때: 충전 섹션 -->
+    <div id="cm-charge-section" style="margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:8px;">충전량 선택 (지갑 → 파일)</div>
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
         <button onclick="setCmAmount(100)" style="flex:1;min-width:60px;padding:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:white;cursor:pointer;font-weight:700;font-size:13px;">100</button>
         <button onclick="setCmAmount(500)" style="flex:1;min-width:60px;padding:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:white;cursor:pointer;font-weight:700;font-size:13px;">500</button>
@@ -468,6 +469,24 @@ function googleTranslateElementInit() {
         <input type="number" id="cm-amount" value="100" min="1" style="flex:1;padding:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:10px;color:white;font-size:16px;font-weight:700;outline:none;text-align:center;">
         <span style="color:rgba(255,255,255,.5);font-weight:700;">TL</span>
       </div>
+    </div>
+
+    <!-- 지갑 TL 없을 때: 광고/구매 섹션 -->
+    <div id="cm-no-tl-section" style="display:none;margin-bottom:16px;">
+      <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:14px;margin-bottom:16px;text-align:center;">
+        <div style="font-size:13px;color:#fca5a5;font-weight:700;margin-bottom:4px;">지갑 TL이 없습니다</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.4);">광고 시청 또는 TL 구매 후 파일에 충전하세요</div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="watchAd()" style="flex:1;padding:14px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:12px;color:white;font-weight:800;font-size:14px;cursor:pointer;">
+          📺 광고 시청<br><span style="font-size:11px;font-weight:500;opacity:.85;">+100 TL 즉시 지급</span>
+        </button>
+        <button onclick="closeChargeModal();window.location.href='charge.html'" style="flex:1;padding:14px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;border-radius:12px;color:white;font-weight:800;font-size:14px;cursor:pointer;">
+          💳 TL 구매<br><span style="font-size:11px;font-weight:500;opacity:.85;">충전 페이지로 이동</span>
+        </button>
+      </div>
+    </div>
+
     </div>
     <div style="display:flex;gap:10px;">
       <button onclick="closeChargeModal()" style="flex:1;padding:12px;background:rgba(255,255,255,.08);border:none;border-radius:12px;color:white;font-weight:700;cursor:pointer;">취소</button>
@@ -548,8 +567,16 @@ function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 
 function loadWallet(){
   const u=JSON.parse(localStorage.getItem('tl_user')||'{}');
-  if($('nb-tl'))$('nb-tl').textContent=fmtFull(u.tl||10000);
-  if($('nb-tlc'))$('nb-tlc').textContent=(u.tlc||0).toFixed(4);
+  const tlVal = Number(u.tl) || 0;
+  const tlcVal = Number(u.tlc) || 0;
+  // navbar 잔액 표시 (balance-tl이 실제 HTML ID)
+  var bt=document.getElementById('balance-tl');
+  var bc=document.getElementById('balance-tlc');
+  if(bt) bt.textContent = fmtFull(tlVal);
+  if(bc) bc.textContent = tlcVal.toFixed(4);
+  // 충전 모달 지갑 잔액도 업데이트
+  var cmWallet = document.getElementById('cm-wallet-tl');
+  if(cmWallet) cmWallet.textContent = fmtFull(tlVal) + ' TL';
 }
 function setGenre(g){
   selGenre=g;
@@ -622,21 +649,15 @@ function renderTrending(){
 
 function playTrack(id){
   const t=TRACKS.find(x=>x.id===id); if(!t) return;
-  const user=JSON.parse(localStorage.getItem('tl_user')||'{}');
-  const walletTL=Number(user.tl||0);
   const fileTL=Number(t.fileTL||0);
 
   if(fileTL > 0){
-    // 파일 충전 TL로 재생
+    // 파일 충전 TL 있음 → 바로 재생
     curId=id; pulse=0; curChargeMode=true;
     loadAndPlay(t);
-  } else if(walletTL > 0){
-    // 내 지갑 TL로 바로 재생 (모달 없이)
-    curId=id; pulse=0; curChargeMode=false;
-    loadAndPlay(t);
   } else {
-    // 지갑도 없음 → 충전 모달
-    showNoTLModal(id);
+    // 파일 TL 없음 → 무조건 충전 모달 (지갑→파일 충전 or TL 구매/광고)
+    openChargeModal(id, true);
   }
 }
 
@@ -753,25 +774,17 @@ function startTimer(){
 
     var pricePerSec=t.pricePerSec||1;
 
-    if(curChargeMode){
-      // 파일 충전 TL로 재생 → 파일 TL 차감
-      t.fileTL=Math.max(0, (t.fileTL||0)-pricePerSec);
-      if(t.fileTL<=0){
-        curChargeMode=false; // 충전 소진 → 이후 지갑 차감으로 전환
-        toast('파일 충전 TL 소진 → 내 지갑에서 차감됩니다','i');
-      }
-    } else {
-      // 내 지갑에서 차감
-      var user=JSON.parse(localStorage.getItem('tl_user')||'{}');
-      user.tl=Math.max(0,(Number(user.tl)||0)-pricePerSec);
-      localStorage.setItem('tl_user',JSON.stringify(user));
-      loadWallet();
-      if(user.tl<=0){
-        aud.pause(); setPlaying(false); clearInterval(uiTimer);
-        toast('TL이 소진되었습니다. 충전 후 재생하세요.','e');
-        return;
-      }
+    // 파일 충전 TL로만 재생 - 소진 시 즉시 정지
+    t.fileTL=Math.max(0, (t.fileTL||0)-pricePerSec);
+    if(t.fileTL<=0){
+      t.fileTL=0;
+      aud.pause(); setPlaying(false); clearInterval(uiTimer);
+      toast('파일 충전 TL이 소진되었습니다. 충전 후 재생하세요.','e');
+      // 충전 모달 자동 오픈
+      setTimeout(function(){ openChargeModal(curId, true); }, 800);
+      return;
     }
+    // 지갑 TL 차감은 없음 - 파일 TL만 사용
 
     // 창작자 TL 누적
     t.creatorTL=(t.creatorTL||0)+pricePerSec;
@@ -804,6 +817,35 @@ function shareTrack(id){
 }
 
 
+
+// 광고 시청 → TL 지급 → 자동 파일 충전
+function watchAd(){
+  var adBtn = event.target.closest('button');
+  if(adBtn){ adBtn.textContent='📺 광고 로딩 중...'; adBtn.disabled=true; }
+  // 광고 시청 시뮬레이션 (실제 광고 SDK 연동 시 여기를 교체)
+  setTimeout(function(){
+    var AD_TL = 100;
+    var user = JSON.parse(localStorage.getItem('tl_user')||'{}');
+    user.tl = (Number(user.tl)||0) + AD_TL;
+    localStorage.setItem('tl_user', JSON.stringify(user));
+    loadWallet();
+    toast('📺 광고 시청 완료! +'+AD_TL+' TL 지급됨','s');
+
+    // 지갑 → 파일 자동 충전 (100 TL)
+    setTimeout(function(){
+      var noTLSection=$('cm-no-tl-section');
+      var chargeSection=$('cm-charge-section');
+      if(noTLSection)noTLSection.style.display='none';
+      if(chargeSection)chargeSection.style.display='block';
+      $('cm-wallet-tl').textContent=fmtFull(user.tl)+' TL';
+      document.getElementById('cm-amount').value = AD_TL;
+
+      // 자동 충전 실행
+      setTimeout(function(){ confirmCharge(); }, 300);
+    }, 500);
+  }, 2000); // 2초 = 광고 시청 시뮬레이션
+}
+
 // ══ 충전 모달 ══
 var cmTrackId=null;
 var cmAutoPlay=false;
@@ -812,10 +854,23 @@ function openChargeModal(id, autoPlay){
   cmAutoPlay=!!autoPlay;
   const t=TRACKS.find(x=>x.id===id); if(!t) return;
   const user=JSON.parse(localStorage.getItem('tl_user')||'{}');
+  const walletTL=Number(user.tl||0);
+
   $('cm-title').textContent='💰 '+t.title+' · 파일 TL 충전';
   $('cm-current-tl').textContent=fmtFull(t.fileTL||0)+' TL';
-  $('cm-wallet-tl').textContent=fmtFull(user.tl||0)+' TL';
-  $('cm-amount').value=100;
+  $('cm-wallet-tl').textContent=fmtFull(walletTL)+' TL';
+  $('cm-amount').value=Math.min(100, walletTL) || 100;
+
+  // 지갑 TL 부족 시 광고/구매 섹션 표시
+  var noTLSection=$('cm-no-tl-section');
+  var chargeSection=$('cm-charge-section');
+  if(walletTL<=0){
+    if(noTLSection)noTLSection.style.display='block';
+    if(chargeSection)chargeSection.style.display='none';
+  } else {
+    if(noTLSection)noTLSection.style.display='none';
+    if(chargeSection)chargeSection.style.display='block';
+  }
   $('charge-modal').style.display='flex';
 }
 function closeChargeModal(){ $('charge-modal').style.display='none'; cmTrackId=null; }
@@ -826,7 +881,15 @@ function confirmCharge(){
   if(amount<=0){ toast('충전량을 입력하세요','e'); return; }
   const user=JSON.parse(localStorage.getItem('tl_user')||'{}');
   const walletTL=Number(user.tl||0);
-  if(walletTL<amount){ toast('TL이 부족합니다 (보유: '+fmtFull(walletTL)+' TL)','e'); return; }
+  if(walletTL<amount){
+    // 지갑 TL 부족 → 광고/구매 섹션으로 전환
+    var noTLSection=$('cm-no-tl-section');
+    var chargeSection=$('cm-charge-section');
+    if(noTLSection)noTLSection.style.display='block';
+    if(chargeSection)chargeSection.style.display='none';
+    toast('TL이 부족합니다. 광고 시청이나 TL 구매로 충전하세요.','e');
+    return;
+  }
 
   // 지갑 차감
   user.tl=walletTL-amount;
@@ -985,11 +1048,8 @@ function updateNavbar(){
   if(user&&user.username){
     na.classList.remove('hidden'); ng.classList.add('hidden');
     var al=document.getElementById('avatar-letter');
-    var bt=document.getElementById('balance-tl');
-    var bc=document.getElementById('balance-tlc');
     if(al)al.textContent=(user.username||'U').charAt(0).toUpperCase();
-    if(bt)bt.textContent=Number(user.tl||0).toLocaleString();
-    if(bc)bc.textContent=Number(user.tlc||0).toFixed(4);
+    loadWallet(); // 잔액 표시 통합
   } else {
     na.classList.add('hidden'); ng.classList.remove('hidden');
   }
