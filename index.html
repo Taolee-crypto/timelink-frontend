@@ -950,45 +950,71 @@ async function api(path){
 
 // ── 대시보드 ──
 async function loadDashboard(){
-  const d=await api('/api/admin/users');
-  if(d&&d.users){
-    const us=d.users;
-    g('ds-users').textContent=us.length.toLocaleString();
-    const tod=new Date().toISOString().split('T')[0];
-    const nw=us.filter(u=>u.created_at&&u.created_at.startsWith(tod)).length;
-    g('ds-users-today').textContent=`+${nw} 오늘`;
-    const tl=us.reduce((s,u)=>s+(u.tl_balance||u.tl||0),0);
-    g('ds-tl').textContent=fmt(tl)+' TL';
-    g('tl-circ').textContent=fmt(tl)+' TL';
-    g('ds-users-tbody').innerHTML=us.slice(0,8).map(u=>`
+  // 병렬로 users + stats + tracks 조회
+  const [ud, sd, td] = await Promise.all([
+    api('/api/admin/users'),
+    api('/api/admin/stats'),
+    api('/api/tracks')
+  ]);
+
+  // 사용자 통계
+  if(ud && ud.users){
+    const us = ud.users;
+    g('ds-users').textContent = us.length.toLocaleString();
+    const tod = new Date().toISOString().split('T')[0];
+    const nw = us.filter(u => u.created_at && u.created_at.startsWith(tod)).length;
+    g('ds-users-today').textContent = '+' + nw + ' 오늘';
+    const tl = us.reduce((s,u) => s + (Number(u.tl)||10000), 0);
+    if(g('ds-tl')) g('ds-tl').textContent = fmt(tl) + ' TL';
+    if(g('tl-circ')) g('tl-circ').textContent = fmt(tl) + ' TL';
+    g('ds-users-tbody').innerHTML = us.slice(0,8).map(u => `
       <tr>
         <td><span class="badge bgr">#${u.id}</span></td>
-        <td><strong>${esc(u.username)}</strong></td>
-        <td style="font-size:12px;color:var(--g500)">${esc(u.email)}</td>
-        <td>${u.is_business?'<span class="badge bb">사업자</span>':'<span class="badge bgr">개인</span>'}</td>
-        <td style="font-family:var(--mono);font-weight:700">⚡ ${fmt(u.tl_balance||u.tl||0)}</td>
+        <td><strong>${esc(u.username||'-')}</strong></td>
+        <td style="font-size:12px;color:var(--g500)">${esc(u.email||'-')}</td>
+        <td>${u.account_type==='business'?'<span class="badge bb">사업자</span>':'<span class="badge bgr">개인</span>'}</td>
+        <td style="font-family:var(--mono);font-weight:700">⚡ ${fmt(u.tl||10000)}</td>
         <td style="font-size:12px;color:var(--g500)">${(u.created_at||'').substring(0,10)||'-'}</td>
-        <td>${u.is_active!==0?'<span class="badge bg">활성</span>':'<span class="badge br">정지</span>'}</td>
-      </tr>`).join('');
+        <td><span class="badge bg">활성</span></td>
+      </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--g500)">사용자 없음</td></tr>';
   }
-  g('ds-ads').textContent='3'; g('ds-ads-p').textContent='대기 2건';
-  g('ds-cafes').textContent='7'; g('ds-listeners').textContent='청취자 284명';
-  g('nb-exchange').textContent='2'; g('nb-ads').textContent='2'; g('nb-cafe').textContent='7';
+
+  // 트랙 통계
+  if(td && td.tracks){
+    const tks = td.tracks;
+    if(g('ds-ads')) g('ds-ads').textContent = tks.length.toLocaleString();
+    if(g('ds-ads-p')) g('ds-ads-p').textContent = '총 공유 트랙';
+    const totalPulse = tks.reduce((s,t) => s + (Number(t.pulse)||0), 0);
+    if(g('ds-cafes')) g('ds-cafes').textContent = fmt(totalPulse);
+    if(g('ds-listeners')) g('ds-listeners').textContent = '총 재생 펄스';
+  }
+
+  // 뱃지
+  if(g('nb-exchange')) g('nb-exchange').textContent = '0';
+  if(g('nb-ads')) g('nb-ads').textContent = '0';
+  if(g('nb-cafe')) g('nb-cafe').textContent = '0';
   renderChart();
+  log('[대시보드] 새로고침 완료');
 }
 
 // ── 매출 ──
 async function loadRevenue(){
-  const d=await api('/api/admin/users');
-  if(d&&d.users){
-    const tl=d.users.reduce((s,u)=>s+(u.tl_balance||u.tl||0),0);
-    g('tl-circ').textContent=fmt(tl)+' TL';
-    g('tlc-circ').textContent='0.0000 TLC';
-    g('tl-pending').textContent='0 TL';
-    g('rv-charge').textContent='₩'+fmt(tl);
-    g('rv-total').textContent='₩'+fmt(tl);
+  const [ud, td] = await Promise.all([api('/api/admin/users'), api('/api/tracks')]);
+  if(ud && ud.users){
+    const tl = ud.users.reduce((s,u) => s + (Number(u.tl)||10000), 0);
+    if(g('tl-circ')) g('tl-circ').textContent = fmt(tl) + ' TL';
+    if(g('tlc-circ')) g('tlc-circ').textContent = '0.0000 TLC';
+    if(g('tl-pending')) g('tl-pending').textContent = '0 TL';
+    if(g('rv-charge')) g('rv-charge').textContent = '₩' + fmt(tl);
+    if(g('rv-total')) g('rv-total').textContent = '₩' + fmt(tl);
   }
-  g('rv-ads').textContent='₩0'; g('rv-fee').textContent='₩0'; g('rv-gold').textContent='₩0';
+  if(td && td.tracks){
+    const totalTL = td.tracks.reduce((s,t) => s + (Number(t.file_tl)||0), 0);
+    if(g('rv-fee')) g('rv-fee').textContent = '₩' + fmt(Math.floor(totalTL * 0.3));
+  }
+  if(g('rv-ads')) g('rv-ads').textContent = '₩0';
+  if(g('rv-gold')) g('rv-gold').textContent = '₩0';
+  log('[매출] 새로고침 완료');
 }
 
 // ── 환전 ──
@@ -1020,7 +1046,10 @@ function exportCSV() {
   a.click();
 }
 
-function loadExchanges(){ g('ex-tbody').innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--g500)">환전 요청 없음</td></tr>'; }
+async function loadExchanges(){
+  if(g('ex-tbody')) g('ex-tbody').innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--g500)">환전 요청 없음 (준비중)</td></tr>';
+  log('[환전] 새로고침 완료');
+}
 function approveAll(){ toast('전체 환전 승인 완료','success'); }
 
 // ── 사용자 ──
@@ -1175,7 +1204,9 @@ function log(msg,type=''){
   el.innerHTML+=`<div style="color:${col}">[${t}] ${msg}</div>`;
   el.scrollTop=el.scrollHeight;
 }
-function refreshLogs(){log('[시스템] 로그 새로고침')}
+function refreshLogs(){
+  log('[시스템] 로그 새로고침 ' + new Date().toLocaleTimeString('ko-KR'));
+}
 function clearLogs(){g('log-out').innerHTML='';toast('로그 초기화','success')}
 
 // ── 유틸 ──
@@ -1196,10 +1227,18 @@ document.querySelectorAll('.modal-ov').forEach(o=>o.addEventListener('click',e=>
 
 // ── 세션 복원 + 초기화 ──
 
-function loadAds(){ /* 광고 관리 - 추후 구현 */ }
-function loadShareplaceAdmin(){ /* SharePlace 관리 - 추후 구현 */ }
-function loadRadio(){ /* Moving Radio - 추후 구현 */ }
-function loadSettings(){ /* 설정 - 추후 구현 */ }
+async function loadAds(){
+  log('[광고] 데이터 조회 중...');
+  if(g('act-ads-cnt')) g('act-ads-cnt').textContent = '0';
+  log('[광고] 새로고침 완료 (준비중)');
+}
+async function loadShareplaceAdmin(){
+  const d = await api('/api/tracks');
+  if(d && d.tracks) log('[SharePlace] 트랙 ' + d.tracks.length + '개 확인');
+  else log('[SharePlace] 데이터 없음');
+}
+function loadRadio(){ log('[Radio] 새로고침 완료 (준비중)'); }
+function loadSettings(){ log('[설정] 새로고침 완료 (준비중)'); }
 
 function init(){ loadDashboard(); }
 
