@@ -1278,6 +1278,158 @@ document.querySelectorAll('.modal-ov').forEach(o=>o.addEventListener('click',e=>
 
 // ── 세션 복원 + 초기화 ──
 
+// ══ 대량 관리 ══
+var bulkFiles = [];
+
+function loadBulk(){ log('[대량관리] 탭 로드'); }
+
+async function runBulkSpotify(){
+  var input = g('bulk-spotify-input').value.trim();
+  if(!input){ toast('곡 목록을 입력하세요','error'); return; }
+  var lines = input.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+  if(!lines.length){ toast('유효한 곡 목록이 없습니다','error'); return; }
+  var status = g('bulk-spotify-status');
+  var results = g('bulk-spotify-results');
+  results.innerHTML = '';
+  var API_BASE = 'https://timelink-backend.mununglee.workers.dev';
+  var success=0, fail=0;
+  for(var i=0;i<lines.length;i++){
+    var parts = lines[i].split('|');
+    var title = (parts[0]||'').trim();
+    var artist = (parts[1]||'').trim();
+    if(!title){ fail++; continue; }
+    status.textContent = (i+1)+'/'+lines.length+' 처리 중: '+title;
+    try {
+      var searchRes = await fetch(API_BASE+'/api/spotify/search?q='+encodeURIComponent(title+(artist?' '+artist:'')), {mode:'cors'});
+      var searchData = searchRes.ok ? await searchRes.json() : null;
+      var track = searchData && searchData.tracks && searchData.tracks[0];
+      var trackId = 'bulk_'+Date.now()+'_'+i;
+      var regRes = await fetch(API_BASE+'/api/tracks', {
+        method:'POST', mode:'cors',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          id: trackId,
+          title: track ? track.name : title,
+          artist: track ? track.artist : (artist||'Admin'),
+          genre: '기타',
+          coverImage: track ? track.coverImage : null,
+          duration: track ? track.duration : 0,
+          pricePerSec: 1,
+          authMethod: 'spotify',
+          authStatus: 'verified',
+          username: 'admin'
+        })
+      });
+      var regData = regRes.ok ? await regRes.json() : null;
+      var myFiles = JSON.parse(localStorage.getItem('tl_myfiles')||'[]');
+      myFiles.unshift({
+        id:trackId, title:track?track.name:title, artist:track?track.artist:(artist||'Admin'),
+        genre:'기타', type:'audio', format:'TL3', fileTL:0,
+        authStatus:'verified', authMethod:'spotify',
+        shared:true, sharedToSharePlace:true,
+        coverImage:track?track.coverImage:null,
+        idbStored:false, pulse:0, pricePerSec:1, createdAt:Date.now()
+      });
+      localStorage.setItem('tl_myfiles', JSON.stringify(myFiles));
+      var ok = regData && regData.ok;
+      results.innerHTML += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">'
+        +(track&&track.coverImage?'<img src="'+track.coverImage+'" style="width:36px;height:36px;border-radius:6px;object-fit:cover;">'
+        :'<div style="width:36px;height:36px;border-radius:6px;background:var(--purple);display:flex;align-items:center;justify-content:center;">🎵</div>')
+        +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;color:var(--fg);">'+(track?track.name:title)+'</div>'
+        +'<div style="font-size:11px;color:var(--g500);">'+(track?track.artist:(artist||'-'))+'</div></div>'
+        +'<span class="badge '+(ok?'bg':'br')+'">'+(ok?'✅ 등록':'⚠️ 실패')+'</span></div>';
+      if(ok) success++; else fail++;
+    } catch(e) {
+      fail++;
+      results.innerHTML += '<div style="padding:8px 0;border-bottom:1px solid var(--border);color:var(--red);font-size:12px;">❌ '+esc(title)+' - '+esc(e.message)+'</div>';
+    }
+    await new Promise(function(r){setTimeout(r,300);});
+  }
+  status.textContent = '완료: ✅'+success+'개 / ❌'+fail+'개';
+  toast('대량 인증 완료: '+success+'개 등록','success');
+}
+
+function handleBulkDrop(e){
+  e.preventDefault();
+  g('bulk-drop-zone').style.borderColor='var(--border)';
+  handleBulkFiles(e.dataTransfer.files);
+}
+function handleBulkFiles(files){
+  for(var i=0;i<files.length;i++){
+    if(!files[i].type.startsWith('audio/')) continue;
+    bulkFiles.push(files[i]);
+  }
+  renderBulkList();
+}
+function renderBulkList(){
+  var list = g('bulk-file-list');
+  if(!bulkFiles.length){
+    list.innerHTML='';
+    g('bulk-upload-btn').style.display='none';
+    g('bulk-clear-btn').style.display='none';
+    return;
+  }
+  g('bulk-upload-btn').style.display='inline-flex';
+  g('bulk-clear-btn').style.display='inline-flex';
+  list.innerHTML = '<div style="font-size:12px;font-weight:700;color:var(--g500);margin-bottom:8px;">'+bulkFiles.length+'개 파일</div>'
+    + bulkFiles.map(function(f,i){
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px;background:rgba(255,255,255,.03);border-radius:8px;margin-bottom:4px;">'
+        +'<span>🎵</span>'
+        +'<div style="flex:1;min-width:0;font-size:13px;font-weight:700;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(f.name.replace(/\.[^.]+$/,''))+'</div>'
+        +'<div style="font-size:11px;color:var(--g500);">'+(f.size/1024/1024).toFixed(1)+' MB</div>'
+        +'<span class="badge bgr" id="bf_s_'+i+'">대기</span>'
+        +'</div>';
+    }).join('');
+}
+function clearBulkFiles(){ bulkFiles=[]; renderBulkList(); g('bulk-upload-progress').innerHTML=''; }
+async function startBulkUpload(){
+  if(!bulkFiles.length){ toast('파일을 선택하세요','error'); return; }
+  var API_BASE = 'https://timelink-backend.mununglee.workers.dev';
+  var progress = g('bulk-upload-progress');
+  var success=0;
+  for(var i=0;i<bulkFiles.length;i++){
+    var f = bulkFiles[i];
+    var badge = g('bf_s_'+i);
+    if(badge) badge.textContent='처리중...';
+    progress.innerHTML = '<div style="font-size:12px;color:var(--g500);">'+(i+1)+'/'+bulkFiles.length+' 업로드 중: '+esc(f.name)+'</div>';
+    try {
+      var trackId = 'admin_'+Date.now()+'_'+i;
+      var title = f.name.replace(/\.[^.]+$/,'');
+      await saveToIDB(trackId, f);
+      var res = await fetch(API_BASE+'/api/tracks', {
+        method:'POST', mode:'cors',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({id:trackId,title:title,artist:'Admin',genre:'기타',duration:0,pricePerSec:1,authMethod:'manual',authStatus:'verified',username:'admin'})
+      });
+      var data = res.ok ? await res.json() : null;
+      var myFiles = JSON.parse(localStorage.getItem('tl_myfiles')||'[]');
+      myFiles.unshift({id:trackId,title:title,artist:'Admin',genre:'기타',type:'audio',format:'TL3',fileTL:0,authStatus:'verified',shared:true,sharedToSharePlace:true,idbStored:true,pulse:0,pricePerSec:1,createdAt:Date.now()});
+      localStorage.setItem('tl_myfiles', JSON.stringify(myFiles));
+      if(badge){badge.textContent='✅ 완료';badge.className='badge bg';}
+      success++;
+    } catch(e) {
+      if(badge){badge.textContent='❌ 실패';badge.className='badge br';}
+    }
+    await new Promise(function(r){setTimeout(r,200);});
+  }
+  progress.innerHTML = '<div style="color:var(--green);font-weight:700;">✅ '+success+'/'+bulkFiles.length+'개 완료</div>';
+  toast('대량 업로드 완료: '+success+'개','success');
+}
+function saveToIDB(id, file){
+  return new Promise(function(resolve,reject){
+    var req = indexedDB.open('tl_audio_db',1);
+    req.onupgradeneeded = function(e){ e.target.result.createObjectStore('files',{keyPath:'id'}); };
+    req.onsuccess = function(e){
+      var db=e.target.result;
+      var tx=db.transaction('files','readwrite');
+      var put=tx.objectStore('files').put({id:id,file:file});
+      put.onsuccess=function(){resolve();};
+      put.onerror=function(){reject(put.error);};
+    };
+    req.onerror=function(){reject(req.error);};
+  });
+}
+
 async function loadAds(){
   log('[광고] 데이터 조회 중...');
   if(g('act-ads-cnt')) g('act-ads-cnt').textContent = '0';
