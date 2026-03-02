@@ -714,47 +714,33 @@ async function finalSignup() {
     password
   };
 
-  // ── 백엔드 DB 저장 ──
-  try {
-    const res = await fetch('https://timelink-backend.mununglee.workers.dev/api/v1/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (res.ok && (data.success || data.token || data.user)) {
-      // 토큰 저장
-      const token = data.token || data.access_token || data.jwt || '';
-      localStorage.setItem('auth_token', token);
-      // 유저 정보 정규화
-      const u = data.user || data.data || {};
-      const userLocal = {
-        id:           u.id || Date.now(),
-        uid:          u.uid || 'tl_' + Date.now(),
-        email:        verifiedEmail,
-        username:     payload.username,
-        account_type: payload.account_type,
-        tl:           u.tl ?? u.tl_balance ?? 10000,
-        tlc:          u.tlc ?? u.tlc_balance ?? 0,
-        created_at:   new Date().toISOString()
-      };
-      localStorage.setItem('tl_user', JSON.stringify(userLocal));
-      goStep('done');
-    } else {
-      alert('가입 오류: ' + (data.message || data.error || data.msg || '잠시 후 다시 시도해주세요.'));
-    }
-  } catch(e) {
-    // 네트워크 오류 → 로컬 저장 후 완료
-    console.warn('API 오류, 로컬 저장:', e.message);
-    const userLocal = {
-      id: Date.now(), uid: 'tl_' + Date.now(),
-      email: verifiedEmail, username: payload.username,
-      account_type: payload.account_type, tl: 10000, tlc: 0,
-      created_at: new Date().toISOString()
-    };
-    localStorage.setItem('tl_user', JSON.stringify(userLocal));
-    goStep('done');
-  }
+  // ── 유저 로컬 저장 (백엔드 인증 서버 없이 동작) ──
+  const userLocal = {
+    id:           Date.now(),
+    uid:          'tl_' + Date.now(),
+    email:        verifiedEmail,
+    username:     payload.username,
+    account_type: payload.account_type,
+    tl:           10000,
+    tlc:          0,
+    created_at:   new Date().toISOString()
+  };
+  localStorage.setItem('tl_user', JSON.stringify(userLocal));
+
+  // D1에 유저 정보 비동기 저장 (실패해도 무관)
+  fetch('https://timelink-backend.mununglee.workers.dev/api/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid:          userLocal.uid,
+      email:        verifiedEmail,
+      username:     payload.username,
+      account_type: payload.account_type,
+      created_at:   userLocal.created_at
+    })
+  }).catch(function(){});  // 실패해도 무시
+
+  goStep('done');
 }
 </script>
 <script src="i18n.js"></script>
@@ -878,7 +864,7 @@ document.addEventListener('DOMContentLoaded', function() {
   updateNavbar();
   if (typeof I18N !== 'undefined')      I18N.renderSelector('lang-selector');
   if (typeof CURRENCY !== 'undefined')  CURRENCY.renderSelector('currency-selector');
-  if (typeof TL !== 'undefined')        TL.updateNavUI(currentUser);
+  if (typeof TL !== 'undefined' && currentUser) TL.updateNavUI(currentUser);
 });
 </script>
 </body>
