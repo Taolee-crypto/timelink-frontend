@@ -346,6 +346,7 @@ input:checked+.slider::before{transform:translateX(20px)}
           <div class="card-hdr">
             <div class="card-title">최근 가입자</div>
             <button class="btn btn-outline btn-sm" onclick="loadDashboard()">🔄 새로고침</button>
+            <button class="btn btn-outline btn-sm" onclick="testAPI()" style="font-size:11px;">🔌 API 연결 테스트</button>
           </div>
           <table class="tbl">
             <thead><tr><th>ID</th><th>사용자명</th><th>이메일</th><th>타입</th><th>TL 잔액</th><th>가입일</th><th>상태</th></tr></thead>
@@ -992,9 +993,36 @@ function go(name, el){
 }
 
 // ── API ──
-async function api(path){
-  try{ const r=await fetch(API+path, {mode:'cors'}); return await r.json(); }
-  catch(e){ log(`[ERR] ${e.message}`,'e'); return null; }
+async function testAPI(){
+  log('[TEST] API 연결 테스트 시작...');
+  try {
+    const r1 = await fetch(API+'/api/health', {mode:'cors'});
+    const d1 = await r1.json();
+    log('[TEST] health: '+JSON.stringify(d1));
+  } catch(e){ log('[TEST] health 실패: '+e.message,'e'); }
+  try {
+    const r2 = await fetch(API+'/api/admin/users', {mode:'cors'});
+    const d2 = await r2.json();
+    log('[TEST] users: '+(d2.users?d2.users.length+'명':'오류'));
+    if(d2.users && d2.users.length) loadUsers();
+  } catch(e){ log('[TEST] users 실패: '+e.message,'e'); }
+  try {
+    const r3 = await fetch(API+'/api/tracks', {mode:'cors'});
+    const d3 = await r3.json();
+    log('[TEST] tracks: '+(d3.tracks?d3.tracks.length+'개':'오류'));
+    if(d3.tracks && d3.tracks.length) loadTracks();
+  } catch(e){ log('[TEST] tracks 실패: '+e.message,'e'); }
+  toast('API 테스트 완료 - 로그 탭 확인','info');
+  go('logs', document.querySelector('[onclick*="logs"]'));
+}
+
+async function api(path, opts){
+  try{
+    const r=await fetch(API+path, Object.assign({mode:'cors'}, opts||{}));
+    if(!r.ok){ log('[ERR] HTTP '+r.status+' - '+path,'e'); return null; }
+    return await r.json();
+  }
+  catch(e){ log('[ERR] '+path+' - '+e.message,'e'); return null; }
 }
 
 // ── 대시보드 ──
@@ -1163,8 +1191,10 @@ async function deleteTrack(trackId){
 }
 
 async function loadTracks(){
-  const d=await api('/api/tracks');
   const tb=g('t-tbody');
+  if(tb) tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">조회 중...</td></tr>';
+  const d=await api('/api/tracks?limit=200');
+  log('[트랙] API 응답: '+(d?'tracks='+( d.tracks?d.tracks.length:'없음'):'null'));
   if(!d||!d.tracks||!d.tracks.length){ tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">트랙 없음</td></tr>'; return; }
   tb.innerHTML=d.tracks.map(t=>`
     <tr>
@@ -1443,7 +1473,28 @@ async function loadShareplaceAdmin(){
 function loadRadio(){ log('[Radio] 새로고침 완료 (준비중)'); }
 function loadSettings(){ log('[설정] 새로고침 완료 (준비중)'); }
 
-function init(){ loadDashboard(); }
+function init(){
+  loadDashboard();
+  // 세션 복원 시 현재 활성 탭 데이터 로드
+  const activePanel = document.querySelector('.tab-panel.active');
+  if(activePanel && activePanel.id === 'tp-users') loadUsers();
+  if(activePanel && activePanel.id === 'tp-tracks') loadTracks();
+}
+
+// ── 페이지 로드 시 세션 복원 ──
+(function(){
+  var sess = localStorage.getItem('adm_s');
+  var HOUR = 8 * 60 * 60 * 1000;
+  if(sess && (Date.now() - parseInt(sess)) < HOUR){
+    g('login-screen').style.display='none';
+    g('admin-panel').style.display='block';
+    init();
+  }
+  // 엔터키로 로그인
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Enter' && g('login-screen').style.display !== 'none') window.doLogin();
+  });
+})();
 
 </script>
 </body>
