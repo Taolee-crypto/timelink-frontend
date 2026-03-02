@@ -991,24 +991,29 @@ document.addEventListener('click',function(e){
   if(e.target.id==='dl-modal') closeDlModal();
 });
 
-// localStorage에서 가짜 샘플 음원 완전 삭제
+// localStorage에서 가짜/삭제된 음원 완전 정리
 (function(){
   var FAKE_IDS = ['s1', 's2'];
+  // admin이 삭제한 트랙 목록 가져오기
+  var deletedIds = [];
+  try { deletedIds = JSON.parse(localStorage.getItem('tl_deleted_tracks')||'[]'); } catch(e){}
+  var REMOVE_IDS = FAKE_IDS.concat(deletedIds);
+
   // tl_myfiles에서 제거
   try {
     var files = JSON.parse(localStorage.getItem('tl_myfiles')||'[]');
-    var cleaned = files.filter(function(f){ return FAKE_IDS.indexOf(f.id) === -1; });
+    var cleaned = files.filter(function(f){ return REMOVE_IDS.indexOf(String(f.id)) === -1; });
     if(cleaned.length !== files.length) localStorage.setItem('tl_myfiles', JSON.stringify(cleaned));
   } catch(e){}
   // tl_files에서도 제거 (구버전 키)
   try {
     var files2 = JSON.parse(localStorage.getItem('tl_files')||'[]');
-    var cleaned2 = files2.filter(function(f){ return FAKE_IDS.indexOf(f.id) === -1; });
+    var cleaned2 = files2.filter(function(f){ return REMOVE_IDS.indexOf(String(f.id)) === -1; });
     if(cleaned2.length !== files2.length) localStorage.setItem('tl_files', JSON.stringify(cleaned2));
   } catch(e){}
   // TRACKS 메모리에서도 제거
-  FAKE_IDS.forEach(function(id){
-    var idx = TRACKS.findIndex(function(t){ return t.id === id; });
+  REMOVE_IDS.forEach(function(id){
+    var idx = TRACKS.findIndex(function(t){ return String(t.id) === String(id); });
     if(idx > -1) TRACKS.splice(idx, 1);
   });
 })();
