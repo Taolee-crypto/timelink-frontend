@@ -49,7 +49,8 @@ body { font-family: var(--font); background: #fff; color: var(--text); min-heigh
 
 
 
-.avatar { position: relative; width: 36px; height: 36px; border-radius: 50%; background: var(--purple); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer; font-size: 14px; }
+.avatar-wrap { position: relative; }
+.avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--purple); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer; font-size: 14px; }
 .dropdown { display: none; position: absolute; top: calc(100% + 8px); right: 0; background: white; border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); overflow: hidden; min-width: 180px; z-index: 999; }
 .dropdown.show { display: block; }
 .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 11px 16px; font-size: 14px; font-weight: 500; color: var(--text); text-decoration: none; cursor: pointer; transition: background 0.15s; }
@@ -295,13 +296,15 @@ function googleTranslateElementInit() {
       <div class="balance-item"><span class="balance-label">TL</span><span class="balance-value" id="balance-tl">0</span></div>
       <div class="balance-item"><span class="balance-label">TLC</span><span class="balance-value" id="balance-tlc">0.0000</span></div>
     </div>
-    <div class="avatar" onclick="toggleDropdown()">
-      <span id="avatar-letter">U</span>
+    <div class="avatar-wrap">
+      <div class="avatar" onclick="toggleDropdown()">
+        <span id="avatar-letter">U</span>
+      </div>
       <div class="dropdown" id="dropdown">
-        <a href="wallet.html" class="dropdown-item" data-i18n="tab_wallet">👛 지갑</a>
-        <a href="library.html" class="dropdown-item" data-i18n="tab_library">🔍 라이브러리</a>
-        <a href="create.html" class="dropdown-item" data-i18n="tab_upload">📤 업로드</a>
-        <a href="dashboard.html" class="dropdown-item" data-i18n="tab_dashboard">📊 대시보드</a>
+        <a href="wallet.html" class="dropdown-item">👛 지갑</a>
+        <a href="library.html" class="dropdown-item">🔍 라이브러리</a>
+        <a href="create.html" class="dropdown-item">📤 업로드</a>
+        <a href="dashboard.html" class="dropdown-item">📊 대시보드</a>
         <div class="dropdown-divider"></div>
         <a href="charge.html" class="dropdown-item charge">💳 TL 충전</a>
         <div class="dropdown-divider"></div>
@@ -965,33 +968,34 @@ function dismissWelcome() {
 if(window.innerWidth<900){$('main-grid').style.gridTemplateColumns='1fr';}
 window.addEventListener('resize',()=>{$('main-grid').style.gridTemplateColumns=window.innerWidth<900?'1fr':'1fr 340px';});
 
-// ===== NAVBAR AUTH =====
-function initNavbar(){
-  var user=JSON.parse(localStorage.getItem('tl_user')||'null');
-  var guest=document.getElementById('nav-guest');
-  var auth=document.getElementById('nav-auth');
-  if(!guest||!auth)return;
+// ===== NAVBAR =====
+function toggleDropdown(){
+  document.getElementById('dropdown').classList.toggle('show');
+}
+function updateNavbar(){
+  var user=null;
+  try{user=JSON.parse(localStorage.getItem('tl_user')||'null');}catch(e){}
+  var na=document.getElementById('nav-auth');
+  var ng=document.getElementById('nav-guest');
   if(user&&user.username){
-    guest.classList.add('hidden');
-    auth.classList.remove('hidden');
-    var av=document.getElementById('nav-avatar');
-    if(av)av.textContent=user.username.charAt(0).toUpperCase();
-    var dn=document.getElementById('dd-name');if(dn)dn.textContent=user.username;
-    var de=document.getElementById('dd-email');if(de)de.textContent=user.email||'';
-    var tl=document.getElementById('nb-tl');if(tl)tl.textContent=Number(user.tl||0).toLocaleString();
-    var tlc=document.getElementById('nb-tlc');if(tlc)tlc.textContent=Number(user.tlc||0).toFixed(4);
+    na.classList.remove('hidden'); ng.classList.add('hidden');
+    var al=document.getElementById('avatar-letter');
+    var bt=document.getElementById('balance-tl');
+    var bc=document.getElementById('balance-tlc');
+    if(al)al.textContent=(user.username||'U').charAt(0).toUpperCase();
+    if(bt)bt.textContent=Number(user.tl||0).toLocaleString();
+    if(bc)bc.textContent=Number(user.tlc||0).toFixed(4);
   } else {
-    guest.classList.remove('hidden');
-    auth.classList.add('hidden');
+    na.classList.add('hidden'); ng.classList.remove('hidden');
   }
 }
-function toggleNavDD(){var dd=document.getElementById('nav-dd');if(dd)dd.classList.toggle('hidden');}
-function navLogout(){ logout(); } function _navLogout_orig(){localStorage.removeItem('tl_token');localStorage.removeItem('tl_user');window.location.href='login.html';}
 document.addEventListener('click',function(e){
-  var wrap=document.querySelector('.avatar-wrap');
-  if(wrap&&!wrap.contains(e.target)){var dd=document.getElementById('nav-dd');if(dd)dd.classList.add('hidden');}
+  if(!e.target.closest('.avatar-wrap')){
+    var dd=document.getElementById('dropdown');
+    if(dd)dd.classList.remove('show');
+  }
 });
-initNavbar();
+updateNavbar();
 
 // D1 + library tracks auto-load
 (async function(){
