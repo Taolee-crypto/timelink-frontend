@@ -567,7 +567,7 @@ input:checked+.slider::before{transform:translateX(20px)}
         <div class="card">
           <table class="tbl">
             <thead><tr><th>ID</th><th>사용자명</th><th>이메일</th><th>타입</th><th>TL 잔액</th><th>TLC</th><th>가입일</th><th>상태</th><th>액션</th></tr></thead>
-            <tbody id="u-tbody"><tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">로딩중...</td></tr></tbody>
+            <tbody id="u-tbody"><tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">사용자 관리 탭을 클릭하면 로드됩니다</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -981,12 +981,14 @@ function doLogout(){
 function go(name, el){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  g('tp-'+name).classList.add('active');
+  const tp = g('tp-'+name);
+  if(!tp){ console.warn('탭 패널 없음: tp-'+name); return; }
+  tp.classList.add('active');
   if(el) el.classList.add('active');
   g('topbar-title').textContent = TITLES[name]||name;
   const loaders={dashboard:loadDashboard,users:loadUsers,tracks:loadTracks,cafe:loadCafe,revenue:loadRevenue,exchange:loadExchanges,logs:refreshLogs,ads:loadAds,advertisers:loadAds,shareplace:loadShareplaceAdmin,bulk:loadBulk,radio:loadRadio,settings:loadSettings};
   if(loaders[name]) loaders[name]();
-  log(`[NAV] ${TITLES[name]}`);
+  log('[NAV] ' + (TITLES[name]||name));
 }
 
 // ── API ──
@@ -1101,9 +1103,11 @@ function approveAll(){ toast('전체 환전 승인 완료','success'); }
 
 // ── 사용자 ──
 async function loadUsers(){
-  const d=await api('/api/admin/users');
   const tb=g('u-tbody');
-  if(!d){ tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">API 연결 실패</td></tr>'; return; }
+  if(tb) tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">조회 중...</td></tr>';
+  const d=await api('/api/admin/users');
+  log('[사용자] API 응답: ' + JSON.stringify(d).substring(0,100));
+  if(!d){ tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--red)">API 연결 실패 - Worker 확인 필요</td></tr>'; return; }
   if(!d.users||!d.users.length){ tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">등록된 사용자 없음</td></tr>'; return; }
   const q=g('u-search').value.toLowerCase();
   const type=g('u-type').value;
