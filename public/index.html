@@ -1,623 +1,342 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>TimeLink — 1초 = 1TL = 1원</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-:root {
-  --purple: #8b5cf6;
-  --purple-dark: #7c3aed;
-  --purple-darker: #6d28d9;
-  --purple-light: #ede9fe;
-  --purple-pale: #f5f3ff;
-  --green: #10b981;
-  --green-light: #d1fae5;
-  --yellow: #f59e0b;
-  --yellow-light: #fef3c7;
-  --red: #ef4444;
-  --red-light: #fee2e2;
-  --blue: #3b82f6;
-  --blue-light: #dbeafe;
-  --gray-50: #f9fafb;
-  --gray-100: #f3f4f6;
-  --gray-200: #e5e7eb;
-  --gray-300: #d1d5db;
-  --gray-500: #6b7280;
-  --gray-700: #374151;
-  --gray-900: #111827;
-  --text: #0f172a;
-  --border: #e5e7eb;
-  --surface: #f8fafc;
-  --font: 'Inter', 'Noto Sans KR', sans-serif;
-}
+:root{--bg-root:#08080F;--bg-deep:#0D0D1A;--bg-card:rgba(255,255,255,.05);--bd:rgba(255,255,255,.08);--bd2:rgba(255,255,255,.13);--purple:#8B5CF6;--purple-dim:#6D28D9;--mint:#00E5A0;--pink:#F472B6;--amber:#FBBF24;--rose:#FB7185;--t1:#fff;--t2:rgba(255,255,255,.65);--t3:rgba(255,255,255,.35);--grad:linear-gradient(135deg,#8B5CF6 0%,#00E5A0 100%);--fn:'Noto Sans KR',sans-serif;--fm:'JetBrains Mono',monospace}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--fn);background:var(--bg-root);color:var(--t1);min-height:100vh;cursor:none;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");pointer-events:none;z-index:0}
+
+/* CURSOR */
+.cd{width:8px;height:8px;background:var(--purple);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:99999;transform:translate(-50%,-50%);mix-blend-mode:screen}
+.cr{width:28px;height:28px;border:1.5px solid rgba(139,92,246,.5);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:99998;transform:translate(-50%,-50%);transition:all .12s ease}
+.cr.hov{width:40px;height:40px;border-color:rgba(0,229,160,.6)}
+
+/* AMBIENT */
+.amb{position:fixed;border-radius:50%;pointer-events:none;z-index:0}
+.amb1{top:-200px;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(139,92,246,.14) 0%,transparent 60%)}
+.amb2{bottom:-300px;right:-100px;width:600px;height:600px;background:radial-gradient(circle,rgba(0,229,160,.07) 0%,transparent 65%)}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;align-items:center;gap:0;padding:0 28px;height:58px;background:rgba(8,8,15,.75);backdrop-filter:blur(24px);border-bottom:1px solid var(--bd)}
+.nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;margin-right:32px}
+.nav-logo-icon{width:30px;height:30px;border-radius:8px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:14px}
+.nav-logo-text{font-size:15px;font-weight:700;color:var(--t1)}
+.nav-logo-text em{color:var(--purple);font-style:normal}
+.nav-links{display:flex;gap:0}
+.nav-link{padding:0 16px;height:58px;display:flex;align-items:center;font-size:14px;color:var(--t2);text-decoration:none;transition:all .2s ease;border-bottom:2px solid transparent;position:relative;top:1px}
+.nav-link:hover,.nav-link.active{color:var(--t1)}
+.nav-link.active{border-bottom-color:var(--purple)}
+.nav-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.nav-icon-btn{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;cursor:none;font-size:15px;transition:all .2s ease}
+.nav-icon-btn:hover{background:rgba(255,255,255,.1)}
+.nav-avatar{width:32px;height:32px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:15px;cursor:none}
+.nav-join{padding:8px 18px;border-radius:9px;background:transparent;border:1.5px solid var(--bd2);color:var(--t1);font-size:13px;font-weight:700;cursor:none;transition:all .2s ease}
+.nav-join:hover{border-color:var(--purple);background:rgba(139,92,246,.12)}
+
+/* MAIN LAYOUT */
+.page-wrap{padding-top:58px;display:flex;min-height:100vh;position:relative;z-index:1}
+.page-main{flex:1;overflow-y:auto}
+.page-side{width:300px;flex-shrink:0;border-left:1px solid var(--bd);padding:20px 18px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;background:rgba(0,0,0,.2)}
+
+/* HERO */
+.hero{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 40px 36px;min-height:420px;position:relative;text-align:center}
+.bonus-card{position:absolute;top:24px;right:24px;background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.25);border-radius:16px;padding:16px 20px;text-align:center;backdrop-filter:blur(16px)}
+.bc-amount{font-size:22px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1}
+.bc-label{font-size:12px;font-weight:700;color:var(--t1);margin-top:3px}
+.bc-desc{font-size:11px;color:var(--t2);margin-top:4px}
+/* confetti dots */
+.conf-dots{position:absolute;top:0;right:0;width:100px;height:100px;pointer-events:none}
+
+.hero-clock{position:relative;width:220px;height:220px;margin:0 auto 20px}
+.clock-glow{position:absolute;inset:-30px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.35) 0%,transparent 70%);animation:cg 3s ease-in-out infinite}
+@keyframes cg{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}
+.clock-ring{width:220px;height:220px;border-radius:50%;border:2px solid rgba(139,92,246,.4);display:flex;align-items:center;justify-content:center;position:relative}
+.clock-ring::before{content:'';position:absolute;inset:8px;border-radius:50%;border:1px solid rgba(0,229,160,.2)}
+.clock-inner{text-align:center}
+.clock-equation{font-size:22px;font-weight:900;line-height:1.2}
+.clock-equation span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* CATEGORY ICONS */
+.cat-grid{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+.cat-item{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:none;transition:all .25s ease}
+.cat-item:hover{transform:translateY(-4px)}
+.cat-icon{width:54px;height:54px;border-radius:14px;background:rgba(255,255,255,.07);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:22px;transition:all .25s ease;backdrop-filter:blur(8px)}
+.cat-item:hover .cat-icon{background:rgba(139,92,246,.18);border-color:rgba(139,92,246,.35);box-shadow:0 0 18px rgba(139,92,246,.25)}
+.cat-label{font-size:11px;color:var(--t2);font-weight:600}
+
+/* CONTENT SECTIONS */
+.section{padding:24px 32px}
+.section-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.section-title{font-size:18px;font-weight:700}
+.section-sub{font-size:12px;color:var(--t3);margin-top:4px}
+.see-all{font-size:12px;color:var(--mint);cursor:none;text-decoration:none;padding:4px 10px;border-radius:6px;transition:all .2s ease}
+.see-all:hover{background:rgba(0,229,160,.08)}
+
+/* FILE CARDS */
+.file-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.fc{background:var(--bg-card);border:1px solid var(--bd);border-radius:14px;overflow:hidden;cursor:none;transition:all .25s ease;position:relative}
+.fc:hover{transform:translateY(-4px);border-color:var(--bd2);box-shadow:0 12px 32px rgba(0,0,0,.4)}
+.fc-thumb{height:120px;display:flex;align-items:center;justify-content:center;font-size:36px;position:relative;overflow:hidden}
+.fc-thumb-inner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.fc-play-ov{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;background:rgba(0,0,0,.4);border-radius:0}
+.fc:hover .fc-play-ov{opacity:1}
+.fc-play-btn{width:36px;height:36px;border-radius:50%;background:rgba(139,92,246,.9);display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 0 18px rgba(139,92,246,.7)}
+.fc-body{padding:10px 12px}
+.fc-title{font-size:13px;font-weight:700;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fc-artist{font-size:11px;color:var(--t3);margin-bottom:8px}
+.fc-bottom{display:flex;align-items:center;justify-content:space-between}
+.fc-views{font-size:10px;color:var(--t3)}
+.fc-dl-btn{width:26px;height:26px;border-radius:50%;background:rgba(0,229,160,.12);border:1px solid rgba(0,229,160,.2);display:flex;align-items:center;justify-content:center;font-size:11px;cursor:none;transition:all .2s ease}
+.fc-dl-btn:hover{background:rgba(0,229,160,.25)}
+
+/* MOVING RADIO SIDEBAR */
+.side-title{font-size:14px;font-weight:700;margin-bottom:4px}
+.side-sub{font-size:11px;color:var(--t3);margin-bottom:14px}
+.radio-card{background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:12px;padding:12px;cursor:none;transition:all .2s ease;margin-bottom:10px}
+.radio-card:hover{background:rgba(255,255,255,.07);border-color:var(--bd2);transform:translateX(2px)}
+.rc-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.rc-avatar{width:32px;height:32px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.rc-info{flex:1;min-width:0}
+.rc-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-listeners{font-size:10px;color:var(--t3);font-family:var(--fm);display:flex;align-items:center;gap:4px;margin-top:2px}
+.rc-wave{height:16px;display:flex;align-items:center;gap:1px;margin-bottom:8px}
+.rcwb{width:2px;min-width:2px;border-radius:1px;background:var(--mint);opacity:.3;animation:wv 1s ease-in-out infinite}
+@keyframes wv{0%,100%{height:4px;opacity:.2}50%{height:12px;opacity:.6}}
+.rc-play{padding:5px 14px;border-radius:7px;background:rgba(0,229,160,.15);border:1px solid rgba(0,229,160,.25);color:var(--mint);font-size:10px;font-weight:700;cursor:none;float:right;transition:all .2s ease}
+.rc-play:hover{background:rgba(0,229,160,.25)}
+
+/* FOOTER */
+footer{background:rgba(8,8,15,.9);border-top:1px solid var(--bd);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:relative;z-index:1}
+.footer-links{display:flex;gap:20px;font-size:12px;color:var(--t3)}
+.footer-links a{color:var(--t3);text-decoration:none;cursor:none;transition:color .2s}
+.footer-links a:hover{color:var(--t2)}
+.footer-socials{display:flex;gap:10px}
+.social-btn{width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:none}
+
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(139,92,246,.3);border-radius:4px}
 </style>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TimeLink - 창작자를 위한 새로운 수익 플랫폼</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: var(--font); background: #ffffff; color: #1f2937; line-height: 1.6; }
-
-.navbar {
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 0 24px;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 20px;
-  font-weight: 800;
-  color: #1f2937;
-  text-decoration: none;
-}
-.logo-icon {
-  width: 32px;
-  height: 32px;
-  background: #8b5cf6;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 16px;
-}
-.logo span { color: #8b5cf6; }
-.nav-right { display: flex; align-items: center; gap: 12px; }
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 20px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-  text-decoration: none;
-}
-.btn-primary {
-  background: #8b5cf6;
-  color: white;
-}
-.btn-primary:hover {
-  background: #7c3aed;
-}
-.btn-outline {
-  background: white;
-  color: #1f2937;
-  border: 1px solid #e5e7eb;
-}
-.btn-outline:hover {
-  background: #f9fafb;
-}
-.btn-sm {
-  padding: 6px 14px;
-  font-size: 13px;
-}
-.btn-large {
-  padding: 16px 32px;
-  font-size: 16px;
-}
-
-.balance {
-  background: #f3f4f6;
-  border-radius: 999px;
-  padding: 6px 16px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.balance-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-}
-.balance-label {
-  color: #6b7280;
-  font-weight: 500;
-}
-.balance-value {
-  font-weight: 700;
-  color: #8b5cf6;
-}
-
-.avatar {
-  width: 36px;
-  height: 36px;
-  background: #8b5cf6;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 700;
-  cursor: pointer;
-  position: relative;
-}
-.dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 8px;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-  width: 200px;
-  display: none;
-  z-index: 1000;
-}
-.dropdown.show { display: block; }
-.dropdown-item {
-  padding: 12px 16px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #1f2937;
-  text-decoration: none;
-  display: block;
-}
-.dropdown-item:hover { background: #f3f4f6; }
-.dropdown-item.danger { color: #ef4444; }
-
-.tabs {
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 0 24px;
-  display: flex;
-  justify-content: center;
-  gap: 4px;
-  position: sticky;
-  top: 64px;
-  z-index: 90;
-  overflow-x: auto;
-}
-.tab {
-  padding: 12px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #6b7280;
-  text-decoration: none;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-.tab:hover { color: #8b5cf6; }
-.tab.active {
-  color: #8b5cf6;
-  border-bottom-color: #8b5cf6;
-}
-
-.hero {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 80px 24px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 60px;
-  align-items: center;
-}
-.hero-content h1 {
-  font-size: 56px;
-  font-weight: 800;
-  line-height: 1.2;
-  margin-bottom: 24px;
-}
-.hero-content h1 span { color: #8b5cf6; }
-.hero-description {
-  font-size: 18px;
-  color: #6b7280;
-  margin-bottom: 32px;
-  max-width: 500px;
-}
-.hero-stats {
-  display: flex;
-  gap: 40px;
-  margin-top: 40px;
-}
-.stat-number { font-size: 32px; font-weight: 800; }
-.stat-label { font-size: 14px; color: #6b7280; }
-
-.features-grid {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 24px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 30px;
-}
-.feature-card {
-  background: white;
-  border-radius: 24px;
-  padding: 32px;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-  transition: all 0.3s;
-  border: 1px solid #f3f4f6;
-  cursor: pointer;
-}
-.feature-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-}
-.feature-icon {
-  width: 56px;
-  height: 56px;
-  background: #ede9fe;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  margin-bottom: 24px;
-  color: #8b5cf6;
-}
-
-.cta-section {
-  max-width: 1200px;
-  margin: 80px auto;
-  padding: 60px;
-  background: linear-gradient(135deg, #ede9fe, #ffffff);
-  border-radius: 32px;
-  text-align: center;
-}
-.cta-section h2 { font-size: 40px; font-weight: 800; margin-bottom: 16px; }
-.cta-buttons {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-}
-
-.page-footer {
-  background: #f9fafb;
-  border-top: 1px solid #e5e7eb;
-  padding: 48px 24px 24px;
-  margin-top: 60px;
-}
-.footer-grid {
-  max-width: 1100px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr;
-  gap: 40px;
-  margin-bottom: 40px;
-}
-.footer-logo {
-  font-size: 18px;
-  font-weight: 800;
-  margin-bottom: 10px;
-  color: #0f172a;
-}
-.footer-tagline {
-  font-size: 13px;
-  color: #9ca3af;
-  line-height: 1.6;
-}
-.footer-col-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: #9ca3af;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-bottom: 14px;
-}
-.footer-col a {
-  display: block;
-  font-size: 14px;
-  color: #6b7280;
-  text-decoration: none;
-  margin-bottom: 8px;
-  transition: color 0.2s;
-}
-.footer-col a:hover { color: #8b5cf6; }
-.footer-bottom {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding-top: 24px;
-  border-top: 1px solid #e5e7eb;
-  font-size: 12px;
-  color: #9ca3af;
-  text-align: center;
-}
-@media (max-width: 768px) {
-  .footer-grid { grid-template-columns: 1fr 1fr; gap: 28px; }
-}
-@media (max-width: 480px) {
-  .footer-grid { grid-template-columns: 1fr; }
-}
-
-.hidden { display: none !important; }
-.badge { display: inline-block; padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
-.badge-green { background: #ede9fe; color: #8b5cf6; }
-@media (max-width: 768px) {
-  .hero {
-    grid-template-columns: 1fr;
-    padding: 40px 20px;
-    gap: 32px;
-  }
-  .hero-content h1 { font-size: 36px; }
-  .hero-image { display: none; }
-  .features-grid { grid-template-columns: 1fr; }
-  .cta-section { padding: 40px 24px; margin: 40px 16px; }
-  .cta-section h2 { font-size: 28px; }
-  .cta-buttons { flex-direction: column; align-items: center; }
-  .hero-stats { gap: 24px; }
-}
-</style>
-<style>
-/* 글로벌 컨트롤 - 라이트 테마 오버라이드 */
-.navbar #global-controls button,
-nav #global-controls button {
-  background: rgba(139,92,246,0.08) !important;
-  border: 1px solid rgba(139,92,246,0.2) !important;
-  color: #374151 !important;
-}
-.navbar #global-controls button:hover,
-nav #global-controls button:hover {
-  background: rgba(139,92,246,0.15) !important;
-}
-
-/* Google Translate 커스텀 스타일 */
-
-#google_translate_element .goog-te-gadget-simple {
-  background: rgba(139,92,246,0.08) !important;
-  border: 1px solid rgba(139,92,246,0.2) !important;
-  border-radius: 8px !important;
-  padding: 4px 10px !important;
-  font-size: 13px !important;
-  font-family: 'Inter', 'Noto Sans KR', sans-serif !important;
-  color: #374151 !important;
-  cursor: pointer !important;
-}
-#google_translate_element .goog-te-gadget-simple:hover {
-  background: rgba(139,92,246,0.15) !important;
-}
-#google_translate_element .goog-te-gadget-simple span { color: #374151 !important; }
-#google_translate_element .goog-te-gadget-simple .goog-te-menu-value span:first-child { color: #374151 !important; }
-
-
-.goog-logo-link { display: none !important; }
-.goog-te-gadget { font-size: 0 !important; }
-</style>
-  <meta property="og:title" content="TimeLink - 음악을 만들고 수익을 받으세요">
-  <meta property="og:description" content="1초 재생 = 1 TL = 1원. 창작자 중심의 새로운 음악 경제 플랫폼.">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://taolee-crypto.github.io/timelink-frontend/public/index.html">
-  <meta property="og:image" content="https://taolee-crypto.github.io/timelink-frontend/public/og-image.png">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="TimeLink - 음악을 만들고 수익을 받으세요">
-  <meta name="twitter:description" content="1초 재생 = 1 TL = 1원. 창작자 중심의 새로운 음악 경제 플랫폼.">
-  <meta name="description" content="1초 재생 = 1 TL = 1원. 창작자 중심의 새로운 음악 경제 플랫폼.">
-  <link rel="canonical" href="https://taolee-crypto.github.io/timelink-frontend/public/index.html">
-<!-- Google Translate -->
-<script type="text/javascript">
-function googleTranslateElementInit() {
-  new google.translate.TranslateElement({
-    pageLanguage: 'ko',
-    includedLanguages: 'en,ja,zh-CN,es,pt,fr,de,ar,hi,id,th,vi',
-    layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
-    autoDisplay: false
-  }, 'google_translate_element');
-}
-</script>
-
 </head>
 <body>
+<div class="cd" id="cd"></div>
+<div class="cr" id="cr"></div>
+<div class="amb amb1"></div>
+<div class="amb amb2"></div>
 
-<nav class="navbar">
-  <a href="index.html" class="logo"><div class="logo-icon">⚡</div><div>Time<span>Link</span></div></a>
-  <div id="global-controls" style="display:flex;align-items:center;gap:6px;margin-left:auto;margin-right:12px;"><div id="currency-selector"></div></div>
-  <div class="nav-right" id="nav-guest">
-    <a href="login.html" class="btn btn-outline btn-sm" data-i18n="nav_login">로그인</a>
-    <a href="signup.html" class="btn btn-primary btn-sm" data-i18n="nav_start">시작하기</a>
+<!-- NAV -->
+<nav>
+  <a href="index.html" class="nav-logo">
+    <div class="nav-logo-icon">⏱</div>
+    <div class="nav-logo-text">Time<em>Link</em></div>
+  </a>
+  <div class="nav-links">
+    <a href="#" class="nav-link active">둘러보기</a>
+    <a href="radio.html" class="nav-link">리디오</a>
+    <a href="shareplace.html" class="nav-link">스토이</a>
+    <a href="#" class="nav-link">커뮤니티</a>
   </div>
-  <div class="nav-right hidden" id="nav-auth">
-    <div class="balance">
-      <div class="balance-item"><span class="balance-label">TL</span><span class="balance-value" id="balance-tl">10,000</span></div>
-      <div class="balance-item"><span class="balance-label">TLC</span><span class="balance-value" id="balance-tlc">0.0000</span></div>
-    </div>
-    <div class="avatar" onclick="toggleDropdown()">
-      <span id="avatar-letter">U</span>
-      <div class="dropdown" id="dropdown">
-        <a href="wallet.html" class="dropdown-item" data-i18n="tab_wallet">👛 지갑</a>
-        <a href="library.html" class="dropdown-item" data-i18n="tab_library">🔍 라이브러리</a>
-        <a href="create.html" class="dropdown-item" data-i18n="tab_upload">📤 업로드</a>
-        <a href="dashboard.html" class="dropdown-item" data-i18n="tab_dashboard">📊 대시보드</a>
-        <div class="dropdown-divider"></div>
-        <a href="charge.html" class="dropdown-item charge">💳 TL 충전</a>
-        <div class="dropdown-divider"></div>
-        <div class="dropdown-item danger" onclick="logout()">🚪 로그아웃</div>
-      </div>
-    </div>
+  <div class="nav-right">
+    <div class="nav-icon-btn">🔍</div>
+    <div class="nav-icon-btn">🔔</div>
+    <div class="nav-avatar">👤</div>
+    <button class="nav-join" onclick="location.href='signup.html'">로그인 / 가입</button>
   </div>
 </nav>
 
-<div class="tabs">
-  <a href="index.html" class="tab active" data-i18n="tab_home">🏠 홈</a>
-  <a href="shareplace.html" class="tab" data-i18n="tab_shareplace">🛍️ SharePlace</a>
-  <a href="library.html" class="tab" data-i18n="tab_library">🔍 라이브러리</a>
-  <a href="create.html" class="tab" data-i18n="tab_upload">📤 업로드</a>
-  <a href="radio.html" class="tab" data-i18n="tab_radio">☕ 카페방송</a>
-  <a href="car.html" class="tab" data-i18n="tab_car">🎧 Moving Radio</a>
-  <a href="ads.html" class="tab" data-i18n="tab_ads">📣 광고</a>
-  <a href="wallet.html" class="tab" data-i18n="tab_wallet">👛 지갑</a>
-  <a href="chart.html" class="tab" data-i18n="tab_chart">📊 차트</a>
-  <a href="dashboard.html" class="tab" data-i18n="tab_dashboard">📊 대시보드</a>
-</div>
+<div class="page-wrap">
+  <main class="page-main">
+    <!-- HERO -->
+    <div class="hero">
+      <!-- BONUS CARD -->
+      <div class="bonus-card">
+        <div class="bc-amount">10,000 TL<br>가입 보너스</div>
+        <div class="bc-desc">지금 가입하고 혜택을 받으세요!</div>
+        <button onclick="location.href='signup.html'" style="margin-top:10px;width:100%;padding:8px;border-radius:8px;background:var(--grad);border:none;color:#fff;font-size:12px;font-weight:700;cursor:none">가입하기 →</button>
+      </div>
 
-<div class="hero">
-  <div class="hero-content">
-    <span class="badge badge-green">✨ 새로운 수익 플랫폼</span>
-    <h1>창작자를 위한<br><span data-i18n="hero_title1">가장 혁신적인</span><br>수익 모델</h1>
-    <p class="hero-description" data-i18n="hero_sub">음악, 영상, 강의까지. TimeLink에서 당신의 창작물로 수익을 창출하세요.</p>
-    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
-      <a href="signup.html" class="btn btn-primary" style="white-space: nowrap; min-width: 140px;" data-i18n="btn_free_start">무료로 시작하기</a>
-      <a href="shareplace.html" class="btn btn-outline" style="white-space: nowrap; min-width: 160px;">🛍️ SharePlace 구경하기</a>
-    </div>
-    <div class="hero-stats">
-      <div><span class="stat-number">124K+</span><div class="stat-label" data-i18n="hero_stat1">활성 창작자</div></div>
-      <div><span class="stat-number">2.4M</span><div class="stat-label" data-i18n="hero_stat2">Pulse 누적</div></div>
-    </div>
-  </div>
-  <div class="hero-image">
-    <img src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&q=80&auto=format&fit=crop" alt="창작자" style="width:100%; max-width:540px; height:440px; object-fit:cover; border-radius:24px; box-shadow: 0 20px 40px rgba(0,0,0,0.12); display:block; margin:0 auto;">
-  </div>
-</div>
+      <!-- CLOCK VISUAL -->
+      <div class="hero-clock">
+        <div class="clock-glow"></div>
+        <div class="clock-ring">
+          <div class="clock-inner">
+            <div class="clock-equation"><span>1초 = 1TL = 1원</span></div>
+          </div>
+        </div>
+      </div>
 
-<div class="features-grid">
-  <div class="feature-card" onclick="window.location.href='shareplace.html'">
-    <div class="feature-icon">🛍️</div><h3>SharePlace</h3><p data-i18n="feat_shareplace">창작물을 사고파는 마켓플레이스</p>
-  </div>
-  <div class="feature-card" onclick="window.location.href='create.html'">
-    <div class="feature-icon">🤖</div><h3 data-i18n="feat_ai">AI 음원 인증</h3><p data-i18n="feat_ai_sub">Suno, Udio 음원을 인증하고 수익화</p>
-  </div>
-  <div class="feature-card" onclick="window.location.href='library.html'">
-    <div class="feature-icon">🎬</div><h3 data-i18n="feat_player">TL 플레이어</h3><p data-i18n="feat_player_sub">파일 TL이 실시간으로 소모되는 시스템</p>
-  </div>
-</div>
+      <!-- CATEGORY ICONS -->
+      <div class="cat-grid">
+        <div class="cat-item" onclick="location.href='shareplace.html'">
+          <div class="cat-icon">🎵</div>
+          <span class="cat-label">음악</span>
+        </div>
+        <div class="cat-item" onclick="location.href='shareplace.html'">
+          <div class="cat-icon">▶️</div>
+          <span class="cat-label">비디오</span>
+        </div>
+        <div class="cat-item" onclick="location.href='shareplace.html'">
+          <div class="cat-icon">📄</div>
+          <span class="cat-label">문서</span>
+        </div>
+        <div class="cat-item" onclick="location.href='shareplace.html'">
+          <div class="cat-icon">🖼️</div>
+          <span class="cat-label">이미지</span>
+        </div>
+        <div class="cat-item" onclick="location.href='shareplace.html'">
+          <div class="cat-icon">📦</div>
+          <span class="cat-label">패키지</span>
+        </div>
+        <div class="cat-item" onclick="location.href='shareplace.html'">
+          <div class="cat-icon">&lt;/&gt;</div>
+          <span class="cat-label">코드</span>
+        </div>
+      </div>
+    </div>
 
-<div class="cta-section">
-  <h2 data-i18n="cta_now">지금 바로 시작하세요</h2>
-  <p>가입 즉시 <span data-tl="10000">10,000 TL ≈ ₩10,000</span> 무료 지급</p>
-  <div class="cta-buttons">
-    <a href="signup.html" class="btn btn-primary" data-i18n="btn_free_join">무료로 가입하기</a>
-    <a href="shareplace.html" class="btn btn-outline">🛍️ SharePlace 둘러보기</a>
-  </div>
-</div>
+    <!-- POPULAR CONTENT -->
+    <div class="section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">🔥 인기 콘텐츠</div>
+          <div class="section-sub">오늘의 추천 파일들을 만나보세요.</div>
+        </div>
+        <a href="shareplace.html" class="see-all">전체보기 →</a>
+      </div>
+      <div class="file-grid">
+        <div class="fc" onclick="location.href='shareplace.html'">
+          <div class="fc-thumb" style="background:linear-gradient(135deg,#2a1040,#0a1820)">
+            <div class="fc-thumb-inner">🌃</div>
+            <div class="fc-play-ov"><div class="fc-play-btn">▶</div></div>
+          </div>
+          <div class="fc-body">
+            <div class="fc-title">밤의 카페 테라스</div>
+            <div class="fc-artist">이슬기</div>
+            <div class="fc-bottom">
+              <span class="fc-views">🔥 4.5k</span>
+              <div class="fc-dl-btn">▶</div>
+            </div>
+          </div>
+        </div>
+        <div class="fc" onclick="location.href='shareplace.html'">
+          <div class="fc-thumb" style="background:linear-gradient(135deg,#0a1a28,#1a0828)">
+            <div class="fc-thumb-inner">🌆</div>
+            <div class="fc-play-ov"><div class="fc-play-btn">▶</div></div>
+          </div>
+          <div class="fc-body">
+            <div class="fc-title">서울의 야경</div>
+            <div class="fc-artist">Night Cam</div>
+            <div class="fc-bottom">
+              <span class="fc-views">▶ 3.2k views</span>
+              <div class="fc-dl-btn">📺</div>
+            </div>
+          </div>
+        </div>
+        <div class="fc" onclick="location.href='shareplace.html'">
+          <div class="fc-thumb" style="background:linear-gradient(135deg,#1a1a40,#281040)">
+            <div class="fc-thumb-inner">📊</div>
+            <div class="fc-play-ov"><div class="fc-play-btn">▶</div></div>
+          </div>
+          <div class="fc-body">
+            <div class="fc-title">2023년 트랜드 리포트</div>
+            <div class="fc-artist">TrendLab</div>
+            <div class="fc-bottom">
+              <span class="fc-views">📥 1.1k</span>
+              <div class="fc-dl-btn">📄</div>
+            </div>
+          </div>
+        </div>
+        <div class="fc" onclick="location.href='shareplace.html'">
+          <div class="fc-thumb" style="background:linear-gradient(135deg,#281820,#0a0828)">
+            <div class="fc-thumb-inner">🌸</div>
+            <div class="fc-play-ov"><div class="fc-play-btn">▶</div></div>
+          </div>
+          <div class="fc-body">
+            <div class="fc-title">밤의 카페 테라스</div>
+            <div class="fc-artist">이슬기</div>
+            <div class="fc-bottom">
+              <span class="fc-views">🔥 4.5k</span>
+              <div class="fc-dl-btn">▶</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer>
+      <div class="footer-links">
+        <a href="#">회사 소개</a>
+        <a href="#">이용 약관</a>
+        <a href="#">개인정보 처리방침</a>
+        <a href="#">고객 센터</a>
+      </div>
+      <div class="footer-socials">
+        <div class="social-btn">f</div>
+        <div class="social-btn">𝕏</div>
+        <div class="social-btn" style="font-size:10px">DC</div>
+      </div>
+    </footer>
+  </main>
 
-<footer class="page-footer">
-  <div class="footer-grid">
-    <div class="footer-col">
-      <div class="footer-logo"><span style="background:#8b5cf6;border-radius:6px;padding:2px 8px;color:white;font-weight:800;">⚡</span> TimeLink</div>
-      <p class="footer-tagline" data-i18n="footer_slogan">창작자를 위한 새로운 수익 플랫폼</p>
+  <!-- SIDE: MOVING RADIO -->
+  <aside class="page-side">
+    <div>
+      <div class="side-title">🎧 무빙 라디오</div>
+      <div class="side-sub">리이브 카페 방송</div>
     </div>
-    <div class="footer-col">
-      <div class="footer-col-title" data-i18n="footer_service">서비스</div>
-      <a href="shareplace.html">🛍️ SharePlace</a>
-      <a href="creator.html" data-i18n="footer_creator">🎵 창작자 프로그램</a>
-      <a href="pricing.html" data-i18n="footer_pricing">💳 요금제</a>
-      <a href="radio.html">☕ 카페방송</a>
+    <div class="radio-card">
+      <div class="rc-top">
+        <div class="rc-avatar">☕</div>
+        <div class="rc-info">
+          <div class="rc-name">재즈와 키미, 그리고 세벽</div>
+          <div class="rc-listeners"><span style="width:5px;height:5px;border-radius:50%;background:#EF4444;display:inline-block"></span> 1,204명 청취 중</div>
+        </div>
+      </div>
+      <div class="rc-wave" id="rcw1"></div>
+      <button class="rc-play" onclick="location.href='radio.html'">PLAY</button>
+      <div style="clear:both"></div>
     </div>
-    <div class="footer-col">
-      <div class="footer-col-title" data-i18n="footer_company">회사</div>
-      <a href="about.html" data-i18n="footer_about">🏢 회사 소개</a>
-      <a href="tokenomics.html" data-i18n="footer_tokenomics">⚡ 토큰 경제</a>
-      <a href="poc.html" data-i18n="footer_poc">📊 기여도 시스템</a>
-      <a href="roadmap.html" data-i18n="footer_roadmap">🗺️ 로드맵</a>
-      <a href="faq.html" data-i18n="footer_faq">❓ FAQ</a>
+    <div class="radio-card">
+      <div class="rc-top">
+        <div class="rc-avatar">🌃</div>
+        <div class="rc-info">
+          <div class="rc-name">서울의 이야경</div>
+          <div class="rc-listeners"><span style="width:5px;height:5px;border-radius:50%;background:#EF4444;display:inline-block"></span> 1,204명 청취 중</div>
+        </div>
+      </div>
+      <div class="rc-wave" id="rcw2"></div>
+      <button class="rc-play" onclick="location.href='radio.html'">PLAY</button>
+      <div style="clear:both"></div>
     </div>
-    <div class="footer-col">
-      <div class="footer-col-title" data-i18n="footer_legal">법무</div>
-      <a href="terms.html" data-i18n="page_terms">이용약관</a>
-      <a href="privacy.html" data-i18n="footer_privacy">개인정보처리방침</a>
-      <a href="copyright.html" data-i18n="page_copyright">저작권 정책</a>
-      <a href="copyright.html#report" style="color:#ef4444;" data-i18n="footer_report">저작권 침해 신고</a>
+    <div class="radio-card">
+      <div class="rc-top">
+        <div class="rc-avatar">🎺</div>
+        <div class="rc-info">
+          <div class="rc-name">점퍼브 트립스</div>
+          <div class="rc-listeners"><span style="width:5px;height:5px;border-radius:50%;background:#EF4444;display:inline-block"></span> 1,208명 청취 중</div>
+        </div>
+      </div>
+      <div class="rc-wave" id="rcw3"></div>
+      <button class="rc-play" onclick="location.href='radio.html'">PLAY</button>
+      <div style="clear:both"></div>
     </div>
-  </div>
-  <div class="footer-bottom">
-    ⚖️ 모든 파일의 창작권은 창작자에게 있습니다. © 2025 TimeLink. All rights reserved.
-  </div>
-</footer>
+  </aside>
+</div>
 
 <script>
-function toggleDropdown() {
-  document.getElementById('dropdown')?.classList.toggle('show');
-}
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.avatar')) {
-    document.getElementById('dropdown')?.classList.remove('show');
-  }
+const cd=document.getElementById('cd'),cr=document.getElementById('cr');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY});
+function anim(){rx+=(mx-rx)*.13;ry+=(my-ry)*.13;cd.style.left=mx+'px';cd.style.top=my+'px';cr.style.left=rx+'px';cr.style.top=ry+'px';requestAnimationFrame(anim);}anim();
+document.querySelectorAll('a,button,.cat-item,.fc,.radio-card,.nav-icon-btn').forEach(el=>{
+  el.addEventListener('mouseenter',()=>cr.classList.add('hov'));
+  el.addEventListener('mouseleave',()=>cr.classList.remove('hov'));
 });
-function logout() {
-  localStorage.removeItem('tl_user');
-  localStorage.removeItem('auth_token');
-  window.location.href = 'index.html';
-}
-(function() {
-  const user = JSON.parse(localStorage.getItem('tl_user') || 'null');
-  const navAuth = document.getElementById('nav-auth');
-  const navGuest = document.getElementById('nav-guest');
-  if (user) {
-    navAuth?.classList.remove('hidden');
-    navGuest?.classList.add('hidden');
-    document.getElementById('balance-tl').textContent = (user.tl || 10000).toLocaleString();
-    document.getElementById('balance-tlc').textContent = (user.tlc || 0).toFixed(4);
-    document.getElementById('avatar-letter').textContent = (user.username || 'U').charAt(0).toUpperCase();
-  } else {
-    navAuth?.classList.add('hidden');
-    navGuest?.classList.remove('hidden');
-  }
-})();
-</script>
-<script src="tl-economy.js"></script>
-<script src="i18n.js"></script>
-<script src="currency.js"></script>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-  // 언어 선택기 삽입
-  if (typeof I18N !== "undefined") {
-    I18N.renderSelector("lang-selector");
-  }
-  // 통화 선택기 삽입
-  if (typeof CURRENCY !== "undefined") {
-    CURRENCY.renderSelector("currency-selector");
-  }
+['rcw1','rcw2','rcw3'].forEach((id,idx)=>{
+  const el=document.getElementById(id);
+  for(let i=0;i<50;i++){const b=document.createElement('div');b.className='rcwb';b.style.animationDelay=(i*.03+idx*.1)+'s';el.appendChild(b);}
 });
-</script>
-<script>
-// ── 공통 인증 & 글로벌 초기화 ──
-(function(){
-  var currentUser = null;
-  try { currentUser = JSON.parse(localStorage.getItem('tl_user') || 'null'); } catch(e){}
-
-  function toggleDropdown(){ var d=document.getElementById('dropdown'); if(d) d.classList.toggle('show'); }
-  window.toggleDropdown = toggleDropdown;
-
-  function logout(){ localStorage.removeItem('tl_user'); localStorage.removeItem('auth_token'); window.location.href='index.html'; }
-  window.logout = logout;
-
-  function updateNavbar(){
-    var navAuth=document.getElementById('nav-auth');
-    var navGuest=document.getElementById('nav-guest');
-    var balTl=document.getElementById('balance-tl');
-    var balTlc=document.getElementById('balance-tlc');
-    var avL=document.getElementById('avatar-letter');
-    if(currentUser){
-      if(navAuth) navAuth.classList.remove('hidden');
-      if(navGuest) navGuest.classList.add('hidden');
-      if(balTl) balTl.textContent = (currentUser.tl||0).toLocaleString();
-      if(balTlc) balTlc.textContent = parseFloat(currentUser.tlc||0).toFixed(4);
-      if(avL) avL.textContent = (currentUser.username||'U').charAt(0).toUpperCase();
-    } else {
-      if(navAuth) navAuth.classList.add('hidden');
-      if(navGuest) navGuest.classList.remove('hidden');
-    }
-  }
-  window.updateNavbar = updateNavbar;
-
-  document.addEventListener('click', function(e){
-    if(!e.target.closest('.avatar') && !e.target.closest('#dropdown')){
-      var d=document.getElementById('dropdown');
-      if(d) d.classList.remove('show');
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', function(){
-    updateNavbar();
-    if(typeof I18N!=='undefined'){ I18N.lang=I18N.detect(); I18N.renderSelector('lang-selector'); I18N.applyAll(); }
-    if(typeof CURRENCY!=='undefined'){ CURRENCY.current=CURRENCY.detect(); CURRENCY.renderSelector('currency-selector'); CURRENCY.applyAll(); }
-  });
-})();
 </script>
 </body>
 </html>
