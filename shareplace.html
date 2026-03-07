@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>TimeLink — SHAREPLACE</title>
+<link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+
+:root{
+  --bg-root:#08080F;--bg-deep:#0D0D1A;
+  --bg-card:rgba(255,255,255,.05);--bg-card2:rgba(255,255,255,.07);
+  --bd:rgba(255,255,255,.08);--bd2:rgba(255,255,255,.13);
+  --purple:#8B5CF6;--purple-dim:#6D28D9;--mint:#00E5A0;
+  --pink:#F472B6;--amber:#FBBF24;--rose:#FB7185;--blue:#60A5FA;
+  --t1:#fff;--t2:rgba(255,255,255,.65);--t3:rgba(255,255,255,.35);
+  --grad:linear-gradient(135deg,#8B5CF6 0%,#00E5A0 100%);
+  --fn:'Noto Sans KR',sans-serif;--fm:'JetBrains Mono',monospace
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--fn);background:var(--bg-root);color:var(--t1);min-height:100vh;cursor:none;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:0}
+.cursor-dot{width:8px;height:8px;background:var(--purple);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:10000;transform:translate(-50%,-50%);mix-blend-mode:screen}
+.cursor-ring{width:32px;height:32px;border:1px solid rgba(129,140,248,.4);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:all .15s ease}
+
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh;position:relative;z-index:2}
+
+/* SIDEBAR (condensed) */
+.sidebar{background:var(--bg-sidebar);border-right:1px solid var(--bd);padding:0;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
+.sb-logo{padding:20px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;text-decoration:none}
+.sb-logo-icon{width:30px;height:30px;background:var(--grad);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+.sb-logo-text{font-family:var(--font-display);font-size:12px;font-weight:700;letter-spacing:.1em}
+.sb-nav{padding:10px 0;flex:1}
+.sb-section{padding:8px 16px 3px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);font-family:var(--fm)}
+.sb-link{display:flex;align-items:center;gap:9px;padding:8px 16px;text-decoration:none;color:var(--t2);font-size:12px;font-weight:500;transition:all .2s ease;position:relative}
+.sb-link:hover{color:var(--t1);background:rgba(255,255,255,.03)}
+.sb-link.active{color:var(--t1);background:rgba(129,140,248,.08)}
+.sb-link.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--purple);border-radius:0 2px 2px 0}
+.sb-icon{font-size:14px;width:20px;text-align:center}
+
+/* FILE TYPE FILTER */
+.type-section{padding:12px 0}
+.type-section .sb-section{margin-bottom:6px}
+.type-item{display:flex;align-items:center;gap:9px;padding:7px 16px;font-size:12px;color:var(--t2);cursor:none;transition:all .2s ease;border-radius:0}
+.type-item:hover,.type-item.active{color:var(--t1);background:rgba(255,255,255,.03)}
+.type-item.active{color:var(--purple)}
+.type-count{margin-left:auto;font-family:var(--fm);font-size:10px;color:var(--t3)}
+
+/* MAIN */
+.main{overflow-y:auto}
+.topbar{display:flex;align-items:center;gap:14px;padding:18px 28px;border-bottom:1px solid var(--bd);background:rgba(3,5,7,.6);backdrop-filter:blur(20px);position:sticky;top:0;z-index:100;flex-wrap:wrap}
+.tb-back{display:flex;align-items:center;gap:6px;color:var(--t3);font-size:13px;text-decoration:none;cursor:none;transition:all .2s ease}
+.tb-back:hover{color:var(--t2)}
+.tb-title{font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:.08em}
+.tb-search{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border:1px solid var(--bd2);border-radius:10px;padding:8px 16px;flex:1;min-width:200px}
+.tb-search input{background:none;border:none;outline:none;color:var(--t1);font-size:13px;font-family:var(--fn);width:100%;cursor:none}
+.tb-search input::placeholder{color:var(--t3)}
+.tb-upload{padding:9px 18px;border-radius:9px;border:none;background:var(--grad);color:#fff;font-size:13px;font-family:var(--fn);font-weight:700;cursor:none;white-space:nowrap;transition:all .2s ease}
+.tb-upload:hover{box-shadow:0 0 20px rgba(99,102,241,.4);transform:translateY(-1px)}
+
+/* SORT BAR */
+.sort-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:1px solid var(--bd);flex-wrap:wrap;gap:12px}
+.sort-tabs{display:flex;gap:4px;background:var(--bg-card);border:1px solid var(--bd);border-radius:8px;padding:3px}
+.sort-tab{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:none;color:var(--t3);background:none;border:none;font-family:var(--fn);transition:all .2s ease}
+.sort-tab.active{background:var(--purple-dim);color:#fff}
+.sort-tab:hover:not(.active){color:var(--t2)}
+.sort-right{display:flex;align-items:center;gap:10px}
+.sort-select{background:var(--bg-card);border:1px solid var(--bd2);color:var(--t2);padding:7px 12px;border-radius:8px;font-family:var(--fn);font-size:12px;cursor:none;outline:none}
+.sort-count{font-size:12px;color:var(--t3);font-family:var(--fm)}
+
+/* FILE GRID */
+.page-content{padding:24px 28px}
+.file-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.file-card{background:var(--bg-card);border:1px solid var(--bd);border-radius:16px;overflow:hidden;cursor:none;transition:all .3s ease;position:relative}
+.file-card:hover{border-color:var(--bd2);transform:translateY(-4px);box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.file-thumb{height:150px;display:flex;align-items:center;justify-content:center;font-size:44px;position:relative;overflow:hidden}
+.thumb-overlay{position:absolute;inset:0;background:radial-gradient(circle at center,rgba(129,140,248,.12) 0%,transparent 60%)}
+.fc-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:44px;height:44px;background:rgba(99,102,241,.9);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;opacity:0;transition:opacity .2s ease;box-shadow:0 0 20px rgba(99,102,241,.5)}
+.file-card:hover .fc-play{opacity:1}
+.fc-badge{position:absolute;top:10px;right:10px;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:700;font-family:var(--fm)}
+.fcb-cert{background:rgba(52,211,153,.15);color:var(--mint);border:1px solid rgba(52,211,153,.25)}
+.fcb-hot{background:rgba(251,113,133,.15);color:var(--rose);border:1px solid rgba(251,113,133,.25)}
+.fcb-new{background:rgba(252,211,77,.12);color:var(--amber);border:1px solid rgba(252,211,77,.25)}
+.fc-body{padding:14px}
+.fc-type{font-size:10px;color:var(--t3);font-family:var(--fm);letter-spacing:.08em;margin-bottom:5px}
+.fc-title{font-size:14px;font-weight:700;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fc-artist{font-size:12px;color:var(--t2);margin-bottom:10px}
+.fc-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.fc-price{font-family:var(--fm);font-size:12px;font-weight:700;color:var(--purple)}
+.fc-stats{display:flex;gap:8px;font-size:11px;color:var(--t3)}
+.fc-tags{display:flex;gap:4px;flex-wrap:wrap}
+.fc-tag{font-size:10px;padding:2px 7px;border-radius:3px;background:rgba(255,255,255,.03);border:1px solid var(--bd);color:var(--t3)}
+.fc-actions{display:flex;gap:6px;margin-top:10px}
+.fc-btn{flex:1;padding:7px 0;border-radius:7px;border:none;font-size:11px;font-family:var(--fn);font-weight:700;cursor:none;transition:all .2s ease}
+.fc-btn-primary{background:rgba(99,102,241,.15);color:var(--purple);border:1px solid rgba(99,102,241,.2)}
+.fc-btn-primary:hover{background:rgba(99,102,241,.25)}
+.fc-btn-ghost{background:transparent;color:var(--t3);border:1px solid var(--bd)}
+.fc-btn-ghost:hover{color:var(--t2)}
+
+/* PAGINATION */
+.pagination{display:flex;align-items:center;justify-content:center;gap:6px;padding:32px 0 16px}
+.pg-btn{width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid var(--bd);background:var(--bg-card);font-size:13px;color:var(--t2);cursor:none;transition:all .2s ease;font-family:var(--fm)}
+.pg-btn:hover,.pg-btn.active{background:var(--purple-dim);color:#fff;border-color:var(--purple-dim)}
+.pg-btn.active{box-shadow:0 0 12px rgba(99,102,241,.3)}
+
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(129,140,248,.15);border-radius:3px}
+@media(max-width:1200px){.file-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{display:none}.file-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="cursor-dot" id="cd"></div>
+<div class="cursor-ring" id="cr"></div>
+<div class="app">
+  <aside class="sidebar">
+    <a href="index.html" class="sb-logo">
+      <div class="sb-logo-icon">TL</div>
+      <span class="sb-logo-text">TIMELINK</span>
+    </a>
+    <nav class="sb-nav">
+      <div class="sb-section">메뉴</div>
+      <a href="dashboard.html" class="sb-link"><span class="sb-icon">📊</span>대시보드</a>
+      <a href="shareplace.html" class="sb-link active"><span class="sb-icon">📁</span>SHAREPLACE</a>
+      <a href="radio.html" class="sb-link"><span class="sb-icon">📻</span>Moving Radio</a>
+      <a href="creator.html" class="sb-link"><span class="sb-icon">🎨</span>창작자 센터</a>
+      <a href="cafe-owner.html" class="sb-link"><span class="sb-icon">☕</span>카페 주인</a>
+      <a href="wallet.html" class="sb-link"><span class="sb-icon">💰</span>지갑 & 채굴</a>
+    </nav>
+    <div class="type-section">
+      <div class="sb-section">파일 형식</div>
+      <div class="type-item active" onclick="filterType(this,'all')"><span>📂</span>전체<span class="type-count">20,579</span></div>
+      <div class="type-item" onclick="filterType(this,'music')"><span>🎵</span>TL3 음악<span class="type-count">12,345</span></div>
+      <div class="type-item" onclick="filterType(this,'video')"><span>🎬</span>TL4 영상<span class="type-count">8,234</span></div>
+      <div class="type-item" onclick="filterType(this,'image')"><span>🖼️</span>TL2 이미지<span class="type-count">6,789</span></div>
+      <div class="type-item" onclick="filterType(this,'doc')"><span>📄</span>TL1 문서<span class="type-count">4,567</span></div>
+      <div class="type-item" onclick="filterType(this,'pkg')"><span>📦</span>TL5 패키지<span class="type-count">2,345</span></div>
+      <div class="type-item" onclick="filterType(this,'code')"><span>🔧</span>TL6 코드<span class="type-count">1,234</span></div>
+      <div class="type-item" onclick="filterType(this,'data')"><span>📊</span>TL9 데이터<span class="type-count">876</span></div>
+    </div>
+    <div style="padding:14px 16px;border-top:1px solid var(--bd)">
+      <div class="sb-section" style="padding:0 0 10px">인기 태그</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <span style="font-size:10px;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,.03);border:1px solid var(--bd);color:var(--t3);cursor:none">#카페음악</span>
+        <span style="font-size:10px;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,.03);border:1px solid var(--bd);color:var(--t3);cursor:none">#K-POP</span>
+        <span style="font-size:10px;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,.03);border:1px solid var(--bd);color:var(--t3);cursor:none">#EDM</span>
+        <span style="font-size:10px;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,.03);border:1px solid var(--bd);color:var(--t3);cursor:none">#재즈</span>
+        <span style="font-size:10px;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,.03);border:1px solid var(--bd);color:var(--t3);cursor:none">#운동</span>
+        <span style="font-size:10px;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,.03);border:1px solid var(--bd);color:var(--t3);cursor:none">#공부</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <a href="dashboard.html" class="tb-back">← 대시보드</a>
+      <div class="tb-title">SHAREPLACE</div>
+      <div class="tb-search">
+        <span style="color:var(--t3);font-size:14px">🔍</span>
+        <input type="text" placeholder="파일명, 아티스트, 태그 검색...">
+      </div>
+      <button class="tb-upload" onclick="location.href='creator.html'">📤 내 파일 업로드</button>
+    </div>
+    <div class="sort-bar">
+      <div class="sort-tabs">
+        <button class="sort-tab active" onclick="switchTab(this)">🔥 인기순</button>
+        <button class="sort-tab" onclick="switchTab(this)">🆕 최신순</button>
+        <button class="sort-tab" onclick="switchTab(this)">⭐ 평점순</button>
+        <button class="sort-tab" onclick="switchTab(this)">💰 가격순</button>
+        <button class="sort-tab" onclick="switchTab(this)">🔒 인증만</button>
+      </div>
+      <div class="sort-right">
+        <select class="sort-select"><option>전체 기간</option><option>24시간</option><option>7일</option><option>30일</option></select>
+        <span class="sort-count">총 20,579개 파일</span>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div class="file-grid" id="fileGrid">
+        <!-- Files injected by JS -->
+      </div>
+      <div class="pagination">
+        <div class="pg-btn">‹</div>
+        <div class="pg-btn active">1</div>
+        <div class="pg-btn">2</div>
+        <div class="pg-btn">3</div>
+        <div class="pg-btn">4</div>
+        <div class="pg-btn">5</div>
+        <div class="pg-btn">···</div>
+        <div class="pg-btn">48</div>
+        <div class="pg-btn">›</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const cd=document.getElementById('cd'),cr=document.getElementById('cr');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY});
+function ac(){rx+=(mx-rx)*.12;ry+=(my-ry)*.12;cd.style.left=mx+'px';cd.style.top=my+'px';cr.style.left=rx+'px';cr.style.top=ry+'px';requestAnimationFrame(ac);}ac();
+
+const files=[
+  {emoji:'🎵',title:'Summer Vibes',artist:'DJ Tommy · 3:42',type:'TL3 · 오디오',price:'86,400 TL / 24h',hot:4567,rating:4.8,tags:['#하우스','#EDM','#여름'],badge:'fcb-cert',badgeText:'✓ 인증',priceColor:'var(--purple)',bg:'linear-gradient(135deg,#1a1060 0%,#0d3050 100%)'},
+  {emoji:'🎵',title:'ETA',artist:'NewJeans · 3:05',type:'TL3 · 오디오',price:'86,400 TL / 24h',hot:3456,rating:4.9,tags:['#K-POP','#뉴진스'],badge:'fcb-hot',badgeText:'🔥 HOT',priceColor:'var(--mint)',bg:'linear-gradient(135deg,#0d3020 0%,#102830 100%)'},
+  {emoji:'🎬',title:'서울의 봄',artist:'2024 · 2시간 22분',type:'TL4 · 영상',price:'172,800 TL / 48h',hot:3891,rating:4.9,tags:['#영화','#한국'],badge:'fcb-cert',badgeText:'✓ 인증',priceColor:'var(--rose)',bg:'linear-gradient(135deg,#301020 0%,#1a0830 100%)'},
+  {emoji:'📄',title:'AI 마스터클래스',artist:'GPT Research Lab',type:'TL1 · 문서',price:'604,800 TL / 168h',hot:1890,rating:4.7,tags:['#AI','#리포트'],badge:'fcb-new',badgeText:'🆕 NEW',priceColor:'var(--amber)',bg:'linear-gradient(135deg,#201808 0%,#2a1a00 100%)'},
+  {emoji:'🖼️',title:'제주도 풍경',artist:'NatureShot · 234장',type:'TL2 · 이미지',price:'259,200 TL / 72h',hot:2345,rating:4.8,tags:['#자연','#제주'],badge:'fcb-cert',badgeText:'✓ 인증',priceColor:'var(--purple)',bg:'linear-gradient(135deg,#0a0a30 0%,#100840 100%)'},
+  {emoji:'🎵',title:'Chill Lo-fi Study',artist:'LofiBeats · 2:58',type:'TL3 · 오디오',price:'86,400 TL / 24h',hot:2109,rating:4.6,tags:['#로파이','#공부'],badge:'',badgeText:'',priceColor:'var(--mint)',bg:'linear-gradient(135deg,#080a20 0%,#0d1030 100%)'},
+  {emoji:'🎵',title:'파묘 OST',artist:'장재혁 · 48:30',type:'TL3 · 오디오',price:'172,800 TL / 48h',hot:1876,rating:4.7,tags:['#OST','#공포'],badge:'fcb-hot',badgeText:'🔥 HOT',priceColor:'var(--purple)',bg:'linear-gradient(135deg,#1a0820 0%,#0d0518 100%)'},
+  {emoji:'🎮',title:'인디게임 패키지',artist:'IndieStudio · v2.1',type:'TL8 · 게임',price:'259,200 TL / 72h',hot:1234,rating:4.5,tags:['#인디','#PC'],badge:'fcb-new',badgeText:'🆕 NEW',priceColor:'var(--amber)',bg:'linear-gradient(135deg,#001830 0%,#001020 100%)'},
+  {emoji:'🎵',title:'재즈 카페 컬렉션',artist:'JazzMaster · 2:14:30',type:'TL3 · 오디오',price:'86,400 TL / 24h',hot:3210,rating:4.8,tags:['#재즈','#카페음악'],badge:'fcb-cert',badgeText:'✓ 인증',priceColor:'var(--mint)',bg:'linear-gradient(135deg,#0d2010 0%,#081808 100%)'},
+  {emoji:'🎬',title:'AI 강의 마스터클래스',artist:'TechAcademy · 8h',type:'TL4 · 영상',price:'604,800 TL / 168h',hot:1456,rating:4.9,tags:['#강의','#AI'],badge:'fcb-cert',badgeText:'✓ 인증',priceColor:'var(--rose)',bg:'linear-gradient(135deg,#180808 0%,#200d0d 100%)'},
+  {emoji:'📊',title:'2024 부동산 분석',artist:'DataLab · CSV+JSON',type:'TL9 · 데이터',price:'259,200 TL / 72h',hot:987,rating:4.6,tags:['#부동산','#데이터'],badge:'',badgeText:'',priceColor:'var(--amber)',bg:'linear-gradient(135deg,#201500 0%,#180d00 100%)'},
+  {emoji:'🎵',title:'K-POP 히트 컬렉션',artist:'KpopHub · 3:20',type:'TL3 · 오디오',price:'86,400 TL / 24h',hot:4321,rating:4.7,tags:['#K-POP','#댄스'],badge:'fcb-hot',badgeText:'🔥 HOT',priceColor:'var(--purple)',bg:'linear-gradient(135deg,#1a0060 0%,#0d0040 100%)'},
+];
+
+function renderFiles(list){
+  const g=document.getElementById('fileGrid');
+  g.innerHTML=list.map(f=>`
+    <div class="file-card" onclick="location.href='file-detail.html'">
+      <div class="file-thumb" style="background:${f.bg}">
+        <div class="thumb-overlay"></div>
+        ${f.emoji}
+        ${f.badge?`<span class="fc-badge ${f.badge}">${f.badgeText}</span>`:''}
+        <div class="fc-play">▶</div>
+      </div>
+      <div class="fc-body">
+        <div class="fc-type">${f.type}</div>
+        <div class="fc-title">${f.title}</div>
+        <div class="fc-artist">${f.artist}</div>
+        <div class="fc-meta">
+          <span class="fc-price" style="color:${f.priceColor}">${f.price}</span>
+          <span class="fc-stats"><span>🔥${f.hot.toLocaleString()}</span><span>⭐${f.rating}</span></span>
+        </div>
+        <div class="fc-tags">${f.tags.map(t=>`<span class="fc-tag">${t}</span>`).join('')}</div>
+        <div class="fc-actions">
+          <button class="fc-btn fc-btn-primary">🎧 미리듣기</button>
+          <button class="fc-btn fc-btn-primary">🔁 변환</button>
+          <button class="fc-btn fc-btn-ghost">📌</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  document.querySelectorAll('.file-card,.fc-btn,.pg-btn').forEach(el=>{
+    el.addEventListener('mouseenter',()=>{cr.style.width='44px';cr.style.height='44px'});
+    el.addEventListener('mouseleave',()=>{cr.style.width='32px';cr.style.height='32px'});
+  });
+}
+renderFiles(files);
+
+function filterType(el,type){
+  document.querySelectorAll('.type-item').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const filtered=type==='all'?files:files.filter(f=>f.type.toLowerCase().includes(type==='music'?'오디오':type==='video'?'영상':type==='image'?'이미지':type==='doc'?'문서':type==='data'?'데이터':''));
+  renderFiles(filtered.length?filtered:files);
+}
+function switchTab(el){
+  document.querySelectorAll('.sort-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>
