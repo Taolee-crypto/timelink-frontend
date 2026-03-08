@@ -419,17 +419,33 @@ for(let i=0;i<80;i++){
 
 // ═══ AUTH GUARD + 사용자 데이터 주입 ═══
 (function(){
-  var u = JSON.parse(localStorage.getItem('tl_user')||'null');
+  // tl_user 없으면 tl_pending_user도 체크 (온보딩 직후 간헐적 타이밍 이슈 대비)
+  var u = JSON.parse(localStorage.getItem('tl_user')||'null')
+       || JSON.parse(localStorage.getItem('tl_pending_user')||'null');
   if(!u){ location.href='login.html'; return; }
 
-  // 사용자 이름
-  var nameEl = document.querySelector('.user-name em');
-  if(nameEl) nameEl.textContent = u.username||'사용자';
+  // tl_user 없고 pending만 있으면 확정 저장
+  if(!localStorage.getItem('tl_user')){
+    localStorage.setItem('tl_user', JSON.stringify(u));
+    localStorage.removeItem('tl_pending_user');
+  }
 
-  // TL 잔액
+  var name = u.username || u.name || u.email || '사용자';
+  var tl   = Number(u.tl  || 10000);
+  var tlc  = Number(u.tlc || 0);
+
+  // 사용자 이름 — .user-name em 또는 .user-name 직접
+  var nameEl = document.querySelector('.user-name em');
+  if(nameEl) nameEl.textContent = name;
+  else {
+    var nameWrap = document.querySelector('.user-name');
+    if(nameWrap) nameWrap.innerHTML = '안녕하세요, <em style="color:var(--purple)">' + name + '</em>';
+  }
+
+  // TL / TLC 잔액
   var hbals = document.querySelectorAll('.hbal');
-  if(hbals[0]) hbals[0].innerHTML = '<span class="hbal-icon">⏰</span> ' + Number(u.tl||10000).toLocaleString() + ' TL';
-  if(hbals[1]) hbals[1].innerHTML = '<span class="hbal-icon">🪙</span> ' + Number(u.tlc||0).toFixed(0) + ' TLC';
+  if(hbals[0]) hbals[0].innerHTML = '<span class="hbal-icon">⏰</span> ' + tl.toLocaleString() + ' TL';
+  if(hbals[1]) hbals[1].innerHTML = '<span class="hbal-icon">🪙</span> ' + tlc.toFixed(0) + ' TLC';
 
   // 로그아웃 버튼 (notif-btn에 추가)
   var notif = document.querySelector('.notif-btn');

@@ -414,26 +414,37 @@ function goStep(n){
 updateAllBonus();
 
 function finishOnboarding(){
-  // pending_user를 tl_user로 확정 저장
   var pending = JSON.parse(localStorage.getItem('tl_pending_user')||'null');
+
+  // pending 없으면 signup 데이터에서 복원 시도
+  if(!pending){
+    var keys=Object.keys(localStorage);
+    for(var k of keys){
+      if(k.startsWith('tl_signup_')){
+        pending=JSON.parse(localStorage.getItem(k)||'null');
+        break;
+      }
+    }
+  }
+
   if(pending){
-    // 역할 정보 병합
-    pending.roles = {
-      creator: roles.creator,
-      cafe: roles.cafe,
-      consumer: roles.consumer
-    };
-    pending.tl = roleTL || (pending.tl||10000);
+    pending.roles = { creator:roles.creator, cafe:roles.cafe, consumer:roles.consumer };
+    pending.tl    = roleTL || (pending.tl || 10000);
+    pending.tlc   = pending.tlc || 0;
     pending.donate = donateSelected;
+    // username 보정
+    pending.username = pending.username || pending.name || pending.email || 'TimeLinker';
     localStorage.setItem('tl_user', JSON.stringify(pending));
     if(!localStorage.getItem('tl_token')){
       localStorage.setItem('tl_token','local_'+Date.now());
     }
     localStorage.removeItem('tl_pending_user');
   } else {
-    // pending 없으면 기본 유저 생성
-    var fallback = {id:Date.now(),email:'user@timelink.digital',username:'TimeLinker',tl:roleTL||10000,tlc:0,account_type:'personal'};
-    localStorage.setItem('tl_user',JSON.stringify(fallback));
+    var fallback = {
+      id:Date.now(), email:'user@timelink.digital',
+      username:'TimeLinker', tl:roleTL||10000, tlc:0, account_type:'personal'
+    };
+    localStorage.setItem('tl_user', JSON.stringify(fallback));
     localStorage.setItem('tl_token','local_'+Date.now());
   }
   location.href='dashboard.html';
