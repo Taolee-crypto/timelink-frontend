@@ -394,19 +394,50 @@ async function sendCode(){
   var btn=document.getElementById('sendBtn');
   btn.disabled=true;btn.textContent='발송 중...';
 
+  // OTP 6자리 생성 (프론트)
+  var code=Math.floor(100000+Math.random()*900000).toString();
+  sessionStorage.setItem('tl_otp',code);
+  sessionStorage.setItem('tl_otp_email',email);
+  sessionStorage.setItem('tl_otp_ts',Date.now().toString());
+
+  var emailBody=`
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:40px 24px;background:#08080F;color:#fff;border-radius:16px">
+      <div style="text-align:center;margin-bottom:28px">
+        <span style="font-size:32px">⏱</span>
+        <h2 style="font-family:monospace;letter-spacing:.1em;color:#fff;margin:8px 0 4px">TIMELINK</h2>
+        <p style="color:rgba(255,255,255,.5);font-size:13px">이메일 인증 코드</p>
+      </div>
+      <div style="background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);border-radius:14px;padding:28px;text-align:center;margin-bottom:24px">
+        <p style="font-size:13px;color:rgba(255,255,255,.6);margin-bottom:12px">인증 코드</p>
+        <div style="font-family:monospace;font-size:42px;font-weight:700;letter-spacing:.2em;color:#8B5CF6">${code}</div>
+        <p style="font-size:12px;color:rgba(255,255,255,.4);margin-top:12px">3분 이내에 입력해주세요</p>
+      </div>
+      <p style="font-size:12px;color:rgba(255,255,255,.4);text-align:center">본인이 요청하지 않은 경우 이 이메일을 무시하세요.<br>© 2026 TimeLink</p>
+    </div>
+  `;
+
   try{
-    var r=await fetch(EMAIL_WORKER+'/send-verification',{
+    var r=await fetch(EMAIL_WORKER+'/send-email',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email:email}),
-      signal:AbortSignal.timeout(8000)
+      body:JSON.stringify({
+        to:email,
+        subject:'[TimeLink] 이메일 인증 코드: '+code,
+        body:emailBody
+      }),
+      signal:AbortSignal.timeout(10000)
     });
-    if(!r.ok){var e=await r.json();throw new Error(e.message||'발송 실패');}
-    toast('📨 인증 코드가 발송되었습니다!');
+    if(r.ok){
+      toast('📨 인증 코드가 발송되었습니다!');
+    } else {
+      var ed=await r.json().catch(function(){return {};});
+      throw new Error(ed.error||'발송 실패');
+    }
   }catch(err){
-    // 발송 실패 시 개발 모드: 콘솔 안내
     console.warn('[Email Worker]',err.message);
-    toast('📨 코드 발송됨 (dev 모드)');
+    // Gmail API 미연결 등 오류 시 개발 폴백 안내
+    toast('📨 코드 발송됨 — 개발모드: 콘솔에서 확인',true);
+    console.log('%c[TimeLink OTP] 인증 코드: '+code,'color:#00E5A0;font-size:20px;font-weight:bold');
   }
 
   document.getElementById('emailSentTo').textContent=email;
@@ -414,7 +445,7 @@ async function sendCode(){
   document.getElementById('otp0').focus();
   btn.textContent='재발송';btn.disabled=false;
   document.getElementById('resendRow').style.display='none';
-  startTimer(180); // 3분
+  startTimer(180);
 }
 
 // TIMER
@@ -458,23 +489,30 @@ async function verifyCode(){
   var btn=document.getElementById('verifyBtn');
   btn.disabled=true;btn.textContent='확인 중...';
 
-  var verified=false;
-  try{
-    var r=await fetch(EMAIL_WORKER+'/verify-code',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email:sentEmail,code:code}),
-      signal:AbortSignal.timeout(6000)
-    });
-    if(r.ok) verified=true;
-    else{var e=await r.json();throw new Error(e.message||'코드가 올바르지 않습니다');}
-  }catch(err){
-    // Dev 폴백: 000000 또는 123456 허용
-    if(code==='000000'||code==='123456') verified=true;
-    else{toast('❌ '+err.message,true);btn.disabled=false;btn.textContent='확인';return;}
+  // 만료 체크 (3분)
+  var ts=parseInt(sessionStorage.getItem('tl_otp_ts')||'0');
+  if(Date.now()-ts>180000){
+    toast('❌ 코드가 만료되었습니다. 재발송해주세요',true);
+    btn.disabled=false;btn.textContent='확인';
+    return;
   }
 
+  // 이메일 일치 체크
+  var otpEmail=sessionStorage.getItem('tl_otp_email');
+  if(otpEmail!==sentEmail){
+    toast('❌ 이메일이 일치하지 않습니다',true);
+    btn.disabled=false;btn.textContent='확인';
+    return;
+  }
+
+  // 코드 비교
+  var savedCode=sessionStorage.getItem('tl_otp');
+  var verified=(code===savedCode);
+
   if(verified){
+    sessionStorage.removeItem('tl_otp');
+    sessionStorage.removeItem('tl_otp_email');
+    sessionStorage.removeItem('tl_otp_ts');
     emailVerified=true;
     clearInterval(timerInterval);
     document.getElementById('timerEl').textContent='';
@@ -485,7 +523,13 @@ async function verifyCode(){
     document.getElementById('sendBtn').style.display='none';
     kycTL=5000;animateTL(totalTL());
     toast('✅ 이메일 인증 완료! +5,000 TL');
+  } else {
+    toast('❌ 인증 코드가 올바르지 않습니다',true);
+    // 입력칸 초기화
+    for(var j=0;j<6;j++) document.getElementById('otp'+j).value='';
+    document.getElementById('otp0').focus();
   }
+
   btn.disabled=false;btn.textContent='확인';
 }
 
