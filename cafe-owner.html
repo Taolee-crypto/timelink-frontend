@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>TimeLink — 카페 주인 센터</title>
+<link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+
+:root{
+  --bg-root:#08080F;--bg-deep:#0D0D1A;
+  --bg-card:rgba(255,255,255,.05);--bg-card2:rgba(255,255,255,.07);
+  --bd:rgba(255,255,255,.08);--bd2:rgba(255,255,255,.13);
+  --purple:#8B5CF6;--purple-dim:#6D28D9;--mint:#00E5A0;
+  --pink:#F472B6;--amber:#FBBF24;--rose:#FB7185;--blue:#60A5FA;
+  --t1:#fff;--t2:rgba(255,255,255,.65);--t3:rgba(255,255,255,.35);
+  --grad:linear-gradient(135deg,#8B5CF6 0%,#00E5A0 100%);
+  --fn:'Noto Sans KR',sans-serif;--fm:'JetBrains Mono',monospace
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--fn);background:var(--bg-root);color:var(--t1);min-height:100vh;cursor:none;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:0}
+.cursor-dot{width:8px;height:8px;background:var(--purple);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:10000;transform:translate(-50%,-50%);mix-blend-mode:screen}
+.cursor-ring{width:32px;height:32px;border:1px solid rgba(129,140,248,.4);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:all .15s ease}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh;position:relative;z-index:2}
+.sidebar{background:#090D12;border-right:1px solid var(--bd);position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
+.sb-logo{padding:20px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;text-decoration:none}
+.sb-logo-icon{width:30px;height:30px;background:var(--grad);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:11px;font-weight:700;color:#fff}
+.sb-logo-text{font-family:var(--font-display);font-size:12px;font-weight:700;letter-spacing:.1em}
+.sb-nav{padding:10px 0;flex:1}
+.sb-section{padding:8px 16px 3px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);font-family:var(--fm)}
+.sb-link{display:flex;align-items:center;gap:9px;padding:8px 16px;text-decoration:none;color:var(--t2);font-size:12px;font-weight:500;transition:all .2s ease;position:relative}
+.sb-link:hover{color:var(--t1);background:rgba(255,255,255,.03)}
+.sb-link.active{color:var(--t1);background:rgba(129,140,248,.08)}
+.sb-link.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--purple)}
+.sb-icon{font-size:14px;width:20px;text-align:center}
+.main{overflow-y:auto}
+.topbar{display:flex;align-items:center;gap:14px;padding:18px 32px;border-bottom:1px solid var(--bd);background:rgba(3,5,7,.6);backdrop-filter:blur(20px);position:sticky;top:0;z-index:100;flex-wrap:wrap}
+.tb-back{display:flex;align-items:center;gap:6px;color:var(--t3);font-size:13px;text-decoration:none;cursor:none;transition:all .2s ease}
+.tb-back:hover{color:var(--t2)}
+.tb-title{font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:.08em}
+.tb-btn{padding:9px 18px;border-radius:9px;border:none;font-size:12px;font-family:var(--fn);font-weight:700;cursor:none;transition:all .2s ease;margin-left:auto}
+.tb-btn-primary{background:var(--grad);color:#fff}
+.tb-btn-primary:hover{box-shadow:0 0 16px rgba(99,102,241,.35);transform:translateY(-1px)}
+.page-content{padding:28px 32px}
+
+/* CAFE OVERVIEW */
+.cafe-overview{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.co-card{background:var(--bg-card);border:1px solid var(--bd);border-radius:14px;padding:18px;position:relative;overflow:hidden}
+.co-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.co-tl::before{background:linear-gradient(90deg,var(--purple),transparent)}
+.co-em::before{background:linear-gradient(90deg,var(--mint),transparent)}
+.co-am::before{background:linear-gradient(90deg,var(--amber),transparent)}
+.co-ro::before{background:linear-gradient(90deg,var(--rose),transparent)}
+.co-icon{font-size:20px;margin-bottom:10px}
+.co-label{font-size:10px;color:var(--t3);font-family:var(--fm);letter-spacing:.06em;margin-bottom:4px}
+.co-val{font-family:var(--font-display);font-size:20px;font-weight:700}
+.co-sub{font-size:11px;color:var(--t3);margin-top:3px}
+
+/* CAFE CARD */
+.cafe-list{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px}
+.cafe-card{background:var(--bg-card);border:1px solid rgba(52,211,153,.2);border-radius:20px;overflow:hidden}
+.cafe-card-header{background:rgba(52,211,153,.05);border-bottom:1px solid rgba(52,211,153,.12);padding:18px 22px;display:flex;align-items:center;gap:12px}
+.cc-avatar{width:44px;height:44px;border-radius:12px;background:rgba(252,211,77,.12);border:1px solid rgba(252,211,77,.2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.cc-info{flex:1}
+.cc-name{font-size:15px;font-weight:700}
+.cc-loc{font-size:12px;color:var(--t3);margin-top:2px}
+.cc-live{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;font-family:var(--fm);color:var(--mint);background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2);padding:4px 10px;border-radius:100px}
+.live-pulse{width:6px;height:6px;border-radius:50%;background:var(--mint);animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.cafe-card-body{padding:20px 22px}
+.cc-now{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:16px}
+.cc-now-label{font-size:10px;color:var(--t3);font-family:var(--fm);letter-spacing:.08em;margin-bottom:6px}
+.cc-track{font-size:14px;font-weight:700;margin-bottom:3px}
+.cc-artist{font-size:12px;color:var(--t2);margin-bottom:8px}
+.wf{display:flex;align-items:center;gap:2px;height:22px}
+.wfb{flex:1;border-radius:2px;background:var(--mint);opacity:.3;animation:wa 1.2s ease-in-out infinite}
+@keyframes wa{0%,100%{transform:scaleY(.3);opacity:.2}50%{transform:scaleY(1);opacity:.5}}
+.cc-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.cc-stat{text-align:center;padding:8px 4px;background:rgba(255,255,255,.02);border:1px solid var(--bd);border-radius:8px}
+.cc-stat-val{font-family:var(--fm);font-size:13px;font-weight:700;display:block}
+.cc-stat-key{font-size:9px;color:var(--t3);margin-top:2px}
+.cc-actions{display:flex;gap:8px}
+.cc-btn{flex:1;padding:9px 8px;border-radius:8px;border:none;font-size:11px;font-family:var(--fn);font-weight:700;cursor:none;transition:all .2s ease}
+.cc-btn-p{background:rgba(52,211,153,.12);color:var(--mint);border:1px solid rgba(52,211,153,.2)}
+.cc-btn-g{background:rgba(255,255,255,.03);color:var(--t3);border:1px solid var(--bd)}
+.cc-btn-g:hover{color:var(--t2)}
+
+/* AI DJ SETTINGS */
+.dj-section{background:var(--bg-card);border:1px solid var(--bd2);border-radius:20px;padding:24px;margin-bottom:18px}
+.dj-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.dj-title{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.dj-save-btn{padding:9px 20px;border-radius:9px;background:var(--grad);border:none;color:#fff;font-size:12px;font-family:var(--fn);font-weight:700;cursor:none;transition:all .2s ease}
+.dj-save-btn:hover{box-shadow:0 0 16px rgba(99,102,241,.35)}
+
+.theme-sliders{display:flex;flex-direction:column;gap:16px;margin-bottom:20px}
+.theme-slider{display:flex;align-items:center;gap:14px}
+.ts-label{width:140px;font-size:13px;flex-shrink:0}
+.ts-range{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;outline:none;cursor:none;transition:all .2s ease}
+.ts-range-indigo{background:linear-gradient(90deg,var(--purple) 40%,rgba(255,255,255,.1) 40%)}
+.ts-range-emerald{background:linear-gradient(90deg,var(--mint) 25%,rgba(255,255,255,.1) 25%)}
+.ts-range-amber{background:linear-gradient(90deg,var(--amber) 20%,rgba(255,255,255,.1) 20%)}
+.ts-range-rose{background:linear-gradient(90deg,var(--rose) 15%,rgba(255,255,255,.1) 15%)}
+.ts-range::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;cursor:none}
+.ts-range-indigo::-webkit-slider-thumb{background:var(--purple);box-shadow:0 0 8px rgba(129,140,248,.4)}
+.ts-range-emerald::-webkit-slider-thumb{background:var(--mint);box-shadow:0 0 8px rgba(52,211,153,.4)}
+.ts-range-amber::-webkit-slider-thumb{background:var(--amber)}
+.ts-range-rose::-webkit-slider-thumb{background:var(--rose)}
+.ts-pct{width:40px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;flex-shrink:0}
+
+.dj-toggles{display:flex;gap:10px;flex-wrap:wrap}
+.dj-toggle{display:flex;align-items:center;gap:8px;padding:10px 16px;background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:10px;cursor:none;transition:all .2s ease;font-size:13px;font-weight:600}
+.dj-toggle.on{background:rgba(52,211,153,.08);border-color:rgba(52,211,153,.25);color:var(--mint)}
+.toggle-indicator{width:14px;height:14px;border-radius:50%;transition:all .2s ease}
+.toggle-indicator.on-dot{background:var(--mint);box-shadow:0 0 6px rgba(52,211,153,.5)}
+.toggle-indicator.off-dot{background:var(--t3)}
+
+/* COUPON SECTION */
+.coupon-section{background:var(--bg-card);border:1px solid var(--bd);border-radius:20px;overflow:hidden;margin-bottom:18px}
+.coupon-header{padding:18px 22px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.coupon-header-title{font-size:15px;font-weight:700}
+.coupon-new-btn{padding:8px 16px;border-radius:8px;background:rgba(252,211,77,.1);border:1px solid rgba(252,211,77,.2);color:var(--amber);font-size:12px;font-family:var(--fn);font-weight:700;cursor:none;transition:all .2s ease}
+.coupon-new-btn:hover{background:rgba(252,211,77,.2)}
+.coupon-list{padding:16px 22px;display:flex;flex-direction:column;gap:12px}
+.coupon-item{display:flex;align-items:center;gap:16px;padding:14px 16px;background:rgba(255,255,255,.02);border:1px solid var(--bd);border-radius:12px}
+.coupon-icon{font-size:22px;flex-shrink:0}
+.coupon-info{flex:1}
+.coupon-name{font-size:14px;font-weight:700;margin-bottom:4px}
+.coupon-meta{font-size:12px;color:var(--t2)}
+.coupon-progress-wrap{flex:1;max-width:150px}
+.coupon-progress-bar{height:5px;background:var(--bd);border-radius:3px;overflow:hidden;margin-bottom:3px}
+.coupon-progress-fill{height:100%;border-radius:3px;background:var(--grad)}
+.coupon-progress-label{font-size:10px;color:var(--t3);font-family:var(--fm);text-align:right}
+.coupon-expires{font-size:11px;color:var(--t3);white-space:nowrap}
+
+/* CHART */
+.chart-section{background:var(--bg-card);border:1px solid var(--bd);border-radius:20px;padding:22px}
+.chart-title{font-size:15px;font-weight:700;margin-bottom:18px}
+.week-chart{display:flex;align-items:flex-end;gap:8px;height:90px;margin-bottom:8px}
+.wc-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.wc-bar{width:100%;border-radius:4px 4px 0 0;background:rgba(129,140,248,.2);transition:all .3s ease;cursor:none;position:relative}
+.wc-bar.peak{background:var(--grad)}
+.wc-bar:hover{background:rgba(129,140,248,.5)}
+.wc-label{font-size:9px;color:var(--t3);font-family:var(--fm)}
+.wc-val{font-size:9px;color:var(--t3);font-family:var(--fm);margin-top:2px}
+
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(129,140,248,.15);border-radius:3px}
+@media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{display:none}.cafe-list,.cafe-overview{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="cursor-dot" id="cd"></div>
+<div class="cursor-ring" id="cr"></div>
+<div class="app">
+  <aside class="sidebar">
+    <a href="/" class="sb-logo"><div class="sb-logo-icon">TL</div><span class="sb-logo-text">TIMELINK</span></a>
+    <nav class="sb-nav">
+      <div class="sb-section">메뉴</div>
+      <a href="dashboard.html" class="sb-link"><span class="sb-icon">📊</span>대시보드</a>
+      <a href="shareplace.html" class="sb-link"><span class="sb-icon">📁</span>SHAREPLACE</a>
+      <a href="radio.html" class="sb-link"><span class="sb-icon">📻</span>Moving Radio</a>
+      <a href="creator.html" class="sb-link"><span class="sb-icon">🎨</span>창작자 센터</a>
+      <a href="cafe-owner.html" class="sb-link active"><span class="sb-icon">☕</span>카페 주인</a>
+      <a href="wallet.html" class="sb-link"><span class="sb-icon">💰</span>지갑 & 채굴</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <a href="dashboard.html" class="tb-back">← 대시보드</a>
+      <div class="tb-title">☕ 카페 주인 센터</div>
+      <button class="tb-btn tb-btn-primary">+ 새 카페 등록</button>
+    </div>
+    <div class="page-content">
+      <!-- OVERVIEW -->
+      <div class="cafe-overview">
+        <div class="co-card co-tl"><div class="co-icon">☕</div><div class="co-label">등록된 카페</div><div class="co-val" style="color:var(--purple)">2개</div><div class="co-sub">스타벅스 강남 · 이디야 홍대</div></div>
+        <div class="co-card co-em"><div class="co-icon">👥</div><div class="co-label">총 청취자</div><div class="co-val" style="color:var(--mint)">2,221명</div><div class="co-sub">매장 내 2.3k + 온라인 10k</div></div>
+        <div class="co-card co-am"><div class="co-icon">💰</div><div class="co-label">이번달 수익</div><div class="co-val" style="color:var(--amber)">456K TL</div><div class="co-sub">전월 대비 +18%</div></div>
+        <div class="co-card co-ro"><div class="co-icon">🎁</div><div class="co-label">쿠폰 사용률</div><div class="co-val" style="color:var(--rose)">80%</div><div class="co-sub">1,234개 중 987개 사용</div></div>
+      </div>
+
+      <!-- CAFE CARDS -->
+      <div class="cafe-list">
+        <div class="cafe-card">
+          <div class="cafe-card-header">
+            <div class="cc-avatar">☕</div>
+            <div class="cc-info">
+              <div class="cc-name">스타벅스 강남점</div>
+              <div class="cc-loc">📍 서울 강남구 · ☀️ 맑음 24°C</div>
+            </div>
+            <div class="cc-live"><span class="live-pulse"></span>LIVE</div>
+          </div>
+          <div class="cafe-card-body">
+            <div class="cc-now">
+              <div class="cc-now-label">NOW PLAYING</div>
+              <div class="cc-track">주저하는 연인들을 위해</div>
+              <div class="cc-artist">잔나비 · AI DJ 선곡</div>
+              <div class="wf" id="wf1"></div>
+            </div>
+            <div class="cc-stats-row">
+              <div class="cc-stat"><span class="cc-stat-val" style="color:var(--mint)">1,234</span><div class="cc-stat-key">청취자</div></div>
+              <div class="cc-stat"><span class="cc-stat-val">45</span><div class="cc-stat-key">매장내</div></div>
+              <div class="cc-stat"><span class="cc-stat-val" style="color:var(--amber)">23/45</span><div class="cc-stat-key">쿠폰</div></div>
+              <div class="cc-stat"><span class="cc-stat-val" style="color:var(--purple)">12.3K</span><div class="cc-stat-key">오늘수익</div></div>
+            </div>
+            <div class="cc-actions">
+              <button class="cc-btn cc-btn-p" onclick="location.href='radio.html'">▶ 방송 보기</button>
+              <button class="cc-btn cc-btn-g">🎁 쿠폰</button>
+              <button class="cc-btn cc-btn-g">📊 통계</button>
+            </div>
+          </div>
+        </div>
+        <div class="cafe-card" style="border-color:rgba(99,102,241,.2)">
+          <div class="cafe-card-header" style="background:rgba(99,102,241,.05);border-bottom-color:rgba(99,102,241,.12)">
+            <div class="cc-avatar" style="background:rgba(99,102,241,.1);border-color:rgba(99,102,241,.2)">☕</div>
+            <div class="cc-info">
+              <div class="cc-name">이디야 홍대점</div>
+              <div class="cc-loc">📍 서울 마포구 · 🌧️ 비 18°C</div>
+            </div>
+            <div class="cc-live" style="color:var(--purple);background:rgba(99,102,241,.1);border-color:rgba(99,102,241,.2)"><span class="live-pulse" style="background:var(--purple)"></span>LIVE</div>
+          </div>
+          <div class="cafe-card-body">
+            <div class="cc-now">
+              <div class="cc-now-label">NOW PLAYING</div>
+              <div class="cc-track">Waltz for Debby</div>
+              <div class="cc-artist">Bill Evans · AI DJ — 비 날씨 모드</div>
+              <div class="wf" id="wf2"></div>
+            </div>
+            <div class="cc-stats-row">
+              <div class="cc-stat"><span class="cc-stat-val" style="color:var(--purple)">987</span><div class="cc-stat-key">청취자</div></div>
+              <div class="cc-stat"><span class="cc-stat-val">32</span><div class="cc-stat-key">매장내</div></div>
+              <div class="cc-stat"><span class="cc-stat-val" style="color:var(--amber)">15/30</span><div class="cc-stat-key">쿠폰</div></div>
+              <div class="cc-stat"><span class="cc-stat-val" style="color:var(--purple)">8.7K</span><div class="cc-stat-key">오늘수익</div></div>
+            </div>
+            <div class="cc-actions">
+              <button class="cc-btn cc-btn-g" onclick="location.href='radio.html'">▶ 방송 보기</button>
+              <button class="cc-btn cc-btn-g">🎁 쿠폰</button>
+              <button class="cc-btn cc-btn-g">📊 통계</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI DJ -->
+      <div class="dj-section">
+        <div class="dj-header">
+          <div class="dj-title">🎚️ AI DJ 설정 — 스타벅스 강남점</div>
+          <button class="dj-save-btn">💾 저장 & 적용</button>
+        </div>
+        <div style="font-size:12px;color:var(--t3);margin-bottom:16px">각 테마의 선곡 비율을 조정하세요. 합계는 100%를 유지합니다.</div>
+        <div class="theme-sliders">
+          <div class="theme-slider">
+            <span class="ts-label">🎷 재즈/보사노바</span>
+            <input type="range" class="ts-range ts-range-indigo" min="0" max="100" value="40" oninput="updateSlider(this,'.ts-pct-1')">
+            <span class="ts-pct ts-pct-1" style="color:var(--purple)">40%</span>
+          </div>
+          <div class="theme-slider">
+            <span class="ts-label">🎸 어쿠스틱/인디</span>
+            <input type="range" class="ts-range ts-range-emerald" min="0" max="100" value="25" oninput="updateSlider(this,'.ts-pct-2')">
+            <span class="ts-pct ts-pct-2" style="color:var(--mint)">25%</span>
+          </div>
+          <div class="theme-slider">
+            <span class="ts-label">🎵 경쾌한 팝</span>
+            <input type="range" class="ts-range ts-range-amber" min="0" max="100" value="20" oninput="updateSlider(this,'.ts-pct-3')">
+            <span class="ts-pct ts-pct-3" style="color:var(--amber)">20%</span>
+          </div>
+          <div class="theme-slider">
+            <span class="ts-label">🔀 랜덤 선곡</span>
+            <input type="range" class="ts-range ts-range-rose" min="0" max="100" value="15" oninput="updateSlider(this,'.ts-pct-4')">
+            <span class="ts-pct ts-pct-4" style="color:var(--rose)">15%</span>
+          </div>
+        </div>
+        <div class="dj-toggles">
+          <div class="dj-toggle on" onclick="toggleDJ(this)"><span class="toggle-indicator on-dot"></span>🌤️ 날씨 반응 (비→중심테마 +10%)</div>
+          <div class="dj-toggle on" onclick="toggleDJ(this)"><span class="toggle-indicator on-dot"></span>🕐 시간대 반응 (점심→신나는↑)</div>
+          <div class="dj-toggle on" onclick="toggleDJ(this)"><span class="toggle-indicator on-dot"></span>📅 요일 반응 (주말→신나는↑)</div>
+          <div class="dj-toggle" onclick="toggleDJ(this)"><span class="toggle-indicator off-dot"></span>💓 심박수 연동</div>
+        </div>
+      </div>
+
+      <!-- COUPON + CHART grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+        <div class="coupon-section">
+          <div class="coupon-header">
+            <div class="coupon-header-title">🎁 쿠폰 관리</div>
+            <button class="coupon-new-btn">+ 새 쿠폰 발행</button>
+          </div>
+          <div class="coupon-list">
+            <div class="coupon-item">
+              <span class="coupon-icon">☕</span>
+              <div class="coupon-info"><div class="coupon-name">아메리카노 1+1</div><div class="coupon-meta">유효기간: 오늘 23:59까지</div></div>
+              <div class="coupon-progress-wrap">
+                <div class="coupon-progress-bar"><div class="coupon-progress-fill" style="width:55%"></div></div>
+                <div class="coupon-progress-label">45/100 잔여</div>
+              </div>
+            </div>
+            <div class="coupon-item">
+              <span class="coupon-icon">🍰</span>
+              <div class="coupon-info"><div class="coupon-name">케이크 20% 할인</div><div class="coupon-meta">유효기간: 오늘 23:59까지</div></div>
+              <div class="coupon-progress-wrap">
+                <div class="coupon-progress-bar"><div class="coupon-progress-fill" style="width:54%"></div></div>
+                <div class="coupon-progress-label">23/50 잔여</div>
+              </div>
+            </div>
+            <div class="coupon-item" style="border-color:rgba(52,211,153,.2);background:rgba(52,211,153,.03)">
+              <span class="coupon-icon">🥤</span>
+              <div class="coupon-info"><div class="coupon-name">프라푸치노 10% 할인</div><div class="coupon-meta">내일 오전 9시부터 시작</div></div>
+              <div class="coupon-expires" style="color:var(--mint);font-family:var(--fm);font-size:10px">예약됨</div>
+            </div>
+          </div>
+        </div>
+        <div class="chart-section">
+          <div class="chart-title">📈 주간 청취자 추이</div>
+          <div class="week-chart">
+            <div class="wc-bar-wrap"><div class="wc-bar" style="height:50%"></div><div class="wc-label">월</div><div class="wc-val">1.0K</div></div>
+            <div class="wc-bar-wrap"><div class="wc-bar" style="height:60%"></div><div class="wc-label">화</div><div class="wc-val">1.2K</div></div>
+            <div class="wc-bar-wrap"><div class="wc-bar" style="height:55%"></div><div class="wc-label">수</div><div class="wc-val">1.1K</div></div>
+            <div class="wc-bar-wrap"><div class="wc-bar" style="height:65%"></div><div class="wc-label">목</div><div class="wc-val">1.3K</div></div>
+            <div class="wc-bar-wrap"><div class="wc-bar" style="height:75%"></div><div class="wc-label">금</div><div class="wc-val">1.5K</div></div>
+            <div class="wc-bar-wrap"><div class="wc-bar peak" style="height:100%"></div><div class="wc-label" style="color:var(--purple)">토</div><div class="wc-val" style="color:var(--purple)">2.0K</div></div>
+            <div class="wc-bar-wrap"><div class="wc-bar" style="height:90%"></div><div class="wc-label">일</div><div class="wc-val">1.8K</div></div>
+          </div>
+          <div style="font-size:12px;color:var(--t2);margin-top:12px">🏆 최고 인기 시간대: <strong style="color:var(--amber)">토요일 오후 2-5시</strong></div>
+          <div style="font-size:12px;color:var(--t2);margin-top:6px">🎵 인기 곡: <strong>잔나비 - 주저하는 연인들을 위해</strong> (1,234회)</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+const cd=document.getElementById('cd'),cr=document.getElementById('cr');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY});
+function ac(){rx+=(mx-rx)*.12;ry+=(my-ry)*.12;cd.style.left=mx+'px';cd.style.top=my+'px';cr.style.left=rx+'px';cr.style.top=ry+'px';requestAnimationFrame(ac);}ac();
+function genWave(id,color){const el=document.getElementById(id);for(let i=0;i<28;i++){const b=document.createElement('div');b.className='wfb';b.style.background=color;b.style.animationDelay=(i*.04)+'s';el.appendChild(b);}}
+genWave('wf1','var(--mint)');genWave('wf2','var(--purple)');
+function updateSlider(el,cls){document.querySelector(cls).textContent=el.value+'%';}
+function toggleDJ(el){
+  el.classList.toggle('on');
+  const dot=el.querySelector('.toggle-indicator');
+  dot.classList.toggle('on-dot');dot.classList.toggle('off-dot');
+}
+
+// ═══ AUTH GUARD ═══
+(function(){
+  var u = JSON.parse(localStorage.getItem('tl_user')||'null');
+  if(!u){ location.href='login.html'; }
+})();
+
+</script>
+</body>
+</html>
