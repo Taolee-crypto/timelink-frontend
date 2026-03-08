@@ -191,7 +191,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   </main>
 </div>
 
-<script>
+<script data-cfasync="false">
 
 
 const files=[
@@ -209,56 +209,21 @@ const files=[
   {emoji:'🎵',title:'K-POP 히트 컬렉션',artist:'KpopHub · 3:20',type:'TL3 · 오디오',price:'86,400 TL / 24h',hot:4321,rating:4.7,tags:['#K-POP','#댄스'],badge:'fcb-hot',badgeText:'🔥 HOT',priceColor:'var(--purple)',bg:'linear-gradient(135deg,#1a0060 0%,#0d0040 100%)'},
 ];
 
-function renderFiles(list){
-  const g=document.getElementById('fileGrid');
-  g.innerHTML=list.map(f=>`
-    <div class="file-card" onclick="location.href='file-detail.html'">
-      <div class="file-thumb" style="background:${f.bg}">
-        <div class="thumb-overlay"></div>
-        ${f.emoji}
-        ${f.badge?`<span class="fc-badge ${f.badge}">${f.badgeText}</span>`:''}
-        <div class="fc-play">▶</div>
-      </div>
-      <div class="fc-body">
-        <div class="fc-type">${f.type}</div>
-        <div class="fc-title">${f.title}</div>
-        <div class="fc-artist">${f.artist}</div>
-        <div class="fc-meta">
-          <span class="fc-price" style="color:${f.priceColor}">${f.price}</span>
-          <span class="fc-stats"><span>🔥${f.hot.toLocaleString()}</span><span>⭐${f.rating}</span></span>
-        </div>
-        <div class="fc-tags">${f.tags.map(t=>`<span class="fc-tag">${t}</span>`).join('')}</div>
-        <div class="fc-actions">
-          <button class="fc-btn fc-btn-primary">🎧 미리듣기</button>
-          <button class="fc-btn fc-btn-primary">🔁 변환</button>
-          <button class="fc-btn fc-btn-ghost">📌</button>
-        </div>
-      </div>
-    </div>
-  `).join('');
-  document.querySelectorAll('.file-card,.fc-btn,.pg-btn').forEach(el=>{});
-// API 로드 후 렌더링 (하단 initSharePlace 참조)
-renderFiles(files); // 초기 렌더 (API 로드 전 폴백)
-
-function filterType(el,type){
-  document.querySelectorAll('.type-item').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  const filtered=type==='all'?files:files.filter(f=>f.type.toLowerCase().includes(type==='music'?'오디오':type==='video'?'영상':type==='image'?'이미지':type==='doc'?'문서':type==='data'?'데이터':''));
-  renderFiles(filtered.length?filtered:files);
-}
-function switchTab(el){
-  document.querySelectorAll('.sort-tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-}
-
-// ═══ AUTH GUARD + API 트랙 로드 ═══
+// ═══════════════════════════════════════════════
+// D1 기반 SharePlace — localStorage 완전 제거
+// ═══════════════════════════════════════════════
 const API_BASE = 'https://timelink-backend.mununglee.workers.dev';
 
+// AUTH GUARD
+var _spUser = null;
+var _spToken = null;
 (function(){
-  var u = JSON.parse(localStorage.getItem('tl_user')||'null');
-  if(!u){ location.href='login.html'; return; }
-  // 상단에 유저 잔액 표시
-  addBalanceBar(u);
+  try {
+    _spUser = JSON.parse(localStorage.getItem('tl_user')||'null');
+    _spToken = localStorage.getItem('tl_token');
+  } catch(e){}
+  if(!_spUser){ location.href='login.html'; return; }
+  addBalanceBar(_spUser);
 })();
 
 function addBalanceBar(u){
@@ -266,59 +231,162 @@ function addBalanceBar(u){
   if(!topbar) return;
   var bal = document.createElement('div');
   bal.style.cssText='display:flex;align-items:center;gap:8px;margin-left:auto;font-size:12px;font-family:var(--fm)';
-  bal.innerHTML = '<span style="color:var(--t3)">⏰</span><span style="color:var(--mint);font-weight:700">'+Number(u.tl||10000).toLocaleString()+' TL</span>' +
+  bal.id = 'sp-bal-bar';
+  bal.innerHTML =
+    '<span style="color:var(--t3)">&#9201;</span>' +
+    '<span style="color:var(--mint);font-weight:700" id="sp-tl-bal">' + Number(u.tl||0).toLocaleString() + ' TL</span>' +
     '<span style="width:1px;height:16px;background:var(--bd)"></span>' +
-    '<span style="color:var(--purple);font-weight:700">'+Number(u.tlc||0).toFixed(0)+' TLC</span>' +
-    '<button onclick="localStorage.removeItem(\'tl_token\');localStorage.removeItem(\'tl_user\');location.href=\'login.html\'" style="margin-left:8px;padding:5px 12px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:11px;cursor:pointer">↩ 로그아웃</button>';
+    '<span style="color:var(--purple);font-weight:700">' + Number(u.tlc||0).toFixed(0) + ' TLC</span>' +
+    '<button onclick="doLogout()" style="margin-left:8px;padding:5px 12px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:11px;cursor:pointer">&#8617; 로그아웃</button>';
   var uploadBtn = topbar.querySelector('.tb-upload');
   if(uploadBtn) topbar.insertBefore(bal, uploadBtn);
   else topbar.appendChild(bal);
 }
 
-// API에서 실제 트랙 로드 (하드코딩 대체)
-async function loadAPITracks(){
-  try{
-    var r = await fetch(API_BASE+'/api/tracks?limit=50',{mode:'cors'});
-    if(!r.ok) return null;
-    var d = await r.json();
-    return (d.tracks&&d.tracks.length) ? d.tracks : null;
-  }catch(e){console.warn('[SharePlace] API 실패:', e.message); return null;}
+function doLogout(){
+  localStorage.removeItem('tl_token');
+  localStorage.removeItem('tl_user');
+  location.href='login.html';
 }
 
-// 원래 renderFiles를 API 데이터로 보완
-(async function initSharePlace(){
-  var apiTracks = await loadAPITracks();
-  if(!apiTracks||!apiTracks.length){ renderFiles(files); return; }
+// ─── D1에서 Shares 로드 및 렌더 ───
+var _allShares = [];
+var _currentFilter = 'all';
+var _currentTab = 'latest';
 
-  var emojis=['🎵','🎶','🎸','🎹','🥁','🎺','🎻','🎧','🌙','⚡','🌊','🎤'];
-  var bgs=['linear-gradient(135deg,#1a1060 0%,#0d3050 100%)','linear-gradient(135deg,#0d3020 0%,#102830 100%)','linear-gradient(135deg,#200a40,#0a0820)','linear-gradient(135deg,#0a1830,#20100a)','linear-gradient(135deg,#1a0820,#0d0518)'];
-
-  var apiList = apiTracks.map(function(t,i){
-    return {
-      emoji: emojis[i%emojis.length],
-      title: t.title||('트랙 '+(i+1)),
-      artist: (t.artist||'Unknown')+' · '+(t.duration?Math.floor(t.duration/60)+':'+String(t.duration%60).padStart(2,'0'):'--:--'),
-      type: 'TL3 · 오디오',
-      price: (t.file_tl||0).toLocaleString()+' TL',
-      hot: t.pulse||0,
-      rating: 4.5,
-      tags: ['#'+( t.genre||'기타')],
-      badge: t.auth_status==='verified'?'fcb-cert':'',
-      badgeText: t.auth_status==='verified'?'✓ 인증':'',
-      priceColor:'var(--purple)',
-      bg: bgs[i%bgs.length]
-    };
-  });
-
-  // API 트랙을 앞에, 하드코딩 샘플을 뒤에 합치기
-  var combined = apiList.concat(files);
-  renderFiles(combined);
-  // count 업데이트
+async function loadShares(){
   var countEl = document.querySelector('.sort-count');
-  if(countEl) countEl.textContent = '총 '+combined.length+'개 파일 (실시간)';
-})();
+  if(countEl) countEl.textContent = '로딩 중...';
+  try {
+    var r = await fetch(API_BASE + '/api/shares', {mode:'cors'});
+    var d = await r.json();
+    _allShares = d.shares || [];
+  } catch(e) {
+    console.warn('[SharePlace] /api/shares 실패:', e.message);
+    _allShares = [];
+  }
+  applyFilter();
 }
 
+function applyFilter(){
+  var list = _allShares.slice();
+  // 탭 정렬
+  if(_currentTab === 'hot') list.sort(function(a,b){ return (b.pulse||0)-(a.pulse||0); });
+  else if(_currentTab === 'tl') list.sort(function(a,b){ return (b.file_tl||0)-(a.file_tl||0); });
+  else list.sort(function(a,b){ return (b.created_at||0)-(a.created_at||0); });
+  // 타입 필터
+  if(_currentFilter !== 'all'){
+    list = list.filter(function(s){
+      var cat = (s.category||'').toLowerCase();
+      if(_currentFilter==='music') return cat.includes('pop')||cat.includes('ballad')||cat.includes('indie')||cat.includes('hip')||cat.includes('jazz')||cat.includes('electronic')||cat.includes('classical')||cat==='music';
+      if(_currentFilter==='video') return cat==='video';
+      if(_currentFilter==='image') return cat==='image';
+      if(_currentFilter==='doc') return cat==='document';
+      return true;
+    });
+  }
+  renderShares(list);
+  var countEl = document.querySelector('.sort-count');
+  if(countEl) countEl.textContent = '총 ' + list.length + '개 파일';
+}
+
+function renderShares(list){
+  var g = document.getElementById('fileGrid');
+  if(!list.length){
+    g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:80px 20px;color:rgba(255,255,255,.3);font-size:14px">&#128202; 공유된 파일이 없습니다<br><br><a href="creator.html" style="color:var(--purple);text-decoration:none;font-weight:700">&#43; 파일 공유하기</a></div>';
+    return;
+  }
+  var bgs = [
+    'linear-gradient(135deg,#1a1060 0%,#0d3050 100%)',
+    'linear-gradient(135deg,#0d3020 0%,#102830 100%)',
+    'linear-gradient(135deg,#200a40,#0a0820)',
+    'linear-gradient(135deg,#0a1830,#20100a)',
+    'linear-gradient(135deg,#1a0820,#0d0518)',
+    'linear-gradient(135deg,#0a1a30,#1a0830)'
+  ];
+  g.innerHTML = list.map(function(s, i){
+    var hasCover = !!s.cover_url;
+    var hasSpotify = !!s.spotify_id;
+    var dur = s.duration ? (Math.floor(s.duration/60)+':'+String(s.duration%60).padStart(2,'0')) : '--:--';
+    var cat = s.category || 'Music';
+    var thumbStyle = hasCover
+      ? 'background:' + bgs[i%bgs.length] + ';position:relative'
+      : 'background:' + bgs[i%bgs.length];
+
+    return '<div class="file-card">' +
+      '<div class="file-thumb" style="' + thumbStyle + ';cursor:default">' +
+        (hasCover
+          ? '<img src="' + escHtml(s.cover_url) + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.85" onerror="this.remove()">'
+          : '') +
+        '<div class="thumb-overlay"></div>' +
+        (!hasCover ? '<span style="position:relative;z-index:1;font-size:32px">&#127925;</span>' : '') +
+        (hasSpotify ? '<span class="fc-badge" style="position:absolute;top:10px;left:10px;z-index:2;background:rgba(30,215,96,.2);border:1px solid rgba(30,215,96,.4);color:#1ED760;font-size:10px;padding:3px 8px;border-radius:5px;font-family:var(--fm)">&#9654; Spotify</span>' : '') +
+        '<div class="fc-play" style="position:absolute;bottom:10px;right:10px;z-index:2">&#9654;</div>' +
+      '</div>' +
+      '<div class="fc-body">' +
+        '<div class="fc-type">' + escHtml(cat) + ' &middot; ' + dur + '</div>' +
+        '<div class="fc-title">' + escHtml(s.title) + '</div>' +
+        '<div class="fc-artist">' + escHtml(s.artist||'') + (s.album?' &middot; '+escHtml(s.album):'') + '</div>' +
+        '<div class="fc-meta">' +
+          '<span class="fc-price" style="color:var(--purple)">' + Number(s.file_tl||0).toLocaleString() + ' TL</span>' +
+          '<span class="fc-stats"><span>&#128293;' + Number(s.pulse||0).toLocaleString() + '</span></span>' +
+        '</div>' +
+        '<div class="fc-tags"><span class="fc-tag">#' + escHtml(cat) + '</span>' +
+          (hasSpotify ? '<span class="fc-tag" style="color:#1ED760;border-color:rgba(30,215,96,.3)">&#9654; Spotify 인증</span>' : '') +
+        '</div>' +
+        '<div class="fc-actions">' +
+          (s.preview_url
+            ? '<button class="fc-btn fc-btn-primary" onclick="previewTrack(\'' + escHtml(s.preview_url) + '\',\'' + escHtml(s.title) + '\')">&#127925; 미리듣기</button>'
+            : '<button class="fc-btn fc-btn-ghost" disabled style="opacity:.4">미리듣기 없음</button>') +
+          (s.spotify_url
+            ? '<a href="' + escHtml(s.spotify_url) + '" target="_blank" class="fc-btn fc-btn-primary" style="text-decoration:none">Spotify &#8599;</a>'
+            : '') +
+          '<button class="fc-btn fc-btn-ghost">&#128204;</button>' +
+        '</div>' +
+        '<div style="font-size:10px;color:rgba(255,255,255,.25);margin-top:8px;font-family:var(--fm)">' +
+          escHtml(s.username||'') + ' &middot; ' + new Date(s.created_at||0).toLocaleDateString('ko') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// 미리듣기 (Spotify 30초 프리뷰)
+var _previewAudio = null;
+function previewTrack(url, title){
+  if(_previewAudio){ _previewAudio.pause(); _previewAudio = null; }
+  _previewAudio = new Audio(url);
+  _previewAudio.play().catch(function(){});
+  // 간단 토스트
+  var el = document.createElement('div');
+  el.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);border:1px solid rgba(30,215,96,.3);color:#1ED760;padding:10px 22px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;backdrop-filter:blur(12px)';
+  el.textContent = '&#9654; ' + title + ' — 30초 미리듣기';
+  document.body.appendChild(el);
+  setTimeout(function(){ el.remove(); }, 30000);
+}
+
+function filterType(el, type){
+  document.querySelectorAll('.type-item').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active');
+  _currentFilter = type;
+  applyFilter();
+}
+
+function switchTab(el, tab){
+  document.querySelectorAll('.sort-tab').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active');
+  _currentTab = tab || 'latest';
+  applyFilter();
+}
+
+function escHtml(s){
+  if(!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// 초기 로드
+loadShares();
+-e 
 </script>
 </body>
 </html>
