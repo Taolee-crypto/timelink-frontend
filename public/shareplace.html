@@ -342,6 +342,7 @@ function renderShares(list){
             ? '<a href="' + escHtml(s.spotify_url) + '" target="_blank" class="fc-btn fc-btn-primary" style="text-decoration:none">Spotify &#8599;</a>'
             : '') +
           '<button class="fc-btn fc-btn-ghost">&#128204;</button>' +
+          '<button class="fc-btn" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none" onclick="chargeTL(\'' + s.id + '\',\'' + escHtml(s.title) + '\')">&#9889; TL 충전</button>' +
         '</div>' +
         '<div style="font-size:10px;color:rgba(255,255,255,.25);margin-top:8px;font-family:var(--fm)">' +
           escHtml(s.username||'') + ' &middot; ' + new Date(s.created_at||0).toLocaleDateString('ko') +
@@ -379,6 +380,32 @@ function switchTab(el, tab){
   applyFilter();
 }
 
+async function chargeTL(shareId, title){
+  var u = JSON.parse(localStorage.getItem('tl_user')||'null');
+  if(!u){ alert('로그인이 필요합니다'); location.href='login.html'; return; }
+
+  var amtStr = prompt('🔋 "' + title + '" 에 충전할 TL 입력\n(현재 내 TL: ' + Number(u.tl||0).toLocaleString() + ')');
+  if(!amtStr) return;
+  var amt = parseInt(amtStr);
+  if(!amt || amt <= 0){ alert('올바른 숫자를 입력하세요'); return; }
+  if((u.tl||0) < amt){ alert('TL 부족!\n현재: ' + Number(u.tl||0).toLocaleString() + ' TL'); return; }
+
+  try{
+    // 1) 내 지갑에서 TL 차감 (로컬)
+    u.tl = (u.tl||0) - amt;
+    localStorage.setItem('tl_user', JSON.stringify(u));
+
+    // 2) pulse +1 (서버)
+    await fetch(API_BASE + '/api/shares/' + shareId + '/pulse', {method:'POST'}).catch(()=>{});
+
+    // 3) 화면 갱신
+    alert('✅ ' + amt.toLocaleString() + ' TL 충전 완료!\n남은 TL: ' + Number(u.tl).toLocaleString());
+    loadShares();
+  }catch(err){
+    alert('충전 실패: ' + err.message);
+  }
+}
+
 function escHtml(s){
   if(!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -386,7 +413,6 @@ function escHtml(s){
 
 // 초기 로드
 loadShares();
--e 
 </script>
 </body>
 </html>
