@@ -321,7 +321,11 @@ function renderShares(list){
         '<div class="thumb-overlay"></div>' +
         (!hasCover ? '<span style="position:relative;z-index:1;font-size:32px">&#127925;</span>' : '') +
         (hasSpotify ? '<span class="fc-badge" style="position:absolute;top:10px;left:10px;z-index:2;background:rgba(30,215,96,.2);border:1px solid rgba(30,215,96,.4);color:#1ED760;font-size:10px;padding:3px 8px;border-radius:5px;font-family:var(--fm)">&#9654; Spotify</span>' : '') +
-        '<div class="fc-play" style="position:absolute;bottom:10px;right:10px;z-index:2">&#9654;</div>' +
+        '<div class="fc-play" style="position:absolute;bottom:10px;right:10px;z-index:2;cursor:pointer" onclick="' +
+          (s.preview_url
+            ? 'previewTrack(\'' + escHtml(s.preview_url) + '\',\'' + escHtml(s.title) + '\')'
+            : (s.spotify_url ? 'window.open(\'' + escHtml(s.spotify_url) + '\',\'_blank\')' : 'chargeTL(\'' + s.id + '\',\'' + escHtml(s.title) + '\')')) +
+          '">&#9654;</div>' +
       '</div>' +
       '<div class="fc-body">' +
         '<div class="fc-type">' + escHtml(cat) + ' &middot; ' + dur + '</div>' +
@@ -384,22 +388,26 @@ async function chargeTL(shareId, title){
   var u = JSON.parse(localStorage.getItem('tl_user')||'null');
   if(!u){ alert('로그인이 필요합니다'); location.href='login.html'; return; }
 
-  var amtStr = prompt('🔋 "' + title + '" 에 충전할 TL 입력\n(현재 내 TL: ' + Number(u.tl||0).toLocaleString() + ')');
+  var amtStr = prompt('⚡ "' + title + '" 에 충전할 TL 입력\n(현재 내 TL: ' + Number(u.tl||0).toLocaleString() + ' TL)', '100');
   if(!amtStr) return;
   var amt = parseInt(amtStr);
   if(!amt || amt <= 0){ alert('올바른 숫자를 입력하세요'); return; }
   if((u.tl||0) < amt){ alert('TL 부족!\n현재: ' + Number(u.tl||0).toLocaleString() + ' TL'); return; }
 
   try{
-    // 1) 내 지갑에서 TL 차감 (로컬)
+    var r = await fetch(API_BASE + '/api/shares/' + shareId + '/charge', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ amount: amt, email: u.email })
+    });
+    var d = await r.json();
+    if(!r.ok) throw new Error(d.error || '충전 실패');
+
+    // 로컬 잔액 업데이트
     u.tl = (u.tl||0) - amt;
     localStorage.setItem('tl_user', JSON.stringify(u));
 
-    // 2) pulse +1 (서버)
-    await fetch(API_BASE + '/api/shares/' + shareId + '/pulse', {method:'POST'}).catch(()=>{});
-
-    // 3) 화면 갱신
-    alert('✅ ' + amt.toLocaleString() + ' TL 충전 완료!\n남은 TL: ' + Number(u.tl).toLocaleString());
+    alert('✅ ' + amt.toLocaleString() + ' TL 충전 완료!\n파일 TL: ' + Number(d.file_tl||0).toLocaleString() + ' TL\n남은 내 TL: ' + Number(u.tl).toLocaleString() + ' TL');
     loadShares();
   }catch(err){
     alert('충전 실패: ' + err.message);
