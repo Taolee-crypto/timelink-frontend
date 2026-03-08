@@ -321,11 +321,7 @@ function renderShares(list){
         '<div class="thumb-overlay"></div>' +
         (!hasCover ? '<span style="position:relative;z-index:1;font-size:32px">&#127925;</span>' : '') +
         (hasSpotify ? '<span class="fc-badge" style="position:absolute;top:10px;left:10px;z-index:2;background:rgba(30,215,96,.2);border:1px solid rgba(30,215,96,.4);color:#1ED760;font-size:10px;padding:3px 8px;border-radius:5px;font-family:var(--fm)">&#9654; Spotify</span>' : '') +
-        '<div class="fc-play" style="position:absolute;bottom:10px;right:10px;z-index:2;cursor:pointer" onclick="' +
-          (s.preview_url
-            ? 'previewTrack(\'' + escHtml(s.preview_url) + '\',\'' + escHtml(s.title) + '\')'
-            : (s.spotify_url ? 'window.open(\'' + escHtml(s.spotify_url) + '\',\'_blank\')' : 'chargeTL(\'' + s.id + '\',\'' + escHtml(s.title) + '\')')) +
-          '">&#9654;</div>' +
+        '<div class="fc-play" style="position:absolute;bottom:10px;right:10px;z-index:2;cursor:pointer" onclick="tlPlay(\'' + s.id + '\',\'' + escHtml(s.title) + '\',\'' + escHtml(s.artist||'') + '\',\'' + escHtml(s.cover_url||'') + '\',\'' + escHtml(s.stream_url||s.preview_url||'') + '\',' + (s.file_tl||0) + ',' + (s.duration||0) + ')">&#9654;</div>' +
       '</div>' +
       '<div class="fc-body">' +
         '<div class="fc-type">' + escHtml(cat) + ' &middot; ' + dur + '</div>' +
@@ -357,17 +353,9 @@ function renderShares(list){
 }
 
 // 미리듣기 (Spotify 30초 프리뷰)
-var _previewAudio = null;
 function previewTrack(url, title){
-  if(_previewAudio){ _previewAudio.pause(); _previewAudio = null; }
-  _previewAudio = new Audio(url);
-  _previewAudio.play().catch(function(){});
-  // 간단 토스트
-  var el = document.createElement('div');
-  el.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);border:1px solid rgba(30,215,96,.3);color:#1ED760;padding:10px 22px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;backdrop-filter:blur(12px)';
-  el.textContent = '&#9654; ' + title + ' — 30초 미리듣기';
-  document.body.appendChild(el);
-  setTimeout(function(){ el.remove(); }, 30000);
+  // previewTrack은 tlPlay로 대체됨 (하위 호환용)
+  tlPlay('preview', title, '', '', url, 9999, 30);
 }
 
 function filterType(el, type){
@@ -421,6 +409,198 @@ function escHtml(s){
 
 // 초기 로드
 loadShares();
+</script>
+
+<!-- ===== TL PLAYER ===== -->
+<div id="tlPlayerBar" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;
+  background:linear-gradient(135deg,rgba(10,5,25,.97),rgba(5,3,15,.97));
+  border-top:1px solid rgba(99,102,241,.3);backdrop-filter:blur(24px);
+  padding:14px 24px;box-shadow:0 -8px 40px rgba(0,0,0,.6)">
+  <div style="display:flex;align-items:center;gap:16px;max-width:1200px;margin:0 auto">
+    <!-- 커버 -->
+    <div id="tlCover" style="width:52px;height:52px;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);
+      display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden">🎵</div>
+    <!-- 곡 정보 -->
+    <div style="min-width:0;flex:1">
+      <div id="tlTitle" style="font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--fm)">-</div>
+      <div id="tlArtist" style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px;font-family:var(--fm)">-</div>
+    </div>
+    <!-- TL 게이지 -->
+    <div style="flex:2;min-width:120px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:10px;color:rgba(255,255,255,.4);font-family:var(--fm)">⚡ TL 잔량</span>
+        <span id="tlRemain" style="font-size:12px;font-weight:700;color:#a78bfa;font-family:var(--fm)">0 TL</span>
+      </div>
+      <div style="height:4px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden">
+        <div id="tlBar" style="height:100%;background:linear-gradient(90deg,#7c3aed,#a855f7);border-radius:4px;transition:width .5s ease;width:0%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px">
+        <span id="tlTimer" style="font-size:10px;color:rgba(255,255,255,.3);font-family:var(--fm)">0:00</span>
+        <span id="tlDur" style="font-size:10px;color:rgba(255,255,255,.3);font-family:var(--fm)">0:00</span>
+      </div>
+    </div>
+    <!-- 컨트롤 -->
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+      <button id="tlPlayBtn" onclick="tlToggle()" style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#7c3aed);border:none;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(99,102,241,.4)">▶</button>
+      <button onclick="tlStop()" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.6);font-size:14px;cursor:pointer">■</button>
+      <div style="text-align:center;min-width:80px">
+        <div style="font-size:9px;color:rgba(255,255,255,.3);font-family:var(--fm);margin-bottom:2px">초당 소모</div>
+        <div style="font-size:13px;font-weight:700;color:#f59e0b;font-family:var(--fm)">1 TL/s</div>
+      </div>
+    </div>
+  </div>
+  <!-- 재생바 -->
+  <div style="max-width:1200px;margin:10px auto 0">
+    <div id="tlProgressBg" style="height:3px;background:rgba(255,255,255,.06);border-radius:3px;cursor:pointer;overflow:hidden">
+      <div id="tlProgress" style="height:100%;background:linear-gradient(90deg,#4f46e5,#a855f7);border-radius:3px;width:0%;transition:width .5s linear"></div>
+    </div>
+  </div>
+  <!-- TL 부족 경고 -->
+  <div id="tlWarning" style="display:none;max-width:1200px;margin:8px auto 0;text-align:center;font-size:12px;color:#fbbf24;font-family:var(--fm)">
+    ⚠️ TL 부족! <a href="#" onclick="event.preventDefault();tlCharge()" style="color:#a78bfa;font-weight:700">TL 충전하기</a>
+  </div>
+</div>
+
+<script>
+// ===== TL PLAYER ENGINE =====
+var _tlAudio = null;
+var _tlShareId = null;
+var _tlMaxTL = 0;
+var _tlCurrentTL = 0;
+var _tlTimer = null;
+var _tlPlaying = false;
+var _tlElapsed = 0;
+var _tlDuration = 0;
+
+function tlPlay(shareId, title, artist, coverUrl, audioUrl, fileTL, duration){
+  // TL 없으면 충전 유도
+  if((fileTL||0) <= 0){
+    if(confirm('"' + title + '"
+
+TL이 충전되지 않았습니다.
+지금 TL을 충전하시겠습니까?')){
+      chargeTL(shareId, title);
+    }
+    return;
+  }
+
+  // 이전 재생 중지
+  tlStop(true);
+
+  _tlShareId = shareId;
+  _tlMaxTL = fileTL;
+  _tlCurrentTL = fileTL;
+  _tlElapsed = 0;
+  _tlDuration = duration || 0;
+
+  // UI 업데이트
+  document.getElementById('tlTitle').textContent = title;
+  document.getElementById('tlArtist').textContent = artist || '';
+  var cover = document.getElementById('tlCover');
+  if(coverUrl){
+    cover.innerHTML = '<img src="' + coverUrl + '" style="width:100%;height:100%;object-fit:cover">';
+  } else {
+    cover.innerHTML = '🎵';
+  }
+  document.getElementById('tlPlayerBar').style.display = 'block';
+  document.getElementById('tlWarning').style.display = 'none';
+  tlUpdateUI();
+
+  // 오디오 로드
+  if(audioUrl){
+    _tlAudio = new Audio(audioUrl);
+    _tlAudio.crossOrigin = 'anonymous';
+    _tlAudio.onended = function(){ tlStop(); };
+    _tlAudio.onerror = function(){
+      // 오디오 없어도 TL 타이머는 작동
+      console.warn('[TLPlayer] 오디오 로드 실패 — TL 타이머만 작동');
+    };
+    _tlAudio.play().catch(function(e){ console.warn('audio play:', e); });
+  }
+
+  tlStartTimer();
+  document.getElementById('tlPlayBtn').textContent = '⏸';
+  _tlPlaying = true;
+}
+
+function tlStartTimer(){
+  if(_tlTimer) clearInterval(_tlTimer);
+  _tlTimer = setInterval(function(){
+    if(!_tlPlaying) return;
+
+    _tlCurrentTL = Math.max(0, _tlCurrentTL - 1);
+    _tlElapsed++;
+
+    // 서버에 5초마다 보고 (네트워크 절약)
+    if(_tlElapsed % 5 === 0){
+      fetch(API_BASE + '/api/shares/' + _tlShareId + '/consume', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ seconds: 5 })
+      }).catch(function(){});
+    }
+
+    tlUpdateUI();
+
+    if(_tlCurrentTL <= 0){
+      tlStop();
+      document.getElementById('tlWarning').style.display = 'block';
+    }
+  }, 1000);
+}
+
+function tlUpdateUI(){
+  var remain = document.getElementById('tlRemain');
+  var bar = document.getElementById('tlBar');
+  var timer = document.getElementById('tlTimer');
+  var dur = document.getElementById('tlDur');
+  var prog = document.getElementById('tlProgress');
+
+  if(remain) remain.textContent = Number(_tlCurrentTL).toLocaleString() + ' TL';
+  var pct = _tlMaxTL > 0 ? (_tlCurrentTL / _tlMaxTL * 100) : 0;
+  if(bar) bar.style.width = pct + '%';
+
+  // 색상 변화 (남은 TL에 따라)
+  if(pct < 20 && bar) bar.style.background = 'linear-gradient(90deg,#ef4444,#f97316)';
+  else if(pct < 50 && bar) bar.style.background = 'linear-gradient(90deg,#f59e0b,#eab308)';
+  else if(bar) bar.style.background = 'linear-gradient(90deg,#7c3aed,#a855f7)';
+
+  var fmt = function(s){ return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
+  if(timer) timer.textContent = fmt(_tlElapsed);
+  if(dur && _tlDuration) dur.textContent = fmt(_tlDuration);
+
+  // 재생 진행바
+  if(prog && _tlDuration) prog.style.width = Math.min(100, _tlElapsed/_tlDuration*100) + '%';
+}
+
+function tlToggle(){
+  if(_tlPlaying){
+    _tlPlaying = false;
+    if(_tlAudio) _tlAudio.pause();
+    document.getElementById('tlPlayBtn').textContent = '▶';
+  } else {
+    _tlPlaying = true;
+    if(_tlAudio) _tlAudio.play().catch(function(){});
+    document.getElementById('tlPlayBtn').textContent = '⏸';
+  }
+}
+
+function tlStop(silent){
+  _tlPlaying = false;
+  if(_tlTimer){ clearInterval(_tlTimer); _tlTimer = null; }
+  if(_tlAudio){ _tlAudio.pause(); _tlAudio = null; }
+  if(!silent){
+    document.getElementById('tlPlayerBar').style.display = 'none';
+  }
+  document.getElementById('tlPlayBtn').textContent = '▶';
+}
+
+function tlCharge(){
+  if(_tlShareId){
+    var title = document.getElementById('tlTitle').textContent;
+    chargeTL(_tlShareId, title);
+  }
+}
 </script>
 </body>
 </html>
