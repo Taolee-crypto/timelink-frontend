@@ -1,342 +1,1501 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TimeLink — 1초 = 1TL = 1원</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TimeLink 관리자 시스템</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+KR:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-:root{--bg-root:#08080F;--bg-deep:#0D0D1A;--bg-card:rgba(255,255,255,.05);--bd:rgba(255,255,255,.08);--bd2:rgba(255,255,255,.13);--purple:#8B5CF6;--purple-dim:#6D28D9;--mint:#00E5A0;--pink:#F472B6;--amber:#FBBF24;--rose:#FB7185;--t1:#fff;--t2:rgba(255,255,255,.65);--t3:rgba(255,255,255,.35);--grad:linear-gradient(135deg,#8B5CF6 0%,#00E5A0 100%);--fn:'Noto Sans KR',sans-serif;--fm:'JetBrains Mono',monospace}
+:root {
+  --purple:#8b5cf6; --purple-d:#7c3aed; --purple-l:#ede9fe; --purple-p:#f5f3ff;
+  --green:#10b981; --green-l:#d1fae5;
+  --yellow:#f59e0b; --yellow-l:#fef3c7;
+  --red:#ef4444; --red-l:#fee2e2;
+  --blue:#3b82f6; --blue-l:#dbeafe;
+  --orange:#f97316; --orange-l:#ffedd5;
+  --g50:#f9fafb; --g100:#f3f4f6; --g200:#e5e7eb; --g300:#d1d5db;
+  --g500:#6b7280; --g700:#374151; --g900:#111827;
+  --text:#0f172a; --border:#e5e7eb;
+  --sw:240px; --font:"Inter","Noto Sans KR",sans-serif; --mono:"JetBrains Mono",monospace;
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--fn);background:var(--bg-root);color:var(--t1);min-height:100vh;cursor:none;overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");pointer-events:none;z-index:0}
+body{font-family:var(--font);background:var(--g50);color:var(--text);min-height:100vh}
 
-/* CURSOR */
-.cd{width:8px;height:8px;background:var(--purple);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:99999;transform:translate(-50%,-50%);mix-blend-mode:screen}
-.cr{width:28px;height:28px;border:1.5px solid rgba(139,92,246,.5);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:99998;transform:translate(-50%,-50%);transition:all .12s ease}
-.cr.hov{width:40px;height:40px;border-color:rgba(0,229,160,.6)}
+/* LOGIN */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 60%,#0f172a 100%)}
+.login-box{background:white;border-radius:20px;padding:48px 40px;width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-logo{text-align:center;margin-bottom:32px}
+.login-logo .ico{width:56px;height:56px;background:var(--purple);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px}
+.login-logo h1{font-size:22px;font-weight:800}
+.login-logo p{font-size:13px;color:var(--g500);margin-top:4px}
+.f-group{margin-bottom:16px}
+.f-group label{display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:var(--g700);text-transform:uppercase;letter-spacing:.5px}
+.f-group input{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:var(--font);outline:none;transition:border .2s}
+.f-group input:focus{border-color:var(--purple);box-shadow:0 0 0 3px var(--purple-l)}
+.login-btn{width:100%;padding:13px;background:var(--purple);color:white;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:background .2s}
+.login-btn:hover{background:var(--purple-d)}
+.login-err{color:var(--red);font-size:13px;text-align:center;margin-top:12px;display:none}
 
-/* AMBIENT */
-.amb{position:fixed;border-radius:50%;pointer-events:none;z-index:0}
-.amb1{top:-200px;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(139,92,246,.14) 0%,transparent 60%)}
-.amb2{bottom:-300px;right:-100px;width:600px;height:600px;background:radial-gradient(circle,rgba(0,229,160,.07) 0%,transparent 65%)}
+/* PANEL LAYOUT */
+#admin-panel{display:none;min-height:100vh}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sw);background:#0f172a;color:white;display:flex;flex-direction:column;z-index:100;overflow-y:auto}
+.sb-logo{padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px}
+.sb-logo .ico{width:32px;height:32px;background:var(--purple);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.sb-logo .txt{font-size:15px;font-weight:800}
+.sb-logo small{display:block;font-size:10px;color:rgba(255,255,255,.35);font-weight:400}
+.nav-sec{padding:12px 0 4px}
+.nav-sec-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,.3);padding:0 20px;margin-bottom:4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;font-size:13px;font-weight:500;color:rgba(255,255,255,.6);cursor:pointer;transition:all .15s;border-left:3px solid transparent;user-select:none}
+.nav-item:hover{background:rgba(255,255,255,.06);color:white}
+.nav-item.active{background:rgba(139,92,246,.15);color:white;border-left-color:var(--purple)}
+.nav-ico{font-size:15px;width:20px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--red);color:white;font-size:10px;font-weight:700;padding:2px 6px;border-radius:999px;min-width:18px;text-align:center}
+.nav-badge.g{background:var(--green)}
+.nav-badge.y{background:var(--yellow)}
+.sb-footer{margin-top:auto;padding:14px 20px;border-top:1px solid rgba(255,255,255,.08);font-size:11px;color:rgba(255,255,255,.25)}
 
-/* NAV */
-nav{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;align-items:center;gap:0;padding:0 28px;height:58px;background:rgba(8,8,15,.75);backdrop-filter:blur(24px);border-bottom:1px solid var(--bd)}
-.nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;margin-right:32px}
-.nav-logo-icon{width:30px;height:30px;border-radius:8px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:14px}
-.nav-logo-text{font-size:15px;font-weight:700;color:var(--t1)}
-.nav-logo-text em{color:var(--purple);font-style:normal}
-.nav-links{display:flex;gap:0}
-.nav-link{padding:0 16px;height:58px;display:flex;align-items:center;font-size:14px;color:var(--t2);text-decoration:none;transition:all .2s ease;border-bottom:2px solid transparent;position:relative;top:1px}
-.nav-link:hover,.nav-link.active{color:var(--t1)}
-.nav-link.active{border-bottom-color:var(--purple)}
-.nav-right{display:flex;align-items:center;gap:10px;margin-left:auto}
-.nav-icon-btn{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;cursor:none;font-size:15px;transition:all .2s ease}
-.nav-icon-btn:hover{background:rgba(255,255,255,.1)}
-.nav-avatar{width:32px;height:32px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:15px;cursor:none}
-.nav-join{padding:8px 18px;border-radius:9px;background:transparent;border:1.5px solid var(--bd2);color:var(--t1);font-size:13px;font-weight:700;cursor:none;transition:all .2s ease}
-.nav-join:hover{border-color:var(--purple);background:rgba(139,92,246,.12)}
+.main{margin-left:var(--sw);min-height:100vh;display:flex;flex-direction:column}
+.topbar{background:white;border-bottom:1px solid var(--border);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-title{font-size:16px;font-weight:800}
+.topbar-r{display:flex;align-items:center;gap:10px}
+.topbar-time{font-size:12px;color:var(--g500);font-family:var(--mono)}
+.admin-badge{background:var(--purple-p);color:var(--purple-d);font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px}
+.logout-btn{font-size:13px;color:var(--g500);cursor:pointer;padding:5px 12px;border-radius:8px;border:1px solid var(--border);background:white;transition:all .15s}
+.logout-btn:hover{background:var(--red-l);color:var(--red);border-color:var(--red)}
 
-/* MAIN LAYOUT */
-.page-wrap{padding-top:58px;display:flex;min-height:100vh;position:relative;z-index:1}
-.page-main{flex:1;overflow-y:auto}
-.page-side{width:300px;flex-shrink:0;border-left:1px solid var(--bd);padding:20px 18px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;background:rgba(0,0,0,.2)}
+.content{padding:24px 28px;flex:1}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
 
-/* HERO */
-.hero{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 40px 36px;min-height:420px;position:relative;text-align:center}
-.bonus-card{position:absolute;top:24px;right:24px;background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.25);border-radius:16px;padding:16px 20px;text-align:center;backdrop-filter:blur(16px)}
-.bc-amount{font-size:22px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1}
-.bc-label{font-size:12px;font-weight:700;color:var(--t1);margin-top:3px}
-.bc-desc{font-size:11px;color:var(--t2);margin-top:4px}
-/* confetti dots */
-.conf-dots{position:absolute;top:0;right:0;width:100px;height:100px;pointer-events:none}
+/* COMPONENTS */
+.pg-title{font-size:21px;font-weight:800;margin-bottom:4px}
+.pg-sub{font-size:13px;color:var(--g500);margin-bottom:22px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.stat-card{background:white;border:1px solid var(--border);border-radius:14px;padding:18px;position:relative;overflow:hidden}
+.stat-card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--ac,var(--purple))}
+.stat-lbl{font-size:11px;color:var(--g500);font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.stat-val{font-size:26px;font-weight:800;line-height:1;margin-bottom:5px}
+.stat-chg{font-size:12px;font-weight:600;color:var(--green)}
+.stat-chg.n{color:var(--g500)}
+.stat-chg.d{color:var(--red)}
 
-.hero-clock{position:relative;width:220px;height:220px;margin:0 auto 20px}
-.clock-glow{position:absolute;inset:-30px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.35) 0%,transparent 70%);animation:cg 3s ease-in-out infinite}
-@keyframes cg{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}
-.clock-ring{width:220px;height:220px;border-radius:50%;border:2px solid rgba(139,92,246,.4);display:flex;align-items:center;justify-content:center;position:relative}
-.clock-ring::before{content:'';position:absolute;inset:8px;border-radius:50%;border:1px solid rgba(0,229,160,.2)}
-.clock-inner{text-align:center}
-.clock-equation{font-size:22px;font-weight:900;line-height:1.2}
-.clock-equation span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.card{background:white;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:18px}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.card-title{font-size:14px;font-weight:700}
+.card-body{padding:20px}
 
-/* CATEGORY ICONS */
-.cat-grid{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:8px}
-.cat-item{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:none;transition:all .25s ease}
-.cat-item:hover{transform:translateY(-4px)}
-.cat-icon{width:54px;height:54px;border-radius:14px;background:rgba(255,255,255,.07);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:22px;transition:all .25s ease;backdrop-filter:blur(8px)}
-.cat-item:hover .cat-icon{background:rgba(139,92,246,.18);border-color:rgba(139,92,246,.35);box-shadow:0 0 18px rgba(139,92,246,.25)}
-.cat-label{font-size:11px;color:var(--t2);font-weight:600}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--g500);padding:9px 12px;border-bottom:1px solid var(--border);background:var(--g50)}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--g100);font-size:13px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--g50)}
 
-/* CONTENT SECTIONS */
-.section{padding:24px 32px}
-.section-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
-.section-title{font-size:18px;font-weight:700}
-.section-sub{font-size:12px;color:var(--t3);margin-top:4px}
-.see-all{font-size:12px;color:var(--mint);cursor:none;text-decoration:none;padding:4px 10px;border-radius:6px;transition:all .2s ease}
-.see-all:hover{background:rgba(0,229,160,.08)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:var(--font);text-decoration:none;transition:all .2s}
+.btn-primary{background:var(--purple);color:white}.btn-primary:hover{background:var(--purple-d)}
+.btn-success{background:var(--green);color:white}.btn-success:hover{background:#059669}
+.btn-danger{background:var(--red);color:white}.btn-danger:hover{background:#dc2626}
+.btn-warning{background:var(--yellow);color:white}.btn-warning:hover{background:#d97706}
+.btn-outline{background:white;color:var(--text);border:1px solid var(--border)}.btn-outline:hover{background:var(--g50)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px;border-radius:6px}
 
-/* FILE CARDS */
-.file-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.fc{background:var(--bg-card);border:1px solid var(--bd);border-radius:14px;overflow:hidden;cursor:none;transition:all .25s ease;position:relative}
-.fc:hover{transform:translateY(-4px);border-color:var(--bd2);box-shadow:0 12px 32px rgba(0,0,0,.4)}
-.fc-thumb{height:120px;display:flex;align-items:center;justify-content:center;font-size:36px;position:relative;overflow:hidden}
-.fc-thumb-inner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-.fc-play-ov{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;background:rgba(0,0,0,.4);border-radius:0}
-.fc:hover .fc-play-ov{opacity:1}
-.fc-play-btn{width:36px;height:36px;border-radius:50%;background:rgba(139,92,246,.9);display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 0 18px rgba(139,92,246,.7)}
-.fc-body{padding:10px 12px}
-.fc-title{font-size:13px;font-weight:700;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fc-artist{font-size:11px;color:var(--t3);margin-bottom:8px}
-.fc-bottom{display:flex;align-items:center;justify-content:space-between}
-.fc-views{font-size:10px;color:var(--t3)}
-.fc-dl-btn{width:26px;height:26px;border-radius:50%;background:rgba(0,229,160,.12);border:1px solid rgba(0,229,160,.2);display:flex;align-items:center;justify-content:center;font-size:11px;cursor:none;transition:all .2s ease}
-.fc-dl-btn:hover{background:rgba(0,229,160,.25)}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.bp{background:var(--purple-l);color:var(--purple-d)}
+.bg{background:var(--green-l);color:#065f46}
+.by{background:var(--yellow-l);color:#92400e}
+.br{background:var(--red-l);color:#991b1b}
+.bb{background:var(--blue-l);color:#1e40af}
+.bo{background:var(--orange-l);color:#9a3412}
+.bgr{background:var(--g100);color:var(--g700)}
 
-/* MOVING RADIO SIDEBAR */
-.side-title{font-size:14px;font-weight:700;margin-bottom:4px}
-.side-sub{font-size:11px;color:var(--t3);margin-bottom:14px}
-.radio-card{background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:12px;padding:12px;cursor:none;transition:all .2s ease;margin-bottom:10px}
-.radio-card:hover{background:rgba(255,255,255,.07);border-color:var(--bd2);transform:translateX(2px)}
-.rc-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.rc-avatar{width:32px;height:32px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
-.rc-info{flex:1;min-width:0}
-.rc-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rc-listeners{font-size:10px;color:var(--t3);font-family:var(--fm);display:flex;align-items:center;gap:4px;margin-top:2px}
-.rc-wave{height:16px;display:flex;align-items:center;gap:1px;margin-bottom:8px}
-.rcwb{width:2px;min-width:2px;border-radius:1px;background:var(--mint);opacity:.3;animation:wv 1s ease-in-out infinite}
-@keyframes wv{0%,100%{height:4px;opacity:.2}50%{height:12px;opacity:.6}}
-.rc-play{padding:5px 14px;border-radius:7px;background:rgba(0,229,160,.15);border:1px solid rgba(0,229,160,.25);color:var(--mint);font-size:10px;font-weight:700;cursor:none;float:right;transition:all .2s ease}
-.rc-play:hover{background:rgba(0,229,160,.25)}
+.filter-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.s-input{flex:1;min-width:180px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--font);outline:none}
+.s-input:focus{border-color:var(--purple);box-shadow:0 0 0 3px var(--purple-l)}
+.sel{padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--font);outline:none;background:white;cursor:pointer}
 
-/* FOOTER */
-footer{background:rgba(8,8,15,.9);border-top:1px solid var(--bd);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:relative;z-index:1}
-.footer-links{display:flex;gap:20px;font-size:12px;color:var(--t3)}
-.footer-links a{color:var(--t3);text-decoration:none;cursor:none;transition:color .2s}
-.footer-links a:hover{color:var(--t2)}
-.footer-socials{display:flex;gap:10px}
-.social-btn{width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:none}
+.chart-area{height:180px;display:flex;align-items:flex-end;gap:5px}
+.bar{flex:1;background:var(--purple-l);border-radius:4px 4px 0 0;position:relative;cursor:pointer;transition:background .2s;min-height:3px}
+.bar:hover{background:var(--purple)}
+.chart-lbls{display:flex;gap:5px;margin-top:6px}
+.chart-lbl{flex:1;text-align:center;font-size:9px;color:var(--g500)}
 
-::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(139,92,246,.3);border-radius:4px}
+.sub-tabs{display:flex;gap:3px;background:var(--g100);border-radius:10px;padding:4px;margin-bottom:18px;width:fit-content}
+.sub-tab{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;color:var(--g500);cursor:pointer;transition:all .2s}
+.sub-tab.active{background:white;color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+
+.prog-bar{height:5px;background:var(--g100);border-radius:999px;overflow:hidden;margin-top:5px}
+.prog-fill{height:100%;border-radius:999px;background:var(--purple);transition:width .5s}
+
+.switch{position:relative;display:inline-block;width:42px;height:22px}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:var(--g300);border-radius:999px;cursor:pointer;transition:.3s}
+.slider::before{content:"";position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.3s}
+input:checked+.slider{background:var(--purple)}
+input:checked+.slider::before{transform:translateX(20px)}
+
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;align-items:center;justify-content:center}
+.modal-ov.show{display:flex}
+.modal{background:white;border-radius:16px;padding:28px;width:520px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-title{font-size:17px;font-weight:800;margin-bottom:18px}
+.modal-actions{display:flex;gap:8px;margin-top:20px;justify-content:flex-end}
+.f-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.f-field{margin-bottom:12px}
+.f-field label{display:block;font-size:11px;font-weight:700;color:var(--g700);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.f-field input,.f-field select,.f-field textarea{width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--font);outline:none}
+.f-field input:focus,.f-field select:focus,.f-field textarea:focus{border-color:var(--purple);box-shadow:0 0 0 3px var(--purple-l)}
+.f-field textarea{resize:vertical;min-height:70px}
+
+#toast-box{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:7px}
+.toast{padding:11px 16px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.15);animation:si .3s ease}
+.toast.success{background:var(--green);color:white}
+.toast.error{background:var(--red);color:white}
+.toast.info{background:var(--purple);color:white}
+@keyframes si{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+.cafe-card{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:10px;transition:all .2s}
+.cafe-card:hover{border-color:var(--purple);background:var(--purple-p)}
+.live-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.live-dot.on{background:var(--green);box-shadow:0 0 0 3px var(--green-l)}
+.live-dot.off{background:var(--g300)}
+
+.info-box{background:var(--purple-p);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;color:var(--purple-d)}
+
+@media(max-width:900px){.sidebar{width:56px}.sb-logo .txt,.sb-logo small,.nav-sec-title,.nav-item span,.sb-footer{display:none}.main{margin-left:56px}}
+@media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+
+.rev-kpi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:8px; }
+.rev-kpi-card { background:white; border:1.5px solid #e5e7eb; border-radius:16px; padding:20px; position:relative; overflow:hidden; }
+.rev-kpi-card::before { content:""; position:absolute; top:0; left:0; width:4px; height:100%; }
+.rev-kpi-card.purple::before { background:#8b5cf6; }
+.rev-kpi-card.green::before { background:#10b981; }
+.rev-kpi-card.yellow::before { background:#f59e0b; }
+.rev-kpi-card.blue::before { background:#3b82f6; }
+.rev-kpi-card.red::before { background:#ef4444; }
+.rev-kpi-card.dark::before { background:#0f172a; }
+.rev-kpi-label { font-size:12px; color:#6b7280; font-weight:600; margin-bottom:8px; }
+.rev-kpi-value { font-size:24px; font-weight:900; color:#0f172a; margin-bottom:4px; }
+.rev-kpi-change { font-size:11px; color:#10b981; font-weight:600; margin-bottom:10px; }
+.rev-kpi-bar { height:4px; background:#f1f5f9; border-radius:2px; overflow:hidden; }
+.rev-kpi-bar > div { height:100%; background:#8b5cf6; border-radius:2px; }
+
+.rev-sub-tabs { display:flex; gap:4px; background:#f1f5f9; padding:4px; border-radius:12px; margin-bottom:16px; overflow-x:auto; }
+.rev-sub-tab { flex:1; padding:9px; border:none; background:transparent; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; color:#6b7280; transition:all 0.2s; white-space:nowrap; }
+.rev-sub-tab.active { background:white; color:#8b5cf6; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+.rev-panel.hidden { display:none !important; }
+.rev-table-wrap { overflow-x:auto; }
+.rev-table { width:100%; border-collapse:collapse; font-size:13px; }
+.rev-table th { background:#f8fafc; padding:10px 12px; text-align:left; font-weight:700; color:#374151; border-bottom:2px solid #e5e7eb; white-space:nowrap; }
+.rev-table td { padding:12px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.rev-table tr:hover { background:#fafafa; }
+.type-badge { padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
+.type-badge.purple { background:#ede9fe; color:#7c3aed; }
+.type-badge.green { background:#d1fae5; color:#059669; }
+.type-badge.yellow { background:#fef3c7; color:#92400e; }
+.type-badge.blue { background:#dbeafe; color:#1d4ed8; }
+.type-badge.red { background:#fee2e2; color:#dc2626; }
+.bar-cell { display:inline-flex; align-items:center; gap:6px; }
+.bar-cell > div { height:6px; width:80px; background:#e5e7eb; border-radius:3px; overflow:hidden; }
+.bar-cell > div > div { height:100%; }
+.up { color:#10b981; font-weight:700; }
+.status-active { background:#d1fae5; color:#059669; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+.status-pending { background:#fef3c7; color:#92400e; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+.plan-badge-sm { background:#ede9fe; color:#7c3aed; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:700; }
+.plan-badge-sm.pro { background:#0f172a; color:white; }
+.rev-period { min-width:64px; }
+@media(max-width:768px) { .rev-kpi-grid { grid-template-columns:repeat(2,1fr); } }
 </style>
 </head>
 <body>
-<div class="cd" id="cd"></div>
-<div class="cr" id="cr"></div>
-<div class="amb amb1"></div>
-<div class="amb amb2"></div>
 
-<!-- NAV -->
-<nav>
-  <a href="index.html" class="nav-logo">
-    <div class="nav-logo-icon">⏱</div>
-    <div class="nav-logo-text">Time<em>Link</em></div>
-  </a>
-  <div class="nav-links">
-    <a href="#" class="nav-link active">둘러보기</a>
-    <a href="radio.html" class="nav-link">리디오</a>
-    <a href="shareplace.html" class="nav-link">스토이</a>
-    <a href="#" class="nav-link">커뮤니티</a>
+<!-- ══ LOGIN ══ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="ico">⚡</div>
+      <h1>TimeLink Admin</h1>
+      <p>관리자 전용 콘솔</p>
+    </div>
+    <div class="f-group">
+      <label>이메일</label>
+      <input type="email" id="a-email" placeholder="admin@timelink.digital" onkeydown="if(event.key==='Enter')window.doLogin()">
+    </div>
+    <div class="f-group">
+      <label>비밀번호</label>
+      <input type="password" id="a-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')window.doLogin()">
+    </div>
+    <button class="login-btn" onclick="window.doLogin()">관리자 로그인</button>
+    <div class="login-err" id="login-err">이메일 또는 비밀번호가 올바르지 않습니다.</div>
   </div>
-  <div class="nav-right">
-    <div class="nav-icon-btn">🔍</div>
-    <div class="nav-icon-btn">🔔</div>
-    <div class="nav-avatar">👤</div>
-    <button class="nav-join" onclick="location.href='signup.html'">로그인 / 가입</button>
-  </div>
-</nav>
-
-<div class="page-wrap">
-  <main class="page-main">
-    <!-- HERO -->
-    <div class="hero">
-      <!-- BONUS CARD -->
-      <div class="bonus-card">
-        <div class="bc-amount">10,000 TL<br>가입 보너스</div>
-        <div class="bc-desc">지금 가입하고 혜택을 받으세요!</div>
-        <button onclick="location.href='signup.html'" style="margin-top:10px;width:100%;padding:8px;border-radius:8px;background:var(--grad);border:none;color:#fff;font-size:12px;font-weight:700;cursor:none">가입하기 →</button>
-      </div>
-
-      <!-- CLOCK VISUAL -->
-      <div class="hero-clock">
-        <div class="clock-glow"></div>
-        <div class="clock-ring">
-          <div class="clock-inner">
-            <div class="clock-equation"><span>1초 = 1TL = 1원</span></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- CATEGORY ICONS -->
-      <div class="cat-grid">
-        <div class="cat-item" onclick="location.href='shareplace.html'">
-          <div class="cat-icon">🎵</div>
-          <span class="cat-label">음악</span>
-        </div>
-        <div class="cat-item" onclick="location.href='shareplace.html'">
-          <div class="cat-icon">▶️</div>
-          <span class="cat-label">비디오</span>
-        </div>
-        <div class="cat-item" onclick="location.href='shareplace.html'">
-          <div class="cat-icon">📄</div>
-          <span class="cat-label">문서</span>
-        </div>
-        <div class="cat-item" onclick="location.href='shareplace.html'">
-          <div class="cat-icon">🖼️</div>
-          <span class="cat-label">이미지</span>
-        </div>
-        <div class="cat-item" onclick="location.href='shareplace.html'">
-          <div class="cat-icon">📦</div>
-          <span class="cat-label">패키지</span>
-        </div>
-        <div class="cat-item" onclick="location.href='shareplace.html'">
-          <div class="cat-icon">&lt;/&gt;</div>
-          <span class="cat-label">코드</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- POPULAR CONTENT -->
-    <div class="section">
-      <div class="section-header">
-        <div>
-          <div class="section-title">🔥 인기 콘텐츠</div>
-          <div class="section-sub">오늘의 추천 파일들을 만나보세요.</div>
-        </div>
-        <a href="shareplace.html" class="see-all">전체보기 →</a>
-      </div>
-      <div class="file-grid">
-        <div class="fc" onclick="location.href='shareplace.html'">
-          <div class="fc-thumb" style="background:linear-gradient(135deg,#2a1040,#0a1820)">
-            <div class="fc-thumb-inner">🌃</div>
-            <div class="fc-play-ov"><div class="fc-play-btn">▶</div></div>
-          </div>
-          <div class="fc-body">
-            <div class="fc-title">밤의 카페 테라스</div>
-            <div class="fc-artist">이슬기</div>
-            <div class="fc-bottom">
-              <span class="fc-views">🔥 4.5k</span>
-              <div class="fc-dl-btn">▶</div>
-            </div>
-          </div>
-        </div>
-        <div class="fc" onclick="location.href='shareplace.html'">
-          <div class="fc-thumb" style="background:linear-gradient(135deg,#0a1a28,#1a0828)">
-            <div class="fc-thumb-inner">🌆</div>
-            <div class="fc-play-ov"><div class="fc-play-btn">▶</div></div>
-          </div>
-          <div class="fc-body">
-            <div class="fc-title">서울의 야경</div>
-            <div class="fc-artist">Night Cam</div>
-            <div class="fc-bottom">
-              <span class="fc-views">▶ 3.2k views</span>
-              <div class="fc-dl-btn">📺</div>
-            </div>
-          </div>
-        </div>
-        <div class="fc" onclick="location.href='shareplace.html'">
-          <div class="fc-thumb" style="background:linear-gradient(135deg,#1a1a40,#281040)">
-            <div class="fc-thumb-inner">📊</div>
-            <div class="fc-play-ov"><div class="fc-play-btn">▶</div></div>
-          </div>
-          <div class="fc-body">
-            <div class="fc-title">2023년 트랜드 리포트</div>
-            <div class="fc-artist">TrendLab</div>
-            <div class="fc-bottom">
-              <span class="fc-views">📥 1.1k</span>
-              <div class="fc-dl-btn">📄</div>
-            </div>
-          </div>
-        </div>
-        <div class="fc" onclick="location.href='shareplace.html'">
-          <div class="fc-thumb" style="background:linear-gradient(135deg,#281820,#0a0828)">
-            <div class="fc-thumb-inner">🌸</div>
-            <div class="fc-play-ov"><div class="fc-play-btn">▶</div></div>
-          </div>
-          <div class="fc-body">
-            <div class="fc-title">밤의 카페 테라스</div>
-            <div class="fc-artist">이슬기</div>
-            <div class="fc-bottom">
-              <span class="fc-views">🔥 4.5k</span>
-              <div class="fc-dl-btn">▶</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <footer>
-      <div class="footer-links">
-        <a href="#">회사 소개</a>
-        <a href="#">이용 약관</a>
-        <a href="#">개인정보 처리방침</a>
-        <a href="#">고객 센터</a>
-      </div>
-      <div class="footer-socials">
-        <div class="social-btn">f</div>
-        <div class="social-btn">𝕏</div>
-        <div class="social-btn" style="font-size:10px">DC</div>
-      </div>
-    </footer>
-  </main>
-
-  <!-- SIDE: MOVING RADIO -->
-  <aside class="page-side">
-    <div>
-      <div class="side-title">🎧 무빙 라디오</div>
-      <div class="side-sub">리이브 카페 방송</div>
-    </div>
-    <div class="radio-card">
-      <div class="rc-top">
-        <div class="rc-avatar">☕</div>
-        <div class="rc-info">
-          <div class="rc-name">재즈와 키미, 그리고 세벽</div>
-          <div class="rc-listeners"><span style="width:5px;height:5px;border-radius:50%;background:#EF4444;display:inline-block"></span> 1,204명 청취 중</div>
-        </div>
-      </div>
-      <div class="rc-wave" id="rcw1"></div>
-      <button class="rc-play" onclick="location.href='radio.html'">PLAY</button>
-      <div style="clear:both"></div>
-    </div>
-    <div class="radio-card">
-      <div class="rc-top">
-        <div class="rc-avatar">🌃</div>
-        <div class="rc-info">
-          <div class="rc-name">서울의 이야경</div>
-          <div class="rc-listeners"><span style="width:5px;height:5px;border-radius:50%;background:#EF4444;display:inline-block"></span> 1,204명 청취 중</div>
-        </div>
-      </div>
-      <div class="rc-wave" id="rcw2"></div>
-      <button class="rc-play" onclick="location.href='radio.html'">PLAY</button>
-      <div style="clear:both"></div>
-    </div>
-    <div class="radio-card">
-      <div class="rc-top">
-        <div class="rc-avatar">🎺</div>
-        <div class="rc-info">
-          <div class="rc-name">점퍼브 트립스</div>
-          <div class="rc-listeners"><span style="width:5px;height:5px;border-radius:50%;background:#EF4444;display:inline-block"></span> 1,208명 청취 중</div>
-        </div>
-      </div>
-      <div class="rc-wave" id="rcw3"></div>
-      <button class="rc-play" onclick="location.href='radio.html'">PLAY</button>
-      <div style="clear:both"></div>
-    </div>
-  </aside>
 </div>
 
+<!-- ══ ADMIN PANEL ══ -->
+<div id="admin-panel">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="ico">⚡</div>
+      <div><div class="txt">TimeLink</div><small>Admin Console</small></div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-title">메인</div>
+      <div class="nav-item active" onclick="go('dashboard',this)"><span class="nav-ico">📊</span><span>대시보드</span></div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-title">매출 관리</div>
+      <div class="nav-item" onclick="go('revenue',this)"><span class="nav-ico">💰</span><span>매출 현황</span></div>
+      <div class="nav-item" onclick="go('exchange',this)"><span class="nav-ico">💳</span><span>환전 요청</span><span class="nav-badge" id="nb-exchange">0</span></div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-title">사용자</div>
+      <div class="nav-item" onclick="go('users',this)"><span class="nav-ico">👥</span><span>사용자 관리</span></div>
+      <div class="nav-item" onclick="go('tracks',this)"><span class="nav-ico">🎵</span><span>트랙 관리</span></div>
+      <div class="nav-item" onclick="go('bulk',this)"><span class="nav-ico">⚡</span><span>대량 관리</span></div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-title">광고</div>
+      <div class="nav-item" onclick="go('ads',this)"><span class="nav-ico">📣</span><span>광고 관리</span><span class="nav-badge y" id="nb-ads">0</span></div>
+      <div class="nav-item" onclick="go('advertisers',this)"><span class="nav-ico">🏢</span><span>광고주 관리</span></div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-title">서비스</div>
+      <div class="nav-item" onclick="go('cafe',this)"><span class="nav-ico">☕</span><span>카페방송</span><span class="nav-badge g" id="nb-cafe">0</span></div>
+      <div class="nav-item" onclick="go('radio',this)"><span class="nav-ico">🎧</span><span>Moving Radio</span></div>
+      <div class="nav-item" onclick="go('shareplace',this)"><span class="nav-ico">🛍️</span><span>SharePlace</span></div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-title">시스템</div>
+      <div class="nav-item" onclick="go('settings',this)"><span class="nav-ico">⚙️</span><span>시스템 설정</span></div>
+      <div class="nav-item" onclick="go('logs',this)"><span class="nav-ico">📋</span><span>로그</span></div>
+    </div>
+    <div class="sb-footer">v2.1.0 · TimeLink Platform</div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">📊 대시보드</div>
+      <div class="topbar-r">
+        <div class="topbar-time" id="topbar-time">--:--:--</div>
+        <div class="admin-badge">🔐 SuperAdmin</div>
+        <button class="logout-btn" onclick="doLogout()">로그아웃</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ════ 📊 DASHBOARD ════ -->
+      <div id="tp-dashboard" class="tab-panel active">
+        <div class="pg-title">📊 대시보드</div>
+        <div class="pg-sub">TimeLink 플랫폼 실시간 현황</div>
+        <div class="stats-grid">
+          <div class="stat-card" style="--ac:var(--purple)">
+            <div class="stat-lbl">총 사용자</div>
+            <div class="stat-val" id="ds-users">-</div>
+            <div class="stat-chg" id="ds-users-today">로딩중...</div>
+          </div>
+          <div class="stat-card" style="--ac:var(--green)">
+            <div class="stat-lbl">총 TL 유통량</div>
+            <div class="stat-val" id="ds-tl">-</div>
+            <div class="stat-chg n">플랫폼 전체</div>
+          </div>
+          <div class="stat-card" style="--ac:var(--yellow)">
+            <div class="stat-lbl">활성 광고</div>
+            <div class="stat-val" id="ds-ads">-</div>
+            <div class="stat-chg" id="ds-ads-p">대기 0건</div>
+          </div>
+          <div class="stat-card" style="--ac:var(--orange)">
+            <div class="stat-lbl">라이브 카페방송</div>
+            <div class="stat-val" id="ds-cafes">-</div>
+            <div class="stat-chg" id="ds-listeners">청취자 0명</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:18px">
+          <div class="card">
+            <div class="card-hdr">
+              <div class="card-title">📈 일별 TL 소비량 (최근 14일)</div>
+              <button class="btn btn-outline btn-sm" onclick="renderChart()">🔄</button>
+            </div>
+            <div class="card-body">
+              <div class="chart-area" id="main-chart"></div>
+              <div class="chart-lbls" id="main-lbls"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hdr"><div class="card-title">🔥 서비스 현황</div></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>카페방송 가동률</span><span style="font-weight:700" id="r-cafe">72%</span></div>
+                <div class="prog-bar"><div class="prog-fill" style="width:72%"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>광고 완료 시청률</span><span style="font-weight:700">61%</span></div>
+                <div class="prog-bar"><div class="prog-fill" style="width:61%;background:var(--yellow)"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Moving Radio 이용률</span><span style="font-weight:700">44%</span></div>
+                <div class="prog-bar"><div class="prog-fill" style="width:44%;background:var(--green)"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>SharePlace 활성도</span><span style="font-weight:700">88%</span></div>
+                <div class="prog-bar"><div class="prog-fill" style="width:88%;background:var(--orange)"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hdr">
+            <div class="card-title">최근 가입자</div>
+            <button class="btn btn-outline btn-sm" onclick="loadDashboard()">🔄 새로고침</button>
+            <button class="btn btn-outline btn-sm" onclick="testAPI()" style="font-size:11px;">🔌 API 연결 테스트</button>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>ID</th><th>사용자명</th><th>이메일</th><th>타입</th><th>TL 잔액</th><th>가입일</th><th>상태</th></tr></thead>
+            <tbody id="ds-users-tbody"><tr><td colspan="7" style="text-align:center;padding:32px;color:var(--g500)">로딩중...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ════ 💰 REVENUE ════ -->
+      <div id="tp-revenue" class="tab-panel">
+        <div class="pg-title" data-i18n="admin_revenue">💰 매출 현황</div>
+        <div class="pg-sub">플랫폼 전체 수익 분석 · TL 경제 지표 · 광고주 관리 · 방송국 관리</div>
+
+        <!-- 기간 필터 -->
+        <div style="display:flex;gap:8px;margin-bottom:24px;align-items:center;">
+          <button class="btn btn-primary btn-sm rev-period active" onclick="setRevPeriod(this,'today')">오늘</button>
+          <button class="btn btn-outline btn-sm rev-period" onclick="setRevPeriod(this,'week')">이번 주</button>
+          <button class="btn btn-outline btn-sm rev-period" onclick="setRevPeriod(this,'month')">이번 달</button>
+          <button class="btn btn-outline btn-sm rev-period" onclick="setRevPeriod(this,'year')">올해</button>
+          <span style="margin-left:auto;font-size:13px;color:var(--g500);" id="rev-period-label">2026년 3월 1일 기준</span>
+        </div>
+
+        <!-- 핵심 수익 지표 -->
+        <div class="rev-kpi-grid">
+          <div class="rev-kpi-card purple">
+            <div class="rev-kpi-label" data-i18n="admin_total_rev">총 매출</div>
+            <div class="rev-kpi-value" id="kpi-total">₩4,820,000</div>
+            <div class="rev-kpi-change">↑ 23.4% vs 전달</div>
+            <div class="rev-kpi-bar"><div style="width:78%;"></div></div>
+          </div>
+          <div class="rev-kpi-card green">
+            <div class="rev-kpi-label" data-i18n="admin_ad_rev">광고 수익</div>
+            <div class="rev-kpi-value" id="kpi-ad">₩2,940,000</div>
+            <div class="rev-kpi-change">↑ 31.2%</div>
+            <div class="rev-kpi-bar green"><div style="width:61%;background:#10b981;"></div></div>
+          </div>
+          <div class="rev-kpi-card yellow">
+            <div class="rev-kpi-label" data-i18n="admin_sub_rev">구독 수익 (카페방송)</div>
+            <div class="rev-kpi-value" id="kpi-sub">₩1,160,000</div>
+            <div class="rev-kpi-change">↑ 8.9%</div>
+            <div class="rev-kpi-bar yellow"><div style="width:24%;background:#f59e0b;"></div></div>
+          </div>
+          <div class="rev-kpi-card blue">
+            <div class="rev-kpi-label" data-i18n="admin_tl_rev">TL 충전 수익</div>
+            <div class="rev-kpi-value" id="kpi-tl">₩720,000</div>
+            <div class="rev-kpi-change">↑ 5.1%</div>
+            <div class="rev-kpi-bar blue"><div style="width:15%;background:#3b82f6;"></div></div>
+          </div>
+          <div class="rev-kpi-card red">
+            <div class="rev-kpi-label" data-i18n="admin_payout">크리에이터 지급</div>
+            <div class="rev-kpi-value" id="kpi-payout" style="color:#ef4444;">-₩1,680,000</div>
+            <div class="rev-kpi-change" style="color:#ef4444;">35% 배분율</div>
+            <div class="rev-kpi-bar red"><div style="width:35%;background:#ef4444;"></div></div>
+          </div>
+          <div class="rev-kpi-card dark">
+            <div class="rev-kpi-label" data-i18n="admin_profit">순이익</div>
+            <div class="rev-kpi-value" id="kpi-profit" style="color:#8b5cf6;">₩3,140,000</div>
+            <div class="rev-kpi-change">마진율 65.1%</div>
+            <div class="rev-kpi-bar"><div style="width:65%;"></div></div>
+          </div>
+        </div>
+
+        <!-- 매출 내역 탭 -->
+        <div style="margin-top:24px;">
+          <div class="rev-sub-tabs">
+            <button class="rev-sub-tab active" onclick="switchRevTab('breakdown',this)">수익 분류</button>
+            <button class="rev-sub-tab" onclick="switchRevTab('advertisers',this)" data-i18n="admin_advertisers">광고주 관리</button>
+            <button class="rev-sub-tab" onclick="switchRevTab('stations',this)" data-i18n="admin_stations">방송국 관리</button>
+            <button class="rev-sub-tab" onclick="switchRevTab('transactions',this)" data-i18n="admin_sales_log">거래 내역</button>
+          </div>
+
+          <!-- 수익 분류 -->
+          <div id="rev-panel-breakdown" class="rev-panel">
+            <div class="rev-table-wrap">
+              <table class="rev-table">
+                <thead><tr>
+                  <th>수익 유형</th><th>건수</th><th>매출</th><th>비율</th><th>전달 대비</th>
+                </tr></thead>
+                <tbody>
+                  <tr><td><span class="type-badge purple">영상 광고</span></td><td>1,248건</td><td>₩1,872,000</td><td><div class="bar-cell"><div style="width:39%;background:#8b5cf6;"></div></div> 38.8%</td><td class="up">↑ 34.2%</td></tr>
+                  <tr><td><span class="type-badge green">오디오 광고</span></td><td>892건</td><td>₩1,068,000</td><td><div class="bar-cell"><div style="width:22%;background:#10b981;"></div></div> 22.2%</td><td class="up">↑ 28.1%</td></tr>
+                  <tr><td><span class="type-badge yellow">카페방송 구독</span></td><td>40건</td><td>₩1,160,000</td><td><div class="bar-cell"><div style="width:24%;background:#f59e0b;"></div></div> 24.1%</td><td class="up">↑ 8.9%</td></tr>
+                  <tr><td><span class="type-badge blue">TL 충전</span></td><td>360건</td><td>₩720,000</td><td><div class="bar-cell"><div style="width:15%;background:#3b82f6;"></div></div> 14.9%</td><td class="up">↑ 5.1%</td></tr>
+                  <tr style="background:#faf5ff;font-weight:700;"><td>합계</td><td>2,540건</td><td>₩4,820,000</td><td>100%</td><td class="up">↑ 23.4%</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 광고주 관리 -->
+          <div id="rev-panel-advertisers" class="rev-panel hidden">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <div style="font-size:15px;font-weight:800;">등록 광고주 <span style="background:#ede9fe;color:#7c3aed;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;">12명</span></div>
+              <button class="btn btn-primary btn-sm" onclick="openModal('adv-modal')">+ 광고주 추가</button>
+            </div>
+            <div class="rev-table-wrap">
+              <table class="rev-table">
+                <thead><tr>
+                  <th>광고주</th><th>캠페인</th><th>총 집행</th><th>이번달 집행</th><th>CTR</th><th>상태</th><th>관리</th>
+                </tr></thead>
+                <tbody>
+                  <tr>
+                    <td><div style="font-weight:700;">현대자동차</div><div style="font-size:11px;color:var(--g500);"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c1a0a5b281a9b8b4afa5a0a8efa2aeac">[email&#160;protected]</a></div></td>
+                    <td>3개 캠페인</td><td>₩2,100,000</td><td>₩620,000</td><td>3.2%</td>
+                    <td><span class="status-active">활성</span></td>
+                    <td><div style="display:flex;gap:6px;"><button class="btn btn-outline btn-sm" style="font-size:11px;">편집</button><button class="btn btn-outline btn-sm" style="font-size:11px;color:#ef4444;border-color:#ef4444;" data-i18n="admin_suspend">정지</button></div></td>
+                  </tr>
+                  <tr>
+                    <td><div style="font-weight:700;">스타벅스 코리아</div><div style="font-size:11px;color:var(--g500);"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="630e02110806170a0d04231017021101160008104d0811">[email&#160;protected]</a></div></td>
+                    <td>2개 캠페인</td><td>₩840,000</td><td>₩310,000</td><td>2.8%</td>
+                    <td><span class="status-active">활성</span></td>
+                    <td><div style="display:flex;gap:6px;"><button class="btn btn-outline btn-sm" style="font-size:11px;">편집</button><button class="btn btn-outline btn-sm" style="font-size:11px;color:#ef4444;border-color:#ef4444;" data-i18n="admin_suspend">정지</button></div></td>
+                  </tr>
+                  <tr>
+                    <td><div style="font-weight:700;">배달의민족</div><div style="font-size:11px;color:var(--g500);"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="72101b08321013171f1b1c5c111d1f">[email&#160;protected]</a></div></td>
+                    <td>1개 캠페인</td><td>₩450,000</td><td>₩180,000</td><td>4.1%</td>
+                    <td><span class="status-pending">심사중</span></td>
+                    <td><div style="display:flex;gap:6px;"><button class="btn btn-primary btn-sm" style="font-size:11px;" data-i18n="admin_approve">승인</button><button class="btn btn-outline btn-sm" style="font-size:11px;color:#ef4444;border-color:#ef4444;" data-i18n="admin_reject">거절</button></div></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 방송국 관리 -->
+          <div id="rev-panel-stations" class="rev-panel hidden">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <div style="font-size:15px;font-weight:800;">카페 방송국 <span style="background:#d1fae5;color:#059669;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;">ON AIR 8개</span></div>
+              <button class="btn btn-outline btn-sm" onclick="openModal('cafe-modal')">+ 방송국 추가</button>
+            </div>
+            <div class="rev-table-wrap">
+              <table class="rev-table">
+                <thead><tr>
+                  <th>방송국</th><th>사업자</th><th>구독 플랜</th><th>청취자</th><th>이번달 수익</th><th>상태</th><th>관리</th>
+                </tr></thead>
+                <tbody>
+                  <tr>
+                    <td><div style="font-weight:700;">My Coffee Shop</div><div style="font-size:11px;color:var(--g500);">Jazz · Lo-Fi · 24곡</div></td>
+                    <td>홍길동</td><td><span class="plan-badge-sm">베이직</span></td><td>1,284명</td><td>₩29,000</td>
+                    <td><span class="status-active">방송중</span></td>
+                    <td><div style="display:flex;gap:6px;"><button class="btn btn-outline btn-sm" style="font-size:11px;">편집</button><button class="btn btn-outline btn-sm" style="font-size:11px;color:#ef4444;border-color:#ef4444;">정지</button></div></td>
+                  </tr>
+                  <tr>
+                    <td><div style="font-weight:700;">Seoul Jazz Cafe</div><div style="font-size:11px;color:var(--g500);">Jazz · Bossa · 18곡</div></td>
+                    <td>이영희</td><td><span class="plan-badge-sm pro">프로</span></td><td>892명</td><td>₩79,000</td>
+                    <td><span class="status-active">방송중</span></td>
+                    <td><div style="display:flex;gap:6px;"><button class="btn btn-outline btn-sm" style="font-size:11px;">편집</button><button class="btn btn-outline btn-sm" style="font-size:11px;color:#ef4444;border-color:#ef4444;">정지</button></div></td>
+                  </tr>
+                  <tr>
+                    <td><div style="font-weight:700;">Morning Brew</div><div style="font-size:11px;color:var(--g500);">Acoustic · Pop · 30곡</div></td>
+                    <td>김민준</td><td><span class="plan-badge-sm">베이직</span></td><td>421명</td><td>₩29,000</td>
+                    <td><span class="status-pending">심사중</span></td>
+                    <td><div style="display:flex;gap:6px;"><button class="btn btn-primary btn-sm" style="font-size:11px;" data-i18n="admin_approve">승인</button><button class="btn btn-outline btn-sm" style="font-size:11px;color:#ef4444;border-color:#ef4444;" data-i18n="admin_reject">거절</button></div></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 거래 내역 -->
+          <div id="rev-panel-transactions" class="rev-panel hidden">
+            <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
+              <input type="text" placeholder="🔍 검색..." style="padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;font-family:inherit;width:200px;">
+              <select style="padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;font-family:inherit;background:white;">
+                <option>전체 유형</option><option>광고 수익</option><option>구독 수익</option><option>TL 충전</option><option>지급</option>
+              </select>
+              <button class="btn btn-outline btn-sm" onclick="exportCSV()">📥 CSV 내보내기</button>
+            </div>
+            <div class="rev-table-wrap">
+              <table class="rev-table">
+                <thead><tr>
+                  <th>일시</th><th>유형</th><th>대상</th><th>금액</th><th>수수료</th><th>순수익</th><th>상태</th>
+                </tr></thead>
+                <tbody id="tx-tbody">
+                  <tr><td>2026-03-01 14:32</td><td><span class="type-badge purple">영상광고</span></td><td>현대자동차</td><td>₩62,000</td><td>₩6,200</td><td>₩55,800</td><td><span class="status-active">완료</span></td></tr>
+                  <tr><td>2026-03-01 13:18</td><td><span class="type-badge green">오디오광고</span></td><td>스타벅스</td><td>₩44,000</td><td>₩4,400</td><td>₩39,600</td><td><span class="status-active">완료</span></td></tr>
+                  <tr><td>2026-03-01 12:45</td><td><span class="type-badge yellow">카페구독</span></td><td>My Coffee Shop</td><td>₩29,000</td><td>₩2,900</td><td>₩26,100</td><td><span class="status-active">완료</span></td></tr>
+                  <tr><td>2026-03-01 11:20</td><td><span class="type-badge blue">TL충전</span></td><td>user_1284</td><td>₩10,000</td><td>₩1,000</td><td>₩9,000</td><td><span class="status-active">완료</span></td></tr>
+                  <tr><td>2026-03-01 10:05</td><td><span class="type-badge red">크리에이터지급</span></td><td>creator_482</td><td>-₩28,000</td><td>—</td><td>-₩28,000</td><td><span class="status-active">완료</span></td></tr>
+                  <tr><td>2026-03-01 09:42</td><td><span class="type-badge purple">영상광고</span></td><td>배달의민족</td><td>₩38,000</td><td>₩3,800</td><td>₩34,200</td><td><span class="status-pending">처리중</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        id="tp-exchange" class="tab-panel">
+        <div class="pg-title">💳 환전 요청 관리</div>
+        <div class="pg-sub">창작자 TL → 현금 환전 승인 및 거부 처리</div>
+        <div class="filter-bar">
+          <select class="sel" id="ex-filter" onchange="loadExchanges()">
+            <option value="all">전체</option><option value="pending">대기중</option>
+            <option value="approved">승인됨</option><option value="rejected">거부됨</option>
+          </select>
+          <button class="btn btn-success btn-sm" onclick="approveAll()">✅ 전체 승인</button>
+          <button class="btn btn-outline btn-sm" onclick="loadExchanges()">🔄 새로고침</button>
+        </div>
+        <div class="card">
+          <table class="tbl">
+            <thead><tr><th>ID</th><th>사용자</th><th>TL 금액</th><th>환전액(원)</th><th>계좌 정보</th><th>요청일</th><th>상태</th><th>액션</th></tr></thead>
+            <tbody id="ex-tbody"><tr><td colspan="8" style="text-align:center;padding:40px;color:var(--g500)">환전 요청 없음</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ════ 👥 USERS ════ -->
+      <div id="tp-users" class="tab-panel">
+        <div class="pg-title">👥 사용자 관리</div>
+        <div class="pg-sub">전체 사용자 조회 및 계정 제어</div>
+        <div class="filter-bar">
+          <input type="text" class="s-input" placeholder="이름, 이메일 검색..." id="u-search" oninput="loadUsers()">
+          <select class="sel" id="u-type" onchange="loadUsers()">
+            <option value="all">전체</option><option value="personal">개인</option><option value="business">사업자</option>
+          </select>
+          <select class="sel" id="u-status" onchange="loadUsers()">
+            <option value="all">전체 상태</option><option value="1">활성</option><option value="0">정지</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="loadUsers()">🔄 새로고침</button>
+        </div>
+        <div class="card">
+          <table class="tbl">
+            <thead><tr><th>ID</th><th>사용자명</th><th>이메일</th><th>타입</th><th>TL 잔액</th><th>TLC</th><th>가입일</th><th>상태</th><th>액션</th></tr></thead>
+            <tbody id="u-tbody"><tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">사용자 관리 탭을 클릭하면 로드됩니다</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ════ 🎵 TRACKS ════ -->
+      <div id="tp-tracks" class="tab-panel">
+        <div class="pg-title">🎵 트랙 관리</div>
+        <div class="pg-sub">업로드 음원 모니터링 및 저작권 관리</div>
+        <div class="filter-bar">
+          <input type="text" class="s-input" placeholder="트랙명, 아티스트 검색...">
+          <select class="sel"><option>전체 장르</option><option>K-POP</option><option>Electronic</option><option>Hip-Hop</option><option>Jazz</option><option>Lo-Fi</option></select>
+          <button class="btn btn-outline btn-sm" onclick="loadTracks()">🔄 새로고침</button>
+        </div>
+        <div class="card">
+          <table class="tbl">
+            <thead><tr><th>ID</th><th>트랙명</th><th>아티스트</th><th>장르</th><th>파일 TL</th><th>Pulse</th><th>카페방송</th><th>상태</th><th>액션</th></tr></thead>
+            <tbody id="t-tbody"><tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">로딩중...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ════ 📣 ADS ════ -->
+      <div id="tp-ads" class="tab-panel">
+        <div class="pg-title">📣 광고 관리</div>
+        <div class="pg-sub">광고 심사 · 게재 승인 · 성과 모니터링</div>
+        <div class="sub-tabs" id="ads-sub-tabs">
+          <div class="sub-tab active" onclick="showAdsSub('pending',this)">⏳ 심사 대기</div>
+          <div class="sub-tab" onclick="showAdsSub('active',this)">✅ 게재 중</div>
+          <div class="sub-tab" onclick="showAdsSub('ended',this)">📁 종료</div>
+          <div class="sub-tab" onclick="showAdsSub('stats',this)">📊 성과</div>
+        </div>
+        <div id="ads-pending">
+          <div class="info-box">💡 광고주가 제출한 광고는 관리자 심사 후 게재됩니다. 허위/불법 광고는 즉시 거부해주세요.</div>
+          <div id="ads-pending-list" style="display:flex;flex-direction:column;gap:12px">
+            <div style="text-align:center;padding:40px;color:var(--g500)">심사 대기 광고 없음</div>
+          </div>
+        </div>
+        <div id="ads-active" style="display:none">
+          <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+            <div class="stat-card" style="--ac:var(--green)"><div class="stat-lbl">현재 게재</div><div class="stat-val" id="act-ads-cnt">0</div><div class="stat-chg">정상 게재</div></div>
+            <div class="stat-card" style="--ac:var(--yellow)"><div class="stat-lbl">오늘 노출</div><div class="stat-val">0</div><div class="stat-chg n">임프레션</div></div>
+            <div class="stat-card" style="--ac:var(--purple)"><div class="stat-lbl">오늘 TL 지급</div><div class="stat-val">0</div><div class="stat-chg n">사용자 보상</div></div>
+          </div>
+          <div class="card">
+            <table class="tbl">
+              <thead><tr><th>광고명</th><th>광고주</th><th>예산</th><th>소진</th><th>노출수</th><th>완료율</th><th>기간</th><th>제어</th></tr></thead>
+              <tbody id="act-ads-tbody"><tr><td colspan="8" style="text-align:center;padding:32px;color:var(--g500)">게재 중 광고 없음</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="ads-ended" style="display:none">
+          <div class="card">
+            <table class="tbl">
+              <thead><tr><th>광고명</th><th>광고주</th><th>집행기간</th><th>총예산</th><th>총노출</th><th>완료율</th></tr></thead>
+              <tbody><tr><td colspan="6" style="text-align:center;padding:32px;color:var(--g500)">종료 광고 없음</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="ads-stats" style="display:none">
+          <div class="card">
+            <div class="card-hdr"><div class="card-title">📊 광고 성과 차트 (최근 30일)</div></div>
+            <div class="card-body">
+              <div class="chart-area" id="ads-chart"></div>
+              <div class="chart-lbls" id="ads-lbls"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ 🏢 ADVERTISERS ════ -->
+      <div id="tp-advertisers" class="tab-panel">
+        <div class="pg-title">🏢 광고주 관리</div>
+        <div class="pg-sub">광고주 계정 · 예산 · 광고 상품 관리</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div class="filter-bar" style="margin-bottom:0">
+            <input type="text" class="s-input" placeholder="광고주명, 이메일 검색..." style="width:260px">
+            <select class="sel"><option>전체 등급</option><option>일반</option><option>프리미엄</option><option>엔터프라이즈</option></select>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('adv-modal')">+ 광고주 추가</button>
+        </div>
+        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+          <div class="stat-card" style="--ac:var(--purple)"><div class="stat-lbl">총 광고주 수</div><div class="stat-val" id="adv-cnt">0</div><div class="stat-chg n">등록 완료</div></div>
+          <div class="stat-card" style="--ac:var(--green)"><div class="stat-lbl">총 집행 예산</div><div class="stat-val" id="adv-budget">₩0</div><div class="stat-chg n">누적 합계</div></div>
+          <div class="stat-card" style="--ac:var(--yellow)"><div class="stat-lbl">이번 달 신규</div><div class="stat-val" id="adv-new">0</div><div class="stat-chg n">신규 광고주</div></div>
+        </div>
+        <div class="card">
+          <table class="tbl">
+            <thead><tr><th>광고주명</th><th>담당자</th><th>이메일</th><th>등급</th><th>총 집행</th><th>현재 잔액</th><th>활성 광고</th><th>가입일</th><th>액션</th></tr></thead>
+            <tbody id="adv-tbody"><tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">등록된 광고주 없음</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ════ ☕ CAFE ════ -->
+      <div id="tp-cafe" class="tab-panel">
+        <div class="pg-title">☕ 카페방송 관리</div>
+        <div class="pg-sub">사업자 방송국 승인 · LIVE 모니터링 · SharePlace 연동</div>
+        <div class="stats-grid">
+          <div class="stat-card" style="--ac:var(--green)"><div class="stat-lbl">LIVE 방송국</div><div class="stat-val" id="cafe-live-cnt">0</div><div class="stat-chg">실시간</div></div>
+          <div class="stat-card" style="--ac:var(--purple)"><div class="stat-lbl">총 청취자</div><div class="stat-val" id="cafe-listeners">0</div><div class="stat-chg n">전체 합산</div></div>
+          <div class="stat-card" style="--ac:var(--yellow)"><div class="stat-lbl">등록 방송국</div><div class="stat-val" id="cafe-total">0</div><div class="stat-chg n">승인 완료</div></div>
+          <div class="stat-card" style="--ac:var(--blue)"><div class="stat-lbl">오늘 재생시간</div><div class="stat-val" id="cafe-hours">0h</div><div class="stat-chg n">전체 합산</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+          <div class="card">
+            <div class="card-hdr">
+              <div class="card-title">🔴 LIVE 방송국</div>
+              <button class="btn btn-outline btn-sm" onclick="loadCafe()">🔄</button>
+            </div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:8px" id="cafe-live-list">
+              <div style="text-align:center;padding:32px;color:var(--g500)">라이브 방송국 없음</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hdr">
+              <div class="card-title">📋 전체 방송국</div>
+              <button class="btn btn-primary btn-sm" onclick="openModal('cafe-modal')">+ 방송국 추가</button>
+            </div>
+            <div class="card-body">
+              <table class="tbl">
+                <thead><tr><th>방송국명</th><th>사업자</th><th>장르</th><th>상태</th><th>청취자</th><th>제어</th></tr></thead>
+                <tbody id="cafe-tbl"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--g500)">등록 방송국 없음</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hdr"><div class="card-title">🎵 SharePlace 연동 트랙 (카페방송 허용 목록)</div></div>
+          <div class="card-body">
+            <div class="info-box">💡 카페방송에서 재생되는 모든 음악은 SharePlace 등록 트랙입니다. 재생 시 창작자에게 자동으로 TL 수익이 지급됩니다.</div>
+            <table class="tbl">
+              <thead><tr><th>트랙명</th><th>아티스트</th><th>장르</th><th>오늘 카페 재생</th><th>TL 지급</th><th>카페방송 허용</th></tr></thead>
+              <tbody id="cafe-tracks-tbl"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--g500)">트랙 없음</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ 🎧 RADIO ════ -->
+      <div id="tp-radio" class="tab-panel">
+        <div class="pg-title">🎧 Moving Radio 관리</div>
+        <div class="pg-sub">개인 사용자 이동형 라디오 큐레이션 및 모드 설정</div>
+        <div class="stats-grid">
+          <div class="stat-card" style="--ac:var(--purple)"><div class="stat-lbl">오늘 활성 사용자</div><div class="stat-val" id="rd-active">0</div><div class="stat-chg">이동 중 청취</div></div>
+          <div class="stat-card" style="--ac:var(--green)"><div class="stat-lbl">평균 청취 시간</div><div class="stat-val" id="rd-avg">0분</div><div class="stat-chg n">세션당</div></div>
+          <div class="stat-card" style="--ac:var(--yellow)"><div class="stat-lbl">인기 BPM 모드</div><div class="stat-val" id="rd-bpm">드라이브</div><div class="stat-chg n">100~130 BPM</div></div>
+          <div class="stat-card" style="--ac:var(--blue)"><div class="stat-lbl">AI 큐레이션 만족도</div><div class="stat-val" id="rd-score">-</div><div class="stat-chg n">사용자 평점</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+          <div class="card">
+            <div class="card-hdr">
+              <div class="card-title">🎛️ BPM 모드 설정</div>
+              <button class="btn btn-primary btn-sm" onclick="saveRadio()">💾 저장</button>
+            </div>
+            <div class="card-body">
+              <table class="tbl">
+                <thead><tr><th>모드</th><th>BPM 범위</th><th>추천 장르</th><th>활성화</th></tr></thead>
+                <tbody>
+                  <tr><td>🚶 산책</td><td><span class="badge bb">85~110</span></td><td>Lo-Fi, Indie, Pop</td><td><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></td></tr>
+                  <tr><td>🏃 달리기</td><td><span class="badge br">140~180</span></td><td>Electronic, Hip-Hop</td><td><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></td></tr>
+                  <tr><td>🚗 드라이브</td><td><span class="badge bp">100~130</span></td><td>K-POP, R&B, Pop</td><td><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></td></tr>
+                  <tr><td>📖 집중</td><td><span class="badge bg">60~80</span></td><td>Jazz, Classical, Lo-Fi</td><td><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></td></tr>
+                  <tr><td>🌙 심야</td><td><span class="badge bgr">70~100</span></td><td>Chill, R&B, Jazz</td><td><label class="switch"><input type="checkbox"><span class="slider"></span></label></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hdr"><div class="card-title">📊 모드별 이용 현황</div></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:13px">
+              <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>🚗 드라이브</span><span style="font-weight:700">38%</span></div><div class="prog-bar"><div class="prog-fill" style="width:38%"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>🚶 산책</span><span style="font-weight:700">29%</span></div><div class="prog-bar"><div class="prog-fill" style="width:29%;background:var(--blue)"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>🏃 달리기</span><span style="font-weight:700">21%</span></div><div class="prog-bar"><div class="prog-fill" style="width:21%;background:var(--red)"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>📖 집중</span><span style="font-weight:700">12%</span></div><div class="prog-bar"><div class="prog-fill" style="width:12%;background:var(--green)"></div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hdr">
+            <div class="card-title">⚙️ AI 큐레이션 글로벌 설정</div>
+            <button class="btn btn-success btn-sm" onclick="saveRadio()">💾 저장</button>
+          </div>
+          <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px">
+            <div class="f-field"><label>추천 알고리즘</label>
+              <select class="sel" style="width:100%"><option>POC 기여도 우선</option><option>최신 트랙 우선</option><option>인기도 우선</option><option>장르 매칭</option></select></div>
+            <div class="f-field"><label>광고 삽입 주기</label>
+              <select class="sel" style="width:100%"><option>5곡마다 1개</option><option>3곡마다 1개</option><option>10곡마다 1개</option><option>없음</option></select></div>
+            <div class="f-field"><label>오프라인 캐시</label>
+              <select class="sel" style="width:100%"><option>5곡 캐시</option><option>10곡 캐시</option><option>허용 안함</option></select></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ 🛍️ SHAREPLACE ════ -->
+
+      <div id="tp-bulk" class="tab-panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">⚡ 대량 관리 (Admin 전용)</div>
+            <div class="panel-sub">음원 대량 업로드 · Spotify 대량 인증</div>
+          </div>
+        </div>
+
+        <!-- Spotify 대량 인증 -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px;">
+          <div style="font-size:15px;font-weight:800;color:var(--fg);margin-bottom:4px;">🎵 Spotify 대량 인증</div>
+          <div style="font-size:12px;color:var(--g500);margin-bottom:16px;">곡명과 아티스트를 한 줄씩 입력 → 자동 Spotify 검색 · 인증</div>
+          <div style="font-size:12px;color:var(--g500);margin-bottom:8px;">형식: 곡명|아티스트 (예: Blinding Lights|The Weeknd)</div>
+          <textarea id="bulk-spotify-input" placeholder="Blinding Lights|The Weeknd&#10;Shape of You|Ed Sheeran&#10;Dynamite|BTS" style="width:100%;height:160px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;color:var(--fg);padding:12px;font-size:13px;font-family:var(--mono);box-sizing:border-box;resize:vertical;outline:none;"></textarea>
+          <div style="display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="runBulkSpotify()">🔍 대량 인증 시작</button>
+            <button class="btn btn-outline btn-sm" onclick="g('bulk-spotify-input').value=''">초기화</button>
+            <span id="bulk-spotify-status" style="font-size:12px;color:var(--g500);"></span>
+          </div>
+          <div id="bulk-spotify-results" style="margin-top:16px;max-height:400px;overflow-y:auto;"></div>
+        </div>
+
+        <!-- 대량 파일 업로드 -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;">
+          <div style="font-size:15px;font-weight:800;color:var(--fg);margin-bottom:4px;">📁 대량 파일 업로드</div>
+          <div style="font-size:12px;color:var(--g500);margin-bottom:16px;">여러 음원 파일을 한번에 업로드하고 SharePlace에 등록합니다</div>
+          <div id="bulk-drop-zone" style="border:2px dashed var(--border);border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:all .2s;" 
+               onclick="g('bulk-file-input').click()"
+               ondragover="event.preventDefault();this.style.borderColor='var(--purple)'"
+               ondragleave="this.style.borderColor='var(--border)'"
+               ondrop="handleBulkDrop(event)">
+            <div style="font-size:32px;margin-bottom:8px;">📂</div>
+            <div style="font-size:14px;font-weight:700;color:var(--fg);">클릭하거나 파일을 드래그하세요</div>
+            <div style="font-size:12px;color:var(--g500);margin-top:4px;">MP3, WAV, FLAC, M4A · 여러 파일 동시 선택 가능</div>
+          </div>
+          <input type="file" id="bulk-file-input" multiple accept="audio/*" style="display:none" onchange="handleBulkFiles(this.files)">
+          <div id="bulk-file-list" style="margin-top:16px;"></div>
+          <div style="display:flex;gap:10px;margin-top:12px;">
+            <button class="btn btn-primary" id="bulk-upload-btn" onclick="startBulkUpload()" style="display:none;">⬆️ 전체 업로드 &amp; 등록</button>
+            <button class="btn btn-outline btn-sm" onclick="clearBulkFiles()" style="display:none;" id="bulk-clear-btn">초기화</button>
+          </div>
+          <div id="bulk-upload-progress" style="margin-top:12px;"></div>
+        </div>
+      </div>
+
+      <div id="tp-shareplace" class="tab-panel">
+        <div class="pg-title">🛍️ SharePlace 관리</div>
+        <div class="pg-sub">커뮤니티 마켓플레이스 트랙 모니터링 및 수익 분배 확인</div>
+        <div class="stats-grid">
+          <div class="stat-card" style="--ac:var(--purple)"><div class="stat-lbl">공유된 트랙</div><div class="stat-val" id="sp-cnt">0</div><div class="stat-chg">SharePlace 등록</div></div>
+          <div class="stat-card" style="--ac:var(--green)"><div class="stat-lbl">오늘 재생 수</div><div class="stat-val" id="sp-plays">0</div><div class="stat-chg n">전체 합산</div></div>
+          <div class="stat-card" style="--ac:var(--yellow)"><div class="stat-lbl">총 Pulse 누적</div><div class="stat-val" id="sp-pulse">0</div><div class="stat-chg n">기여도 지표</div></div>
+          <div class="stat-card" style="--ac:var(--blue)"><div class="stat-lbl">오늘 TL 지급</div><div class="stat-val" id="sp-tl">0</div><div class="stat-chg n">창작자 수익</div></div>
+        </div>
+        <div class="card">
+          <div class="card-hdr">
+            <div class="card-title">인기 트랙 TOP 10</div>
+            <select class="sel" style="font-size:12px"><option>오늘</option><option>이번 주</option><option>이번 달</option></select>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>#</th><th>트랙명</th><th>아티스트</th><th>장르</th><th>Pulse</th><th>TL 수익</th><th>카페방송</th><th>상태</th></tr></thead>
+            <tbody id="sp-tbody"><tr><td colspan="8" style="text-align:center;padding:32px;color:var(--g500)">데이터 없음</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ════ ⚙️ SETTINGS ════ -->
+      <div id="tp-settings" class="tab-panel">
+        <div class="pg-title">⚙️ 시스템 설정</div>
+        <div class="pg-sub">플랫폼 핵심 파라미터 제어</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+          <div class="card">
+            <div class="card-hdr"><div class="card-title">⚡ TL 경제 파라미터</div></div>
+            <div class="card-body">
+              <div class="f-field"><label>음악 재생 소모 (TL/초)</label><input type="number" value="1" min="0.1" step="0.1"></div>
+              <div class="f-field"><label>영상 재생 소모 (TL/초)</label><input type="number" value="2" min="0.1" step="0.1"></div>
+              <div class="f-field"><label>광고 시청 보상 (TL/초)</label><input type="number" value="2" min="0.1" step="0.1"></div>
+              <div class="f-field"><label>신규 가입 보너스 TL</label><input type="number" value="10000"></div>
+              <div class="f-field"><label>최대 채굴 한도 (%)</label><input type="number" value="50" min="0" max="100"></div>
+              <div class="f-field"><label>금 준비금 비율 (%)</label><input type="number" value="10" min="0" max="100"></div>
+              <button class="btn btn-primary" onclick="save('TL 경제')">💾 저장</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hdr"><div class="card-title">💰 수익 배분 설정</div></div>
+            <div class="card-body">
+              <div class="info-box" style="font-size:12px">
+                <strong>플랜 A:</strong> 즉시 지급 — 창작자 70% / 플랫폼 30%<br>
+                <strong>플랜 B:</strong> TLC 보상 — 창작자 50% / 플랫폼 50%
+              </div>
+              <div class="f-field"><label>플랜 A 창작자 비율 (%)</label><input type="number" value="70" min="0" max="100"></div>
+              <div class="f-field"><label>플랜 B 창작자 비율 (%)</label><input type="number" value="50" min="0" max="100"></div>
+              <div class="f-field"><label>카페방송 추가 수수료 (%)</label><input type="number" value="5" min="0" max="100"></div>
+              <div class="f-field"><label>광고 수익 창작자 배분 (%)</label><input type="number" value="30" min="0" max="100"></div>
+              <button class="btn btn-success" onclick="save('수익 배분')">💾 저장</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hdr"><div class="card-title">🔐 보안 설정</div></div>
+            <div class="card-body">
+              <div class="f-field"><label>환전 최소 금액 (TL)</label><input type="number" value="10000"></div>
+              <div class="f-field"><label>일일 환전 최대 횟수</label><input type="number" value="3"></div>
+              <div class="f-field"><label>허위 신고 패널티 (POC)</label><input type="number" value="-50" max="0"></div>
+              <button class="btn btn-warning" onclick="save('보안')">💾 저장</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hdr"><div class="card-title">📢 전체 공지 발송</div></div>
+            <div class="card-body">
+              <div class="f-field"><label>대상</label>
+                <select class="sel" style="width:100%"><option>전체 사용자</option><option>창작자만</option><option>사업자만</option><option>광고주만</option></select></div>
+              <div class="f-field"><label>제목</label><input type="text" placeholder="공지 제목"></div>
+              <div class="f-field"><label>내용</label><textarea placeholder="공지 내용..."></textarea></div>
+              <button class="btn btn-primary" onclick="sendNotice()">📤 발송</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ 📋 LOGS ════ -->
+      <div id="tp-logs" class="tab-panel">
+        <div class="pg-title">📋 시스템 로그</div>
+        <div class="pg-sub">API 호출 · 오류 · 보안 이벤트 모니터링</div>
+        <div class="filter-bar">
+          <select class="sel"><option>전체</option><option>API 오류</option><option>로그인</option><option>환전</option><option>광고</option></select>
+          <input type="date" class="s-input" style="width:150px">
+          <button class="btn btn-outline btn-sm" onclick="refreshLogs()">🔄</button>
+          <button class="btn btn-danger btn-sm" onclick="clearLogs()">🗑 초기화</button>
+        </div>
+        <div class="card">
+          <div class="card-body" style="font-family:var(--mono);font-size:11px;background:#0f172a;border-radius:10px;padding:18px;color:#e2e8f0;max-height:500px;overflow-y:auto;line-height:1.8" id="log-out">
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /admin-panel -->
+
+<!-- MODALS -->
+<div class="modal-ov" id="adv-modal">
+  <div class="modal">
+    <div class="modal-title">🏢 광고주 추가</div>
+    <div class="f-row">
+      <div class="f-field"><label>회사명</label><input type="text" id="adv-company" placeholder="(주) 예시"></div>
+      <div class="f-field"><label>담당자</label><input type="text" id="adv-contact" placeholder="홍길동"></div>
+    </div>
+    <div class="f-row">
+      <div class="f-field"><label>이메일</label><input type="email" id="adv-email" placeholder="ads@company.com"></div>
+      <div class="f-field"><label>전화</label><input type="tel" id="adv-phone" placeholder="010-0000-0000"></div>
+    </div>
+    <div class="f-row">
+      <div class="f-field"><label>등급</label>
+        <select id="adv-grade" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:8px">
+          <option>일반</option><option>프리미엄</option><option>엔터프라이즈</option></select></div>
+      <div class="f-field"><label>초기 예산 (원)</label><input type="number" id="adv-budget" placeholder="1000000"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('adv-modal')">취소</button>
+      <button class="btn btn-primary" onclick="saveAdv()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="cafe-modal">
+  <div class="modal">
+    <div class="modal-title">☕ 방송국 추가</div>
+    <div class="f-row">
+      <div class="f-field"><label>방송국명</label><input type="text" id="cf-name" placeholder="홍대 감성 카페"></div>
+      <div class="f-field"><label>사업자명</label><input type="text" id="cf-owner" placeholder="(주) 카페"></div>
+    </div>
+    <div class="f-row">
+      <div class="f-field"><label>주력 장르</label>
+        <select id="cf-genre" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:8px">
+          <option>K-POP</option><option>Lo-Fi</option><option>Jazz</option><option>Chill</option><option>Electronic</option><option>Mixed</option></select></div>
+      <div class="f-field"><label>월 구독료 (TL)</label><input type="number" id="cf-fee" placeholder="50000"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('cafe-modal')">취소</button>
+      <button class="btn btn-primary" onclick="saveCafe()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-box"></div>
+
 <script>
-const cd=document.getElementById('cd'),cr=document.getElementById('cr');
-let mx=0,my=0,rx=0,ry=0;
-document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY});
-function anim(){rx+=(mx-rx)*.13;ry+=(my-ry)*.13;cd.style.left=mx+'px';cd.style.top=my+'px';cr.style.left=rx+'px';cr.style.top=ry+'px';requestAnimationFrame(anim);}anim();
-document.querySelectorAll('a,button,.cat-item,.fc,.radio-card,.nav-icon-btn').forEach(el=>{
-  el.addEventListener('mouseenter',()=>cr.classList.add('hov'));
-  el.addEventListener('mouseleave',()=>cr.classList.remove('hov'));
-});
-['rcw1','rcw2','rcw3'].forEach((id,idx)=>{
-  const el=document.getElementById(id);
-  for(let i=0;i<50;i++){const b=document.createElement('div');b.className='rcwb';b.style.animationDelay=(i*.03+idx*.1)+'s';el.appendChild(b);}
-});
+function g(id){return document.getElementById(id)}
+const API = 'https://timelink-backend.mununglee.workers.dev';
+const CRED = { email:'admin@timelink.digital', pw:'timelink2025!' };
+const TITLES = {
+  dashboard:'📊 대시보드', revenue:'💰 매출 현황', exchange:'💳 환전 요청',
+  users:'👥 사용자 관리', tracks:'🎵 트랙 관리', ads:'📣 광고 관리',
+  advertisers:'🏢 광고주 관리', cafe:'☕ 카페방송', radio:'🎧 Moving Radio',
+  shareplace:'🛍️ SharePlace', settings:'⚙️ 시스템 설정', logs:'📋 로그'
+};
+
+// ── 로그인/로그아웃 ──
+window.doLogin = function doLogin(){
+  const e=g('a-email').value.trim(), p=g('a-pw').value;
+  if(e===CRED.email && p===CRED.pw){
+    g('login-screen').style.display='none';
+    g('admin-panel').style.display='block';
+    localStorage.setItem('adm_s',Date.now());
+    init();
+  } else { g('login-err').style.display='block'; }
+}
+function doLogout(){
+  localStorage.removeItem('adm_s');
+  g('admin-panel').style.display='none';
+  g('login-screen').style.display='flex';
+  g('a-email').value=''; g('a-pw').value='';
+}
+
+// ── 탭 전환 ──
+function go(name, el){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const tp = g('tp-'+name);
+  if(!tp){ console.warn('탭 패널 없음: tp-'+name); return; }
+  tp.classList.add('active');
+  if(el) el.classList.add('active');
+  g('topbar-title').textContent = TITLES[name]||name;
+  const loaders={dashboard:loadDashboard,users:loadUsers,tracks:loadTracks,cafe:loadCafe,revenue:loadRevenue,exchange:loadExchanges,logs:refreshLogs,ads:loadAds,advertisers:loadAds,shareplace:loadShareplaceAdmin,bulk:loadBulk,radio:loadRadio,settings:loadSettings};
+  if(loaders[name]) loaders[name]();
+  log('[NAV] ' + (TITLES[name]||name));
+}
+
+// ── API ──
+async function testAPI(){
+  log('[TEST] API 연결 테스트 시작...');
+  try {
+    const r1 = await fetch(API+'/api/health', {mode:'cors'});
+    const d1 = await r1.json();
+    log('[TEST] health: '+JSON.stringify(d1));
+  } catch(e){ log('[TEST] health 실패: '+e.message,'e'); }
+  try {
+    const r2 = await fetch(API+'/api/admin/users', {mode:'cors'});
+    const d2 = await r2.json();
+    log('[TEST] users: '+(d2.users?d2.users.length+'명':'오류'));
+    if(d2.users && d2.users.length) loadUsers();
+  } catch(e){ log('[TEST] users 실패: '+e.message,'e'); }
+  try {
+    const r3 = await fetch(API+'/api/tracks', {mode:'cors'});
+    const d3 = await r3.json();
+    log('[TEST] tracks: '+(d3.tracks?d3.tracks.length+'개':'오류'));
+    if(d3.tracks && d3.tracks.length) loadTracks();
+  } catch(e){ log('[TEST] tracks 실패: '+e.message,'e'); }
+  toast('API 테스트 완료 - 로그 탭 확인','info');
+  go('logs', document.querySelector('[onclick*="logs"]'));
+}
+
+async function api(path, opts){
+  try{
+    const r=await fetch(API+path, Object.assign({mode:'cors'}, opts||{}));
+    if(!r.ok){ log('[ERR] HTTP '+r.status+' - '+path,'e'); return null; }
+    return await r.json();
+  }
+  catch(e){ log('[ERR] '+path+' - '+e.message,'e'); return null; }
+}
+
+// ── 대시보드 ──
+async function loadDashboard(){
+  // 병렬로 users + stats + tracks 조회
+  const [ud, sd, td] = await Promise.all([
+    api('/api/admin/users'),
+    api('/api/admin/stats'),
+    api('/api/tracks')
+  ]);
+
+  // 사용자 통계
+  if(ud && ud.users){
+    const us = ud.users;
+    g('ds-users').textContent = us.length.toLocaleString();
+    const tod = new Date().toISOString().split('T')[0];
+    const nw = us.filter(u => u.created_at && u.created_at.startsWith(tod)).length;
+    g('ds-users-today').textContent = '+' + nw + ' 오늘';
+    const tl = us.reduce((s,u) => s + (Number(u.tl)||10000), 0);
+    if(g('ds-tl')) g('ds-tl').textContent = fmt(tl) + ' TL';
+    if(g('tl-circ')) g('tl-circ').textContent = fmt(tl) + ' TL';
+    g('ds-users-tbody').innerHTML = us.slice(0,8).map(u => `
+      <tr>
+        <td><span class="badge bgr">#${u.id}</span></td>
+        <td><strong>${esc(u.username||'-')}</strong></td>
+        <td style="font-size:12px;color:var(--g500)">${esc(u.email||'-')}</td>
+        <td>${u.account_type==='business'?'<span class="badge bb">사업자</span>':'<span class="badge bgr">개인</span>'}</td>
+        <td style="font-family:var(--mono);font-weight:700">⚡ ${fmt(u.tl||10000)}</td>
+        <td style="font-size:12px;color:var(--g500)">${(u.created_at||'').substring(0,10)||'-'}</td>
+        <td><span class="badge bg">활성</span></td>
+      </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--g500)">사용자 없음</td></tr>';
+  }
+
+  // 트랙 통계
+  if(td && td.tracks){
+    const tks = td.tracks;
+    if(g('ds-ads')) g('ds-ads').textContent = tks.length.toLocaleString();
+    if(g('ds-ads-p')) g('ds-ads-p').textContent = '총 공유 트랙';
+    const totalPulse = tks.reduce((s,t) => s + (Number(t.pulse)||0), 0);
+    if(g('ds-cafes')) g('ds-cafes').textContent = fmt(totalPulse);
+    if(g('ds-listeners')) g('ds-listeners').textContent = '총 재생 펄스';
+  }
+
+  // 뱃지
+  if(g('nb-exchange')) g('nb-exchange').textContent = '0';
+  if(g('nb-ads')) g('nb-ads').textContent = '0';
+  if(g('nb-cafe')) g('nb-cafe').textContent = '0';
+  renderChart();
+  log('[대시보드] 새로고침 완료');
+}
+
+// ── 매출 ──
+async function loadRevenue(){
+  const [ud, td] = await Promise.all([api('/api/admin/users'), api('/api/tracks')]);
+  if(ud && ud.users){
+    const tl = ud.users.reduce((s,u) => s + (Number(u.tl)||10000), 0);
+    if(g('tl-circ')) g('tl-circ').textContent = fmt(tl) + ' TL';
+    if(g('tlc-circ')) g('tlc-circ').textContent = '0.0000 TLC';
+    if(g('tl-pending')) g('tl-pending').textContent = '0 TL';
+    if(g('rv-charge')) g('rv-charge').textContent = '₩' + fmt(tl);
+    if(g('rv-total')) g('rv-total').textContent = '₩' + fmt(tl);
+  }
+  if(td && td.tracks){
+    const totalTL = td.tracks.reduce((s,t) => s + (Number(t.file_tl)||0), 0);
+    if(g('rv-fee')) g('rv-fee').textContent = '₩' + fmt(Math.floor(totalTL * 0.3));
+  }
+  if(g('rv-ads')) g('rv-ads').textContent = '₩0';
+  if(g('rv-gold')) g('rv-gold').textContent = '₩0';
+  log('[매출] 새로고침 완료');
+}
+
+// ── 환전 ──
+
+function switchRevTab(name, btn) {
+  document.querySelectorAll('.rev-sub-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.rev-panel').forEach(p => p.classList.add('hidden'));
+  const panel = document.getElementById('rev-panel-' + name);
+  if (panel) panel.classList.remove('hidden');
+}
+
+function setRevPeriod(btn, period) {
+  document.querySelectorAll('.rev-period').forEach(b => { b.className = 'btn btn-outline btn-sm rev-period'; });
+  btn.className = 'btn btn-primary btn-sm rev-period active';
+  const LABELS = { today:'2026년 3월 1일 기준', week:'2026년 2월 23일 ~ 3월 1일', month:'2026년 3월 기준', year:'2026년 누계' };
+  document.getElementById('rev-period-label').textContent = LABELS[period] || '';
+}
+
+function exportCSV() {
+  const rows = [['일시','유형','대상','금액','수수료','순수익','상태']];
+  document.querySelectorAll('#tx-tbody tr').forEach(tr => {
+    rows.push([...tr.querySelectorAll('td')].map(td => td.textContent.trim()));
+  });
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'timelink-revenue-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+async function loadExchanges(){
+  if(g('ex-tbody')) g('ex-tbody').innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--g500)">환전 요청 없음 (준비중)</td></tr>';
+  log('[환전] 새로고침 완료');
+}
+function approveAll(){ toast('전체 환전 승인 완료','success'); }
+
+// ── 사용자 ──
+async function loadUsers(){
+  const tb=g('u-tbody');
+  if(tb) tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">조회 중...</td></tr>';
+  const d=await api('/api/admin/users');
+  log('[사용자] API 응답: ' + JSON.stringify(d).substring(0,100));
+  if(!d){ tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--red)">API 연결 실패 - Worker 확인 필요</td></tr>'; return; }
+  if(!d.users||!d.users.length){ tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">등록된 사용자 없음</td></tr>'; return; }
+  const q=g('u-search').value.toLowerCase();
+  const type=g('u-type').value;
+  let us=d.users;
+  if(q) us=us.filter(u=>(u.username||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q));
+  // account_type 기반 필터 (is_business 컬럼 없음)
+  if(type==='business') us=us.filter(u=>u.account_type==='business');
+  else if(type==='personal') us=us.filter(u=>u.account_type!=='business');
+  if(!us.length){ tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">결과 없음</td></tr>'; return; }
+  tb.innerHTML=us.map(u=>`
+    <tr>
+      <td><span class="badge bgr">#${u.id}</span></td>
+      <td><strong>${esc(u.username||'-')}</strong></td>
+      <td style="font-size:12px;color:var(--g500)">${esc(u.email||'-')}</td>
+      <td>${u.account_type==='business'?'<span class="badge bb">사업자</span>':'<span class="badge bgr">개인</span>'}</td>
+      <td style="font-family:var(--mono)">⚡ ${fmt(u.tl||10000)}</td>
+      <td style="font-family:var(--mono);font-size:12px">${Number(u.tlc||0).toFixed(4)}</td>
+      <td style="font-size:12px;color:var(--g500)">${(u.created_at||'').substring(0,10)||'-'}</td>
+      <td><span class="badge bg">활성</span></td>
+      <td><div style="display:flex;gap:4px">
+        <button class="btn btn-outline btn-xs" onclick="toast('수정 예정','info')">수정</button>
+        <button class="btn btn-danger btn-xs" onclick="if(confirm('정지?'))toast('정지됨','success')">정지</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+// ── 트랙 ──
+
+// ── 트랙 삭제 (D1 + 공유 localStorage 정리 지시) ──
+async function deleteTrack(trackId){
+  if(!confirm('이 트랙을 삭제하시겠습니까?\n모든 사용자의 SharePlace에서 사라집니다.')) return;
+  try {
+    const r = await fetch(API + '/api/tracks/' + trackId, { method:'DELETE', mode:'cors' });
+    const d = await r.json();
+    if(d.ok){
+      // 삭제된 트랙 ID 목록을 localStorage에 기록 (shareplace가 참조)
+      var deleted = JSON.parse(localStorage.getItem('tl_deleted_tracks')||'[]');
+      if(deleted.indexOf(trackId) === -1){ deleted.push(trackId); }
+      localStorage.setItem('tl_deleted_tracks', JSON.stringify(deleted));
+      toast('✅ 트랙 삭제됨: ' + trackId, 'success');
+      loadTracks();
+    } else {
+      toast('삭제 실패: ' + (d.error||''), 'error');
+    }
+  } catch(e) {
+    // D1 연결 실패 시에도 삭제 목록엔 기록
+    var deleted = JSON.parse(localStorage.getItem('tl_deleted_tracks')||'[]');
+    if(deleted.indexOf(trackId) === -1){ deleted.push(trackId); }
+    localStorage.setItem('tl_deleted_tracks', JSON.stringify(deleted));
+    toast('⚠️ DB 오프라인 - 삭제 목록에 기록됨', 'info');
+    loadTracks();
+  }
+}
+
+async function loadTracks(){
+  const tb=g('t-tbody');
+  if(tb) tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">조회 중...</td></tr>';
+  const d=await api('/api/tracks?limit=200');
+  log('[트랙] API 응답: '+(d?'tracks='+( d.tracks?d.tracks.length:'없음'):'null'));
+  if(!d||!d.tracks||!d.tracks.length){ tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g500)">트랙 없음</td></tr>'; return; }
+  tb.innerHTML=d.tracks.map(t=>`
+    <tr>
+      <td><span class="badge bgr">#${t.id}</span></td>
+      <td><strong>${esc(t.title||'-')}</strong></td>
+      <td style="color:var(--g500)">${esc(t.artist||'-')}</td>
+      <td><span class="badge bp">${esc(t.genre||'-')}</span></td>
+      <td style="font-family:var(--mono)">⚡ ${fmt(t.file_tl||0)}</td>
+      <td style="font-family:var(--mono)">${fmt(t.pulse||0)}</td>
+      <td><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></td>
+      <td><span class="badge bg">승인됨</span></td>
+      <td><button class="btn btn-danger btn-xs" onclick="deleteTrack('${t.id}')">삭제</button></td>
+    </tr>`).join('');
+}
+
+// ── 카페 ──
+function loadCafe(){
+  const stations=[
+    {id:1,name:'홍대 감성 카페',owner:'(주)카페24',live:true,listeners:84,genre:'Lo-Fi'},
+    {id:2,name:'강남 스터디카페',owner:'스타벅스코리아',live:true,listeners:142,genre:'Jazz'},
+    {id:3,name:'이태원 바 BGM',owner:'개인사업자',live:false,listeners:0,genre:'Electronic'},
+  ];
+  g('cafe-live-cnt').textContent=stations.filter(s=>s.live).length;
+  g('cafe-listeners').textContent=stations.reduce((s,x)=>s+x.listeners,0);
+  g('cafe-total').textContent=stations.length;
+  g('cafe-hours').textContent='18h';
+  g('nb-cafe').textContent=stations.filter(s=>s.live).length;
+  g('cafe-live-list').innerHTML=stations.filter(s=>s.live).map(s=>`
+    <div class="cafe-card">
+      <div class="live-dot on"></div>
+      <div style="flex:1"><div style="font-weight:700;font-size:13px">${esc(s.name)}</div>
+        <div style="font-size:12px;color:var(--g500)">${esc(s.owner)} · ${s.genre}</div></div>
+      <span class="badge bg">👥 ${s.listeners}</span>
+      <button class="btn btn-danger btn-xs" onclick="toast('방송 중단됨','success')">중단</button>
+    </div>`).join('');
+  g('cafe-tbl').innerHTML=stations.map(s=>`
+    <tr>
+      <td><strong>${esc(s.name)}</strong></td>
+      <td style="font-size:12px;color:var(--g500)">${esc(s.owner)}</td>
+      <td><span class="badge bp">${s.genre}</span></td>
+      <td>${s.live?'<span class="badge bg">🔴 LIVE</span>':'<span class="badge bgr">오프라인</span>'}</td>
+      <td>${s.listeners}</td>
+      <td><div style="display:flex;gap:4px">
+        <button class="btn btn-outline btn-xs">설정</button>
+        <button class="btn btn-danger btn-xs">삭제</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+// ── 차트 ──
+function renderChart(){
+  const data=Array.from({length:14},()=>Math.floor(Math.random()*80+20)*1000);
+  const max=Math.max(...data);
+  const labels=Array.from({length:14},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(13-i));return`${d.getMonth()+1}/${d.getDate()}`;});
+  g('main-chart').innerHTML=data.map(v=>`<div class="bar" style="height:${(v/max*100).toFixed(0)}%" title="${fmt(v)} TL"></div>`).join('');
+  g('main-lbls').innerHTML=labels.map(l=>`<div class="chart-lbl">${l}</div>`).join('');
+}
+
+// ── 광고 서브탭 ──
+function showAdsSub(name,el){
+  ['pending','active','ended','stats'].forEach(s=>{const e=g('ads-'+s);if(e)e.style.display=s===name?'block':'none';});
+  document.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  if(name==='stats'){
+    const data=Array.from({length:30},()=>Math.floor(Math.random()*50+10));
+    const max=Math.max(...data);
+    g('ads-chart').innerHTML=data.map(v=>`<div class="bar" style="height:${(v/max*100).toFixed(0)}%"></div>`).join('');
+    g('ads-lbls').innerHTML=Array.from({length:30},(_,i)=>i%5===0?`<div class="chart-lbl">${30-i}일전</div>`:`<div class="chart-lbl"></div>`).join('');
+  }
+}
+
+// ── 모달 ──
+function openModal(id){g(id).classList.add('show')}
+function closeModal(id){g(id).classList.remove('show')}
+function saveAdv(){toast('광고주 등록 완료','success');closeModal('adv-modal');log('[광고주] 새 광고주 등록')}
+function saveCafe(){toast('방송국 추가 완료','success');closeModal('cafe-modal');loadCafe();log('[카페] 새 방송국 등록')}
+
+// ── 설정 ──
+function save(name){toast(name+' 설정 저장됨','success');log('[설정] '+name+' 변경')}
+function saveRadio(){toast('Moving Radio 설정 저장됨','success');log('[Radio] 큐레이션 설정 변경')}
+function sendNotice(){toast('공지 발송 완료','success');log('[공지] 전체 공지 발송')}
+
+// ── 로그 ──
+function log(msg,type=''){
+  const el=g('log-out'); if(!el) return;
+  const t=new Date().toLocaleTimeString('ko-KR');
+  const col=type==='e'?'#ef4444':type==='s'?'#10b981':'#64748b';
+  el.innerHTML+=`<div style="color:${col}">[${t}] ${msg}</div>`;
+  el.scrollTop=el.scrollHeight;
+}
+function refreshLogs(){
+  log('[시스템] 로그 새로고침 ' + new Date().toLocaleTimeString('ko-KR'));
+}
+function clearLogs(){g('log-out').innerHTML='';toast('로그 초기화','success')}
+
+// ── 유틸 ──
+// g() → 상단으로 이동
+function fmt(n){return Math.floor(n||0).toLocaleString()}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function toast(msg,type='info'){
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;el.textContent=msg;
+  g('toast-box').prepend(el);setTimeout(()=>el.remove(),3000);
+}
+
+// ── 시계 ──
+setInterval(()=>{g('topbar-time').textContent=new Date().toLocaleTimeString('ko-KR')},1000);
+
+// ── 모달 외부 클릭 ──
+document.querySelectorAll('.modal-ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show')}));
+
+// ── 세션 복원 + 초기화 ──
+
+// ══ 대량 관리 ══
+var bulkFiles = [];
+
+function loadBulk(){ log('[대량관리] 탭 로드'); }
+
+async function runBulkSpotify(){
+  var input = g('bulk-spotify-input').value.trim();
+  if(!input){ toast('곡 목록을 입력하세요','error'); return; }
+  var lines = input.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+  if(!lines.length){ toast('유효한 곡 목록이 없습니다','error'); return; }
+  var status = g('bulk-spotify-status');
+  var results = g('bulk-spotify-results');
+  results.innerHTML = '';
+  var API_BASE = 'https://timelink-backend.mununglee.workers.dev';
+  var success=0, fail=0;
+  for(var i=0;i<lines.length;i++){
+    var parts = lines[i].split('|');
+    var title = (parts[0]||'').trim();
+    var artist = (parts[1]||'').trim();
+    if(!title){ fail++; continue; }
+    status.textContent = (i+1)+'/'+lines.length+' 처리 중: '+title;
+    try {
+      var searchRes = await fetch(API_BASE+'/api/spotify/search?q='+encodeURIComponent(title+(artist?' '+artist:'')), {mode:'cors'});
+      var searchData = searchRes.ok ? await searchRes.json() : null;
+      var track = searchData && searchData.tracks && searchData.tracks[0];
+      var trackId = 'bulk_'+Date.now()+'_'+i;
+      var regRes = await fetch(API_BASE+'/api/tracks', {
+        method:'POST', mode:'cors',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          id: trackId,
+          title: track ? track.name : title,
+          artist: track ? track.artist : (artist||'Admin'),
+          genre: '기타',
+          coverImage: track ? track.coverImage : null,
+          duration: track ? track.duration : 0,
+          pricePerSec: 1,
+          authMethod: 'spotify',
+          authStatus: 'verified',
+          username: 'admin'
+        })
+      });
+      var regData = regRes.ok ? await regRes.json() : null;
+      var myFiles = JSON.parse(localStorage.getItem('tl_myfiles')||'[]');
+      myFiles.unshift({
+        id:trackId, title:track?track.name:title, artist:track?track.artist:(artist||'Admin'),
+        genre:'기타', type:'audio', format:'TL3', fileTL:0,
+        authStatus:'verified', authMethod:'spotify',
+        shared:true, sharedToSharePlace:true,
+        coverImage:track?track.coverImage:null,
+        idbStored:false, pulse:0, pricePerSec:1, createdAt:Date.now()
+      });
+      localStorage.setItem('tl_myfiles', JSON.stringify(myFiles));
+      var ok = regData && regData.ok;
+      results.innerHTML += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">'
+        +(track&&track.coverImage?'<img src="'+track.coverImage+'" style="width:36px;height:36px;border-radius:6px;object-fit:cover;">'
+        :'<div style="width:36px;height:36px;border-radius:6px;background:var(--purple);display:flex;align-items:center;justify-content:center;">🎵</div>')
+        +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;color:var(--fg);">'+(track?track.name:title)+'</div>'
+        +'<div style="font-size:11px;color:var(--g500);">'+(track?track.artist:(artist||'-'))+'</div></div>'
+        +'<span class="badge '+(ok?'bg':'br')+'">'+(ok?'✅ 등록':'⚠️ 실패')+'</span></div>';
+      if(ok) success++; else fail++;
+    } catch(e) {
+      fail++;
+      results.innerHTML += '<div style="padding:8px 0;border-bottom:1px solid var(--border);color:var(--red);font-size:12px;">❌ '+esc(title)+' - '+esc(e.message)+'</div>';
+    }
+    await new Promise(function(r){setTimeout(r,300);});
+  }
+  status.textContent = '완료: ✅'+success+'개 / ❌'+fail+'개';
+  toast('대량 인증 완료: '+success+'개 등록','success');
+}
+
+function handleBulkDrop(e){
+  e.preventDefault();
+  g('bulk-drop-zone').style.borderColor='var(--border)';
+  handleBulkFiles(e.dataTransfer.files);
+}
+function handleBulkFiles(files){
+  for(var i=0;i<files.length;i++){
+    if(!files[i].type.startsWith('audio/')) continue;
+    bulkFiles.push(files[i]);
+  }
+  renderBulkList();
+}
+function renderBulkList(){
+  var list = g('bulk-file-list');
+  if(!bulkFiles.length){
+    list.innerHTML='';
+    g('bulk-upload-btn').style.display='none';
+    g('bulk-clear-btn').style.display='none';
+    return;
+  }
+  g('bulk-upload-btn').style.display='inline-flex';
+  g('bulk-clear-btn').style.display='inline-flex';
+  list.innerHTML = '<div style="font-size:12px;font-weight:700;color:var(--g500);margin-bottom:8px;">'+bulkFiles.length+'개 파일</div>'
+    + bulkFiles.map(function(f,i){
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px;background:rgba(255,255,255,.03);border-radius:8px;margin-bottom:4px;">'
+        +'<span>🎵</span>'
+        +'<div style="flex:1;min-width:0;font-size:13px;font-weight:700;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(f.name.replace(/\.[^.]+$/,''))+'</div>'
+        +'<div style="font-size:11px;color:var(--g500);">'+(f.size/1024/1024).toFixed(1)+' MB</div>'
+        +'<span class="badge bgr" id="bf_s_'+i+'">대기</span>'
+        +'</div>';
+    }).join('');
+}
+function clearBulkFiles(){ bulkFiles=[]; renderBulkList(); g('bulk-upload-progress').innerHTML=''; }
+async function startBulkUpload(){
+  if(!bulkFiles.length){ toast('파일을 선택하세요','error'); return; }
+  var API_BASE = 'https://timelink-backend.mununglee.workers.dev';
+  var progress = g('bulk-upload-progress');
+  var success=0;
+  for(var i=0;i<bulkFiles.length;i++){
+    var f = bulkFiles[i];
+    var badge = g('bf_s_'+i);
+    if(badge) badge.textContent='처리중...';
+    progress.innerHTML = '<div style="font-size:12px;color:var(--g500);">'+(i+1)+'/'+bulkFiles.length+' 업로드 중: '+esc(f.name)+'</div>';
+    try {
+      var trackId = 'admin_'+Date.now()+'_'+i;
+      var title = f.name.replace(/\.[^.]+$/,'');
+      await saveToIDB(trackId, f);
+      var res = await fetch(API_BASE+'/api/tracks', {
+        method:'POST', mode:'cors',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({id:trackId,title:title,artist:'Admin',genre:'기타',duration:0,pricePerSec:1,authMethod:'manual',authStatus:'verified',username:'admin'})
+      });
+      var data = res.ok ? await res.json() : null;
+      var myFiles = JSON.parse(localStorage.getItem('tl_myfiles')||'[]');
+      myFiles.unshift({id:trackId,title:title,artist:'Admin',genre:'기타',type:'audio',format:'TL3',fileTL:0,authStatus:'verified',shared:true,sharedToSharePlace:true,idbStored:true,pulse:0,pricePerSec:1,createdAt:Date.now()});
+      localStorage.setItem('tl_myfiles', JSON.stringify(myFiles));
+      if(badge){badge.textContent='✅ 완료';badge.className='badge bg';}
+      success++;
+    } catch(e) {
+      if(badge){badge.textContent='❌ 실패';badge.className='badge br';}
+    }
+    await new Promise(function(r){setTimeout(r,200);});
+  }
+  progress.innerHTML = '<div style="color:var(--green);font-weight:700;">✅ '+success+'/'+bulkFiles.length+'개 완료</div>';
+  toast('대량 업로드 완료: '+success+'개','success');
+}
+function saveToIDB(id, file){
+  return new Promise(function(resolve,reject){
+    var req = indexedDB.open('tl_audio_db',1);
+    req.onupgradeneeded = function(e){ e.target.result.createObjectStore('files',{keyPath:'id'}); };
+    req.onsuccess = function(e){
+      var db=e.target.result;
+      var tx=db.transaction('files','readwrite');
+      var put=tx.objectStore('files').put({id:id,file:file});
+      put.onsuccess=function(){resolve();};
+      put.onerror=function(){reject(put.error);};
+    };
+    req.onerror=function(){reject(req.error);};
+  });
+}
+
+async function loadAds(){
+  log('[광고] 데이터 조회 중...');
+  if(g('act-ads-cnt')) g('act-ads-cnt').textContent = '0';
+  log('[광고] 새로고침 완료 (준비중)');
+}
+async function loadShareplaceAdmin(){
+  const d = await api('/api/tracks');
+  if(d && d.tracks) log('[SharePlace] 트랙 ' + d.tracks.length + '개 확인');
+  else log('[SharePlace] 데이터 없음');
+}
+function loadRadio(){ log('[Radio] 새로고침 완료 (준비중)'); }
+function loadSettings(){ log('[설정] 새로고침 완료 (준비중)'); }
+
+function init(){
+  loadDashboard();
+  // 세션 복원 시 현재 활성 탭 데이터 로드
+  const activePanel = document.querySelector('.tab-panel.active');
+  if(activePanel && activePanel.id === 'tp-users') loadUsers();
+  if(activePanel && activePanel.id === 'tp-tracks') loadTracks();
+}
+
+// ── 페이지 로드 시 세션 복원 ──
+(function(){
+  var sess = localStorage.getItem('adm_s');
+  var HOUR = 8 * 60 * 60 * 1000;
+  if(sess && (Date.now() - parseInt(sess)) < HOUR){
+    g('login-screen').style.display='none';
+    g('admin-panel').style.display='block';
+    init();
+  }
+  // 엔터키로 로그인
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Enter' && g('login-screen').style.display !== 'none') window.doLogin();
+  });
+})();
+
 </script>
 </body>
 </html>

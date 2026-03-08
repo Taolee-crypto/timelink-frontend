@@ -246,7 +246,8 @@ function renderFiles(list){
     el.addEventListener('mouseleave',()=>{cr.style.width='32px';cr.style.height='32px'});
   });
 }
-renderFiles(files);
+// API 로드 후 렌더링 (하단 initSharePlace 참조)
+renderFiles(files); // 초기 렌더 (API 로드 전 폴백)
 
 function filterType(el,type){
   document.querySelectorAll('.type-item').forEach(t=>t.classList.remove('active'));
@@ -258,6 +259,74 @@ function switchTab(el){
   document.querySelectorAll('.sort-tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
 }
+
+// ═══ AUTH GUARD + API 트랙 로드 ═══
+const API_BASE = 'https://timelink-backend.mununglee.workers.dev';
+
+(function(){
+  var u = JSON.parse(localStorage.getItem('tl_user')||'null');
+  if(!u){ location.href='login.html'; return; }
+  // 상단에 유저 잔액 표시
+  addBalanceBar(u);
+})();
+
+function addBalanceBar(u){
+  var topbar = document.querySelector('.topbar');
+  if(!topbar) return;
+  var bal = document.createElement('div');
+  bal.style.cssText='display:flex;align-items:center;gap:8px;margin-left:auto;font-size:12px;font-family:var(--fm)';
+  bal.innerHTML = '<span style="color:var(--t3)">⏰</span><span style="color:var(--mint);font-weight:700">'+Number(u.tl||10000).toLocaleString()+' TL</span>' +
+    '<span style="width:1px;height:16px;background:var(--bd)"></span>' +
+    '<span style="color:var(--purple);font-weight:700">'+Number(u.tlc||0).toFixed(0)+' TLC</span>' +
+    '<button onclick="localStorage.removeItem('tl_token');localStorage.removeItem('tl_user');location.href='login.html'" style="margin-left:8px;padding:5px 12px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:11px;cursor:pointer">↩ 로그아웃</button>';
+  var uploadBtn = topbar.querySelector('.tb-upload');
+  if(uploadBtn) topbar.insertBefore(bal, uploadBtn);
+  else topbar.appendChild(bal);
+}
+
+// API에서 실제 트랙 로드 (하드코딩 대체)
+async function loadAPITracks(){
+  try{
+    var r = await fetch(API_BASE+'/api/tracks?limit=50',{mode:'cors'});
+    if(!r.ok) return null;
+    var d = await r.json();
+    return (d.tracks&&d.tracks.length) ? d.tracks : null;
+  }catch(e){console.warn('[SharePlace] API 실패:', e.message); return null;}
+}
+
+// 원래 renderFiles를 API 데이터로 보완
+(async function initSharePlace(){
+  var apiTracks = await loadAPITracks();
+  if(!apiTracks||!apiTracks.length){ renderFiles(files); return; }
+
+  var emojis=['🎵','🎶','🎸','🎹','🥁','🎺','🎻','🎧','🌙','⚡','🌊','🎤'];
+  var bgs=['linear-gradient(135deg,#1a1060 0%,#0d3050 100%)','linear-gradient(135deg,#0d3020 0%,#102830 100%)','linear-gradient(135deg,#200a40,#0a0820)','linear-gradient(135deg,#0a1830,#20100a)','linear-gradient(135deg,#1a0820,#0d0518)'];
+
+  var apiList = apiTracks.map(function(t,i){
+    return {
+      emoji: emojis[i%emojis.length],
+      title: t.title||('트랙 '+(i+1)),
+      artist: (t.artist||'Unknown')+' · '+(t.duration?Math.floor(t.duration/60)+':'+String(t.duration%60).padStart(2,'0'):'--:--'),
+      type: 'TL3 · 오디오',
+      price: (t.file_tl||0).toLocaleString()+' TL',
+      hot: t.pulse||0,
+      rating: 4.5,
+      tags: ['#'+( t.genre||'기타')],
+      badge: t.auth_status==='verified'?'fcb-cert':'',
+      badgeText: t.auth_status==='verified'?'✓ 인증':'',
+      priceColor:'var(--purple)',
+      bg: bgs[i%bgs.length]
+    };
+  });
+
+  // API 트랙을 앞에, 하드코딩 샘플을 뒤에 합치기
+  var combined = apiList.concat(files);
+  renderFiles(combined);
+  // count 업데이트
+  var countEl = document.querySelector('.sort-count');
+  if(countEl) countEl.textContent = '총 '+combined.length+'개 파일 (실시간)';
+})();
+
 </script>
 </body>
 </html>

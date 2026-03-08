@@ -235,14 +235,15 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       </label>
     </div>
 
-    <button class="btn-submit" onclick="location.href='onboarding.html'">
+    <button class="btn-submit" id="signup-btn" onclick="doSignup()">
       🎉 &nbsp; 10,000 TL 받고 가입하기
     </button>
-    <div class="login-link">이미 계정이 있나요? <a href="#">로그인</a></div>
+    <div class="login-link">이미 계정이 있나요? <a href="login.html">로그인</a></div>
   </div>
 </div>
 
 <script>
+const API = 'https://timelink-backend.mununglee.workers.dev';
 const cd=document.getElementById('cd'),cr=document.getElementById('cr');
 let mx=0,my=0,rx=0,ry=0;
 document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY});
@@ -268,6 +269,36 @@ function animateTL(target){
     el.textContent=val.toLocaleString('ko-KR');
     if(step>=steps)clearInterval(timer);
   },16);
+}
+
+async function doSignup(){
+  const emailEl=document.querySelectorAll('input[type="email"]')[0];
+  const usernameEl=document.querySelectorAll('input[type="text"]')[0];
+  const pwEl=document.querySelectorAll('input[type="password"]')[0];
+  const pw2El=document.querySelectorAll('input[type="password"]')[1];
+  const email=emailEl?emailEl.value.trim():'';
+  const username=usernameEl?usernameEl.value.trim():'';
+  const pw=pwEl?pwEl.value:'';
+  const pw2=pw2El?pw2El.value:'';
+  const btn=document.getElementById('signup-btn');
+  if(!email||!username){alert('이메일과 닉네임을 입력해주세요');return;}
+  if(pw&&pw2&&pw!==pw2){alert('비밀번호가 일치하지 않습니다');return;}
+  if(btn){btn.disabled=true;btn.textContent='처리 중...';}
+  const totalTL=baseTL+marketingBonus+refBonus;
+  const user={id:Date.now(),email,username,tl:totalTL,tlc:0,account_type:'personal',created_at:new Date().toISOString()};
+  if(pw) localStorage.setItem('tl_signup_'+email,JSON.stringify({...user,pw}));
+  localStorage.setItem('tl_pending_user',JSON.stringify(user));
+  try{
+    const r=await fetch('https://timelink-backend.mununglee.workers.dev/api/auth/signup',{
+      method:'POST',mode:'cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,username,password:pw||'signup'+Date.now()}),
+      signal:AbortSignal.timeout(4000)
+    });
+    if(r.ok){const d=await r.json();if(d.token)localStorage.setItem('tl_token',d.token);if(d.user)localStorage.setItem('tl_pending_user',JSON.stringify({...user,...d.user}));}
+  }catch(err){console.warn('[Signup] API fallback:',err.message);}
+  if(btn){btn.disabled=false;}
+  location.href='onboarding.html';
 }
 </script>
 </body>

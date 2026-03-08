@@ -416,6 +416,59 @@ for(let i=0;i<80;i++){
   const b=document.createElement('div');b.className='wave-b';
   b.style.animationDelay=(i*.025)+'s';cw.appendChild(b);
 }
+
+// ═══ AUTH GUARD + 사용자 데이터 주입 ═══
+(function(){
+  var u = JSON.parse(localStorage.getItem('tl_user')||'null');
+  if(!u){ location.href='login.html'; return; }
+
+  // 사용자 이름
+  var nameEl = document.querySelector('.user-name em');
+  if(nameEl) nameEl.textContent = u.username||'사용자';
+
+  // TL 잔액
+  var hbals = document.querySelectorAll('.hbal');
+  if(hbals[0]) hbals[0].innerHTML = '<span class="hbal-icon">⏰</span> ' + Number(u.tl||10000).toLocaleString() + ' TL';
+  if(hbals[1]) hbals[1].innerHTML = '<span class="hbal-icon">🪙</span> ' + Number(u.tlc||0).toFixed(0) + ' TLC';
+
+  // 로그아웃 버튼 (notif-btn에 추가)
+  var notif = document.querySelector('.notif-btn');
+  if(notif){
+    var logoutBtn = document.createElement('div');
+    logoutBtn.style.cssText = 'width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.13);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;margin-left:6px;color:rgba(255,255,255,.5)';
+    logoutBtn.title='로그아웃';
+    logoutBtn.textContent='↩';
+    logoutBtn.onclick=function(){localStorage.removeItem('tl_token');localStorage.removeItem('tl_user');location.href='login.html';};
+    notif.parentNode.insertBefore(logoutBtn, notif.nextSibling);
+  }
+
+  // SharePlace 트랙을 API에서 로드
+  loadSharePlaceTracks();
+})();
+
+// API에서 트랙 가져와 SharePlace 섹션 업데이트
+async function loadSharePlaceTracks(){
+  try{
+    var r = await fetch('https://timelink-backend.mununglee.workers.dev/api/tracks?limit=10',{mode:'cors'});
+    if(!r.ok) return;
+    var d = await r.json();
+    if(!d.tracks||!d.tracks.length) return;
+    var scroll = document.querySelector('.sp-scroll');
+    if(!scroll) return;
+    var emojis=['🎵','🎶','🎸','🎹','🥁','🎺','🎻','🎧'];
+    var grads=['linear-gradient(135deg,#1a1060,#0d3050)','linear-gradient(135deg,#0d3020,#102830)','linear-gradient(135deg,#200a40,#0a0820)','linear-gradient(135deg,#0a1830,#20100a)'];
+    scroll.innerHTML = d.tracks.slice(0,8).map(function(t,i){
+      return '<div class="sp-card" onclick="location.href='shareplace.html'">' +
+        '<div class="sp-thumb" style="background:'+grads[i%grads.length]+'">' +
+          '<div class="sp-thumb-inner">'+emojis[i%emojis.length]+'</div>' +
+          '<div class="sp-play"><div class="sp-play-btn">▶</div></div>' +
+        '</div>' +
+        '<div class="sp-info"><div class="sp-name">'+(t.title||'트랙'+(i+1))+'</div><div class="sp-artist">'+(t.artist||'Unknown')+'</div></div>' +
+      '</div>';
+    }).join('');
+  }catch(e){console.warn('[Dashboard] SharePlace API 실패:', e.message);}
+}
+
 </script>
 </body>
 </html>
