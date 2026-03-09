@@ -393,24 +393,45 @@ function searchAddr(){
 
 // Images
 function handleImages(input){
-  var files = Array.from(input.files).slice(0,5);
-  _images = [];
-  var grid = g('imgPreviewGrid');
-  grid.innerHTML='';
-  files.forEach(function(f,i){
+  var newFiles = Array.from(input.files);
+  var remaining = 5 - _images.length;
+  if(remaining <= 0){ toast('최대 5장까지 업로드 가능합니다','e'); return; }
+  newFiles.slice(0, remaining).forEach(function(f){
     var reader = new FileReader();
     reader.onload = function(e){
       _images.push(e.target.result);
-      var div = document.createElement('div');
-      div.className='img-preview-item';
-      div.innerHTML='<img src="'+e.target.result+'"><button class="img-remove" onclick="removeImg('+i+')">✕</button>';
-      grid.appendChild(div);
+      renderImageGrid();
+      if(_images.length >= 5) toast('이미지 5장이 모두 추가되었습니다','i');
     };
     reader.readAsDataURL(f);
   });
+  // input 초기화 (같은 파일 재선택 허용)
+  input.value = '';
 }
 
-function removeImg(i){ _images.splice(i,1); document.getElementById('imgInput').dispatchEvent(new Event('change')); }
+function renderImageGrid(){
+  var grid = g('imgPreviewGrid');
+  grid.innerHTML = _images.map(function(src, i){
+    return '<div class="img-preview-item">'+
+      '<img src="'+src+'">'+
+      '<button class="img-remove" onclick="removeImg('+i+')">✕</button>'+
+      '</div>';
+  }).join('');
+  // 추가 버튼 (5장 미만일 때)
+  if(_images.length < 5){
+    var add = document.createElement('div');
+    add.className='img-preview-item';
+    add.style.cssText='display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px dashed rgba(255,255,255,.15);background:transparent';
+    add.innerHTML='<span style="font-size:24px;color:var(--t3)">+</span>';
+    add.onclick=function(){ g('imgInput').click(); };
+    grid.appendChild(add);
+  }
+}
+
+function removeImg(i){
+  _images.splice(i,1);
+  renderImageGrid();
+}
 
 // Shares / Playlist
 async function loadShares(){
