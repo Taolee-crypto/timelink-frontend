@@ -239,7 +239,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
           </div>
         </div>
         <table>
-          <thead><tr><th></th><th>제목</th><th>유저</th><th>카테고리</th><th>타입</th><th>File TL</th><th>Pulse</th><th>플랜</th><th>R2 파일</th><th>등록일</th><th>관리</th></tr></thead>
+          <thead><tr><th></th><th>제목</th><th>유저</th><th>카테고리</th><th>File TL</th><th>Pulse</th><th>플랜</th><th>R2 파일</th><th>등록일</th><th>관리</th></tr></thead>
           <tbody id="shares-tbody"></tbody>
         </table>
       </div>
@@ -256,7 +256,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
           </div>
         </div>
         <table>
-          <thead><tr><th>ID</th><th>이메일</th><th>유저명</th><th>TL</th><th>TL_BALANCE</th><th>TLC</th><th>타입</th><th>빠른충전</th></tr></thead>
+          <thead><tr><th>ID</th><th>이메일</th><th>유저명</th><th>TL</th><th>TL_BALANCE</th><th>TLC</th><th>빠른충전</th></tr></thead>
           <tbody id="users-tbody"></tbody>
         </table>
       </div>
@@ -374,7 +374,20 @@ async function loadShares(){
 }
 async function loadUsers(){
   var d=await api('/api/users');
-  if(d){ _users=d.users||(Array.isArray(d)?d:[]); }
+  if(d && (d.users||Array.isArray(d))){
+    _users=d.users||(Array.isArray(d)?d:[]);
+  } else {
+    // /api/users 없으면 shares에서 유저 추출 (폴백)
+    var seen={};
+    _users=[];
+    _shares.forEach(function(s){
+      if(s.user_id && !seen[s.user_id]){
+        seen[s.user_id]=true;
+        _users.push({id:s.user_id,email:'',username:s.username||'User #'+s.user_id,tl:0,tl_balance:0,tlc:0,account_type:'personal'});
+      }
+    });
+    if(_users.length) toast('/api/users 없음 — shares에서 '+_users.length+'명 추출','a');
+  }
   g('sb-users-cnt').textContent=_users.length;
   renderUsers(); renderTLUsers();
 }
@@ -486,7 +499,7 @@ function renderUsers(){
       '<td class="td-mono" style="color:var(--g)">'+Number(u.tl||0).toLocaleString()+'</td>'+
       '<td class="td-mono" style="color:var(--sky)">'+Number(u.tl_balance||0).toLocaleString()+'</td>'+
       '<td class="td-mono" style="color:var(--amber)">'+Number(u.tlc||0).toFixed(4)+'</td>'+
-      '<td><span class="badge '+(u.account_type==='business'?'bp':'bn')+'">'+(u.account_type||'personal')+'</span></td>'+
+
       '<td><div style="display:flex;gap:4px">'+
         '<button class="btn btn-g btn-xs" onclick="quickCharge(\''+esc(u.email)+'\',100000)">+10만</button>'+
         '<button class="btn btn-a btn-xs" onclick="quickCharge(\''+esc(u.email)+'\',999999)">맥스</button>'+
