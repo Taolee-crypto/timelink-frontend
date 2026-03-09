@@ -502,44 +502,51 @@ async function submitChannel(){
   btn.disabled=true; btn.textContent='⏳ 처리 중...';
 
   try{
-    // TL 차감
-    var r = await fetch(API+'/api/admin/sql', {
+    var r = await fetch(API+'/api/cafe/channel', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({sql:"UPDATE users SET tl=tl-"+CHANNEL_FEE+", tl_balance=tl_balance-"+CHANNEL_FEE+" WHERE id="+(_user.id)})
+      body: JSON.stringify({
+        channel_id: chId,
+        name: name,
+        owner_id: _user.id,
+        biz_no: bizNo,
+        owner_name: g('ownerName').value.trim(),
+        addr: addr,
+        addr_detail: g('cafeAddrDetail').value.trim(),
+        description: g('cafeDesc').value.trim(),
+        playlist: Array.from(_selected),
+        schedules: _schedules
+      })
     });
 
-    // 로컬 업데이트
-    _user.tl = Math.max(0, bal - CHANNEL_FEE);
-    localStorage.setItem('tl_user', JSON.stringify(_user));
-    updateBalance();
+    var d = await r.json();
 
-    // 채널 정보 저장 (localStorage — 백엔드 채널 테이블 추가 전까지)
-    var channelData = {
-      id: chId,
-      name: name,
-      bizNo: bizNo,
-      addr: addr,
-      addrDetail: g('cafeAddrDetail').value,
-      desc: g('cafeDesc').value,
-      owner: _user.id,
-      ownerName: g('ownerName').value,
-      playlist: Array.from(_selected),
-      schedules: _schedules,
-      createdAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now()+30*24*60*60*1000).toISOString(),
-      fee: CHANNEL_FEE
-    };
-    localStorage.setItem('tl_cafe_channel', JSON.stringify(channelData));
+    if(!r.ok){
+      toast('오류: '+(d.error||'채널 개설 실패'), 'e');
+      btn.disabled=false;
+      btn.textContent='☕ 카페 채널 개설 (50,000 TL 결제)';
+      return;
+    }
+
+    // 로컬 TL 업데이트
+    if(d.user){
+      _user.tl = d.user.tl;
+      _user.tl_balance = d.user.tl_balance;
+      localStorage.setItem('tl_user', JSON.stringify({..._user, ...d.user}));
+    } else {
+      _user.tl = Math.max(0, bal - CHANNEL_FEE);
+      localStorage.setItem('tl_user', JSON.stringify(_user));
+    }
+    updateBalance();
 
     btn.style.display='none';
     g('successBox').classList.add('show');
     toast('☕ 카페 채널이 개설되었습니다!','s');
 
   }catch(e){
-    toast('오류: '+e.message,'e');
+    toast('네트워크 오류: '+e.message,'e');
     btn.disabled=false;
-    btn.innerHTML='☕ 카페 채널 개설 (50,000 TL 결제)';
+    btn.textContent='☕ 카페 채널 개설 (50,000 TL 결제)';
   }
 }
 
