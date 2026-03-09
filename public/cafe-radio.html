@@ -493,25 +493,73 @@ function updateDJPanel(){
 }
 
 // Channels
-var _channels = [
-  {id:'ai-main', name:'TL AI 메인', icon:'🤖', listeners: 0, live:true, type:'ai'},
-  {id:'ai-cafe', name:'카페 감성', icon:'☕', listeners: 0, live:true, type:'ai'},
-  {id:'ai-night', name:'심야 방송', icon:'🌙', listeners: 0, live:true, type:'ai'},
-  {id:'ai-drive', name:'드라이브', icon:'🚗', listeners: 0, live:true, type:'ai'},
+var _aiChannels = [
+  {id:'ai-main', name:'TL AI 메인', icon:'🤖', listeners:0, live:true, type:'ai'},
+  {id:'ai-cafe', name:'카페 감성', icon:'☕', listeners:0, live:true, type:'ai'},
+  {id:'ai-night', name:'심야 방송', icon:'🌙', listeners:0, live:true, type:'ai'},
+  {id:'ai-drive', name:'드라이브', icon:'🚗', listeners:0, live:true, type:'ai'},
 ];
+var _cafeChannels = [];
+var _channels = _aiChannels.slice();
 var _activeChannel = 'ai-main';
+
+async function loadCafeChannels(){
+  try{
+    var r = await fetch(API+'/api/cafe/channels');
+    var d = await r.json();
+    _cafeChannels = (d.channels||[]).map(function(ch){
+      return {
+        id: ch.channel_id,
+        name: ch.name,
+        icon: '☕',
+        listeners: Math.floor(Math.random()*30+5),
+        live: true,
+        type: 'cafe',
+        addr: ch.addr,
+        desc: ch.description,
+        owner_id: ch.owner_id,
+        playlist: JSON.parse(ch.playlist||'[]'),
+        expires_at: ch.expires_at
+      };
+    });
+    _channels = _aiChannels.concat(_cafeChannels);
+    g('sb-users-cnt') && (g('sb-users-cnt').textContent = _channels.length);
+    renderChannels();
+  }catch(e){ console.warn('카페 채널 로드 실패:', e); }
+}
 
 function renderChannels(){
   var html = '';
-  _channels.forEach(function(ch){
+  // AI 채널 구분선
+  if(_cafeChannels.length){
+    html += '<div style="font-size:10px;font-family:var(--fm);color:var(--t3);letter-spacing:.1em;padding:8px 12px 4px;text-transform:uppercase">AI 채널</div>';
+  }
+  _aiChannels.forEach(function(ch){
     var active = ch.id === _activeChannel ? 'active' : '';
     ch.listeners = Math.floor(Math.random()*80+5);
-    html += '<div class="channel-item '+active+'" onclick="selectChannel(\''+ch.id+'\')">' +
+    html += '<div class="channel-item '+active+'" onclick="selectChannel(''+ch.id+'')">' +
       '<div class="ch-avatar">'+ch.icon+'</div>' +
-      '<div class="ch-info"><div class="ch-name">'+ch.name+'</div><div class="ch-listeners">👥 '+ch.listeners+'</div></div>' +
-      (ch.live ? '<div class="ch-live-badge">LIVE</div>' : '') +
+      '<div class="ch-info"><div class="ch-name">'+esc(ch.name)+'</div><div class="ch-listeners">👥 '+ch.listeners+'</div></div>' +
+      '<div class="ch-live-badge">LIVE</div>' +
       '</div>';
   });
+  // 카페 채널
+  if(_cafeChannels.length){
+    html += '<div style="font-size:10px;font-family:var(--fm);color:var(--amber);letter-spacing:.1em;padding:12px 12px 4px;text-transform:uppercase">카페 채널</div>';
+    _cafeChannels.forEach(function(ch){
+      var active = ch.id === _activeChannel ? 'active' : '';
+      html += '<div class="channel-item '+active+'" onclick="selectChannel(''+ch.id+'')">' +
+        '<div class="ch-avatar" style="background:var(--amber3);border:1px solid rgba(245,166,35,.2)">☕</div>' +
+        '<div class="ch-info"><div class="ch-name">'+esc(ch.name)+'</div><div class="ch-listeners">👥 '+ch.listeners+' • '+esc(ch.addr||'')+'</div></div>' +
+        '<div class="ch-live-badge">LIVE</div>' +
+        '</div>';
+    });
+  }
+  // 채널 없을 때
+  if(!_cafeChannels.length){
+    html += '<div style="padding:12px;text-align:center;font-size:11px;color:var(--t3)">'+
+      '<a href="cafe-channel.html" style="color:var(--amber);text-decoration:none">☕ 카페 채널 개설하기</a></div>';
+  }
   g('channelList').innerHTML = html;
 }
 
@@ -519,8 +567,16 @@ function selectChannel(id){
   _activeChannel = id;
   renderChannels();
   var ch = _channels.find(function(c){ return c.id===id; });
-  if(ch) toast(ch.name+' 채널로 이동', 'i');
-  buildQueue();
+  if(!ch) return;
+  toast(ch.name+' 채널로 이동', 'i');
+  // 카페 채널이면 해당 플레이리스트로 큐 구성
+  if(ch.type==='cafe' && ch.playlist && ch.playlist.length){
+    _queue = _shares.filter(function(s){ return ch.playlist.includes(s.id); });
+    if(!_queue.length) buildQueue();
+    else{ g('queueCnt').textContent=_queue.length; renderQueue(); loadTrack(0); }
+  } else {
+    buildQueue();
+  }
 }
 
 // Load shares
@@ -838,8 +894,9 @@ window.addEventListener('load', function(){
   startClock();
   initWeather();
   loadShares();
+  loadCafeChannels();
   renderRequests();
-  setInterval(renderChannels, 30000);
+  setInterval(function(){ loadCafeChannels(); }, 30000);
   drawViz();
 });
 </script>
