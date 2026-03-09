@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>TL방송국 — 24시간 AI 라디오</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070709;--bg2:#0C0C12;--bg3:#111118;
+  --amber:#F5A623;--amber2:#FFD166;--amber3:rgba(245,166,35,.15);
+  --cyan:#00E5FF;--cyan2:rgba(0,229,255,.12);
+  --red:#FF4757;--green:#2ECC71;
+  --bd:rgba(255,255,255,.07);--bd2:rgba(255,255,255,.12);
+  --t1:#fff;--t2:rgba(255,255,255,.6);--t3:rgba(255,255,255,.3);
+  --fn:'Noto Sans KR',sans-serif;--fm:'JetBrains Mono',monospace;--fb:'Bebas Neue',cursive;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--fn);background:var(--bg);color:var(--t1);display:flex;flex-direction:column}
+
+/* scanline overlay */
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);pointer-events:none;z-index:9998}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;gap:16px;padding:0 24px;height:56px;border-bottom:1px solid var(--bd);background:rgba(7,7,9,.95);backdrop-filter:blur(20px);flex-shrink:0;z-index:100}
+.tb-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.tb-logo-icon{width:32px;height:32px;background:var(--amber);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#000;font-weight:900}
+.tb-logo-text{font-family:var(--fb);font-size:20px;letter-spacing:.1em;color:var(--amber)}
+.tb-live{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;background:rgba(255,71,87,.15);border:1px solid rgba(255,71,87,.3);font-size:11px;font-family:var(--fm);color:var(--red);font-weight:700;letter-spacing:.1em}
+.tb-live-dot{width:7px;height:7px;border-radius:50%;background:var(--red);animation:pulse-dot 1.2s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.tb-time{font-family:var(--fm);font-size:13px;color:var(--amber);margin-left:auto}
+.tb-nav{display:flex;gap:4px;margin-left:12px}
+.tb-nav-btn{padding:6px 14px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:12px;font-family:var(--fn);cursor:pointer;transition:all .2s;text-decoration:none;display:flex;align-items:center;gap:6px}
+.tb-nav-btn:hover,.tb-nav-btn.active{background:var(--amber3);border-color:rgba(245,166,35,.3);color:var(--amber)}
+.tb-user{font-size:12px;color:var(--t3);font-family:var(--fm)}
+
+/* ── LAYOUT ── */
+.layout{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sidebar{width:280px;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.sb-section{padding:16px;border-bottom:1px solid var(--bd)}
+.sb-label{font-size:10px;font-family:var(--fm);color:var(--t3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px}
+
+/* Mode selector */
+.mode-cards{display:flex;flex-direction:column;gap:8px}
+.mode-card{padding:12px 14px;border-radius:10px;border:1px solid var(--bd);cursor:pointer;transition:all .25s;display:flex;align-items:center;gap:12px}
+.mode-card:hover{border-color:rgba(245,166,35,.3);background:var(--amber3)}
+.mode-card.active{border-color:var(--amber);background:var(--amber3)}
+.mode-card-icon{font-size:20px;width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mode-card-info{flex:1}
+.mode-card-name{font-size:13px;font-weight:700;color:var(--t1)}
+.mode-card-desc{font-size:11px;color:var(--t3);margin-top:2px}
+.mode-card-poc{font-size:10px;font-family:var(--fm);color:var(--amber);margin-top:3px}
+
+/* Channel list */
+.channel-list{flex:1;overflow-y:auto;padding:8px}
+.channel-item{padding:10px 12px;border-radius:8px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.channel-item:hover{background:rgba(255,255,255,.04)}
+.channel-item.active{background:var(--amber3);border-left:2px solid var(--amber)}
+.ch-avatar{width:36px;height:36px;border-radius:8px;object-fit:cover;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.ch-info{flex:1;min-width:0}
+.ch-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-listeners{font-size:10px;color:var(--t3);font-family:var(--fm)}
+.ch-live-badge{font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(255,71,87,.2);color:var(--red);font-weight:700;flex-shrink:0}
+
+/* ── MAIN PLAYER ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* Visualizer */
+.visualizer-wrap{position:relative;height:140px;overflow:hidden;flex-shrink:0;background:linear-gradient(180deg,#0A0A10 0%,var(--bg) 100%)}
+canvas#viz{width:100%;height:100%}
+.viz-overlay{position:absolute;inset:0;background:linear-gradient(180deg,transparent 60%,var(--bg) 100%);pointer-events:none}
+
+/* Now Playing */
+.now-playing{padding:20px 28px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:20px;flex-shrink:0}
+.np-cover{width:72px;height:72px;border-radius:10px;background:linear-gradient(135deg,#1a1a2e,#16213e);flex-shrink:0;position:relative;overflow:hidden;border:1px solid var(--bd2)}
+.np-cover img{width:100%;height:100%;object-fit:cover}
+.np-cover-default{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:28px}
+.np-spin{animation:spin-cover 8s linear infinite}
+@keyframes spin-cover{to{transform:rotate(360deg)}}
+.np-info{flex:1;min-width:0}
+.np-mode{font-size:10px;font-family:var(--fm);color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.np-title{font-size:18px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.np-artist{font-size:13px;color:var(--t2);margin-top:3px}
+.np-dj{font-size:11px;color:var(--t3);margin-top:6px;display:flex;align-items:center;gap:6px}
+.dj-badge{padding:2px 8px;border-radius:10px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.2);color:var(--cyan);font-family:var(--fm);font-size:10px}
+.np-stats{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.np-poc{font-family:var(--fm);font-size:11px;color:var(--green);background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.2);padding:4px 10px;border-radius:8px}
+.np-tl{font-family:var(--fm);font-size:11px;color:var(--amber)}
+
+/* Controls */
+.controls{padding:16px 28px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:16px;flex-shrink:0}
+.progress-wrap{flex:1;display:flex;flex-direction:column;gap:6px}
+.progress-bar{width:100%;height:3px;background:rgba(255,255,255,.1);border-radius:2px;cursor:pointer;position:relative}
+.progress-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--amber),var(--amber2));transition:width .5s linear;width:0%}
+.progress-times{display:flex;justify-content:space-between;font-size:10px;font-family:var(--fm);color:var(--t3)}
+.ctrl-btn{width:40px;height:40px;border-radius:50%;border:1px solid var(--bd2);background:transparent;color:var(--t1);font-size:16px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ctrl-btn:hover{background:var(--amber3);border-color:var(--amber);color:var(--amber)}
+.ctrl-btn.play{width:50px;height:50px;font-size:20px;background:var(--amber);border-color:var(--amber);color:#000}
+.ctrl-btn.play:hover{background:var(--amber2);transform:scale(1.05)}
+.vol-wrap{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.vol-icon{font-size:14px;color:var(--t3)}
+.vol-slider{width:80px;-webkit-appearance:none;height:3px;border-radius:2px;background:rgba(255,255,255,.1);outline:none;cursor:pointer}
+.vol-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--amber);cursor:pointer}
+
+/* Queue / Content tabs */
+.content-tabs{display:flex;border-bottom:1px solid var(--bd);flex-shrink:0}
+.ctab{padding:10px 20px;font-size:12px;font-weight:700;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:var(--fm)}
+.ctab.active{color:var(--amber);border-bottom-color:var(--amber)}
+.content-body{flex:1;overflow-y:auto;padding:16px 20px}
+
+/* Queue */
+.queue-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;margin-bottom:6px;transition:all .2s;cursor:pointer}
+.queue-item:hover{background:rgba(255,255,255,.04)}
+.queue-item.playing{background:var(--amber3);border-left:2px solid var(--amber)}
+.qi-num{font-family:var(--fm);font-size:11px;color:var(--t3);width:20px;text-align:center;flex-shrink:0}
+.qi-cover{width:40px;height:40px;border-radius:6px;background:rgba(255,255,255,.08);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden}
+.qi-cover img{width:100%;height:100%;object-fit:cover}
+.qi-info{flex:1;min-width:0}
+.qi-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qi-artist{font-size:11px;color:var(--t3)}
+.qi-tl{font-family:var(--fm);font-size:11px;color:var(--amber);flex-shrink:0}
+.qi-dur{font-family:var(--fm);font-size:11px;color:var(--t3);flex-shrink:0;margin-left:8px}
+
+/* Request form */
+.request-form{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px}
+.req-title{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.req-input{width:100%;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid var(--bd2);border-radius:8px;color:var(--t1);font-size:13px;font-family:var(--fn);outline:none;margin-bottom:8px;resize:none}
+.req-input:focus{border-color:rgba(245,166,35,.4)}
+.req-input::placeholder{color:var(--t3)}
+.req-send{padding:9px 20px;border-radius:8px;border:none;background:var(--amber);color:#000;font-size:13px;font-weight:700;font-family:var(--fn);cursor:pointer;transition:all .2s}
+.req-send:hover{background:var(--amber2)}
+
+/* Request list */
+.request-item{padding:12px 14px;border-radius:8px;border:1px solid var(--bd);margin-bottom:8px;transition:all .2s}
+.request-item:hover{border-color:var(--bd2)}
+.ri-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.ri-user{font-size:12px;font-weight:700;color:var(--amber)}
+.ri-time{font-size:10px;color:var(--t3);font-family:var(--fm);margin-left:auto}
+.ri-song{font-size:13px;color:var(--t1)}
+.ri-story{font-size:12px;color:var(--t2);margin-top:4px;line-height:1.5}
+.ri-status{font-size:10px;font-family:var(--fm);padding:2px 8px;border-radius:8px;margin-top:6px;display:inline-block}
+.ri-status.pending{background:rgba(245,166,35,.1);color:var(--amber)}
+.ri-status.playing{background:rgba(46,204,113,.1);color:var(--green)}
+
+/* AI DJ Panel */
+.dj-panel{background:linear-gradient(135deg,rgba(0,229,255,.05),rgba(139,92,246,.05));border:1px solid rgba(0,229,255,.15);border-radius:12px;padding:16px;margin-bottom:16px}
+.dj-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.dj-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:16px}
+.dj-name{font-size:13px;font-weight:700;color:var(--cyan)}
+.dj-status{font-size:10px;color:var(--t3);font-family:var(--fm)}
+.dj-comment{font-size:13px;color:var(--t2);line-height:1.6;font-style:italic}
+.dj-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.dj-tag{padding:3px 10px;border-radius:10px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.15);font-size:10px;color:var(--cyan);font-family:var(--fm)}
+
+/* In-car mode */
+.incar-setup{padding:24px;display:flex;flex-direction:column;gap:16px}
+.incar-card{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:12px;padding:20px}
+.incar-card-title{font-size:13px;font-weight:700;margin-bottom:12px;color:var(--amber);display:flex;align-items:center;gap:8px}
+.incar-input{width:100%;padding:12px 16px;background:rgba(255,255,255,.04);border:1px solid var(--bd2);border-radius:8px;color:var(--t1);font-size:14px;font-family:var(--fm);outline:none;letter-spacing:.1em;text-transform:uppercase}
+.incar-input:focus{border-color:var(--amber)}
+.incar-input::placeholder{color:var(--t3);text-transform:none;letter-spacing:0}
+.poc-meter{display:flex;align-items:center;gap:12px;padding:14px;background:rgba(46,204,113,.05);border:1px solid rgba(46,204,113,.15);border-radius:10px}
+.poc-icon{font-size:24px}
+.poc-info{flex:1}
+.poc-label{font-size:11px;color:var(--t3);font-family:var(--fm)}
+.poc-val{font-size:20px;font-weight:900;color:var(--green);font-family:var(--fm)}
+.poc-mult{font-size:12px;color:var(--amber);margin-top:2px}
+.speed-indicator{display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid var(--bd)}
+.speed-bar-wrap{flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px}
+.speed-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--green),var(--amber));transition:width 1s ease;width:0%}
+.speed-val{font-family:var(--fm);font-size:13px;color:var(--amber);flex-shrink:0;min-width:60px;text-align:right}
+
+/* Weather bar */
+.weather-bar{display:flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--bd);font-size:12px;color:var(--t3);font-family:var(--fm);flex-shrink:0}
+.weather-item{display:flex;align-items:center;gap:5px}
+.weather-sep{color:var(--bd2)}
+
+/* Toast */
+#toast-box{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.t{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;backdrop-filter:blur(20px);border:1px solid var(--bd);max-width:300px}
+.t.s{background:rgba(46,204,113,.12);color:var(--green);border-color:rgba(46,204,113,.3)}
+.t.e{background:rgba(255,71,87,.12);color:var(--red);border-color:rgba(255,71,87,.3)}
+.t.i{background:rgba(245,166,35,.12);color:var(--amber);border-color:rgba(245,166,35,.3)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+
+/* Mobile hint */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .visualizer-wrap{height:80px}
+}
+</style>
+</head>
+<body>
+<div id="toast-box"></div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a href="shareplace.html" class="tb-logo">
+    <div class="tb-logo-icon">📻</div>
+    <span class="tb-logo-text">TL방송국</span>
+  </a>
+  <div class="tb-live"><div class="tb-live-dot"></div>ON AIR</div>
+  <div id="weatherBar" class="weather-item" style="font-size:12px;color:var(--t2);margin-left:8px"></div>
+  <div class="tb-time" id="tbTime">00:00:00</div>
+  <div class="tb-nav">
+    <a href="shareplace.html" class="tb-nav-btn">🏠 홈</a>
+    <a href="cafe-channel.html" class="tb-nav-btn">☕ 채널 개설</a>
+  </div>
+  <div class="tb-user" id="tbUser"></div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <!-- Mode -->
+    <div class="sb-section">
+      <div class="sb-label">방송 모드</div>
+      <div class="mode-cards">
+        <div class="mode-card active" id="mode-cafe" onclick="setMode('cafe')">
+          <div class="mode-card-icon">☕</div>
+          <div class="mode-card-info">
+            <div class="mode-card-name">카페방송</div>
+            <div class="mode-card-desc">분위기별 AI 큐레이션</div>
+            <div class="mode-card-poc">+1.0x POC 기여</div>
+          </div>
+        </div>
+        <div class="mode-card" id="mode-incar" onclick="setMode('incar')">
+          <div class="mode-card-icon">🚗</div>
+          <div class="mode-card-info">
+            <div class="mode-card-name">인카방송</div>
+            <div class="mode-card-desc">주행 연동 AI 라디오</div>
+            <div class="mode-card-poc">+2.5x POC 기여 🔥</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Channel List -->
+    <div class="sb-section" style="padding-bottom:8px">
+      <div class="sb-label">라이브 채널</div>
+    </div>
+    <div class="channel-list" id="channelList">
+      <!-- filled by JS -->
+    </div>
+
+    <!-- POC Summary -->
+    <div class="sb-section" style="margin-top:auto;border-top:1px solid var(--bd);border-bottom:none">
+      <div class="sb-label">오늘 기여</div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:20px;font-weight:900;color:var(--green);font-family:var(--fm)" id="todayPoc">0</div>
+          <div style="font-size:10px;color:var(--t3)">POC 점수</div>
+        </div>
+        <div>
+          <div style="font-size:20px;font-weight:900;color:var(--amber);font-family:var(--fm)" id="todayMin">0</div>
+          <div style="font-size:10px;color:var(--t3)">청취 분</div>
+        </div>
+        <div>
+          <div style="font-size:20px;font-weight:900;color:var(--cyan);font-family:var(--fm)" id="todaySongs">0</div>
+          <div style="font-size:10px;color:var(--t3)">곡 수</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- Visualizer -->
+    <div class="visualizer-wrap">
+      <canvas id="viz"></canvas>
+      <div class="viz-overlay"></div>
+    </div>
+
+    <!-- Now Playing -->
+    <div class="now-playing">
+      <div class="np-cover" id="npCover">
+        <div class="np-cover-default" id="npCoverDefault">🎵</div>
+        <img id="npCoverImg" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0" src="">
+      </div>
+      <div class="np-info">
+        <div class="np-mode" id="npMode">AI DJ • 카페방송</div>
+        <div class="np-title" id="npTitle">방송 준비 중...</div>
+        <div class="np-artist" id="npArtist">TL방송국 AI DJ</div>
+        <div class="np-dj">
+          <div class="dj-badge" id="djMood">🌙 심야 감성</div>
+          <span style="color:var(--t3);font-size:10px" id="djReason">시간대 기반 선곡</span>
+        </div>
+      </div>
+      <div class="np-stats">
+        <div class="np-poc" id="npPoc">+0 POC</div>
+        <div class="np-tl" id="npTl">0 TL/곡</div>
+        <div style="font-size:10px;color:var(--t3);font-family:var(--fm)" id="npListeners">👥 0 청취 중</div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button class="ctrl-btn" onclick="prevTrack()" title="이전">⏮</button>
+      <button class="ctrl-btn play" id="playBtn" onclick="togglePlay()">▶</button>
+      <button class="ctrl-btn" onclick="nextTrack()" title="다음">⏭</button>
+      <div class="progress-wrap">
+        <div class="progress-bar" onclick="seekTrack(event)" id="progressBar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-times">
+          <span id="timeCur">0:00</span>
+          <span id="timeTot">0:00</span>
+        </div>
+      </div>
+      <div class="vol-wrap">
+        <span class="vol-icon">🔊</span>
+        <input type="range" class="vol-slider" id="volSlider" min="0" max="100" value="70" oninput="setVol(this.value)">
+      </div>
+      <button class="ctrl-btn" id="shuffleBtn" onclick="toggleShuffle()" title="셔플" style="font-size:13px">🔀</button>
+      <button class="ctrl-btn" id="crossBtn" onclick="toggleCrossfade()" title="크로스페이드" style="font-size:11px;font-family:var(--fm)">X♫</button>
+    </div>
+
+    <!-- Content Tabs -->
+    <div class="content-tabs">
+      <div class="ctab active" onclick="switchTab('queue',this)">📋 큐 (<span id="queueCnt">0</span>)</div>
+      <div class="ctab" onclick="switchTab('request',this)">🎤 신청곡</div>
+      <div class="ctab" onclick="switchTab('dj',this)">🤖 AI DJ</div>
+      <div class="ctab" id="incarTab" onclick="switchTab('incar',this)" style="display:none">🚗 인카 설정</div>
+    </div>
+
+    <!-- Content Body -->
+    <div class="content-body" id="contentBody">
+      <!-- Queue tab (default) -->
+      <div id="tab-queue">
+        <div id="queueList"></div>
+      </div>
+      <div id="tab-request" style="display:none">
+        <div class="request-form">
+          <div class="req-title">🎤 신청곡 & 사연</div>
+          <input class="req-input" id="reqSong" placeholder="신청할 곡명 / 아티스트" style="height:40px">
+          <textarea class="req-input" id="reqStory" placeholder="사연을 남겨주세요 (선택)" rows="3" style="margin-top:0"></textarea>
+          <button class="req-send" onclick="sendRequest()">신청하기</button>
+        </div>
+        <div id="requestList"></div>
+      </div>
+      <div id="tab-dj" style="display:none">
+        <div class="dj-panel" id="djPanel">
+          <div class="dj-header">
+            <div class="dj-avatar">🤖</div>
+            <div>
+              <div class="dj-name">AI DJ TiLo</div>
+              <div class="dj-status" id="djStatus">선곡 분석 중...</div>
+            </div>
+          </div>
+          <div class="dj-comment" id="djComment">현재 시간대와 날씨를 분석하여 최적의 음악을 선곡하고 있습니다.</div>
+          <div class="dj-tags" id="djTags"></div>
+        </div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:12px;font-family:var(--fm)">▸ 선곡 기준</div>
+        <div id="djCriteria"></div>
+      </div>
+      <div id="tab-incar" style="display:none">
+        <div class="incar-setup">
+          <div class="incar-card">
+            <div class="incar-card-title">🚗 차량 등록</div>
+            <input class="incar-input" id="carPlate" placeholder="차량 번호판 (예: 123가 4567)" maxlength="12">
+            <div style="font-size:11px;color:var(--t3);margin-top:6px">주행 감지 시 POC 2.5x 자동 적용</div>
+          </div>
+          <div class="poc-meter">
+            <div class="poc-icon">⚡</div>
+            <div class="poc-info">
+              <div class="poc-label">현재 POC 배율</div>
+              <div class="poc-val" id="pocMult">1.0x</div>
+              <div class="poc-mult" id="pocMultDesc">카페방송 기본</div>
+            </div>
+          </div>
+          <div class="incar-card">
+            <div class="incar-card-title">📍 주행 상태</div>
+            <div class="speed-indicator">
+              <span style="font-size:12px;color:var(--t3)">속도</span>
+              <div class="speed-bar-wrap"><div class="speed-bar" id="speedBar"></div></div>
+              <div class="speed-val" id="speedVal">0 km/h</div>
+            </div>
+            <div style="margin-top:10px;font-size:11px;color:var(--t3)">* GPS/가속도계 연동 (Phase 2)</div>
+          </div>
+          <div class="incar-card">
+            <div class="incar-card-title">🎵 나만의 플레이리스트</div>
+            <div style="font-size:12px;color:var(--t3);margin-bottom:10px">SharePlace에서 즐겨찾기한 곡이 자동 추가됩니다</div>
+            <button onclick="loadMyPlaylist()" style="padding:8px 16px;border-radius:8px;border:1px solid var(--bd2);background:transparent;color:var(--amber);font-size:12px;cursor:pointer">플레이리스트 불러오기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<audio id="audioA" crossorigin="anonymous"></audio>
+<audio id="audioB" crossorigin="anonymous"></audio>
+
+<script>
+var API = 'https://api.timelink.digital';
+var _user = null, _token = null;
+var _shares = [], _queue = [], _curIdx = 0;
+var _mode = 'cafe', _playing = false, _shuffle = false, _crossfade = true;
+var _curAudio = 'A', _audioA, _audioB;
+var _pocTotal = 0, _minTotal = 0, _songCount = 0;
+var _pocInterval = null, _progressInterval = null;
+var _fadeTimeout = null;
+var _requests = [];
+
+// Auth
+(function(){
+  try{
+    _user = JSON.parse(localStorage.getItem('tl_user')||'null');
+    _token = localStorage.getItem('tl_token');
+  }catch(e){}
+  if(!_user){ location.href='login.html'; return; }
+  document.getElementById('tbUser').textContent = _user.username || _user.email;
+})();
+
+function toast(msg,t){ t=t||'i'; var el=document.createElement('div'); el.className='t '+t; el.textContent=msg; document.getElementById('toast-box').prepend(el); setTimeout(function(){el.remove();},3000); }
+function g(id){ return document.getElementById(id); }
+function fmtTime(s){ s=Math.floor(s||0); return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60); }
+
+// Clock
+function startClock(){
+  setInterval(function(){
+    var now = new Date();
+    g('tbTime').textContent = now.toLocaleTimeString('ko-KR');
+  }, 1000);
+}
+
+// Weather / Time
+function getTimeSlot(){
+  var h = new Date().getHours();
+  if(h>=5&&h<9) return {slot:'morning', label:'🌅 이른 아침', mood:'상쾌하고 밝은', poc:'1.0x'};
+  if(h>=9&&h<12) return {slot:'forenoon', label:'☀️ 오전', mood:'활기차고 리드미컬한', poc:'1.0x'};
+  if(h>=12&&h<14) return {slot:'lunch', label:'🍱 점심', mood:'편안하고 재즈풍', poc:'1.2x'};
+  if(h>=14&&h<17) return {slot:'afternoon', label:'☕ 오후', mood:'카페 감성', poc:'1.0x'};
+  if(h>=17&&h<20) return {slot:'evening', label:'🌆 저녁', mood:'감성적이고 서정적인', poc:'1.5x'};
+  if(h>=20&&h<23) return {slot:'night', label:'🌙 밤', mood:'차분하고 몽환적인', poc:'1.2x'};
+  return {slot:'latenight', label:'🌃 심야', mood:'재즈, 로파이, 어쿠스틱', poc:'2.0x 🌙'};
+}
+
+function initWeather(){
+  var ts = getTimeSlot();
+  g('weatherBar').textContent = ts.label + ' • AI DJ 선곡 중';
+  g('djMood').textContent = ts.label;
+  g('djReason').textContent = ts.mood + ' 음악 선곡';
+  updateDJPanel();
+}
+
+function updateDJPanel(){
+  var ts = getTimeSlot();
+  var comments = {
+    morning: '좋은 아침입니다! 하루를 상쾌하게 시작할 수 있는 밝고 경쾌한 곡들을 선곡했어요.',
+    forenoon: '오전의 활기를 더해줄 리드미컬한 곡들입니다. 집중력도 높아질 거예요!',
+    lunch: '점심 시간, 편안한 재즈와 보사노바로 여유를 즐겨보세요.',
+    afternoon: '오후 카페 감성에 딱 맞는 인디팝과 어쿠스틱 곡들을 준비했어요.',
+    evening: '하루가 저물어가는 시간, 감성적인 발라드와 R&B로 마음을 달래보세요.',
+    night: '밤의 고요함과 어울리는 몽환적인 곡들을 선곡했습니다.',
+    latenight: '심야의 감성, 로파이와 재즈 어쿠스틱으로 조용하고 깊은 밤을 즐겨보세요.'
+  };
+  var tags = {
+    morning: ['#어쿠스틱','#인디팝','#상쾌함','#아침루틴'],
+    forenoon: ['#팝','#리듬감','#집중력','#에너지'],
+    lunch: ['#재즈','#보사노바','#점심감성','#여유'],
+    afternoon: ['#카페뮤직','#인디','#어쿠스틱','#감성'],
+    evening: ['#발라드','#R&B','#저녁감성','#서정적'],
+    night: ['#인디','#드림팝','#밤감성','#몽환'],
+    latenight: ['#로파이','#재즈','#심야감성','#ASMR']
+  };
+  var criteria = [
+    {label:'시간대', val: ts.label, icon:'🕐'},
+    {label:'날씨', val:'맑음 18°C', icon:'☀️'},
+    {label:'청취자 수', val: Math.floor(Math.random()*50+10)+'명', icon:'👥'},
+    {label:'POC 배율', val: ts.poc, icon:'⚡'},
+    {label:'크로스페이드', val: _crossfade?'4초':'OFF', icon:'🔀'},
+  ];
+  g('djComment').textContent = comments[ts.slot] || comments.afternoon;
+  g('djStatus').textContent = '선곡 완료 • ' + new Date().toLocaleTimeString('ko-KR');
+  var tagsHtml = (tags[ts.slot]||[]).map(function(t){ return '<div class="dj-tag">'+t+'</div>'; }).join('');
+  g('djTags').innerHTML = tagsHtml;
+  var critHtml = criteria.map(function(c){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.03);margin-bottom:6px">'+
+      '<span style="font-size:12px;color:var(--t3)">'+c.icon+' '+c.label+'</span>'+
+      '<span style="font-size:12px;font-family:var(--fm);color:var(--t1)">'+c.val+'</span></div>';
+  }).join('');
+  g('djCriteria').innerHTML = critHtml;
+}
+
+// Channels
+var _channels = [
+  {id:'ai-main', name:'TL AI 메인', icon:'🤖', listeners: 0, live:true, type:'ai'},
+  {id:'ai-cafe', name:'카페 감성', icon:'☕', listeners: 0, live:true, type:'ai'},
+  {id:'ai-night', name:'심야 방송', icon:'🌙', listeners: 0, live:true, type:'ai'},
+  {id:'ai-drive', name:'드라이브', icon:'🚗', listeners: 0, live:true, type:'ai'},
+];
+var _activeChannel = 'ai-main';
+
+function renderChannels(){
+  var html = '';
+  _channels.forEach(function(ch){
+    var active = ch.id === _activeChannel ? 'active' : '';
+    ch.listeners = Math.floor(Math.random()*80+5);
+    html += '<div class="channel-item '+active+'" onclick="selectChannel(\''+ch.id+'\')">' +
+      '<div class="ch-avatar">'+ch.icon+'</div>' +
+      '<div class="ch-info"><div class="ch-name">'+ch.name+'</div><div class="ch-listeners">👥 '+ch.listeners+'</div></div>' +
+      (ch.live ? '<div class="ch-live-badge">LIVE</div>' : '') +
+      '</div>';
+  });
+  g('channelList').innerHTML = html;
+}
+
+function selectChannel(id){
+  _activeChannel = id;
+  renderChannels();
+  var ch = _channels.find(function(c){ return c.id===id; });
+  if(ch) toast(ch.name+' 채널로 이동', 'i');
+  buildQueue();
+}
+
+// Load shares
+async function loadShares(){
+  try{
+    var r = await fetch(API+'/api/shares');
+    var d = await r.json();
+    _shares = (d.shares||[]).filter(function(s){ return s.file_tl && (s.category||'').toLowerCase() !== 'video'; });
+  }catch(e){ _shares=[]; }
+  buildQueue();
+  renderChannels();
+}
+
+// Build queue based on time/mode
+function buildQueue(){
+  if(!_shares.length) return;
+  var ts = getTimeSlot();
+  var pool = _shares.slice();
+
+  // AI sort: pulse + time mood
+  pool.sort(function(a,b){
+    var scoreA = (a.pulse||0)*2 + Math.random()*10;
+    var scoreB = (b.pulse||0)*2 + Math.random()*10;
+    return scoreB - scoreA;
+  });
+
+  if(_shuffle) pool = pool.sort(function(){ return Math.random()-.5; });
+  _queue = pool.slice(0,50);
+  g('queueCnt').textContent = _queue.length;
+  renderQueue();
+
+  if(!_playing && _queue.length) loadTrack(0);
+}
+
+function renderQueue(){
+  var html = '';
+  _queue.slice(0,30).forEach(function(s,i){
+    var active = i===_curIdx ? 'playing' : '';
+    var cover = s.cover_url ? '<img src="'+s.cover_url+'" style="width:100%;height:100%;object-fit:cover">' : '🎵';
+    html += '<div class="queue-item '+active+'" onclick="jumpTo('+i+')">' +
+      '<div class="qi-num">'+(i===_curIdx?'♪':(i+1))+'</div>' +
+      '<div class="qi-cover">'+cover+'</div>' +
+      '<div class="qi-info"><div class="qi-title">'+esc(s.title||'Untitled')+'</div><div class="qi-artist">'+esc(s.artist||s.username||'Unknown')+'</div></div>' +
+      '<div class="qi-tl">'+Math.floor(s.file_tl||0)+' TL</div>' +
+      '<div class="qi-dur">'+fmtTime(s.duration||0)+'</div>' +
+      '</div>';
+  });
+  g('queueList').innerHTML = html || '<div style="color:var(--t3);font-size:13px;text-align:center;padding:40px">곡을 불러오는 중...</div>';
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Audio
+var _audA, _audB, _useA = true;
+var _crossfading = false;
+
+function initAudio(){
+  _audA = g('audioA');
+  _audB = g('audioB');
+  _audA.volume = 0.7;
+  _audB.volume = 0;
+  _audA.addEventListener('timeupdate', onTimeUpdate);
+  _audB.addEventListener('timeupdate', onTimeUpdate);
+  _audA.addEventListener('ended', onEnded);
+  _audB.addEventListener('ended', onEnded);
+}
+
+function getActiveAud(){ return _useA ? _audA : _audB; }
+function getNextAud(){ return _useA ? _audB : _audA; }
+
+function loadTrack(idx){
+  if(!_queue[idx]) return;
+  _curIdx = idx;
+  var s = _queue[idx];
+  var url = s.stream_url || s.file_tl;
+  if(!url || typeof url !== 'string' || !url.startsWith('http')) {
+    // try R2
+    url = 'https://pub-c8d04f598d434d2f9568c08938d892a7.r2.dev/'+s.file_tl;
+  }
+  var aud = getActiveAud();
+  aud.src = url;
+  aud.load();
+  if(_playing) aud.play().catch(function(e){ console.warn(e); });
+
+  updateNowPlaying(s);
+  renderQueue();
+  _songCount++;
+  g('todaySongs').textContent = _songCount;
+
+  // Schedule crossfade
+  if(_crossfade) scheduleCrossfade();
+}
+
+function updateNowPlaying(s){
+  g('npTitle').textContent = s.title || 'Untitled';
+  g('npArtist').textContent = s.artist || s.username || 'Unknown';
+  g('npTl').textContent = Math.floor(s.file_tl||0)+' TL/곡';
+  g('npListeners').textContent = '👥 '+(_activeChannel?Math.floor(Math.random()*60+10):0)+' 청취 중';
+
+  var ts = getTimeSlot();
+  g('npMode').textContent = 'AI DJ • ' + (_mode==='cafe'?'카페방송':'인카방송');
+  g('djMood').textContent = ts.label;
+
+  var img = g('npCoverImg');
+  var def = g('npCoverDefault');
+  if(s.cover_url){ img.src=s.cover_url; img.style.display='block'; def.style.display='none'; }
+  else { img.style.display='none'; def.style.display='flex'; }
+}
+
+function scheduleCrossfade(){
+  if(_fadeTimeout) clearTimeout(_fadeTimeout);
+  var aud = getActiveAud();
+  aud.addEventListener('durationchange', function onDurChange(){
+    aud.removeEventListener('durationchange', onDurChange);
+    var fadeAt = Math.max(0, (aud.duration||60) - 4);
+    _fadeTimeout = setTimeout(function(){ startCrossfade(); }, fadeAt*1000);
+  }, {once:true});
+}
+
+function startCrossfade(){
+  if(_crossfading || _queue.length<2) return;
+  _crossfading = true;
+  var nextIdx = (_curIdx+1) % _queue.length;
+  var nextS = _queue[nextIdx];
+  var nextUrl = nextS.stream_url || nextS.file_tl;
+  if(!nextUrl||!nextUrl.startsWith('http')) nextUrl='https://pub-c8d04f598d434d2f9568c08938d892a7.r2.dev/'+nextS.file_tl;
+
+  var fadeOut = getActiveAud();
+  var fadeIn = getNextAud();
+  fadeIn.src = nextUrl;
+  fadeIn.volume = 0;
+  fadeIn.load();
+  if(_playing) fadeIn.play().catch(function(){});
+
+  var steps = 40, step = 0;
+  var iv = setInterval(function(){    step++;
+    fadeOut.volume = Math.max(0, 0.7*(1-step/steps));
+    fadeIn.volume = Math.min(0.7, 0.7*(step/steps));
+    if(step>=steps){
+      clearInterval(iv);
+      fadeOut.pause(); fadeOut.src='';
+      _useA = !_useA;
+      _crossfading = false;
+      _curIdx = nextIdx;
+      updateNowPlaying(nextS);
+      renderQueue();
+      _songCount++;
+      g('todaySongs').textContent = _songCount;
+      scheduleCrossfade();
+    }
+  }, 100);
+}
+
+function togglePlay(){
+  if(!_queue[_curIdx]) return;
+  var aud = getActiveAud();
+  if(_playing){ aud.pause(); _playing=false; g('playBtn').textContent='▶'; stopPoc(); }
+  else {
+    if(!aud.src) loadTrack(_curIdx);
+    aud.play().then(function(){ _playing=true; g('playBtn').textContent='⏸'; startPoc(); startViz(); }).catch(function(e){ toast('재생 실패: '+e.message,'e'); });
+  }
+}
+
+function prevTrack(){ if(_curIdx>0) loadTrack(_curIdx-1); }
+function nextTrack(){ loadTrack((_curIdx+1)%_queue.length); }
+function jumpTo(i){ _playing=true; loadTrack(i); g('playBtn').textContent='⏸'; startPoc(); startViz(); }
+
+function onTimeUpdate(){
+  var aud = getActiveAud();
+  if(!aud.duration) return;
+  var pct = (aud.currentTime/aud.duration)*100;
+  g('progressFill').style.width = pct+'%';
+  g('timeCur').textContent = fmtTime(aud.currentTime);
+  g('timeTot').textContent = fmtTime(aud.duration);
+}
+
+function onEnded(){
+  if(!_crossfading) nextTrack();
+}
+
+function seekTrack(e){
+  var aud = getActiveAud();
+  if(!aud.duration) return;
+  var rect = g('progressBar').getBoundingClientRect();
+  aud.currentTime = ((e.clientX-rect.left)/rect.width)*aud.duration;
+}
+
+function setVol(v){ _audA.volume=v/100; _audB.volume=_crossfading?(v/100):0; }
+function toggleShuffle(){ _shuffle=!_shuffle; g('shuffleBtn').style.color=_shuffle?'var(--amber)':''; toast(_shuffle?'셔플 ON':'셔플 OFF','i'); buildQueue(); }
+function toggleCrossfade(){ _crossfade=!_crossfade; g('crossBtn').style.color=_crossfade?'var(--amber)':''; toast(_crossfade?'크로스페이드 ON (4초)':'크로스페이드 OFF','i'); }
+
+// POC
+var _pocMult = 1.0;
+function startPoc(){
+  if(_pocInterval) clearInterval(_pocInterval);
+  var ts = getTimeSlot();
+  _pocMult = _mode==='incar' ? 2.5 : parseFloat(ts.poc||'1.0');
+  _pocInterval = setInterval(function(){
+    var gain = _pocMult * (1/60);
+    _pocTotal += gain;
+    _minTotal += 1/60;
+    g('todayPoc').textContent = _pocTotal.toFixed(1);
+    g('todayMin').textContent = Math.floor(_minTotal);
+    g('npPoc').textContent = '+'+_pocTotal.toFixed(1)+' POC';
+    // TL 차감 (1 TL/sec)
+    if(_user){ _user.tl = Math.max(0,(_user.tl||0)-1); localStorage.setItem('tl_user',JSON.stringify(_user)); }
+  }, 1000);
+}
+function stopPoc(){ if(_pocInterval){ clearInterval(_pocInterval); _pocInterval=null; } }
+
+// Visualizer
+var _vizCtx, _vizACtx, _vizSrc, _vizAnal;
+function startViz(){
+  if(_vizCtx) return;
+  try{
+    var ctx = new (window.AudioContext||window.webkitAudioContext)();
+    _vizACtx = ctx;
+    _vizAnal = ctx.createAnalyser();
+    _vizAnal.fftSize = 256;
+    var src = ctx.createMediaElementSource(_audA);
+    src.connect(_vizAnal); _vizAnal.connect(ctx.destination);
+    _vizSrc = src;
+    var canvas = g('viz');
+    _vizCtx = canvas.getContext('2d');
+    drawViz();
+  }catch(e){ console.warn('Viz:',e); }
+}
+
+function drawViz(){
+  requestAnimationFrame(drawViz);
+  var canvas = g('viz');
+  canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+  var ctx = _vizCtx;
+  if(!ctx) return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!_vizAnal){ drawFakeViz(ctx,canvas); return; }
+  var buf = new Uint8Array(_vizAnal.frequencyBinCount);
+  _vizAnal.getByteFrequencyData(buf);
+  var w = canvas.width/buf.length;
+  buf.forEach(function(v,i){
+    var h = (v/255)*canvas.height;
+    var hue = 35+i*0.5;
+    ctx.fillStyle = 'hsla('+hue+',90%,60%,0.7)';
+    ctx.fillRect(i*w, canvas.height-h, w-1, h);
+  });
+}
+
+var _fakePhase=0;
+function drawFakeViz(ctx,canvas){
+  _fakePhase+=0.05;
+  var bars=48;
+  var w=canvas.width/bars;
+  for(var i=0;i<bars;i++){
+    var h=(_playing?(Math.sin(_fakePhase+i*0.4)*0.4+0.5)*canvas.height*0.8:4);
+    var hue=35+i*2;
+    ctx.fillStyle='hsla('+hue+',85%,55%,0.6)';
+    ctx.fillRect(i*w,canvas.height-h,w-1,h);
+  }
+}
+
+// Tab switch
+function switchTab(name, el){
+  ['queue','request','dj','incar'].forEach(function(t){ var e=g('tab-'+t); if(e) e.style.display='none'; });
+  document.querySelectorAll('.ctab').forEach(function(e){ e.classList.remove('active'); });
+  g('tab-'+name).style.display=''; el.classList.add('active');
+  if(name==='dj') updateDJPanel();
+}
+
+// Mode switch
+function setMode(m){
+  _mode = m;
+  g('mode-cafe').classList.toggle('active', m==='cafe');
+  g('mode-incar').classList.toggle('active', m==='incar');
+  g('incarTab').style.display = m==='incar'?'':'none';
+  g('npMode').textContent = 'AI DJ • '+(m==='cafe'?'카페방송':'인카방송');
+  var poc = m==='incar'?'2.5x':'1.0x';
+  var desc = m==='incar'?'인카 주행 보너스':'카페방송 기본';
+  g('pocMult').textContent=poc; g('pocMultDesc').textContent=desc;
+  if(_pocInterval){ stopPoc(); startPoc(); }
+  toast(m==='cafe'?'☕ 카페방송 모드':'🚗 인카방송 모드 (POC 2.5x)', m==='incar'?'s':'i');
+  buildQueue();
+}
+
+// Requests
+function renderRequests(){
+  var html = _requests.length ? '' : '<div style="color:var(--t3);font-size:13px;text-align:center;padding:40px">아직 신청곡이 없습니다</div>';
+  _requests.forEach(function(r){
+    html += '<div class="request-item">'+
+      '<div class="ri-header"><span class="ri-user">'+esc(r.user)+'</span><span class="ri-time">'+r.time+'</span></div>'+
+      '<div class="ri-song">🎵 '+esc(r.song)+'</div>'+
+      (r.story?'<div class="ri-story">'+esc(r.story)+'</div>':'')+
+      '<span class="ri-status pending">대기 중</span></div>';
+  });
+  g('requestList').innerHTML = html;
+}
+
+function sendRequest(){
+  var song = g('reqSong').value.trim();
+  var story = g('reqStory').value.trim();
+  if(!song){ toast('곡명을 입력해주세요','e'); return; }
+  _requests.unshift({user:_user.username||'익명', song:song, story:story, time:new Date().toLocaleTimeString('ko-KR')});
+  g('reqSong').value=''; g('reqStory').value='';
+  renderRequests();
+  toast('신청곡이 접수되었습니다! 🎤','s');
+}
+
+function loadMyPlaylist(){
+  if(!_shares.length){ toast('SharePlace 곡을 불러오는 중...','i'); return; }
+  toast('내 플레이리스트 적용됨','s');
+}
+
+// Init
+window.addEventListener('load', function(){
+  initAudio();
+  startClock();
+  initWeather();
+  loadShares();
+  renderRequests();
+  setInterval(renderChannels, 30000);
+  drawViz();
+});
+</script>
+</body>
+</html>

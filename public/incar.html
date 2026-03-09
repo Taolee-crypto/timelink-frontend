@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>TL 인카방송</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04040A;--bg2:#08080F;
+  --cyan:#00E5FF;--cyan2:rgba(0,229,255,.12);--cyan3:rgba(0,229,255,.06);
+  --amber:#F5A623;--green:#2ECC71;--red:#FF4757;
+  --bd:rgba(255,255,255,.07);--bd2:rgba(0,229,255,.15);
+  --t1:#fff;--t2:rgba(255,255,255,.55);--t3:rgba(255,255,255,.28);
+  --fn:'Noto Sans KR',sans-serif;--fm:'JetBrains Mono',monospace;--fb:'Bebas Neue',cursive;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;-webkit-tap-highlight-color:transparent}
+body{font-family:var(--fn);background:var(--bg);color:var(--t1);display:flex;flex-direction:column;touch-action:none}
+
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 30%,rgba(0,229,255,.06) 0%,transparent 70%);pointer-events:none}
+.scanlines{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.05) 3px,rgba(0,0,0,.05) 6px);pointer-events:none;z-index:9998}
+
+/* ── SETUP SCREEN ── */
+#setupScreen{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px}
+.setup-logo{font-family:var(--fb);font-size:36px;color:var(--cyan);letter-spacing:.15em;margin-bottom:8px}
+.setup-sub{font-size:12px;color:var(--t3);font-family:var(--fm);margin-bottom:40px}
+.setup-card{width:100%;max-width:440px;background:rgba(0,229,255,.04);border:1px solid var(--bd2);border-radius:18px;padding:28px}
+.setup-title{font-size:14px;font-weight:700;color:var(--cyan);margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.setup-input{width:100%;padding:14px 18px;background:rgba(255,255,255,.04);border:1px solid rgba(0,229,255,.2);border-radius:10px;color:var(--t1);font-size:16px;font-family:var(--fm);outline:none;text-align:center;letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px}
+.setup-input:focus{border-color:var(--cyan);background:rgba(0,229,255,.05)}
+.setup-input::placeholder{color:var(--t3);text-transform:none;letter-spacing:0;font-size:13px}
+.setup-hint{font-size:11px;color:var(--t3);text-align:center;margin-bottom:20px;line-height:1.6}
+.setup-btn{width:100%;padding:16px;border-radius:12px;border:none;background:var(--cyan);color:#000;font-size:16px;font-weight:900;font-family:var(--fn);cursor:pointer;transition:all .25s;margin-bottom:10px}
+.setup-btn:hover{background:#33EEFF;transform:translateY(-2px)}
+.setup-btn.skip{background:transparent;border:1px solid var(--bd2);color:var(--t3);font-weight:400;font-size:13px}
+.setup-btn.skip:hover{border-color:rgba(0,229,255,.3);color:var(--cyan);transform:none}
+.setup-poc-info{display:flex;align-items:center;gap:12px;padding:14px;background:rgba(46,204,113,.06);border:1px solid rgba(46,204,113,.18);border-radius:10px;margin-bottom:20px}
+.setup-poc-info .poc-val{font-size:28px;font-weight:900;color:var(--green);font-family:var(--fm)}
+.setup-poc-info .poc-desc{font-size:12px;color:var(--t2);line-height:1.5}
+
+/* ── MAIN DRIVE UI ── */
+#driveScreen{flex:1;display:flex;flex-direction:column;display:none}
+
+/* Top HUD */
+.hud-top{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--bd);flex-shrink:0}
+.hud-back{padding:8px 14px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:12px;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:6px}
+.hud-back:hover{color:var(--cyan);border-color:rgba(0,229,255,.3)}
+.hud-status{display:flex;align-items:center;gap:10px}
+.hud-gps{display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--fm);padding:5px 12px;border-radius:10px;border:1px solid var(--bd2);background:rgba(0,229,255,.06)}
+.gps-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:gps-blink 2s ease-in-out infinite}
+@keyframes gps-blink{0%,100%{opacity:1}50%{opacity:.3}}
+.hud-plate{font-family:var(--fm);font-size:12px;color:var(--cyan);padding:5px 12px;border-radius:8px;border:1px solid rgba(0,229,255,.2);background:rgba(0,229,255,.06)}
+.hud-time{font-family:var(--fm);font-size:14px;color:var(--t2)}
+
+/* Speed + POC center */
+.drive-center{display:flex;align-items:center;justify-content:center;gap:40px;padding:20px;flex-shrink:0}
+.speed-circle{position:relative;width:140px;height:140px}
+.speed-circle svg{transform:rotate(-90deg)}
+.speed-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.speed-num{font-family:var(--fb);font-size:42px;color:var(--cyan);line-height:1}
+.speed-unit{font-size:10px;color:var(--t3);font-family:var(--fm);letter-spacing:.1em}
+.speed-status{font-size:10px;margin-top:4px;font-family:var(--fm)}
+.speed-status.moving{color:var(--green)}
+.speed-status.stopped{color:var(--t3)}
+
+.poc-display{display:flex;flex-direction:column;align-items:center;gap:6px}
+.poc-big{font-family:var(--fb);font-size:56px;color:var(--green);line-height:1}
+.poc-label{font-size:10px;color:var(--t3);font-family:var(--fm);letter-spacing:.1em}
+.poc-mult-badge{padding:4px 12px;border-radius:12px;background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.25);font-size:12px;font-family:var(--fm);color:var(--green)}
+
+.drive-sep{width:1px;height:100px;background:var(--bd);align-self:center}
+
+/* Now Playing - BIG */
+.now-playing{padding:0 24px 16px;flex-shrink:0}
+.np-inner{display:flex;align-items:center;gap:18px;padding:18px 20px;border-radius:16px;background:rgba(0,229,255,.04);border:1px solid var(--bd2)}
+.np-cover{width:70px;height:70px;border-radius:10px;background:rgba(255,255,255,.08);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:28px;overflow:hidden;position:relative;border:1px solid var(--bd2)}
+.np-cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.np-cover-spin{animation:cover-spin 8s linear infinite}
+@keyframes cover-spin{to{transform:rotate(360deg)}}
+.np-info{flex:1;min-width:0}
+.np-label{font-size:10px;font-family:var(--fm);color:var(--cyan);letter-spacing:.1em;margin-bottom:4px}
+.np-title{font-size:20px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.np-artist{font-size:13px;color:var(--t2);margin-top:3px}
+.np-tl{font-size:11px;color:var(--amber);font-family:var(--fm);margin-top:5px}
+
+/* Waveform */
+.waveform{height:40px;display:flex;align-items:center;justify-content:center;gap:2px;padding:0 24px;margin-bottom:8px;flex-shrink:0}
+.wave-bar{width:3px;border-radius:2px;background:var(--cyan);opacity:.6;transform-origin:bottom;transition:height .1s}
+
+/* Controls - BIG TOUCH */
+.controls{padding:12px 24px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.progress-wrap{flex:1}
+.progress-bar{width:100%;height:4px;background:rgba(255,255,255,.1);border-radius:2px;cursor:pointer;position:relative;margin-bottom:6px}
+.progress-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--cyan),#80F2FF);width:0%;transition:width .5s linear}
+.prog-times{display:flex;justify-content:space-between;font-size:10px;font-family:var(--fm);color:var(--t3)}
+.ctrl-btn{width:54px;height:54px;border-radius:50%;border:1px solid var(--bd2);background:rgba(0,229,255,.06);color:var(--t1);font-size:20px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.ctrl-btn:active{transform:scale(.92)}
+.ctrl-btn.play{width:64px;height:64px;font-size:26px;background:var(--cyan);border-color:var(--cyan);color:#000}
+.ctrl-btn.play:active{background:#33EEFF}
+
+/* Queue */
+.queue-section{flex:1;overflow-y:auto;padding:0 16px 16px}
+.queue-header{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 12px;font-size:11px;font-family:var(--fm);color:var(--t3)}
+.queue-item{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;margin-bottom:6px;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.queue-item:active{background:rgba(255,255,255,.04)}
+.queue-item.playing{background:rgba(0,229,255,.07);border-left:2px solid var(--cyan)}
+.qi-num{font-family:var(--fm);font-size:11px;color:var(--t3);width:22px;text-align:center;flex-shrink:0}
+.qi-cover{width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,.07);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;overflow:hidden}
+.qi-cover img{width:100%;height:100%;object-fit:cover}
+.qi-info{flex:1;min-width:0}
+.qi-title{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qi-artist{font-size:12px;color:var(--t3)}
+.qi-tl{font-family:var(--fm);font-size:11px;color:var(--amber);flex-shrink:0}
+
+/* Bottom toolbar */
+.bottom-toolbar{display:flex;padding:12px 20px;border-top:1px solid var(--bd);gap:10px;flex-shrink:0}
+.tb-action{flex:1;padding:12px;border-radius:10px;border:1px solid var(--bd);background:rgba(255,255,255,.03);color:var(--t2);font-size:12px;cursor:pointer;text-align:center;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.tb-action:hover{border-color:rgba(0,229,255,.3);color:var(--cyan);background:rgba(0,229,255,.06)}
+.tb-action.active{border-color:var(--cyan);background:rgba(0,229,255,.1);color:var(--cyan)}
+
+/* Night mode */
+body.night{--bg:#020205;--bg2:#04040A}
+body.night .np-inner{background:rgba(0,0,0,.4)}
+body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
+
+/* Voice indicator */
+.voice-ind{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:20px;background:rgba(0,229,255,.15);border:1px solid var(--cyan);font-size:13px;color:var(--cyan);display:none;z-index:9999}
+.voice-ind.show{display:block;animation:voice-pulse 1s ease-in-out infinite}
+@keyframes voice-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* Toast */
+#toast-box{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;align-items:center}
+.t{padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;backdrop-filter:blur(20px);border:1px solid var(--bd);white-space:nowrap}
+.t.s{background:rgba(46,204,113,.15);color:var(--green);border-color:rgba(46,204,113,.3)}
+.t.e{background:rgba(255,71,87,.15);color:var(--red);border-color:rgba(255,71,87,.3)}
+.t.i{background:rgba(0,229,255,.12);color:var(--cyan);border-color:rgba(0,229,255,.3)}
+
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px}
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<div id="toast-box"></div>
+<div class="voice-ind" id="voiceInd">🎤 음성 인식 중...</div>
+
+<!-- ── SETUP SCREEN ── -->
+<div id="setupScreen">
+  <div class="setup-logo">🚗 인카방송</div>
+  <div class="setup-sub">TL BROADCASTING — IN-CAR STATION</div>
+
+  <div class="setup-card">
+    <div class="setup-poc-info">
+      <div class="poc-val">2.5x</div>
+      <div class="poc-desc">주행 중 POC 2.5배<br><span style="color:var(--t3)">GPS로 주행 감지 시 자동 적용</span></div>
+    </div>
+
+    <div class="setup-title">🚗 차량 번호판 등록</div>
+    <input class="setup-input" id="plateInput" placeholder="예) 123가 4567" maxlength="12" oninput="formatPlate(this)" onkeydown="if(event.key==='Enter')startDrive()">
+    <div class="setup-hint">
+      차량 번호판을 등록하면 주행 기록이 저장됩니다.<br>
+      번호판은 본인 차량 인증에 사용됩니다.
+    </div>
+    <button class="setup-btn" onclick="startDrive()">🚗 인카방송 시작</button>
+    <button class="setup-btn skip" onclick="startDriveGuest()">번호판 없이 시작 (POC 1.0x)</button>
+  </div>
+</div>
+
+<!-- ── DRIVE SCREEN ── -->
+<div id="driveScreen">
+
+  <!-- HUD Top -->
+  <div class="hud-top">
+    <a href="radio.html" class="hud-back">← 방송국</a>
+    <div class="hud-status">
+      <div class="hud-gps"><div class="gps-dot"></div><span id="gpsStatus" style="color:var(--t2);font-size:11px">GPS 연결 중</span></div>
+      <div class="hud-plate" id="hudPlate">--</div>
+    </div>
+    <div class="hud-time" id="hudTime">--:--</div>
+  </div>
+
+  <!-- Speed + POC -->
+  <div class="drive-center">
+    <!-- Speed gauge -->
+    <div class="speed-circle">
+      <svg width="140" height="140" viewBox="0 0 140 140">
+        <circle cx="70" cy="70" r="60" fill="none" stroke="rgba(0,229,255,.1)" stroke-width="8"/>
+        <circle cx="70" cy="70" r="60" fill="none" stroke="var(--cyan)" stroke-width="8"
+          stroke-dasharray="377" stroke-dashoffset="377" id="speedArc" stroke-linecap="round"
+          style="transition:stroke-dashoffset 1s ease"/>
+      </svg>
+      <div class="speed-val">
+        <div class="speed-num" id="speedNum">0</div>
+        <div class="speed-unit">km/h</div>
+        <div class="speed-status stopped" id="speedStatus">정차 중</div>
+      </div>
+    </div>
+
+    <div class="drive-sep"></div>
+
+    <!-- POC -->
+    <div class="poc-display">
+      <div class="poc-big" id="pocBig">0.0</div>
+      <div class="poc-label">TODAY POC</div>
+      <div class="poc-mult-badge" id="pocBadge">×1.0 기본</div>
+      <div style="font-size:10px;color:var(--t3);font-family:var(--fm);margin-top:6px" id="driveKm">0.0 km 주행</div>
+    </div>
+  </div>
+
+  <!-- Now Playing -->
+  <div class="now-playing">
+    <div class="np-inner">
+      <div class="np-cover" id="npCover">
+        <span id="npCoverEmoji" style="font-size:28px">🎵</span>
+        <img id="npCoverImg" src="" style="display:none">
+      </div>
+      <div class="np-info">
+        <div class="np-label">🚗 ON AIR</div>
+        <div class="np-title" id="npTitle">방송 준비 중...</div>
+        <div class="np-artist" id="npArtist">TL 인카방송</div>
+        <div class="np-tl" id="npTl">-- TL</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Waveform -->
+  <div class="waveform" id="waveform"></div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="ctrl-btn" onclick="prevTrack()">⏮</button>
+    <button class="ctrl-btn play" id="playBtn" onclick="togglePlay()">▶</button>
+    <button class="ctrl-btn" onclick="nextTrack()">⏭</button>
+    <div class="progress-wrap">
+      <div class="progress-bar" onclick="seekTrack(event)" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="prog-times"><span id="timeCur">0:00</span><span id="timeTot">0:00</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:center;flex-shrink:0">
+      <input type="range" id="volSlider" min="0" max="100" value="75" oninput="setVol(this.value)"
+        style="width:60px;-webkit-appearance:none;height:3px;border-radius:2px;background:rgba(255,255,255,.1);outline:none;cursor:pointer">
+      <span style="font-size:9px;color:var(--t3);font-family:var(--fm)" id="volVal">75%</span>
+    </div>
+  </div>
+
+  <!-- Queue -->
+  <div class="queue-section">
+    <div class="queue-header">
+      <span>▸ 재생 목록 (<span id="queueCnt">0</span>곡)</span>
+      <span id="shuffleLabel" style="cursor:pointer" onclick="toggleShuffle()">🔀 셔플 OFF</span>
+    </div>
+    <div id="queueList"></div>
+  </div>
+
+  <!-- Bottom Toolbar -->
+  <div class="bottom-toolbar">
+    <button class="tb-action" id="nightBtn" onclick="toggleNight()">🌙 야간 모드</button>
+    <button class="tb-action" id="voiceBtn" onclick="toggleVoice()">🎤 음성 제어</button>
+    <button class="tb-action" id="shuffleBtn" onclick="toggleShuffle()">🔀 셔플</button>
+    <button class="tb-action" onclick="showMylist()">📋 내 목록</button>
+  </div>
+
+</div>
+
+<audio id="audioA" crossorigin="anonymous"></audio>
+<audio id="audioB" crossorigin="anonymous"></audio>
+
+<script>
+var API = 'https://api.timelink.digital';
+var _user = null;
+try{ _user = JSON.parse(localStorage.getItem('tl_user')||'null'); }catch(e){}
+if(!_user){ location.href='login.html'; }
+
+var _plate = '', _shares = [], _queue = [], _curIdx = 0;
+var _playing = false, _shuffle = false, _night = false, _voiceOn = false;
+var _speed = 0, _distance = 0, _poc = 0, _pocMult = 1.0;
+var _pocInterval = null, _gpsWatch = null;
+var _useA = true, _audA, _audB, _crossfading = false;
+
+function toast(msg,t){ t=t||'i'; var el=document.createElement('div'); el.className='t '+t; el.textContent=msg; document.getElementById('toast-box').prepend(el); setTimeout(function(){el.remove();},3000); }
+function g(id){ return document.getElementById(id); }
+function fmtTime(s){ s=Math.floor(s||0); return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60); }
+
+function formatPlate(el){
+  el.value = el.value.toUpperCase();
+}
+
+// Clock
+setInterval(function(){ g('hudTime').textContent = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}); }, 1000);
+
+// Start
+function startDrive(){
+  _plate = g('plateInput').value.trim();
+  if(!_plate){ toast('번호판을 입력해주세요','e'); return; }
+  localStorage.setItem('tl_car_plate', _plate);
+  _pocMult = 2.5;
+  g('pocBadge').textContent = '×2.5 주행 보너스 🔥';
+  g('hudPlate').textContent = _plate;
+  launchDrive();
+  toast('🚗 인카방송 시작! POC 2.5x 적용','s');
+}
+
+function startDriveGuest(){
+  _plate = localStorage.getItem('tl_car_plate') || '';
+  _pocMult = 1.0;
+  g('pocBadge').textContent = '×1.0 기본';
+  g('hudPlate').textContent = _plate || '미등록';
+  launchDrive();
+}
+
+function launchDrive(){
+  g('setupScreen').style.display = 'none';
+  g('driveScreen').style.display = 'flex';
+  initAudio();
+  initGPS();
+  initWaveform();
+  loadShares();
+}
+
+// GPS
+var _lastPos = null;
+function initGPS(){
+  if(!navigator.geolocation){ g('gpsStatus').textContent = 'GPS 미지원'; return; }
+  g('gpsStatus').textContent = 'GPS 연결 중';
+  _gpsWatch = navigator.geolocation.watchPosition(
+    function(pos){
+      g('gpsStatus').textContent = 'GPS ✓';
+      var spd = pos.coords.speed ? pos.coords.speed * 3.6 : 0; // m/s → km/h
+      updateSpeed(spd);
+      if(_lastPos){
+        var dlat = pos.coords.latitude - _lastPos.latitude;
+        var dlng = pos.coords.longitude - _lastPos.longitude;
+        var dist = Math.sqrt(dlat*dlat+dlng*dlng) * 111;
+        _distance += dist;
+        g('driveKm').textContent = _distance.toFixed(1)+' km 주행';
+      }
+      _lastPos = pos.coords;
+    },
+    function(err){ g('gpsStatus').textContent = 'GPS 오류'; simulateSpeed(); },
+    {enableHighAccuracy:true, maximumAge:1000, timeout:5000}
+  );
+}
+
+// Simulate speed for demo when GPS unavailable
+function simulateSpeed(){
+  var phase = 0;
+  setInterval(function(){
+    phase += 0.03;
+    var spd = Math.max(0, Math.sin(phase)*60+40+Math.random()*10);
+    if(phase > Math.PI*4) spd = 0;
+    updateSpeed(spd);
+  }, 1000);
+}
+
+function updateSpeed(spd){
+  _speed = spd;
+  var rounded = Math.round(spd);
+  g('speedNum').textContent = rounded;
+
+  // Arc: 377 = full circle circumference, max speed ~160
+  var pct = Math.min(1, spd/160);
+  var offset = 377 - (377 * pct);
+  g('speedArc').setAttribute('stroke-dashoffset', offset);
+
+  var moving = spd > 5;
+  g('speedStatus').textContent = moving ? '주행 중' : '정차 중';
+  g('speedStatus').className = 'speed-status '+(moving?'moving':'stopped');
+
+  // POC mult: moving = 2.5x (if registered), stopped = 0.5x
+  if(_plate){
+    _pocMult = moving ? 2.5 : 0.5;
+    g('pocBadge').textContent = moving ? '×2.5 주행 중 🔥' : '×0.5 정차';
+    g('pocBadge').style.borderColor = moving ? 'rgba(46,204,113,.3)' : 'rgba(255,255,255,.1)';
+    g('pocBadge').style.color = moving ? 'var(--green)' : 'var(--t3)';
+  }
+}
+
+// Audio
+function initAudio(){
+  _audA = g('audioA'); _audB = g('audioB');
+  _audA.volume = 0.75; _audB.volume = 0;
+  _audA.addEventListener('timeupdate', onTimeUpdate);
+  _audA.addEventListener('ended', function(){ if(!_crossfading) nextTrack(); });
+  _audB.addEventListener('ended', function(){ if(!_crossfading) nextTrack(); });
+}
+function getAud(){ return _useA ? _audA : _audB; }
+
+async function loadShares(){
+  try{
+    var r = await fetch(API+'/api/shares');
+    var d = await r.json();
+    _shares = (d.shares||[]).filter(function(s){ return s.file_tl; });
+  }catch(e){ _shares=[]; }
+
+  // Load saved playlist
+  var saved = JSON.parse(localStorage.getItem('tl_incar_playlist')||'null');
+  if(saved && saved.length) _queue = _shares.filter(function(s){ return saved.includes(s.id); });
+  if(!_queue.length) _queue = _shares.slice().sort(function(a,b){ return (b.pulse||0)-(a.pulse||0); }).slice(0,40);
+
+  g('queueCnt').textContent = _queue.length;
+  renderQueue();
+  if(_queue.length) loadTrack(0);
+}
+
+function loadTrack(idx){
+  if(!_queue[idx]) return;
+  _curIdx = idx;
+  var s = _queue[idx];
+  var url = s.stream_url || s.file_tl;
+  if(!url||!url.startsWith('http')) url = 'https://pub-c8d04f598d434d2f9568c08938d892a7.r2.dev/'+s.file_tl;
+
+  var aud = getAud();
+  aud.src = url; aud.load();
+  if(_playing) aud.play().catch(function(){});
+
+  g('npTitle').textContent = s.title||'Untitled';
+  g('npArtist').textContent = s.artist||s.username||'Unknown';
+  g('npTl').textContent = Math.floor(s.file_tl||0)+' TL/곡';
+  var img = g('npCoverImg');
+  if(s.cover_url){ img.src=s.cover_url; img.style.display='block'; g('npCoverEmoji').style.display='none'; }
+  else { img.style.display='none'; g('npCoverEmoji').style.display=''; }
+
+  renderQueue();
+  scheduleCrossfade();
+}
+
+function scheduleCrossfade(){
+  var aud = getAud();
+  aud.addEventListener('durationchange', function onDur(){
+    aud.removeEventListener('durationchange',onDur);
+    var at = Math.max(0,(aud.duration||60)-4);
+    setTimeout(startCrossfade, at*1000);
+  },{once:true});
+}
+
+function startCrossfade(){
+  if(_crossfading||_queue.length<2) return;
+  _crossfading=true;
+  var ni = (_curIdx+1)%_queue.length;
+  var ns = _queue[ni];
+  var nu = ns.stream_url||ns.file_tl;
+  if(!nu||!nu.startsWith('http')) nu='https://pub-c8d04f598d434d2f9568c08938d892a7.r2.dev/'+ns.file_tl;
+  var fo=getAud(), fi=_useA?_audB:_audA;
+  fi.src=nu; fi.volume=0; fi.load();
+  if(_playing) fi.play().catch(function(){});
+  var steps=40,step=0;
+  var iv=setInterval(function(){
+    step++;
+    fo.volume=Math.max(0,0.75*(1-step/steps));
+    fi.volume=Math.min(0.75,0.75*(step/steps));
+    if(step>=steps){ clearInterval(iv); fo.pause(); fo.src=''; _useA=!_useA; _crossfading=false; _curIdx=ni;
+      g('npTitle').textContent=ns.title||'Untitled'; g('npArtist').textContent=ns.artist||ns.username||'Unknown';
+      var img=g('npCoverImg');
+      if(ns.cover_url){img.src=ns.cover_url;img.style.display='block';g('npCoverEmoji').style.display='none';}
+      else{img.style.display='none';g('npCoverEmoji').style.display='';}
+      renderQueue(); scheduleCrossfade(); }
+  },100);
+}
+
+function togglePlay(){
+  var aud=getAud();
+  if(_playing){ aud.pause(); _playing=false; g('playBtn').textContent='▶'; stopPoc(); }
+  else{
+    if(!aud.src&&_queue[_curIdx]) loadTrack(_curIdx);
+    aud.play().then(function(){ _playing=true; g('playBtn').textContent='⏸'; startPoc(); }).catch(function(e){ toast('재생 오류: '+e.message,'e'); });
+  }
+}
+function prevTrack(){ if(_curIdx>0){_playing=true;loadTrack(_curIdx-1);g('playBtn').textContent='⏸';startPoc();} }
+function nextTrack(){ _playing=true; loadTrack((_curIdx+1)%_queue.length); g('playBtn').textContent='⏸'; startPoc(); }
+function jumpTo(i){ _playing=true; loadTrack(i); g('playBtn').textContent='⏸'; startPoc(); }
+
+function onTimeUpdate(){
+  var aud=getAud();
+  if(!aud.duration) return;
+  var pct=(aud.currentTime/aud.duration)*100;
+  g('progressFill').style.width=pct+'%';
+  g('timeCur').textContent=fmtTime(aud.currentTime);
+  g('timeTot').textContent=fmtTime(aud.duration);
+}
+
+function seekTrack(e){
+  var aud=getAud(); if(!aud.duration) return;
+  var rect=g('progressBar').getBoundingClientRect();
+  aud.currentTime=((e.clientX-rect.left)/rect.width)*aud.duration;
+}
+
+function setVol(v){ _audA.volume=v/100; if(!_crossfading) _audB.volume=0; g('volVal').textContent=v+'%'; }
+
+// POC
+function startPoc(){
+  if(_pocInterval) clearInterval(_pocInterval);
+  _pocInterval = setInterval(function(){
+    _poc += _pocMult*(1/60);
+    g('pocBig').textContent = _poc.toFixed(1);
+    localStorage.setItem('tl_poc_today', _poc.toFixed(1));
+  },1000);
+}
+function stopPoc(){ if(_pocInterval){clearInterval(_pocInterval);_pocInterval=null;} }
+
+// Queue
+function renderQueue(){
+  g('queueList').innerHTML = _queue.slice(0,30).map(function(s,i){
+    var active = i===_curIdx?'playing':'';
+    var cover = s.cover_url?'<img src="'+s.cover_url+'">':'<span>🎵</span>';
+    return '<div class="queue-item '+active+'" onclick="jumpTo('+i+')">'+
+      '<div class="qi-num">'+(i===_curIdx?'♪':(i+1))+'</div>'+
+      '<div class="qi-cover">'+cover+'</div>'+
+      '<div class="qi-info"><div class="qi-title">'+esc(s.title||'Untitled')+'</div><div class="qi-artist">'+esc(s.artist||s.username||'')+'</div></div>'+
+      '<div class="qi-tl">'+Math.floor(s.file_tl||0)+' TL</div>'+
+      '</div>';
+  }).join('');
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Waveform animation
+var _waveBars = [];
+function initWaveform(){
+  var wf = g('waveform'); wf.innerHTML='';
+  for(var i=0;i<36;i++){
+    var b=document.createElement('div'); b.className='wave-bar';
+    b.style.height='4px'; wf.appendChild(b); _waveBars.push(b);
+  }
+  animateWave();
+}
+function animateWave(){
+  requestAnimationFrame(animateWave);
+  _waveBars.forEach(function(b,i){
+    var h = _playing ? (Math.sin(Date.now()*0.003+i*0.4)*16+18) : 4;
+    b.style.height = h+'px';
+  });
+}
+
+// Shuffle
+function toggleShuffle(){
+  _shuffle=!_shuffle;
+  g('shuffleLabel').textContent='🔀 셔플 '+(_shuffle?'ON':'OFF');
+  g('shuffleBtn').classList.toggle('active',_shuffle);
+  if(_shuffle) _queue=_queue.sort(function(){return Math.random()-.5;});
+  renderQueue();
+  toast(_shuffle?'셔플 ON':'셔플 OFF','i');
+}
+
+// Night mode
+function toggleNight(){
+  _night=!_night;
+  document.body.classList.toggle('night',_night);
+  g('nightBtn').classList.toggle('active',_night);
+  toast(_night?'🌙 야간 모드 ON':'야간 모드 OFF','i');
+}
+
+// Voice control
+var _recognition = null;
+function toggleVoice(){
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){ toast('음성 인식 미지원 브라우저','e'); return; }
+  _voiceOn=!_voiceOn;
+  g('voiceBtn').classList.toggle('active',_voiceOn);
+  if(_voiceOn){ startVoice(); toast('🎤 음성 제어 ON — "다음곡", "이전곡", "볼륨 업"','i'); }
+  else { if(_recognition) _recognition.stop(); g('voiceInd').classList.remove('show'); }
+}
+
+function startVoice(){
+  var SR = window.SpeechRecognition||window.webkitSpeechRecognition;
+  _recognition = new SR();
+  _recognition.lang='ko-KR'; _recognition.continuous=true; _recognition.interimResults=false;
+  _recognition.onstart=function(){ g('voiceInd').classList.add('show'); };
+  _recognition.onend=function(){ if(_voiceOn) _recognition.start(); else g('voiceInd').classList.remove('show'); };
+  _recognition.onresult=function(e){
+    var t=e.results[e.results.length-1][0].transcript.trim();
+    if(t.includes('다음')||t.includes('넥스트')) nextTrack();
+    else if(t.includes('이전')||t.includes('뒤로')) prevTrack();
+    else if(t.includes('볼륨 업')||t.includes('크게')){ var v=Math.min(100,parseInt(g('volSlider').value)+15); g('volSlider').value=v; setVol(v); toast('🔊 볼륨 '+v+'%','i'); }
+    else if(t.includes('볼륨 다운')||t.includes('작게')){ var v=Math.max(0,parseInt(g('volSlider').value)-15); g('volSlider').value=v; setVol(v); toast('🔉 볼륨 '+v+'%','i'); }
+    else if(t.includes('정지')||t.includes('멈춰')) { if(_playing) togglePlay(); }
+    else if(t.includes('재생')||t.includes('틀어')) { if(!_playing) togglePlay(); }
+    toast('🎤 "'+t+'"','i');
+  };
+  _recognition.start();
+}
+
+function showMylist(){
+  toast('📋 내 목록 = 현재 재생 큐','i');
+}
+
+// Keyboard
+document.addEventListener('keydown',function(e){
+  if(e.code==='Space'){e.preventDefault();togglePlay();}
+  else if(e.code==='ArrowRight') nextTrack();
+  else if(e.code==='ArrowLeft') prevTrack();
+});
+
+// Load saved plate
+window.addEventListener('load',function(){
+  var saved = localStorage.getItem('tl_car_plate');
+  if(saved) g('plateInput').value=saved;
+  var poc = parseFloat(localStorage.getItem('tl_poc_today')||'0');
+  _poc = poc;
+});
+</script>
+</body>
+</html>
