@@ -476,10 +476,10 @@ function tlPlayCard(el){
   var sid = el.getAttribute('data-sid');
   var s = _allShares.find(function(x){ return x.id === sid; });
   if(!s) return;
-  tlPlay(s.id, s.title, s.artist||'', s.cover_url||'', s.stream_url||s.preview_url||'', s.file_tl||0, s.duration||0);
+  tlPlay(s.id, s.title, s.artist||'', s.cover_url||'', s.stream_url||s.preview_url||'', s.file_tl||0, s.duration||0, s.file_type||s.category||'');
 }
 
-function tlPlay(shareId, title, artist, coverUrl, audioUrl, fileTL, duration){
+function tlPlay(shareId, title, artist, coverUrl, fileUrl, fileTL, duration, fileType){
   // TL 없으면 충전 유도
   if((fileTL||0) <= 0){
     if(confirm('"' + title + '"\n\nTL이 충전되지 않았습니다.\n지금 TL을 충전하시겠습니까?')){
@@ -497,34 +497,130 @@ function tlPlay(shareId, title, artist, coverUrl, audioUrl, fileTL, duration){
   _tlElapsed = 0;
   _tlDuration = duration || 0;
 
-  // UI 업데이트
+  // 파일 타입 판별
+  var ft = (fileType||'').toLowerCase();
+  var isImage = ft.startsWith('image/') || ft === 'image';
+  var isVideo = ft.startsWith('video/') || ft === 'video';
+  var isDoc = ft === 'application/pdf' || ft.includes('pdf') ||
+              ft.includes('document') || ft.includes('text/') ||
+              ft === 'doc' || ft === 'document' ||
+              ft.includes('spreadsheet') || ft.includes('presentation');
+  var isAudio = !isImage && !isVideo && !isDoc;
+
+  // 커버 UI
   document.getElementById('tlTitle').textContent = title;
   document.getElementById('tlArtist').textContent = artist || '';
   var cover = document.getElementById('tlCover');
-  if(coverUrl){
+  if(coverUrl && !isImage){
     cover.innerHTML = '<img src="' + coverUrl + '" style="width:100%;height:100%;object-fit:cover">';
+  } else if(isImage){
+    cover.innerHTML = '🖼️';
+  } else if(isVideo){
+    cover.innerHTML = '🎬';
+  } else if(isDoc){
+    cover.innerHTML = '📄';
   } else {
     cover.innerHTML = '🎵';
   }
+
   document.getElementById('tlPlayerBar').style.display = 'block';
   document.getElementById('tlWarning').style.display = 'none';
   tlUpdateUI();
 
-  // 오디오 로드
-  if(audioUrl){
-    _tlAudio = new Audio(audioUrl);
+  // ── 이미지 타입: 별도 뷰어 오버레이 ──
+  if(isImage && fileUrl){
+    tlShowImageViewer(title, fileUrl, fileTL);
+    tlStartTimer();
+    document.getElementById('tlPlayBtn').textContent = '⏸';
+    _tlPlaying = true;
+    return;
+  }
+
+  // ── 문서 타입: 뷰어 오버레이 ──
+  if(isDoc && fileUrl){
+    tlShowDocViewer(title, fileUrl, fileTL);
+    tlStartTimer();
+    document.getElementById('tlPlayBtn').textContent = '⏸';
+    _tlPlaying = true;
+    return;
+  }
+
+  // ── 비디오/오디오: HTML5 미디어 재생 ──
+  if(fileUrl){
+    if(isVideo){
+      _tlAudio = document.createElement('video');
+      _tlAudio.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);max-width:90vw;max-height:70vh;z-index:9998;border-radius:12px;box-shadow:0 0 60px rgba(0,0,0,.8)';
+      _tlAudio.controls = false;
+      document.body.appendChild(_tlAudio);
+    } else {
+      _tlAudio = new Audio();
+    }
+    _tlAudio.src = fileUrl;
     _tlAudio.crossOrigin = 'anonymous';
     _tlAudio.onended = function(){ tlStop(); };
-    _tlAudio.onerror = function(){
-      // 오디오 없어도 TL 타이머는 작동
-      console.warn('[TLPlayer] 오디오 로드 실패 — TL 타이머만 작동');
-    };
-    _tlAudio.play().catch(function(e){ console.warn('audio play:', e); });
+    _tlAudio.onerror = function(e){ console.warn('[TLPlayer] 미디어 로드 실패', e); };
+    _tlAudio.play().catch(function(e){ console.warn('play error:', e); });
   }
 
   tlStartTimer();
   document.getElementById('tlPlayBtn').textContent = '⏸';
   _tlPlaying = true;
+}
+
+// 문서 뷰어 (PDF/텍스트 — TL 차감되며 열람)
+var _tlDocOverlay = null;
+function tlShowDocViewer(title, fileUrl, fileTL){
+  if(_tlDocOverlay) _tlDocOverlay.remove();
+  _tlDocOverlay = document.createElement('div');
+  _tlDocOverlay.style.cssText = 'position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,.95);display:flex;flex-direction:column;backdrop-filter:blur(12px)';
+
+  var isPdf = fileUrl.toLowerCase().includes('.pdf') || fileUrl.includes('pdf');
+
+  _tlDocOverlay.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0">' +
+      '<div style="display:flex;align-items:center;gap:12px">' +
+        '<span style="font-size:22px">📄</span>' +
+        '<div>' +
+          '<div style="font-size:14px;font-weight:700;color:#fff;font-family:var(--fm)">' + title + '</div>' +
+          '<div style="font-size:11px;color:rgba(255,255,255,.4);font-family:var(--fm)">⚡ TL 소모 중 — 열람 시간만큼 차감됩니다</div>' +
+        '</div>' +
+      '</div>' +
+      '<button onclick="tlStop()" style="padding:8px 20px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;cursor:pointer;font-family:var(--fm);font-size:13px">✕ 닫기</button>' +
+    '</div>' +
+    '<div style="flex:1;overflow:hidden;position:relative">' +
+      (isPdf
+        ? '<iframe src="' + fileUrl + '" style="width:100%;height:100%;border:none;background:#fff"></iframe>'
+        : '<iframe src="https://docs.google.com/viewer?url=' + encodeURIComponent(fileUrl) + '&embedded=true" style="width:100%;height:100%;border:none"></iframe>'
+      ) +
+    '</div>' +
+    '<div style="padding:10px 24px;border-top:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">' +
+      '<span id="tlDocRemain" style="font-size:12px;color:#a78bfa;font-family:var(--fm)">⚡ ' + Number(fileTL).toLocaleString() + ' TL 남음</span>' +
+      '<a href="' + fileUrl + '" target="_blank" style="font-size:12px;color:rgba(255,255,255,.4);font-family:var(--fm);text-decoration:none">↗ 새탭으로 열기</a>' +
+    '</div>';
+
+  document.body.appendChild(_tlDocOverlay);
+  document.addEventListener('keydown', function esc(e){
+    if(e.key==='Escape'){ tlStop(); document.removeEventListener('keydown', esc); }
+  });
+}
+
+// 이미지 뷰어 (TL 차감되며 열람)
+var _tlImageOverlay = null;
+function tlShowImageViewer(title, imgUrl, fileTL){
+  if(_tlImageOverlay) _tlImageOverlay.remove();
+  _tlImageOverlay = document.createElement('div');
+  _tlImageOverlay.style.cssText = 'position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;backdrop-filter:blur(12px)';
+  _tlImageOverlay.innerHTML =
+    '<div style="position:relative;max-width:90vw;max-height:80vh">' +
+      '<img src="' + imgUrl + '" style="max-width:90vw;max-height:75vh;border-radius:12px;box-shadow:0 0 60px rgba(99,102,241,.4)">' +
+      '<div style="position:absolute;top:-40px;left:0;right:0;text-align:center;color:#fff;font-size:15px;font-weight:700;font-family:var(--fm)">' + title + '</div>' +
+    '</div>' +
+    '<div style="margin-top:16px;color:rgba(255,255,255,.5);font-size:12px;font-family:var(--fm)">⚡ TL 소모 중 — 닫으려면 ESC</div>' +
+    '<button onclick="tlStop()" style="margin-top:12px;padding:8px 24px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;cursor:pointer;font-family:var(--fm)">✕ 닫기</button>';
+  document.body.appendChild(_tlImageOverlay);
+  document.addEventListener('keydown', function esc(e){
+    if(e.key==='Escape'){ tlStop(); document.removeEventListener('keydown', esc); }
+  });
 }
 
 function tlStartTimer(){
@@ -563,6 +659,8 @@ function tlUpdateUI(){
   if(remain) remain.textContent = Number(_tlCurrentTL).toLocaleString() + ' TL';
   var pct = _tlMaxTL > 0 ? (_tlCurrentTL / _tlMaxTL * 100) : 0;
   if(bar) bar.style.width = pct + '%';
+  var docRemain = document.getElementById('tlDocRemain');
+  if(docRemain) docRemain.textContent = '⚡ ' + Number(_tlCurrentTL).toLocaleString() + ' TL 남음';
 
   // 색상 변화 (남은 TL에 따라)
   if(pct < 20 && bar) bar.style.background = 'linear-gradient(90deg,#ef4444,#f97316)';
@@ -592,7 +690,13 @@ function tlToggle(){
 function tlStop(silent){
   _tlPlaying = false;
   if(_tlTimer){ clearInterval(_tlTimer); _tlTimer = null; }
-  if(_tlAudio){ _tlAudio.pause(); _tlAudio = null; }
+  if(_tlAudio){
+    _tlAudio.pause();
+    if(_tlAudio.parentNode) _tlAudio.parentNode.removeChild(_tlAudio); // video 엘리먼트 제거
+    _tlAudio = null;
+  }
+  if(_tlImageOverlay){ _tlImageOverlay.remove(); _tlImageOverlay = null; }
+  if(_tlDocOverlay){ _tlDocOverlay.remove(); _tlDocOverlay = null; }
   if(!silent){
     document.getElementById('tlPlayerBar').style.display = 'none';
   }

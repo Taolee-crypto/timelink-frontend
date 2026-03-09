@@ -599,25 +599,57 @@ async function finishUpload(){
   if((u.tl||0)<5000){ alert('TL 잔액 부족! 5,000 TL 필요\n현재: '+Number(u.tl||0).toLocaleString()+' TL'); return; }
 
   var btn=document.querySelector('#wstep4 .btn-next');
-  if(btn){btn.disabled=true;btn.textContent='저장 중...';}
+  if(btn){btn.disabled=true;btn.textContent='📡 파일 업로드 중...';}
 
-  var body={
-    title:title,
-    user_id:u.id,
-    email:u.email,
-    username:u.username,
-    artist:_selSpotify?_selSpotify.artist:((document.getElementById('fArtist')||{value:''}).value||u.username||'Unknown'),
-    album:_selSpotify?_selSpotify.album:((document.getElementById('fAlbum')||{value:''}).value||''),
-    duration:_selSpotify?_selSpotify.duration:_selTL,
-    file_tl:_selTL,
-    category:(document.getElementById('fGenre')||{value:'Music'}).value,
-    description:'',plan: window._plan || 'A',
-    spotify_id:_selSpotify?_selSpotify.id:null,
-    spotify_url:_selSpotify?_selSpotify.spotify_url:null,
-    cover_url:_selSpotify?_selSpotify.cover_url:null,
-    preview_url:_selSpotify?_selSpotify.preview_url:null
-  };
   try{
+    // ── STEP 1: 실제 파일을 R2에 업로드 ──
+    var fileId = 'tl_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    var formData = new FormData();
+    formData.append('file', _selFile);
+    formData.append('trackId', fileId);
+
+    if(btn) btn.textContent = '📡 R2 업로드 중... (파일 크기: '+(_selFile.size/1024/1024).toFixed(1)+'MB)';
+
+    var upRes = await fetch(API_B+'/api/upload', {
+      method: 'POST',
+      body: formData
+    });
+    var upData = await upRes.json();
+    if(!upRes.ok) throw new Error('파일 업로드 실패: ' + (upData.error||''));
+    var streamUrl = upData.url; // R2 public URL
+
+    if(btn) btn.textContent = '💾 메타데이터 저장 중...';
+
+    // ── STEP 2: tl_shares에 메타데이터 + stream_url 저장 ──
+    var fileType = _selFile.type || '';
+    var category = (document.getElementById('fGenre')||{value:'Music'}).value;
+    if(fileType.startsWith('image/')) category = 'Image';
+    else if(fileType.startsWith('video/')) category = 'Video';
+    else if(fileType.startsWith('audio/')) category = category || 'Music';
+    else if(fileType.includes('pdf') || fileType.includes('document') ||
+            fileType.includes('text/') || fileType.includes('spreadsheet') ||
+            fileType.includes('presentation')) category = 'Document';
+    else if(fileType.includes('zip') || fileType.includes('compressed')) category = 'File';
+
+    var body={
+      title: title,
+      user_id: u.id,
+      email: u.email,
+      username: u.username,
+      artist: _selSpotify?_selSpotify.artist:((document.getElementById('fArtist')||{value:''}).value||u.username||'Unknown'),
+      album: _selSpotify?_selSpotify.album:((document.getElementById('fAlbum')||{value:''}).value||''),
+      duration: _selSpotify?_selSpotify.duration:_selTL,
+      file_tl: _selTL,
+      category: category,
+      file_type: fileType,
+      description: '', plan: window._plan || 'A',
+      stream_url: streamUrl,
+      spotify_id: _selSpotify?_selSpotify.id:null,
+      spotify_url: _selSpotify?_selSpotify.spotify_url:null,
+      cover_url: _selSpotify?_selSpotify.cover_url:null,
+      preview_url: _selSpotify?_selSpotify.preview_url:null
+    };
+
     var r=await fetch(API_B+'/api/shares',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
@@ -627,11 +659,11 @@ async function finishUpload(){
     if(!r.ok) throw new Error(d.error||'서버 오류');
     u.tl=d.tl_remaining;
     localStorage.setItem('tl_user',JSON.stringify(u));
-    alert('✅ SharePlace 등록 완료! (-5,000 TL)\n블록체인 창작권 기록 중...');
+    alert('✅ TL파일 등록 완료! (-5,000 TL)\n\n파일이 R2에 저장되었습니다.\nSharePlace에서 TL로 재생/열람 가능합니다!');
     location.href='shareplace.html';
   }catch(err){
     alert('업로드 실패: '+err.message);
-    if(btn){btn.disabled=false;btn.textContent='🚀 TL3 변환 및 업로드 완료!';}
+    if(btn){btn.disabled=false;btn.textContent='🚀 TL파일 등록 완료!';}
   }
 }
 </script>
