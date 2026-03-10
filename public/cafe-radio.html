@@ -629,6 +629,16 @@ function renderQueue(){
 
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+// R2 direct URL → Worker 프록시로 변환 (CORS 우회)
+function proxyUrl(url){
+  if(!url || typeof url !== 'string') return '';
+  if(url.includes('r2.dev') || url.includes('pub-c8d04f')){
+    var filename = url.split('/').pop();
+    return 'https://api.timelink.digital/api/audio/' + filename;
+  }
+  return url;
+}
+
 // Audio
 var _audA, _audB, _useA = true;
 var _crossfading = false;
@@ -651,11 +661,8 @@ function loadTrack(idx){
   if(!_queue[idx]) return;
   _curIdx = idx;
   var s = _queue[idx];
-  var url = s.stream_url || s.file_tl;
-  if(!url || typeof url !== 'string' || !url.startsWith('http')) {
-    // try R2
-    url = 'https://api.timelink.digital/api/audio/'+s.file_tl;
-  }
+  var url = proxyUrl(s.stream_url);
+  if(!url) return;
   var aud = getActiveAud();
   aud.src = url;
   aud.load();
@@ -701,8 +708,8 @@ function startCrossfade(){
   _crossfading = true;
   var nextIdx = (_curIdx+1) % _queue.length;
   var nextS = _queue[nextIdx];
-  var nextUrl = nextS.stream_url || nextS.file_tl;
-  if(!nextUrl||!nextUrl.startsWith('http')) nextUrl='https://api.timelink.digital/api/audio/'+nextS.file_tl;
+  var nextUrl = proxyUrl(nextS.stream_url);
+  if(!nextUrl) return;
 
   var fadeOut = getActiveAud();
   var fadeIn = getNextAud();
