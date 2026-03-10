@@ -641,7 +641,8 @@ function renderShares(list){
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
 
     // 재생 버튼 결정
-    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':'playable');
+    var myTL0 = _myFileTL && _myFileTL[String(s.id)];
+    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':myTL0>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     var btnTitle=!hasUrl?'파일 없음':'재생';
 
@@ -659,7 +660,12 @@ function renderShares(list){
         '<div class="fc-title">'+escH(s.title)+'</div>' +
         '<div class="fc-artist">'+escH(s.artist||'')+(s.album?' · '+escH(s.album):'')+'</div>' +
         '<div class="fc-meta">' +
-          '<span class="fc-price">'+((_myFileTL&&_myFileTL[String(s.id)])?'⚡'+Number(_myFileTL[String(s.id)]).toLocaleString():Number(s.file_tl||0).toLocaleString())+' TL</span>' +
+          (function(){
+        var myTL = _myFileTL && _myFileTL[String(s.id)];
+        return myTL > 0
+          ? '<span class="fc-price" style="color:var(--mint)">⚡ '+Number(myTL).toLocaleString()+' TL</span>'
+          : '<span class="fc-price" style="color:var(--t3)">'+Number(s.file_tl||0).toLocaleString()+' TL <small style="font-size:9px;opacity:.6">(미충전)</small></span>';
+      }()) +
           '<span class="fc-stats">🔥'+Number(s.pulse||0).toLocaleString()+'</span>' +
         '</div>' +
         '<div class="fc-tags"><span class="fc-tag">#'+escH(s.category||'Music')+'</span>' +
@@ -689,7 +695,8 @@ function renderList(list,g){
     var fileUrl=(s.stream_url&&s.stream_url.trim())?s.stream_url:(s.preview_url&&s.preview_url.trim())?s.preview_url:'';
     var hasUrl=!!fileUrl;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
-    var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':'playable');
+    var myTL0b = _myFileTL && _myFileTL[String(s.id)];
+    var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':myTL0b>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     var dur=s.duration?(Math.floor(s.duration/60)+':'+String(s.duration%60).padStart(2,'0')):'--:--';
     return '<div class="fl-item" id="card-'+s.id+'">' +
@@ -709,7 +716,13 @@ function renderList(list,g){
       '<div class="fl-type-badge '+tc+'">'+typeLabel2+'</div>' +
       '<div class="fl-right">' +
         '<div class="fl-pulse">🔥 '+Number(s.pulse||0).toLocaleString()+'</div>'+
-        '<div class="fl-price">'+Number(s.file_tl||0).toLocaleString()+' TL</div>' +
+        (function(){
+      var myTL = _myFileTL && _myFileTL[String(s.id)];
+      var priceHtml = myTL > 0
+        ? '<div class="fl-price" style="color:var(--mint)">⚡ '+Number(myTL).toLocaleString()+' TL</div>'
+        : '<div class="fl-price" style="color:var(--t3)">'+Number(s.file_tl||0).toLocaleString()+' TL <span style="font-size:9px">(미충전)</span></div>';
+      return priceHtml;
+    }()) +
         '<div class="fl-actions">' +
           (s.preview_url&&ftype==='audio'?'<button class="fl-btn fl-btn-prev" onclick="quickPreview(\''+escH(s.preview_url)+'\'\,\''+escH(s.title)+'\')">▶ 미리듣기</button>':'') +
           chargeBtn +
