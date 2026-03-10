@@ -185,6 +185,9 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .do-footer{padding:10px 24px;border-top:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
 #docRemain{font-size:12px;color:#a78bfa;font-family:var(--fm)}
 
+.wm-badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:7px;background:rgba(0,229,160,.1);border:1px solid rgba(0,229,160,.25);color:#00E5A0;font-size:10px;font-family:var(--fm);font-weight:700;letter-spacing:.04em}
+.wm-badge.active{animation:wm-pulse 2.5s ease-in-out infinite}
+@keyframes wm-pulse{0%,100%{opacity:1}50%{opacity:.5}}
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(129,140,248,.15);border-radius:3px}
 @media(max-width:1200px){.file-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{display:none}.file-grid{grid-template-columns:1fr 1fr}}
@@ -332,6 +335,10 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   </div>
   <div id="tlWarning">⚠️ TL 부족! <a href="#" onclick="event.preventDefault();tlCharge()" style="color:#a78bfa;font-weight:700">TL 충전하기</a></div>
   <div id="tlError"></div>
+  <div style="padding:3px 16px 5px;display:flex;align-items:center;gap:8px">
+    <span id="wmBadge" class="wm-badge" style="display:none">🛡️ WATERMARK ACTIVE</span>
+    <span id="wmInfo" style="font-size:9px;color:rgba(255,255,255,.18);font-family:var(--fm)"></span>
+  </div>
 </div>
 
 <script>
@@ -362,6 +369,140 @@ function doLogout(){ localStorage.removeItem('tl_token'); localStorage.removeIte
 
 // ── 상태 ────────────────────────────────────────────────
 var _allShares=[], _filter='all', _tab='tl', _search='', _view='grid';
+
+// ══════════════════════════════════════════════
+// 🛡️ TIMELINK WATERMARK ENGINE
+// 기기 핑거프린트 + 사용자ID → 비가청 주파수 워터마크
+// ══════════════════════════════════════════════
+var _wmCtx = null, _wmNodes = [], _wmFingerprint = null, _wmSource = null;
+
+// 기기 핑거프린트 생성 (Web Audio API 활용)
+async function getDeviceFingerprint() {
+  if(_wmFingerprint) return _wmFingerprint;
+  try {
+    var ctx = new OfflineAudioContext(1, 44100, 44100);
+    var osc = ctx.createOscillator();
+    var comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -50; comp.knee.value = 40;
+    comp.ratio.value = 12; comp.attack.value = 0; comp.release.value = 0.25;
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(10000, ctx.currentTime);
+    osc.connect(comp); comp.connect(ctx.destination);
+    osc.start(0); osc.stop(0.1);
+    var rendered = await ctx.startRendering();
+    var buf = rendered.getChannelData(0);
+    var hash = 0;
+    for(var i = 0; i < Math.min(buf.length, 4096); i++) {
+      hash = ((hash << 5) - hash) + Math.floor(buf[i] * 1e8);
+      hash = hash & hash;
+    }
+    _wmFingerprint = Math.abs(hash).toString(16).padStart(8,'0');
+    return _wmFingerprint;
+  } catch(e) {
+    _wmFingerprint = Math.abs(Date.now() % 0xFFFFFF).toString(16);
+    return _wmFingerprint;
+  }
+}
+
+// 워터마크 주파수 계산 (사용자ID + 기기핑거프린트 → 18~22kHz 대역)
+function calcWmFrequency(userId, fingerprint) {
+  var seed = parseInt(String(userId||0).slice(-4)) + parseInt((fingerprint||'0').slice(-4), 16);
+  // 18kHz ~ 22kHz 범위 (사람 귀에 들리지 않음)
+  return 18000 + (seed % 4000);
+}
+
+// 워터마크 시작 (오디오 재생 시 호출)
+async function wmStart(audioElement, shareId) {
+  wmStop();
+  try {
+    if(!_user) return;
+    var fp = await getDeviceFingerprint();
+    var freq = calcWmFrequency(_user.id, fp);
+    var now = Date.now();
+
+    _wmCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // 오디오 소스
+    try {
+      _wmSource = _wmCtx.createMediaElementSource(audioElement);
+    } catch(e) { return; } // CORS 제한 시 스킵
+
+    // 워터마크 오실레이터 (비가청 주파수)
+    var osc1 = _wmCtx.createOscillator();
+    var osc2 = _wmCtx.createOscillator();
+    var gain1 = _wmCtx.createGain();
+    var gain2 = _wmCtx.createGain();
+
+    // 주파수 = 기본 + 사용자 고유 변조
+    osc1.frequency.value = freq;
+    osc2.frequency.value = freq + 523; // 반음 위
+
+    // 매우 낮은 게인 (-40dB ~ -50dB) — 소리는 안 들리지만 신호는 존재
+    gain1.gain.value = 0.003;
+    gain2.gain.value = 0.002;
+
+    // 사용자ID를 기반으로 진폭 변조 패턴 생성 (고유 서명)
+    var modOsc = _wmCtx.createOscillator();
+    var modGain = _wmCtx.createGain();
+    modOsc.frequency.value = 2 + (_user.id % 8); // 2~10Hz 변조
+    modGain.gain.value = 0.001;
+    modOsc.connect(modGain);
+    modGain.connect(gain1.gain);
+
+    osc1.connect(gain1);
+    osc2.connect(gain2);
+
+    var merger = _wmCtx.createChannelMerger(2);
+    _wmSource.connect(merger, 0, 0);
+    _wmSource.connect(merger, 0, 1);
+    gain1.connect(_wmCtx.destination);
+    gain2.connect(_wmCtx.destination);
+    merger.connect(_wmCtx.destination);
+
+    osc1.start(); osc2.start(); modOsc.start();
+    _wmNodes = [osc1, osc2, modOsc];
+
+    // 서버에 워터마크 이벤트 기록
+    wmLog(shareId, fp, freq, now);
+
+    // UI 업데이트
+    var badge = document.getElementById('wmBadge');
+    var info = document.getElementById('wmInfo');
+    if(badge){ badge.style.display=''; badge.classList.add('active'); }
+    if(info){ info.textContent = 'FP:'+fp.slice(0,6)+' · FREQ:'+freq+'Hz · UID:'+(_user.id||'?'); }
+
+  } catch(e) {
+    console.warn('[WM] 워터마크 초기화 실패:', e.message);
+  }
+}
+
+// 워터마크 중지
+function wmStop() {
+  _wmNodes.forEach(function(n){ try{ n.stop(); }catch(e){} });
+  _wmNodes = [];
+  if(_wmSource){ try{ _wmSource.disconnect(); }catch(e){} _wmSource=null; }
+  if(_wmCtx){ try{ _wmCtx.close(); }catch(e){} _wmCtx=null; }
+  var badge = document.getElementById('wmBadge');
+  if(badge){ badge.style.display='none'; badge.classList.remove('active'); }
+}
+
+// 서버에 워터마크 이벤트 기록 (추후 추적용)
+async function wmLog(shareId, fingerprint, freq, timestamp) {
+  try {
+    await fetch(API_BASE+'/api/wm/log', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        share_id: shareId,
+        user_id: _user ? _user.id : null,
+        device_fp: fingerprint,
+        wm_freq: freq,
+        played_at: new Date(timestamp).toISOString(),
+        ua: navigator.userAgent.slice(0,100)
+      })
+    });
+  } catch(e) { /* 서버 로그 실패는 무시 */ }
+}
 
 async function loadShares(){
   document.getElementById('sortCount').textContent='로딩 중...';
@@ -648,6 +789,11 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   if(ftype==='image'){
     document.getElementById('ioTitle').textContent=title;
     document.getElementById('ioImg').src=fileUrl;
+    var imgEl = document.getElementById('ioImg');
+    imgEl.ondragstart = function(){ return false; };
+    imgEl.oncontextmenu = function(){ return false; };
+    imgEl.style.userSelect = 'none';
+    imgEl.style.webkitUserSelect = 'none';
     document.getElementById('imageOverlay').classList.add('show');
     tlStartTimer();
     _tlPlaying=true;
@@ -664,6 +810,7 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
     var iframeSrc=isPdf?fileUrl:'https://docs.google.com/viewer?url='+encodeURIComponent(fileUrl)+'&embedded=true';
     document.getElementById('docFrame').src=iframeSrc;
     document.getElementById('docExtLink').href=fileUrl;
+    document.getElementById('docFrame').oncontextmenu = function(){ return false; };
     document.getElementById('docOverlay').classList.add('show');
     tlStartTimer();
     _tlPlaying=true;
@@ -717,6 +864,7 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
       _tlPlaying=true;
       document.getElementById('tlPlayBtn').textContent='⏸';
       renderShares(_getFilteredList());
+      wmStart(_tlAudio, _tlShareId); // 🛡️ 워터마크 시작
     }).catch(function(e){
       // 자동재생 차단 시 사용자에게 알림
       if(e.name==='NotAllowedError'){
@@ -754,6 +902,13 @@ function _getFilteredList(){
 }
 
 function _escHandler(e){ if(e.key==='Escape') tlStop(); }
+// 이미지/문서 열람 중 우클릭 차단
+document.addEventListener('contextmenu', function(e){
+  if(document.getElementById('imageOverlay').classList.contains('show') ||
+     document.getElementById('docOverlay').classList.contains('show')){
+    e.preventDefault(); return false;
+  }
+});
 
 // ── 타이머 ──────────────────────────────────────────────
 function tlStartTimer(){
@@ -819,6 +974,7 @@ function tlToggle(){
 }
 
 function tlStop(silent){
+  wmStop(); // 🛡️ 워터마크 중지
   _tlPlaying=false;
   if(_tlTimer){ clearInterval(_tlTimer); _tlTimer=null; }
   if(_tlAudio){ _tlAudio.pause(); _tlAudio.src=''; _tlAudio=null; }
