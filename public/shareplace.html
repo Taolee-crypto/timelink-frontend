@@ -199,14 +199,14 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 <!-- 비디오 오버레이 -->
 <div id="videoOverlay">
   <div class="vo-title" id="voTitle"></div>
-  <video id="voVideo" controls playsinline></video>
+  <video id="voVideo" controls playsinline crossorigin="anonymous"></video>
   <button class="vo-close" onclick="tlStop()">✕ 닫기 (재생 중단)</button>
 </div>
 
 <!-- 이미지 오버레이 -->
 <div id="imageOverlay">
   <div class="io-title" id="ioTitle"></div>
-  <img id="ioImg" src="" alt="">
+  <img id="ioImg" src="" alt="" crossorigin="anonymous">
   <div class="io-sub">⚡ TL 소모 중 · ESC로 닫기</div>
   <button class="io-close" onclick="tlStop()">✕ 닫기</button>
 </div>
@@ -220,10 +220,10 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
     </div>
     <button class="do-close" onclick="tlStop()">✕ 닫기</button>
   </div>
-  <iframe id="docFrame" src=""></iframe>
+  <iframe id="docFrame" src="" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"></iframe>
   <div class="do-footer">
     <span id="docRemain">⚡ 0 TL 남음</span>
-    <a id="docExtLink" href="#" target="_blank" style="font-size:12px;color:rgba(255,255,255,.4);font-family:var(--fm);text-decoration:none">↗ 새탭으로 열기</a>
+    <a id="docExtLink" href="#" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:rgba(255,255,255,.4);font-family:var(--fm);text-decoration:none">↗ 새탭으로 열기</a>
   </div>
 </div>
 
@@ -344,18 +344,52 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 <script>
 var API_BASE = 'https://api.timelink.digital';
 
-// R2 direct URL → Worker 프록시 변환 (CORS 우회)
-function proxyUrl(url){
-  if(!url || typeof url !== 'string') return '';
+// R2 CORS 문제 해결을 위한 프록시 함수
+function proxyUrl(url) {
+  if (!url || typeof url !== 'string') return '';
   url = url.trim();
-  if(url.includes('r2.dev') || url.includes('pub-c8d04f')){
+  
+  // R2 URL 패턴 감지
+  if (url.includes('r2.dev') || url.includes('pub-c8d04f') || url.includes('.r2.') || url.includes('cloudflarestorage')) {
+    // Worker API를 통한 프록시 (R2 CORS 우회)
     var filename = url.split('/').pop().split('?')[0];
-    return API_BASE + '/api/audio/' + filename;
+    return API_BASE + '/api/proxy/audio/' + encodeURIComponent(filename);
   }
-  if(!url.startsWith('http') && url.length > 3){
-    return API_BASE + '/api/audio/' + url;
+  
+  // 이미 프록시 경로인 경우 그대로 반환
+  if (url.startsWith(API_BASE + '/api/proxy/')) {
+    return url;
   }
+  
+  // 로컬 파일명만 있는 경우 (데이터베이스에 파일명만 저장된 경우)
+  if (!url.startsWith('http') && url.length > 3 && !url.includes('/')) {
+    return API_BASE + '/api/proxy/audio/' + encodeURIComponent(url);
+  }
+  
   return url;
+}
+
+// R2 직접 액세스 시도 (CORS 설정이 되어있다면)
+function tryDirectAccess(url) {
+  return new Promise((resolve, reject) => {
+    var xhr = new XMLHttpRequest();
+    xhr.open('HEAD', url, true);
+    xhr.withCredentials = false;
+    
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(true);
+      } else {
+        reject(new Error('CORS 오류 또는 파일 없음'));
+      }
+    };
+    
+    xhr.onerror = function() {
+      reject(new Error('네트워크 오류'));
+    };
+    
+    xhr.send();
+  });
 }
 
 // ── AUTH ────────────────────────────────────────────────
@@ -386,11 +420,9 @@ var _allShares=[], _filter='all', _tab='tl', _search='', _view='grid';
 
 // ══════════════════════════════════════════════
 // 🛡️ TIMELINK WATERMARK ENGINE
-// 기기 핑거프린트 + 사용자ID → 비가청 주파수 워터마크
 // ══════════════════════════════════════════════
 var _wmCtx = null, _wmNodes = [], _wmFingerprint = null, _wmSource = null;
 
-// 기기 핑거프린트 생성 (Web Audio API 활용)
 async function getDeviceFingerprint() {
   if(_wmFingerprint) return _wmFingerprint;
   try {
@@ -418,14 +450,11 @@ async function getDeviceFingerprint() {
   }
 }
 
-// 워터마크 주파수 계산 (사용자ID + 기기핑거프린트 → 18~22kHz 대역)
 function calcWmFrequency(userId, fingerprint) {
   var seed = parseInt(String(userId||0).slice(-4)) + parseInt((fingerprint||'0').slice(-4), 16);
-  // 18kHz ~ 22kHz 범위 (사람 귀에 들리지 않음)
   return 18000 + (seed % 4000);
 }
 
-// 워터마크 시작 (오디오 재생 시 호출)
 async function wmStart(audioElement, shareId) {
   wmStop();
   try {
@@ -436,29 +465,24 @@ async function wmStart(audioElement, shareId) {
 
     _wmCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-    // 오디오 소스
     try {
       _wmSource = _wmCtx.createMediaElementSource(audioElement);
-    } catch(e) { return; } // CORS 제한 시 스킵
+    } catch(e) { return; }
 
-    // 워터마크 오실레이터 (비가청 주파수)
     var osc1 = _wmCtx.createOscillator();
     var osc2 = _wmCtx.createOscillator();
     var gain1 = _wmCtx.createGain();
     var gain2 = _wmCtx.createGain();
 
-    // 주파수 = 기본 + 사용자 고유 변조
     osc1.frequency.value = freq;
-    osc2.frequency.value = freq + 523; // 반음 위
+    osc2.frequency.value = freq + 523;
 
-    // 매우 낮은 게인 (-40dB ~ -50dB) — 소리는 안 들리지만 신호는 존재
     gain1.gain.value = 0.003;
     gain2.gain.value = 0.002;
 
-    // 사용자ID를 기반으로 진폭 변조 패턴 생성 (고유 서명)
     var modOsc = _wmCtx.createOscillator();
     var modGain = _wmCtx.createGain();
-    modOsc.frequency.value = 2 + (_user.id % 8); // 2~10Hz 변조
+    modOsc.frequency.value = 2 + (_user.id % 8);
     modGain.gain.value = 0.001;
     modOsc.connect(modGain);
     modGain.connect(gain1.gain);
@@ -476,10 +500,8 @@ async function wmStart(audioElement, shareId) {
     osc1.start(); osc2.start(); modOsc.start();
     _wmNodes = [osc1, osc2, modOsc];
 
-    // 서버에 워터마크 이벤트 기록
     wmLog(shareId, fp, freq, now);
 
-    // UI 업데이트
     var badge = document.getElementById('wmBadge');
     var info = document.getElementById('wmInfo');
     if(badge){ badge.style.display=''; badge.classList.add('active'); }
@@ -490,7 +512,6 @@ async function wmStart(audioElement, shareId) {
   }
 }
 
-// 워터마크 중지
 function wmStop() {
   _wmNodes.forEach(function(n){ try{ n.stop(); }catch(e){} });
   _wmNodes = [];
@@ -500,7 +521,6 @@ function wmStop() {
   if(badge){ badge.style.display='none'; badge.classList.remove('active'); }
 }
 
-// 서버에 워터마크 이벤트 기록 (추후 추적용)
 async function wmLog(shareId, fingerprint, freq, timestamp) {
   try {
     await fetch(API_BASE+'/api/wm/log', {
@@ -555,13 +575,10 @@ function isType(s,t){
 
 function applyFilter(){
   var list=_allShares.slice();
-  // 검색
   if(_search){ var q=_search.toLowerCase(); list=list.filter(function(s){ return (s.title||'').toLowerCase().includes(q)||(s.artist||'').toLowerCase().includes(q)||(s.category||'').toLowerCase().includes(q); }); }
-  // 정렬: 인기순=TL충전순, 최신순, Pulse순
   if(_tab==='tl') list.sort(function(a,b){ return (b.file_tl||0)-(a.file_tl||0); });
   else if(_tab==='pulse') list.sort(function(a,b){ return (b.pulse||0)-(a.pulse||0); });
   else list.sort(function(a,b){ return new Date(b.created_at||0)-new Date(a.created_at||0); });
-  // 카테고리 필터
   if(_filter!=='all') list=list.filter(function(s){ return isType(s,_filter); });
   renderShares(list);
   document.getElementById('sortCount').textContent='총 '+list.length+'개 파일';
@@ -582,21 +599,16 @@ function switchView(v){
   applyFilter();
 }
 
-// ── 파일 타입 감지 ───────────────────────────────────────
 function detectType(s){
   var ft=(s.file_type||'').toLowerCase();
   var cat=(s.category||'').toLowerCase();
   var url=(s.stream_url||s.preview_url||'').toLowerCase();
-  // 이미지
   if(ft.startsWith('image/')||cat==='image'||/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/.test(url)) return 'image';
-  // 비디오
   if(ft.startsWith('video/')||cat==='video'||/\.(mp4|webm|ogg|mov|avi|mkv)(\?|$)/.test(url)) return 'video';
-  // 문서
   if(ft.includes('pdf')||ft.includes('document')||ft.includes('spreadsheet')||ft.includes('presentation')||
      ft.includes('text/')||cat==='document'||/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)(\?|$)/.test(url)) return 'doc';
-  // 오디오
   if(ft.startsWith('audio/')||/\.(mp3|wav|flac|aac|ogg|m4a|opus)(\?|$)/.test(url)) return 'audio';
-  return 'audio'; // 기본값
+  return 'audio';
 }
 
 function typeEmoji(t){ return t==='video'?'🎬':t==='image'?'🖼️':t==='doc'?'📄':'🎵'; }
@@ -604,7 +616,6 @@ function typeLabel(t){ return t==='video'?'TL4 · 영상':t==='image'?'TL2 · �
 
 function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// ── 렌더 ────────────────────────────────────────────────
 function renderShares(list){
   var g=document.getElementById('fileGrid');
   if(!list.length){
@@ -613,7 +624,7 @@ function renderShares(list){
     return;
   }
   if(_view==='list'){ renderList(list,g); return; }
-  // 액자형
+  
   g.className='file-grid';
   var bgs=['linear-gradient(135deg,#1a1060,#0d3050)','linear-gradient(135deg,#0d3020,#102830)',
            'linear-gradient(135deg,#200a40,#0a0820)','linear-gradient(135deg,#0a1830,#20100a)',
@@ -624,7 +635,6 @@ function renderShares(list){
     var hasUrl=!!fileUrl;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
 
-    // 재생 버튼 결정
     var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':'playable');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     var btnTitle=!hasUrl?'파일 없음':'재생';
@@ -633,7 +643,7 @@ function renderShares(list){
 
     return '<div class="file-card" id="card-'+s.id+'">' +
       '<div class="file-thumb" style="background:'+bgs[i%bgs.length]+';position:relative">' +
-        (s.cover_url?'<img src="'+escH(s.cover_url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.85" onerror="this.remove()">':'') +
+        (s.cover_url?'<img src="'+escH(s.cover_url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.85" crossorigin="anonymous" onerror="this.remove()">':'') +
         '<div class="thumb-overlay"></div>' +
         (!s.cover_url?'<span style="position:relative;z-index:1;font-size:32px">'+typeEmoji(ftype)+'</span>':'') +
         '<button class="'+btnClass+'" data-sid="'+s.id+'" onclick="tlPlayCard(this)" title="'+btnTitle+'" style="z-index:2">'+btnIcon+'</button>' +
@@ -661,7 +671,6 @@ function renderShares(list){
   }).join('');
 }
 
-// ── 리스트형 렌더 ───────────────────────────────────────
 function renderList(list,g){
   g.className='file-list-view';
   var bgs=['linear-gradient(135deg,#1a1060,#0d3050)','linear-gradient(135deg,#0d3020,#102830)','linear-gradient(135deg,#200a40,#0a0820)','linear-gradient(135deg,#0a1830,#20100a)','linear-gradient(135deg,#1a0820,#0d0518)'];
@@ -676,9 +685,11 @@ function renderList(list,g){
     var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':'playable');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     var dur=s.duration?(Math.floor(s.duration/60)+':'+String(s.duration%60).padStart(2,'0')):'--:--';
+    var chargeBtn = '<button class="fl-btn fl-btn-charge" onclick="chargeTL(\''+s.id+'\',\''+escH(s.title)+'\')">⚡ TL 충전</button>';
+    
     return '<div class="fl-item" id="card-'+s.id+'">' +
-      '<button class="'+btnClass+'" data-sid="'+s.id+'" onclick="tlPlayCard(this)" style="flex-shrink:0">' +
-        (s.cover_url?'<img src="'+escH(s.cover_url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.remove()">':'')+
+      '<button class="'+btnClass+'" data-sid="'+s.id+'" onclick="tlPlayCard(this)" style="flex-shrink:0;position:relative;overflow:hidden">' +
+        (s.cover_url?'<img src="'+escH(s.cover_url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:10px" crossorigin="anonymous" onerror="this.remove()">':'')+
         '<span style="position:relative;z-index:1">'+btnIcon+'</span>' +
       '</button>' +
       '<div class="fl-info">' +
@@ -695,7 +706,7 @@ function renderList(list,g){
         '<div class="fl-pulse">🔥 '+Number(s.pulse||0).toLocaleString()+'</div>'+
         '<div class="fl-price">'+Number(s.file_tl||0).toLocaleString()+' TL</div>' +
         '<div class="fl-actions">' +
-          (s.preview_url&&ftype==='audio'?'<button class="fl-btn fl-btn-prev" onclick="quickPreview(\''+escH(s.preview_url)+'\'\,\''+escH(s.title)+'\')">▶ 미리듣기</button>':'') +
+          (s.preview_url&&ftype==='audio'?'<button class="fl-btn fl-btn-prev" onclick="quickPreview(\''+escH(s.preview_url)+'\',\''+escH(s.title)+'\')">▶ 미리듣기</button>':'') +
           chargeBtn +
         '</div>' +
       '</div>' +
@@ -703,7 +714,6 @@ function renderList(list,g){
   }).join('');
 }
 
-// ── TL 충전 ─────────────────────────────────────────────
 async function chargeTL(shareId,title){
   if(!_user){ alert('로그인이 필요합니다'); return; }
   var amtStr=prompt('⚡ "'+title+'" 에 충전할 TL 입력\n현재 내 TL: '+Number(_user.tl||0).toLocaleString()+' TL','100');
@@ -726,13 +736,15 @@ async function chargeTL(shareId,title){
   }catch(err){ alert('충전 실패: '+err.message); }
 }
 
-// ── 미리듣기 (Spotify 30초, TL 차감 없음) ────────────────
 var _previewAudio=null;
 function quickPreview(url,title){
   if(_previewAudio){ _previewAudio.pause(); _previewAudio=null; }
   _previewAudio=new Audio(proxyUrl(url));
-  _previewAudio.play().catch(function(e){ alert('미리듣기 실패: '+e.message); });
-  // 하단 바에 간단 표시
+  _previewAudio.crossOrigin = 'anonymous';
+  _previewAudio.play().catch(function(e){ 
+    alert('미리듣기 실패: '+e.message+'\nCORS 설정을 확인하세요.'); 
+  });
+  
   document.getElementById('tlPlayerBar').style.display='block';
   document.getElementById('tlTitle').textContent='[미리듣기] '+title;
   document.getElementById('tlArtist').textContent='TL 소모 없음 · 30초 프리뷰';
@@ -745,13 +757,11 @@ function quickPreview(url,title){
   };
 }
 
-// ── 카드 재생 버튼 ───────────────────────────────────────
 function tlPlayCard(el){
   var sid=el.getAttribute('data-sid');
   var s=_allShares.find(function(x){return String(x.id)===String(sid);});
   if(!s) return;
 
-  // 현재 재생 중인 카드 클릭 → 토글
   if(_tlShareId===s.id&&_tlPlaying){ tlToggle(); return; }
 
   var fileUrl=proxyUrl((s.stream_url&&s.stream_url.trim())?s.stream_url:(s.preview_url&&s.preview_url.trim())?s.preview_url:'');
@@ -784,12 +794,11 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
 
   var ftype=shareObj?detectType(shareObj):'audio';
 
-  // 커버 업데이트
   document.getElementById('tlTitle').textContent=title;
   document.getElementById('tlArtist').textContent=artist||'';
   var cov=document.getElementById('tlCover');
   if(coverUrl&&ftype!=='image'){
-    cov.innerHTML='<img src="'+coverUrl+'" style="width:100%;height:100%;object-fit:cover">';
+    cov.innerHTML='<img src="'+coverUrl+'" style="width:100%;height:100%;object-fit:cover" crossorigin="anonymous">';
   } else {
     cov.innerHTML=typeEmoji(ftype);
   }
@@ -799,10 +808,10 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   document.getElementById('tlError').style.display='none';
   tlUpdateUI();
 
-  // ── 이미지 ──────────────────────────────────────────
   if(ftype==='image'){
     document.getElementById('ioTitle').textContent=title;
     document.getElementById('ioImg').src=fileUrl;
+    document.getElementById('ioImg').crossOrigin = 'anonymous';
     var imgEl = document.getElementById('ioImg');
     imgEl.ondragstart = function(){ return false; };
     imgEl.oncontextmenu = function(){ return false; };
@@ -813,11 +822,10 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
     _tlPlaying=true;
     document.getElementById('tlPlayBtn').textContent='⏸';
     document.addEventListener('keydown',_escHandler);
-    renderShares(_getFilteredList()); // 버튼 상태 갱신
+    renderShares(_getFilteredList());
     return;
   }
 
-  // ── 문서 ────────────────────────────────────────────
   if(ftype==='doc'){
     document.getElementById('doTitle').textContent='📄 '+title;
     var isPdf=/\.pdf(\?|$)/i.test(fileUrl)||( shareObj&&(shareObj.file_type||'').includes('pdf'));
@@ -834,11 +842,11 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
     return;
   }
 
-  // ── 비디오 ──────────────────────────────────────────
   if(ftype==='video'){
     var vo=document.getElementById('voVideo');
     document.getElementById('voTitle').textContent=title;
     vo.src=proxyUrl(fileUrl);
+    vo.crossOrigin = 'anonymous';
     vo.load();
     document.getElementById('videoOverlay').classList.add('show');
     vo.play().then(function(){
@@ -846,7 +854,7 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
       _tlPlaying=true;
       document.getElementById('tlPlayBtn').textContent='⏸';
     }).catch(function(e){
-      showPlayerError('비디오 재생 실패: '+e.message+'\n\n파일 URL: '+fileUrl);
+      showPlayerError('비디오 재생 실패: '+e.message+'\n\nCORS 설정을 확인하세요.');
     });
     vo.onended=function(){ tlStop(); };
     document.addEventListener('keydown',_escHandler);
@@ -854,22 +862,24 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
     return;
   }
 
-  // ── 오디오 ──────────────────────────────────────────
-  // crossOrigin 없이 시도 (CORS 문제 우회)
+  // 오디오 재생 - CORS 문제 해결을 위한 개선
   _tlAudio=new Audio();
   _tlAudio.preload='auto';
+  _tlAudio.crossOrigin = 'anonymous'; // CORS 요청 설정
 
   _tlAudio.onerror=function(e){
-    // CORS 에러 시 crossOrigin 제거 후 재시도
-    if(_tlAudio&&_tlAudio.crossOrigin){
-      _tlAudio.crossOrigin=null;
-      _tlAudio.load();
-      _tlAudio.play().catch(function(e2){
-        showPlayerError('오디오 재생 실패: '+e2.message);
-      });
-      return;
+    console.error('Audio error:', _tlAudio.error);
+    var errorMsg = '파일 로드 실패';
+    if (_tlAudio.error) {
+      switch(_tlAudio.error.code) {
+        case MediaError.MEDIA_ERR_ABORTED: errorMsg = '재생이 중단됨'; break;
+        case MediaError.MEDIA_ERR_NETWORK: errorMsg = '네트워크 오류'; break;
+        case MediaError.MEDIA_ERR_DECODE: errorMsg = '디코딩 오류'; break;
+        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMsg = '지원하지 않는 형식'; break;
+        default: errorMsg = '알 수 없는 오류';
+      }
     }
-    showPlayerError('파일 로드 실패. R2 CORS 설정을 확인하세요.\nURL: '+fileUrl.slice(0,80));
+    showPlayerError('오디오 재생 실패: ' + errorMsg + '\nURL: ' + fileUrl.slice(0, 50) + '...\n\n해결 방법:\n1. R2 버킷에 CORS 설정 추가\n2. 프록시 서버 사용\n3. 관리자에게 문의');
   };
 
   _tlAudio.oncanplay=function(){
@@ -878,14 +888,12 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
       _tlPlaying=true;
       document.getElementById('tlPlayBtn').textContent='⏸';
       renderShares(_getFilteredList());
-      wmStart(_tlAudio, _tlShareId); // 🛡️ 워터마크 시작
+      wmStart(_tlAudio, _tlShareId);
     }).catch(function(e){
-      // 자동재생 차단 시 사용자에게 알림
       if(e.name==='NotAllowedError'){
         document.getElementById('tlPlayBtn').textContent='▶';
         document.getElementById('tlError').style.display='block';
         document.getElementById('tlError').textContent='▶ 버튼을 눌러 재생하세요 (브라우저 자동재생 차단)';
-        // 버튼 누르면 재생되도록 준비 상태 유지
         _tlPlaying=false;
       } else {
         showPlayerError('재생 실패: '+e.message);
@@ -916,7 +924,7 @@ function _getFilteredList(){
 }
 
 function _escHandler(e){ if(e.key==='Escape') tlStop(); }
-// 이미지/문서 열람 중 우클릭 차단
+
 document.addEventListener('contextmenu', function(e){
   if(document.getElementById('imageOverlay').classList.contains('show') ||
      document.getElementById('docOverlay').classList.contains('show')){
@@ -924,7 +932,6 @@ document.addEventListener('contextmenu', function(e){
   }
 });
 
-// ── 타이머 ──────────────────────────────────────────────
 function tlStartTimer(){
   if(_tlTimer) clearInterval(_tlTimer);
   _tlTimer=setInterval(function(){
@@ -932,18 +939,15 @@ function tlStartTimer(){
     _tlCurrentTL=Math.max(0,_tlCurrentTL-1);
     _tlElapsed++;
 
-    // 오디오 실제 재생 시간 동기화
     if(_tlAudio&&!_tlAudio.paused){
       _tlElapsed=Math.round(_tlAudio.currentTime)||_tlElapsed;
     }
 
-    // 5초마다 서버 consume 보고
     if(_tlElapsed%5===0&&_tlShareId&&_tlShareId!=='preview'){
       fetch(API_BASE+'/api/shares/'+_tlShareId+'/consume',{
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({seconds:5})
       }).then(function(r){return r.json();}).then(function(d){
-        // 서버 TL 값으로 동기화
         if(d.file_tl!==undefined) _tlCurrentTL=d.file_tl;
       }).catch(function(){});
     }
@@ -988,20 +992,17 @@ function tlToggle(){
 }
 
 function tlStop(silent){
-  wmStop(); // 🛡️ 워터마크 중지
+  wmStop();
   _tlPlaying=false;
   if(_tlTimer){ clearInterval(_tlTimer); _tlTimer=null; }
   if(_tlAudio){ _tlAudio.pause(); _tlAudio.src=''; _tlAudio=null; }
 
-  // 비디오 정리
   var vo=document.getElementById('voVideo'); vo.pause(); vo.src='';
   document.getElementById('videoOverlay').classList.remove('show');
 
-  // 이미지 정리
   document.getElementById('imageOverlay').classList.remove('show');
   document.getElementById('ioImg').src='';
 
-  // 문서 정리
   document.getElementById('docOverlay').classList.remove('show');
   document.getElementById('docFrame').src='';
 
@@ -1016,7 +1017,6 @@ function tlStop(silent){
   var prevSid=_tlShareId;
   _tlShareId=null; _tlShareObj=null;
 
-  // 카드 버튼 상태 갱신
   if(prevSid){
     var btn=document.querySelector('[data-sid="'+prevSid+'"]');
     if(btn){
@@ -1033,7 +1033,9 @@ function tlStop(silent){
 function seekProgress(e){
   if(!_tlDuration) return;
   var bg=document.getElementById('tlProgressBg');
-  var pct=e.offsetX/bg.offsetWidth;
+  var rect = bg.getBoundingClientRect();
+  var x = e.clientX - rect.left;
+  var pct = Math.max(0, Math.min(1, x / rect.width));
   var targetSec=Math.floor(pct*_tlDuration);
   if(_tlAudio){ _tlAudio.currentTime=targetSec; }
   var vo=document.getElementById('voVideo'); if(vo.src){ vo.currentTime=targetSec; }
@@ -1047,8 +1049,16 @@ function tlCharge(){
 
 // 초기 로드
 loadShares();
+
+// CORS 설정 안내 메시지 (개발자 콘솔용)
+console.log('🔧 R2 CORS 설정이 필요합니다. Cloudflare R2 대시보드에서 다음 설정을 추가하세요:');
+console.log(JSON.stringify({
+  "AllowedOrigins": [window.location.origin, "https://api.timelink.digital"],
+  "AllowedMethods": ["GET", "HEAD", "OPTIONS"],
+  "AllowedHeaders": ["*"],
+  "ExposeHeaders": ["ETag", "Content-Type"],
+  "MaxAgeSeconds": 3600
+}, null, 2));
 </script>
 </body>
 </html>
-
-
