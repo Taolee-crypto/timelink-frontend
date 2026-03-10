@@ -376,12 +376,25 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
           </div>
         </div>
 
-        <!-- 가중치 선택 -->
+        <!-- 가중치 직접 입력 -->
         <div style="margin-top:18px">
           <label class="form-label" style="display:block;margin-bottom:10px">⚖️ 차감 가중치 — 리스너가 1초 재생 시 차감되는 TL</label>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="weightGrid"></div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <input type="range" id="weightRange" min="0.1" max="10" step="0.1" value="1.0"
+              oninput="syncWeight(this.value,'range')"
+              style="flex:1;height:6px;border-radius:3px;accent-color:var(--purple);cursor:pointer">
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+              <input type="number" id="weightInput" min="0.1" max="10" step="0.1" value="1.0"
+                oninput="syncWeight(this.value,'input')"
+                style="width:72px;padding:8px 10px;background:rgba(139,92,246,.08);border:2px solid var(--purple);border-radius:9px;color:var(--purple);font-size:16px;font-weight:900;font-family:var(--fm);outline:none;text-align:center">
+              <span style="font-size:13px;color:var(--t3);font-family:var(--fm)">/s</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:4px;padding:0 2px">
+            <span>0.1 (최소)</span><span>5.0</span><span>10.0 (최대)</span>
+          </div>
           <div style="margin-top:10px;padding:10px 14px;border-radius:9px;background:rgba(255,255,255,.03);font-size:11px;color:var(--t3);line-height:1.7">
-            파일 TL = 재생 길이(초) × 가중치 &nbsp;·&nbsp; 리스너 1초 재생 = 가중치만큼 차감<br>
+            파일 TL = 재생 길이(초) × 가중치 &nbsp;·&nbsp; 리스너 1초 재생 = 가중치 TL 차감<br>
             크리에이터 보상은 <strong style="color:rgba(0,229,160,.7)">기여지수(POC)</strong>로 지급됩니다
           </div>
         </div>
@@ -579,26 +592,11 @@ function fmtBytes(b){
 }
 
 // PLAN
-var WEIGHTS = [
-  {val:0.5,  label:'×0.5', desc:'절반 차감'},
-  {val:1.0,  label:'×1.0', desc:'기본 (1TL/s)'},
-  {val:2.0,  label:'×2.0', desc:'2배 차감'},
-  {val:3.0,  label:'×3.0', desc:'3배 차감'},
-];
-function renderWeightGrid(){
-  var g=document.getElementById('weightGrid');
-  if(!g) return;
-  g.innerHTML=WEIGHTS.map(function(w){
-    var active=w.val===_fileWeight;
-    return '<div onclick="selectWeight('+w.val+')" style="padding:12px 8px;border-radius:10px;border:2px solid '+(active?'var(--purple)':'var(--bd)')+';background:'+(active?'rgba(139,92,246,.1)':'rgba(255,255,255,.03)')+';text-align:center;cursor:pointer;transition:all .2s">'+
-      '<div style="font-size:15px;font-weight:900;font-family:var(--fm);color:'+(active?'var(--purple)':'var(--t2)')+'">'+w.label+'</div>'+
-      '<div style="font-size:10px;color:var(--t3);margin-top:4px">'+w.desc+'</div>'+
-    '</div>';
-  }).join('');
-}
-function selectWeight(v){
-  _fileWeight=v;
-  renderWeightGrid();
+function syncWeight(v, from){
+  var n = Math.min(10, Math.max(0.1, parseFloat(v)||1.0));
+  _fileWeight = Math.round(n*10)/10;
+  if(from!=='range'){ var r=document.getElementById('weightRange'); if(r) r.value=_fileWeight; }
+  if(from!=='input'){ var i=document.getElementById('weightInput'); if(i) i.value=_fileWeight; }
   updateFileTL();
 }
 function updateFileTL(){
