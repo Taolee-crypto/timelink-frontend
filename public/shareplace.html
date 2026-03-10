@@ -467,13 +467,12 @@ function renderShares(list){
     var ftype=detectType(s);
     var fileUrl=(s.stream_url&&s.stream_url.trim())?s.stream_url:(s.preview_url&&s.preview_url.trim())?s.preview_url:'';
     var hasUrl=!!fileUrl;
-    var hasTL=(s.file_tl||0)>0;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
 
     // 재생 버튼 결정
-    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':!hasTL?'need-charge':'playable');
-    var btnIcon=isPlaying?'⏸':!hasUrl?'✕':!hasTL?'⚡':'▶';
-    var btnTitle=!hasUrl?'파일 없음':!hasTL?'TL 충전 필요':'재생';
+    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':'playable');
+    var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
+    var btnTitle=!hasUrl?'파일 없음':'재생';
 
     var dur=s.duration?(Math.floor(s.duration/60)+':'+String(s.duration%60).padStart(2,'0')):'--:--';
 
@@ -518,9 +517,8 @@ function renderList(list,g){
     var typeLabel2={audio:'🎵 음악',video:'🎬 영상',image:'🖼️ 이미지',doc:'📄 문서',etc:'📦 기타'}[ftype]||'🎵 음악';
     var fileUrl=(s.stream_url&&s.stream_url.trim())?s.stream_url:(s.preview_url&&s.preview_url.trim())?s.preview_url:'';
     var hasUrl=!!fileUrl;
-    var hasTL=(s.file_tl||0)>0;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
-    var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':!hasTL?'need-charge':'playable');
+    var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':'playable');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     var dur=s.duration?(Math.floor(s.duration/60)+':'+String(s.duration%60).padStart(2,'0')):'--:--';
     return '<div class="fl-item" id="card-'+s.id+'">' +
@@ -747,18 +745,11 @@ function showPlayerError(msg){
 
 function _getFilteredList(){
   var list=_allShares.slice();
-  if(_search){ var q=_search.toLowerCase(); list=list.filter(function(s){return (s.title||'').toLowerCase().includes(q)||(s.artist||'').toLowerCase().includes(q);}); }
-  if(_tab==='hot') list.sort(function(a,b){return (b.pulse||0)-(a.pulse||0);});
-  else if(_tab==='tl') list.sort(function(a,b){return (b.file_tl||0)-(a.file_tl||0);});
-  else list.sort(function(a,b){return (b.created_at||0)-(a.created_at||0);});
-  if(_filter!=='all') list=list.filter(function(s){
-    var c=(s.category||'').toLowerCase();
-    if(_filter==='music') return isMusicCat(s.category);
-    if(_filter==='video') return c==='video';
-    if(_filter==='image') return c==='image';
-    if(_filter==='doc') return c==='document';
-    return true;
-  });
+  if(_search){ var q=_search.toLowerCase(); list=list.filter(function(s){return (s.title||'').toLowerCase().includes(q)||(s.artist||'').toLowerCase().includes(q)||(s.category||'').toLowerCase().includes(q);}); }
+  if(_tab==='tl') list.sort(function(a,b){return (b.file_tl||0)-(a.file_tl||0);});
+  else if(_tab==='pulse') list.sort(function(a,b){return (b.pulse||0)-(a.pulse||0);});
+  else list.sort(function(a,b){return new Date(b.created_at||0)-new Date(a.created_at||0);});
+  if(_filter!=='all') list=list.filter(function(s){ return isType(s,_filter); });
   return list;
 }
 
@@ -862,9 +853,8 @@ function tlStop(silent){
       var s=_allShares.find(function(x){return x.id===prevSid;});
       if(s){
         var fileUrl=(s.stream_url&&s.stream_url.trim())?s.stream_url:(s.preview_url&&s.preview_url.trim())?s.preview_url:'';
-        var hasTL=(s.file_tl||0)>0;
-        btn.className='fc-play '+(!fileUrl?'no-file':!hasTL?'need-charge':'playable');
-        btn.textContent=!fileUrl?'✕':!hasTL?'⚡':'▶';
+        btn.className='fc-play '+(!fileUrl?'no-file':'playable');
+        btn.textContent=!fileUrl?'✕':'▶';
       }
     }
   }
