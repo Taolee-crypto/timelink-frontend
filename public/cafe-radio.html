@@ -213,7 +213,19 @@ canvas#viz{width:100%;height:100%}
     <a href="shareplace.html" class="tb-nav-btn">🏠 홈</a>
     <a href="cafe-channel.html" class="tb-nav-btn">☕ 채널 개설</a>
   </div>
-  <div class="tb-user" id="tbUser"></div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:10px;color:rgba(255,255,255,.3);font-family:var(--fm)">⚡ TL</span>
+        <span id="tbTL" style="font-size:13px;font-weight:700;font-family:var(--fm);color:var(--amber)">0</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:9px;color:rgba(255,255,255,.25);font-family:var(--fm)">차감</span>
+        <span id="tbDeduct" style="font-size:10px;font-weight:700;font-family:var(--fm);color:#00E5A0">1.000 TL/s</span>
+      </div>
+    </div>
+    <div class="tb-user" id="tbUser"></div>
+  </div>
 </div>
 
 <!-- LAYOUT -->
@@ -403,6 +415,8 @@ canvas#viz{width:100%;height:100%}
 <script>
 var API = 'https://api.timelink.digital';
 var _user = null, _token = null;
+var _tlDeductRate = 1.0; // TL 차감률 (기여지수에 따라 결정)
+var _tlAccum = 0; // 누적 차감량 (소수점 처리)
 var _shares = [], _queue = [], _curIdx = 0;
 var _mode = 'cafe', _playing = false, _shuffle = false, _crossfade = true;
 var _curAudio = 'A', _audioA, _audioB;
@@ -419,7 +433,36 @@ var _requests = [];
   }catch(e){}
   if(!_user){ location.href='login.html'; return; }
   document.getElementById('tbUser').textContent = _user.username || _user.email;
+  // 기여지수로 차감률 계산
+  calcDeductRate();
 })();
+
+function calcDeductRate(){
+  var pocIdx = parseFloat(_user.poc_index || 1.0);
+  if(pocIdx < 1) pocIdx = 1.0;
+  // 차감률 = 1 / poc_index, 최소 0.01
+  _tlDeductRate = Math.max(0.01, Math.min(1.0, 1.0 / pocIdx));
+  var rateStr = _tlDeductRate.toFixed(3) + ' TL/s';
+  if(g('tbDeduct')) g('tbDeduct').textContent = rateStr;
+  if(g('sbDeductRate')) g('sbDeductRate').textContent = rateStr;
+  if(g('sbPocIdx')) g('sbPocIdx').textContent = pocIdx.toFixed(2);
+  if(g('tbTL')) g('tbTL').textContent = Number(_user.tl||0).toLocaleString();
+  updateBroadcastTime();
+}
+
+function updateBroadcastTime(){
+  var tl = _user ? (_user.tl||0) : 0;
+  if(g('sbTLBal')) g('sbTLBal').textContent = Number(tl).toLocaleString() + ' TL';
+  if(_tlDeductRate > 0){
+    var seconds = tl / _tlDeductRate;
+    var mins = Math.floor(seconds / 60);
+    var hours = Math.floor(mins / 60);
+    var remMins = mins % 60;
+    var timeStr = hours > 0 ? hours+'시간 '+remMins+'분' : mins+'분';
+    if(g('sbBroadcastTime')) g('sbBroadcastTime').textContent = timeStr;
+  }
+  if(g('tbTL')) g('tbTL').textContent = Number(tl).toLocaleString();
+}
 
 function toast(msg,t){ t=t||'i'; var el=document.createElement('div'); el.className='t '+t; el.textContent=msg; document.getElementById('toast-box').prepend(el); setTimeout(function(){el.remove();},3000); }
 function g(id){ return document.getElementById(id); }
@@ -632,9 +675,17 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 // R2 direct URL → Worker 프록시로 변환 (CORS 우회)
 function proxyUrl(url){
   if(!url || typeof url !== 'string') return '';
-  if(url.includes('r2.dev') || url.includes('pub-c8d04f')){
-    var filename = url.split('/').pop();
+  url = url.trim();
+  // R2 direct URL → Worker 프록시 (CORS 우회)
+  if(url.includes('r2.dev') || url.includes('pub-c8d04f') || url.includes('cloudflare')){
+    var filename = url.split('/').pop().split('?')[0];
     return 'https://api.timelink.digital/api/audio/' + filename;
+  }
+  // 이미 프록시 URL이면 그대로
+  if(url.includes('api.timelink.digital')) return url;
+  // 파일명만 있으면 프록시로
+  if(!url.startsWith('http')){
+    return 'https://api.timelink.digital/api/audio/' + url;
   }
   return url;
 }
@@ -788,8 +839,22 @@ function startPoc(){
     g('todayPoc').textContent = _pocTotal.toFixed(1);
     g('todayMin').textContent = Math.floor(_minTotal);
     g('npPoc').textContent = '+'+_pocTotal.toFixed(1)+' POC';
-    // TL 차감 (1 TL/sec)
-    if(_user){ _user.tl = Math.max(0,(_user.tl||0)-1); localStorage.setItem('tl_user',JSON.stringify(_user)); }
+    // TL 차감 (기여지수 기반 차감률, 누적 소수점 처리)
+    if(_user){
+      if(!_user._tlFrac) _user._tlFrac = 0;
+      _user._tlFrac += _tlDeductRate;
+      if(_user._tlFrac >= 1.0){
+        var whole = Math.floor(_user._tlFrac);
+        _user._tlFrac -= whole;
+        _user.tl = Math.max(0, (_user.tl||0) - whole);
+        localStorage.setItem('tl_user', JSON.stringify(_user));
+      }
+      updateBroadcastTime();
+      if((_user.tl||0) <= 0 && _tlDeductRate >= 1.0){
+        toast('⚠️ TL 소진! 방송이 중단됩니다.', 'w');
+        stopPoc(); togglePlay();
+      }
+    }
   }, 1000);
 }
 function stopPoc(){ if(_pocInterval){ clearInterval(_pocInterval); _pocInterval=null; } }
