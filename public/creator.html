@@ -354,9 +354,9 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
         </div>
       </div>
 
-      <!-- ③ TL 설정 -->
+      <!-- ③ TL 정보 -->
       <div class="form-section">
-        <div class="fsec-title">③ TL 설정</div>
+        <div class="fsec-title">③ TL 정보</div>
         <div class="tl-cards">
           <div class="tl-card">
             <span class="tl-val" id="tlFileSize">-</span>
@@ -364,40 +364,30 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
           </div>
           <div class="tl-card">
             <span class="tl-val" id="tlDuration">-</span>
-            <span class="tl-lbl">재생/열람 시간</span>
+            <span class="tl-lbl">재생 길이</span>
           </div>
-          <div class="tl-card">
-            <span class="tl-val" id="tlEstimate">0 TL</span>
+          <div class="tl-card" style="border-color:rgba(139,92,246,.3);background:rgba(139,92,246,.06)">
+            <span class="tl-val" id="tlFileTL" style="color:var(--purple)">0 TL</span>
+            <span class="tl-lbl">파일 TL (길이×가중치)</span>
+          </div>
+          <div class="tl-card" style="border-color:rgba(0,229,160,.3);background:rgba(0,229,160,.04)">
+            <span class="tl-val" id="tlEstimate" style="color:#00E5A0">0 TL</span>
             <span class="tl-lbl">예상 최대 수익</span>
           </div>
         </div>
-        <!-- 판매가 직접 설정 -->
+
+        <!-- 가중치 선택 -->
         <div style="margin-top:18px">
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">💰 파일 판매가 (TL) *</label>
-              <div style="display:flex;align-items:center;gap:10px">
-                <input type="number" class="form-input" id="fPrice" min="0" step="100" placeholder="예: 1000" oninput="onPriceInput(this.value)" style="flex:1">
-                <span style="font-size:13px;font-weight:700;color:var(--purple);white-space:nowrap;font-family:var(--fm)">TL</span>
-              </div>
-              <div style="font-size:11px;color:var(--t3);margin-top:5px;line-height:1.6">
-                리스너가 이 파일을 재생하기 위해 충전해야 하는 TL입니다.<br>
-                <span style="color:var(--amber)">0 TL</span>로 설정하면 무료 공개됩니다.
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">💡 추천 가격 가이드</label>
-              <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-                <button type="button" class="price-preset-btn" onclick="setPrice(0)">🆓 무료 공개 — 0 TL</button>
-                <button type="button" class="price-preset-btn" onclick="setPrice(500)">🥉 소액 — 500 TL</button>
-                <button type="button" class="price-preset-btn" onclick="setPrice(1000)">🥈 기본 — 1,000 TL</button>
-                <button type="button" class="price-preset-btn" onclick="setPrice(3000)">🥇 프리미엄 — 3,000 TL</button>
-              </div>
-            </div>
+          <label class="form-label" style="display:block;margin-bottom:10px">⚖️ 차감 가중치 — 리스너가 1초 재생 시 차감되는 TL</label>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="weightGrid"></div>
+          <div style="margin-top:10px;padding:10px 14px;border-radius:9px;background:rgba(255,255,255,.03);font-size:11px;color:var(--t3);line-height:1.7">
+            파일 TL = 재생 길이(초) × 가중치 &nbsp;·&nbsp; 리스너 1초 재생 = 가중치만큼 차감<br>
+            크리에이터 보상은 <strong style="color:rgba(0,229,160,.7)">기여지수(POC)</strong>로 지급됩니다
           </div>
         </div>
+
         <div style="margin-top:14px;padding:12px;border-radius:10px;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);font-size:12px;color:var(--t3);line-height:1.6">
-          ⚡ 공유 등록 시 <strong style="color:var(--amber)">5,000 TL</strong> 차감 &nbsp;·&nbsp; 수익 = 판매가 × 수익 배분율
+          ⚡ 공유 등록 시 <strong style="color:var(--amber)">5,000 TL</strong> 차감
         </div>
       </div>
 
@@ -476,6 +466,7 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
 <script>
 var API='https://api.timelink.digital';
 var _user=null,_token=null,_file=null,_ftype='audio',_plan='A',_spTrack=null;
+var _fileDuration=0, _fileWeight=1.0; // 파일 길이(초), 가중치
 
 // AUTH
 (function(){
@@ -559,8 +550,9 @@ function onFileSelected(f){
     med.src=url;
     med.onloadedmetadata=function(){
       var d=Math.round(med.duration)||0;
+      _fileDuration=d;
       document.getElementById('tlDuration').textContent=Math.floor(d/60)+':'+String(d%60).padStart(2,'0');
-      document.getElementById('tlEstimate').textContent=d.toLocaleString()+' TL';
+      updateFileTL();
       URL.revokeObjectURL(url);
     };
   } else {
@@ -587,23 +579,42 @@ function fmtBytes(b){
 }
 
 // PLAN
-function onPriceInput(v){
-  var price=parseInt(v)||0;
-  var est=document.getElementById('tlEstimate');
-  if(est){
-    var rate=_plan==='A'?0.7:0.5;
-    est.textContent=Math.floor(price*rate).toLocaleString()+' TL';
-  }
+var WEIGHTS = [
+  {val:0.5,  label:'×0.5', desc:'절반 차감'},
+  {val:1.0,  label:'×1.0', desc:'기본 (1TL/s)'},
+  {val:2.0,  label:'×2.0', desc:'2배 차감'},
+  {val:3.0,  label:'×3.0', desc:'3배 차감'},
+];
+function renderWeightGrid(){
+  var g=document.getElementById('weightGrid');
+  if(!g) return;
+  g.innerHTML=WEIGHTS.map(function(w){
+    var active=w.val===_fileWeight;
+    return '<div onclick="selectWeight('+w.val+')" style="padding:12px 8px;border-radius:10px;border:2px solid '+(active?'var(--purple)':'var(--bd)')+';background:'+(active?'rgba(139,92,246,.1)':'rgba(255,255,255,.03)')+';text-align:center;cursor:pointer;transition:all .2s">'+
+      '<div style="font-size:15px;font-weight:900;font-family:var(--fm);color:'+(active?'var(--purple)':'var(--t2)')+'">'+w.label+'</div>'+
+      '<div style="font-size:10px;color:var(--t3);margin-top:4px">'+w.desc+'</div>'+
+    '</div>';
+  }).join('');
 }
-function setPrice(v){
-  var el=document.getElementById('fPrice');
-  if(el){ el.value=v; onPriceInput(v); }
+function selectWeight(v){
+  _fileWeight=v;
+  renderWeightGrid();
+  updateFileTL();
+}
+function updateFileTL(){
+  var tl=Math.round(_fileDuration*_fileWeight);
+  var rate=_plan==='A'?0.7:0.5;
+  var est=Math.floor(tl*rate);
+  var tlEl=document.getElementById('tlFileTL');
+  var estEl=document.getElementById('tlEstimate');
+  if(tlEl) tlEl.textContent=tl.toLocaleString()+' TL';
+  if(estEl) estEl.textContent=est.toLocaleString()+' TL';
 }
 function selectPlan(el,p){
   document.querySelectorAll('.plan-card').forEach(function(c){c.classList.remove('active');});
   el.classList.add('active');
   _plan=p;
-  onPriceInput(document.getElementById('fPrice').value||0);
+  updateFileTL();
 }
 
 // SPOTIFY
@@ -676,7 +687,7 @@ async function doUpload(){
     });
     setProg(65,'메타데이터 저장 중...');
     // Step 2: shares 등록
-    var priceVal=parseInt(document.getElementById('fPrice').value)||0;
+    var fileTL=Math.round(_fileDuration*_fileWeight);
     var body={
       title:title,
       artist:document.getElementById('fCreator').value.trim(),
@@ -684,7 +695,8 @@ async function doUpload(){
       category:getCategory(),
       description:document.getElementById('fDesc').value.trim(),
       plan:_plan,
-      file_tl:priceVal,
+      weight:_fileWeight,
+      file_tl:fileTL,
       stream_url:uploadRes.url||uploadRes.stream_url||'',
       file_type:_file.type||'',
       user_id:_user.id,
