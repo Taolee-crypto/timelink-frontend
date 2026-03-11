@@ -533,7 +533,9 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
       <div class="poc-formula">
         <div class="poc-formula-title">▸ TLC 채굴 공식</div>
         <div class="poc-formula-eq">
-          TLC = (<span>보유 TL</span> - <span>현금교환 TL</span>) × <span>50%</span> × <span>POC 기여지수</span>
+          TLC 채굴량 = (<span>총 사용 TL</span> - <span>현금교환 TL</span>) × <span>50%</span> × <span>기여지수</span><br>
+          <span style="font-size:12px;color:rgba(255,255,255,.4)">기여지수 = 1 + 누적POC ÷ 100</span><br>
+          <span style="font-size:12px;color:rgba(255,255,255,.4)">차감계수 = 1 ÷ 기여지수 (최소 0.01 TL/s)</span>
         </div>
       </div>
 
@@ -557,6 +559,24 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
           <div class="poc-factor-label">카페방송 운영</div>
           <div class="poc-factor-val" id="pocCafe">0.0</div>
           <div class="poc-factor-bar"><div class="poc-factor-fill" id="pocCafeBar" style="width:0%"></div></div>
+        </div>
+        <div class="poc-factor" style="grid-column:1/-1;background:rgba(251,191,36,.04);border-color:rgba(251,191,36,.15)">
+          <div class="poc-factor-label" style="color:var(--amber)">TL 사용량 기반 채굴 현황</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:8px">
+            <div>
+              <div style="font-size:10px;color:var(--t3);margin-bottom:4px">총 사용 TL</div>
+              <div style="font-size:16px;font-weight:700;font-family:var(--fm);color:var(--t1)" id="miningTotalSpent">0</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--t3);margin-bottom:4px">현금교환 TL</div>
+              <div style="font-size:16px;font-weight:700;font-family:var(--fm);color:var(--rose)" id="miningExchanged">0</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--t3);margin-bottom:4px">채굴 가능 TLC</div>
+              <div style="font-size:16px;font-weight:700;font-family:var(--fm);color:var(--mint)" id="miningAvailable">0.00</div>
+            </div>
+          </div>
+          <button onclick="calcMining()" style="margin-top:12px;width:100%;padding:10px;border-radius:9px;border:1px solid rgba(0,229,160,.3);background:rgba(0,229,160,.08);color:var(--mint);font-size:13px;font-weight:700;cursor:pointer">⛏️ TLC 채굴 계산</button>
         </div>
       </div>
 
@@ -679,14 +699,61 @@ function renderUser(){
   g('walletTlc').textContent = tlc.toFixed(2);
 
   // Mining
+  var pocIdx = 1 + poc/100;
   g('miningPoc').textContent = poc.toFixed(1);
   g('miningTlc').textContent = tlc.toFixed(2);
-  g('miningIndex').textContent = (1 + poc/100).toFixed(2);
+  g('miningIndex').textContent = pocIdx.toFixed(2);
   g('pocListen').textContent = poc.toFixed(1);
   g('pocListenBar').style.width = Math.min(100, poc*2)+'%';
   var drivePoc = parseFloat(localStorage.getItem('tl_drive_poc')||'0');
+  var cafePoc = parseFloat(localStorage.getItem('tl_cafe_poc')||'0');
   g('pocDrive').textContent = drivePoc.toFixed(1);
   g('pocDriveBar').style.width = Math.min(100, drivePoc*5)+'%';
+  g('pocCafe').textContent = cafePoc.toFixed(1);
+  g('pocCafeBar').style.width = Math.min(100, cafePoc*5)+'%';
+
+  // TLC 채굴 계산
+  var totalSpent = Number(_user.total_tl_spent||0);
+  var exchanged = Number(_user.total_tl_exchanged||0);
+  var mineable = Math.max(0, (totalSpent - exchanged) * 0.5 * pocIdx);
+  if(g('miningTotalSpent')) g('miningTotalSpent').textContent = fmt(totalSpent);
+  if(g('miningExchanged')) g('miningExchanged').textContent = fmt(exchanged);
+  if(g('miningAvailable')) g('miningAvailable').textContent = mineable.toFixed(2);
+}
+
+async function calcMining(){
+  if(!_user) return;
+  var poc = parseFloat(localStorage.getItem('tl_poc_today')||'0');
+  var pocIdx = 1 + poc/100;
+  var totalSpent = Number(_user.total_tl_spent||0);
+  var exchanged = Number(_user.total_tl_exchanged||0);
+  var mineable = Math.max(0, (totalSpent - exchanged) * 0.5 * pocIdx);
+
+  // 서버에 TLC 채굴 요청
+  try{
+    var r = await fetch(API+'/api/user/mine-tlc', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        user_id: _user.id,
+        poc_total: poc,
+        poc_index: pocIdx,
+        total_tl_spent: totalSpent,
+        total_tl_exchanged: exchanged,
+        tlc_amount: mineable
+      })
+    });
+    var d = await r.json();
+    if(d.ok){
+      _user.tlc = (_user.tlc||0) + (d.mined||0);
+      _user.poc_index = pocIdx;
+      localStorage.setItem('tl_user', JSON.stringify(_user));
+      toast('⛏️ '+((d.mined||0).toFixed(4))+' TLC 채굴 완료!', 's');
+      renderUser();
+    } else {
+      toast(d.error||'채굴 실패', 'e');
+    }
+  }catch(e){ toast('채굴 오류: '+e.message, 'e'); }
 }
 
 async function loadAll(){

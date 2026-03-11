@@ -833,14 +833,19 @@ function startPoc(){
   if(_pocInterval) clearInterval(_pocInterval);
   var ts = getTimeSlot();
   _pocMult = _mode==='incar' ? 2.5 : parseFloat(ts.poc||'1.0');
+  var _reportAccum = 0; // 서버 보고용 누적 초
+  var _tlSpentAccum = 0; // 서버 보고용 누적 TL 차감량
+
   _pocInterval = setInterval(function(){
     var gain = _pocMult * (1/60);
     _pocTotal += gain;
     _minTotal += 1/60;
+    _reportAccum += 1;
     g('todayPoc').textContent = _pocTotal.toFixed(1);
     g('todayMin').textContent = Math.floor(_minTotal);
     g('npPoc').textContent = '+'+_pocTotal.toFixed(1)+' POC';
-    // TL 차감 (기여지수 기반 차감률, 누적 소수점 처리)
+
+    // ── TL 차감 (기여지수 기반, 소수점 누적) ──
     if(_user){
       if(!_user._tlFrac) _user._tlFrac = 0;
       _user._tlFrac += _tlDeductRate;
@@ -848,17 +853,63 @@ function startPoc(){
         var whole = Math.floor(_user._tlFrac);
         _user._tlFrac -= whole;
         _user.tl = Math.max(0, (_user.tl||0) - whole);
+        _tlSpentAccum += whole;
         localStorage.setItem('tl_user', JSON.stringify(_user));
       }
       updateBroadcastTime();
       if((_user.tl||0) <= 0 && _tlDeductRate >= 1.0){
         toast('⚠️ TL 소진! 방송이 중단됩니다.', 'w');
+        reportToServer(_reportAccum, _tlSpentAccum);
         stopPoc(); togglePlay();
       }
     }
+
+    // ── 30초마다 서버에 TL소비 + POC 보고 ──
+    if(_reportAccum >= 30){
+      reportToServer(_reportAccum, _tlSpentAccum);
+      _reportAccum = 0;
+      _tlSpentAccum = 0;
+    }
   }, 1000);
 }
-function stopPoc(){ if(_pocInterval){ clearInterval(_pocInterval); _pocInterval=null; } }
+// ── 서버 보고: TL 소비 + POC 누적 ──────────────────────────
+function reportToServer(secs, tlSpent){
+  if(!_user || !_user.id) return;
+  var pocGained = _pocMult * (secs / 60);
+  var mode = _mode || 'cafe'; // 'cafe' or 'incar'
+
+  fetch(API+'/api/user/activity', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      user_id:    _user.id,
+      mode:       mode,         // 'cafe' | 'incar'
+      seconds:    secs,         // 방송한 초
+      tl_spent:   tlSpent,      // 실제 차감된 TL
+      poc_gained: pocGained,    // 이번 구간 POC
+      poc_mult:   _pocMult,     // 배율
+      poc_total:  _pocTotal     // 누적 POC
+    })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if(d.poc_index){
+      // 서버에서 갱신된 기여지수 반영
+      _user.poc_index = d.poc_index;
+      _user.total_tl_spent = d.total_tl_spent || _user.total_tl_spent;
+      localStorage.setItem('tl_user', JSON.stringify(_user));
+      // 차감률 재계산
+      _tlDeductRate = Math.max(0.01, Math.min(1.0, 1.0 / d.poc_index));
+    }
+  }).catch(function(){});
+}
+
+function stopPoc(){
+  if(_pocInterval){
+    // 방송 종료 시 마지막 보고
+    reportToServer(0, 0);
+    clearInterval(_pocInterval);
+    _pocInterval=null;
+  }
+}
 
 // Visualizer
 var _vizCtx, _vizACtx, _vizSrc, _vizAnal;
