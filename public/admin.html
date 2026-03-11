@@ -324,6 +324,26 @@ tr:hover td{background:rgba(255,255,255,.015)}
 
 <script>
 var API = 'https://api.timelink.digital';
+function proxyUrl(url){
+  if(!url||typeof url!=='string') return '';
+  url=url.trim();
+  if(url.includes('api.timelink.digital/api/audio')) return url;
+  if(url.includes('r2.dev')||url.includes('pub-c8d04f')){
+    var fn=url.split('/').pop().split('?')[0];
+    return API+'/api/audio/'+fn;
+  }
+  if(url.startsWith('tracks/')){
+    return API+'/api/audio/'+url.replace(/^tracks\//, '');
+  }
+  return url;
+}
+var _adminAudio=null;
+function adminPlay(url,title){
+  if(_adminAudio){ _adminAudio.pause(); _adminAudio=null; }
+  var pu=proxyUrl(url);
+  _adminAudio=new Audio(pu);
+  _adminAudio.play().catch(function(e){ alert('재생 실패: '+e.message+'\nURL: '+pu); });
+}
 var CRED = { email:'admin@timelink.digital', pw:'timelink2025!' };
 var _shares=[], _users=[], _shareFilter='', _shareTypeFilter='', _userFilter='';
 
@@ -465,7 +485,7 @@ function shareRowFull(s){
     '<td><span class="badge '+(hasFile?'bg':'br')+'">'+(hasFile?'✓ R2':'✗ 없음')+'</span></td>'+
     '<td class="td-mono" style="font-size:9px;color:var(--t4)">'+date+'</td>'+
     '<td><div style="display:flex;gap:4px">'+
-      (hasFile?'<a href="'+esc(s.stream_url)+'" target="_blank" class="btn btn-g btn-xs">▶</a>':'')+
+      (hasFile?'<button class="btn btn-g btn-xs" onclick="adminPlay(\'' + esc(s.stream_url) + '\',\'' + esc(s.title) + \')">▶</button>':'')+
       '<button class="btn btn-r btn-xs" onclick="delShare(\''+s.id+'\',\''+esc(s.title)+'\')">🗑</button>'+
     '</div></td>'+
   '</tr>';
