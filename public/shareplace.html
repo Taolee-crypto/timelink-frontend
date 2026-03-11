@@ -920,7 +920,7 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
       });
       return;
     }
-    showPlayerError('파일 로드 실패. R2 CORS 설정을 확인하세요.\nURL: '+fileUrl.slice(0,80));
+    showPlayerError('파일 로드 실패 — 파일이 서버에 없거나 손상되었습니다.');
   };
 
   _tlAudio.oncanplay=function(){
@@ -945,8 +945,27 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   };
 
   _tlAudio.onended=function(){ tlStop(); };
-  _tlAudio.src=proxyUrl(fileUrl);
-  _tlAudio.load();
+
+  // 파일 존재 여부 먼저 확인 후 재생
+  var pUrl = proxyUrl(fileUrl);
+  fetch(pUrl, {method:'HEAD'}).then(function(res){
+    if(res.status === 404){
+      showPlayerError('파일이 서버에 없습니다. 크리에이터에게 문의하세요.');
+      tlStop();
+      return;
+    }
+    if(!res.ok){
+      showPlayerError('파일 접근 실패 (HTTP '+res.status+')');
+      tlStop();
+      return;
+    }
+    _tlAudio.src = pUrl;
+    _tlAudio.load();
+  }).catch(function(){
+    // HEAD 실패해도 일단 재생 시도
+    _tlAudio.src = pUrl;
+    _tlAudio.load();
+  });
 }
 
 function showPlayerError(msg){
