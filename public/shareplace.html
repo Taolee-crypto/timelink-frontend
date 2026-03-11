@@ -536,10 +536,14 @@ async function loadMyFileTL(){
     });
     if(!r.ok) return;
     var d=await r.json();
-    _myFileTL={};
-    (d.files||[]).forEach(function(f){
-      _myFileTL[String(f.share_id)]=f.tl_balance;
-    });
+    // 서버 데이터가 있을 때만 덮어씀 (없으면 로컬 캐시 유지)
+    var serverData = d.files||[];
+    if(serverData.length > 0){
+      _myFileTL={};
+      serverData.forEach(function(f){
+        _myFileTL[String(f.share_id)]=f.tl_balance;
+      });
+    }
   }catch(e){ console.warn('[TL] 파일별 잔량 로드 실패',e); }
 }
 
@@ -650,7 +654,7 @@ function renderShares(list){
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
 
     // 재생 버튼 결정
-    var myTL0 = _myFileTL && _myFileTL[String(s.id)];
+    var myTL0 = (_myFileTL && _myFileTL[String(s.id)]) || (s.file_tl||0);
     var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':myTL0>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     var btnTitle=!hasUrl?'파일 없음':'재생';
@@ -704,7 +708,7 @@ function renderList(list,g){
     var fileUrl=(s.stream_url&&s.stream_url.trim())?s.stream_url:(s.preview_url&&s.preview_url.trim())?s.preview_url:'';
     var hasUrl=!!fileUrl;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
-    var myTL0b = _myFileTL && _myFileTL[String(s.id)];
+    var myTL0b = (_myFileTL && _myFileTL[String(s.id)]) || (s.file_tl||0);
     var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':myTL0b>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     var dur=s.duration?(Math.floor(s.duration/60)+':'+String(s.duration%60).padStart(2,'0')):'--:--';
@@ -763,7 +767,8 @@ async function chargeTL(shareId,title){
     if(!_myFileTL) _myFileTL={};
     _myFileTL[String(shareId)]=(_myFileTL[String(shareId)]||0)+amt;
     alert('✅ '+amt.toLocaleString()+' TL 충전!\n내 잔량: '+Number(_myFileTL[String(shareId)]).toLocaleString()+' TL');
-    loadShares(); loadMyFileTL();
+    // 카드 버튼 즉시 업데이트 (loadShares 안 함 — _myFileTL 초기화 방지)
+    renderShares(_getFilteredList());
   }catch(err){ alert('충전 실패: '+err.message); }
 }
 
@@ -801,14 +806,16 @@ function tlPlayCard(el){
     alert('⚠️ "'+s.title+'"\n\n재생 파일이 없습니다.\n크리에이터가 파일을 업로드하지 않았습니다.');
     return;
   }
-  // 내 파일별 TL 잔량 확인 (1:1 매핑)
+  // 내 파일별 TL 잔량 확인
   var myTL = _myFileTL[String(s.id)] || 0;
-  if(myTL <= 0){
-    if(confirm('"'+s.title+'"\n\n내 TL 잔량이 없습니다.\n지금 충전하시겠습니까?')){ chargeTL(String(s.id),s.title); }
+  // 백엔드 tl_user_files 미배포 시 폴백: file_tl > 0 이면 재생 허용
+  var tlForPlay = myTL > 0 ? myTL : (s.file_tl||0);
+  if(tlForPlay <= 0){
+    if(confirm('"'+s.title+'"\n\nTL이 필요합니다.\n지금 충전하시겠습니까?')){ chargeTL(String(s.id),s.title); }
     return;
   }
 
-  tlPlay(s.id, s.title, s.artist||'', s.cover_url||'', fileUrl, myTL, s.duration||0, s);
+  tlPlay(s.id, s.title, s.artist||'', s.cover_url||'', fileUrl, tlForPlay, s.duration||0, s);
 }
 
 // ═══════════════════════════════════════════════════════
