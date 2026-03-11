@@ -348,19 +348,21 @@ var API_BASE = 'https://api.timelink.digital';
 function proxyUrl(url){
   if(!url || typeof url !== 'string') return '';
   url = url.trim();
-  var R2_BASE = 'https://pub-c8d04f598d434d2f9568c08938d892a7.r2.dev';
-  // 이미 r2.dev URL → 직접 사용 (R2 CORS 설정 필요)
-  if(url.includes('r2.dev') || url.includes('pub-c8d04f')) return url;
-  // Workers 프록시 URL → 그대로
+  // 이미 Workers 프록시 URL
   if(url.includes('api.timelink.digital/api/audio')) return url;
-  // 'tracks/파일명' → R2 직접
+  // r2.dev URL → 파일명 추출 후 Workers 프록시 경유
+  if(url.includes('r2.dev') || url.includes('pub-c8d04f')){
+    var filename = url.split('/').pop().split('?')[0];
+    return API_BASE + '/api/audio/' + filename;
+  }
+  // tracks/파일명 → Workers 프록시
   if(url.startsWith('tracks/')){
-    return R2_BASE + '/' + url;
+    return API_BASE + '/api/audio/' + url.replace(/^tracks\//, '');
   }
   // 순수 파일명
   if(!url.startsWith('http')){
     var fname = url.split('/').pop().split('?')[0];
-    return R2_BASE + '/tracks/' + fname;
+    return API_BASE + '/api/audio/' + fname;
   }
   return url;
 }
@@ -874,7 +876,6 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   // crossOrigin 없이 시도 (CORS 문제 우회)
   _tlAudio=new Audio();
   _tlAudio.preload='auto';
-  _tlAudio.crossOrigin='anonymous'; // R2 CORS 헤더 요청에 필수
 
   _tlAudio.onerror=function(e){
     showPlayerError('파일 로드 실패 — 파일이 서버에 없거나 손상되었습니다.');
