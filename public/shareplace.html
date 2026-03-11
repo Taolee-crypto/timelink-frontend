@@ -890,21 +890,22 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
     showPlayerError('파일 로드 실패 — 파일이 서버에 없거나 손상되었습니다.');
   };
 
+  // oncanplay는 여러 번 발생 → 최초 1회만 실행
+  var _didStart = false;
   _tlAudio.oncanplay=function(){
-    // 워터마크 먼저 준비 (play 전 AudioContext 연결)
-    wmStart(_tlAudio, _tlShareId); // 🛡️ 워터마크 준비
+    if(_didStart) return; // 중복 실행 방지
+    _didStart = true;
+    wmStart(_tlAudio, _tlShareId); // 🛡️ 워터마크
     _tlAudio.play().then(function(){
       tlStartTimer();
       _tlPlaying=true;
       document.getElementById('tlPlayBtn').textContent='⏸';
       renderShares(_getFilteredList());
     }).catch(function(e){
-      // 자동재생 차단 시 사용자에게 알림
       if(e.name==='NotAllowedError'){
         document.getElementById('tlPlayBtn').textContent='▶';
         document.getElementById('tlError').style.display='block';
         document.getElementById('tlError').textContent='▶ 버튼을 눌러 재생하세요 (브라우저 자동재생 차단)';
-        // 버튼 누르면 재생되도록 준비 상태 유지
         _tlPlaying=false;
       } else {
         showPlayerError('재생 실패: '+e.message);
@@ -914,26 +915,10 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
 
   _tlAudio.onended=function(){ tlStop(); };
 
-  // 파일 존재 여부 먼저 확인 후 재생
+  // 바로 src 설정 후 재생 (HEAD 왕복 제거 — oncanplay 재발화 방지)
   var pUrl = proxyUrl(fileUrl);
-  fetch(pUrl, {method:'HEAD'}).then(function(res){
-    if(res.status === 404){
-      showPlayerError('파일이 서버에 없습니다. 크리에이터에게 문의하세요.');
-      tlStop();
-      return;
-    }
-    if(!res.ok){
-      showPlayerError('파일 접근 실패 (HTTP '+res.status+')');
-      tlStop();
-      return;
-    }
-    _tlAudio.src = pUrl;
-    _tlAudio.load();
-  }).catch(function(){
-    // HEAD 실패해도 일단 재생 시도
-    _tlAudio.src = pUrl;
-    _tlAudio.load();
-  });
+  _tlAudio.src = pUrl;
+  _tlAudio.load();
 }
 
 // 카드 TL 표시만 업데이트 (전체 렌더링 없이)
