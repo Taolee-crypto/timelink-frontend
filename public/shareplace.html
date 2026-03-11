@@ -348,21 +348,19 @@ var API_BASE = 'https://api.timelink.digital';
 function proxyUrl(url){
   if(!url || typeof url !== 'string') return '';
   url = url.trim();
-  // 이미 프록시 URL이면 그대로
+  var R2_BASE = 'https://pub-c8d04f598d434d2f9568c08938d892a7.r2.dev';
+  // 이미 r2.dev URL → 직접 사용 (R2 CORS 설정 필요)
+  if(url.includes('r2.dev') || url.includes('pub-c8d04f')) return url;
+  // Workers 프록시 URL → 그대로
   if(url.includes('api.timelink.digital/api/audio')) return url;
-  // r2.dev 직접 URL → 파일명만 추출해서 프록시로
-  if(url.includes('r2.dev') || url.includes('pub-c8d04f')){
-    var filename = url.split('/').pop().split('?')[0];
-    return API_BASE + '/api/audio/' + filename;
-  }
-  // 'tracks/파일명' 형태 → 'tracks/' 제거 후 프록시
+  // 'tracks/파일명' → R2 직접
   if(url.startsWith('tracks/')){
-    return API_BASE + '/api/audio/' + url.replace(/^tracks\//, '');
+    return R2_BASE + '/' + url;
   }
-  // 순수 파일명 or 기타 상대경로
+  // 순수 파일명
   if(!url.startsWith('http')){
     var fname = url.split('/').pop().split('?')[0];
-    return API_BASE + '/api/audio/' + fname;
+    return R2_BASE + '/tracks/' + fname;
   }
   return url;
 }
