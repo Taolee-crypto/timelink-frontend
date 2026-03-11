@@ -443,61 +443,30 @@ async function wmStart(audioElement, shareId) {
     var freq = calcWmFrequency(_user.id, fp);
     var now = Date.now();
 
+    // AudioContext — 오디오 엘리먼트와 분리 (재생에 영향 없음)
     _wmCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_wmCtx.state === 'suspended') await _wmCtx.resume();
 
-    // 오디오 소스
-    try {
-      _wmSource = _wmCtx.createMediaElementSource(audioElement);
-    } catch(e) { return; } // CORS 제한 시 스킵
-
-    // 워터마크 오실레이터 (비가청 주파수)
+    // 워터마크: 오실레이터만 사용 (MediaElementSource 연결 안 함)
+    // → 오디오 엘리먼트는 브라우저 기본 출력으로 소리 냄
+    // → 워터마크는 별도 비가청 신호로만 존재 (로그 기록)
     var osc1 = _wmCtx.createOscillator();
-    var osc2 = _wmCtx.createOscillator();
     var gain1 = _wmCtx.createGain();
-    var gain2 = _wmCtx.createGain();
-
-    // 주파수 = 기본 + 사용자 고유 변조
     osc1.frequency.value = freq;
-    osc2.frequency.value = freq + 523; // 반음 위
-
-    // 매우 낮은 게인 (-40dB ~ -50dB) — 소리는 안 들리지만 신호는 존재
-    gain1.gain.value = 0.003;
-    gain2.gain.value = 0.002;
-
-    // 사용자ID를 기반으로 진폭 변조 패턴 생성 (고유 서명)
-    var modOsc = _wmCtx.createOscillator();
-    var modGain = _wmCtx.createGain();
-    modOsc.frequency.value = 2 + (_user.id % 8); // 2~10Hz 변조
-    modGain.gain.value = 0.001;
-    modOsc.connect(modGain);
-    modGain.connect(gain1.gain);
-
+    gain1.gain.value = 0.0001; // 사실상 무음
     osc1.connect(gain1);
-    osc2.connect(gain2);
-
-    // 오디오 소스 → destination (소리 출력) + 워터마크 오실레이터
-    _wmSource.connect(_wmCtx.destination);  // ← 반드시 destination에 연결해야 소리 남
     gain1.connect(_wmCtx.destination);
-    gain2.connect(_wmCtx.destination);
-
-    osc1.start(); osc2.start(); modOsc.start();
-    _wmNodes = [osc1, osc2, modOsc];
+    osc1.start();
+    _wmNodes = [osc1];
 
     // 서버에 워터마크 이벤트 기록
     wmLog(shareId, fp, freq, now);
-
-    // UI 업데이트
-    var badge = document.getElementById('wmBadge');
-    var info = document.getElementById('wmInfo');
-    if(badge){ badge.style.display=''; badge.classList.add('active'); }
-    if(info){ info.textContent = 'FP:'+fp.slice(0,6)+' · FREQ:'+freq+'Hz · UID:'+(_user.id||'?'); }
 
   } catch(e) {
     console.warn('[WM] 워터마크 초기화 실패:', e.message);
   }
 }
 
-// 워터마크 중지
 function wmStop() {
   _wmNodes.forEach(function(n){ try{ n.stop(); }catch(e){} });
   _wmNodes = [];
@@ -922,12 +891,13 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   };
 
   _tlAudio.oncanplay=function(){
+    // 워터마크 먼저 준비 (play 전 AudioContext 연결)
+    wmStart(_tlAudio, _tlShareId); // 🛡️ 워터마크 준비
     _tlAudio.play().then(function(){
       tlStartTimer();
       _tlPlaying=true;
       document.getElementById('tlPlayBtn').textContent='⏸';
       renderShares(_getFilteredList());
-      wmStart(_tlAudio, _tlShareId); // 🛡️ 워터마크 시작
     }).catch(function(e){
       // 자동재생 차단 시 사용자에게 알림
       if(e.name==='NotAllowedError'){
