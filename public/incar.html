@@ -267,6 +267,23 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
 
 <script>
 var API = 'https://api.timelink.digital';
+
+function proxyUrl(url){
+  if(!url||typeof url!=='string') return '';
+  url=url.trim();
+  if(url.includes('api.timelink.digital/api/audio')) return url;
+  if(url.includes('r2.dev')||url.includes('pub-c8d04f')){
+    var fn=url.split('/').pop().split('?')[0];
+    return API+'/api/audio/'+fn;
+  }
+  if(url.startsWith('tracks/')){
+    return API+'/api/audio/'+url.replace(/^tracks\//, '');
+  }
+  if(!url.startsWith('http')&&url.length>3){
+    return API+'/api/audio/'+url.split('/').pop().split('?')[0];
+  }
+  return url;
+}
 var _user = null;
 try{ _user = JSON.parse(localStorage.getItem('tl_user')||'null'); }catch(e){}
 if(!_user){ location.href='login.html'; }
@@ -406,8 +423,7 @@ function loadTrack(idx){
   if(!_queue[idx]) return;
   _curIdx = idx;
   var s = _queue[idx];
-  var url = s.stream_url || s.file_tl;
-  if(!url||!url.startsWith('http')) url = 'https://api.timelink.digital/api/audio/'+s.file_tl;
+  var url = proxyUrl(s.stream_url || s.preview_url || '');
 
   var aud = getAud();
   aud.src = url; aud.load();
@@ -439,7 +455,6 @@ function startCrossfade(){
   var ni = (_curIdx+1)%_queue.length;
   var ns = _queue[ni];
   var nu = ns.stream_url||ns.file_tl;
-  if(!nu||!nu.startsWith('http')) nu='https://api.timelink.digital/api/audio/'+ns.file_tl;
   var fo=getAud(), fi=_useA?_audB:_audA;
   fi.src=nu; fi.volume=0; fi.load();
   if(_playing) fi.play().catch(function(){});
