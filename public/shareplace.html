@@ -936,6 +936,20 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   });
 }
 
+// 카드 TL 표시만 업데이트 (전체 렌더링 없이)
+function updateCardTLDisplay(shareId, tlVal){
+  // 카드뷰 .fc-price
+  document.querySelectorAll('[data-sid="'+shareId+'"]').forEach(function(el){
+    var card = el.closest('.fc-card,.fl-item');
+    if(!card) return;
+    var priceEl = card.querySelector('.fc-price,.fl-price');
+    if(priceEl){
+      priceEl.style.color='var(--mint)';
+      priceEl.innerHTML='⚡ '+Number(tlVal).toLocaleString()+' TL';
+    }
+  });
+}
+
 function showPlayerError(msg){
   var el=document.getElementById('tlError');
   el.style.display='block';
@@ -981,11 +995,12 @@ function tlStartTimer(){
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
         body:JSON.stringify({seconds:5, user_id:_user?_user.id:null})
       }).then(function(r){return r.json();}).then(function(d){
-        // 내 파일별 TL 서버 동기화
         if(d.user_tl!==undefined){
           _tlCurrentTL=d.user_tl;
           if(!_myFileTL) _myFileTL={};
           _myFileTL[String(_tlShareId)]=d.user_tl;
+          // 카드의 TL 표시 즉시 업데이트 (전체 렌더링 없이)
+          updateCardTLDisplay(_tlShareId, d.user_tl);
         }
       }).catch(function(){});
     }
@@ -1033,6 +1048,12 @@ function tlStop(silent){
   wmStop(); // 🛡️ 워터마크 중지
   _tlPlaying=false;
   if(_tlTimer){ clearInterval(_tlTimer); _tlTimer=null; }
+  // 정지 시 현재 잔량을 카드에 반영
+  if(_tlShareId && _tlCurrentTL >= 0){
+    if(!_myFileTL) _myFileTL={};
+    _myFileTL[String(_tlShareId)] = _tlCurrentTL;
+    updateCardTLDisplay(_tlShareId, _tlCurrentTL);
+  }
   if(_tlAudio){ _tlAudio.pause(); _tlAudio.src=''; _tlAudio=null; }
 
   // 비디오 정리
