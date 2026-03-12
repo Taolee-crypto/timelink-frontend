@@ -81,6 +81,19 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .form-input:focus{border-color:var(--purple);background:rgba(139,92,246,.06)}
 .form-input::placeholder{color:var(--t3)}
 textarea.form-input{resize:vertical;min-height:80px}
+.ai-paste-zone{
+  min-height:60px;padding:12px 14px;
+  border:1px dashed rgba(0,229,160,.25);border-radius:8px;
+  background:rgba(0,229,160,.03);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:all .2s;outline:none;
+}
+.ai-paste-zone:focus,.ai-paste-zone:hover{
+  border-color:rgba(0,229,160,.5);background:rgba(0,229,160,.06);
+}
+.ai-paste-zone.has-img{ justify-content:flex-start;align-items:flex-start; }
+.apz-hint{font-size:11px;color:var(--t3);pointer-events:none;}
+.ai-paste-zone.has-img .apz-hint{font-size:10px;color:rgba(0,229,160,.5);}
 select.form-input{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
 /* SPOTIFY */
 .spotify-section{display:none}
@@ -270,8 +283,10 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
           <div style="margin-bottom:14px">
             <div style="font-size:11px;color:var(--t2);font-weight:600;margin-bottom:6px">① 창작자 프로필</div>
             <input type="text" class="form-input" id="aiProfileUrl" placeholder="창작자 프로필 URL (Suno, Udio, 기타 AI 플랫폼)" style="margin-bottom:6px">
-            <div class="ai-img-row">
-              <textarea class="form-input" id="aiProfileImg" placeholder="프로필 페이지 캡처 이미지 URL 붙여넣기" rows="2" style="resize:none;font-size:11px"></textarea>
+            <div class="ai-paste-zone" id="aiProfileImgZone" onclick="this.focus()" tabindex="0" data-field="aiProfileImg">
+              <div class="apz-hint" id="aiProfileImgHint">📋 캡처 이미지를 여기에 Ctrl+V 로 붙여넣기</div>
+              <img id="aiProfileImgPreview" style="display:none;max-width:100%;max-height:140px;border-radius:6px;margin-top:6px">
+              <input type="hidden" id="aiProfileImg">
             </div>
           </div>
 
@@ -279,14 +294,22 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
           <div style="margin-bottom:14px">
             <div style="font-size:11px;color:var(--t2);font-weight:600;margin-bottom:6px">② 어카운트 URL</div>
             <input type="text" class="form-input" id="aiAccountUrl" placeholder="플랫폼 어카운트 URL" style="margin-bottom:6px">
-            <textarea class="form-input" id="aiAccountImg" placeholder="어카운트 페이지 캡처 이미지 URL 붙여넣기" rows="2" style="resize:none;font-size:11px"></textarea>
+            <div class="ai-paste-zone" id="aiAccountImgZone" onclick="this.focus()" tabindex="0" data-field="aiAccountImg">
+              <div class="apz-hint" id="aiAccountImgHint">📋 캡처 이미지를 여기에 Ctrl+V 로 붙여넣기</div>
+              <img id="aiAccountImgPreview" style="display:none;max-width:100%;max-height:140px;border-radius:6px;margin-top:6px">
+              <input type="hidden" id="aiAccountImg">
+            </div>
           </div>
 
           <!-- 생성 곡 URL -->
           <div>
             <div style="font-size:11px;color:var(--t2);font-weight:600;margin-bottom:6px">③ 생성 곡 URL 및 캡처</div>
             <input type="text" class="form-input" id="aiSongUrl" placeholder="AI 플랫폼 내 해당 곡 URL" style="margin-bottom:6px">
-            <textarea class="form-input" id="aiSongImg" placeholder="생성 곡 페이지 캡처 이미지 URL 붙여넣기" rows="2" style="resize:none;font-size:11px"></textarea>
+            <div class="ai-paste-zone" id="aiSongImgZone" onclick="this.focus()" tabindex="0" data-field="aiSongImg">
+              <div class="apz-hint" id="aiSongImgHint">📋 캡처 이미지를 여기에 Ctrl+V 로 붙여넣기</div>
+              <img id="aiSongImgPreview" style="display:none;max-width:100%;max-height:140px;border-radius:6px;margin-top:6px">
+              <input type="hidden" id="aiSongImg">
+            </div>
           </div>
         </div>
       </div>
@@ -728,6 +751,56 @@ function pickSpotify(i){
 
 // 카테고리 가져오기
 function handleSpQuery(e){ if(e.key==='Enter') searchSpotify(); }
+
+// ── AI 증빙 이미지 붙여넣기 ──
+function initAiPasteZones(){
+  var zones=[
+    {zone:'aiProfileImgZone', hint:'aiProfileImgHint', preview:'aiProfileImgPreview', hidden:'aiProfileImg'},
+    {zone:'aiAccountImgZone', hint:'aiAccountImgHint', preview:'aiAccountImgPreview', hidden:'aiAccountImg'},
+    {zone:'aiSongImgZone',    hint:'aiSongImgHint',    preview:'aiSongImgPreview',    hidden:'aiSongImg'}
+  ];
+  zones.forEach(function(z){
+    var el=document.getElementById(z.zone);
+    if(!el) return;
+    // paste 이벤트 (Ctrl+V)
+    el.addEventListener('paste', function(e){
+      e.preventDefault();
+      var items=(e.clipboardData||window.clipboardData).items;
+      var found=false;
+      for(var i=0;i<items.length;i++){
+        if(items[i].type.startsWith('image/')){
+          found=true;
+          var file=items[i].getAsFile();
+          var reader=new FileReader();
+          reader.onload=function(ev){
+            var b64=ev.target.result;
+            document.getElementById(z.hidden).value=b64;
+            var prev=document.getElementById(z.preview);
+            prev.src=b64; prev.style.display='block';
+            el.classList.add('has-img');
+            document.getElementById(z.hint).textContent='✅ 이미지 등록됨 — 다시 붙여넣으면 교체됩니다';
+          };
+          reader.readAsDataURL(file);
+          break;
+        }
+      }
+      if(!found){
+        // 텍스트(URL)도 허용
+        var txt=(e.clipboardData||window.clipboardData).getData('text');
+        if(txt&&txt.startsWith('http')){
+          document.getElementById(z.hidden).value=txt;
+          document.getElementById(z.hint).textContent='🔗 URL 등록됨: '+txt.substring(0,40)+'...';
+          el.classList.add('has-img');
+        }
+      }
+    });
+    // 클릭 시 포커스 유도
+    el.addEventListener('keydown', function(e){
+      if(e.key==='v'&&(e.ctrlKey||e.metaKey)) return; // paste 허용
+    });
+  });
+}
+var _aiPasteInited=false;
 function toggleAiProof(){
   var sec=document.getElementById('aiProofSection');
   var btn=document.getElementById('aiProofToggle');
@@ -735,6 +808,7 @@ function toggleAiProof(){
   sec.style.display=show?'block':'none';
   btn.style.borderColor=show?'var(--mint)':'rgba(139,92,246,.3)';
   btn.style.color=show?'var(--mint)':'var(--t3)';
+  if(show&&!_aiPasteInited){ initAiPasteZones(); _aiPasteInited=true; }
 }
 
 function getAiProof(){
