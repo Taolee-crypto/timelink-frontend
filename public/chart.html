@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TL CHART — TimeLink</title>
+<link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#08080F;--bg2:#0D0D1A;--bg3:#121225;
+  --purple:#8B5CF6;--mint:#00E5A0;
+  --gold:#F59E0B;--silver:#94A3B8;--bronze:#CD7F32;
+  --t1:#F8FAFC;--t2:#CBD5E1;--t3:#64748B;
+  --bd:rgba(139,92,246,.15);--bd2:rgba(139,92,246,.08);
+  --fm:'JetBrains Mono',monospace;--fs:'Syncopate',sans-serif;--fk:'Noto Sans KR',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--t1);font-family:var(--fk);min-height:100vh;overflow-x:hidden;}
+body::before{
+  content:'';position:fixed;inset:0;
+  background:
+    radial-gradient(ellipse 70% 50% at 15% 10%,rgba(139,92,246,.07) 0%,transparent 60%),
+    radial-gradient(ellipse 50% 40% at 85% 85%,rgba(0,229,160,.05) 0%,transparent 60%);
+  pointer-events:none;z-index:0;
+}
+.layout{display:flex;min-height:100vh;}
+
+/* ── 사이드바 ── */
+.sidebar{
+  width:220px;min-height:100vh;background:rgba(13,13,26,.95);
+  border-right:1px solid var(--bd2);
+  position:fixed;left:0;top:0;z-index:100;
+  display:flex;flex-direction:column;
+}
+.sb-logo{display:flex;align-items:center;gap:10px;padding:24px 20px;border-bottom:1px solid var(--bd2);text-decoration:none;}
+.sb-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--purple),var(--mint));display:flex;align-items:center;justify-content:center;font-family:var(--fs);font-size:11px;font-weight:700;color:#fff;flex-shrink:0;}
+.sb-name{font-family:var(--fs);font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--t1);}
+.sb-nav{flex:1;padding:16px 12px;display:flex;flex-direction:column;gap:2px;}
+.sb-link{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;text-decoration:none;color:var(--t2);font-size:13px;font-weight:500;transition:all .2s;}
+.sb-link:hover{background:rgba(139,92,246,.1);color:var(--t1);}
+.sb-link.active{background:rgba(139,92,246,.18);color:var(--purple);}
+.sb-icon{font-size:15px;width:20px;text-align:center;}
+.sb-bot{padding:16px 12px;border-top:1px solid var(--bd2);}
+.sb-user{display:flex;align-items:center;gap:8px;padding:8px 10px;}
+.sb-av{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--mint));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;}
+.sb-un{font-size:12px;color:var(--t2);font-weight:500;}
+.sb-tl{font-size:10px;color:var(--mint);font-family:var(--fm);}
+.sb-out{width:100%;padding:7px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:11px;border-radius:6px;cursor:pointer;font-family:var(--fk);margin-top:6px;transition:all .2s;}
+.sb-out:hover{border-color:var(--purple);color:var(--purple);}
+
+/* ── 메인 ── */
+.main{margin-left:220px;flex:1;position:relative;z-index:1;padding-bottom:60px;}
+
+/* ── 헤더 ── */
+.c-header{
+  padding:40px 40px 0;
+  display:flex;align-items:flex-end;justify-content:space-between;
+  margin-bottom:0;
+}
+.c-eyebrow{font-family:var(--fs);font-size:9px;font-weight:700;letter-spacing:.35em;color:var(--purple);margin-bottom:8px;}
+.c-title{font-family:var(--fs);font-size:34px;font-weight:700;letter-spacing:.06em;color:var(--t1);line-height:1;}
+.c-title b{color:var(--mint);}
+.c-sub{font-size:12px;color:var(--t3);margin-top:8px;}
+.c-live{font-family:var(--fm);font-size:11px;color:var(--t3);text-align:right;}
+.c-live em{color:var(--mint);font-style:normal;}
+
+/* ── 메인 탭 ── */
+.main-tabs{
+  display:flex;gap:0;padding:24px 40px 0;
+  border-bottom:1px solid var(--bd2);overflow-x:auto;
+}
+.main-tabs::-webkit-scrollbar{height:2px;}
+.main-tabs::-webkit-scrollbar-thumb{background:var(--purple);}
+.mtab{
+  padding:10px 22px;border:none;background:transparent;
+  color:var(--t3);font-size:13px;font-family:var(--fk);font-weight:500;
+  cursor:pointer;border-bottom:2px solid transparent;
+  margin-bottom:-1px;transition:all .2s;white-space:nowrap;
+}
+.mtab:hover{color:var(--t2);}
+.mtab.on{color:var(--purple);border-bottom-color:var(--purple);}
+.mtab.tl.on{color:var(--mint);border-bottom-color:var(--mint);}
+
+/* ── 장르 서브탭 ── */
+.genre-bar{
+  display:flex;gap:6px;padding:14px 40px;
+  overflow-x:auto;border-bottom:1px solid var(--bd2);
+}
+.genre-bar::-webkit-scrollbar{height:2px;}
+.genre-bar::-webkit-scrollbar-thumb{background:var(--bd);}
+.gchip{
+  padding:4px 14px;border:1px solid var(--bd);background:transparent;
+  color:var(--t3);font-size:11px;font-family:var(--fk);
+  cursor:pointer;border-radius:20px;transition:all .2s;white-space:nowrap;
+}
+.gchip:hover{border-color:var(--purple);color:var(--t2);}
+.gchip.on{background:rgba(139,92,246,.15);border-color:var(--purple);color:var(--purple);}
+
+/* ── 차트 본문 ── */
+.c-body{padding:28px 40px 0;}
+
+/* TL 배너 */
+.tl-banner{
+  display:flex;align-items:center;gap:16px;
+  background:linear-gradient(135deg,rgba(0,229,160,.07),rgba(139,92,246,.07));
+  border:1px solid rgba(0,229,160,.2);border-radius:12px;
+  padding:16px 22px;margin-bottom:24px;
+}
+.tl-banner-icon{font-size:30px;}
+.tl-bn-title{font-size:13px;font-weight:700;color:var(--mint);}
+.tl-bn-desc{font-size:11px;color:var(--t3);margin-top:2px;}
+
+/* 포디움 */
+.podium{display:grid;grid-template-columns:1fr 1.1fr 1fr;gap:16px;margin-bottom:28px;}
+.pod{
+  background:var(--bg2);border:1px solid var(--bd2);border-radius:16px;
+  padding:24px 16px;display:flex;flex-direction:column;align-items:center;
+  text-align:center;position:relative;overflow:hidden;
+  cursor:pointer;transition:all .3s;
+}
+.pod:hover{transform:translateY(-4px);}
+.pod.p1{border-color:rgba(245,158,11,.35);background:linear-gradient(180deg,rgba(245,158,11,.07),var(--bg2) 55%);}
+.pod.p2{border-color:rgba(148,163,184,.2);}
+.pod.p3{border-color:rgba(205,127,50,.2);}
+.pod.p1::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
+.pod.p2::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--silver),transparent);}
+.pod.p3::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--bronze),transparent);}
+.pod-rank{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--fs);font-size:15px;font-weight:700;margin-bottom:10px;}
+.p1 .pod-rank{background:rgba(245,158,11,.12);color:var(--gold);}
+.p2 .pod-rank{background:rgba(148,163,184,.1);color:var(--silver);}
+.p3 .pod-rank{background:rgba(205,127,50,.1);color:var(--bronze);}
+.pod-cover{width:68px;height:68px;border-radius:10px;background:var(--bg3);margin-bottom:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
+.pod-cover img{width:100%;height:100%;object-fit:cover;}
+.pod-title{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:3px;line-height:1.3;}
+.pod-artist{font-size:11px;color:var(--t3);margin-bottom:12px;}
+.pod-stat{font-family:var(--fm);font-size:11px;font-weight:700;padding:3px 12px;border-radius:20px;}
+.p1 .pod-stat{background:rgba(245,158,11,.1);color:var(--gold);}
+.p2 .pod-stat{background:rgba(148,163,184,.08);color:var(--silver);}
+.p3 .pod-stat{background:rgba(205,127,50,.08);color:var(--bronze);}
+
+/* 4위~ 리스트 */
+.c-list{display:flex;flex-direction:column;gap:2px;}
+.crow{
+  display:grid;grid-template-columns:48px 44px 1fr auto auto;
+  align-items:center;gap:12px;
+  padding:11px 14px;border-radius:10px;
+  border:1px solid transparent;cursor:pointer;transition:all .2s;
+}
+.crow:hover{background:var(--bg2);border-color:var(--bd2);}
+.crow-rank{font-family:var(--fs);font-size:13px;font-weight:700;text-align:center;color:var(--t3);}
+.crow-rank.r4{color:var(--t2);}
+.crow-cover{width:44px;height:44px;border-radius:6px;background:var(--bg3);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.crow-cover img{width:100%;height:100%;object-fit:cover;}
+.crow-title{font-size:13px;font-weight:600;color:var(--t1);margin-bottom:2px;}
+.crow-artist{font-size:11px;color:var(--t3);}
+.crow-cat{font-size:10px;color:var(--t3);font-family:var(--fm);padding:2px 8px;border:1px solid var(--bd2);border-radius:10px;white-space:nowrap;}
+.crow-stat{font-family:var(--fm);font-size:12px;font-weight:700;color:var(--purple);text-align:right;white-space:nowrap;}
+.crow-stat.tl{color:var(--mint);}
+
+/* 로딩/빈 */
+.c-loading{display:flex;flex-direction:column;align-items:center;padding:60px 0;gap:12px;color:var(--t3);font-size:13px;}
+.dots{display:flex;gap:5px;}
+.dots span{width:6px;height:6px;border-radius:50%;background:var(--purple);animation:d .8s ease-in-out infinite;}
+.dots span:nth-child(2){animation-delay:.16s;}
+.dots span:nth-child(3){animation-delay:.32s;}
+@keyframes d{0%,80%,100%{transform:scale(.5);opacity:.3}40%{transform:scale(1);opacity:1}}
+.c-empty{text-align:center;padding:60px 20px;color:var(--t3);font-size:13px;}
+
+.fade{animation:fi .35s ease both;}
+@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a href="/" class="sb-logo">
+    <div class="sb-mark">TL</div>
+    <span class="sb-name">TIMELINK</span>
+  </a>
+  <nav class="sb-nav">
+    <a href="dashboard.html" class="sb-link"><span class="sb-icon">📊</span>대시보드</a>
+    <a href="shareplace.html" class="sb-link"><span class="sb-icon">📁</span>SharePlace</a>
+    <a href="chart.html" class="sb-link active"><span class="sb-icon">🏆</span>TL CHART</a>
+    <a href="radio.html" class="sb-link"><span class="sb-icon">📻</span>방송국</a>
+    <a href="creator.html" class="sb-link"><span class="sb-icon">🎨</span>크리에이터 센터</a>
+  </nav>
+  <div class="sb-bot">
+    <div class="sb-user">
+      <div class="sb-av" id="sbAv">?</div>
+      <div><div class="sb-un" id="sbUn">—</div><div class="sb-tl" id="sbTl">— TL</div></div>
+    </div>
+    <button class="sb-out" onclick="doLogout()">로그아웃</button>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="c-header">
+    <div>
+      <div class="c-eyebrow">TIMELINK OFFICIAL</div>
+      <div class="c-title">TL <b>CHART</b></div>
+      <div class="c-sub">가장 많이 소비된 콘텐츠 실시간 순위</div>
+    </div>
+    <div class="c-live"><em>● LIVE</em><br><span id="updTime">—</span></div>
+  </div>
+
+  <!-- 메인 탭 -->
+  <div class="main-tabs">
+    <button class="mtab on" onclick="switchType(this,'music')">🎵 음악</button>
+    <button class="mtab" onclick="switchType(this,'video')">🎬 영상</button>
+    <button class="mtab" onclick="switchType(this,'doc')">📄 문서·강의</button>
+    <button class="mtab" onclick="switchType(this,'image')">🖼 이미지·아트</button>
+    <button class="mtab tl" onclick="switchType(this,'tl')">⚡ TL 충전 TOP</button>
+  </div>
+
+  <!-- 장르 서브탭 -->
+  <div class="genre-bar" id="genreBar">
+    <button class="gchip on" onclick="switchGenre(this,'all')">전체</button>
+    <button class="gchip" onclick="switchGenre(this,'K-Pop')">K-Pop</button>
+    <button class="gchip" onclick="switchGenre(this,'Pop')">팝</button>
+    <button class="gchip" onclick="switchGenre(this,'Hiphop')">힙합</button>
+    <button class="gchip" onclick="switchGenre(this,'R&B')">R&amp;B</button>
+    <button class="gchip" onclick="switchGenre(this,'Rock')">록</button>
+    <button class="gchip" onclick="switchGenre(this,'EDM')">EDM</button>
+    <button class="gchip" onclick="switchGenre(this,'Classic')">클래식</button>
+    <button class="gchip" onclick="switchGenre(this,'Jazz')">재즈</button>
+    <button class="gchip" onclick="switchGenre(this,'Indie')">인디</button>
+  </div>
+
+  <div class="c-body">
+    <div id="chartArea">
+      <div class="c-loading"><div class="dots"><span></span><span></span><span></span></div><div>차트 로딩 중...</div></div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+var API_BASE='https://api.timelink.digital';
+var _user=null,_token=null;
+var _cache={};
+var _curType='music',_curGenre='all';
+
+// 장르 탭 매핑
+var GENRE_SETS={
+  music:['전체','K-Pop','팝','힙합','R&B','록','EDM','클래식','재즈','인디'],
+  video:['전체','뮤직비디오','드라마·영화','예능·기타'],
+  doc:['전체','강의·교육','전자책','자료'],
+  image:['전체','사진','아트·디자인','AI 생성'],
+  tl:null
+};
+var GENRE_VALS={
+  music:['all','K-Pop','Pop','Hiphop','R&B','Rock','EDM','Classic','Jazz','Indie'],
+  video:['all','MV','Drama','Entertainment'],
+  doc:['all','Lecture','Ebook','Document'],
+  image:['all','Photo','Art','AI'],
+  tl:['all']
+};
+
+(function(){
+  try{_user=JSON.parse(localStorage.getItem('tl_user')||'null');_token=localStorage.getItem('tl_token');}catch(e){}
+  if(!_user){location.href='login.html';return;}
+  var av=document.getElementById('sbAv');
+  var un=document.getElementById('sbUn');
+  var tl=document.getElementById('sbTl');
+  if(av)av.textContent=(_user.username||_user.email||'U')[0].toUpperCase();
+  if(un)un.textContent=_user.username||_user.email||'User';
+  if(tl)tl.textContent=Number(_user.tl||0).toLocaleString()+' TL';
+  document.getElementById('updTime').textContent=new Date().toLocaleTimeString('ko',{hour:'2-digit',minute:'2-digit'});
+})();
+
+function doLogout(){localStorage.removeItem('tl_token');localStorage.removeItem('tl_user');location.href='login.html';}
+
+function switchType(el,type){
+  document.querySelectorAll('.mtab').forEach(function(b){b.classList.remove('on');});
+  el.classList.add('on');
+  _curType=type;
+  _curGenre='all';
+
+  // 장르 바 업데이트
+  var gb=document.getElementById('genreBar');
+  if(type==='tl'){
+    gb.style.display='none';
+  } else {
+    gb.style.display='flex';
+    var labels=GENRE_SETS[type]||['전체'];
+    var vals=GENRE_VALS[type]||['all'];
+    gb.innerHTML=labels.map(function(lbl,i){
+      return '<button class="gchip'+(i===0?' on':'')+'" onclick="switchGenre(this,\''+vals[i]+'\')">'+lbl+'</button>';
+    }).join('');
+  }
+
+  loadChart();
+}
+
+function switchGenre(el,genre){
+  document.querySelectorAll('.gchip').forEach(function(b){b.classList.remove('on');});
+  el.classList.add('on');
+  _curGenre=genre;
+  loadChart();
+}
+
+function cacheKey(){return _curType+'|'+_curGenre;}
+
+async function loadChart(){
+  var el=document.getElementById('chartArea');
+  el.innerHTML='<div class="c-loading"><div class="dots"><span></span><span></span><span></span></div><div>로딩 중...</div></div>';
+
+  var k=cacheKey();
+  if(_cache[k]){renderChart(_cache[k]);return;}
+
+  try{
+    var url=API_BASE+'/api/chart?type='+_curType+'&genre='+encodeURIComponent(_curGenre)+'&limit=30';
+    var r=await fetch(url,{headers:{'Authorization':'Bearer '+(_token||'')}});
+    var d=await r.json();
+    var items=d.chart||[];
+    _cache[k]=items;
+    renderChart(items);
+  }catch(e){
+    el.innerHTML='<div class="c-empty">차트 데이터를 불러올 수 없습니다</div>';
+  }
+}
+
+function renderChart(items){
+  var el=document.getElementById('chartArea');
+  var isTL=(_curType==='tl');
+
+  if(!items.length){
+    el.innerHTML='<div class="c-empty">📂 아직 데이터가 없습니다<br><br><a href="creator.html" style="color:var(--purple);text-decoration:none">파일 공유하러 가기 →</a></div>';
+    return;
+  }
+
+  var html='<div class="fade">';
+
+  // TL 배너
+  if(isTL){
+    html+='<div class="tl-banner">'+
+      '<div class="tl-banner-icon">⚡</div>'+
+      '<div><div class="tl-bn-title">TL 충전 인기 차트</div>'+
+      '<div class="tl-bn-desc">리스너들이 가장 많이 TL을 충전한 파일 — 진짜 가치를 인정받은 콘텐츠</div></div>'+
+    '</div>';
+  }
+
+  var top3=items.slice(0,3);
+  var rest=items.slice(3);
+
+  // 포디움: 2위-1위-3위 순서
+  if(top3.length>0){
+    var order=top3.length>=3?[top3[1],top3[0],top3[2]]:top3;
+    var ranks=top3.length>=3?[2,1,3]:[1,2,3];
+    var pc=['p2','p1','p3'];
+
+    html+='<div class="podium">';
+    order.forEach(function(item,i){
+      if(!item)return;
+      var rank=ranks[i];
+      var icon=fileIcon(item.file_type,item.category);
+      var stat=isTL
+        ?'⚡ '+Number(item.total_tl_charged||0).toLocaleString()+' TL'
+        :'🔥 '+Number(item.pulse||0).toLocaleString();
+      html+='<div class="pod '+pc[i]+'" onclick="location.href=\'shareplace.html\'">'+
+        '<div class="pod-rank">'+rank+'</div>'+
+        '<div class="pod-cover">'+(item.cover_url?'<img src="'+escH(item.cover_url)+'" onerror="this.parentNode.innerHTML=\''+icon+'\'">':icon)+'</div>'+
+        '<div class="pod-title">'+escH(item.title||'(제목없음)')+'</div>'+
+        '<div class="pod-artist">'+escH(item.artist||item.username||'Unknown')+'</div>'+
+        '<div class="pod-stat">'+stat+'</div>'+
+      '</div>';
+    });
+    html+='</div>';
+  }
+
+  // 4위~
+  if(rest.length){
+    html+='<div class="c-list">';
+    rest.forEach(function(item,i){
+      var rank=i+4;
+      var icon=fileIcon(item.file_type,item.category);
+      var stat=isTL
+        ?'⚡ '+Number(item.total_tl_charged||0).toLocaleString()+' TL'
+        :'🔥 '+Number(item.pulse||0).toLocaleString();
+      var sc=isTL?'crow-stat tl':'crow-stat';
+      html+='<div class="crow" onclick="location.href=\'shareplace.html\'">'+
+        '<div class="crow-rank'+(rank===4?' r4':''+'">'+rank+'</div>')+
+        '<div class="crow-cover">'+(item.cover_url?'<img src="'+escH(item.cover_url)+'" onerror="this.parentNode.innerHTML=\''+icon+'\'">':icon)+'</div>'+
+        '<div><div class="crow-title">'+escH(item.title||'(제목없음)')+'</div>'+
+        '<div class="crow-artist">'+escH(item.artist||item.username||'Unknown')+'</div></div>'+
+        '<div class="crow-cat">'+escH(item.category||'기타')+'</div>'+
+        '<div class="'+sc+'">'+stat+'</div>'+
+      '</div>';
+    });
+    html+='</div>';
+  }
+
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+function fileIcon(ft,cat){
+  ft=ft||'';
+  var musicCats=['Music','K-Pop','Pop','Hiphop','R&B','Rock','Classic','Jazz','EDM','Indie','팝','힙합','록','클래식','재즈','인디'];
+  if(ft.startsWith('audio')||musicCats.indexOf(cat)>=0)return '🎵';
+  if(ft.startsWith('video'))return '🎬';
+  if(ft.startsWith('image'))return '🖼';
+  if(ft.startsWith('application')||ft.startsWith('text'))return '📄';
+  return '📁';
+}
+function escH(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+loadChart();
+</script>
+</body>
+</html>

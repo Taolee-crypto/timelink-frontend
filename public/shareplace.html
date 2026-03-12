@@ -192,6 +192,26 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 @media(max-width:1200px){.file-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{display:none}.file-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.file-grid{grid-template-columns:1fr}}
+
+/* ── 인기 차트 위젯 ── */
+.chart-widget{padding:16px 28px;border-bottom:1px solid var(--bd);background:linear-gradient(180deg,rgba(139,92,246,.04) 0%,transparent 100%)}
+.cw-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cw-title{font-size:12px;font-weight:700;letter-spacing:.08em;display:flex;align-items:center;gap:7px}
+.cw-title-badge{font-family:var(--fm);font-size:9px;padding:2px 7px;border-radius:4px;background:var(--purple);color:#fff;letter-spacing:.05em}
+.cw-more{font-family:var(--fm);font-size:10px;color:var(--purple);text-decoration:none;opacity:.8;transition:opacity .2s}
+.cw-more:hover{opacity:1}
+.cw-tabs{display:flex;gap:4px;margin-bottom:10px}
+.cw-tab{padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--bd);color:var(--t3);cursor:pointer;background:none;transition:all .2s;font-family:var(--fn)}
+.cw-tab.active{background:var(--purple);border-color:var(--purple);color:#fff}
+.cw-list{display:flex;flex-direction:column;gap:3px}
+.cw-item{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;cursor:pointer;transition:all .2s}
+.cw-item:hover{background:rgba(139,92,246,.07)}
+.cw-rank{font-family:var(--fm);font-size:13px;font-weight:700;text-align:center}
+.cw-rank.r1{color:#FFD700}.cw-rank.r2{color:#C0C0C0}.cw-rank.r3{color:#CD7F32}.cw-rank.rn{color:var(--t3);font-size:11px}
+.cw-info{min-width:0}
+.cw-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cw-sub{font-size:10px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cw-stat{font-family:var(--fm);font-size:11px;color:var(--mint);font-weight:700;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -237,6 +257,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       <div class="sb-section">메뉴</div>
       <a href="dashboard.html" class="sb-link"><span class="sb-icon">📊</span>대시보드</a>
       <a href="shareplace.html" class="sb-link active"><span class="sb-icon">📁</span>SharePlace</a>
+      <a href="chart.html" class="sb-link"><span class="sb-icon">🏆</span>TL CHART</a>
       <a href="radio.html" class="sb-link"><span class="sb-icon">📻</span>방송국</a>
       <a href="creator.html" class="sb-link"><span class="sb-icon">🎨</span>크리에이터 센터</a>
     </nav>
@@ -278,6 +299,19 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       <button class="cat-tab" onclick="switchCat(this,'image')">🖼️ 이미지<span class="cat-count" id="cnt-image">-</span></button>
       <button class="cat-tab" onclick="switchCat(this,'doc')">📄 문서<span class="cat-count" id="cnt-doc">-</span></button>
       <button class="cat-tab" onclick="switchCat(this,'etc')">📦 기타<span class="cat-count" id="cnt-etc">-</span></button>
+    </div>
+    <!-- 인기 차트 미니 위젯 -->
+    <div class="chart-widget" id="chartWidget">
+      <div class="cw-header">
+        <div class="cw-title">🏆 <span>TL CHART</span> <span class="cw-title-badge">LIVE</span></div>
+        <a href="chart.html" class="cw-more">전체 차트 →</a>
+      </div>
+      <div class="cw-tabs">
+        <button class="cw-tab active" onclick="switchCwTab(this,'music')">🎵 음악</button>
+        <button class="cw-tab" onclick="switchCwTab(this,'video')">🎬 영상</button>
+        <button class="cw-tab" onclick="switchCwTab(this,'tl')">⚡ TL충전</button>
+      </div>
+      <div class="cw-list" id="cwList"><div style="padding:10px 0;color:var(--t3);font-size:11px">로딩 중...</div></div>
     </div>
     <!-- 정렬 + 뷰 토글 -->
     <div class="sort-bar">
@@ -708,6 +742,72 @@ function renderList(list,g){
   }).join('');
 }
 
+
+// ── 인기 차트 위젯 ──────────────────────────────────────
+var _cwType = 'music';
+var _cwCache = {};
+
+async function loadChartWidget(type){
+  _cwType = type;
+  var el = document.getElementById('cwList');
+  if(!el) return;
+
+  if(_cwCache[type]){
+    renderCwList(_cwCache[type]);
+    return;
+  }
+
+  el.innerHTML = '<div style="padding:10px 0;color:var(--t3);font-size:11px">로딩 중...</div>';
+  try{
+    var r = await fetch(API_BASE+'/api/chart?type='+type+'&limit=5', {
+      headers:{'Authorization':'Bearer '+(_token||'')}
+    });
+    var d = await r.json();
+    var items = d.chart||[];
+    _cwCache[type] = items;
+    renderCwList(items);
+  }catch(e){
+    el.innerHTML = '<div style="padding:10px 0;color:var(--t3);font-size:11px">차트 데이터 없음</div>';
+  }
+}
+
+function renderCwList(items){
+  var el = document.getElementById('cwList');
+  if(!el) return;
+  if(!items.length){
+    el.innerHTML='<div style="padding:10px 0;color:var(--t3);font-size:11px">데이터 없음</div>';
+    return;
+  }
+  var isTL = (_cwType==='tl');
+  el.innerHTML = items.map(function(item, i){
+    var rank = i+1;
+    var rc = rank===1?'r1':rank===2?'r2':rank===3?'r3':'rn';
+    var stat = isTL
+      ? Number(item.total_tl_charged||0).toLocaleString()+' TL'
+      : '🔥'+Number(item.pulse||0).toLocaleString();
+    return '<div class="cw-item" style="cursor:pointer" data-cid="'+escH(item.id)+'">' +
+      '<div class="cw-rank '+rc+'">'+rank+'</div>' +
+      '<div class="cw-info">' +
+        '<div class="cw-name">'+escH(item.title||'(제목없음)')+'</div>' +
+        '<div class="cw-sub">'+escH(item.artist||item.username||'Unknown')+'</div>' +
+      '</div>' +
+      '<div class="cw-stat">'+stat+'</div>' +
+    '</div>';
+  }).join('');
+}
+
+// cw-item 클릭 이벤트 위임
+document.addEventListener('click', function(e){
+  var item = e.target.closest('.cw-item');
+  if(item){ location.href='shareplace.html'; }
+});
+
+function switchCwTab(el, type){
+  document.querySelectorAll('.cw-tab').forEach(function(x){x.classList.remove('active');});
+  el.classList.add('active');
+  loadChartWidget(type);
+}
+
 // ── TL 충전 ─────────────────────────────────────────────
 async function chargeTL(shareId,title){
   if(!_user){ alert('로그인이 필요합니다'); return; }
@@ -1083,6 +1183,7 @@ function tlCharge(){
 
 // 초기 로드
 (async function(){
+  loadChartWidget('music'); // 차트 위젯 비동기 로드
   await loadShares();
   await loadMyFileTL(); // 내 파일별 TL 잔량 로드 후 카드 재렌더링
   renderShares(_getFilteredList()); // 초록색 TL 반영
