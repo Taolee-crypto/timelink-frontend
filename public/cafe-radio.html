@@ -889,106 +889,119 @@ function startPoc(){
   if(_pocInterval) clearInterval(_pocInterval);
   var ts = getTimeSlot();
   _pocMult = _mode==='incar' ? 2.5 : parseFloat(ts.poc||'1.0');
-  var _reportAccum = 0; // 서버 보고용 누적 초
-  var _tlSpentAccum = 0; // 서버 보고용 누적 TL 차감량
+  _pocReportSec  = 0;
+  _pocReportTL   = 0;
 
   _pocInterval = setInterval(function(){
-    var gain = _pocMult * (1/60);
-    _pocTotal += gain;
+    // POC 누적
+    _pocTotal += _pocMult*(1/60);
     _minTotal += 1/60;
-    _reportAccum += 1;
-    g('todayPoc').textContent = _pocTotal.toFixed(1);
-    g('todayMin').textContent = Math.floor(_minTotal);
-    g('npPoc').textContent = '+'+_pocTotal.toFixed(1)+' POC';
+    _pocReportSec++;
+    if(g('todayPoc')) g('todayPoc').textContent = _pocTotal.toFixed(1);
+    if(g('todayMin')) g('todayMin').textContent = Math.floor(_minTotal);
+    if(g('npPoc'))    g('npPoc').textContent    = '+'+_pocTotal.toFixed(1)+' POC';
 
-    // ── TL 차감 (곡별 or 총량) ──
-    if(_user){
-      if(!_user._tlFrac) _user._tlFrac = 0;
-      _user._tlFrac += _tlDeductRate;
-      if(_user._tlFrac >= 1.0){
-        var whole = Math.floor(_user._tlFrac);
-        _user._tlFrac -= whole;
-        _tlSpentAccum += whole;
+    // TL 차감 (소수점 누적 방식)
+    if(!_user) return;
+    if(!_user._tlFrac) _user._tlFrac = 0;
+    _user._tlFrac += _tlDeductRate;
 
-        if(_curShareId && _curTlMode === 'file'){
-          // ① 곡별 충전 TL 차감
-          var cur = _myFileTL[_curShareId] || 0;
-          cur = Math.max(0, cur - whole);
-          _myFileTL[_curShareId] = cur;
-          // 곡별 TL 소진 시 총량으로 전환
-          if(cur <= 0){
-            _curTlMode = 'total';
-            toast('⚡ 이 곡의 충전 TL 소진 — 총 TL에서 차감됩니다', 'w');
-          }
-          updateNowPlayingTL();
-        } else {
-          // ② 총량 차감
-          _user.tl = Math.max(0, (_user.tl||0) - whole);
+    if(_user._tlFrac >= 1.0){
+      var whole = Math.floor(_user._tlFrac);
+      _user._tlFrac -= whole;
+      _pocReportTL  += whole;
+
+      var activeCh = _channels.find(function(c){ return c.id===_activeChannel; });
+      var isCafe   = activeCh && activeCh.type==='cafe';
+
+      if(isCafe && _curShareId){
+        // ── 채널 방송: 곡별 충전 TL 차감 ──
+        var fileBal = (_myFileTL[_curShareId]||0) - whole;
+        if(fileBal < 0) fileBal = 0;
+        _myFileTL[_curShareId] = fileBal;
+        if(fileBal <= 0){
+          // 곡별 TL 소진 → 총량으로 이어서 차감
+          _user.tl = Math.max(0, Number(_user.tl||0) - whole);
           localStorage.setItem('tl_user', JSON.stringify(_user));
-          updateBroadcastTime();
-          if((_user.tl||0) <= 0){
-            toast('⚠️ TL 소진! 방송이 중단됩니다.', 'w');
-            reportToServer(_reportAccum, _tlSpentAccum);
-            stopPoc(); togglePlay();
-          }
+          toast('⚡ 곡별 TL 소진 — 총 TL 차감 중', 'w');
+        }
+        updateNowPlayingTL();
+      } else {
+        // ── 중앙 방송 또는 fallback: 총량 차감 ──
+        _user.tl = Math.max(0, Number(_user.tl||0) - whole);
+        localStorage.setItem('tl_user', JSON.stringify(_user));
+        if((_user.tl||0) <= 0){
+          toast('⚠️ TL 소진! 방송이 중단됩니다.', 'w');
+          reportToServer();
+          stopPoc();
+          togglePlay();
+          return;
         }
       }
+      // 상단 TL 잔액 즉시 갱신
+      if(g('tbTL'))    g('tbTL').textContent    = Number(_user.tl||0).toLocaleString();
+      if(g('sbTLBal')) g('sbTLBal').textContent = Number(_user.tl||0).toLocaleString()+' TL';
     }
 
-    // ── 30초마다 서버에 TL소비 + POC 보고 ──
-    if(_reportAccum >= 30){
-      reportToServer(_reportAccum, _tlSpentAccum);
-      _reportAccum = 0;
-      _tlSpentAccum = 0;
+    // 30초마다 서버 보고
+    if(_pocReportSec >= 30){
+      reportToServer();
+      _pocReportSec = 0;
+      _pocReportTL  = 0;
     }
   }, 1000);
-}
-// ── 서버 보고: TL 소비 + POC 누적 ──────────────────────────
-function reportToServer(secs, tlSpent){
-  if(!_user || !_user.id) return;
-  var pocGained = _pocMult * (secs / 60);
-  var mode = _mode || 'cafe'; // 'cafe' or 'incar'
-
-  fetch(API+'/api/user/activity', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      user_id:      _user.id,
-      mode:         mode,
-      seconds:      secs,
-      tl_spent:     tlSpent,
-      poc_gained:   pocGained,
-      poc_mult:     _pocMult,
-      poc_total:    _pocTotal,
-      share_id:     _curShareId || null,
-      tl_mode:      _curTlMode,
-      channel_id:   _activeChannel || null,
-      channel_type: (function(){ var ch=_channels.find(function(c){return c.id===_activeChannel;}); return ch?ch.type:'ai'; })()
-    })
-  }).then(function(r){ return r.json(); }).then(function(d){
-    if(d.poc_index){
-      _user.poc_index = d.poc_index;
-      _user.total_tl_spent = d.total_tl_spent || _user.total_tl_spent;
-      localStorage.setItem('tl_user', JSON.stringify(_user));
-      _tlDeductRate = Math.max(0.01, Math.min(1.0, 1.0 / d.poc_index));
-      calcDeductRate();
-    }
-    // 서버에서 곡별 TL 잔량 동기화
-    if(d.file_tl !== undefined && _curShareId){
-      _myFileTL[_curShareId] = d.file_tl;
-      updateNowPlayingTL();
-    }
-  }).catch(function(){});
 }
 
 function stopPoc(){
   if(_pocInterval){
-    // 방송 종료 시 마지막 보고
-    reportToServer(0, 0);
+    reportToServer();
     clearInterval(_pocInterval);
-    _pocInterval=null;
+    _pocInterval = null;
   }
 }
+
+// ── 서버 보고: TL 소비 + POC ──
+function reportToServer(){
+  if(!_user||!_user.id||_pocReportSec<=0) return;
+  var pocGained = _pocMult * (_pocReportSec/60);
+  var activeCh  = _channels.find(function(c){ return c.id===_activeChannel; });
+  var chType    = activeCh ? activeCh.type : 'ai';
+
+  fetch(API+'/api/user/activity',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      user_id:      _user.id,
+      mode:         _mode||'cafe',
+      seconds:      _pocReportSec,
+      tl_spent:     _pocReportTL,
+      poc_gained:   pocGained,
+      poc_mult:     _pocMult,
+      poc_total:    _pocTotal,
+      share_id:     _curShareId||null,
+      tl_mode:      (chType==='cafe'&&_curShareId) ? 'file' : 'total',
+      channel_id:   _activeChannel||null,
+      channel_type: chType
+    })
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.poc_index){
+      _user.poc_index    = d.poc_index;
+      _user.total_tl_spent = d.total_tl_spent||_user.total_tl_spent;
+      localStorage.setItem('tl_user',JSON.stringify(_user));
+      _tlDeductRate = Math.max(0.01,Math.min(1.0,1.0/d.poc_index));
+      if(g('tbDeduct'))    g('tbDeduct').textContent    = _tlDeductRate.toFixed(3)+' TL/s';
+      if(g('sbDeductRate')) g('sbDeductRate').textContent = _tlDeductRate.toFixed(3)+' TL/s';
+      if(g('sbPocIdx'))    g('sbPocIdx').textContent    = d.poc_index.toFixed(2);
+    }
+    if(d.file_tl!==undefined&&_curShareId){
+      _myFileTL[_curShareId]=d.file_tl;
+      updateNowPlayingTL();
+    }
+  }).catch(function(e){ console.warn('[radio] 보고 실패',e); });
+}
+
+// 전역 보고 누적 변수 (startPoc 클로저 밖에서 관리)
+var _pocReportSec = 0, _pocReportTL = 0;
 
 // Visualizer
 var _vizCtx, _vizACtx, _vizSrc, _vizAnal;

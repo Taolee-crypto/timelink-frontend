@@ -1,4 +1,21 @@
-<!DOCTYPE html>
+<!DO})();
+
+// 곡별 충전 TL 로드
+async function loadMyFileTL(){
+  if(!_user) return;
+  try{
+    var r=await fetch('https://api.timelink.digital/api/user/file-tl?user_id='+_user.id);
+    if(!r.ok) return;
+    var d=await r.json();
+    (d.files||[]).forEach(function(f){ _myFileTL[String(f.share_id)]=f.tl_balance; });
+  }catch(e){}
+}
+
+function calcDeductRate(){
+  var poc=parseFloat(_user.poc_index||1.0);
+  if(poc<1) poc=1.0;
+  _tlDeductRate=Math.max(0.01,Math.min(1.0,1.0/poc));
+}CTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
@@ -425,6 +442,11 @@ function loadTrack(idx){
   var s = _queue[idx];
   var url = proxyUrl(s.stream_url || s.preview_url || '');
 
+  // 곡별 TL 모드 결정
+  _curShareId = String(s.id||'');
+  var fileTL = _myFileTL[_curShareId];
+  _curTlMode = (fileTL !== undefined && fileTL > 0) ? 'file' : 'total';
+
   var aud = getAud();
   aud.src = url; aud.load();
   if(_playing) aud.play().catch(function(){});
@@ -504,15 +526,68 @@ function setVol(v){ _audA.volume=v/100; if(!_crossfading) _audB.volume=0; g('vol
 // POC
 function startPoc(){
   if(_pocInterval) clearInterval(_pocInterval);
+  calcDeductRate();
+  _pocReportSec=0; _pocReportTL=0;
+
   _pocInterval = setInterval(function(){
     _poc += _pocMult*(1/60);
-    g('pocBig').textContent = _poc.toFixed(1);
+    if(g('pocBig')) g('pocBig').textContent = _poc.toFixed(1);
     localStorage.setItem('tl_poc_today', _poc.toFixed(1));
+    _pocReportSec++;
+
+    // TL 차감
+    if(!_user) return;
+    if(!_user._tlFrac) _user._tlFrac=0;
+    _user._tlFrac += _tlDeductRate;
+    if(_user._tlFrac >= 1.0){
+      var whole = Math.floor(_user._tlFrac);
+      _user._tlFrac -= whole;
+      _pocReportTL += whole;
+
+      if(_curShareId && _myFileTL[_curShareId]>0){
+        // 곡별 충전 TL 차감
+        _myFileTL[_curShareId] = Math.max(0,(_myFileTL[_curShareId]||0)-whole);
+        if(_myFileTL[_curShareId]<=0) toast('⚡ 곡별 TL 소진 → 총 TL 차감','w');
+      } else {
+        // 총량 차감
+        _user.tl = Math.max(0, Number(_user.tl||0)-whole);
+        localStorage.setItem('tl_user',JSON.stringify(_user));
+        if((_user.tl||0)<=0){ toast('⚠️ TL 소진!','w'); stopPoc(); return; }
+      }
+      // UI 즉시 갱신
+      if(g('tlBal')) g('tlBal').textContent = Number(_user.tl||0).toLocaleString();
+    }
+
+    if(_pocReportSec>=30){ reportIncar(); _pocReportSec=0; _pocReportTL=0; }
   },1000);
 }
-function stopPoc(){ if(_pocInterval){clearInterval(_pocInterval);_pocInterval=null;} }
 
-// Queue
+var _pocReportSec=0, _pocReportTL=0;
+
+function stopPoc(){
+  if(_pocInterval){
+    reportIncar();
+    clearInterval(_pocInterval); _pocInterval=null;
+  }
+}
+
+function reportIncar(){
+  if(!_user||!_user.id||_pocReportSec<=0) return;
+  fetch('https://api.timelink.digital/api/user/activity',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      user_id:_user.id, mode:'incar', seconds:_pocReportSec,
+      tl_spent:_pocReportTL, poc_gained:_pocMult*(_pocReportSec/60),
+      poc_mult:_pocMult, poc_total:_poc,
+      share_id:_curShareId||null, tl_mode:(_curShareId&&(_myFileTL[_curShareId]||0)>0)?'file':'total'
+    })
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.poc_index){ _user.poc_index=d.poc_index; localStorage.setItem('tl_user',JSON.stringify(_user)); calcDeductRate(); }
+    if(d.file_tl!==undefined&&_curShareId) _myFileTL[_curShareId]=d.file_tl;
+  }).catch(function(){});
+}
+
 function renderQueue(){
   g('queueList').innerHTML = _queue.slice(0,30).map(function(s,i){
     var active = i===_curIdx?'playing':'';
