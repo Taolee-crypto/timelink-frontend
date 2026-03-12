@@ -100,56 +100,34 @@ async function doLogin() {
   if(!email || !pw){ toast('이메일과 비밀번호를 입력해주세요', 'e'); return; }
   btn.disabled = true;
   btn.innerHTML = '<div class="spin"></div>';
-  var loggedIn = false;
 
   try {
     var r = await fetch(API + '/api/auth/login', {
       method: 'POST', mode: 'cors',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({email: email, password: pw}),
-      signal: AbortSignal.timeout(4000)
+      body: JSON.stringify({email: email, password: pw})
     });
-    if(r.ok) {
-      var d = await r.json();
-      if(d.token && d.user) {
-        localStorage.setItem('tl_token', d.token);
-        localStorage.setItem('tl_user', JSON.stringify(d.user));
-        loggedIn = true;
-      }
-    }
-  } catch(err) {
-    console.warn('[Login] API 실패:', err.message);
-  }
+    var d = await r.json();
 
-  if(!loggedIn) {
-    var stored = JSON.parse(localStorage.getItem('tl_signup_' + email) || 'null');
-    if(stored && stored.pw === pw) {
-      delete stored.pw;
-      localStorage.setItem('tl_token', 'local_' + Date.now());
-      localStorage.setItem('tl_user', JSON.stringify(stored));
-      loggedIn = true;
-    } else if(email === 'demo' + '@' + 'timelink.digital' && pw === 'demo1234') {
-      var demoUser = {id:1, email:'demo'+'@'+'timelink.digital', username:'Demo User', tl:42500, tlc:123, account_type:'personal'};
-      localStorage.setItem('tl_token', 'demo_' + Date.now());
-      localStorage.setItem('tl_user', JSON.stringify(demoUser));
-      loggedIn = true;
-    } else if(email.indexOf('@') > -1 && pw.length >= 4) {
-      var fallbackUser = {id:Date.now(), email:email, username:email.split('@')[0], tl:10000, tlc:0, account_type:'personal'};
-      localStorage.setItem('tl_token', 'fallback_' + Date.now());
-      localStorage.setItem('tl_user', JSON.stringify(fallbackUser));
-      loggedIn = true;
+    if(r.ok && d.token && d.user) {
+      localStorage.setItem('tl_token', d.token);
+      localStorage.setItem('tl_user', JSON.stringify(d.user));
+      toast('환영합니다!', 's');
+      setTimeout(function(){ location.href = 'shareplace.html'; }, 600);
+      return;
     }
+
+    // 서버 에러 메시지 표시
+    var msg = d.error || '이메일 또는 비밀번호가 올바르지 않습니다';
+    toast(msg, 'e');
+
+  } catch(err) {
+    toast('서버 연결 실패. 잠시 후 다시 시도해주세요.', 'e');
+    console.warn('[Login] 실패:', err.message);
   }
 
   btn.disabled = false;
   btn.textContent = '로그인';
-
-  if(loggedIn) {
-    toast('환영합니다!', 's');
-    setTimeout(function(){ location.href = 'shareplace.html'; }, 600);
-  } else {
-    toast('이메일 또는 비밀번호가 올바르지 않습니다', 'e');
-  }
 }
 </script>
 </body>

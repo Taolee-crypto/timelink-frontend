@@ -378,9 +378,29 @@ function onEmailChange(){
 async function sendCode(){
   var email=document.getElementById('emailInput').value.trim();
   if(!isValidEmail(email)){toast('올바른 이메일을 입력해주세요',true);return;}
-  sentEmail=email;
+
+  // ── 이메일 중복 체크 (인증번호 발송 전) ──
   var btn=document.getElementById('sendBtn');
-  btn.disabled=true;btn.textContent='발송 중...';
+  btn.disabled=true;btn.textContent='확인 중...';
+  try{
+    var chk=await fetch('https://api.timelink.digital/api/auth/check-email',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:email})
+    });
+    var cd=await chk.json();
+    if(cd.exists){
+      toast('❌ 이미 가입된 이메일입니다. 로그인을 이용해 주세요.',true);
+      btn.disabled=false;btn.textContent='인증 발송';
+      return;
+    }
+  }catch(e){
+    // 네트워크 오류 시 계속 진행 (백엔드에서 최종 차단)
+    console.warn('[check-email]',e.message);
+  }
+
+  sentEmail=email;
+  btn.textContent='발송 중...';
 
   // OTP 6자리 생성 (프론트)
   var code=Math.floor(100000+Math.random()*900000).toString();
