@@ -425,6 +425,9 @@ var _pocTotal = 0, _minTotal = 0, _songCount = 0;
 var _pocInterval = null, _progressInterval = null;
 var _fadeTimeout = null;
 var _requests = [];
+var _myFileTL = {};        // 곡별 충전 TL 캐시 { share_id: tl_balance }
+var _curShareId = null;    // 현재 재생 중인 share_id
+var _curTlMode = 'file';   // 'file': 곡별 TL차감, 'total': 총량 차감
 
 // Auth
 (function(){
@@ -434,9 +437,24 @@ var _requests = [];
   }catch(e){}
   if(!_user){ location.href='login.html'; return; }
   document.getElementById('tbUser').textContent = _user.username || _user.email;
-  // 기여지수로 차감률 계산
   calcDeductRate();
+  loadMyFileTL(); // 곡별 TL 캐시 로드
 })();
+
+// 곡별 충전 TL 로드
+async function loadMyFileTL(){
+  if(!_user) return;
+  try{
+    var r = await fetch(API+'/api/user/file-tl?user_id='+_user.id, {
+      headers:{'Authorization':'Bearer '+(_token||'')}
+    });
+    if(!r.ok) return;
+    var d = await r.json();
+    (d.files||[]).forEach(function(f){
+      _myFileTL[String(f.share_id)] = f.tl_balance;
+    });
+  }catch(e){ console.warn('[Radio] 파일TL 로드 실패', e); }
+}
 
 function calcDeductRate(){
   var pocIdx = parseFloat(_user.poc_index || 1.0);
@@ -612,7 +630,8 @@ function selectChannel(id){
   renderChannels();
   var ch = _channels.find(function(c){ return c.id===id; });
   if(!ch) return;
-  toast(ch.name+' 채널로 이동', 'i');
+  var modeLabel = ch.type==='cafe' ? '📡 채널 방송 (곡별 TL 차감)' : '🌐 중앙 방송 (총 TL 차감)';
+  toast(ch.name+' — '+modeLabel, 'i');
   // 카페 채널이면 해당 플레이리스트로 큐 구성
   if(ch.type==='cafe' && ch.playlist && ch.playlist.length){
     _queue = _shares.filter(function(s){ return ch.playlist.includes(s.id); });
@@ -720,6 +739,18 @@ function loadTrack(idx){
   aud.load();
   if(_playing) aud.play().catch(function(e){ console.warn(e); });
 
+  // 곡 전환 시 TL 모드 결정
+  _curShareId = String(s.id||'');
+  // 채널 타입으로 모드 결정: AI(중앙방송)=총량, cafe(채널방송)=곡별
+  var activeCh = _channels.find(function(c){ return c.id===_activeChannel; });
+  var isChannelBroadcast = activeCh && activeCh.type === 'cafe';
+  if(isChannelBroadcast){
+    var fileTL = _myFileTL[_curShareId];
+    _curTlMode = (fileTL !== undefined && fileTL > 0) ? 'file' : 'total';
+  } else {
+    _curTlMode = 'total'; // 중앙 방송 → 항상 총량
+  }
+
   updateNowPlaying(s);
   renderQueue();
   _songCount++;
@@ -732,7 +763,18 @@ function loadTrack(idx){
 function updateNowPlaying(s){
   g('npTitle').textContent = s.title || 'Untitled';
   g('npArtist').textContent = s.artist || s.username || 'Unknown';
-  g('npTl').textContent = Math.floor(s.file_tl||0)+' TL/곡';
+  var activeCh = _channels.find(function(c){ return c.id===_activeChannel; });
+  var isChBroadcast = activeCh && activeCh.type==='cafe';
+  var fileTL = _myFileTL[String(s.id||'')] || 0;
+  var tlDisplay;
+  if(isChBroadcast){
+    tlDisplay = fileTL > 0
+      ? '⚡ '+fileTL.toLocaleString()+' TL (곡별 차감)'
+      : '💸 '+Number(_user.tl||0).toLocaleString()+' TL (총량)';
+  } else {
+    tlDisplay = '🌐 총 TL: '+Number(_user.tl||0).toLocaleString();
+  }
+  g('npTl').textContent = tlDisplay;
   g('npListeners').textContent = '👥 '+(_activeChannel?Math.floor(Math.random()*60+10):0)+' 청취 중';
 
   var ts = getTimeSlot();
@@ -743,6 +785,20 @@ function updateNowPlaying(s){
   var def = g('npCoverDefault');
   if(s.cover_url){ img.src=s.cover_url; img.style.display='block'; def.style.display='none'; }
   else { img.style.display='none'; def.style.display='flex'; }
+}
+
+function updateNowPlayingTL(){
+  if(!_curShareId||!_user||!g('npTl')) return;
+  var activeCh = _channels.find(function(c){ return c.id===_activeChannel; });
+  var isChBroadcast = activeCh && activeCh.type==='cafe';
+  var fileTL = _myFileTL[_curShareId] || 0;
+  if(isChBroadcast){
+    g('npTl').textContent = (_curTlMode==='file' && fileTL > 0)
+      ? '⚡ '+fileTL.toLocaleString()+' TL (곡별)'
+      : '💸 '+Number(_user.tl||0).toLocaleString()+' TL (총량)';
+  } else {
+    g('npTl').textContent = '🌐 총 TL: '+Number(_user.tl||0).toLocaleString();
+  }
 }
 
 function scheduleCrossfade(){
@@ -845,22 +901,37 @@ function startPoc(){
     g('todayMin').textContent = Math.floor(_minTotal);
     g('npPoc').textContent = '+'+_pocTotal.toFixed(1)+' POC';
 
-    // ── TL 차감 (기여지수 기반, 소수점 누적) ──
+    // ── TL 차감 (곡별 or 총량) ──
     if(_user){
       if(!_user._tlFrac) _user._tlFrac = 0;
       _user._tlFrac += _tlDeductRate;
       if(_user._tlFrac >= 1.0){
         var whole = Math.floor(_user._tlFrac);
         _user._tlFrac -= whole;
-        _user.tl = Math.max(0, (_user.tl||0) - whole);
         _tlSpentAccum += whole;
-        localStorage.setItem('tl_user', JSON.stringify(_user));
-      }
-      updateBroadcastTime();
-      if((_user.tl||0) <= 0 && _tlDeductRate >= 1.0){
-        toast('⚠️ TL 소진! 방송이 중단됩니다.', 'w');
-        reportToServer(_reportAccum, _tlSpentAccum);
-        stopPoc(); togglePlay();
+
+        if(_curShareId && _curTlMode === 'file'){
+          // ① 곡별 충전 TL 차감
+          var cur = _myFileTL[_curShareId] || 0;
+          cur = Math.max(0, cur - whole);
+          _myFileTL[_curShareId] = cur;
+          // 곡별 TL 소진 시 총량으로 전환
+          if(cur <= 0){
+            _curTlMode = 'total';
+            toast('⚡ 이 곡의 충전 TL 소진 — 총 TL에서 차감됩니다', 'w');
+          }
+          updateNowPlayingTL();
+        } else {
+          // ② 총량 차감
+          _user.tl = Math.max(0, (_user.tl||0) - whole);
+          localStorage.setItem('tl_user', JSON.stringify(_user));
+          updateBroadcastTime();
+          if((_user.tl||0) <= 0){
+            toast('⚠️ TL 소진! 방송이 중단됩니다.', 'w');
+            reportToServer(_reportAccum, _tlSpentAccum);
+            stopPoc(); togglePlay();
+          }
+        }
       }
     }
 
@@ -882,22 +953,30 @@ function reportToServer(secs, tlSpent){
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
-      user_id:    _user.id,
-      mode:       mode,         // 'cafe' | 'incar'
-      seconds:    secs,         // 방송한 초
-      tl_spent:   tlSpent,      // 실제 차감된 TL
-      poc_gained: pocGained,    // 이번 구간 POC
-      poc_mult:   _pocMult,     // 배율
-      poc_total:  _pocTotal     // 누적 POC
+      user_id:      _user.id,
+      mode:         mode,
+      seconds:      secs,
+      tl_spent:     tlSpent,
+      poc_gained:   pocGained,
+      poc_mult:     _pocMult,
+      poc_total:    _pocTotal,
+      share_id:     _curShareId || null,
+      tl_mode:      _curTlMode,
+      channel_id:   _activeChannel || null,
+      channel_type: (function(){ var ch=_channels.find(function(c){return c.id===_activeChannel;}); return ch?ch.type:'ai'; })()
     })
   }).then(function(r){ return r.json(); }).then(function(d){
     if(d.poc_index){
-      // 서버에서 갱신된 기여지수 반영
       _user.poc_index = d.poc_index;
       _user.total_tl_spent = d.total_tl_spent || _user.total_tl_spent;
       localStorage.setItem('tl_user', JSON.stringify(_user));
-      // 차감률 재계산
       _tlDeductRate = Math.max(0.01, Math.min(1.0, 1.0 / d.poc_index));
+      calcDeductRate();
+    }
+    // 서버에서 곡별 TL 잔량 동기화
+    if(d.file_tl !== undefined && _curShareId){
+      _myFileTL[_curShareId] = d.file_tl;
+      updateNowPlayingTL();
     }
   }).catch(function(){});
 }
