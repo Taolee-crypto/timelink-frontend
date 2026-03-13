@@ -514,6 +514,46 @@ function togglePlay(){
 }
 function prevTrack(){ if(_curIdx>0){_playing=true;loadTrack(_curIdx-1);g('playBtn').textContent='⏸';startPoc();} }
 function nextTrack(){ _playing=true; loadTrack((_curIdx+1)%_queue.length); g('playBtn').textContent='⏸'; startPoc(); }
+
+// ── 안전 점프: TL 체크 → 자동충전 → 재생 ──
+async function safeJumpTo(idx){
+  var s = _queue[idx];
+  if(!s){ jumpTo(idx); return; }
+  var sid = String(s.id||'');
+  var myTL = _myFileTL[sid]||0;
+  var walletTL = _user ? (_user.tl||0) : 0;
+
+  if(myTL > 0){ jumpTo(idx); return; }
+
+  if(walletTL > 0){
+    var amt = Math.min(walletTL, Math.max(s.file_tl||300, 100));
+    toast('⚡ '+amt.toLocaleString()+' TL 자동 충전 중...','w');
+    try{
+      var tk = localStorage.getItem('tl_token')||'';
+      var r = await fetch('https://api.timelink.digital/api/shares/'+sid+'/charge',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+        body: JSON.stringify({amount:amt, user_id:_user.id, email:_user.email})
+      });
+      var d = await r.json();
+      if(!r.ok) throw new Error(d.error||'충전실패');
+      _user.tl = (_user.tl||0) - amt;
+      localStorage.setItem('tl_user',JSON.stringify(_user));
+      _myFileTL[sid] = (_myFileTL[sid]||0) + amt;
+      if(g('tbTL')) g('tbTL').textContent = Number(_user.tl).toLocaleString();
+      renderQueue();
+      toast('✅ 자동충전 완료! 재생합니다','s');
+      jumpTo(idx);
+    }catch(e){
+      toast('충전 실패: '+e.message,'e');
+    }
+    return;
+  }
+
+  toast('⚠️ TL이 없습니다. 충전이 필요합니다.','e');
+  showTLChargeNotice();
+}
+
 function jumpTo(i){ _playing=true; loadTrack(i); g('playBtn').textContent='⏸'; startPoc(); }
 
 function onTimeUpdate(){
@@ -704,6 +744,29 @@ window.addEventListener('load',function(){
   var poc = parseFloat(localStorage.getItem('tl_poc_today')||'0');
   _poc = poc;
 });
+
+function showTLChargeNotice(){
+  var el=document.getElementById('tlChargeNotice');
+  if(!el) return;
+  el.style.display='flex';
+  var bv=document.getElementById('incarNoticebal');
+  if(bv) bv.textContent=Number(_user&&_user.tl||0).toLocaleString();
+}
+function closeTLNotice(){
+  var el=document.getElementById('tlChargeNotice');
+  if(el) el.style.display='none';
+}
+function incarGoCharge(){ closeTLNotice(); location.href='shareplace.html'; }
+function incarWatchAd(){
+  closeTLNotice();
+  toast('📺 광고 로딩 중...','i');
+  setTimeout(function(){
+    if(_user){ _user.tl=(_user.tl||0)+300; localStorage.setItem('tl_user',JSON.stringify(_user)); }
+    toast('✅ 광고 완료! +300 TL','s');
+  },2000);
+}
+function toggleSbDropdown(id){ var el=document.getElementById(id); if(el) el.classList.toggle('open'); }
+
 </script>
 </body>
 </html>

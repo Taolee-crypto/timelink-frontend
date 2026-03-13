@@ -1273,6 +1273,50 @@ function togglePlay(){
 
 function prevTrack(){ if(_curIdx>0) loadTrack(_curIdx-1); }
 function nextTrack(){ loadTrack((_curIdx+1)%_queue.length); }
+
+// ── 안전 점프: TL 체크 → 자동충전 → 재생 ──
+async function safeJumpTo(idx){
+  var s = _queue[idx];
+  if(!s){ jumpTo(idx); return; }
+  var sid = String(s.id||'');
+  var myTL = _myFileTL[sid]||0;
+  var walletTL = _user ? (_user.tl||0) : 0;
+
+  // 1) 곡별 TL 있으면 바로 재생
+  if(myTL > 0){ jumpTo(idx); return; }
+
+  // 2) 지갑 TL로 자동 충전 후 재생
+  if(walletTL > 0){
+    var amt = Math.min(walletTL, Math.max(s.file_tl||300, 100));
+    toast('⚡ '+amt.toLocaleString()+' TL 자동 충전 중...','w');
+    try{
+      var tk = localStorage.getItem('tl_token')||'';
+      var r = await fetch('https://api.timelink.digital/api/shares/'+sid+'/charge',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+        body: JSON.stringify({amount:amt, user_id:_user.id, email:_user.email})
+      });
+      var d = await r.json();
+      if(!r.ok) throw new Error(d.error||'충전실패');
+      _user.tl = (_user.tl||0) - amt;
+      localStorage.setItem('tl_user',JSON.stringify(_user));
+      _myFileTL[sid] = (_myFileTL[sid]||0) + amt;
+      if(g('tbTL')) g('tbTL').textContent = Number(_user.tl).toLocaleString();
+      if(g('sbTLBal')) g('sbTLBal').textContent = Number(_user.tl).toLocaleString()+' TL';
+      renderQueue();
+      toast('✅ 자동충전 완료! 재생합니다','s');
+      jumpTo(idx);
+    }catch(e){
+      toast('자동 충전 실패: '+e.message,'e');
+    }
+    return;
+  }
+
+  // 3) TL 없음 → 충전 모달
+  toast('⚠️ TL이 없습니다. 충전 후 재생할 수 있습니다.','e');
+  showTLChargeNotice();
+}
+
 function jumpTo(i){ _playing=true; loadTrack(i); g('playBtn').textContent='⏸'; startPoc(); startViz(); }
 
 function onTimeUpdate(){
