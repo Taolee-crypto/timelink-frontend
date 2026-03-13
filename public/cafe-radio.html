@@ -349,10 +349,41 @@ canvas#viz{width:100%;height:100%}
   .sidebar{display:none}
   .visualizer-wrap{height:80px}
 }
+
+/* ── 사이드바 TL방송국 드롭다운 ── */
+.sb-dropdown{position:relative}
+.sb-dropdown-toggle{display:flex;align-items:center;gap:9px;padding:8px 16px;color:var(--t2);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;user-select:none}
+.sb-dropdown-toggle:hover{color:var(--t1);background:rgba(255,255,255,.03)}
+.sb-dropdown.active-section .sb-dropdown-toggle{color:var(--t1);background:rgba(0,229,255,.08)}
+.sb-dropdown-arrow{margin-left:auto;font-size:9px;transition:transform .25s;color:var(--t3);flex-shrink:0}
+.sb-dropdown.open .sb-dropdown-arrow{transform:rotate(180deg)}
+.sb-sub-menu{display:none;background:rgba(0,0,0,.15)}
+.sb-dropdown.open .sb-sub-menu{display:block}
+.sb-sub-link{display:flex;align-items:center;gap:8px;padding:7px 16px 7px 36px;text-decoration:none;color:var(--t3);font-size:11px;transition:all .2s}
+.sb-sub-link:hover{color:var(--t1);background:rgba(255,255,255,.04)}
+.sb-sub-link.active{color:var(--cyan)}
+
 </style>
 <script src="i18n.js"></script>
 </head>
 <body>
+
+<!-- ── TL 소진 알림 + 충전 미니 모달 ── -->
+<div id="tlChargeNotice" style="display:none;position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px">
+  <div style="width:100%;max-width:380px;background:#0C0C14;border:1px solid rgba(245,166,35,.3);border-radius:18px;padding:28px;text-align:center">
+    <div style="font-size:44px;margin-bottom:12px">⚡</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:8px">TL이 소진되었습니다</div>
+    <div style="font-size:13px;color:rgba(255,255,255,.5);line-height:1.6;margin-bottom:24px">
+      라디오 방송을 계속 청취하려면<br>TL을 충전해주세요.<br>
+      <span style="color:rgba(245,166,35,.8);font-size:11px;font-family:'JetBrains Mono',monospace;margin-top:8px;display:block">현재 잔액: <span id="noticeBalVal">0</span> TL</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button onclick="goCharge()" style="padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#F5A623,#FFD166);color:#000;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif">⚡ 지금 충전하기</button>
+      <button onclick="watchAd()" style="padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:rgba(255,255,255,.7);font-size:13px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">📺 광고 보고 300 TL 받기</button>
+      <button onclick="closeTLNotice()" style="padding:10px;border-radius:10px;border:none;background:transparent;color:rgba(255,255,255,.3);font-size:12px;cursor:pointer">나중에</button>
+    </div>
+  </div>
+</div>
 <div id="toast-box"></div>
 
 <!-- TOPBAR -->
@@ -366,8 +397,10 @@ canvas#viz{width:100%;height:100%}
   <div class="tb-time" id="tbTime">00:00:00</div>
   <div class="tb-nav">
     <a href="shareplace.html" class="tb-nav-btn">🏠 홈</a>
-    <a href="cafe-channel.html" class="tb-nav-btn" data-i18n="radio.cafe.ch">☕ 카페 채널</a>
-    <a href="incar-channel.html" class="tb-nav-btn" style="color:var(--mint);border-color:rgba(0,229,160,.2)">🚗 인카 채널</a>
+    <a href="radio.html" class="tb-nav-btn">📻 TL방송국</a>
+    <a href="cafe-radio.html" class="tb-nav-btn active">☕ 카페방송</a>
+    <a href="incar.html" class="tb-nav-btn" style="color:var(--mint);border-color:rgba(0,229,160,.2)">🚗 인카방송</a>
+    <a href="cafe-channel.html" class="tb-nav-btn" data-i18n="radio.cafe.ch">채널 개설</a>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
@@ -1055,12 +1088,19 @@ function renderQueue(){
   _queue.slice(0,30).forEach(function(s,i){
     var active = i===_curIdx ? 'playing' : '';
     var cover = s.cover_url ? '<img src="'+s.cover_url+'" style="width:100%;height:100%;object-fit:cover">' : '🎵';
-    html += '<div class="queue-item '+active+'" onclick="jumpTo('+i+')">' +
+    var sid = String(s.id||'');
+    var myTL = _myFileTL[sid]||0;
+    var walletTL = _user?(_user.tl||0):0;
+    var hasTL = myTL>0 || walletTL>0;
+    var tlColor = myTL>0 ? '#00E5A0' : walletTL>0 ? 'var(--amber)' : '#FF4757';
+    var tlLabel = myTL>0 ? myTL.toLocaleString()+' TL' : walletTL>0 ? '지갑' : '충전필요';
+    var playIcon = i===_curIdx&&_playing ? '⏸' : hasTL ? '▶' : '💳';
+    html += '<div class="queue-item '+active+'" onclick="safeJumpTo('+i+')">' +
       '<div class="qi-num">'+(i===_curIdx?'♪':(i+1))+'</div>' +
       '<div class="qi-cover">'+cover+'</div>' +
       '<div class="qi-info"><div class="qi-title">'+esc(s.title||'Untitled')+'</div><div class="qi-artist">'+esc(s.artist||s.username||'Unknown')+'</div></div>' +
-      '<div class="qi-tl">'+Math.floor(s.file_tl||0)+' TL</div>' +
-      '<div class="qi-dur">'+fmtTime(s.duration||0)+'</div>' +
+      '<div class="qi-tl" style="color:'+tlColor+';font-size:10px">'+tlLabel+'</div>' +
+      '<div class="qi-dur" style="font-size:11px">'+playIcon+'</div>' +
       '</div>';
   });
   g('queueList').innerHTML = html || '<div style="color:var(--t3);font-size:13px;text-align:center;padding:40px">곡을 불러오는 중...</div>';
@@ -1311,6 +1351,7 @@ function startPoc(){
           reportToServer();
           stopPoc();
           togglePlay();
+          showTLChargeNotice();
           return;
         }
       }
@@ -1491,6 +1532,42 @@ window.addEventListener('load', function(){
   setInterval(function(){ loadCafeChannels(); }, 30000);
   drawViz();
 });
+
+// ── 사이드바 드롭다운 ──
+function toggleSbDropdown(id){document.getElementById(id).classList.toggle('open');}
+
+// ── TL 충전 알림 모달 ──
+function showTLChargeNotice(){
+  var el=document.getElementById('tlChargeNotice');
+  if(el){
+    el.style.display='flex';
+    var bv=document.getElementById('noticeBalVal');
+    if(bv) bv.textContent=Number(_user&&_user.tl||0).toLocaleString();
+  }
+}
+function closeTLNotice(){
+  var el=document.getElementById('tlChargeNotice');
+  if(el) el.style.display='none';
+}
+function goCharge(){
+  closeTLNotice();
+  // shareplace.html의 결제 모달로 이동
+  location.href='shareplace.html#charge';
+}
+function watchAd(){
+  closeTLNotice();
+  // 광고 시청 후 300TL 지급 (실제 광고 연동 전 mock)
+  setTimeout(function(){
+    toast('📺 광고 시청 완료! +300 TL 지급','s');
+    if(_user){ 
+      _user.tl=(_user.tl||0)+300;
+      localStorage.setItem('tl_user',JSON.stringify(_user));
+      if(typeof g==='function'&&g('tbTL')) g('tbTL').textContent=Number(_user.tl).toLocaleString();
+    }
+  },2000);
+  toast('📺 광고 로딩 중...','i');
+}
+
 </script>
 </body>
 </html>

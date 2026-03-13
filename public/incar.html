@@ -1,21 +1,4 @@
-<!DO})();
-
-// 곡별 충전 TL 로드
-async function loadMyFileTL(){
-  if(!_user) return;
-  try{
-    var r=await fetch('https://api.timelink.digital/api/user/file-tl?user_id='+_user.id);
-    if(!r.ok) return;
-    var d=await r.json();
-    (d.files||[]).forEach(function(f){ _myFileTL[String(f.share_id)]=f.tl_balance; });
-  }catch(e){}
-}
-
-function calcDeductRate(){
-  var poc=parseFloat(_user.poc_index||1.0);
-  if(poc<1) poc=1.0;
-  _tlDeductRate=Math.max(0.01,Math.min(1.0,1.0/poc));
-}CTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
@@ -153,10 +136,35 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
 .t.i{background:rgba(0,229,255,.12);color:var(--cyan);border-color:rgba(0,229,255,.3)}
 
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px}
+
+/* ── 사이드바 TL방송국 드롭다운 ── */
+.sb-dropdown-toggle{display:flex;align-items:center;gap:9px;padding:8px 16px;color:var(--t2);font-size:12px;cursor:pointer;transition:all .2s}
+.sb-dropdown-arrow{margin-left:auto;font-size:9px;transition:transform .25s;color:var(--t3)}
+.sb-dropdown.open .sb-dropdown-arrow{transform:rotate(180deg)}
+.sb-sub-menu{display:none;background:rgba(0,0,0,.15)}
+.sb-dropdown.open .sb-sub-menu{display:block}
+.sb-sub-link{display:flex;align-items:center;gap:8px;padding:7px 16px 7px 36px;text-decoration:none;color:var(--t3);font-size:11px;transition:all .2s}
+.sb-sub-link:hover{color:var(--t1);background:rgba(255,255,255,.04)}
+.sb-sub-link.active{color:var(--cyan)}
+
 </style>
 <script src="i18n.js"></script>
 </head>
 <body>
+
+<!-- ── TL 소진 충전 모달 ── -->
+<div id="tlChargeNotice" style="display:none;position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:20px">
+  <div style="width:100%;max-width:360px;background:#08080F;border:1px solid rgba(0,229,255,.3);border-radius:18px;padding:28px;text-align:center">
+    <div style="font-size:40px;margin-bottom:12px">⚡</div>
+    <div style="font-size:17px;font-weight:700;margin-bottom:8px">TL이 소진되었습니다</div>
+    <div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.7;margin-bottom:20px">인카방송을 계속하려면 TL을 충전해주세요.<br><span style="color:var(--cyan);font-family:'JetBrains Mono',monospace;font-size:11px">잔액: <span id="incarNoticebal">0</span> TL</span></div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button onclick="incarGoCharge()" style="padding:13px;border-radius:11px;border:none;background:var(--cyan);color:#000;font-size:14px;font-weight:700;cursor:pointer">⚡ 충전하기</button>
+      <button onclick="incarWatchAd()" style="padding:11px;border-radius:11px;border:1px solid rgba(0,229,255,.2);background:rgba(0,229,255,.05);color:var(--t2);font-size:12px;cursor:pointer">📺 광고 보고 300 TL 받기</button>
+      <button onclick="closeTLNotice()" style="padding:9px;border-radius:10px;border:none;background:transparent;color:var(--t3);font-size:11px;cursor:pointer">나중에</button>
+    </div>
+  </div>
+</div>
 <div class="scanlines"></div>
 <div id="toast-box"></div>
 <div class="voice-ind" id="voiceInd">🎤 음성 인식 중...</div>
@@ -188,7 +196,8 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
 
   <!-- HUD Top -->
   <div class="hud-top">
-    <a href="radio.html" class="hud-back" data-i18n="incar.back.radio">← 방송국</a>
+    <a href="radio.html" class="hud-back">← TL방송국</a>
+    <div style="display:flex;gap:4px;margin-left:8px"><a href="cafe-radio.html" style="padding:4px 10px;border-radius:7px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:11px;text-decoration:none">☕ 카페방송</a><span style="padding:4px 10px;border-radius:7px;border:1px solid rgba(0,229,255,.3);background:rgba(0,229,255,.06);color:var(--cyan);font-size:11px">🚗 인카방송</span></div>
     <div class="hud-status">
       <div class="hud-gps"><div class="gps-dot"></div><span id="gpsStatus" style="color:var(--t2);font-size:11px">GPS 연결 중</span></div>
       <div class="hud-plate" id="hudPlate">--</div>
@@ -553,7 +562,7 @@ function startPoc(){
         // 총량 차감
         _user.tl = Math.max(0, Number(_user.tl||0)-whole);
         localStorage.setItem('tl_user',JSON.stringify(_user));
-        if((_user.tl||0)<=0){ toast(TLi18n.t('toast.tl.empty.total'),'w'); stopPoc(); return; }
+        if((_user.tl||0)<=0){ toast(TLi18n.t('toast.tl.empty.total'),'w'); stopPoc(); showTLChargeNotice(); return; }
       }
       // UI 즉시 갱신
       if(g('tlBal')) g('tlBal').textContent = Number(_user.tl||0).toLocaleString();
@@ -593,11 +602,19 @@ function renderQueue(){
   g('queueList').innerHTML = _queue.slice(0,30).map(function(s,i){
     var active = i===_curIdx?'playing':'';
     var cover = s.cover_url?'<img src="'+s.cover_url+'">':'<span>🎵</span>';
-    return '<div class="queue-item '+active+'" onclick="jumpTo('+i+')">'+
+    var sid = String(s.id||'');
+    var myTL = _myFileTL[sid]||0;
+    var walletTL = _user?(_user.tl||0):0;
+    var hasTL = myTL>0 || walletTL>0;
+    var tlColor = myTL>0 ? '#00E5A0' : walletTL>0 ? 'var(--amber)' : '#FF4757';
+    var tlLabel = myTL>0 ? myTL.toLocaleString()+' TL' : walletTL>0 ? '지갑' : '충전필요';
+    var playIcon = (i===_curIdx&&_playing) ? '⏸' : hasTL ? '▶' : '💳';
+    return '<div class="queue-item '+active+'" onclick="safeJumpTo('+i+')">'+
       '<div class="qi-num">'+(i===_curIdx?'♪':(i+1))+'</div>'+
       '<div class="qi-cover">'+cover+'</div>'+
       '<div class="qi-info"><div class="qi-title">'+esc(s.title||'Untitled')+'</div><div class="qi-artist">'+esc(s.artist||s.username||'')+'</div></div>'+
-      '<div class="qi-tl">'+Math.floor(s.file_tl||0)+' TL</div>'+
+      '<div class="qi-tl" style="color:'+tlColor+';font-size:10px">'+tlLabel+'</div>'+
+      '<span style="color:'+tlColor+';font-size:12px;flex-shrink:0">'+playIcon+'</span>'+
       '</div>';
   }).join('');
 }
