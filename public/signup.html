@@ -147,6 +147,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(139,92,246,.2);border-radius:3px}
 @media(max-width:900px){.page{grid-template-columns:1fr}.left{display:none}.right{padding:72px 24px 40px}}
 </style>
+<script src="i18n.js"></script>
 </head>
 <body>
 <div class="amb amb-1"></div><div class="amb amb-2"></div>
@@ -191,8 +192,8 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 
   <!-- RIGHT -->
   <div class="right">
-    <div class="form-title">계정 만들기</div>
-    <div class="form-sub">이메일 인증 후 최대 42,500 TL을 받으세요</div>
+    <div class="form-title" data-i18n="signup.title2">계정 만들기</div>
+    <div class="form-sub" data-i18n="signup.sub">이메일 인증 후 최대 42,500 TL을 받으세요</div>
 
     <!-- TL COUNTER -->
     <div class="tl-bar">
@@ -232,13 +233,13 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
           <span class="social-arrow">→</span>
         </button>
       </div>
-      <div class="divider">또는 이메일로 가입</div>
+      <div class="divider" data-i18n="signup.or.email">또는 이메일로 가입</div>
 
       <div class="form-group">
-        <label class="form-label">이메일 주소 <span style="color:var(--rose)">*</span></label>
+        <label class="form-label"><span data-i18n="signup.email.label">이메일 주소</span> <span style="color:var(--rose)">*</span></label>
         <div class="email-row">
           <input type="email" class="form-input" id="emailInput" placeholder="you@example.com" oninput="onEmailChange()">
-          <button class="send-btn" id="sendBtn" onclick="sendCode()" disabled>인증 발송</button>
+          <button class="send-btn" id="sendBtn" onclick="sendCode()" disabled data-i18n="signup.send.code">인증 발송</button>
         </div>
         <div class="err-msg" id="emailErr">올바른 이메일 형식을 입력해주세요</div>
       </div>
@@ -255,7 +256,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
             <input type="text" class="otp-input" maxlength="1" id="otp4" oninput="otpNext(4)" onkeydown="otpKey(event,4)">
             <input type="text" class="otp-input" maxlength="1" id="otp5" oninput="otpNext(5)" onkeydown="otpKey(event,5)">
           </div>
-          <button class="otp-verify-btn" id="verifyBtn" onclick="verifyCode()">확인</button>
+          <button class="otp-verify-btn" id="verifyBtn" onclick="verifyCode()" data-i18n="signup.verify.btn">확인</button>
         </div>
         <div class="timer" id="timerEl"></div>
         <div class="otp-resend" id="resendRow" style="display:none">코드가 오지 않나요? <a href="#" onclick="sendCode();return false">재발송</a></div>
@@ -275,16 +276,16 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
     <div class="form-step" id="step2">
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">닉네임 <span style="color:var(--rose)">*</span></label>
+          <label class="form-label"><span data-i18n="signup.nick.label">닉네임</span> <span style="color:var(--rose)">*</span></label>
           <input type="text" class="form-input" id="usernameInput" placeholder="카페사장김모씨" maxlength="20">
         </div>
         <div class="form-group">
-          <label class="form-label">비밀번호 <span style="color:var(--rose)">*</span></label>
+          <label class="form-label"><span data-i18n="signup.pw.label">비밀번호</span> <span style="color:var(--rose)">*</span></label>
           <input type="password" class="form-input" id="pwInput" placeholder="8자 이상">
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">비밀번호 확인 <span style="color:var(--rose)">*</span></label>
+        <label class="form-label"><span data-i18n="signup.pw2.label">비밀번호 확인</span> <span style="color:var(--rose)">*</span></label>
         <input type="password" class="form-input" id="pw2Input" placeholder="동일하게 입력">
         <div class="err-msg" id="pwErr">비밀번호가 일치하지 않습니다</div>
       </div>
@@ -377,7 +378,7 @@ function onEmailChange(){
 // SEND CODE
 async function sendCode(){
   var email=document.getElementById('emailInput').value.trim();
-  if(!isValidEmail(email)){toast('올바른 이메일을 입력해주세요',true);return;}
+  if(!isValidEmail(email)){toast(TLi18n.t('toast.email.invalid'),true);return;}
 
   // ── 이메일 중복 체크 (인증번호 발송 전) ──
   var btn=document.getElementById('sendBtn');
@@ -390,7 +391,7 @@ async function sendCode(){
     });
     var cd=await chk.json();
     if(cd.exists){
-      toast('❌ 이미 가입된 이메일입니다. 로그인을 이용해 주세요.',true);
+      toast(TLi18n.t('toast.email.duplicate'),true);
       btn.disabled=false;btn.textContent='인증 발송';
       return;
     }
@@ -436,7 +437,7 @@ async function sendCode(){
       signal:AbortSignal.timeout(10000)
     });
     if(r.ok){
-      toast('📨 인증 코드가 발송되었습니다!');
+      toast(TLi18n.t('toast.code.sent'));
     } else {
       var ed=await r.json().catch(function(){return {};});
       throw new Error(ed.error||'발송 실패');
@@ -492,7 +493,7 @@ function otpKey(e,idx){
 async function verifyCode(){
   var code='';
   for(var i=0;i<6;i++) code+=document.getElementById('otp'+i).value;
-  if(code.length!==6){toast('6자리 코드를 모두 입력해주세요',true);return;}
+  if(code.length!==6){toast(TLi18n.t('toast.code.enter6'),true);return;}
 
   var btn=document.getElementById('verifyBtn');
   btn.disabled=true;btn.textContent='확인 중...';
@@ -500,7 +501,7 @@ async function verifyCode(){
   // 만료 체크 (3분)
   var ts=parseInt(sessionStorage.getItem('tl_otp_ts')||'0');
   if(Date.now()-ts>180000){
-    toast('❌ 코드가 만료되었습니다. 재발송해주세요',true);
+    toast(TLi18n.t('toast.code.expired'),true);
     btn.disabled=false;btn.textContent='확인';
     return;
   }
@@ -508,7 +509,7 @@ async function verifyCode(){
   // 이메일 일치 체크
   var otpEmail=sessionStorage.getItem('tl_otp_email');
   if(otpEmail!==sentEmail){
-    toast('❌ 이메일이 일치하지 않습니다',true);
+    toast(TLi18n.t('toast.email.mismatch'),true);
     btn.disabled=false;btn.textContent='확인';
     return;
   }
@@ -530,9 +531,9 @@ async function verifyCode(){
     document.getElementById('emailInput').readOnly=true;
     document.getElementById('sendBtn').style.display='none';
     kycTL=5000;animateTL(totalTL());
-    toast('✅ 이메일 인증 완료! +5,000 TL');
+    toast(TLi18n.t('toast.code.verified'));
   } else {
-    toast('❌ 인증 코드가 올바르지 않습니다',true);
+    toast(TLi18n.t('toast.code.wrong'),true);
     // 입력칸 초기화
     for(var j=0;j<6;j++) document.getElementById('otp'+j).value='';
     document.getElementById('otp0').focus();
@@ -563,8 +564,8 @@ function goStep3(){
   var u=document.getElementById('usernameInput').value.trim();
   var pw=document.getElementById('pwInput').value;
   var pw2=document.getElementById('pw2Input').value;
-  if(!u){toast('닉네임을 입력해주세요',true);return;}
-  if(pw.length<8){toast('비밀번호는 8자 이상이어야 합니다',true);return;}
+  if(!u){toast(TLi18n.t('toast.nick.required'),true);return;}
+  if(pw.length<8){toast(TLi18n.t('toast.pw.short'),true);return;}
   if(pw!==pw2){document.getElementById('pwErr').className='err-msg show';return;}
   document.getElementById('pwErr').className='err-msg';
   goStep(3);
@@ -580,7 +581,7 @@ function updateRefTL(v){
 
 // SOCIAL (placeholder)
 function socialSignup(provider){
-  toast('🔧 소셜 로그인 준비 중입니다');
+  toast(TLi18n.t('toast.social.preparing'));
 }
 
 // FINAL SUBMIT
@@ -588,7 +589,7 @@ async function doSignup(){
   var ck1=document.getElementById('ck1').checked;
   var ck2=document.getElementById('ck2').checked;
   var ck3=document.getElementById('ck3').checked;
-  if(!ck1||!ck2||!ck3){toast('필수 약관에 동의해주세요',true);return;}
+  if(!ck1||!ck2||!ck3){toast(TLi18n.t('toast.terms.required'),true);return;}
 
   var email=document.getElementById('emailInput').value.trim();
   var username=document.getElementById('usernameInput').value.trim();

@@ -145,15 +145,169 @@ canvas#viz{width:100%;height:100%}
 .ri-status.pending{background:rgba(245,166,35,.1);color:var(--amber)}
 .ri-status.playing{background:rgba(46,204,113,.1);color:var(--green)}
 
-/* AI DJ Panel */
-.dj-panel{background:linear-gradient(135deg,rgba(0,229,255,.05),rgba(139,92,246,.05));border:1px solid rgba(0,229,255,.15);border-radius:12px;padding:16px;margin-bottom:16px}
-.dj-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.dj-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:16px}
-.dj-name{font-size:13px;font-weight:700;color:var(--cyan)}
-.dj-status{font-size:10px;color:var(--t3);font-family:var(--fm)}
-.dj-comment{font-size:13px;color:var(--t2);line-height:1.6;font-style:italic}
-.dj-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-.dj-tag{padding:3px 10px;border-radius:10px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.15);font-size:10px;color:var(--cyan);font-family:var(--fm)}
+/* ══════════════════════════════
+   AI DJ TiLo — Spotify-Style Full Redesign
+══════════════════════════════ */
+.dj-screen{display:flex;flex-direction:column;height:100%;overflow:hidden;background:transparent}
+
+/* ─ 히어로: 큰 원 + Listening ─ */
+.dj-hero{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:28px 20px 20px;text-align:center;flex-shrink:0;
+  background:radial-gradient(ellipse 100% 80% at 50% 0%,rgba(0,180,255,.1) 0%,transparent 70%)}
+
+/* 큰 orb — Spotify 녹색 링 스타일 */
+.dj-orb-wrap{position:relative;width:120px;height:120px;margin-bottom:16px}
+.dj-orb-bg{
+  position:absolute;inset:0;border-radius:50%;
+  background:rgba(0,180,255,.06);border:2px solid rgba(0,180,255,.15);
+  transition:all .4s}
+.dj-orb-ring-outer{
+  position:absolute;inset:-8px;border-radius:50%;
+  border:2.5px solid transparent;
+  background:conic-gradient(from var(--rot,0deg),rgba(0,180,255,.9) 0%,rgba(139,92,246,.7) 35%,rgba(0,229,160,.6) 65%,rgba(0,180,255,.9) 100%) border-box;
+  -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:destination-out;mask-composite:exclude;
+  opacity:0;transition:opacity .4s}
+.dj-orb-ring-pulse{
+  position:absolute;inset:0;border-radius:50%;
+  border:1.5px solid rgba(0,180,255,.3);
+  animation:none;opacity:0;transition:opacity .4s}
+
+/* listening 상태 */
+.dj-orb-wrap.listening .dj-orb-bg{
+  background:rgba(0,180,255,.1);border-color:rgba(0,180,255,.3);
+  box-shadow:0 0 40px rgba(0,180,255,.15)}
+.dj-orb-wrap.listening .dj-orb-ring-outer{opacity:1;animation:orbRotate 2.5s linear infinite}
+.dj-orb-wrap.listening .dj-orb-ring-pulse{opacity:1;animation:pulseExpand 1.8s ease-out infinite}
+@keyframes orbRotate{to{--rot:360deg}}
+@property --rot{syntax:'<angle>';initial-value:0deg;inherits:false}
+@keyframes pulseExpand{
+  0%{transform:scale(1);opacity:.5}
+  60%{transform:scale(1.25);opacity:0}
+  100%{transform:scale(1.25);opacity:0}}
+
+/* typing 상태 */
+.dj-orb-wrap.typing .dj-orb-bg{background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.3)}
+.dj-orb-wrap.typing .dj-orb-ring-outer{opacity:.7;animation:orbRotate 1.2s linear infinite}
+
+/* orb 내부 아이콘 */
+.dj-orb-inner{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:38px;z-index:2}
+
+/* Listening 텍스트 + 웨이브 */
+.dj-listen-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;min-height:22px}
+.dj-listen-label{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.12em;
+  color:var(--cyan);opacity:0;transition:opacity .3s}
+.dj-orb-wrap.listening~.dj-listen-row .dj-listen-label,
+.dj-orb-wrap.typing~.dj-listen-row .dj-listen-label{opacity:1}
+.dj-listen-wave{display:flex;align-items:flex-end;gap:2.5px;height:16px}
+.dj-listen-wave span{
+  width:2.5px;border-radius:2px;background:var(--cyan);opacity:0;
+  transition:opacity .3s}
+.dj-orb-wrap.listening~.dj-listen-row .dj-listen-wave span{
+  opacity:1;animation:waveJump .9s ease-in-out infinite}
+.dj-listen-wave span:nth-child(1){height:5px;animation-delay:0s}
+.dj-listen-wave span:nth-child(2){height:12px;animation-delay:.1s}
+.dj-listen-wave span:nth-child(3){height:8px;animation-delay:.2s}
+.dj-listen-wave span:nth-child(4){height:16px;animation-delay:.15s}
+.dj-listen-wave span:nth-child(5){height:6px;animation-delay:.05s}
+.dj-listen-wave span:nth-child(6){height:14px;animation-delay:.25s}
+.dj-listen-wave span:nth-child(7){height:4px;animation-delay:.12s}
+@keyframes waveJump{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+
+.dj-name2{font-size:15px;font-weight:700;color:var(--t1);margin-bottom:3px}
+.dj-state-text{font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;min-height:16px;transition:color .3s}
+.dj-orb-wrap.listening~.dj-name2+.dj-state-text,
+.dj-orb-wrap.listening~* .dj-state-text{color:var(--cyan)}
+
+/* ─ DJ 버블 멘트 ─ */
+.dj-bubble{
+  margin:0 14px 0;padding:13px 16px;
+  background:rgba(0,180,255,.05);border:1px solid rgba(0,180,255,.13);
+  border-radius:0 14px 14px 14px;
+  font-size:13px;color:var(--t2);line-height:1.7;
+  min-height:52px;transition:all .3s;position:relative;flex-shrink:0}
+.dj-bubble-tag{
+  position:absolute;top:-9px;left:0;
+  font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:.1em;
+  color:var(--cyan);background:var(--bg2);padding:0 6px;border-radius:3px}
+.dj-bubble .typing-dot{
+  display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:var(--cyan);animation:dotBlink .8s ease infinite;margin-right:3px}
+.dj-bubble .typing-dot:nth-child(2){animation-delay:.25s}
+.dj-bubble .typing-dot:nth-child(3){animation-delay:.5s}
+@keyframes dotBlink{0%,100%{opacity:.15}50%{opacity:1}}
+
+/* ─ 무드 태그 칩 ─ */
+.dj-tags{display:flex;flex-wrap:wrap;gap:5px;padding:10px 14px 4px;flex-shrink:0}
+.dj-tag{
+  padding:4px 11px;border-radius:20px;
+  background:rgba(0,180,255,.07);border:1px solid rgba(0,180,255,.16);
+  font-size:10px;color:var(--cyan);font-family:'JetBrains Mono',monospace;
+  cursor:pointer;transition:all .2s;user-select:none}
+.dj-tag:hover{background:rgba(0,180,255,.15);border-color:rgba(0,180,255,.35)}
+
+/* ─ 대화 히스토리 ─ */
+.dj-history{
+  flex:1;overflow-y:auto;padding:8px 14px;
+  display:flex;flex-direction:column;gap:8px;min-height:0}
+.dj-history::-webkit-scrollbar{width:3px}
+.dj-history::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+.dj-hist-item{display:flex;align-items:flex-end;gap:8px}
+.dj-hist-item.user{flex-direction:row-reverse}
+.dj-hist-avatar{width:22px;height:22px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:11px}
+.dj-hist-item.ai .dj-hist-avatar{background:rgba(0,180,255,.15);border:1px solid rgba(0,180,255,.25)}
+.dj-hist-item.user .dj-hist-avatar{background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.25)}
+.dj-hist-bubble{
+  max-width:78%;padding:8px 12px;border-radius:12px;
+  font-size:12px;line-height:1.6}
+.dj-hist-item.ai .dj-hist-bubble{
+  background:rgba(0,180,255,.06);border:1px solid rgba(0,180,255,.13);
+  color:var(--t2);border-radius:3px 12px 12px 12px}
+.dj-hist-item.user .dj-hist-bubble{
+  background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.18);
+  color:var(--t1);border-radius:12px 3px 12px 12px}
+
+/* ─ 빠른 요청 칩 ─ */
+.dj-quick-chips{display:flex;gap:6px;padding:8px 14px 0;flex-wrap:wrap;flex-shrink:0}
+.dj-chip{
+  padding:5px 12px;border-radius:20px;
+  border:1px solid var(--bd2);background:rgba(255,255,255,.04);
+  font-size:11px;color:var(--t2);cursor:pointer;
+  transition:all .2s;white-space:nowrap}
+.dj-chip:hover{background:rgba(255,255,255,.09);border-color:var(--bd3);color:var(--t1)}
+
+/* ─ 입력창 ─ */
+.dj-talk-area{
+  padding:8px 14px 14px;display:flex;gap:8px;align-items:center;flex-shrink:0;
+  border-top:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.15)}
+.dj-talk-input{
+  flex:1;padding:10px 14px;
+  background:rgba(255,255,255,.05);border:1px solid var(--bd2);
+  border-radius:22px;color:var(--t1);font-size:13px;font-family:'Noto Sans KR',sans-serif;
+  outline:none;resize:none;line-height:1.5;max-height:72px;
+  transition:border-color .2s}
+.dj-talk-input:focus{border-color:rgba(0,180,255,.45);background:rgba(0,180,255,.04)}
+.dj-talk-input::placeholder{color:var(--t3)}
+.dj-talk-btn{
+  width:40px;height:40px;border-radius:50%;border:none;flex-shrink:0;
+  background:linear-gradient(135deg,#00B4FF 0%,#8B5CF6 100%);
+  color:#fff;font-size:15px;cursor:pointer;transition:all .25s;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 16px rgba(0,180,255,.3)}
+.dj-talk-btn:hover{transform:scale(1.1);box-shadow:0 6px 20px rgba(0,180,255,.45)}
+.dj-talk-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* ─ 선곡 기준 ─ */
+.dj-criteria-wrap{padding:10px 14px;border-top:1px solid var(--bd);flex-shrink:0}
+.dj-criteria-title{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--t3);letter-spacing:.12em;margin-bottom:7px;text-transform:uppercase}
+.dj-crit-row{display:flex;align-items:center;justify-content:space-between;
+  padding:5px 10px;border-radius:7px;background:rgba(255,255,255,.025);margin-bottom:4px}
+.dj-crit-label{font-size:10px;color:var(--t3)}
+.dj-crit-val{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--t1)}
 
 /* In-car mode */
 .incar-setup{padding:24px;display:flex;flex-direction:column;gap:16px}
@@ -212,7 +366,7 @@ canvas#viz{width:100%;height:100%}
   <div class="tb-time" id="tbTime">00:00:00</div>
   <div class="tb-nav">
     <a href="shareplace.html" class="tb-nav-btn">🏠 홈</a>
-    <a href="cafe-channel.html" class="tb-nav-btn">☕ 카페 채널</a>
+    <a href="cafe-channel.html" class="tb-nav-btn" data-i18n="radio.cafe.ch">☕ 카페 채널</a>
     <a href="incar-channel.html" class="tb-nav-btn" style="color:var(--mint);border-color:rgba(0,229,160,.2)">🚗 인카 채널</a>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
@@ -237,13 +391,13 @@ canvas#viz{width:100%;height:100%}
   <div class="sidebar">
     <!-- Mode -->
     <div class="sb-section">
-      <div class="sb-label">방송 모드</div>
+      <div class="sb-label" data-i18n="radio.mode">방송 모드</div>
       <div class="mode-cards">
         <div class="mode-card active" id="mode-cafe" onclick="setMode('cafe')">
           <div class="mode-card-icon">☕</div>
           <div class="mode-card-info">
             <div class="mode-card-name" data-i18n="radio.cafe" data-i18n="radio.cafe">카페방송</div>
-            <div class="mode-card-desc">분위기별 AI 큐레이션</div>
+            <div class="mode-card-desc" data-i18n="radio.cafe.incar.ai">분위기별 AI 큐레이션</div>
             <div class="mode-card-poc">+1.0x POC 기여</div>
           </div>
         </div>
@@ -251,7 +405,7 @@ canvas#viz{width:100%;height:100%}
           <div class="mode-card-icon">🚗</div>
           <div class="mode-card-info">
             <div class="mode-card-name" data-i18n="radio.incar" data-i18n="radio.incar">인카방송</div>
-            <div class="mode-card-desc">주행 연동 AI 라디오</div>
+            <div class="mode-card-desc" data-i18n="radio.incar.ai.desc">주행 연동 AI 라디오</div>
             <div class="mode-card-poc">+2.5x POC 기여 🔥</div>
           </div>
         </div>
@@ -260,7 +414,7 @@ canvas#viz{width:100%;height:100%}
 
     <!-- Channel List -->
     <div class="sb-section" style="padding-bottom:8px">
-      <div class="sb-label">라이브 채널</div>
+      <div class="sb-label" data-i18n="radio.live.ch">라이브 채널</div>
     </div>
     <div class="channel-list" id="channelList">
       <!-- filled by JS -->
@@ -268,7 +422,7 @@ canvas#viz{width:100%;height:100%}
 
     <!-- POC Summary -->
     <div class="sb-section" style="margin-top:auto;border-top:1px solid var(--bd);border-bottom:none">
-      <div class="sb-label">오늘 기여</div>
+      <div class="sb-label" data-i18n="radio.today.poc">오늘 기여</div>
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="font-size:20px;font-weight:900;color:var(--green);font-family:var(--fm)" id="todayPoc">0</div>
@@ -302,7 +456,7 @@ canvas#viz{width:100%;height:100%}
       </div>
       <div class="np-info">
         <div class="np-mode" id="npMode">AI DJ • 카페방송</div>
-        <div class="np-title" id="npTitle">방송 준비 중...</div>
+        <div class="np-title" id="npTitle" data-i18n="radio.ready">방송 준비 중...</div>
         <div class="np-artist" id="npArtist">TL방송국 AI DJ</div>
         <div class="np-dj">
           <div class="dj-badge" id="djMood">🌙 심야 감성</div>
@@ -357,24 +511,66 @@ canvas#viz{width:100%;height:100%}
           <div class="req-title">🎤 신청곡 & 사연</div>
           <input class="req-input" id="reqSong" placeholder="신청할 곡명 / 아티스트" style="height:40px">
           <textarea class="req-input" id="reqStory" placeholder="사연을 남겨주세요 (선택)" rows="3" style="margin-top:0"></textarea>
-          <button class="req-send" onclick="sendRequest()">신청하기</button>
+          <button class="req-send" onclick="sendRequest()" data-i18n="radio.request">신청하기</button>
         </div>
         <div id="requestList"></div>
       </div>
       <div id="tab-dj" style="display:none">
-        <div class="dj-panel" id="djPanel">
-          <div class="dj-header">
-            <div class="dj-avatar">🤖</div>
-            <div>
-              <div class="dj-name">AI DJ TiLo</div>
-              <div class="dj-status" id="djStatus">선곡 분석 중...</div>
+        <div class="dj-screen">
+
+          <!-- ── 히어로: 큰 원 + Listening ── -->
+          <div class="dj-hero">
+            <div class="dj-orb-wrap" id="djOrbWrap">
+              <div class="dj-orb-bg"></div>
+              <div class="dj-orb-ring-outer"></div>
+              <div class="dj-orb-ring-pulse"></div>
+              <div class="dj-orb-inner" id="djOrb">🎧</div>
             </div>
+            <div class="dj-listen-row" id="djListenRow">
+              <div class="dj-listen-wave">
+                <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <div class="dj-listen-label" id="djListenLabel">Listening...</div>
+            </div>
+            <div class="dj-name2">AI DJ TiLo</div>
+            <div class="dj-state-text" id="djStateText">방송 준비 중...</div>
           </div>
-          <div class="dj-comment" id="djComment">현재 시간대와 날씨를 분석하여 최적의 음악을 선곡하고 있습니다.</div>
+
+          <!-- ── DJ 멘트 버블 ── -->
+          <div class="dj-bubble" id="djBubble">
+            <div class="dj-bubble-tag">TiLo</div>
+            <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
+          </div>
+
+          <!-- ── 무드 태그 (클릭하면 요청) ── -->
           <div class="dj-tags" id="djTags"></div>
+
+          <!-- ── 빠른 요청 칩 ── -->
+          <div class="dj-quick-chips" id="djQuickChips">
+            <div class="dj-chip" onclick="quickRequest('신나는 곡 틀어줘')">⚡ 신나는 곡</div>
+            <div class="dj-chip" onclick="quickRequest('잔잔한 음악 부탁해')">🌿 잔잔하게</div>
+            <div class="dj-chip" onclick="quickRequest('지금 몇 시야?')">🕐 지금 시간</div>
+            <div class="dj-chip" onclick="quickRequest('다음 곡 뭐야?')">⏭ 다음 곡</div>
+          </div>
+
+          <!-- ── 대화 히스토리 ── -->
+          <div class="dj-history" id="djHistory"></div>
+
+          <!-- ── 입력창 ── -->
+          <div class="dj-talk-area">
+            <textarea class="dj-talk-input" id="djTalkInput" rows="1"
+              placeholder="TiLo에게 말해보세요..."
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();talkToDJ()}"></textarea>
+            <button class="dj-talk-btn" id="djTalkBtn" onclick="talkToDJ()">➤</button>
+          </div>
+
+          <!-- ── 선곡 기준 ── -->
+          <div class="dj-criteria-wrap">
+            <div class="dj-criteria-title">▸ 현재 선곡 기준</div>
+            <div id="djCriteria"></div>
+          </div>
+
         </div>
-        <div style="font-size:11px;color:var(--t3);margin-bottom:12px;font-family:var(--fm)">▸ 선곡 기준</div>
-        <div id="djCriteria"></div>
       </div>
       <div id="tab-incar" style="display:none">
         <div class="incar-setup">
@@ -386,9 +582,9 @@ canvas#viz{width:100%;height:100%}
           <div class="poc-meter">
             <div class="poc-icon">⚡</div>
             <div class="poc-info">
-              <div class="poc-label">현재 POC 배율</div>
+              <div class="poc-label" data-i18n="radio.poc.label">현재 POC 배율</div>
               <div class="poc-val" id="pocMult">1.0x</div>
-              <div class="poc-mult" id="pocMultDesc">카페방송 기본</div>
+              <div class="poc-mult" id="pocMultDesc" data-i18n="radio.cafe.mode">카페방송 기본</div>
             </div>
           </div>
           <div class="incar-card">
@@ -516,17 +712,191 @@ function initWeather(){
   updateDJPanel();
 }
 
-function updateDJPanel(){
+/* ══════════════════════════════
+   AI DJ TiLo — Claude API 연동
+══════════════════════════════ */
+var _djHistory = [];
+var _djListening = false;
+var _djTyping = false;
+
+function getDJContext(){
   var ts = getTimeSlot();
-  var comments = {
-    morning: '좋은 아침입니다! 하루를 상쾌하게 시작할 수 있는 밝고 경쾌한 곡들을 선곡했어요.',
-    forenoon: '오전의 활기를 더해줄 리드미컬한 곡들입니다. 집중력도 높아질 거예요!',
-    lunch: '점심 시간, 편안한 재즈와 보사노바로 여유를 즐겨보세요.',
-    afternoon: '오후 카페 감성에 딱 맞는 인디팝과 어쿠스틱 곡들을 준비했어요.',
-    evening: '하루가 저물어가는 시간, 감성적인 발라드와 R&B로 마음을 달래보세요.',
-    night: '밤의 고요함과 어울리는 몽환적인 곡들을 선곡했습니다.',
-    latenight: '심야의 감성, 로파이와 재즈 어쿠스틱으로 조용하고 깊은 밤을 즐겨보세요.'
+  var now = new Date();
+  var tracks = _playlist.slice(0,5).map(function(t){ return t.title + ' - ' + t.artist; }).join(', ');
+  return {
+    time: ts.label,
+    slot: ts.slot,
+    mood: ts.mood,
+    mode: _mode === 'cafe' ? '카페방송' : '인카방송',
+    currentTrack: _playlist[_currentIdx] ? (_playlist[_currentIdx].title + ' by ' + _playlist[_currentIdx].artist) : '없음',
+    queueTracks: tracks || '없음',
+    pocMult: ts.poc,
+    hour: now.getHours()
   };
+}
+
+async function updateDJPanel(){
+  var ts = getTimeSlot();
+  renderDJCriteria(ts);
+  renderDJTags(ts);
+  // 처음 진입 시 자동 인사
+  if(_djHistory.length === 0){
+    await djSpeak(null, true);
+  }
+}
+
+async function djSpeak(userMsg, isAuto){
+  var ctx = getDJContext();
+  var systemPrompt = [
+    'You are TiLo, an AI DJ for TimeLink — a Korean digital music economy platform.',
+    'You are warm, witty, and knowledgeable about music. You speak naturally in Korean.',
+    'Current context: ' + JSON.stringify(ctx),
+    'Rules:',
+    '- Keep responses short: 2-3 sentences max.',
+    '- When a user requests a mood or song type, acknowledge it naturally and say you will find matching music.',
+    '- Mention current time/mood naturally. Reference the actual tracks playing if available.',
+    '- Use casual Korean (반말 or 존댓말 mixed naturally). Add music emoji occasionally.',
+    '- Do NOT list songs explicitly — just describe the vibe and say you are cueing it up.',
+    '- Never break character. You are a real DJ, not an AI assistant.'
+  ].join('\n');
+
+  var messages = _djHistory.slice(-6).map(function(h){
+    return { role: h.role, content: h.content };
+  });
+  if(userMsg){
+    messages.push({ role:'user', content: userMsg });
+  } else {
+    // 자동 인사
+    messages.push({ role:'user', content: '방금 방송을 시작했어. 인사해줘.' });
+  }
+
+  // UI: 리스닝/타이핑 상태
+  setDJState('typing');
+
+  try{
+    var res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:200,
+        system: systemPrompt,
+        messages: messages
+      })
+    });
+    var data = await res.json();
+    var reply = (data.content && data.content[0] && data.content[0].text) || '좋은 음악을 선곡하고 있어요! 🎵';
+
+    // 히스토리 저장
+    if(userMsg) _djHistory.push({role:'user', content:userMsg});
+    _djHistory.push({role:'assistant', content:reply});
+
+    setDJState('playing');
+    showDJBubble(reply);
+    if(userMsg) addDJHistoryItem(userMsg, reply);
+
+  } catch(e){
+    // API 실패 시 로컬 fallback
+    var fallbacks = {
+      morning:'좋은 아침! ☀️ 하루를 상쾌하게 열어줄 어쿠스틱 팝을 틀게요.',
+      forenoon:'오전의 리듬을 타볼 시간이에요 🎶 에너지 넘치는 트랙으로 채워드릴게요!',
+      lunch:'점심 시간엔 역시 재즈죠 ☕ 여유롭게 즐겨보세요.',
+      afternoon:'카페 감성 가득한 인디팝 타임 🌿 기분 좋은 오후 되세요.',
+      evening:'하루를 마무리하는 감성적인 곡들로 채워드릴게요 🌅',
+      night:'밤의 감성을 깨우는 드림팝 🌙 조용히 빠져들어봐요.',
+      latenight:'심야 로파이 타임입니다 🌃 편안하게 즐기세요.'
+    };
+    var ts2 = getTimeSlot();
+    var msg = fallbacks[ts2.slot] || '최고의 음악을 선곡하고 있어요! 🎵';
+    if(userMsg) _djHistory.push({role:'user', content:userMsg});
+    _djHistory.push({role:'assistant', content:msg});
+    setDJState('playing');
+    showDJBubble(msg);
+    if(userMsg) addDJHistoryItem(userMsg, msg);
+  }
+}
+
+function setDJState(state){
+  var wrap = g('djOrbWrap');
+  var stateText = g('djStateText');
+  var bubble = g('djBubble');
+  var btn = g('djTalkBtn');
+  var listenLabel = g('djListenLabel');
+
+  // 클래스 초기화
+  wrap.classList.remove('listening','typing');
+
+  if(state === 'listening'){
+    wrap.classList.add('listening');
+    stateText.textContent = 'Listening...';
+    stateText.style.color = 'var(--cyan)';
+    if(listenLabel) listenLabel.textContent = 'Listening...';
+    _djListening = true;
+    _djTyping = false;
+  } else if(state === 'typing'){
+    wrap.classList.add('typing');
+    stateText.textContent = '선곡 중...';
+    stateText.style.color = 'var(--purple)';
+    if(listenLabel) listenLabel.textContent = '선곡 중...';
+    bubble.innerHTML = '<div class="dj-bubble-tag">TiLo</div><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+    if(btn) btn.disabled = true;
+    _djTyping = true;
+    _djListening = false;
+  } else { // playing
+    stateText.textContent = '방송 중 • ' + new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    stateText.style.color = '';
+    if(listenLabel) listenLabel.textContent = 'Listening...';
+    if(btn) btn.disabled = false;
+    _djTyping = false;
+    _djListening = false;
+  }
+}
+
+function showDJBubble(text){
+  var bubble = g('djBubble');
+  bubble.innerHTML = '<div class="dj-bubble-tag">TiLo</div>';
+  var span = document.createElement('span');
+  bubble.appendChild(span);
+  var i = 0;
+  var timer = setInterval(function(){
+    if(i < text.length){
+      span.textContent += text[i++];
+    } else {
+      clearInterval(timer);
+    }
+  }, 16);
+}
+
+function addDJHistoryItem(userMsg, aiReply){
+  var hist = g('djHistory');
+  if(!hist) return;
+  var userDiv = '<div class="dj-hist-item user"><div class="dj-hist-avatar">👤</div><div class="dj-hist-bubble">'+esc(userMsg)+'</div></div>';
+  var aiDiv = '<div class="dj-hist-item ai"><div class="dj-hist-avatar">🎧</div><div class="dj-hist-bubble">'+esc(aiReply)+'</div></div>';
+  hist.innerHTML = hist.innerHTML + userDiv + aiDiv;
+  hist.scrollTop = hist.scrollHeight;
+}
+
+function quickRequest(msg){
+  var inp = g('djTalkInput');
+  inp.value = msg;
+  talkToDJ();
+}
+
+async function talkToDJ(){
+  var inp = g('djTalkInput');
+  var msg = inp.value.trim();
+  if(!msg || _djTyping) return;
+  inp.value = '';
+  inp.style.height = '';
+
+  // 리스닝 → 타이핑 상태
+  setDJState('listening');
+  setTimeout(function(){
+    djSpeak(msg, false);
+  }, 800);
+}
+
+function renderDJTags(ts){
   var tags = {
     morning: ['#어쿠스틱','#인디팝','#상쾌함','#아침루틴'],
     forenoon: ['#팝','#리듬감','#집중력','#에너지'],
@@ -536,23 +906,28 @@ function updateDJPanel(){
     night: ['#인디','#드림팝','#밤감성','#몽환'],
     latenight: ['#로파이','#재즈','#심야감성','#ASMR']
   };
+  var el = g('djTags');
+  if(!el) return;
+  var arr = tags[ts.slot] || tags.afternoon;
+  el.innerHTML = arr.map(function(t){
+    return '<div class="dj-tag" onclick="quickRequest(\''+t+' 분위기 음악 틀어줘\')">'+t+'</div>';
+  }).join('');
+}
+
+function renderDJCriteria(ts){
   var criteria = [
     {label:'시간대', val: ts.label, icon:'🕐'},
-    {label:'날씨', val:'맑음 18°C', icon:'☀️'},
-    {label:'청취자 수', val: Math.floor(Math.random()*50+10)+'명', icon:'👥'},
+    {label:'방송 모드', val: _mode==='cafe'?'카페방송':'인카방송', icon:'📻'},
     {label:'POC 배율', val: ts.poc, icon:'⚡'},
     {label:'크로스페이드', val: _crossfade?'4초':'OFF', icon:'🔀'},
   ];
-  g('djComment').textContent = comments[ts.slot] || comments.afternoon;
-  g('djStatus').textContent = '선곡 완료 • ' + new Date().toLocaleTimeString('ko-KR');
-  var tagsHtml = (tags[ts.slot]||[]).map(function(t){ return '<div class="dj-tag">'+t+'</div>'; }).join('');
-  g('djTags').innerHTML = tagsHtml;
-  var critHtml = criteria.map(function(c){
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.03);margin-bottom:6px">'+
-      '<span style="font-size:12px;color:var(--t3)">'+c.icon+' '+c.label+'</span>'+
-      '<span style="font-size:12px;font-family:var(--fm);color:var(--t1)">'+c.val+'</span></div>';
+  var el = g('djCriteria');
+  if(!el) return;
+  el.innerHTML = criteria.map(function(c){
+    return '<div class="dj-crit-row">'+
+      '<span class="dj-crit-label">'+c.icon+' '+c.label+'</span>'+
+      '<span class="dj-crit-val">'+c.val+'</span></div>';
   }).join('');
-  g('djCriteria').innerHTML = critHtml;
 }
 
 // Channels
@@ -852,7 +1227,7 @@ function togglePlay(){
   if(_playing){ aud.pause(); _playing=false; g('playBtn').textContent='▶'; stopPoc(); }
   else {
     if(!aud.src) loadTrack(_curIdx);
-    aud.play().then(function(){ _playing=true; g('playBtn').textContent='⏸'; startPoc(); startViz(); }).catch(function(e){ toast('재생 실패: '+e.message,'e'); });
+    aud.play().then(function(){ _playing=true; g('playBtn').textContent='⏸'; startPoc(); startViz(); }).catch(function(e){ toast(TLi18n.t('sp.play.fail')+': '+e.message,'e'); });
   }
 }
 
@@ -881,8 +1256,8 @@ function seekTrack(e){
 }
 
 function setVol(v){ _audA.volume=v/100; _audB.volume=_crossfading?(v/100):0; }
-function toggleShuffle(){ _shuffle=!_shuffle; g('shuffleBtn').style.color=_shuffle?'var(--amber)':''; toast(_shuffle?'셔플 ON':'셔플 OFF','i'); buildQueue(); }
-function toggleCrossfade(){ _crossfade=!_crossfade; g('crossBtn').style.color=_crossfade?'var(--amber)':''; toast(_crossfade?'크로스페이드 ON (4초)':'크로스페이드 OFF','i'); }
+function toggleShuffle(){ _shuffle=!_shuffle; g('shuffleBtn').style.color=_shuffle?'var(--amber)':''; toast(_shuffle?TLi18n.t('toast.shuffle.on'):TLi18n.t('toast.shuffle.off'),'i'); buildQueue(); }
+function toggleCrossfade(){ _crossfade=!_crossfade; g('crossBtn').style.color=_crossfade?'var(--amber)':''; toast(_crossfade?TLi18n.t('toast.crossfade.on'):TLi18n.t('toast.crossfade.off'),'i'); }
 
 // POC
 var _pocMult = 1.0;
@@ -924,7 +1299,7 @@ function startPoc(){
           // 곡별 TL 소진 → 총량으로 이어서 차감
           _user.tl = Math.max(0, Number(_user.tl||0) - whole);
           localStorage.setItem('tl_user', JSON.stringify(_user));
-          toast('⚡ 곡별 TL 소진 — 총 TL 차감 중', 'w');
+          toast(TLi18n.t('toast.tl.empty.track'),'w');
         }
         updateNowPlayingTL();
       } else {
@@ -932,7 +1307,7 @@ function startPoc(){
         _user.tl = Math.max(0, Number(_user.tl||0) - whole);
         localStorage.setItem('tl_user', JSON.stringify(_user));
         if((_user.tl||0) <= 0){
-          toast('⚠️ TL 소진! 방송이 중단됩니다.', 'w');
+          toast(TLi18n.t('toast.tl.empty.total'),'w');
           reportToServer();
           stopPoc();
           togglePlay();
@@ -1073,7 +1448,7 @@ function setMode(m){
   var desc = m==='incar'?'인카 주행 보너스':'카페방송 기본';
   g('pocMult').textContent=poc; g('pocMultDesc').textContent=desc;
   if(_pocInterval){ stopPoc(); startPoc(); }
-  toast(m==='cafe'?'☕ 카페방송 모드':'🚗 인카방송 모드 (POC 2.5x)', m==='incar'?'s':'i');
+  toast(m==='cafe'?TLi18n.t('toast.mode.cafe'):TLi18n.t('toast.mode.incar'),m==='incar'?'s':'i');
   buildQueue();
 }
 
@@ -1093,16 +1468,16 @@ function renderRequests(){
 function sendRequest(){
   var song = g('reqSong').value.trim();
   var story = g('reqStory').value.trim();
-  if(!song){ toast('곡명을 입력해주세요','e'); return; }
+  if(!song){ toast(TLi18n.t('toast.song.required'),'e'); return; }
   _requests.unshift({user:_user.username||'익명', song:song, story:story, time:new Date().toLocaleTimeString('ko-KR')});
   g('reqSong').value=''; g('reqStory').value='';
   renderRequests();
-  toast('신청곡이 접수되었습니다! 🎤','s');
+  toast(TLi18n.t('toast.song.requested'),'s');
 }
 
 function loadMyPlaylist(){
-  if(!_shares.length){ toast('SharePlace 곡을 불러오는 중...','i'); return; }
-  toast('내 플레이리스트 적용됨','s');
+  if(!_shares.length){ toast(TLi18n.t('toast.loading'),'i'); return; }
+  toast(TLi18n.t('toast.playlist.applied'),'s');
 }
 
 // Init

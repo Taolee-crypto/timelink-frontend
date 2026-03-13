@@ -154,6 +154,7 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
 
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px}
 </style>
+<script src="i18n.js"></script>
 </head>
 <body>
 <div class="scanlines"></div>
@@ -168,7 +169,7 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
   <div class="setup-card">
     <div class="setup-poc-info">
       <div class="poc-val">2.5x</div>
-      <div class="poc-desc">주행 중 POC 2.5배<br><span style="color:var(--t3)">GPS로 주행 감지 시 자동 적용</span></div>
+      <div class="poc-desc" data-i18n="incar.poc.drive">주행 중 POC 2.5배<br><span style="color:var(--t3)">GPS로 주행 감지 시 자동 적용</span></div>
     </div>
 
     <div class="setup-title">🚗 차량 번호판 등록</div>
@@ -178,7 +179,7 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
       번호판은 본인 차량 인증에 사용됩니다.
     </div>
     <button class="setup-btn" onclick="startDrive()">🚗 인카방송 시작</button>
-    <button class="setup-btn skip" onclick="startDriveGuest()">번호판 없이 시작 (POC 1.0x)</button>
+    <button class="setup-btn skip" onclick="startDriveGuest()" data-i18n="incar.skip.plate">번호판 없이 시작 (POC 1.0x)</button>
   </div>
 </div>
 
@@ -187,7 +188,7 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
 
   <!-- HUD Top -->
   <div class="hud-top">
-    <a href="radio.html" class="hud-back">← 방송국</a>
+    <a href="radio.html" class="hud-back" data-i18n="incar.back.radio">← 방송국</a>
     <div class="hud-status">
       <div class="hud-gps"><div class="gps-dot"></div><span id="gpsStatus" style="color:var(--t2);font-size:11px">GPS 연결 중</span></div>
       <div class="hud-plate" id="hudPlate">--</div>
@@ -208,7 +209,7 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
       <div class="speed-val">
         <div class="speed-num" id="speedNum">0</div>
         <div class="speed-unit">km/h</div>
-        <div class="speed-status stopped" id="speedStatus">정차 중</div>
+        <div class="speed-status stopped" id="speedStatus" data-i18n="incar.stopped">정차 중</div>
       </div>
     </div>
 
@@ -232,7 +233,7 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
       </div>
       <div class="np-info">
         <div class="np-label">🚗 ON AIR</div>
-        <div class="np-title" id="npTitle">방송 준비 중...</div>
+        <div class="np-title" id="npTitle" data-i18n="radio.ready">방송 준비 중...</div>
         <div class="np-artist" id="npArtist">TL 인카방송</div>
         <div class="np-tl" id="npTl">-- TL</div>
       </div>
@@ -263,7 +264,7 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
   <!-- Queue -->
   <div class="queue-section">
     <div class="queue-header">
-      <span>▸ 재생 목록 (<span id="queueCnt">0</span>곡)</span>
+      <span>▸ <span data-i18n="incar.queue">재생 목록</span> (<span id="queueCnt">0</span>곡)</span>
       <span id="shuffleLabel" style="cursor:pointer" onclick="toggleShuffle()">🔀 셔플 OFF</span>
     </div>
     <div id="queueList"></div>
@@ -325,13 +326,13 @@ setInterval(function(){ g('hudTime').textContent = new Date().toLocaleTimeString
 // Start
 function startDrive(){
   _plate = g('plateInput').value.trim();
-  if(!_plate){ toast('번호판을 입력해주세요','e'); return; }
+  if(!_plate){ toast(TLi18n.t('toast.plate.required'),'e'); return; }
   localStorage.setItem('tl_car_plate', _plate);
   _pocMult = 2.5;
   g('pocBadge').textContent = '×2.5 주행 보너스 🔥';
   g('hudPlate').textContent = _plate;
   launchDrive();
-  toast('🚗 인카방송 시작! POC 2.5x 적용','s');
+  toast(TLi18n.t('toast.incar.start'),'s');
 }
 
 function startDriveGuest(){
@@ -547,12 +548,12 @@ function startPoc(){
       if(_curShareId && _myFileTL[_curShareId]>0){
         // 곡별 충전 TL 차감
         _myFileTL[_curShareId] = Math.max(0,(_myFileTL[_curShareId]||0)-whole);
-        if(_myFileTL[_curShareId]<=0) toast('⚡ 곡별 TL 소진 → 총 TL 차감','w');
+        if(_myFileTL[_curShareId]<=0) toast(TLi18n.t('toast.tl.empty.track'),'w');
       } else {
         // 총량 차감
         _user.tl = Math.max(0, Number(_user.tl||0)-whole);
         localStorage.setItem('tl_user',JSON.stringify(_user));
-        if((_user.tl||0)<=0){ toast('⚠️ TL 소진!','w'); stopPoc(); return; }
+        if((_user.tl||0)<=0){ toast(TLi18n.t('toast.tl.empty.total'),'w'); stopPoc(); return; }
       }
       // UI 즉시 갱신
       if(g('tlBal')) g('tlBal').textContent = Number(_user.tl||0).toLocaleString();
@@ -628,7 +629,7 @@ function toggleShuffle(){
   g('shuffleBtn').classList.toggle('active',_shuffle);
   if(_shuffle) _queue=_queue.sort(function(){return Math.random()-.5;});
   renderQueue();
-  toast(_shuffle?'셔플 ON':'셔플 OFF','i');
+  toast(_shuffle?TLi18n.t('toast.shuffle.on'):TLi18n.t('toast.shuffle.off'),'i');
 }
 
 // Night mode
@@ -636,16 +637,16 @@ function toggleNight(){
   _night=!_night;
   document.body.classList.toggle('night',_night);
   g('nightBtn').classList.toggle('active',_night);
-  toast(_night?'🌙 야간 모드 ON':'야간 모드 OFF','i');
+  toast(_night?TLi18n.t('toast.night.on'):TLi18n.t('toast.night.off'),'i');
 }
 
 // Voice control
 var _recognition = null;
 function toggleVoice(){
-  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){ toast('음성 인식 미지원 브라우저','e'); return; }
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){ toast(TLi18n.t('toast.voice.unsupported'),'e'); return; }
   _voiceOn=!_voiceOn;
   g('voiceBtn').classList.toggle('active',_voiceOn);
-  if(_voiceOn){ startVoice(); toast('🎤 음성 제어 ON — "다음곡", "이전곡", "볼륨 업"','i'); }
+  if(_voiceOn){ startVoice(); toast(TLi18n.t('toast.voice.on'),'i'); }
   else { if(_recognition) _recognition.stop(); g('voiceInd').classList.remove('show'); }
 }
 
@@ -669,7 +670,7 @@ function startVoice(){
 }
 
 function showMylist(){
-  toast('📋 내 목록 = 현재 재생 큐','i');
+  toast(TLi18n.t('toast.queue.set'),'i');
 }
 
 // Keyboard
