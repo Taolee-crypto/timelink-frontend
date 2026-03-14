@@ -757,7 +757,7 @@ function initUI(){
 }
 
 function updateTLDisplay(){
-  var tl = Number(_user.tl||0);
+  var tl = Number((_user&&_user.tl)||0);
   g('tbTL').textContent = tl.toLocaleString();
   g('sbTLBal').textContent = tl.toLocaleString()+' TL';
 }
@@ -849,10 +849,10 @@ function renderTracks(tracks){
   el.innerHTML = tracks.map(function(s,i){
     var sid = String(s.id);
     var myTL = _myFileTL[sid]||0;
-    var hasTL = myTL>0 || (_user.tl||0)>0;
+    var hasTL = myTL>0 || ((_user&&_user.tl)||0))>0;
     var isPlaying = _curTrack && String(_curTrack.id)===sid && _playing;
-    var tlText = myTL>0 ? myTL.toLocaleString()+' TL' : (_user.tl||0)>0 ? '총TL' : '충전필요';
-    var tlClass = myTL>0 || (_user.tl||0)>0 ? 'ok' : 'empty';
+    var tlText = myTL>0 ? myTL.toLocaleString()+' TL' : ((_user&&_user.tl)||0))>0 ? '총TL' : '충전필요';
+    var tlClass = myTL>0 || ((_user&&_user.tl)||0))>0 ? 'ok' : 'empty';
     var btnClass = isPlaying ? 'playing' : tlClass;
     var btnIcon = isPlaying ? '▐▐' : hasTL ? '▶' : '💳';
     var coverHtml = s.cover_url
@@ -875,7 +875,7 @@ function renderTracks(tracks){
 async function onTrackClick(s){
   var sid = String(s.id);
   var myTL = _myFileTL[sid]||0;
-  var walletTL = _user.tl||0;
+  var walletTL = ((_user&&_user.tl)||0);
 
   // 이미 재생 중이면 일시정지
   if(_curTrack && String(_curTrack.id)===sid && _playing){
@@ -912,7 +912,7 @@ async function autoCharge(shareId, amount){
     });
     var d = await r.json();
     if(!r.ok) throw new Error(d.error||'충전실패');
-    _user.tl = (_user.tl||0)-amount;
+    _user.tl =((_user&&_user.tl)||0)-amount;
     localStorage.setItem('tl_user',JSON.stringify(_user));
     _myFileTL[String(shareId)] = (_myFileTL[String(shareId)]||0)+amount;
     updateTLDisplay();
@@ -1023,8 +1023,8 @@ function startTLDeduct(s){
         _myFileTL[sid] = Math.max(0, fileTL-whole);
         if(_myFileTL[sid]<=0){
           // 곡별 소진 → 지갑에서 계속
-          if((_user.tl||0)>0){
-            _user.tl=Math.max(0,(_user.tl||0)-whole);
+          if(((_user&&_user.tl)||0)>0){
+            _user.tl=Math.max(0,((_user&&_user.tl)||0))-whole);
             toast('⚡ 곡별 TL 소진 → 지갑TL 차감 중','w');
           }else{
             toast('⚠️ TL이 소진되었습니다. 충전이 필요합니다.','e');
@@ -1035,8 +1035,8 @@ function startTLDeduct(s){
         }
       }else{
         // 지갑TL 직접 차감
-        if((_user.tl||0)>0){
-          _user.tl=Math.max(0,(_user.tl||0)-whole);
+        if(((_user&&_user.tl)||0)>0){
+          _user.tl=Math.max(0,((_user&&_user.tl)||0))-whole);
         }else{
           toast('⚠️ TL이 소진되었습니다. 충전이 필요합니다.','e');
           stopPlay();
@@ -1055,13 +1055,15 @@ function updateMpTL(){
   if(!_curTrack) return;
   var sid = String(_curTrack.id);
   var fileTL = _myFileTL[sid]||0;
-  var dispTL = fileTL>0 ? fileTL.toLocaleString()+' TL (곡별)' : Number(_user.tl||0).toLocaleString()+' TL (지갑)';
+  var dispTL = fileTL>0 ? fileTL.toLocaleString()+' TL (곡별)' : Number((_user&&_user.tl)||0).toLocaleString()+' TL (지갑)';
   g('mpTL').textContent = dispTL;
 }
 
 // ── 시작 ──
-initUI();
-loadAll();
+if(_user){
+  initUI();
+  loadAll();
+}
 
 
 /* ════════════════════════════════════════
@@ -1082,7 +1084,7 @@ function openPayModal(pendingTrack){
   el.classList.add('open');
   form.style.display = '';
   succ.classList.remove('show');
-  document.getElementById('payBalanceVal').textContent = Number(_user.tl||0).toLocaleString() + ' TL';
+  document.getElementById('payBalanceVal').textContent = Number((_user&&_user.tl)||0).toLocaleString() + ' TL';
   switchPayMethod('portone', document.querySelector('.pay-method-tab'));
   document.getElementById('payAmountInput').value = '';
   document.getElementById('payStripeAmountInput').value = '';

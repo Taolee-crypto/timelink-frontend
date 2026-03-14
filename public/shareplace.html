@@ -615,6 +615,8 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       </div>
     </div>
       <a href="creator.html" class="sb-link"><span class="sb-icon">🎨</span><span data-i18n="nav.creator">크리에이터 센터</span></a>
+      <a href="ads.html" class="sb-link"><span class="sb-icon">📺</span>광고 시청</a>
+      <a href="advertiser.html" class="sb-link"><span class="sb-icon">📢</span>광고주 센터</a>
     </nav>
     <div class="type-section">
       <div class="sb-section">파일 형식</div>
@@ -1196,7 +1198,7 @@ function openPayModal(pendingTrack){
   el.classList.add('open');
   form.style.display = '';
   succ.classList.remove('show');
-  document.getElementById('payBalanceVal').textContent = Number(_user.tl||0).toLocaleString() + ' TL';
+  document.getElementById('payBalanceVal').textContent = Number((_user&&_user.tl)||0).toLocaleString() + ' TL';
   switchPayMethod('portone', document.querySelector('.pay-method-tab'));
   document.getElementById('payAmountInput').value = '';
   document.getElementById('payStripeAmountInput').value = '';
@@ -1436,11 +1438,11 @@ async function loadPayHistory(){
 // ── TL 충전 (파일별 TL 배분) ──────────────────────────────
 async function chargeTL(shareId,title){
   if(!_user){ alert(TLi18n.t('msg.login.required')); return; }
-  var amtStr=prompt('⚡ "'+title+'" '+TLi18n.t('msg.charge.prompt')+Number(_user.tl||0).toLocaleString()+' TL','100');
+  var amtStr=prompt('⚡ "'+title+'" '+TLi18n.t('msg.charge.prompt')+Number((_user&&_user.tl)||0).toLocaleString()+' TL','100');
   if(!amtStr) return;
   var amt=parseInt(amtStr);
   if(!amt||amt<=0){ alert(TLi18n.t('msg.invalid.num')); return; }
-  if((_user.tl||0)<amt){ alert(TLi18n.t('msg.tl.low')+Number(_user.tl||0).toLocaleString()+' TL'); return; }
+  if(((_user&&_user.tl)||0)<amt){ alert(TLi18n.t('msg.tl.low')+Number((_user&&_user.tl)||0).toLocaleString()+' TL'); return; }
   try{
     var r=await fetch(API_BASE+'/api/shares/'+shareId+'/charge',{
       method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
@@ -1448,7 +1450,7 @@ async function chargeTL(shareId,title){
     });
     var d=await r.json();
     if(!r.ok) throw new Error(d.error||'충전 실패');
-    _user.tl=(_user.tl||0)-amt;
+    _user.tl=((_user&&_user.tl)||0)-amt;
     localStorage.setItem('tl_user',JSON.stringify(_user));
     var el=document.getElementById('sp-tl-bal'); if(el) el.textContent=Number(_user.tl).toLocaleString()+' TL';
     // 내 파일별 TL 캐시 업데이트

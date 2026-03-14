@@ -843,7 +843,7 @@ async function safeJumpTo(idx){
   if(!s){ jumpTo(idx); return; }
   var sid = String(s.id||'');
   var myTL = _myFileTL[sid]||0;
-  var walletTL = _user ? (_user.tl||0) : 0;
+  var walletTL = _user ? ((_user&&_user.tl)||0)) : 0;
 
   if(myTL > 0){ jumpTo(idx); return; }
 
@@ -859,7 +859,7 @@ async function safeJumpTo(idx){
       });
       var d = await r.json();
       if(!r.ok) throw new Error(d.error||'충전실패');
-      _user.tl = (_user.tl||0) - amt;
+      _user.tl =((_user&&_user.tl)||0)- amt;
       localStorage.setItem('tl_user',JSON.stringify(_user));
       _myFileTL[sid] = (_myFileTL[sid]||0) + amt;
       if(g('tbTL')) g('tbTL').textContent = Number(_user.tl).toLocaleString();
@@ -922,12 +922,12 @@ function startPoc(){
         if(_myFileTL[_curShareId]<=0) toast(TLi18n.t('toast.tl.empty.track'),'w');
       } else {
         // 총량 차감
-        _user.tl = Math.max(0, Number(_user.tl||0)-whole);
+        _user.tl = Math.max(0, Number((_user&&_user.tl)||0)-whole);
         localStorage.setItem('tl_user',JSON.stringify(_user));
-        if((_user.tl||0)<=0){ toast(TLi18n.t('toast.tl.empty.total'),'w'); stopPoc(); openPayModal(); return; }
+        if(((_user&&_user.tl)||0)<=0){ toast(TLi18n.t('toast.tl.empty.total'),'w'); stopPoc(); openPayModal(); return; }
       }
       // UI 즉시 갱신
-      if(g('tlBal')) g('tlBal').textContent = Number(_user.tl||0).toLocaleString();
+      if(g('tlBal')) g('tlBal').textContent = Number((_user&&_user.tl)||0).toLocaleString();
     }
 
     if(_pocReportSec>=30){ reportIncar(); _pocReportSec=0; _pocReportTL=0; }
@@ -966,7 +966,7 @@ function renderQueue(){
     var cover = s.cover_url?'<img src="'+s.cover_url+'">':'<span>🎵</span>';
     var sid = String(s.id||'');
     var myTL = _myFileTL[sid]||0;
-    var walletTL = _user?(_user.tl||0):0;
+    var walletTL = _user?((_user&&_user.tl)||0)):0;
     var hasTL = myTL>0 || walletTL>0;
     var tlColor = myTL>0 ? '#00E5A0' : walletTL>0 ? 'var(--amber)' : '#FF4757';
     var tlLabel = myTL>0 ? myTL.toLocaleString()+' TL' : walletTL>0 ? '지갑' : '충전필요';
@@ -1092,7 +1092,7 @@ function openPayModal(pendingTrack){
   el.classList.add('open');
   form.style.display = '';
   succ.classList.remove('show');
-  document.getElementById('payBalanceVal').textContent = Number(_user.tl||0).toLocaleString() + ' TL';
+  document.getElementById('payBalanceVal').textContent = Number((_user&&_user.tl)||0).toLocaleString() + ' TL';
   switchPayMethod('portone', document.querySelector('.pay-method-tab'));
   document.getElementById('payAmountInput').value = '';
   document.getElementById('payStripeAmountInput').value = '';
