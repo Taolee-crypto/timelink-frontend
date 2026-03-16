@@ -756,7 +756,7 @@ canvas#viz{width:100%;height:100%}
             <div class="mode-card-poc">+1.0x POC 기여</div>
           </div>
         </div>
-        <div class="mode-card" id="mode-incar" onclick="setMode('incar')">
+        <div class="mode-card" id="mode-incar" onclick="location.href='incar.html'">
           <div class="mode-card-icon">🚗</div>
           <div class="mode-card-info">
             <div class="mode-card-name" data-i18n="radio.incar" data-i18n="radio.incar">인카방송</div>
@@ -773,6 +773,29 @@ canvas#viz{width:100%;height:100%}
     </div>
     <div class="channel-list" id="channelList">
       <!-- filled by JS -->
+    </div>
+
+    <!-- TL 잔액 섹션 -->
+    <div class="sb-section" style="border-top:1px solid var(--bd)">
+      <div class="sb-label">⚡ TL 잔액</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div>
+          <span style="font-size:18px;font-weight:900;color:var(--amber);font-family:var(--fm)" id="sbTLBal">0</span>
+          <span style="font-size:10px;color:var(--t3);margin-left:4px">TL</span>
+        </div>
+        <button onclick="openPayModal()" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(245,166,35,.35);background:rgba(245,166,35,.08);color:var(--amber);font-size:10px;cursor:pointer;font-family:var(--fn)">+ 충전</button>
+      </div>
+      <div style="display:flex;gap:6px;font-size:10px;color:var(--t3);font-family:var(--fm)">
+        <span>구매 <span id="sbTLp">0</span></span>
+        <span style="opacity:.4">|</span>
+        <span>광고 <span id="sbTLa">0</span></span>
+        <span style="opacity:.4">|</span>
+        <span>보너스 <span id="sbTLb">0</span></span>
+      </div>
+      <div style="margin-top:6px;font-size:10px;color:var(--t3);font-family:var(--fm)">
+        차감율: <span id="sbDeductRate" style="color:var(--green)">1.000</span> TL/s
+        &nbsp;·&nbsp; POC: <span id="sbPocIdx" style="color:var(--cyan)">1.00</span>
+      </div>
     </div>
 
     <!-- POC Summary -->
@@ -1024,7 +1047,13 @@ function calcDeductRate(){
 
 function updateBroadcastTime(){
   var tl = getTotalTL();
-  if(g('sbTLBal')) g('sbTLBal').textContent = Number(tl).toLocaleString() + ' TL';
+  if(g('sbTLBal')) g('sbTLBal').textContent = getTotalTL().toLocaleString();
+  if(g('sbTLp')) g('sbTLp').textContent = getPurchaseTL().toLocaleString();
+  if(g('sbTLa')) g('sbTLa').textContent = ((_user&&_user.tl_a)||0).toLocaleString();
+  if(g('sbTLb')) g('sbTLb').textContent = ((_user&&_user.tl_b)||0).toLocaleString();
+  if(g('sbTLp')) g('sbTLp').textContent = getPurchaseTL().toLocaleString();
+  if(g('sbTLa')) g('sbTLa').textContent = ((_user&&_user.tl_a)||0).toLocaleString();
+  if(g('sbTLb')) g('sbTLb').textContent = ((_user&&_user.tl_b)||0).toLocaleString();
   if(_tlDeductRate > 0){
     var seconds = tl / _tlDeductRate;
     var mins = Math.floor(seconds / 60);
@@ -1676,7 +1705,10 @@ async function safeJumpTo(idx){
       localStorage.setItem('tl_user',JSON.stringify(_user));
       _myFileTL[sid] = (_myFileTL[sid]||0) + amt;
       if(g('tbTL')) g('tbTL').textContent = getTotalTL().toLocaleString();
-      if(g('sbTLBal')) g('sbTLBal').textContent = Number(_user.tl).toLocaleString()+' TL';
+      if(g('sbTLBal')) g('sbTLBal').textContent = getTotalTL().toLocaleString();
+  if(g('sbTLp')) g('sbTLp').textContent = getPurchaseTL().toLocaleString();
+  if(g('sbTLa')) g('sbTLa').textContent = ((_user&&_user.tl_a)||0).toLocaleString();
+  if(g('sbTLb')) g('sbTLb').textContent = ((_user&&_user.tl_b)||0).toLocaleString();
       renderQueue();
       toast('✅ 자동충전 완료! 재생합니다','s');
       jumpTo(idx);
@@ -1773,7 +1805,10 @@ function startPoc(){
       }
       // 상단 TL 잔액 즉시 갱신
       if(g('tbTL'))    g('tbTL').textContent    = getTotalTL().toLocaleString();
-      if(g('sbTLBal')) g('sbTLBal').textContent = getTotalTL().toLocaleString()+' TL';
+      if(g('sbTLBal')) g('sbTLBal').textContent = getTotalTL().toLocaleString();
+  if(g('sbTLp')) g('sbTLp').textContent = getPurchaseTL().toLocaleString();
+  if(g('sbTLa')) g('sbTLa').textContent = ((_user&&_user.tl_a)||0).toLocaleString();
+  if(g('sbTLb')) g('sbTLb').textContent = ((_user&&_user.tl_b)||0).toLocaleString();
     }
 
     // 30초마다 서버 보고
@@ -1969,6 +2004,29 @@ window.addEventListener('load', function(){
   setInterval(function(){ loadCafeChannels(); }, 30000);
   drawViz();
 });
+
+
+// ── TL 소진 알림 함수들 ──
+function goCharge(){
+  closeTLNotice();
+  openPayModal();
+}
+function watchAd(){
+  closeTLNotice();
+  // 광고 시청 페이지로 이동 (새 탭)
+  window.open('ads.html', '_blank');
+}
+function closeTLNotice(){
+  var el = document.getElementById('tlChargeNotice');
+  if(el) el.style.display = 'none';
+}
+function openTLNotice(){
+  var el = document.getElementById('tlChargeNotice');
+  if(!el) return;
+  var balEl = document.getElementById('noticeBalVal');
+  if(balEl) balEl.textContent = getTotalTL().toLocaleString();
+  el.style.display = 'flex';
+}
 
 // ── 사이드바 드롭다운 ──
 function toggleSbDropdown(id){document.getElementById(id).classList.toggle('open');}
