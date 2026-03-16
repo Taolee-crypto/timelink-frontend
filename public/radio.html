@@ -724,6 +724,10 @@ try{ _user = JSON.parse(localStorage.getItem('tl_user')||'null'); }catch(e){}
 _token = localStorage.getItem('tl_token') || '';
 if(!_user){ location.href='login.html'; }
 
+
+function getTotalTL(){ return ((_user&&_user.tl_p)||(_user&&_user.tl)||0)+((_user&&_user.tl_a)||0)+((_user&&_user.tl_b)||0); }
+function getPurchaseTL(){ return (_user&&_user.tl_p)||(_user&&_user.tl)||0; }
+
 function g(id){ return document.getElementById(id); }
 
 // ── 사이드바 드롭다운 ──
@@ -757,7 +761,7 @@ function initUI(){
 }
 
 function updateTLDisplay(){
-  var tl = Number((_user&&_user.tl)||0);
+  var tl = getTotalTL();
   g('tbTL').textContent = tl.toLocaleString();
   g('sbTLBal').textContent = tl.toLocaleString()+' TL';
 }
@@ -849,10 +853,10 @@ function renderTracks(tracks){
   el.innerHTML = tracks.map(function(s,i){
     var sid = String(s.id);
     var myTL = _myFileTL[sid]||0;
-    var hasTL = myTL>0 || ((_user&&_user.tl)||0))>0;
+    var hasTL = myTL>0 || (getTotalTL())>0;
     var isPlaying = _curTrack && String(_curTrack.id)===sid && _playing;
-    var tlText = myTL>0 ? myTL.toLocaleString()+' TL' : ((_user&&_user.tl)||0))>0 ? '총TL' : '충전필요';
-    var tlClass = myTL>0 || ((_user&&_user.tl)||0))>0 ? 'ok' : 'empty';
+    var tlText = myTL>0 ? myTL.toLocaleString()+' TL' : (getTotalTL())>0 ? '총TL' : '충전필요';
+    var tlClass = myTL>0 || (getTotalTL())>0 ? 'ok' : 'empty';
     var btnClass = isPlaying ? 'playing' : tlClass;
     var btnIcon = isPlaying ? '▐▐' : hasTL ? '▶' : '💳';
     var coverHtml = s.cover_url
@@ -1024,7 +1028,7 @@ function startTLDeduct(s){
         if(_myFileTL[sid]<=0){
           // 곡별 소진 → 지갑에서 계속
           if(((_user&&_user.tl)||0)>0){
-            _user.tl=Math.max(0,((_user&&_user.tl)||0))-whole);
+            _user.tl=Math.max(0,getPurchaseTL()-whole);
             toast('⚡ 곡별 TL 소진 → 지갑TL 차감 중','w');
           }else{
             toast('⚠️ TL이 소진되었습니다. 충전이 필요합니다.','e');
@@ -1036,7 +1040,7 @@ function startTLDeduct(s){
       }else{
         // 지갑TL 직접 차감
         if(((_user&&_user.tl)||0)>0){
-          _user.tl=Math.max(0,((_user&&_user.tl)||0))-whole);
+          _user.tl=Math.max(0,getPurchaseTL()-whole);
         }else{
           toast('⚠️ TL이 소진되었습니다. 충전이 필요합니다.','e');
           stopPlay();
@@ -1055,7 +1059,7 @@ function updateMpTL(){
   if(!_curTrack) return;
   var sid = String(_curTrack.id);
   var fileTL = _myFileTL[sid]||0;
-  var dispTL = fileTL>0 ? fileTL.toLocaleString()+' TL (곡별)' : Number((_user&&_user.tl)||0).toLocaleString()+' TL (지갑)';
+  var dispTL = fileTL>0 ? fileTL.toLocaleString()+' TL (곡별)' : getPurchaseTL().toLocaleString()+' TL (지갑)';
   g('mpTL').textContent = dispTL;
 }
 
@@ -1084,7 +1088,7 @@ function openPayModal(pendingTrack){
   el.classList.add('open');
   form.style.display = '';
   succ.classList.remove('show');
-  document.getElementById('payBalanceVal').textContent = Number((_user&&_user.tl)||0).toLocaleString() + ' TL';
+  document.getElementById('payBalanceVal').textContent = getTotalTL().toLocaleString() + ' TL';
   switchPayMethod('portone', document.querySelector('.pay-method-tab'));
   document.getElementById('payAmountInput').value = '';
   document.getElementById('payStripeAmountInput').value = '';
@@ -1181,7 +1185,7 @@ async function doPortonePay(){
   }, async function(rsp){
     if(rsp.success){
       try{
-        var r = await fetch(API_BASE + '/api/payment/portone/verify', {
+        var r = await fetch(API + '/api/payment/portone/verify', {
           method: 'POST',
           headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(_token||'') },
           body: JSON.stringify({
@@ -1207,7 +1211,7 @@ async function doPortonePay(){
 // ── 테스트 mock 결제 (SDK 없을 때) ──
 async function mockPortonePay(){
   try{
-    var r = await fetch(API_BASE + '/api/payment/portone/verify', {
+    var r = await fetch(API + '/api/payment/portone/verify', {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(_token||'') },
       body: JSON.stringify({
@@ -1233,7 +1237,7 @@ async function doStripePay(){
 
   try{
     // 1) PaymentIntent 생성
-    var r1 = await fetch(API_BASE + '/api/payment/stripe/intent', {
+    var r1 = await fetch(API + '/api/payment/stripe/intent', {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(_token||'') },
       body: JSON.stringify({ amount_krw: _stripeAmount })
@@ -1244,7 +1248,7 @@ async function doStripePay(){
     // Stripe.js 없거나 테스트 mock인 경우
     if(intent.test_mode || typeof Stripe === 'undefined'){
       // mock confirm
-      var r2 = await fetch(API_BASE + '/api/payment/stripe/confirm', {
+      var r2 = await fetch(API + '/api/payment/stripe/confirm', {
         method: 'POST',
         headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(_token||'') },
         body: JSON.stringify({
@@ -1301,7 +1305,7 @@ async function loadPayHistory(){
   var el = document.getElementById('payHistoryList');
   el.innerHTML = '<div style="text-align:center;padding:30px;color:rgba(255,255,255,.3);font-size:13px">로딩 중...</div>';
   try{
-    var r = await fetch(API_BASE + '/api/payment/history', {
+    var r = await fetch(API + '/api/payment/history', {
       headers: { 'Authorization':'Bearer '+(_token||'') }
     });
     var d = await r.json();

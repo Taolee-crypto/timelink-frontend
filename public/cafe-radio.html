@@ -1017,7 +1017,7 @@ function calcDeductRate(){
   if(g('tbDeduct')) g('tbDeduct').textContent = rateStr;
   if(g('sbDeductRate')) g('sbDeductRate').textContent = rateStr;
   if(g('sbPocIdx')) g('sbPocIdx').textContent = pocIdx.toFixed(2);
-  if(g('tbTL')) g('tbTL').textContent = Number((_user&&_user.tl)||0).toLocaleString();
+  if(g('tbTL')) g('tbTL').textContent = getTotalTL().toLocaleString();
   updateBroadcastTime();
 }
 
@@ -1032,10 +1032,14 @@ function updateBroadcastTime(){
     var timeStr = hours > 0 ? hours+'시간 '+remMins+'분' : mins+'분';
     if(g('sbBroadcastTime')) g('sbBroadcastTime').textContent = timeStr;
   }
-  if(g('tbTL')) g('tbTL').textContent = Number(tl).toLocaleString();
+  if(g('tbTL')) g('tbTL').textContent = getTotalTL().toLocaleString();
 }
 
 function toast(msg,t){ t=t||'i'; var el=document.createElement('div'); el.className='t '+t; el.textContent=msg; document.getElementById('toast-box').prepend(el); setTimeout(function(){el.remove();},3000); }
+
+function getTotalTL(){ return ((_user&&_user.tl_p)||(_user&&_user.tl)||0)+((_user&&_user.tl_a)||0)+((_user&&_user.tl_b)||0); }
+function getPurchaseTL(){ return (_user&&_user.tl_p)||(_user&&_user.tl)||0; }
+
 function g(id){ return document.getElementById(id); }
 function fmtTime(s){ s=Math.floor(s||0); return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60); }
 
@@ -1378,7 +1382,7 @@ async function loadShares(){
   try{
     var r = await fetch(API+'/api/shares');
     var d = await r.json();
-    _shares = (d.shares||[]).filter(function(s){ return s.file_tl && (s.category||'').toLowerCase() !== 'video'; });
+    _shares = (d.shares||[]).filter(function(s){ return (s.stream_url||s.preview_url); });
   }catch(e){ _shares=[]; }
   buildQueue();
   renderChannels();
@@ -1508,9 +1512,9 @@ function updateNowPlaying(s){
   if(isChBroadcast){
     tlDisplay = fileTL > 0
       ? '⚡ '+fileTL.toLocaleString()+' TL (곡별 차감)'
-      : '💸 '+Number((_user&&_user.tl)||0).toLocaleString()+' TL (총량)';
+      : '💸 '+getTotalTL().toLocaleString()+' TL (총량)';
   } else {
-    tlDisplay = '🌐 총 TL: '+Number((_user&&_user.tl)||0).toLocaleString();
+    tlDisplay = '🌐 총 TL: '+getTotalTL().toLocaleString();
   }
   g('npTl').textContent = tlDisplay;
   g('npListeners').textContent = '👥 '+(_activeChannel?Math.floor(Math.random()*60+10):0)+' 청취 중';
@@ -1533,9 +1537,9 @@ function updateNowPlayingTL(){
   if(isChBroadcast){
     g('npTl').textContent = (_curTlMode==='file' && fileTL > 0)
       ? '⚡ '+fileTL.toLocaleString()+' TL (곡별)'
-      : '💸 '+Number((_user&&_user.tl)||0).toLocaleString()+' TL (총량)';
+      : '💸 '+getTotalTL().toLocaleString()+' TL (총량)';
   } else {
-    g('npTl').textContent = '🌐 총 TL: '+Number((_user&&_user.tl)||0).toLocaleString();
+    g('npTl').textContent = '🌐 총 TL: '+getTotalTL().toLocaleString();
   }
 }
 
@@ -1623,7 +1627,7 @@ async function safeJumpTo(idx){
       _user.tl =((_user&&_user.tl)||0)- amt;
       localStorage.setItem('tl_user',JSON.stringify(_user));
       _myFileTL[sid] = (_myFileTL[sid]||0) + amt;
-      if(g('tbTL')) g('tbTL').textContent = Number(_user.tl).toLocaleString();
+      if(g('tbTL')) g('tbTL').textContent = getTotalTL().toLocaleString();
       if(g('sbTLBal')) g('sbTLBal').textContent = Number(_user.tl).toLocaleString()+' TL';
       renderQueue();
       toast('✅ 자동충전 완료! 재생합니다','s');
@@ -1722,8 +1726,8 @@ function startPoc(){
         }
       }
       // 상단 TL 잔액 즉시 갱신
-      if(g('tbTL'))    g('tbTL').textContent    = Number((_user&&_user.tl)||0).toLocaleString();
-      if(g('sbTLBal')) g('sbTLBal').textContent = Number((_user&&_user.tl)||0).toLocaleString()+' TL';
+      if(g('tbTL'))    g('tbTL').textContent    = getTotalTL().toLocaleString();
+      if(g('sbTLBal')) g('sbTLBal').textContent = getTotalTL().toLocaleString()+' TL';
     }
 
     // 30초마다 서버 보고
@@ -1927,7 +1931,7 @@ function openPayModal(pendingTrack){
   el.classList.add('open');
   form.style.display = '';
   succ.classList.remove('show');
-  document.getElementById('payBalanceVal').textContent = Number((_user&&_user.tl)||0).toLocaleString() + ' TL';
+  document.getElementById('payBalanceVal').textContent = getTotalTL().toLocaleString() + ' TL';
   switchPayMethod('portone', document.querySelector('.pay-method-tab'));
   document.getElementById('payAmountInput').value = '';
   document.getElementById('payStripeAmountInput').value = '';
@@ -2024,7 +2028,7 @@ async function doPortonePay(){
   }, async function(rsp){
     if(rsp.success){
       try{
-        var r = await fetch(API_BASE + '/api/payment/portone/verify', {
+        var r = await fetch(API + '/api/payment/portone/verify', {
           method: 'POST',
           headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(_token||'') },
           body: JSON.stringify({
@@ -2050,7 +2054,7 @@ async function doPortonePay(){
 // ── 테스트 mock 결제 (SDK 없을 때) ──
 async function mockPortonePay(){
   try{
-    var r = await fetch(API_BASE + '/api/payment/portone/verify', {
+    var r = await fetch(API + '/api/payment/portone/verify', {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(_token||'') },
       body: JSON.stringify({
@@ -2076,7 +2080,7 @@ async function doStripePay(){
 
   try{
     // 1) PaymentIntent 생성
-    var r1 = await fetch(API_BASE + '/api/payment/stripe/intent', {
+    var r1 = await fetch(API + '/api/payment/stripe/intent', {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(_token||'') },
       body: JSON.stringify({ amount_krw: _stripeAmount })
@@ -2087,7 +2091,7 @@ async function doStripePay(){
     // Stripe.js 없거나 테스트 mock인 경우
     if(intent.test_mode || typeof Stripe === 'undefined'){
       // mock confirm
-      var r2 = await fetch(API_BASE + '/api/payment/stripe/confirm', {
+      var r2 = await fetch(API + '/api/payment/stripe/confirm', {
         method: 'POST',
         headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(_token||'') },
         body: JSON.stringify({
@@ -2144,7 +2148,7 @@ async function loadPayHistory(){
   var el = document.getElementById('payHistoryList');
   el.innerHTML = '<div style="text-align:center;padding:30px;color:rgba(255,255,255,.3);font-size:13px">로딩 중...</div>';
   try{
-    var r = await fetch(API_BASE + '/api/payment/history', {
+    var r = await fetch(API + '/api/payment/history', {
       headers: { 'Authorization':'Bearer '+(_token||'') }
     });
     var d = await r.json();
