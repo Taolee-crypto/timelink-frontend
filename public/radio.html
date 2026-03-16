@@ -831,15 +831,28 @@ function toast(msg,t){
 // ── UI 초기화 ──
 function initUI(){
   buildTopbar({page:'📻 TL방송국',actionBtn:'☕ 카페방송',actionUrl:'cafe-radio.html'});
-  g('tbUser').textContent = _user.username||'';
+  // buildTopbar가 topbar를 재빌드하므로 tbUser가 없을 수 있음 → tbTLval 옆에 유저명 표시
+  var _tbU = g('tbUser');
+  if(_tbU){ _tbU.textContent = _user.username||''; }
+  else {
+    // tbTl-group 안에 유저명 span 동적 생성
+    var _tg = document.querySelector('.tb-tl-group');
+    if(_tg && !g('tbUser')){
+      var _us = document.createElement('span');
+      _us.id = 'tbUser';
+      _us.style.cssText = 'font-size:11px;color:rgba(255,255,255,.35);font-family:var(--fm)';
+      _us.textContent = _user.username||'';
+      _tg.insertBefore(_us, _tg.firstChild);
+    }
+  }
   updateTLDisplay();
-  setInterval(function(){g('liveTime').textContent=new Date().toLocaleTimeString('ko-KR');},1000);
-  g('statPoc').textContent = parseFloat(localStorage.getItem('tl_poc_today')||'0').toFixed(1);
+  setInterval(function(){var _lt=g('liveTime');if(_lt)_lt.textContent=new Date().toLocaleTimeString('ko-KR');},1000);
+  var _sp=g('statPoc'); if(_sp) _sp.textContent = parseFloat(localStorage.getItem('tl_poc_today')||'0').toFixed(1);
 }
 
 function updateTLDisplay(){
   var tl = getTotalTL();
-  g('tbTL').textContent = tl.toLocaleString();
+  var _tbTL=g('tbTL')||g('tbTLval'); if(_tbTL) _tbTL.textContent = tl.toLocaleString();
   g('sbTLBal').textContent = tl.toLocaleString()+' TL';
 }
 
