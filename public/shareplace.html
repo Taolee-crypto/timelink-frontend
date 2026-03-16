@@ -1452,7 +1452,7 @@ async function chargeTL(shareId,title){
     if(!r.ok) throw new Error(d.error||'충전 실패');
     _user.tl=((_user&&_user.tl)||0)-amt;
     localStorage.setItem('tl_user',JSON.stringify(_user));
-    var el=document.getElementById('sp-tl-bal'); if(el) el.textContent=Number(_user.tl).toLocaleString()+' TL';
+    var el=document.getElementById('sp-tl-bal'); if(el) el.textContent=getTotalTL().toLocaleString()+' TL';
     // 내 파일별 TL 캐시 업데이트
     if(!_myFileTL) _myFileTL={};
     _myFileTL[String(shareId)]=(_myFileTL[String(shareId)]||0)+amt;
@@ -1845,6 +1845,48 @@ function tlCharge(){
 })();
 
 function toggleSbDropdown(id){ var el=document.getElementById(id); if(el) el.classList.toggle('open'); }
+
+/* ══ TL 3분류 지갑 시스템 ══ */
+async function loadWallet(){
+  if(!_user) return;
+  try{
+    var r=await fetch('https://api.timelink.digital/api/eco/wallet',{
+      headers:{'Authorization':'Bearer '+(_token||'')}
+    });
+    var d=await r.json();
+    if(d.wallet){
+      var w=d.wallet;
+      _user.tl_p=w.tl_p||0; _user.tl_a=w.tl_a||0; _user.tl_b=w.tl_b||0;
+      _user.tl=w.tl_p||0; _user.tlc=w.tlc||_user.tlc||0;
+      _user.poc_index=w.poc_index||1.0; _user.plan=w.plan||'A';
+      localStorage.setItem('tl_user',JSON.stringify(_user));
+      updateWalletUI(w);
+    }
+  }catch(e){}
+}
+function getTotalTL(){
+  return ((_user&&_user.tl_p)||0)+((_user&&_user.tl_a)||0)+((_user&&_user.tl_b)||0);
+}
+function getPurchaseTL(){
+  return (_user&&_user.tl_p)||(_user&&_user.tl)||0;
+}
+function updateWalletUI(w){
+  var tlP=w?(w.tl_p||0):getPurchaseTL();
+  var tlA=w?(w.tl_a||0):((_user&&_user.tl_a)||0);
+  var tlB=w?(w.tl_b||0):((_user&&_user.tl_b)||0);
+  var total=tlP+tlA+tlB;
+  ['sp-tl-bal','tbTL','sbTL','sbTLBal','tb-tl-val'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.textContent=total.toLocaleString()+(id!=='tbTL'?' TL':'');
+  });
+  var pEl=document.getElementById('tl-p-val');
+  var aEl=document.getElementById('tl-a-val');
+  var bEl=document.getElementById('tl-b-val');
+  if(pEl) pEl.textContent=tlP.toLocaleString();
+  if(aEl) aEl.textContent=tlA.toLocaleString();
+  if(bEl) bEl.textContent=tlB.toLocaleString();
+}
+
 </script>
 </body>
 </html>

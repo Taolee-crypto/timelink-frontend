@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>광고주 센터 — TimeLink</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="i18n.js"></script>
+<style>
+:root{
+  --bg:#050508;--bg2:#0A0A12;--bg3:#10101C;
+  --blue:#3B82F6;--blue2:#60A5FA;--blue3:rgba(59,130,246,.12);
+  --purple:#8B5CF6;--mint:#00E5A0;--gold:#F59E0B;
+  --red:#FF4757;--green:#2ECC71;
+  --bd:rgba(255,255,255,.07);--bd2:rgba(255,255,255,.13);--bd3:rgba(59,130,246,.2);
+  --t1:#fff;--t2:rgba(255,255,255,.6);--t3:rgba(255,255,255,.3);
+  --fn:'Noto Sans KR',sans-serif;--fm:'JetBrains Mono',monospace;--fs:'Syne',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--fn);background:var(--bg);color:var(--t1);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse 60% 40% at 80% 10%,rgba(59,130,246,.06),transparent 60%),
+             radial-gradient(ellipse 40% 50% at 10% 80%,rgba(139,92,246,.05),transparent 60%);
+  pointer-events:none;z-index:0}
+
+/* ── 레이아웃 ── */
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+
+/* ── 사이드바 ── */
+.sidebar{
+  border-right:1px solid var(--bd);position:sticky;top:0;height:100vh;
+  overflow-y:auto;display:flex;flex-direction:column;
+  background:rgba(5,5,8,.96);z-index:100}
+.sb-logo{padding:20px 16px;border-bottom:1px solid var(--bd);
+  display:flex;align-items:center;gap:8px;text-decoration:none}
+.sb-logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--blue),var(--purple));
+  border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;color:#fff}
+.sb-logo-text{font-family:var(--fs);font-size:13px;font-weight:700;letter-spacing:.05em}
+.sb-nav{padding:10px 0;flex:1}
+.sb-section{padding:8px 16px 3px;font-size:9px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--t3);font-family:var(--fm)}
+.sb-link{display:flex;align-items:center;gap:9px;padding:8px 16px;
+  text-decoration:none;color:var(--t2);font-size:12px;font-weight:500;
+  transition:all .2s;position:relative;cursor:pointer}
+.sb-link:hover{color:var(--t1);background:rgba(255,255,255,.03)}
+.sb-link.active{color:var(--blue2);background:rgba(59,130,246,.08)}
+.sb-link.active::before{content:'';position:absolute;left:0;top:0;bottom:0;
+  width:2px;background:var(--blue);border-radius:0 2px 2px 0}
+.sb-icon{font-size:14px;flex-shrink:0}
+.sb-biz-box{padding:12px 16px;border-top:1px solid var(--bd)}
+.sb-biz-name{font-size:12px;font-weight:700;color:var(--t1);margin-bottom:2px}
+.sb-biz-badge{font-size:10px;color:var(--blue2);font-family:var(--fm)}
+.sb-tl{font-size:14px;font-weight:700;color:var(--blue2);font-family:var(--fm);margin-top:6px}
+
+/* ── 비즈니스 로그인 화면 ── */
+#bizLoginScreen{
+  position:fixed;inset:0;z-index:500;
+  background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
+.biz-login-wrap{width:100%;max-width:420px}
+.biz-login-logo{display:flex;align-items:center;gap:10px;margin-bottom:32px}
+.biz-login-logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--blue),var(--purple));
+  border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.biz-login-title{font-family:var(--fs);font-size:22px;font-weight:700}
+.biz-login-card{
+  background:var(--bg2);border:1px solid var(--bd2);border-radius:18px;padding:28px}
+.biz-card-title{font-size:18px;font-weight:700;margin-bottom:4px}
+.biz-card-sub{font-size:12px;color:var(--t3);margin-bottom:24px;line-height:1.6}
+.biz-form-group{margin-bottom:14px}
+.biz-form-label{font-size:10px;color:var(--t3);font-family:var(--fm);
+  letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;display:block}
+.biz-form-input{
+  width:100%;padding:12px 14px;background:rgba(255,255,255,.04);
+  border:1px solid var(--bd2);border-radius:10px;color:var(--t1);font-size:13px;
+  outline:none;transition:all .2s;font-family:var(--fn)}
+.biz-form-input:focus{border-color:rgba(59,130,246,.5);background:rgba(59,130,246,.04)}
+.biz-login-btn{
+  width:100%;padding:14px;border-radius:11px;border:none;
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  color:#fff;font-size:14px;font-weight:700;cursor:pointer;
+  transition:all .2s;margin-top:6px;font-family:var(--fn)}
+.biz-login-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(59,130,246,.3)}
+.biz-login-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.biz-login-err{font-size:12px;color:var(--red);margin-top:8px;text-align:center}
+.biz-notice{
+  margin-top:16px;padding:12px;border-radius:10px;
+  background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);
+  font-size:11px;color:var(--t3);line-height:1.6}
+
+/* ── 메인 탭 ── */
+.main{position:relative;z-index:1;display:flex;flex-direction:column}
+.main-topbar{
+  display:flex;align-items:center;gap:12px;padding:14px 32px;
+  border-bottom:1px solid var(--bd);background:rgba(5,5,8,.9);
+  backdrop-filter:blur(10px);position:sticky;top:0;z-index:100}
+.mt-title{font-family:var(--fs);font-size:14px;font-weight:700;color:var(--blue2)}
+.mt-biz{font-size:11px;color:var(--t3);font-family:var(--fm)}
+.mt-tl{font-size:13px;font-family:var(--fm);color:var(--blue2);font-weight:700;margin-left:auto}
+.main-tabs{display:flex;gap:0;padding:0 32px;border-bottom:1px solid var(--bd)}
+.mtab{padding:12px 20px;border:none;background:transparent;color:var(--t3);
+  font-size:12px;font-family:var(--fn);font-weight:600;cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s}
+.mtab:hover{color:var(--t2)}
+.mtab.active{color:var(--blue2);border-bottom-color:var(--blue)}
+.tab-panel{display:none;padding:28px 32px 60px}
+.tab-panel.active{display:block}
+
+/* ── 요약 카드 ── */
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+@media(max-width:900px){.summary-grid{grid-template-columns:repeat(2,1fr)}}
+.sum-card{
+  background:var(--bg2);border:1px solid var(--bd);border-radius:14px;
+  padding:18px;transition:all .2s}
+.sum-card:hover{border-color:var(--bd2)}
+.sum-card-label{font-size:10px;color:var(--t3);font-family:var(--fm);
+  letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.sum-card-val{font-size:24px;font-weight:700;font-family:var(--fm)}
+.sum-card-sub{font-size:11px;color:var(--t3);margin-top:4px}
+.val-blue{color:var(--blue2)}
+.val-mint{color:var(--mint)}
+.val-gold{color:var(--gold)}
+.val-red{color:var(--red)}
+
+/* ── 내 광고 목록 ── */
+.ad-table{width:100%;border-collapse:collapse}
+.ad-table th{
+  text-align:left;padding:10px 14px;font-size:10px;font-weight:700;
+  color:var(--t3);font-family:var(--fm);letter-spacing:.1em;text-transform:uppercase;
+  border-bottom:1px solid var(--bd)}
+.ad-table td{padding:12px 14px;border-bottom:1px solid var(--bd);font-size:13px;
+  vertical-align:middle}
+.ad-table tr:hover td{background:rgba(255,255,255,.02)}
+.status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-family:var(--fm);font-weight:700}
+.status-active{background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.25);color:var(--green)}
+.status-paused{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);color:var(--gold)}
+.status-ended{background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.25);color:var(--red)}
+.ad-action-btns{display:flex;gap:6px}
+.btn-sm{padding:5px 12px;border-radius:7px;border:1px solid var(--bd2);
+  background:rgba(255,255,255,.04);color:var(--t2);font-size:11px;
+  cursor:pointer;transition:all .2s;font-family:var(--fn)}
+.btn-sm:hover{background:rgba(255,255,255,.08);color:#fff}
+.btn-sm.primary{border-color:rgba(59,130,246,.3);background:rgba(59,130,246,.1);color:var(--blue2)}
+.btn-sm.primary:hover{background:rgba(59,130,246,.2)}
+.btn-sm.danger{border-color:rgba(255,71,87,.3);background:rgba(255,71,87,.08);color:var(--red)}
+
+/* ── 통계 패널 ── */
+.stats-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.stats-title{font-size:16px;font-weight:700}
+.stats-back{padding:7px 14px;border-radius:8px;border:1px solid var(--bd2);
+  background:transparent;color:var(--t2);font-size:12px;cursor:pointer;
+  font-family:var(--fn);transition:all .2s}
+.stats-back:hover{background:rgba(255,255,255,.06);color:#fff}
+
+/* 차트 */
+.chart-wrap{
+  background:var(--bg2);border:1px solid var(--bd);border-radius:14px;
+  padding:20px;margin-bottom:16px}
+.chart-title{font-size:12px;font-weight:700;color:var(--t2);margin-bottom:16px;
+  display:flex;align-items:center;gap:8px}
+.bar-chart{display:flex;align-items:flex-end;gap:6px;height:120px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bar-fill{
+  width:100%;border-radius:4px 4px 0 0;min-height:4px;
+  background:linear-gradient(180deg,var(--blue),rgba(59,130,246,.4));transition:height .5s ease}
+.bar-label{font-size:9px;color:var(--t3);font-family:var(--fm);writing-mode:horizontal-tb;
+  white-space:nowrap;transform:rotate(-30deg) translateX(-4px);margin-top:4px}
+.bar-val{font-size:8px;color:var(--blue2);font-family:var(--fm)}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.kpi-card{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;
+  padding:16px;text-align:center}
+.kpi-val{font-size:22px;font-weight:700;font-family:var(--fm);margin-bottom:4px}
+.kpi-label{font-size:10px;color:var(--t3);font-family:var(--fm)}
+
+/* ── 광고 등록 폼 ── */
+.create-form{max-width:640px}
+.form-section{margin-bottom:24px}
+.form-section-title{font-size:12px;font-weight:700;color:var(--blue2);
+  font-family:var(--fm);letter-spacing:.1em;text-transform:uppercase;
+  margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--bd)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-row.one{grid-template-columns:1fr}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-label{font-size:10px;color:var(--t3);font-family:var(--fm);
+  letter-spacing:.1em;text-transform:uppercase}
+.form-input{
+  padding:11px 13px;background:rgba(255,255,255,.04);
+  border:1px solid var(--bd2);border-radius:9px;color:var(--t1);
+  font-size:13px;outline:none;transition:border-color .2s;width:100%;font-family:var(--fn)}
+.form-input:focus{border-color:rgba(59,130,246,.5)}
+.form-input::placeholder{color:var(--t3)}
+textarea.form-input{min-height:80px;resize:vertical}
+.form-hint{font-size:10px;color:var(--t3);margin-top:3px}
+.budget-calc{
+  padding:14px;border-radius:10px;background:rgba(59,130,246,.06);
+  border:1px solid rgba(59,130,246,.2);font-size:12px;color:var(--t2);
+  line-height:1.8;margin-top:8px}
+.budget-calc b{color:var(--blue2);font-family:var(--fm)}
+.submit-btn{
+  padding:14px 40px;border-radius:12px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  color:#fff;font-size:14px;font-weight:700;transition:all .3s;font-family:var(--fn)}
+.submit-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(59,130,246,.3)}
+.submit-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+/* ── 토스트 ── */
+#toast-box{position:fixed;bottom:24px;right:20px;z-index:9999;
+  display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast-msg{padding:10px 16px;border-radius:10px;font-size:12px;font-family:var(--fm);
+  background:rgba(15,15,25,.96);border:1px solid var(--bd2);color:var(--t1);
+  animation:tIn .2s ease;max-width:260px}
+.toast-msg.s{border-color:rgba(0,229,160,.4);color:var(--mint)}
+.toast-msg.e{border-color:rgba(255,71,87,.4);color:var(--red)}
+.toast-msg.w{border-color:rgba(245,158,11,.4);color:var(--gold)}
+@keyframes tIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+
+#tl-lang-switcher{top:64px!important;right:12px!important}
+
+@media(max-width:768px){
+  .app{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .tab-panel{padding:16px}
+  .summary-grid{grid-template-columns:1fr 1fr}
+  .kpi-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="toast-box"></div>
+
+<!-- ══ 사업자 로그인 화면 ══ -->
+<div id="bizLoginScreen">
+  <div class="biz-login-wrap">
+    <div class="biz-login-logo">
+      <div class="biz-login-logo-icon">📢</div>
+      <div class="biz-login-title">광고주 센터</div>
+    </div>
+    <div class="biz-login-card">
+      <div class="biz-card-title">사업자 로그인</div>
+      <div class="biz-card-sub">사업자 계정으로 로그인하여 광고를 등록하고<br>실시간 통계를 확인하세요.</div>
+      <div class="biz-form-group">
+        <label class="biz-form-label">이메일</label>
+        <input class="biz-form-input" id="bizEmail" type="email" placeholder="business@example.com">
+      </div>
+      <div class="biz-form-group">
+        <label class="biz-form-label">비밀번호</label>
+        <input class="biz-form-input" id="bizPw" type="password" placeholder="비밀번호" onkeydown="if(event.key==='Enter')doBizLogin()">
+      </div>
+      <div class="biz-login-err" id="bizLoginErr" style="display:none"></div>
+      <button class="biz-login-btn" id="bizLoginBtn" onclick="doBizLogin()">로그인</button>
+      <div class="biz-notice">
+        💡 사업자 계정이 없으신가요? 일반 회원가입 후 프로필에서 사업자 전환 신청이 가능합니다.<br>
+        테스트: 일반 계정으로 로그인해도 광고주 센터를 체험할 수 있습니다.
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:16px">
+      <a href="shareplace.html" style="font-size:12px;color:var(--t3);text-decoration:none">← 홈으로 돌아가기</a>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+<!-- ══ 사이드바 ══ -->
+<aside class="sidebar">
+  <a href="shareplace.html" class="sb-logo">
+    <div class="sb-logo-icon">📢</div>
+    <span class="sb-logo-text">AD CENTER</span>
+  </a>
+  <nav class="sb-nav">
+    <div class="sb-section">광고 관리</div>
+    <a class="sb-link active" onclick="switchTab('overview')"><span class="sb-icon">📊</span>대시보드</a>
+    <a class="sb-link" onclick="switchTab('myads')"><span class="sb-icon">📋</span>내 광고 목록</a>
+    <a class="sb-link" onclick="switchTab('create')"><span class="sb-icon">✚</span>광고 등록</a>
+    <div class="sb-section" style="margin-top:8px">바로가기</div>
+    <a href="shareplace.html" class="sb-link"><span class="sb-icon">🏠</span>홈</a>
+    <a href="ads.html" class="sb-link"><span class="sb-icon">📺</span>광고 시청</a>
+  </nav>
+  <div class="sb-biz-box">
+    <div class="sb-biz-name" id="sbBizName">--</div>
+    <div class="sb-biz-badge">📢 광고주 계정</div>
+    <div class="sb-tl" id="sbTL">-- TL</div>
+  </div>
+</aside>
+
+<!-- ══ 메인 ══ -->
+<main class="main">
+  <div class="main-topbar">
+    <div class="mt-title">📢 광고주 센터</div>
+    <div class="mt-biz" id="mtBiz">--</div>
+    <div class="mt-tl">⚡ <span id="mtTL">--</span> TL</div>
+  </div>
+  <div class="main-tabs">
+    <button class="mtab active" id="tab-btn-overview" onclick="switchTab('overview')">📊 대시보드</button>
+    <button class="mtab" id="tab-btn-myads" onclick="switchTab('myads')">📋 내 광고</button>
+    <button class="mtab" id="tab-btn-create" onclick="switchTab('create')">✚ 광고 등록</button>
+  </div>
+
+  <!-- ── 대시보드 탭 ── -->
+  <div class="tab-panel active" id="tab-overview">
+    <div class="summary-grid">
+      <div class="sum-card">
+        <div class="sum-card-label">활성 광고</div>
+        <div class="sum-card-val val-blue" id="ovActiveAds">--</div>
+        <div class="sum-card-sub">현재 노출 중</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-card-label">총 노출 수</div>
+        <div class="sum-card-val val-mint" id="ovTotalViews">--</div>
+        <div class="sum-card-sub">전체 광고 합산</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-card-label">총 TL 지출</div>
+        <div class="sum-card-val val-gold" id="ovTotalSpent">--</div>
+        <div class="sum-card-sub">사용자에게 지급</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-card-label">평균 CTR</div>
+        <div class="sum-card-val val-blue" id="ovAvgCTR">--%</div>
+        <div class="sum-card-sub">클릭률</div>
+      </div>
+    </div>
+
+    <!-- 최근 성과 차트 -->
+    <div class="chart-wrap">
+      <div class="chart-title">📈 최근 14일 노출 현황</div>
+      <div class="bar-chart" id="overviewChart">
+        <div style="color:var(--t3);font-size:12px;padding:20px">데이터 로딩 중...</div>
+      </div>
+    </div>
+
+    <!-- 최근 광고 퀵뷰 -->
+    <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--t2)">최근 광고</div>
+    <div id="recentAdsList"></div>
+  </div>
+
+  <!-- ── 내 광고 탭 ── -->
+  <div class="tab-panel" id="tab-myads">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:700">내 광고 목록</div>
+      <button onclick="switchTab('create')" class="btn-sm primary">+ 새 광고 등록</button>
+    </div>
+    <div id="myadsContent">
+      <div style="padding:40px;text-align:center;color:var(--t3);font-size:13px">로딩 중...</div>
+    </div>
+
+    <!-- 통계 패널 (광고 선택 시) -->
+    <div id="statsPanel" style="display:none;margin-top:28px">
+      <div class="stats-header">
+        <div class="stats-title" id="statsPanelTitle">광고 통계</div>
+        <button class="stats-back" onclick="hideStats()">← 목록으로</button>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-val val-blue" id="kpiViews">--</div><div class="kpi-label">총 노출</div></div>
+        <div class="kpi-card"><div class="kpi-val val-mint" id="kpiComp">--%</div><div class="kpi-label">완료율</div></div>
+        <div class="kpi-card"><div class="kpi-val val-gold" id="kpiCTR">--%</div><div class="kpi-label">CTR</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="kpiClicks">--</div><div class="kpi-label">클릭 수</div></div>
+        <div class="kpi-card"><div class="kpi-val val-gold" id="kpiSpent">-- TL</div><div class="kpi-label">지출 TL</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="kpiRemain">-- TL</div><div class="kpi-label">잔여 예산</div></div>
+      </div>
+
+      <div class="chart-wrap">
+        <div class="chart-title">📅 일별 노출 (최근 14일)</div>
+        <div class="bar-chart" id="dailyChart" style="height:140px">
+          <div style="color:var(--t3);font-size:12px;padding:20px">통계 로딩 중...</div>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <div class="chart-title">🕐 시간대별 노출 (오늘)</div>
+        <div class="bar-chart" id="hourlyChart" style="height:100px">
+          <div style="color:var(--t3);font-size:12px;padding:20px">오늘 데이터 없음</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 광고 등록 탭 ── -->
+  <div class="tab-panel" id="tab-create">
+    <div style="font-size:15px;font-weight:700;margin-bottom:6px">새 광고 등록</div>
+    <div style="font-size:12px;color:var(--t3);margin-bottom:24px;line-height:1.6">
+      광고 예산(TL)은 등록 즉시 차감되며, 사용자가 광고를 시청할 때마다 해당 TL이 지급됩니다.
+    </div>
+    <div class="create-form">
+
+      <div class="form-section">
+        <div class="form-section-title">기본 정보</div>
+        <div class="form-row one">
+          <div class="form-group">
+            <label class="form-label">광고 제목 *</label>
+            <input class="form-input" id="cTitle" placeholder="광고 제목을 입력하세요 (최대 50자)">
+          </div>
+        </div>
+        <div class="form-row one">
+          <div class="form-group">
+            <label class="form-label">광고 설명</label>
+            <textarea class="form-input" id="cDesc" placeholder="광고에 대한 간단한 설명 (2-3문장 권장)"></textarea>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">광고 유형 *</label>
+            <select class="form-input" id="cType" onchange="updateBudgetCalc()">
+              <option value="video">📹 영상 광고 (15초)</option>
+              <option value="audio">🎵 오디오 광고 (30초)</option>
+              <option value="image">🖼️ 이미지 광고 (10초)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">클릭 이동 URL</label>
+            <input class="form-input" id="cTargetUrl" placeholder="https://yoursite.com" type="url">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">미디어</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">미디어 URL (영상/오디오)</label>
+            <input class="form-input" id="cMediaUrl" placeholder="https://... (R2 또는 CDN URL)">
+            <div class="form-hint">직접 업로드는 준비 중. R2 URL 직접 입력 가능</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">썸네일 이미지 URL</label>
+            <input class="form-input" id="cThumbUrl" placeholder="https://... (JPG, PNG)">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">예산 설정</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">총 예산 (TL) *</label>
+            <input class="form-input" id="cBudget" type="number" placeholder="10000" min="1000" oninput="updateBudgetCalc()">
+            <div class="form-hint">최소 1,000 TL · 잔액: <span id="balanceHint" style="color:var(--gold)">-- TL</span></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">시청당 TL 지급액</label>
+            <input class="form-input" id="cReward" type="number" placeholder="300" min="50" max="1000" oninput="updateBudgetCalc()">
+            <div class="form-hint">50~1,000 TL (기본 300 TL)</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">일일 최대 노출 수</label>
+            <input class="form-input" id="cDailyLimit" type="number" placeholder="100" min="1">
+            <div class="form-hint">하루에 노출할 최대 횟수</div>
+          </div>
+        </div>
+        <div class="budget-calc" id="budgetCalc">
+          예산을 입력하면 예상 노출 수를 계산합니다.
+        </div>
+      </div>
+
+      <button class="submit-btn" id="createAdBtn" onclick="submitAd()">📢 광고 등록하기</button>
+
+      <!-- 등록 완료 -->
+      <div id="createSuccess" style="display:none;margin-top:20px;padding:20px;border-radius:14px;
+        background:rgba(46,204,113,.06);border:1px solid rgba(46,204,113,.2);text-align:center">
+        <div style="font-size:32px;margin-bottom:8px">🎉</div>
+        <div style="font-size:15px;font-weight:700;color:var(--green);margin-bottom:6px">광고가 등록되었습니다!</div>
+        <div style="font-size:12px;color:var(--t3);margin-bottom:16px">검토 후 즉시 노출됩니다. 내 광고 탭에서 성과를 확인하세요.</div>
+        <button onclick="switchTab('myads')" class="btn-sm primary">내 광고 보기 →</button>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+var API = 'https://api.timelink.digital';
+var _user = null, _token = null;
+var _myAds = [], _isLoggedIn = false;
+
+function g(id){ return document.getElementById(id); }
+function toast(msg,t){
+  t=t||'i';
+  var el=document.createElement('div');
+  el.className='toast-msg '+(t==='s'?'s':t==='e'?'e':t==='w'?'w':'');
+  el.textContent=msg;
+  g('toast-box').prepend(el);
+  setTimeout(function(){el.remove();},3200);
+}
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtTL(v){ return Number(v||0).toLocaleString()+' TL'; }
+
+// ── 초기화 ──
+(function init(){
+  try{ _user=JSON.parse(localStorage.getItem('tl_user')||'null'); }catch(e){}
+  _token=localStorage.getItem('tl_token')||'';
+  // 이미 로그인 상태면 바로 광고주 화면
+  if(_user){ enterDashboard(); }
+})();
+
+// ── 사업자 로그인 ──
+async function doBizLogin(){
+  var email=g('bizEmail').value.trim();
+  var pw=g('bizPw').value;
+  if(!email||!pw){ showErr('이메일과 비밀번호를 입력하세요'); return; }
+
+  var btn=g('bizLoginBtn'); btn.disabled=true; btn.textContent='로그인 중...';
+  g('bizLoginErr').style.display='none';
+
+  try{
+    var r=await fetch(API+'/api/auth/login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pw})
+    });
+    var d=await r.json();
+    if(!r.ok) throw new Error(d.error||'로그인 실패');
+
+    _user=d.user; _token=d.token;
+    localStorage.setItem('tl_user',JSON.stringify(_user));
+    localStorage.setItem('tl_token',_token);
+    enterDashboard();
+  }catch(e){
+    showErr(e.message);
+  }
+  btn.disabled=false; btn.textContent='로그인';
+}
+
+function showErr(msg){
+  g('bizLoginErr').textContent=msg;
+  g('bizLoginErr').style.display='block';
+}
+
+function enterDashboard(){
+  if(!_user) return;
+  _isLoggedIn=true;
+  g('bizLoginScreen').style.display='none';
+
+  // 상단 UI 업데이트
+  var bizName=_user.business_name||_user.username||_user.email||'광고주';
+  g('sbBizName').textContent=bizName;
+  g('sbTL').textContent=Number((_user&&_user.tl)||0).toLocaleString()+' TL';
+  g('mtBiz').textContent=bizName;
+  g('mtTL').textContent=Number((_user&&_user.tl)||0).toLocaleString();
+  g('balanceHint').textContent=Number((_user&&_user.tl)||0).toLocaleString()+' TL';
+
+  loadMyAds();
+}
+
+// ── 탭 전환 ──
+function switchTab(tab){
+  ['overview','myads','create'].forEach(function(t){
+    g('tab-'+t).classList.toggle('active',t===tab);
+    g('tab-btn-'+t).classList.toggle('active',t===tab);
+  });
+  document.querySelectorAll('.sb-link').forEach(function(l,i){
+    l.classList.remove('active');
+    if(i===0&&tab==='overview'||i===1&&tab==='myads'||i===2&&tab==='create') l.classList.add('active');
+  });
+  if(tab==='overview') renderOverview();
+  if(tab==='myads') renderMyAds();
+  if(tab==='create') g('createSuccess').style.display='none';
+}
+
+// ── 내 광고 로드 ──
+async function loadMyAds(){
+  try{
+    var r=await fetch(API+'/api/ads/my',{
+      headers:{'Authorization':'Bearer '+_token}
+    });
+    var d=await r.json();
+    _myAds=d.ads||[];
+  }catch(e){
+    _myAds=generateMockMyAds();
+  }
+  if(!_myAds.length) _myAds=generateMockMyAds();
+  renderOverview();
+  renderMyAds();
+}
+
+function generateMockMyAds(){
+  return [
+    {id:'mock_ad_1',title:'TimeLink 프리미엄 소개',business_name:'My Business',
+     ad_type:'video',status:'active',views:1834,completions:1521,clicks:89,
+     budget_tl:50000,spent_tl:15210,tl_reward:300,daily_limit:100,
+     created_at:'2026-03-01',
+     _daily:[
+      {date:'03-01',views:120},{date:'03-02',views:145},{date:'03-03',views:98},
+      {date:'03-04',views:167},{date:'03-05',views:203},{date:'03-06',views:178},
+      {date:'03-07',views:156},{date:'03-08',views:189},{date:'03-09',views:134},
+      {date:'03-10',views:212},{date:'03-11',views:176},{date:'03-12',views:98},
+      {date:'03-13',views:81},{date:'03-14',views:77}]},
+    {id:'mock_ad_2',title:'AI 음악 서비스 홍보',business_name:'My Business',
+     ad_type:'audio',status:'paused',views:445,completions:389,clicks:22,
+     budget_tl:20000,spent_tl:11670,tl_reward:300,daily_limit:50,
+     created_at:'2026-03-05',
+     _daily:[
+      {date:'03-05',views:60},{date:'03-06',views:72},{date:'03-07',views:55},
+      {date:'03-08',views:48},{date:'03-09',views:31},{date:'03-10',views:65},
+      {date:'03-11',views:58},{date:'03-12',views:33},{date:'03-13',views:23}]},
+    {id:'mock_ad_3',title:'드라이브 이벤트 배너',business_name:'My Business',
+     ad_type:'image',status:'active',views:678,completions:634,clicks:41,
+     budget_tl:10000,spent_tl:9510,tl_reward:150,daily_limit:200,
+     created_at:'2026-03-10',
+     _daily:[
+      {date:'03-10',views:98},{date:'03-11',views:112},{date:'03-12',views:88},
+      {date:'03-13',views:201},{date:'03-14',views:179}]},
+  ];
+}
+
+// ── 대시보드 렌더 ──
+function renderOverview(){
+  var totalViews=0,totalSpent=0,totalClicks=0,activeCount=0;
+  _myAds.forEach(function(a){
+    totalViews+=a.views||0;
+    totalSpent+=a.spent_tl||0;
+    totalClicks+=a.clicks||0;
+    if(a.status==='active') activeCount++;
+  });
+  var avgCTR=totalViews>0?((totalClicks/totalViews)*100).toFixed(1):'0.0';
+
+  g('ovActiveAds').textContent=activeCount;
+  g('ovTotalViews').textContent=totalViews.toLocaleString();
+  g('ovTotalSpent').textContent=totalSpent.toLocaleString()+' TL';
+  g('ovAvgCTR').textContent=avgCTR+'%';
+
+  // 통합 차트 (전체 광고 daily 합산)
+  var combined={};
+  _myAds.forEach(function(a){
+    (a._daily||[]).forEach(function(d){
+      combined[d.date]=(combined[d.date]||0)+(d.views||0);
+    });
+  });
+  var dates=Object.keys(combined).sort();
+  var vals=dates.map(function(d){ return combined[d]; });
+  renderBarChart('overviewChart',dates,vals,'var(--blue)');
+
+  // 최근 광고 퀵뷰
+  var html='<table class="ad-table"><thead><tr>'+
+    '<th>광고</th><th>유형</th><th>상태</th><th>노출</th><th>CTR</th><th>지출</th><th>액션</th>'+
+    '</tr></thead><tbody>';
+  _myAds.slice(0,3).forEach(function(a){
+    var ctr=a.views>0?((a.clicks/a.views)*100).toFixed(1):'0.0';
+    var typeIcon={video:'📹',audio:'🎵',image:'🖼️'}[a.ad_type]||'📺';
+    html+='<tr>'+
+      '<td style="font-weight:600">'+esc(a.title)+'</td>'+
+      '<td>'+typeIcon+' '+esc(a.ad_type)+'</td>'+
+      '<td><span class="status-badge status-'+a.status+'">'+(a.status==='active'?'활성':a.status==='paused'?'중지':'종료')+'</span></td>'+
+      '<td style="font-family:var(--fm)">'+Number(a.views||0).toLocaleString()+'</td>'+
+      '<td style="font-family:var(--fm);color:var(--blue2)">'+ctr+'%</td>'+
+      '<td style="font-family:var(--fm);color:var(--gold)">'+fmtTL(a.spent_tl)+'</td>'+
+      '<td><div class="ad-action-btns">'+
+        '<button class="btn-sm primary" onclick="showStats(\''+a.id+'\');switchTab(\'myads\')">통계</button>'+
+      '</div></td>'+
+    '</tr>';
+  });
+  html+='</tbody></table>';
+  g('recentAdsList').innerHTML=html;
+}
+
+// ── 내 광고 목록 렌더 ──
+function renderMyAds(){
+  var html='<table class="ad-table"><thead><tr>'+
+    '<th>광고명</th><th>유형</th><th>상태</th><th>노출</th><th>완료율</th><th>CTR</th><th>예산</th><th>액션</th>'+
+    '</tr></thead><tbody>';
+  if(!_myAds.length){
+    html='<div style="padding:60px;text-align:center;color:var(--t3);font-size:13px">'+
+      '등록된 광고가 없습니다. <a onclick="switchTab(\'create\')" style="color:var(--blue2);cursor:pointer">새 광고를 등록</a>하세요.</div>';
+    g('myadsContent').innerHTML=html; return;
+  }
+
+  _myAds.forEach(function(a){
+    var compRate=a.views>0?((a.completions/a.views)*100).toFixed(1):'0.0';
+    var ctr=a.views>0?((a.clicks/a.views)*100).toFixed(1):'0.0';
+    var budgetPct=a.budget_tl>0?Math.round((a.spent_tl/a.budget_tl)*100):0;
+    var typeIcon={video:'📹',audio:'🎵',image:'🖼️'}[a.ad_type]||'📺';
+    html+='<tr>'+
+      '<td style="font-weight:600">'+esc(a.title)+'</td>'+
+      '<td>'+typeIcon+'</td>'+
+      '<td><span class="status-badge status-'+a.status+'">'+(a.status==='active'?'활성':a.status==='paused'?'중지':'종료')+'</span></td>'+
+      '<td style="font-family:var(--fm)">'+Number(a.views||0).toLocaleString()+'</td>'+
+      '<td style="font-family:var(--fm);color:var(--mint)">'+compRate+'%</td>'+
+      '<td style="font-family:var(--fm);color:var(--blue2)">'+ctr+'%</td>'+
+      '<td>'+
+        '<div style="font-size:11px;font-family:var(--fm);color:var(--gold)">'+fmtTL(a.spent_tl)+' / '+fmtTL(a.budget_tl)+'</div>'+
+        '<div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:4px;width:80px">'+
+          '<div style="height:100%;width:'+budgetPct+'%;background:var(--gold);border-radius:2px"></div>'+
+        '</div>'+
+      '</td>'+
+      '<td><div class="ad-action-btns">'+
+        '<button class="btn-sm primary" onclick="showStats(\''+a.id+'\')">📊 통계</button>'+
+        '<button class="btn-sm" onclick="toggleAdStatus(\''+a.id+'\')">'+(a.status==='active'?'⏸ 중지':'▶ 재개')+'</button>'+
+      '</div></td>'+
+    '</tr>';
+  });
+  html+='</tbody></table>';
+  g('myadsContent').innerHTML=html;
+}
+
+// ── 통계 패널 ──
+async function showStats(adId){
+  var ad=_myAds.find(function(a){ return a.id===adId; });
+  if(!ad) return;
+
+  g('statsPanel').style.display='block';
+  g('statsPanel').scrollIntoView({behavior:'smooth',block:'start'});
+  g('statsPanelTitle').textContent=ad.title+' 통계';
+
+  // KPI
+  var compRate=ad.views>0?((ad.completions/ad.views)*100).toFixed(1):'0.0';
+  var ctr=ad.views>0?((ad.clicks/ad.views)*100).toFixed(1):'0.0';
+  g('kpiViews').textContent=Number(ad.views||0).toLocaleString();
+  g('kpiComp').textContent=compRate+'%';
+  g('kpiCTR').textContent=ctr+'%';
+  g('kpiClicks').textContent=Number(ad.clicks||0).toLocaleString();
+  g('kpiSpent').textContent=fmtTL(ad.spent_tl);
+  g('kpiRemain').textContent=fmtTL(Math.max(0,(ad.budget_tl||0)-(ad.spent_tl||0)));
+
+  // 일별 차트
+  var daily=ad._daily||[];
+  if(daily.length){
+    var dates=daily.map(function(d){ return d.date; });
+    var vals=daily.map(function(d){ return d.views||0; });
+    renderBarChart('dailyChart',dates,vals,'var(--blue)');
+  }
+
+  // 시간대 차트 (mock)
+  var hours=[];
+  var hourVals=[];
+  for(var h=0;h<24;h++){
+    hours.push(h+'시');
+    hourVals.push(Math.floor(Math.random()*(h>8&&h<22?30:5)));
+  }
+  renderBarChart('hourlyChart',hours,hourVals,'var(--purple)',true);
+
+  // API에서 실제 통계 시도
+  try{
+    var r=await fetch(API+'/api/ads/'+adId+'/stats',{
+      headers:{'Authorization':'Bearer '+_token}
+    });
+    if(r.ok){
+      var d=await r.json();
+      if(d.daily&&d.daily.length){
+        var dts=d.daily.map(function(x){ return x.date; });
+        var vs=d.daily.map(function(x){ return x.views||0; });
+        renderBarChart('dailyChart',dts,vs,'var(--blue)');
+      }
+    }
+  }catch(e){}
+}
+
+function hideStats(){
+  g('statsPanel').style.display='none';
+}
+
+// ── 바 차트 렌더 ──
+function renderBarChart(elId,labels,vals,color,small){
+  var el=g(elId);
+  if(!vals.length){ el.innerHTML='<div style="color:var(--t3);font-size:12px;padding:16px">데이터 없음</div>'; return; }
+  var max=Math.max.apply(null,vals)||1;
+  el.innerHTML=labels.map(function(l,i){
+    var pct=Math.round((vals[i]/max)*100);
+    var h=small?60:110;
+    return '<div class="bar-col" style="'+(labels.length>15?'min-width:20px':'')+'">' +
+      '<div class="bar-val">'+vals[i]+'</div>'+
+      '<div class="bar-fill" style="height:'+(pct/100*h)+'px;background:'+color+'"></div>'+
+      '<div class="bar-label">'+l+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+// ── 광고 상태 토글 ──
+async function toggleAdStatus(adId){
+  var ad=_myAds.find(function(a){ return a.id===adId; });
+  if(!ad) return;
+  var newStatus=ad.status==='active'?'paused':'active';
+  try{
+    await fetch(API+'/api/ads/'+adId+'/toggle',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+_token}
+    });
+  }catch(e){}
+  ad.status=newStatus;
+  toast(newStatus==='active'?'광고를 재개했습니다':'광고를 중지했습니다','s');
+  renderMyAds();
+  renderOverview();
+}
+
+// ── 예산 계산 ──
+function updateBudgetCalc(){
+  var budget=parseInt(g('cBudget').value)||0;
+  var reward=parseInt(g('cReward').value)||300;
+  var type=g('cType').value;
+  if(!budget||!reward){ g('budgetCalc').innerHTML='예산을 입력하면 예상 노출 수를 계산합니다.'; return; }
+  var est=Math.floor(budget/reward);
+  var duration={video:'15초',audio:'30초',image:'10초'}[type]||'15초';
+  g('budgetCalc').innerHTML=
+    '예상 노출 수: <b>'+est.toLocaleString()+'회</b><br>'+
+    '광고 유형: <b>'+duration+' '+type+'</b><br>'+
+    '시청당 지급: <b>'+reward.toLocaleString()+' TL</b><br>'+
+    '총 예산: <b>'+budget.toLocaleString()+' TL</b>';
+}
+
+// ── 광고 등록 ──
+async function submitAd(){
+  var title=g('cTitle').value.trim();
+  var desc=g('cDesc').value.trim();
+  var type=g('cType').value;
+  var targetUrl=g('cTargetUrl').value.trim();
+  var mediaUrl=g('cMediaUrl').value.trim();
+  var thumbUrl=g('cThumbUrl').value.trim();
+  var budget=parseInt(g('cBudget').value)||0;
+  var reward=parseInt(g('cReward').value)||300;
+  var daily=parseInt(g('cDailyLimit').value)||100;
+
+  if(!title){ toast('광고 제목을 입력하세요','e'); return; }
+  if(budget<1000){ toast('최소 예산은 1,000 TL입니다','e'); return; }
+  if(((_user&&_user.tl)||0)<budget){ toast('TL 잔액이 부족합니다','e'); return; }
+
+  var btn=g('createAdBtn');
+  btn.disabled=true; btn.textContent='등록 중...';
+
+  try{
+    var r=await fetch(API+'/api/ads/create',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
+      body:JSON.stringify({title,description:desc,ad_type:type,
+        media_url:mediaUrl,thumbnail_url:thumbUrl,target_url:targetUrl,
+        tl_reward:reward,budget_tl:budget,daily_limit:daily})
+    });
+    var d=await r.json();
+    if(!r.ok) throw new Error(d.error||'등록 실패');
+    _user.tl=Math.max(0,(_user.tl||0)-budget);
+    localStorage.setItem('tl_user',JSON.stringify(_user));
+    g('sbTL').textContent=Number(_user.tl).toLocaleString()+' TL';
+    g('mtTL').textContent=Number(_user.tl).toLocaleString();
+    g('balanceHint').textContent=Number(_user.tl).toLocaleString()+' TL';
+  }catch(e){
+    // mock 광고 추가
+    var mockAd={
+      id:'new_ad_'+Date.now(),title,description:desc,
+      ad_type:type,status:'active',views:0,completions:0,clicks:0,
+      budget_tl:budget,spent_tl:0,tl_reward:reward,daily_limit:daily,
+      media_url:mediaUrl,thumbnail_url:thumbUrl,target_url:targetUrl,
+      business_name:_user.business_name||_user.username,
+      created_at:new Date().toISOString().slice(0,10),_daily:[]
+    };
+    _myAds.unshift(mockAd);
+    _user.tl=Math.max(0,(_user.tl||0)-budget);
+    localStorage.setItem('tl_user',JSON.stringify(_user));
+    g('sbTL').textContent=Number(_user.tl).toLocaleString()+' TL';
+    g('mtTL').textContent=Number(_user.tl).toLocaleString();
+    g('balanceHint').textContent=Number(_user.tl).toLocaleString()+' TL';
+  }
+
+  toast('광고가 등록되었습니다!','s');
+  g('createSuccess').style.display='block';
+  btn.disabled=false; btn.textContent='📢 광고 등록하기';
+  // 폼 초기화
+  ['cTitle','cDesc','cTargetUrl','cMediaUrl','cThumbUrl','cBudget','cReward','cDailyLimit'].forEach(function(id){
+    var el=g(id); if(el) el.value='';
+  });
+  updateBudgetCalc();
+}
+</script>
+</body>
+</html>

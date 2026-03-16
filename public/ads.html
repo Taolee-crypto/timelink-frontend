@@ -617,24 +617,23 @@ async function collectTL(){
 
   var reward=_curAd.tl_reward||300;
   try{
-    // 백엔드 TL 지급
-    var r=await fetch(API+'/api/ads/'+_curAd.id+'/complete',{
+    // TL_A (광고 보상) 지급 — 교환 불가, 플랫폼 내 소비 전용
+    var r=await fetch(API+'/api/eco/ad-reward',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
-      body:JSON.stringify({duration:_elapsed})
+      body:JSON.stringify({ad_id:_curAd.id, tl_amount:reward})
     });
     var d=await r.json();
-    if(!r.ok && !d.already){
-      // API 없어도 mock으로 처리
-      _user.tl=((_user&&_user.tl)||0)+reward;
-    }else if(d.tl_balance){
-      _user.tl=d.tl_balance;
+    if(d.wallet){
+      _user.tl_a=(d.wallet.tl_a||0);
+      _user.tl_p=(d.wallet.tl_p||(_user&&_user.tl_p)||0);
+      _user.tl_b=(d.wallet.tl_b||(_user&&_user.tl_b)||0);
     }else{
-      _user.tl=((_user&&_user.tl)||0)+reward;
+      _user.tl_a=((_user&&_user.tl_a)||0)+reward;
     }
   }catch(e){
-    // API 실패해도 로컬 적립
-    _user.tl=((_user&&_user.tl)||0)+reward;
+    // API 실패해도 로컬 TL_A 적립
+    _user.tl_a=((_user&&_user.tl_a)||0)+reward;
   }
 
   // 로컬 상태 업데이트
@@ -649,14 +648,14 @@ async function collectTL(){
   localStorage.setItem(viewedKey,JSON.stringify(Array.from(_viewedToday)));
 
   // UI 업데이트
-  g('sbTL').textContent=Number(_user.tl).toLocaleString()+' TL';
+  g('sbTL').textContent=(((_user&&_user.tl_p)||0)+((_user&&_user.tl_a)||0)+((_user&&_user.tl_b)||0)).toLocaleString()+' TL';
   updateStats();
 
   // 완료 화면
   if(_watchTimer){ clearInterval(_watchTimer); _watchTimer=null; }
-  g('wmDone').classList.add('show');
+  g('wmDone').classList.add('show'); var noteEl=document.getElementById('wmDoneNote'); if(noteEl) noteEl.textContent='📺 광고TL(TL_A)은 플랫폼 내 소비 전용입니다';
   g('wmContent').style.display='none';
-  g('wmDoneTL').textContent='+'+Number(reward).toLocaleString()+' TL';
+  g('wmDoneTL').textContent='+'+Number(reward).toLocaleString()+' TL_A';
 
   // 카드 업데이트
   var card=document.getElementById('adcard-'+_curAd.id);

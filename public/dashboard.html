@@ -295,6 +295,8 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
     <a href="shareplace.html" class="tb-action" title="홈">🏠</a>
     <a href="radio.html" class="tb-action" title="방송국">📻</a>
     <a href="creator.html" class="tb-action" title="크리에이터 센터">🎨</a>
+    <a href="ads.html" class="tb-action" title="광고 시청">📺</a>
+    <a href="advertiser.html" class="tb-action" title="광고주 센터">📢</a>
     <div class="tb-action logout" onclick="doLogout()" title="로그아웃">↩</div>
   </div>
 </div>
@@ -334,6 +336,8 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
     <div class="sb-section">
       <div class="sb-label" data-i18n="dash.shortcuts">바로가기</div>
       <a class="sb-link" href="shareplace.html"><div class="sb-icon">🎵</div>SharePlace</a>
+      <a class="sb-link" href="ads.html"><div class="sb-icon">📺</div>광고 시청</a>
+      <a class="sb-link" href="advertiser.html"><div class="sb-icon">📢</div>광고주 센터</a>
           <!-- TL방송국 드롭다운 -->
     <div class="sb-dropdown" id="radioDropdown">
       <div class="sb-dropdown-toggle" onclick="toggleSbDropdown('radioDropdown')">
@@ -476,12 +480,17 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
       <div class="wallet-hero">
         <div class="wallet-card tl">
           <div class="wallet-card-bg">⏰</div>
-          <div class="wallet-card-label">TL 잔액 (소비용)</div>
+          <div class="wallet-card-label">TL 총 잔액</div>
           <div class="wallet-card-val" id="walletTl">0</div>
-          <div class="wallet-card-sub">1 TL = 1원 • 콘텐츠 재생 시 차감</div>
+          <div style="display:flex;gap:12px;margin:8px 0;font-size:11px;font-family:var(--fm)">
+            <span style="color:var(--purple)">💳 구매 <span id="tl-p-val">0</span></span>
+            <span style="color:var(--amber)">📺 광고 <span id="tl-a-val">0</span></span>
+            <span style="color:var(--mint)">🎁 보너스 <span id="tl-b-val">0</span></span>
+          </div>
+          <div class="wallet-card-sub" style="font-size:10px">구매TL만 교환 가능 (5% 수수료) • 광고·보너스TL은 소비 전용</div>
           <div class="wallet-card-actions">
-            <button class="wallet-btn primary" onclick="toast('충전 기능 준비 중','i')">+ 충전</button>
-            <button class="wallet-btn secondary" onclick="switchTab('mining')">⛏️ 채굴로 획득</button>
+            <button class="wallet-btn primary" onclick="location.href='shareplace.html'">+ TL 충전</button>
+            <button class="wallet-btn secondary" onclick="doExchangeTL()">↔ 교환 신청</button>
           </div>
         </div>
         <div class="wallet-card tlc">
@@ -711,7 +720,7 @@ function fmt(n){ return Number(n||0).toLocaleString(); }
 
 function renderUser(){
   var name = _user.username||_user.email||'사용자';
-  var tl = Number(_user.tl||0);
+  var tl = Number((_user&&_user.tl)||0);
   var tlc = Number(_user.tlc||0);
   var poc = parseFloat(localStorage.getItem('tl_poc_today')||'0');
 
@@ -730,7 +739,7 @@ function renderUser(){
   g('homePoc').textContent = poc.toFixed(1);
 
   // Wallet
-  g('walletTl').textContent = fmt(tl);
+  var tlTotal=(u.tl_p||u.tl||0)+(u.tl_a||0)+(u.tl_b||0); g('walletTl').textContent = fmt(tlTotal);
   g('walletTlc').textContent = tlc.toFixed(2);
 
   // Mining
@@ -934,6 +943,72 @@ function doLogout(){
 }
 
 function toggleSbDropdown(id){ var el=document.getElementById(id); if(el) el.classList.toggle('open'); }
+
+/* ══ TL 3분류 지갑 시스템 ══ */
+async function loadWallet(){
+  if(!_user) return;
+  try{
+    var r=await fetch('https://api.timelink.digital/api/eco/wallet',{
+      headers:{'Authorization':'Bearer '+(_token||'')}
+    });
+    var d=await r.json();
+    if(d.wallet){
+      var w=d.wallet;
+      _user.tl_p=w.tl_p||0; _user.tl_a=w.tl_a||0; _user.tl_b=w.tl_b||0;
+      _user.tl=w.tl_p||0; _user.tlc=w.tlc||_user.tlc||0;
+      _user.poc_index=w.poc_index||1.0; _user.plan=w.plan||'A';
+      localStorage.setItem('tl_user',JSON.stringify(_user));
+      updateWalletUI(w);
+    }
+  }catch(e){}
+}
+function getTotalTL(){
+  return ((_user&&_user.tl_p)||0)+((_user&&_user.tl_a)||0)+((_user&&_user.tl_b)||0);
+}
+function getPurchaseTL(){
+  return (_user&&_user.tl_p)||(_user&&_user.tl)||0;
+}
+function updateWalletUI(w){
+  var tlP=w?(w.tl_p||0):getPurchaseTL();
+  var tlA=w?(w.tl_a||0):((_user&&_user.tl_a)||0);
+  var tlB=w?(w.tl_b||0):((_user&&_user.tl_b)||0);
+  var total=tlP+tlA+tlB;
+  ['sp-tl-bal','tbTL','sbTL','sbTLBal','tb-tl-val'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.textContent=total.toLocaleString()+(id!=='tbTL'?' TL':'');
+  });
+  var pEl=document.getElementById('tl-p-val');
+  var aEl=document.getElementById('tl-a-val');
+  var bEl=document.getElementById('tl-b-val');
+  if(pEl) pEl.textContent=tlP.toLocaleString();
+  if(aEl) aEl.textContent=tlA.toLocaleString();
+  if(bEl) bEl.textContent=tlB.toLocaleString();
+}
+
+
+async function doExchangeTL(){
+  var tlP = (_user&&_user.tl_p)||(_user&&_user.tl)||0;
+  if(tlP < 1000){ toast('구매TL 최소 1,000TL부터 교환 가능합니다','e'); return; }
+  var amt = prompt('교환할 TL_P(구매TL) 금액을 입력하세요\n현재 구매TL: '+tlP.toLocaleString()+' TL\n(최소 1,000 TL, 수수료 '+(((_user&&_user.plan)||'A')==='B'?'3':'5')+'%)', '1000');
+  if(!amt) return;
+  var amount = parseInt(amt);
+  if(!amount || amount < 1000 || amount > tlP){ toast('유효한 금액을 입력하세요','e'); return; }
+  try{
+    var r = await fetch('https://api.timelink.digital/api/eco/exchange',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
+      body: JSON.stringify({tl_amount:amount})
+    });
+    var d = await r.json();
+    if(!r.ok) throw new Error(d.error||'교환 실패');
+    toast('교환 신청 완료: '+d.net_tl.toLocaleString()+'원 지급 예정 (수수료 '+d.fee_tl.toLocaleString()+' TL)','s');
+    _user.tl_p = Math.max(0,(_user.tl_p||0)-amount);
+    _user.tl = _user.tl_p;
+    localStorage.setItem('tl_user',JSON.stringify(_user));
+    loadWallet();
+  }catch(e){ toast('교환 오류: '+e.message,'e'); }
+}
+
 </script>
 </body>
 </html>
