@@ -42,7 +42,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 #driveScreen{flex:1;display:flex;flex-direction:column;display:none}
 
 /* Top HUD */
-.hud-top{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--bd);flex-shrink:0}
+.hud-top{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--bd);flex-shrink:0}
 .hud-back{padding:8px 14px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:12px;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:6px}
 .hud-back:hover{color:var(--cyan);border-color:rgba(0,229,255,.3)}
 .hud-status{display:flex;align-items:center;gap:10px}
@@ -519,10 +519,29 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
   <!-- HUD Top -->
   <div class="hud-top">
     <a href="radio.html" class="hud-back">← 방송국</a>
-    <div style="display:flex;gap:3px;margin-left:8px"><a href="shareplace.html" style="padding:4px 8px;border-radius:6px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:11px;text-decoration:none" title="홈">🏠</a><a href="cafe-radio.html" style="padding:4px 8px;border-radius:6px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:11px;text-decoration:none" title="카페방송">☕</a><span style="padding:4px 8px;border-radius:6px;border:1px solid rgba(0,229,255,.3);background:rgba(0,229,255,.06);color:var(--cyan);font-size:11px">🚗 인카</span><a href="incar-channel.html" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(0,229,255,.2);background:rgba(0,229,255,.05);color:var(--cyan);font-size:11px;text-decoration:none" title="채널개설">+ 채널</a></div>
+    <div style="display:flex;gap:3px;margin-left:8px">
+      <a href="shareplace.html" style="padding:4px 8px;border-radius:6px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:11px;text-decoration:none" title="홈">🏠</a>
+      <a href="cafe-radio.html" style="padding:4px 8px;border-radius:6px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:11px;text-decoration:none" title="카페방송">☕</a>
+      <span style="padding:4px 8px;border-radius:6px;border:1px solid rgba(0,229,255,.3);background:rgba(0,229,255,.06);color:var(--cyan);font-size:11px">🚗 인카</span>
+      <a href="incar-channel.html" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(0,229,255,.2);background:rgba(0,229,255,.05);color:var(--cyan);font-size:11px;text-decoration:none" title="채널개설">+ 채널</a>
+    </div>
     <div class="hud-status">
       <div class="hud-gps"><div class="gps-dot"></div><span id="gpsStatus" style="color:var(--t2);font-size:11px">GPS 연결 중</span></div>
       <div class="hud-plate" id="hudPlate">--</div>
+    </div>
+    <!-- TL 잔액 + 차감율 (카페방송과 동일 구조) -->
+    <div style="display:flex;align-items:center;gap:12px;margin-left:auto">
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:10px;color:rgba(255,255,255,.3);font-family:var(--fm)">⚡ TL</span>
+          <span id="tbTL" style="font-size:13px;font-weight:700;font-family:var(--fm);color:var(--cyan)">0</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:9px;color:rgba(255,255,255,.25);font-family:var(--fm)">차감</span>
+          <span id="tbDeduct" style="font-size:10px;font-weight:700;font-family:var(--fm);color:#00E5A0">1.000 TL/s</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,.35);font-family:var(--fm)" id="tbUser"></div>
     </div>
     <div class="hud-time" id="hudTime">--:--</div>
   </div>
@@ -724,6 +743,10 @@ function startDriveGuest(){
 function launchDrive(){
   g('setupScreen').style.display = 'none';
   g('driveScreen').style.display = 'flex';
+  // TL 잔액 + 유저명 초기화
+  if(g('tbTL')) g('tbTL').textContent = getTotalTL().toLocaleString();
+  if(g('tbUser') && _user) g('tbUser').textContent = _user.username||_user.email||'';
+  if(g('tbDeduct')) g('tbDeduct').textContent = _tlDeductRate.toFixed(3)+' TL/s';
   initAudio();
   initGPS();
   initWaveform();
