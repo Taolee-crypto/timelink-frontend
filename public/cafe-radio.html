@@ -1037,6 +1037,36 @@ function updateBroadcastTime(){
 
 function toast(msg,t){ t=t||'i'; var el=document.createElement('div'); el.className='t '+t; el.textContent=msg; document.getElementById('toast-box').prepend(el); setTimeout(function(){el.remove();},3000); }
 
+
+// ── TL 3분류 순차 차감 (tl_a → tl_b → tl_p 순) ──
+function deductTL(amount){
+  if(!_user || amount <= 0) return 0;
+  var remain = amount;
+  var deducted = 0;
+
+  // 1순위: tl_a (광고 TL)
+  if((_user.tl_a||0) > 0 && remain > 0){
+    var d = Math.min(_user.tl_a||0, remain);
+    _user.tl_a = Math.max(0, (_user.tl_a||0) - d);
+    remain -= d; deducted += d;
+  }
+  // 2순위: tl_b (보너스 TL)
+  if((_user.tl_b||0) > 0 && remain > 0){
+    var d = Math.min(_user.tl_b||0, remain);
+    _user.tl_b = Math.max(0, (_user.tl_b||0) - d);
+    remain -= d; deducted += d;
+  }
+  // 3순위: tl_p (구매 TL)
+  if((_user.tl_p||_user.tl||0) > 0 && remain > 0){
+    var d = Math.min((_user.tl_p||_user.tl||0), remain);
+    _user.tl_p = Math.max(0, (_user.tl_p||_user.tl||0) - d);
+    _user.tl   = _user.tl_p; // 레거시 동기화
+    remain -= d; deducted += d;
+  }
+  localStorage.setItem('tl_user', JSON.stringify(_user));
+  return deducted;
+}
+
 function getTotalTL(){ return ((_user&&_user.tl_p)||(_user&&_user.tl)||0)+((_user&&_user.tl_a)||0)+((_user&&_user.tl_b)||0); }
 function getPurchaseTL(){ return (_user&&_user.tl_p)||(_user&&_user.tl)||0; }
 
@@ -1081,13 +1111,13 @@ var _djTyping = false;
 function getDJContext(){
   var ts = getTimeSlot();
   var now = new Date();
-  var tracks = _playlist.slice(0,5).map(function(t){ return t.title + ' - ' + t.artist; }).join(', ');
+  var tracks = _queue.slice(0,5).map(function(t){ return t.title + ' - ' + t.artist; }).join(', ');
   return {
     time: ts.label,
     slot: ts.slot,
     mood: ts.mood,
     mode: _mode === 'cafe' ? '카페방송' : '인카방송',
-    currentTrack: _playlist[_currentIdx] ? (_playlist[_currentIdx].title + ' by ' + _playlist[_currentIdx].artist) : '없음',
+    currentTrack: _queue[_curIdx] ? (_queue[_curIdx].title + ' by ' + _queue[_curIdx].artist) : '없음',
     queueTracks: tracks || '없음',
     pocMult: ts.poc,
     hour: now.getHours()
@@ -1706,17 +1736,15 @@ function startPoc(){
         if(fileBal < 0) fileBal = 0;
         _myFileTL[_curShareId] = fileBal;
         if(fileBal <= 0){
-          // 곡별 TL 소진 → 총량으로 이어서 차감
-          _user.tl = Math.max(0, Number((_user&&_user.tl)||0) - whole);
-          localStorage.setItem('tl_user', JSON.stringify(_user));
+          // 곡별 TL 소진 → 총량(3분류 순차)으로 이어서 차감
+          deductTL(whole);
           toast(TLi18n.t('toast.tl.empty.track'),'w');
         }
         updateNowPlayingTL();
       } else {
-        // ── 중앙 방송 또는 fallback: 총량 차감 ──
-        _user.tl = Math.max(0, Number((_user&&_user.tl)||0) - whole);
-        localStorage.setItem('tl_user', JSON.stringify(_user));
-        if(((_user&&_user.tl)||0) <= 0){
+        // ── 중앙 방송 또는 fallback: 총량 차감 (3분류 순서) ──
+        deductTL(whole);
+        if(getTotalTL() <= 0){
           toast(TLi18n.t('toast.tl.empty.total'),'w');
           reportToServer();
           stopPoc();
@@ -1785,6 +1813,27 @@ function reportToServer(){
       updateNowPlayingTL();
     }
   }).catch(function(e){ console.warn('[radio] 보고 실패',e); });
+
+  // ── 신 POC 알고리즘 보고 (eco/activity 병렬 호출) ──
+  fetch(API+'/api/eco/activity',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||localStorage.getItem('tl_token')||'')},
+    body: JSON.stringify({
+      seconds:       _pocReportSec,
+      tl_p_spent:    getPurchaseTL() < getTotalTL() ? 0 : _pocReportTL,
+      tl_a_spent:    0,
+      mode:          'listen',
+      share_id:      _curShareId||null,
+      listen_minutes:_pocReportSec/60
+    })
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.poc_index){
+      _user.poc_index = d.poc_index;
+      localStorage.setItem('tl_user',JSON.stringify(_user));
+      if(g('sbPocIdx')) g('sbPocIdx').textContent = d.poc_index.toFixed(2);
+      _tlDeductRate = Math.max(0.01,Math.min(1.0,1.0/d.poc_index));
+    }
+  }).catch(function(){});
 }
 
 // 전역 보고 누적 변수 (startPoc 클로저 밖에서 관리)
