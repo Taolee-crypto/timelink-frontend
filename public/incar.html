@@ -645,6 +645,34 @@ var _useA = true, _audA, _audB, _crossfading = false;
 
 function toast(msg,t){ t=t||'i'; var el=document.createElement('div'); el.className='t '+t; el.textContent=msg; document.getElementById('toast-box').prepend(el); setTimeout(function(){el.remove();},3000); }
 
+
+// ── TL 3분류 순차 차감 ──
+function deductTL(amount){
+  if(!_user || amount <= 0) return 0;
+  // 레거시 호환
+  if(_user.tl_p === undefined || _user.tl_p === null){
+    _user.tl_p = _user.tl || 0;
+    _user.tl_a = _user.tl_a || 0;
+    _user.tl_b = _user.tl_b || 0;
+  }
+  var remain = amount, deducted = 0;
+  if(_user.tl_a > 0 && remain > 0){
+    var d=Math.min(_user.tl_a,remain);
+    _user.tl_a=Math.max(0,_user.tl_a-d); remain-=d; deducted+=d;
+  }
+  if(_user.tl_b > 0 && remain > 0){
+    var d=Math.min(_user.tl_b,remain);
+    _user.tl_b=Math.max(0,_user.tl_b-d); remain-=d; deducted+=d;
+  }
+  if(_user.tl_p > 0 && remain > 0){
+    var d=Math.min(_user.tl_p,remain);
+    _user.tl_p=Math.max(0,_user.tl_p-d);
+    _user.tl=_user.tl_p; remain-=d; deducted+=d;
+  }
+  localStorage.setItem('tl_user',JSON.stringify(_user));
+  return deducted;
+}
+
 function getTotalTL(){
   if(!_user) return 0;
   // tl_p 미설정 레거시 유저는 tl을 tl_p로 간주
@@ -682,10 +710,11 @@ function startDrive(){
 
 function startDriveGuest(){
   _plate = localStorage.getItem('tl_car_plate') || '';
-  _pocMult = 1.0;
-  g('pocBadge').textContent = '×1.0 기본';
+  _pocMult = _plate ? 2.5 : 1.0;  // 저장된 번호판 있으면 2.5x
+  g('pocBadge').textContent = _plate ? '×2.5 주행 보너스 🔥' : '×1.0 기본';
   g('hudPlate').textContent = _plate || '미등록';
   launchDrive();
+  toast('인카방송 시작! POC '+(_plate?'2.5x':'1.0x')+' 적용', 's');
 }
 
 function launchDrive(){
@@ -857,7 +886,7 @@ async function safeJumpTo(idx){
   if(!s){ jumpTo(idx); return; }
   var sid = String(s.id||'');
   var myTL = _myFileTL[sid]||0;
-  var walletTL = _user ? ((_user&&_user.tl)||0)) : 0;
+  var walletTL = getTotalTL();
 
   if(myTL > 0){ jumpTo(idx); return; }
 
@@ -935,13 +964,13 @@ function startPoc(){
         _myFileTL[_curShareId] = Math.max(0,(_myFileTL[_curShareId]||0)-whole);
         if(_myFileTL[_curShareId]<=0) toast(TLi18n.t('toast.tl.empty.track'),'w');
       } else {
-        // 총량 차감
-        _user.tl = Math.max(0, Number((_user&&_user.tl)||0)-whole);
-        localStorage.setItem('tl_user',JSON.stringify(_user));
-        if(((_user&&_user.tl)||0)<=0){ toast(TLi18n.t('toast.tl.empty.total'),'w'); stopPoc(); openPayModal(); return; }
+        // 총량 차감 (3분류 순서)
+        deductTL(whole);
+        if(getTotalTL()<=0){ toast(TLi18n.t('toast.tl.empty.total'),'w'); stopPoc(); openPayModal(); return; }
       }
       // UI 즉시 갱신
-      if(g('tlBal')) g('tlBal').textContent = Number((_user&&_user.tl)||0).toLocaleString();
+      if(g('tlBal')) g('tlBal').textContent = getTotalTL().toLocaleString();
+      if(g('tbTL')) g('tbTL').textContent = getTotalTL().toLocaleString();
     }
 
     if(_pocReportSec>=30){ reportIncar(); _pocReportSec=0; _pocReportTL=0; }
@@ -959,7 +988,21 @@ function stopPoc(){
 
 function reportIncar(){
   if(!_user||!_user.id||_pocReportSec<=0) return;
-  fetch('https://api.timelink.digital/api/user/activity',{
+  var _tk=localStorage.getItem('tl_token')||'';
+  // 신 POC 알고리즘
+  fetch(API+'/api/eco/activity',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+_tk},
+    body:JSON.stringify({
+      seconds:_pocReportSec, tl_p_spent:_pocReportTL,
+      mode:'listen', listen_minutes:_pocReportSec/60, share_id:_curShareId||null
+    })
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.poc_index){ _user.poc_index=d.poc_index; localStorage.setItem('tl_user',JSON.stringify(_user));
+      if(g('sbPocIdx')) g('sbPocIdx').textContent=d.poc_index.toFixed(2); }
+  }).catch(function(){});
+  // 구버전 호환
+  fetch(API+'/api/user/activity',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
@@ -980,7 +1023,7 @@ function renderQueue(){
     var cover = s.cover_url?'<img src="'+s.cover_url+'">':'<span>🎵</span>';
     var sid = String(s.id||'');
     var myTL = _myFileTL[sid]||0;
-    var walletTL = _user?((_user&&_user.tl)||0)):0;
+    var walletTL = getTotalTL();
     var hasTL = myTL>0 || walletTL>0;
     var tlColor = myTL>0 ? '#00E5A0' : walletTL>0 ? 'var(--amber)' : '#FF4757';
     var tlLabel = myTL>0 ? myTL.toLocaleString()+' TL' : walletTL>0 ? '지갑' : '충전필요';
