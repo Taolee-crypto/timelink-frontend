@@ -5,6 +5,8 @@
 <title>TL 광고 센터 — TimeLink</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="i18n.js"></script>
+<script src="https://imasdk.googleapis.com/js/sdkloader/ima3.js"></script>
+
 <style>
 :root{
   --bg:#050508;--bg2:#0A0A12;--bg3:#10101C;
@@ -277,6 +279,9 @@ body::before{content:'';position:fixed;inset:0;
           <div class="ph-icon">📺</div>
           <div style="font-size:12px">광고 로딩 중...</div>
         </div>
+        <!-- Google IMA 컨테이너 -->
+        <div id="imaAdContainer" style="position:absolute;inset:0;display:none"></div>
+        <video id="imaContentVideo" style="display:none;width:100%;height:100%"></video>
       </div>
 
       <!-- 진행 -->
@@ -362,6 +367,131 @@ body::before{content:'';position:fixed;inset:0;
 </div>
 
 <script>
+
+/* ══════════════════════════════════════
+   Google IMA SDK 연동
+   - 자체 광고 없을 때 구글 광고로 fallback
+   - 완료 시 TL_A 지급 (동일 로직)
+   - 테스트: /ads/vast/test.xml (구글 테스트 태그)
+══════════════════════════════════════ */
+var _imaLoader = null, _imaManager = null, _imaInitialized = false;
+
+// 구글 광고 태그 (테스트용 → 실제 운영 시 애드센스 태그로 교체)
+var IMA_AD_TAG = 'https://pubads.g.doubleclick.net/gampad/ads?' +
+  'iu=/21775744923/external/single_preroll_skippable&sz=640x480' +
+  '&ciu_szs=300x250,728x90&gdfp_req=1&output=vast&unviewed_position_start=1' +
+  '&env=vp&impl=s&correlator=';
+
+function initIMA(){
+  if(_imaInitialized || typeof google === 'undefined' || !google.ima) return;
+  try{
+    var adContainer = document.getElementById('imaAdContainer');
+    var videoEl = document.getElementById('imaContentVideo');
+    if(!adContainer || !videoEl) return;
+
+    var adDisplayContainer = new google.ima.AdDisplayContainer(adContainer, videoEl);
+    adDisplayContainer.initialize();
+    _imaLoader = new google.ima.AdsLoader(adDisplayContainer);
+
+    _imaLoader.addEventListener(google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED,
+      function(e){ onIMALoaded(e, adDisplayContainer, videoEl); }, false);
+    _imaLoader.addEventListener(google.ima.AdErrorEvent.Type.AD_ERROR,
+      function(e){ onIMAError(e); }, false);
+
+    _imaInitialized = true;
+    console.log('[IMA] SDK 초기화 완료');
+  }catch(ex){
+    console.warn('[IMA] 초기화 실패:', ex.message);
+  }
+}
+
+function requestIMAad(rewardTL){
+  if(!_imaInitialized){ initIMA(); }
+  if(!_imaLoader) return false;
+  try{
+    var req = new google.ima.AdsRequest();
+    req.adTagUrl = IMA_AD_TAG + Math.floor(Math.random()*1e9);
+    req.linearAdSlotWidth = 640; req.linearAdSlotHeight = 480;
+    req.nonLinearAdSlotWidth = 640; req.nonLinearAdSlotHeight = 150;
+    _imaLoader.requestAds(req);
+    // IMA 컨테이너 표시
+    document.getElementById('imaAdContainer').style.display = 'block';
+    document.getElementById('wmPlaceholder').style.display = 'none';
+    window._imaRewardTL = rewardTL || 300;
+    return true;
+  }catch(ex){
+    console.warn('[IMA] 광고 요청 실패:', ex.message);
+    return false;
+  }
+}
+
+function onIMALoaded(e, adDisplayContainer, videoEl){
+  try{
+    _imaManager = e.getAdsManager(videoEl);
+    _imaManager.addEventListener(google.ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED,
+      function(){ videoEl.pause(); }, false);
+    _imaManager.addEventListener(google.ima.AdEvent.Type.CONTENT_RESUME_REQUESTED,
+      function(){ onIMAComplete(); }, false);
+    _imaManager.addEventListener(google.ima.AdEvent.Type.ALL_ADS_COMPLETED,
+      function(){ onIMAComplete(); }, false);
+    _imaManager.addEventListener(google.ima.AdErrorEvent.Type.AD_ERROR,
+      function(e){ onIMAError(e); }, false);
+    _imaManager.init(640, 480, google.ima.ViewMode.NORMAL);
+    _imaManager.start();
+  }catch(ex){
+    onIMAError({getMessage:function(){return ex.message;}});
+  }
+}
+
+function onIMAComplete(){
+  // IMA 광고 완료 → TL_A 지급
+  document.getElementById('imaAdContainer').style.display = 'none';
+  var reward = window._imaRewardTL || 300;
+  grantIMAreward(reward);
+  if(_imaManager){ _imaManager.destroy(); _imaManager = null; }
+}
+
+function onIMAError(e){
+  console.warn('[IMA] 광고 오류:', e.getMessage ? e.getMessage() : e);
+  document.getElementById('imaAdContainer').style.display = 'none';
+  document.getElementById('wmPlaceholder').style.display = '';
+  // IMA 실패 시 자체 광고로 fallback
+  toast('외부 광고를 불러오지 못했습니다. 자체 광고로 전환합니다.','w');
+}
+
+async function grantIMAreward(reward){
+  // TL_A 지급 (외부 광고 완료)
+  try{
+    var r=await fetch(API+'/api/eco/ad-reward',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
+      body:JSON.stringify({ad_id:'ima_'+Date.now(), tl_amount:reward})
+    });
+    var d=await r.json();
+    if(d.wallet){
+      _user.tl_a=(d.wallet.tl_a||0);
+      localStorage.setItem('tl_user',JSON.stringify(_user));
+    }
+  }catch(e){
+    _user.tl_a=((_user&&_user.tl_a)||0)+reward;
+    localStorage.setItem('tl_user',JSON.stringify(_user));
+  }
+  _todayEarned+=reward; _totalEarned+=reward;
+  var tk='tl_ad_earned_'+new Date().toISOString().slice(0,10);
+  localStorage.setItem(tk,String(_todayEarned));
+  localStorage.setItem('tl_ad_total_earned',String(_totalEarned));
+  updateStats();
+  g('sbTL').textContent=(((_user&&_user.tl_p)||0)+((_user&&_user.tl_a)||0)+((_user&&_user.tl_b)||0)).toLocaleString()+' TL';
+  toast('✅ '+reward.toLocaleString()+' TL_A 적립! (Google 광고 보상)','s');
+  // 다음 광고 카드에 반영
+  loadAds();
+}
+
+// 페이지 로드 시 IMA 초기화
+window.addEventListener('load', function(){
+  setTimeout(initIMA, 1000); // SDK 로드 후 초기화
+});
+
 var API = 'https://api.timelink.digital';
 var _user = null, _token = null;
 var _ads = [], _filter = 'all';
@@ -522,6 +652,15 @@ function openWatchModal(adId){
 
   g('watchOverlay').classList.add('open');
   _elapsed=0;
+
+  // 자체 미디어 없는 mock 광고 → Google IMA 시도
+  if(!_curAd.media_url && _curAd.ad_type==='video'){
+    var imaOk = requestIMAad(_curAd.tl_reward||300);
+    if(imaOk){
+      // IMA가 자체 타이머 대신 처리 - 최소 시청 타이머만 유지
+      _adDuration = 15;
+    }
+  }
   startWatchTimer();
 }
 
