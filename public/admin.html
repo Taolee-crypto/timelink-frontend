@@ -407,7 +407,7 @@ function login(){
 function logout(){ localStorage.removeItem('tl_adm'); location.reload(); }
 
 // ─ Nav ─
-var TITLES={dashboard:'대시보드',shares:'공유 파일 관리',users:'유저 관리',charge:'TL 충전/차감',sql:'SQL 실행'};
+var TITLES={dashboard:'대시보드',shares:'공유 파일 관리',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',sql:'SQL 실행'};
 function go(id,el){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
   document.querySelectorAll('.sb-item').forEach(function(i){i.classList.remove('on');});
@@ -417,6 +417,7 @@ function go(id,el){
   if(id==='users') renderUsers();
   if(id==='charge') renderTLUsers();
   if(id==='shares') renderShares();
+  if(id==='notice') initNoticePanel();
 }
 
 // ─ API ─
@@ -668,6 +669,137 @@ function startClock(){
   setInterval(function(){ loadUsers(); },30000);
   setInterval(function(){ loadShares(); renderDashboard(); },60000);
 }
+
+
+/* ══════════════════════════════════════
+   공지 / 이벤트 기능
+   - localStorage 'tl_free_upload' : { until, message, set_at }
+   - 백엔드 없이 localStorage 기반으로 모든 브라우저에 공유 불가하므로
+     실제로는 admin이 설정 후 Cloudflare KV / D1에 저장하는 방식으로 확장 가능
+     현재: admin SQL을 통해 KV 대신 D1 settings 테이블에 저장
+══════════════════════════════════════ */
+async function initNoticePanel(){
+  // 현재 설정 로드
+  await loadNoticeState();
+  // 미리보기 업데이트
+  updateNoticePreview();
+  g('freeNoticeMsg').addEventListener('input', updateNoticePreview);
+}
+
+function updateNoticePreview(){
+  var msg = g('freeNoticeMsg') ? g('freeNoticeMsg').value : '';
+  var until = g('freeUntilDate') ? g('freeUntilDate').value : '';
+  var preview = g('noticePreview');
+  if(preview){
+    preview.textContent = msg + (until ? '\n\n📅 기간: ' + until + '까지' : '');
+  }
+}
+
+async function loadNoticeState(){
+  var el = g('freeUploadCurrentState');
+  if(!el) return;
+
+  // 1) D1 tl_settings 테이블에서 로드 시도
+  try{
+    var d = await execSQL("SELECT value FROM tl_settings WHERE key='free_upload' LIMIT 1");
+    if(d && d.results && d.results.length > 0){
+      var setting = JSON.parse(d.results[0].value || 'null');
+      if(setting){
+        el.textContent = '✅ 활성: ' + setting.until + '까지 / ' + (setting.message||'').slice(0,40);
+        if(g('freeUntilDate') && setting.until) g('freeUntilDate').value = setting.until;
+        if(g('freeNoticeMsg') && setting.message) g('freeNoticeMsg').value = setting.message;
+        updateNoticePreview();
+        return;
+      }
+    }
+  }catch(e){}
+
+  // 2) localStorage에서 로드 (폴백)
+  try{
+    var local = JSON.parse(localStorage.getItem('tl_free_upload')||'null');
+    if(local && local.until){
+      el.textContent = '✅ 로컬 설정: ' + local.until + '까지';
+      if(g('freeUntilDate')) g('freeUntilDate').value = local.until;
+      if(g('freeNoticeMsg') && local.message) g('freeNoticeMsg').value = local.message;
+      updateNoticePreview();
+      return;
+    }
+  }catch(e){}
+
+  el.textContent = '설정 없음 (비활성)';
+}
+
+async function saveFreeUpload(){
+  var until = g('freeUntilDate') ? g('freeUntilDate').value : '';
+  var message = g('freeNoticeMsg') ? g('freeNoticeMsg').value.trim() : '';
+  var statusEl = g('freeUploadStatus');
+
+  if(!until){ toast('종료일을 선택하세요','r'); return; }
+  if(!message){ toast('공지 메시지를 입력하세요','r'); return; }
+
+  var setting = { until: until, message: message, set_at: new Date().toISOString() };
+  var jsonStr = JSON.stringify(setting).replace(/'/g, "''");
+
+  // 1) D1 저장 (tl_settings 테이블 자동 생성)
+  var createSQL = "CREATE TABLE IF NOT EXISTS tl_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT DEFAULT (datetime('now')))";
+  var upsertSQL = "INSERT INTO tl_settings (key,value,updated_at) VALUES ('free_upload','" + jsonStr + "',datetime('now')) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at";
+
+  try{
+    await execSQL(createSQL);
+    await execSQL(upsertSQL);
+    toast('✅ D1 저장 완료! SharePlace·Creator에 즉시 반영됩니다', 'g');
+  }catch(e){
+    toast('D1 저장 실패: ' + e.message, 'r');
+  }
+
+  // 2) localStorage에도 저장 (현재 브라우저 즉시 반영)
+  localStorage.setItem('tl_free_upload', JSON.stringify(setting));
+
+  if(statusEl) statusEl.textContent = '✅ 저장됨 (' + new Date().toLocaleTimeString('ko-KR') + ')';
+  updateNoticePreview();
+  await loadNoticeState();
+}
+
+async function clearFreeUpload(){
+  if(!confirm('무료 업로드 기간을 해제하시겠습니까?')) return;
+
+  try{
+    await execSQL("DELETE FROM tl_settings WHERE key='free_upload'");
+    toast('무료 업로드 기간 해제됨', 'g');
+  }catch(e){
+    toast('DB 삭제 실패 (localStorage는 삭제됨)', 'r');
+  }
+
+  localStorage.removeItem('tl_free_upload');
+  var statusEl = g('freeUploadStatus');
+  if(statusEl) statusEl.textContent = '해제됨';
+
+  var el = g('freeUploadCurrentState');
+  if(el) el.textContent = '설정 없음 (비활성)';
+}
+
+// ─ 이벤트 공지 팝업 (일반 유저용 - shareplace에서 호출됨) ─
+// shareplace.html에서 아래 코드로 설정을 읽어 팝업 표시:
+// localStorage.getItem('tl_free_upload') 또는
+// GET /api/admin/setting?key=free_upload
+async function checkAndShowNotice(){
+  // D1에서 설정 조회
+  try{
+    var r = await fetch(API+'/api/admin/sql',{
+      method:'POST', mode:'cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sql:"SELECT value FROM tl_settings WHERE key='free_upload' LIMIT 1"})
+    });
+    var d = await r.json();
+    if(d.results && d.results.length > 0){
+      var s = JSON.parse(d.results[0].value||'null');
+      if(s && s.until && new Date(s.until) >= new Date()){
+        localStorage.setItem('tl_free_upload', JSON.stringify(s));
+      }
+    }
+  }catch(e){}
+}
+
 
 // ─ Session Restore ─
 (function(){

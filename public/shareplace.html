@@ -1816,8 +1816,29 @@ function tlCharge(){
   renderShares(_getFilteredList()); // 초록색 TL 반영
 })();
 
-// ── 무료 업로드 기간 공지 팝업 ──
-(function(){
+// ── 무료 업로드 기간 공지 팝업 (D1 + localStorage 병행) ──
+// D1에서 최신 설정 로드 후 팝업 표시
+async function syncAndShowNotice(){
+  try{
+    // D1에서 최신 설정 동기화
+    var r=await fetch('https://api.timelink.digital/api/admin/sql',{
+      method:'POST',mode:'cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sql:"SELECT value FROM tl_settings WHERE key='free_upload' LIMIT 1"})
+    });
+    var d=await r.json();
+    if(d&&d.results&&d.results.length>0){
+      var s=JSON.parse(d.results[0].value||'null');
+      if(s&&s.until&&new Date(s.until)>=new Date()){
+        localStorage.setItem('tl_free_upload',JSON.stringify(s));
+      }else{
+        localStorage.removeItem('tl_free_upload');
+      }
+    }
+  }catch(e){}
+  showNoticePopup();
+}
+function showNoticePopup(){
   try{
     var cfg=JSON.parse(localStorage.getItem('tl_free_upload')||'null');
     if(!cfg||!cfg.until||!cfg.message) return;
@@ -1842,7 +1863,9 @@ function tlCharge(){
       localStorage.setItem(seenKey, new Date().toDateString());
     };
   }catch(e){}
-})();
+}
+// 페이지 로드 시 D1에서 동기화 후 팝업 표시
+syncAndShowNotice();
 
 function toggleSbDropdown(id){ var el=document.getElementById(id); if(el) el.classList.toggle('open'); }
 
