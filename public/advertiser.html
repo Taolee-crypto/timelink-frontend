@@ -400,9 +400,14 @@ textarea.form-input{min-height:80px;resize:vertical}
           <div class="form-group">
             <label class="form-label">광고 유형 *</label>
             <select class="form-input" id="cType" onchange="updateBudgetCalc()">
-              <option value="video">📹 영상 광고 (15초)</option>
-              <option value="audio">🎵 오디오 광고 (30초)</option>
-              <option value="image">🖼️ 이미지 광고 (10초)</option>
+              <optgroup label="📺 리워드 광고 (시청 → TL_A 지급)">
+                <option value="video">📹 영상 광고 (15초) — 시청당 300 TL_A</option>
+                <option value="audio">🎵 오디오 광고 (30초) — 시청당 300 TL_A</option>
+                <option value="image">🖼️ 이미지 광고 (10초) — 시청당 150 TL_A</option>
+              </optgroup>
+              <optgroup label="⭐ 프리미엄 배너 (상시 노출)">
+                <option value="banner_sidebar">📌 사이드바 배너 (220×120px) — 7일 50,000 TL</option>
+              </optgroup>
             </select>
           </div>
           <div class="form-group">
@@ -421,8 +426,11 @@ textarea.form-input{min-height:80px;resize:vertical}
             <div class="form-hint">직접 업로드는 준비 중. R2 URL 직접 입력 가능</div>
           </div>
           <div class="form-group">
-            <label class="form-label">썸네일 이미지 URL</label>
-            <input class="form-input" id="cThumbUrl" placeholder="https://... (JPG, PNG)">
+            <label class="form-label">썸네일 / 배너 이미지 URL</label>
+            <input class="form-input" id="cThumbUrl" placeholder="https://... (배너: 220×120px 권장)" oninput="updateBannerPreview()">
+            <div id="bannerPreview" style="display:none;margin-top:8px;border-radius:8px;overflow:hidden;width:220px;height:120px;background:rgba(255,255,255,.05);border:1px solid var(--bd2)">
+              <img id="bannerPreviewImg" style="width:100%;height:100%;object-fit:cover" src="">
+            </div>
           </div>
         </div>
       </div>
@@ -786,14 +794,38 @@ function updateBudgetCalc(){
   var budget=parseInt(g('cBudget').value)||0;
   var reward=parseInt(g('cReward').value)||300;
   var type=g('cType').value;
+  var isBanner = type.startsWith('banner_');
+
+  // 배너 광고 최소 예산 설정
+  if(isBanner){
+    var minMap = {banner_sidebar: 50000};
+    var minBudget = minMap[type] || 50000;
+    if(!budget) budget = minBudget;
+    var daysMap = {banner_sidebar: '7일 (사이드바 220×120px 상시 노출)'};
+    g('budgetCalc').innerHTML =
+      '<b>⭐ 프리미엄 배너 상품</b><br>'+
+      '노출 기간: <b>'+daysMap[type]+'</b><br>'+
+      '최소 예산: <b>'+minBudget.toLocaleString()+' TL</b><br>'+
+      '노출 방식: <b>로그인 사용자 사이드바 상시 노출</b><br>'+
+      '일 노출 단가: <b>'+(minBudget/7).toFixed(0)+' TL/일</b><br>'+
+      '<span style="color:var(--green)">✅ TL_A 지급 없음 — 전액 브랜드 노출 비용</span>';
+    // 최소 예산 힌트 업데이트
+    g('cBudget').placeholder = minBudget.toString();
+    return;
+  }
+
   if(!budget||!reward){ g('budgetCalc').innerHTML='예산을 입력하면 예상 노출 수를 계산합니다.'; return; }
   var est=Math.floor(budget/reward);
-  var duration={video:'15초',audio:'30초',image:'10초'}[type]||'15초';
+  var info={video:{dur:'15초',min:10000},audio:{dur:'30초',min:10000},image:{dur:'10초',min:5000}};
+  var t = info[type] || {dur:'?',min:1000};
   g('budgetCalc').innerHTML=
-    '예상 노출 수: <b>'+est.toLocaleString()+'회</b><br>'+
-    '광고 유형: <b>'+duration+' '+type+'</b><br>'+
-    '시청당 지급: <b>'+reward.toLocaleString()+' TL</b><br>'+
-    '총 예산: <b>'+budget.toLocaleString()+' TL</b>';
+    '예상 시청 완료: <b>'+est.toLocaleString()+'회</b><br>'+
+    '광고 유형: <b>'+t.dur+' '+type+'</b><br>'+
+    '시청당 TL_A 지급: <b>'+reward.toLocaleString()+' TL_A</b> (사용자, 비교환)<br>'+
+    '최소 예산: <b>'+t.min.toLocaleString()+' TL</b><br>'+
+    '총 예산: <b>'+budget.toLocaleString()+' TL</b><br>'+
+    '<span style="color:var(--green)">✅ 플랫폼 순수익: '+budget.toLocaleString()+' TL (TL_A 원가=0)</span>';
+  g('cBudget').placeholder = t.min.toString();
 }
 
 // ── 광고 등록 ──
@@ -809,7 +841,9 @@ async function submitAd(){
   var daily=parseInt(g('cDailyLimit').value)||100;
 
   if(!title){ toast('광고 제목을 입력하세요','e'); return; }
-  if(budget<1000){ toast('최소 예산은 1,000 TL입니다','e'); return; }
+  var isBanner = type.startsWith('banner_');
+  var minBudget = isBanner ? 50000 : (type==='image'?5000:10000);
+  if(budget < minBudget){ toast('이 광고 유형의 최소 예산은 '+minBudget.toLocaleString()+' TL입니다','e'); return; }
   if(((_user&&_user.tl)||0)<budget){ toast('TL 잔액이 부족합니다','e'); return; }
 
   var btn=g('createAdBtn');
@@ -859,64 +893,62 @@ async function submitAd(){
 }
 </script>
 
-<!-- ══ 공통 푸터 ══ -->
-<footer style="
-  border-top:1px solid rgba(255,255,255,.07);
-  padding:40px 24px 32px;
-  margin-top:auto;
-  background:rgba(3,5,8,.8);">
-  <div style="max-width:1200px;margin:0 auto">
-    <!-- 상단: 로고 + 링크 -->
-    <div style="display:flex;flex-wrap:wrap;gap:40px;justify-content:space-between;margin-bottom:32px">
-      <!-- 브랜드 -->
-      <div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-          <div style="width:28px;height:28px;background:linear-gradient(135deg,#8B5CF6,#00E5A0);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;font-family:'JetBrains Mono',monospace">TL</div>
-          <span style="font-size:13px;font-weight:700;letter-spacing:.08em">TIMELINK</span>
-        </div>
-        <p style="font-size:11px;color:rgba(255,255,255,.3);line-height:1.7;max-width:200px">디지털 파일 이코노미 플랫폼<br>1 TL = 1원 · 1초 = 1 TL</p>
-      </div>
-      <!-- 서비스 링크 -->
-      <div>
-        <div style="font-size:10px;color:rgba(255,255,255,.3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">서비스</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <a href="shareplace.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;transition:color .2s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">SharePlace</a>
-          <a href="chart.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;transition:color .2s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">TL CHART</a>
-          <a href="radio.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;transition:color .2s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">TL방송국</a>
-          <a href="ads.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;transition:color .2s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">광고 센터</a>
-        </div>
-      </div>
-      <!-- 크리에이터 -->
-      <div>
-        <div style="font-size:10px;color:rgba(255,255,255,.3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">크리에이터</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <a href="creator.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;transition:color .2s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">크리에이터 센터</a>
-          <a href="creator-policy.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;transition:color .2s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">크리에이터 정책</a>
-          <a href="advertiser.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;transition:color .2s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">광고주 센터</a>
-        </div>
-      </div>
-      <!-- 법적 정보 -->
-      <div>
-        <div style="font-size:10px;color:rgba(255,255,255,.3);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">법적 정보</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <a href="terms.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;transition:color .2s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">이용약관</a>
-          <a href="privacy.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;transition:color .2s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">개인정보처리방침</a>
-          <a href="creator-policy.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;transition:color .2s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">크리에이터 정책</a>
-        </div>
-      </div>
-    </div>
-    <!-- 하단: 사업자 정보 + 카피라이트 -->
-    <div style="padding-top:20px;border-top:1px solid rgba(255,255,255,.06)">
-      <div style="font-size:11px;color:rgba(255,255,255,.25);line-height:1.8;font-family:'JetBrains Mono',monospace;margin-bottom:6px">
-        씨엠피 주식회사 · 대표이사 이문웅 · 사업자등록번호 491-86-02547<br>
-        서울특별시 영등포구 국제금융로8길 27-8, 4층 (여의도동, 엔에이치농협캐피탈빌딩)
-      </div>
-      <div style="font-size:11px;color:rgba(255,255,255,.2)">
-        © 2026 씨엠피 주식회사. TimeLink는 씨엠피 주식회사의 서비스입니다. All rights reserved.
-      </div>
-    </div>
-  </div>
+
+<!-- ══ 동적 푸터 ══ -->
+<footer id="tl-dynamic-footer" style="border-top:1px solid rgba(255,255,255,.07);padding:40px 24px 32px;margin-top:auto;background:rgba(3,5,8,.8)">
+  <div style="text-align:center;color:rgba(255,255,255,.2);font-size:12px;padding:20px">로딩 중...</div>
 </footer>
+<script>
+/* Dynamic Footer v2 */
+(function(){
+  var D={company:"씨엠피 주식회사",ceo:"이문웅",bizno:"491-86-02547",
+    email:"support@timelink.digital",
+    addr:"서울특별시 영등포구 국제금융로8길 27-8, 4층",
+    desc:"디지털 파일 이코노미 플랫폼 · 1 TL = 1원",
+    copy:"ⓒ 2026 씨엠피 주식회사. All rights reserved.",links:""};
+  var API="https://api.timelink.digital";
+  function al(href,text){var a=document.createElement("a");a.href=href;a.className="tl-fl";a.textContent=text;return a;}
+  function col(title,links){
+    var d=document.createElement("div");
+    var h=document.createElement("div");h.style.cssText="font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px";h.textContent=title;d.appendChild(h);
+    var inner=document.createElement("div");inner.style.cssText="display:flex;flex-direction:column;gap:8px";
+    links.forEach(function(l){inner.appendChild(al(l[0],l[1]));});d.appendChild(inner);return d;
+  }
+  function render(s){
+    var ft=document.getElementById("tl-dynamic-footer");if(!ft)return;
+    if(!document.getElementById("tl-ft-css")){var st=document.createElement("style");st.id="tl-ft-css";st.textContent=".tl-fl{font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px;transition:color .2s}.tl-fl:hover{color:#fff}";document.head.appendChild(st);}
+    ft.innerHTML="";
+    var wrap=document.createElement("div");wrap.style.cssText="max-width:1200px;margin:0 auto";
+    var grid=document.createElement("div");grid.style.cssText="display:flex;flex-wrap:wrap;gap:40px;justify-content:space-between;margin-bottom:32px";
+    var brand=document.createElement("div");
+    var logoRow=document.createElement("div");logoRow.style.cssText="display:flex;align-items:center;gap:8px;margin-bottom:12px";
+    var icon=document.createElement("div");icon.style.cssText="width:28px;height:28px;background:linear-gradient(135deg,#8B5CF6,#00E5A0);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff";icon.textContent="TL";
+    var ltxt=document.createElement("span");ltxt.style.cssText="font-size:13px;font-weight:700;letter-spacing:.08em";ltxt.textContent="TIMELINK";
+    logoRow.appendChild(icon);logoRow.appendChild(ltxt);
+    var dp=document.createElement("p");dp.style.cssText="font-size:11px;color:rgba(255,255,255,.3);line-height:1.7;max-width:200px";dp.textContent=s.desc||D.desc;
+    brand.appendChild(logoRow);brand.appendChild(dp);grid.appendChild(brand);
+    grid.appendChild(col("서비스",[["shareplace.html","SharePlace"],["chart.html","TL CHART"],["radio.html","TL방송국"],["ads.html","광고 센터"]]));
+    grid.appendChild(col("크리에이터",[["creator.html","크리에이터 센터"],["creator-policy.html","크리에이터 정책"],["advertiser.html","광고주 센터"]]));
+    var ll=[["terms.html","이용약관"],["privacy.html","개인정보처리방침"],["creator-policy.html","크리에이터 정책"]];
+    if(s.links){s.links.split("\n").forEach(function(l){var p=l.trim().split("|");if(p.length===2)ll.push([p[1].trim(),p[0].trim()]);});}
+    grid.appendChild(col("법적 정보",ll));
+    wrap.appendChild(grid);
+    var bot=document.createElement("div");bot.style.cssText="padding-top:20px;border-top:1px solid rgba(255,255,255,.06)";
+    var biz=document.createElement("div");biz.style.cssText="font-size:11px;color:rgba(255,255,255,.25);line-height:1.8;margin-bottom:4px";biz.textContent=(s.company||D.company)+" · 대표이사 "+(s.ceo||D.ceo)+" · 사업자등록번호 "+(s.bizno||D.bizno);
+    var ad=document.createElement("div");ad.style.cssText="font-size:11px;color:rgba(255,255,255,.2);margin-bottom:4px";ad.textContent=s.addr||D.addr;
+    var cp=document.createElement("div");cp.style.cssText="font-size:11px;color:rgba(255,255,255,.2)";cp.textContent=s.copy||D.copy;
+    bot.appendChild(biz);bot.appendChild(ad);bot.appendChild(cp);wrap.appendChild(bot);ft.appendChild(wrap);
+  }
+  async function load(){
+    var s={};
+    try{var cached=JSON.parse(localStorage.getItem("tl_footer_settings")||"null");if(cached&&cached.company){Object.assign(s,cached);render(s);}}catch(e){}
+    try{var r=await fetch(API+"/api/admin/sql",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sql:"SELECT value FROM tl_settings WHERE key='footer_settings' LIMIT 1"})});var d=await r.json();if(d.results&&d.results.length){var fresh=JSON.parse(d.results[0].value||"null");if(fresh&&fresh.company){Object.assign(s,fresh);localStorage.setItem("tl_footer_settings",JSON.stringify(fresh));}}}catch(e){}
+    render(s);
+  }
+  document.readyState==="loading"?document.addEventListener("DOMContentLoaded",load):load();
+})();
+</script>
+
 
 </body>
 </html>
