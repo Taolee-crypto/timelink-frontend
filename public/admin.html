@@ -865,8 +865,11 @@ async function saveFreeUpload(){
   var upsertSQL = "INSERT INTO tl_settings (key,value,updated_at) VALUES ('free_upload','" + jsonStr + "',datetime('now')) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at";
 
   try{
-    await execSQL(createSQL);
-    await execSQL(upsertSQL);
+    await fetch(API + '/api/admin/settings/free_upload', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('tl_token')||'admin')},
+      body: JSON.stringify({value: jsonStr})
+    });
     toast('✅ D1 저장 완료! SharePlace·Creator에 즉시 반영됩니다', 'g');
   }catch(e){
     toast('D1 저장 실패: ' + e.message, 'r');
@@ -933,7 +936,11 @@ async function loadFooterSettings(){
   var el = document.getElementById('footerCurrentState');
   if(!el) return;
   try{
-    var d = await execSQL("SELECT value FROM tl_settings WHERE key='footer_settings' LIMIT 1");
+    var r2 = await fetch(API + '/api/admin/settings/footer_settings', {
+      headers: {'Authorization': 'Bearer ' + (localStorage.getItem('tl_token')||'admin')}
+    });
+    var d2 = await r2.json();
+    var d = d2.value ? {results: [{value: d2.value}]} : {results: []};
     if(d && d.results && d.results.length > 0){
       var s = JSON.parse(d.results[0].value || 'null');
       if(s){
@@ -969,16 +976,17 @@ async function saveFooterSettings(){
 
   if(!settings.company){ toast('상호를 입력하세요', 'r'); return; }
 
-  var jsonStr = JSON.stringify(settings).replace(/'/g, "''");
-  var createSQL = "CREATE TABLE IF NOT EXISTS tl_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT DEFAULT (datetime('now')))";
-  var upsertSQL = "INSERT INTO tl_settings (key,value,updated_at) VALUES ('footer_settings','" + jsonStr + "',datetime('now')) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at";
-
   try{
-    await execSQL(createSQL);
-    await execSQL(upsertSQL);
+    var r = await fetch(API + '/api/admin/settings/footer_settings', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('tl_token')||'admin')},
+      body: JSON.stringify({value: JSON.stringify(settings)})
+    });
+    var d = await r.json();
+    if(d.error) throw new Error(d.error);
     toast('✅ 푸터 설정 저장 완료! 모든 페이지에 반영됩니다', 'g');
   }catch(e){
-    toast('DB 저장 실패: ' + e.message, 'r');
+    toast('저장 실패: ' + e.message, 'r');
   }
 
   // localStorage에도 저장 (즉시 반영)
