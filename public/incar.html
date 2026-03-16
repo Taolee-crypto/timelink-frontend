@@ -642,6 +642,10 @@ var _playing = false, _shuffle = false, _night = false, _voiceOn = false;
 var _speed = 0, _distance = 0, _poc = 0, _pocMult = 1.0;
 var _pocInterval = null, _gpsWatch = null;
 var _useA = true, _audA, _audB, _crossfading = false;
+var _myFileTL = {};          // 곡별 충전 TL { share_id: balance }
+var _curShareId = null;      // 현재 재생 중인 share id
+var _token = localStorage.getItem('tl_token') || '';
+var _tlDeductRate = 1.0;     // 초당 TL 차감율 (POC에 따라 감소)
 
 function toast(msg,t){ t=t||'i'; var el=document.createElement('div'); el.className='t '+t; el.textContent=msg; document.getElementById('toast-box').prepend(el); setTimeout(function(){el.remove();},3000); }
 
@@ -798,8 +802,18 @@ async function loadShares(){
   try{
     var r = await fetch(API+'/api/shares');
     var d = await r.json();
-    _shares = (d.shares||[]).filter(function(s){ return s.file_tl; });
+    // stream_url 있는 곡 포함 (file_tl 0이어도 OK)
+    _shares = (d.shares||[]).filter(function(s){ return s.stream_url||s.preview_url; });
   }catch(e){ _shares=[]; }
+
+  // 곡별 충전 TL 로드
+  if(_user && _user.id){
+    try{
+      var r2 = await fetch(API+'/api/user/file-tl?user_id='+_user.id);
+      var d2 = await r2.json();
+      (d2.files||[]).forEach(function(f){ _myFileTL[String(f.share_id)]=f.tl_balance; });
+    }catch(e){}
+  }
 
   // Load saved playlist
   var saved = JSON.parse(localStorage.getItem('tl_incar_playlist')||'null');
@@ -939,6 +953,13 @@ function seekTrack(e){
 function setVol(v){ _audA.volume=v/100; if(!_crossfading) _audB.volume=0; g('volVal').textContent=v+'%'; }
 
 // POC
+
+function calcDeductRate(){
+  var poc = parseFloat((_user&&_user.poc_index)||1.0);
+  if(poc < 1) poc = 1.0;
+  _tlDeductRate = Math.max(0.01, Math.min(1.0, 1.0/poc));
+}
+
 function startPoc(){
   if(_pocInterval) clearInterval(_pocInterval);
   calcDeductRate();
