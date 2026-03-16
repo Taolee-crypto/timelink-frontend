@@ -1685,15 +1685,26 @@ async function safeJumpTo(idx){
   if(!s){ jumpTo(idx); return; }
   var sid = String(s.id||'');
   var myTL = _myFileTL[sid]||0;
-  var walletTL = _user ? getTotalTL() : 0;
+  var walletTL = getTotalTL();
 
   // 1) 곡별 TL 있으면 바로 재생
   if(myTL > 0){ jumpTo(idx); return; }
 
   // 2) 지갑 TL로 자동 충전 후 재생
   if(walletTL > 0){
-    var amt = Math.min(walletTL, Math.max(s.file_tl||300, 100));
-    toast('⚡ '+amt.toLocaleString()+' TL 자동 충전 중...','w');
+    // ── 충전량 계산 ──
+    // 곡 duration 기반: duration초 * 차감율 = 실제 소비량
+    // 최소 60초분, 최대 300초분(5분), 지갑 잔액 초과 불가
+    var rate = _tlDeductRate || 1.0;
+    var duration = s.duration || 180; // 기본 3분
+    var needed = Math.ceil(duration * rate);        // 이 곡 끝까지 재생하는데 필요한 TL
+    var minCharge = Math.ceil(60 * rate);           // 최소 1분분
+    var maxCharge = Math.ceil(300 * rate);          // 최대 5분분
+    var amt = Math.min(walletTL, Math.max(needed, minCharge));
+    amt = Math.min(amt, maxCharge);
+    amt = Math.max(amt, 1);
+
+    toast('⚡ '+amt.toLocaleString()+' TL 자동 충전 ('+Math.floor(amt/rate)+'초분)','w');
     try{
       var tk = localStorage.getItem('tl_token')||'';
       var r = await fetch('https://api.timelink.digital/api/shares/'+sid+'/charge',{
@@ -1703,16 +1714,16 @@ async function safeJumpTo(idx){
       });
       var d = await r.json();
       if(!r.ok) throw new Error(d.error||'충전실패');
-      _user.tl =((_user&&_user.tl)||0)- amt;
-      localStorage.setItem('tl_user',JSON.stringify(_user));
+      // ── 3분류 순차 차감 ──
+      deductTL(amt);
       _myFileTL[sid] = (_myFileTL[sid]||0) + amt;
       if(g('tbTL')) g('tbTL').textContent = getTotalTL().toLocaleString();
       if(g('sbTLBal')) g('sbTLBal').textContent = getTotalTL().toLocaleString();
-  if(g('sbTLp')) g('sbTLp').textContent = getPurchaseTL().toLocaleString();
-  if(g('sbTLa')) g('sbTLa').textContent = ((_user&&_user.tl_a)||0).toLocaleString();
-  if(g('sbTLb')) g('sbTLb').textContent = ((_user&&_user.tl_b)||0).toLocaleString();
+      if(g('sbTLp')) g('sbTLp').textContent = getPurchaseTL().toLocaleString();
+      if(g('sbTLa')) g('sbTLa').textContent = ((_user&&_user.tl_a)||0).toLocaleString();
+      if(g('sbTLb')) g('sbTLb').textContent = ((_user&&_user.tl_b)||0).toLocaleString();
       renderQueue();
-      toast('✅ 자동충전 완료! 재생합니다','s');
+      toast('✅ 자동충전 완료! '+Math.floor(amt/rate)+'초 재생 가능','s');
       jumpTo(idx);
     }catch(e){
       toast('자동 충전 실패: '+e.message,'e');

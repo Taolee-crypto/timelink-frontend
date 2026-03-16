@@ -757,6 +757,18 @@ _token = localStorage.getItem('tl_token') || '';
 if(!_user){ location.href='login.html'; }
 
 
+
+function deductTL(amount){
+  if(!_user||amount<=0) return 0;
+  if(_user.tl_p===undefined||_user.tl_p===null){ _user.tl_p=_user.tl||0; _user.tl_a=_user.tl_a||0; _user.tl_b=_user.tl_b||0; }
+  var remain=amount,deducted=0;
+  if(_user.tl_a>0&&remain>0){var d=Math.min(_user.tl_a,remain);_user.tl_a=Math.max(0,_user.tl_a-d);remain-=d;deducted+=d;}
+  if(_user.tl_b>0&&remain>0){var d=Math.min(_user.tl_b,remain);_user.tl_b=Math.max(0,_user.tl_b-d);remain-=d;deducted+=d;}
+  if(_user.tl_p>0&&remain>0){var d=Math.min(_user.tl_p,remain);_user.tl_p=Math.max(0,_user.tl_p-d);_user.tl=_user.tl_p;remain-=d;deducted+=d;}
+  localStorage.setItem('tl_user',JSON.stringify(_user));
+  return deducted;
+}
+
 function getTotalTL(){
   if(!_user) return 0;
   // tl_p 미설정 레거시 유저는 tl을 tl_p로 간주
@@ -936,7 +948,10 @@ async function onTrackClick(s){
 
   // 지갑 TL로 자동 충전 시도
   if(walletTL > 0){
-    var chargeAmt = Math.min(walletTL, s.file_tl||300);
+    // duration 기반 충전량 계산
+    var rate = _tlDeductRate || 1.0;
+    var dur = s.duration || 180;
+    var chargeAmt = Math.min(walletTL, Math.max(Math.ceil(dur * rate), Math.ceil(60 * rate)));
     if(chargeAmt <= 0) chargeAmt = Math.min(walletTL, 100);
     toast('⚡ 지갑에서 '+chargeAmt.toLocaleString()+' TL 자동 충전 중...','w');
     var ok = await autoCharge(sid, chargeAmt);
