@@ -391,6 +391,38 @@ body{font-family:var(--fn);background:var(--bg-root);color:var(--t1);min-height:
 .sb-sub-link:hover{color:var(--t1);background:rgba(255,255,255,.04)}
 .sb-sub-link.active{color:var(--purple)}
 
+/* ── 공통 Topbar ── */
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 24px;
+  border-bottom:1px solid var(--bd);background:rgba(3,5,7,.85);
+  backdrop-filter:blur(20px);position:sticky;top:0;z-index:200;flex-wrap:wrap}
+.tb-logo{display:flex;align-items:center;gap:8px;text-decoration:none;flex-shrink:0}
+.tb-logo-icon{width:28px;height:28px;background:linear-gradient(135deg,var(--purple),var(--mint));
+  border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:900;color:#fff;font-family:var(--fm)}
+.tb-logo-text{font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--t1)}
+.tb-sep{width:1px;height:18px;background:var(--bd2);flex-shrink:0}
+.tb-page{font-size:14px;font-weight:700;letter-spacing:.06em;color:var(--t1);white-space:nowrap}
+.tb-search-wrap{flex:1;min-width:160px;max-width:480px;
+  display:flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,.04);border:1px solid var(--bd2);
+  border-radius:10px;padding:7px 14px}
+.tb-search-wrap input{background:none;border:none;outline:none;
+  color:var(--t1);font-size:13px;font-family:var(--fn);width:100%}
+.tb-search-wrap input::placeholder{color:var(--t3)}
+.tb-tl-group{display:flex;align-items:center;gap:8px;
+  margin-left:auto;font-family:var(--fm);flex-shrink:0}
+.tb-tl-val{font-size:13px;font-weight:700;color:var(--mint)}
+.tb-tlc-val{font-size:12px;font-weight:700;color:var(--purple)}
+.tb-vdiv{width:1px;height:14px;background:var(--bd2)}
+.tb-logout{padding:5px 10px;border-radius:7px;border:1px solid var(--bd);
+  background:transparent;color:var(--t3);font-size:11px;cursor:pointer;
+  font-family:var(--fn);transition:all .2s}
+.tb-logout:hover{color:var(--t1)}
+.tb-act{padding:7px 16px;border-radius:9px;border:none;
+  background:linear-gradient(135deg,var(--purple),#7C3AED);
+  color:#fff;font-size:12px;font-weight:700;cursor:pointer;
+  font-family:var(--fn);white-space:nowrap;transition:all .2s}
+.tb-act:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(99,102,241,.35)}
 </style>
 <script src="https://cdn.iamport.kr/v1/iamport.js"></script>
 </head>
@@ -764,6 +796,7 @@ function toast(msg,t){
 
 // ── UI 초기화 ──
 function initUI(){
+  buildTopbar({page:'📻 TL방송국',actionBtn:'☕ 카페방송',actionUrl:'cafe-radio.html'});
   g('tbUser').textContent = _user.username||'';
   updateTLDisplay();
   setInterval(function(){g('liveTime').textContent=new Date().toLocaleTimeString('ko-KR');},1000);
@@ -1343,6 +1376,63 @@ async function loadPayHistory(){
   }
 }
 
+
+/* ── 공통 Topbar ── */
+function buildTopbar(opts){
+  opts=opts||{};
+  var tb=document.querySelector('.topbar');
+  if(!tb) return;
+  tb.innerHTML='';
+  // 로고
+  var logo=document.createElement('a');
+  logo.href='shareplace.html'; logo.className='tb-logo';
+  logo.innerHTML='<div class="tb-logo-icon">TL</div><span class="tb-logo-text">TIMELINK</span>';
+  tb.appendChild(logo);
+  // 구분선
+  var sep=document.createElement('div'); sep.className='tb-sep'; tb.appendChild(sep);
+  // 페이지명
+  if(opts.page){
+    var pg=document.createElement('div'); pg.className='tb-page';
+    pg.textContent=opts.page; tb.appendChild(pg);
+  }
+  // 검색바
+  if(opts.search){
+    var sw=document.createElement('div'); sw.className='tb-search-wrap';
+    sw.innerHTML='<span style="color:var(--t3);font-size:13px">🔍</span>'
+      +'<input type="text" placeholder="'+(opts.searchPlaceholder||'검색...')+'" id="tbSearchInput">';
+    if(opts.onSearch){
+      sw.querySelector('input').addEventListener('input',function(){ opts.onSearch(this.value); });
+    }
+    tb.appendChild(sw);
+  }
+  // TL 그룹 (오른쪽)
+  var u=_user||{};
+  var totalTL=typeof getTotalTL==='function'?getTotalTL():(u.tl||0);
+  var tlc=Number(u.tlc||u.tlc_balance||0).toFixed(0);
+  var tg=document.createElement('div'); tg.className='tb-tl-group';
+  tg.innerHTML='<span style="color:var(--t3);font-size:10px;font-family:var(--fm)">⚡</span>'
+    +'<span class="tb-tl-val" id="tbTLval">'+Number(totalTL).toLocaleString()+' TL</span>'
+    +'<div class="tb-vdiv"></div>'
+    +'<span class="tb-tlc-val">'+tlc+' TLC</span>'
+    +'<div class="tb-vdiv"></div>'
+    +'<button class="tb-logout" onclick="doLogout()">↩ 로그아웃</button>';
+  if(opts.actionBtn){
+    var ab=document.createElement('button'); ab.className='tb-act';
+    ab.textContent=opts.actionBtn;
+    ab.onclick=function(){ location.href=opts.actionUrl||'#'; };
+    tg.appendChild(ab);
+  }
+  tb.appendChild(tg);
+  // 2초마다 TL 갱신
+  setInterval(function(){
+    var el=document.getElementById('tbTLval');
+    if(el&&typeof getTotalTL==='function') el.textContent=getTotalTL().toLocaleString()+' TL';
+  },2000);
+}
+function doLogout(){
+  localStorage.removeItem('tl_token'); localStorage.removeItem('tl_user');
+  location.href='login.html';
+}
 </script>
 </body>
 </html>
