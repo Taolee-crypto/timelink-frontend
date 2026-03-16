@@ -1041,34 +1041,52 @@ function toast(msg,t){ t=t||'i'; var el=document.createElement('div'); el.classN
 // ── TL 3분류 순차 차감 (tl_a → tl_b → tl_p 순) ──
 function deductTL(amount){
   if(!_user || amount <= 0) return 0;
+
+  // 레거시 호환: tl_p 미설정 유저는 tl → tl_p로 초기화
+  if(_user.tl_p === undefined || _user.tl_p === null){
+    _user.tl_p = _user.tl || 0;
+    _user.tl_a = _user.tl_a || 0;
+    _user.tl_b = _user.tl_b || 0;
+  }
+
   var remain = amount;
   var deducted = 0;
 
   // 1순위: tl_a (광고 TL)
-  if((_user.tl_a||0) > 0 && remain > 0){
-    var d = Math.min(_user.tl_a||0, remain);
-    _user.tl_a = Math.max(0, (_user.tl_a||0) - d);
+  if(_user.tl_a > 0 && remain > 0){
+    var d = Math.min(_user.tl_a, remain);
+    _user.tl_a = Math.max(0, _user.tl_a - d);
     remain -= d; deducted += d;
   }
   // 2순위: tl_b (보너스 TL)
-  if((_user.tl_b||0) > 0 && remain > 0){
-    var d = Math.min(_user.tl_b||0, remain);
-    _user.tl_b = Math.max(0, (_user.tl_b||0) - d);
+  if(_user.tl_b > 0 && remain > 0){
+    var d = Math.min(_user.tl_b, remain);
+    _user.tl_b = Math.max(0, _user.tl_b - d);
     remain -= d; deducted += d;
   }
   // 3순위: tl_p (구매 TL)
-  if((_user.tl_p||_user.tl||0) > 0 && remain > 0){
-    var d = Math.min((_user.tl_p||_user.tl||0), remain);
-    _user.tl_p = Math.max(0, (_user.tl_p||_user.tl||0) - d);
-    _user.tl   = _user.tl_p; // 레거시 동기화
+  if(_user.tl_p > 0 && remain > 0){
+    var d = Math.min(_user.tl_p, remain);
+    _user.tl_p = Math.max(0, _user.tl_p - d);
+    _user.tl = _user.tl_p;  // 레거시 동기화
     remain -= d; deducted += d;
   }
   localStorage.setItem('tl_user', JSON.stringify(_user));
   return deducted;
 }
 
-function getTotalTL(){ return ((_user&&_user.tl_p)||(_user&&_user.tl)||0)+((_user&&_user.tl_a)||0)+((_user&&_user.tl_b)||0); }
-function getPurchaseTL(){ return (_user&&_user.tl_p)||(_user&&_user.tl)||0; }
+function getTotalTL(){
+  if(!_user) return 0;
+  // tl_p 미설정 레거시 유저는 tl을 tl_p로 간주
+  var p = (_user.tl_p !== undefined && _user.tl_p !== null) ? _user.tl_p : (_user.tl||0);
+  var a = _user.tl_a || 0;
+  var b = _user.tl_b || 0;
+  return p + a + b;
+}
+function getPurchaseTL(){
+  if(!_user) return 0;
+  return (_user.tl_p !== undefined && _user.tl_p !== null) ? _user.tl_p : (_user.tl||0);
+}
 
 function g(id){ return document.getElementById(id); }
 function fmtTime(s){ s=Math.floor(s||0); return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60); }
@@ -1163,18 +1181,17 @@ async function djSpeak(userMsg, isAuto){
   setDJState('typing');
 
   try{
-    var res = await fetch('https://api.anthropic.com/v1/messages', {
+    var res = await fetch(API+'/api/dj/chat', {
       method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||localStorage.getItem('tl_token')||'')},
       body: JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:200,
         system: systemPrompt,
-        messages: messages
+        messages: messages,
+        max_tokens: 200
       })
     });
     var data = await res.json();
-    var reply = (data.content && data.content[0] && data.content[0].text) || '좋은 음악을 선곡하고 있어요! 🎵';
+    var reply = data.reply || '좋은 음악을 선곡하고 있어요! 🎵';
 
     // 히스토리 저장
     if(userMsg) _djHistory.push({role:'user', content:userMsg});
