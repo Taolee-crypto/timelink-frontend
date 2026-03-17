@@ -724,15 +724,22 @@ function deductTL(amount){
 
 function getTotalTL(){
   if(!_user) return 0;
-  // tl_p 미설정 레거시 유저는 tl을 tl_p로 간주
-  var p = (_user.tl_p !== undefined && _user.tl_p !== null) ? _user.tl_p : (_user.tl||0);
-  var a = _user.tl_a || 0;
-  var b = _user.tl_b || 0;
-  return p + a + b;
+  // tl_p 미설정 레거시 유저 → tl 값으로 자동 초기화
+  if(_user.tl_p === undefined || _user.tl_p === null){
+    _user.tl_p = Number(_user.tl || _user.tl_balance || 0);
+    _user.tl_a = Number(_user.tl_a || 0);
+    _user.tl_b = Number(_user.tl_b || 0);
+    localStorage.setItem('tl_user', JSON.stringify(_user));
+  }
+  return (_user.tl_p || 0) + (_user.tl_a || 0) + (_user.tl_b || 0);
 }
 function getPurchaseTL(){
   if(!_user) return 0;
-  return (_user.tl_p !== undefined && _user.tl_p !== null) ? _user.tl_p : (_user.tl||0);
+  if(_user.tl_p === undefined || _user.tl_p === null){
+    _user.tl_p = Number(_user.tl || _user.tl_balance || 0);
+    localStorage.setItem('tl_user', JSON.stringify(_user));
+  }
+  return _user.tl_p || 0;
 }
 
 function g(id){ return document.getElementById(id); }
@@ -767,6 +774,13 @@ function startDriveGuest(){
 }
 
 function launchDrive(){
+  // 레거시 유저 TL 초기화
+  if(_user && (_user.tl_p === undefined || _user.tl_p === null)){
+    _user.tl_p = Number(_user.tl || _user.tl_balance || 0);
+    _user.tl_a = Number(_user.tl_a || 0);
+    _user.tl_b = Number(_user.tl_b || 0);
+    localStorage.setItem('tl_user', JSON.stringify(_user));
+  }
   g('setupScreen').style.display = 'none';
   g('driveScreen').style.display = 'flex';
   // TL 잔액 + 유저명 초기화
@@ -1270,11 +1284,7 @@ function openPayModal(pendingTrack){
   var el = document.getElementById('payOverlay');
   var form = document.getElementById('payForm');
   var succ = document.getElementById('paySuccess');
-  // setupScreen/driveScreen이 클릭 가로채지 않도록
-  var ss = document.getElementById('setupScreen');
-  var ds = document.getElementById('driveScreen');
-  if(ss) ss.style.zIndex = '1';
-  if(ds) ds.style.zIndex = '1';
+  // payOverlay z-index:99999으로 항상 위에 표시됨
   el.classList.add('open');
   form.style.display = '';
   succ.classList.remove('show');
@@ -1288,10 +1298,7 @@ function openPayModal(pendingTrack){
 
 function closePayModal(){
   document.getElementById('payOverlay').classList.remove('open');
-  var ss = document.getElementById('setupScreen');
-  var ds = document.getElementById('driveScreen');
-  if(ss) ss.style.zIndex = '';
-  if(ds) ds.style.zIndex = '';
+
 }
 
 // ── 결제 방식 탭 전환 ──
