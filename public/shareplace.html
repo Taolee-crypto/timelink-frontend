@@ -727,7 +727,6 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
     </div>
     <div class="page-content">
       <div id="fileGrid">
-        <div style="text-align:center;padding:80px 20px;color:var(--t3)">로딩 중...</div>
       </div>
     </div>
   </main>
@@ -944,10 +943,21 @@ async function loadMyFileTL(){
 async function loadShares(){
   document.getElementById('sortCount').textContent='로딩 중...';
   try{
-    var r=await fetch(API_BASE+'/api/shares');
+    // 10초 타임아웃
+    var ctrl=new AbortController();
+    var timer=setTimeout(function(){ctrl.abort();},10000);
+    var r=await fetch(API_BASE+'/api/shares',{signal:ctrl.signal});
+    clearTimeout(timer);
+    if(!r.ok) throw new Error('HTTP '+r.status);
     var d=await r.json();
-    _allShares=d.shares||[];
-  }catch(e){ _allShares=[]; }
+    _allShares=d.shares||d.data||[];
+  }catch(e){
+    console.warn('[loadShares] 오류:', e.message);
+    _allShares=[];
+    // 오류 상태 표시
+    var sc=document.getElementById('sortCount');
+    if(sc) sc.textContent='연결 오류 — 새로고침 해주세요';
+  }
   updateCounts();
   applyFilter();
 }
