@@ -600,8 +600,20 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
           </div>
         </div>
 
-        <div style="margin-top:14px;padding:12px;border-radius:10px;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);font-size:12px;color:var(--t3);line-height:1.6">
-          ⚡ 공유 등록 시 <strong style="color:var(--amber)">5,000 TL</strong> 차감
+        <div style="margin-top:14px;padding:12px 16px;border-radius:10px;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);font-size:12px;line-height:1.8">
+          <div style="margin-bottom:6px;color:var(--t3)">⚡ 파일 유형별 업로드 비용</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:11px;color:rgba(255,255,255,.4);margin-bottom:8px">
+            <span>🎵 음악/오디오</span><span style="color:var(--amber);font-weight:700">2,000 TL</span>
+            <span>🖼️ 이미지/문서</span><span style="color:var(--amber);font-weight:700">1,000 TL</span>
+            <span>🎬 영상 5분 이하</span><span style="color:var(--amber);font-weight:700">10,000 TL</span>
+            <span>🎬 영상 5~20분</span><span style="color:var(--amber);font-weight:700">30,000 TL</span>
+            <span>🎬 영상 20분 초과</span><span style="color:var(--amber);font-weight:700">50,000 TL</span>
+          </div>
+          <div style="padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">
+            <span style="color:var(--t3)">이번 업로드: </span>
+            <strong id="uploadCostTL" style="color:var(--amber)">파일 선택 후 표시</strong>
+          </div>
+          <div id="uploadCostWarn" style="margin-top:4px;font-size:11px"></div>
         </div>
       </div>
 
@@ -777,6 +789,7 @@ function onFileSelected(f){
     med.onloadedmetadata=function(){
       var d=Math.round(med.duration)||0;
       _fileDuration=d;
+    updateUploadCostUI();
       document.getElementById('tlDuration').textContent=Math.floor(d/60)+':'+String(d%60).padStart(2,'0');
       updateFileTL();
       URL.revokeObjectURL(url);
@@ -787,6 +800,7 @@ function onFileSelected(f){
   }
   document.getElementById('uploadBtn').disabled=false;
   document.getElementById('compressBtn').disabled=false;
+  updateUploadCostUI();
   // 영상 파일이면 압축 안내 표시
   var _isVideo = f.type.startsWith('video/') || /\.(mp4|mov|avi|mkv|webm)$/i.test(f.name);
   document.getElementById('compressInfo').style.display = _isVideo ? 'block' : 'none';
@@ -802,6 +816,7 @@ function clearFile(){
   document.getElementById('uploadBtn').disabled=true;
   document.getElementById('compressBtn').disabled=true;
   document.getElementById('compressInfo').style.display='none';
+  updateUploadCostUI();
 }
 function fmtBytes(b){
   if(b<1024) return b+'B';
@@ -942,6 +957,78 @@ function getAiProof(){
 }
 
 // 무료 업로드 기간 확인
+
+/* ── 파일 유형별 업로드 비용 ── */
+var UPLOAD_COSTS = {
+  audio:  2000,   // 음악/오디오
+  image:  1000,   // 이미지
+  doc:    1000,   // 문서
+  video_short: 10000,  // 영상 5분 이하
+  video_mid:   30000,  // 영상 5~20분
+  video_long:  50000,  // 영상 20분 초과
+};
+
+function calcUploadCost(file, durationSec){
+  if(!file) return 5000;
+  var mt = (file.type||'').toLowerCase();
+  var name = (file.name||'').toLowerCase();
+  
+  // 영상
+  if(mt.startsWith('video/') || /\.(mp4|mov|avi|mkv|webm|m4v)$/.test(name)){
+    var min = (durationSec||0) / 60;
+    if(min <= 5)  return UPLOAD_COSTS.video_short;
+    if(min <= 20) return UPLOAD_COSTS.video_mid;
+    return UPLOAD_COSTS.video_long;
+  }
+  // 오디오
+  if(mt.startsWith('audio/') || /\.(mp3|wav|flac|aac|ogg|m4a)$/.test(name)){
+    return UPLOAD_COSTS.audio;
+  }
+  // 이미지
+  if(mt.startsWith('image/')) return UPLOAD_COSTS.image;
+  // 문서
+  return UPLOAD_COSTS.doc;
+}
+
+function getUploadCostLabel(file, durationSec){
+  var cost = calcUploadCost(file, durationSec);
+  var mt = (file&&file.type||'').toLowerCase();
+  var name = (file&&file.name||'').toLowerCase();
+  var isVideo = mt.startsWith('video/') || /\.(mp4|mov|avi|mkv|webm|m4v)$/.test(name);
+  
+  if(isVideo){
+    var min = (durationSec||0)/60;
+    var label = min<=5?'영상 5분 이하':min<=20?'영상 5~20분':'영상 20분 초과';
+    return cost.toLocaleString()+' TL ('+label+')';
+  }
+  if(mt.startsWith('audio/')) return cost.toLocaleString()+' TL (음악/오디오)';
+  if(mt.startsWith('image/')) return cost.toLocaleString()+' TL (이미지)';
+  return cost.toLocaleString()+' TL (문서/기타)';
+}
+
+function updateUploadCostUI(){
+  var cost = calcUploadCost(_file, _fileDuration);
+  var lbl = _file ? getUploadCostLabel(_file, _fileDuration) : '파일 선택 후 표시';
+  var el = document.getElementById('uploadCostTL');
+  if(el) el.textContent = lbl;
+  
+  // 잔액 대비 가능 여부
+  var myTL = getPurchaseTL();
+  var warningEl = document.getElementById('uploadCostWarn');
+  if(warningEl){
+    if(myTL < cost && !isFreeUploadPeriod()){
+      warningEl.textContent = '⚠️ TL 잔액 부족 (보유: '+myTL.toLocaleString()+' TL)';
+      warningEl.style.color = '#FB7185';
+    } else if(isFreeUploadPeriod()){
+      warningEl.textContent = '🎉 무료 업로드 기간 중';
+      warningEl.style.color = '#00E5A0';
+    } else {
+      warningEl.textContent = '✅ 잔액 충분 (보유: '+myTL.toLocaleString()+' TL)';
+      warningEl.style.color = 'rgba(0,229,160,.7)';
+    }
+  }
+}
+
 function isFreeUploadPeriod(){
   try{
     var cfg=JSON.parse(localStorage.getItem('tl_free_upload')||'null');
@@ -1087,6 +1174,16 @@ async function compressVideo(file){
 async function doUpload(withCompress){
   if(!_file){alert('파일을 선택하세요');return;}
   
+  // 업로드 비용 확인
+  if(!isFreeUploadPeriod()){
+    var _cost = calcUploadCost(_file, _fileDuration);
+    if(getPurchaseTL() < _cost){
+      alert('TL이 부족합니다.\n필요: '+_cost.toLocaleString()+' TL\n보유: '+getPurchaseTL().toLocaleString()+' TL\n\n구매 TL을 충전해주세요.');
+      return;
+    }
+    if(!confirm('업로드 비용: '+_cost.toLocaleString()+' TL 차감\n('+getUploadCostLabel(_file,_fileDuration)+')\n\n진행하시겠습니까?')) return;
+  }
+  
   // 업로드할 파일 결정 (압축 여부)
   var uploadFile = _file;
   var isVideo = _file.type.startsWith('video/') || /\.(mp4|mov|avi|mkv|webm|m4v)$/i.test(_file.name);
@@ -1173,7 +1270,10 @@ async function doUpload(withCompress){
     if(shareRes.error) throw new Error(shareRes.error);
     setProg(100,'완료! 🎉');
     if(!isFreeUploadPeriod()){
-      _user.tl=Math.max(0,getPurchaseTL()-5000);
+      var _uploadCost = calcUploadCost(uploadFile, _fileDuration);
+      _user.tl_p = Math.max(0, getPurchaseTL() - _uploadCost);
+      _user.tl   = _user.tl_p;
+      localStorage.setItem('tl_user', JSON.stringify(_user));
     }
     localStorage.setItem('tl_user',JSON.stringify(_user));
     var _tbEl=document.getElementById('tbTL');if(_tbEl)_tbEl.textContent=getTotalTL().toLocaleString()+' TL';
