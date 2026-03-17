@@ -373,6 +373,15 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .sb-sub-link:hover{color:var(--t1);background:rgba(255,255,255,.04)}
 .sb-sub-link.active{color:var(--purple)}
 
+
+/* ── 페이지네이션 ── */
+.pager{display:flex;align-items:center;justify-content:center;gap:6px;padding:24px 0 8px;flex-wrap:wrap}
+.pg-btn{min-width:36px;height:36px;border-radius:8px;border:1px solid var(--bd);background:transparent;
+  color:var(--t2);font-size:13px;cursor:pointer;transition:all .2s;font-family:var(--fm);padding:0 10px}
+.pg-btn:hover{border-color:var(--purple);color:var(--purple)}
+.pg-btn.active{background:var(--purple);border-color:var(--purple);color:#fff;font-weight:700}
+.pg-btn:disabled{opacity:.3;cursor:default}
+.pg-info{font-size:11px;color:var(--t3);font-family:var(--fm);margin:0 8px}
 </style>
 <script src="i18n.js"></script>
 <style>#tl-lang-switcher{display:none!important}</style>
@@ -1020,8 +1029,14 @@ function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 
 // ── 렌더 ────────────────────────────────────────────────
 function renderShares(list){
+  // 페이지네이션: 현재 페이지 슬라이스
+  var _totalCount = list.length;
+  var _startIdx = (_curPage-1) * _perPage;
+  var _endIdx   = _startIdx + _perPage;
+  list = list.slice(_startIdx, _endIdx);
+
   var g=document.getElementById('fileGrid');
-  if(!list.length){
+  if(!_totalCount){
     var colStyle=_view==='grid'?'grid-column:1/-1;':'';
     g.innerHTML='<div style="'+colStyle+'text-align:center;padding:80px 20px;color:var(--t3);font-size:14px">📂 공유된 파일이 없습니다<br><br><a href="creator.html" style="color:var(--purple);text-decoration:none;font-weight:700">+ 파일 공유하기</a></div>';
     return;
@@ -1079,6 +1094,7 @@ function renderShares(list){
       '</div>' +
     '</div>';
   }).join('');
+  renderPager(_totalCount);
 }
 
 // ── 리스트형 렌더 ───────────────────────────────────────
@@ -1571,7 +1587,7 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
     _tlPlaying=true;
     document.getElementById('tlPlayBtn').textContent='⏸';
     document.addEventListener('keydown',_escHandler);
-    renderShares(_getFilteredList()); // 버튼 상태 갱신
+    resetPage(); renderShares(_getFilteredList()); // 버튼 상태 갱신
     return;
   }
 
@@ -1674,6 +1690,7 @@ function showPlayerError(msg){
   console.error('[TLPlayer]',msg);
 }
 
+function resetPage(){ _curPage=1; }
 function _getFilteredList(){
   var list=_allShares.slice();
   if(_search){ var q=_search.toLowerCase(); list=list.filter(function(s){return (s.title||'').toLowerCase().includes(q)||(s.artist||'').toLowerCase().includes(q)||(s.category||'').toLowerCase().includes(q);}); }

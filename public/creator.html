@@ -218,6 +218,15 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
 .sb-ad-box:hover{border-color:rgba(139,92,246,.3)}
 .sb-ad-label{font-size:9px;color:var(--t3);text-align:center;margin-top:4px;font-family:var(--fm)}
 
+
+/* ── 나의 파일 페이지네이션 ── */
+.pager{display:flex;align-items:center;justify-content:center;gap:6px;padding:24px 0 8px;flex-wrap:wrap}
+.pg-btn{min-width:36px;height:36px;border-radius:8px;border:1px solid var(--bd);background:transparent;
+  color:rgba(255,255,255,.6);font-size:13px;cursor:pointer;transition:all .2s;font-family:var(--fm);padding:0 10px}
+.pg-btn:hover{border-color:var(--purple);color:var(--purple)}
+.pg-btn.active{background:var(--purple);border-color:var(--purple);color:#fff;font-weight:700}
+.pg-btn:disabled{opacity:.3;cursor:default}
+.pg-info{font-size:11px;color:rgba(255,255,255,.3);font-family:var(--fm);margin:0 8px}
 </style>
 <script src="i18n.js"></script>
 </head>
@@ -664,6 +673,7 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
       <div class="my-files-grid" id="myFilesGrid">
         <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--t3)" data-i18n="common.loading" data-i18n="common.loading">로딩 중...</div>
       </div>
+      <div class="pager" id="myFilesPager"></div>
     </div>
   </main>
 </div>
@@ -1031,6 +1041,72 @@ async function safeFetch(url,opts){
 }
 
 // MY FILES
+
+/* ── 나의 파일 페이지네이션 ── */
+var _myPage = 1;
+var _myPerPage = 12;
+var _myAllFiles = [];
+
+function renderMyPager(){
+  var el = document.getElementById('myFilesPager');
+  if(!el) return;
+  var total = _myAllFiles.length;
+  var totalPages = Math.ceil(total / _myPerPage);
+  if(totalPages <= 1){ el.innerHTML=''; return; }
+  var html = '';
+  html += '<button class="pg-btn" onclick="goMyPage('+(_myPage-1)+')" '+(_myPage===1?'disabled':'')+'>←</button>';
+  var start=Math.max(1,_myPage-3), end=Math.min(totalPages,start+6);
+  if(start>1) html+='<button class="pg-btn" onclick="goMyPage(1)">1</button>';
+  if(start>2) html+='<span class="pg-info">…</span>';
+  for(var i=start;i<=end;i++){
+    html+='<button class="pg-btn'+(i===_myPage?' active':'')+'" onclick="goMyPage('+i+')">'+i+'</button>';
+  }
+  if(end<totalPages-1) html+='<span class="pg-info">…</span>';
+  if(end<totalPages) html+='<button class="pg-btn" onclick="goMyPage('+totalPages+')">'+totalPages+'</button>';
+  html+='<button class="pg-btn" onclick="goMyPage('+(_myPage+1)+')" '+(_myPage===totalPages?'disabled':'')+'>→</button>';
+  html+='<span class="pg-info">총 '+total+'개 / '+totalPages+'페이지</span>';
+  el.innerHTML=html;
+}
+
+function goMyPage(n){
+  var totalPages=Math.ceil(_myAllFiles.length/_myPerPage);
+  if(n<1||n>totalPages) return;
+  _myPage=n;
+  renderMyFileSlice();
+  var grid=document.getElementById('myFilesGrid');
+  if(grid) grid.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function renderMyFileSlice(){
+  var g=document.getElementById('myFilesGrid');
+  if(!g) return;
+  var all=_myAllFiles;
+  var start=(_myPage-1)*_myPerPage;
+  var slice=all.slice(start,start+_myPerPage);
+  var bgs=['linear-gradient(135deg,#1a1060,#0d3050)','linear-gradient(135deg,#0d3020,#102830)','linear-gradient(135deg,#200a40,#0a0820)','linear-gradient(135deg,#0a1830,#1a0830)'];
+  g.innerHTML=slice.map(function(s,i){
+    var mt=s.file_type||'';
+    var icon=mt.startsWith('video')?'🎬':mt.startsWith('image')?'🖼️':mt.includes('pdf')?'📄':'🎵';
+    var hasUrl=!!(s.stream_url&&s.stream_url.trim());
+    return '<div class="mf-card">'+
+      '<div class="mf-thumb" style="background:'+bgs[i%bgs.length]+'">'+
+        (s.cover_url?'<img src="'+escH(s.cover_url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.7">':'<span>'+icon+'</span>')+
+      '</div>'+
+      '<div class="mf-body">'+
+        '<div class="mf-type">'+(s.category||'Music')+' · '+(hasUrl?'<span style="color:var(--mint)">파일✓</span>':'<span style="color:var(--rose)">파일없음</span>')+'</div>'+
+        '<div class="mf-title">'+escH(s.title)+'</div>'+
+        '<div class="mf-meta">'+escH(s.artist||'')+(s.album?' · '+escH(s.album):'')+'</div>'+
+        '<div class="mf-tl">⚡ '+Number(s.file_tl||0).toLocaleString()+' TL · 🔥'+Number(s.pulse||0).toLocaleString()+'</div>'+
+        '<div class="mf-actions">'+
+          '<button class="mf-btn" onclick="location.href=\'shareplace.html\'">'+TLi18n.t('cr.share.view')+'</button>'+
+          '<button class="mf-btn del" onclick="delShare(\''+s.id+'\',\''+escH(s.title)+'\')">'+TLi18n.t('cr.delete')+'</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  renderMyPager();
+}
+
 async function loadMyFiles(){
   var g=document.getElementById('myFilesGrid');
   g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--t3)">로딩 중...</div>';
@@ -1038,31 +1114,15 @@ async function loadMyFiles(){
     var r=await fetch(API+'/api/shares');
     var d=await r.json();
     var all=(d.shares||[]).filter(function(s){return String(s.user_id)===String(_user.id)||s.username===(_user.username||_user.email);});
+    _myAllFiles = all;
+    _myPage = 1;
     if(!all.length){
       g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--t3)"><div style="font-size:36px;margin-bottom:12px">📂</div><div style="font-size:14px;color:var(--t2);margin-bottom:6px">'+TLi18n.t('cr.no.files')+'</div></div>';
       return;
     }
-    var bgs=['linear-gradient(135deg,#1a1060,#0d3050)','linear-gradient(135deg,#0d3020,#102830)','linear-gradient(135deg,#200a40,#0a0820)','linear-gradient(135deg,#0a1830,#1a0830)'];
-    g.innerHTML=all.map(function(s,i){
-      var mt=s.file_type||'';
-      var icon=mt.startsWith('video')?'🎬':mt.startsWith('image')?'🖼️':mt.includes('pdf')?'📄':'🎵';
-      var hasUrl=!!(s.stream_url&&s.stream_url.trim());
-      return '<div class="mf-card">'+
-        '<div class="mf-thumb" style="background:'+bgs[i%bgs.length]+'">'+
-          (s.cover_url?'<img src="'+escH(s.cover_url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.7">':'<span>'+icon+'</span>')+
-        '</div>'+
-        '<div class="mf-body">'+
-          '<div class="mf-type">'+(s.category||'Music')+' · '+(hasUrl?'<span style="color:var(--mint)">파일✓</span>':'<span style="color:var(--rose)">파일없음</span>')+'</div>'+
-          '<div class="mf-title">'+escH(s.title)+'</div>'+
-          '<div class="mf-meta">'+escH(s.artist||'')+(s.album?' · '+escH(s.album):'')+'</div>'+
-          '<div class="mf-tl">⚡ '+Number(s.file_tl||0).toLocaleString()+' TL · 🔥'+Number(s.pulse||0).toLocaleString()+'</div>'+
-          '<div class="mf-actions">'+
-            '<button class="mf-btn" onclick="location.href=\'shareplace.html\'">'+TLi18n.t('cr.share.view')+'</button>'+
-            '<button class="mf-btn del" onclick="delShare(\''+s.id+'\',\''+escH(s.title)+'\')">' +TLi18n.t('cr.delete')+'</button>'+
-          '</div>'+
-        '</div>'+
-      '</div>';
-    }).join('');
+    renderMyFileSlice();
+    return;
+
   }catch(e){
     g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--rose)">로드 실패: '+e.message+'</div>';
   }
