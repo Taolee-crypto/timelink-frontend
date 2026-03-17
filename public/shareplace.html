@@ -1038,6 +1038,42 @@ function typeLabel(t){ return t==='video'?'TL4 · 영상':t==='image'?'TL2 · �
 function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ── 렌더 ────────────────────────────────────────────────
+
+// ── 페이지네이션 변수 ──
+var _curPage = 1;
+var _perPage = 20;
+
+function resetPage(){ _curPage = 1; }
+
+function renderPager(total){
+  var el = document.getElementById('filePager');
+  if(!el) return;
+  var totalPages = Math.max(1, Math.ceil(total / _perPage));
+  if(totalPages <= 1){ el.innerHTML = ''; return; }
+  var html = '';
+  html += '<button class="pg-btn" onclick="goPage('+(_curPage-1)+')" '+(_curPage===1?'disabled':'')+'>←</button>';
+  var start = Math.max(1, _curPage-3), end = Math.min(totalPages, start+6);
+  if(start > 1) html += '<button class="pg-btn" onclick="goPage(1)">1</button>';
+  if(start > 2) html += '<span class="pg-info">…</span>';
+  for(var i = start; i <= end; i++){
+    html += '<button class="pg-btn'+(i===_curPage?' active':'')+'" onclick="goPage('+i+')">'+i+'</button>';
+  }
+  if(end < totalPages-1) html += '<span class="pg-info">…</span>';
+  if(end < totalPages) html += '<button class="pg-btn" onclick="goPage('+totalPages+')">'+totalPages+'</button>';
+  html += '<button class="pg-btn" onclick="goPage('+(_curPage+1)+')" '+(_curPage===totalPages?'disabled':'')+'>→</button>';
+  html += '<span class="pg-info">총 '+total+'개 / '+totalPages+'페이지</span>';
+  el.innerHTML = html;
+}
+
+function goPage(n){
+  var totalPages = Math.max(1, Math.ceil(_allShares.length / _perPage));
+  if(n < 1 || n > totalPages) return;
+  _curPage = n;
+  applyFilter();
+  var grid = document.getElementById('fileGrid');
+  if(grid) grid.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
 function renderShares(list){
   // 페이지네이션: 현재 페이지 슬라이스
   var _totalCount = list.length;
@@ -1700,7 +1736,6 @@ function showPlayerError(msg){
   console.error('[TLPlayer]',msg);
 }
 
-function resetPage(){ _curPage=1; }
 function _getFilteredList(){
   var list=_allShares.slice();
   if(_search){ var q=_search.toLowerCase(); list=list.filter(function(s){return (s.title||'').toLowerCase().includes(q)||(s.artist||'').toLowerCase().includes(q)||(s.category||'').toLowerCase().includes(q);}); }
