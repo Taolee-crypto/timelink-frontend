@@ -948,6 +948,12 @@ async function doUpload(){
   if(!title){alert('제목을 입력하세요');return;}
   showProg('📤','R2에 파일 업로드 중...','잠시 기다려 주세요',0);
   try{
+    // 파일 크기 체크
+    if(_file.size > 500 * 1024 * 1024){
+      hideProg();
+      alert('파일 크기가 500MB를 초과합니다. (현재: '+fmtBytes(_file.size)+')\n더 작은 파일을 선택하거나 영상을 압축해주세요.');
+      return;
+    }
     // Step 1: R2
     var trackId='track_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
     var fd=new FormData();
@@ -955,6 +961,8 @@ async function doUpload(){
     fd.append('trackId',trackId);
     var uploadRes=await new Promise(function(resolve,reject){
       var xhr=new XMLHttpRequest();
+      xhr.timeout = 300000; // 5분 타임아웃 (대용량 파일)
+      xhr.ontimeout = function(){ reject(new Error('업로드 시간 초과 (5분). 파일이 너무 크거나 연결이 불안정합니다.')); };
       xhr.upload.onprogress=function(e){
         if(e.lengthComputable) setProg(Math.round(e.loaded/e.total*60),fmtBytes(e.loaded)+' / '+fmtBytes(e.total));
       };
