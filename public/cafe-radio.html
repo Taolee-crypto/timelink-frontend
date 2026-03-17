@@ -1332,8 +1332,10 @@ function addDJHistoryItem(userMsg, aiReply){
   if(!hist) return;
   var userDiv = '<div class="dj-hist-item user"><div class="dj-hist-avatar">👤</div><div class="dj-hist-bubble">'+esc(userMsg)+'</div></div>';
   var aiDiv = '<div class="dj-hist-item ai"><div class="dj-hist-avatar">🎧</div><div class="dj-hist-bubble">'+esc(aiReply)+'</div></div>';
-  hist.innerHTML = hist.innerHTML + userDiv + aiDiv;
-  hist.scrollTop = hist.scrollHeight;
+  var _tmp=document.createElement('div');
+  _tmp.innerHTML=userDiv+aiDiv;
+  while(_tmp.firstChild) hist.appendChild(_tmp.firstChild);
+  hist.scrollTop=hist.scrollHeight;
 }
 
 function quickRequest(msg){
@@ -1941,39 +1943,82 @@ function startViz(){
     _vizSrc = src;
     var canvas = g('viz');
     _vizCtx = canvas.getContext('2d');
+    // 캔버스 크기 초기화
+    _vizW=canvas.offsetWidth; _vizH=canvas.offsetHeight;
+    canvas.width=_vizW; canvas.height=_vizH;
+    // ResizeObserver로 리사이즈 시에만 재측정
+    if(window.ResizeObserver){
+      new ResizeObserver(function(){ _resizeViz(); }).observe(canvas);
+    }
     drawViz();
   }catch(e){ console.warn('Viz:',e); }
 }
 
+/* ── Visualizer (최적화) ──
+   - canvas 크기: 리사이즈 시에만 갱신 (ResizeObserver)
+   - Uint8Array: 재사용 (GC 방지)
+   - 바 수: 48개로 제한 (빠름)
+   - 정지 시: rAF 중단
+*/
+var _vizW=0, _vizH=0, _vizBuf=null, _vizRaf=null, _vizBars=48;
+
+function _resizeViz(){
+  var canvas=g('viz'); if(!canvas) return;
+  var cw=canvas.offsetWidth, ch=canvas.offsetHeight;
+  if(cw!==_vizW||ch!==_vizH){
+    canvas.width=cw; canvas.height=ch;
+    _vizW=cw; _vizH=ch;
+  }
+}
+
 function drawViz(){
-  requestAnimationFrame(drawViz);
-  var canvas = g('viz');
-  canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
-  var ctx = _vizCtx;
-  if(!ctx) return;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  if(!_vizAnal){ drawFakeViz(ctx,canvas); return; }
-  var buf = new Uint8Array(_vizAnal.frequencyBinCount);
-  _vizAnal.getByteFrequencyData(buf);
-  var w = canvas.width/buf.length;
-  buf.forEach(function(v,i){
-    var h = (v/255)*canvas.height;
-    var hue = 35+i*0.5;
-    ctx.fillStyle = 'hsla('+hue+',90%,60%,0.7)';
-    ctx.fillRect(i*w, canvas.height-h, w-1, h);
-  });
+  _vizRaf = requestAnimationFrame(drawViz);
+  var canvas=g('viz'); if(!canvas||!_vizCtx) return;
+  var ctx=_vizCtx;
+  _resizeViz();
+  ctx.clearRect(0,0,_vizW,_vizH);
+
+  if(!_vizAnal){ drawFakeViz(ctx); return; }
+
+  // Uint8Array 재사용
+  if(!_vizBuf||_vizBuf.length!==_vizAnal.frequencyBinCount){
+    _vizBuf=new Uint8Array(_vizAnal.frequencyBinCount);
+  }
+  _vizAnal.getByteFrequencyData(_vizBuf);
+
+  // 48바만 사용 (전체 1024개 중 저주파 영역)
+  var step=Math.floor(_vizBuf.length/_vizBars);
+  var w=_vizW/_vizBars;
+
+  // 그라디언트 미리 생성 (매 프레임 재생성 방지)
+  var grad=ctx.createLinearGradient(0,_vizH,0,0);
+  grad.addColorStop(0,'rgba(245,158,11,.9)');
+  grad.addColorStop(0.5,'rgba(139,92,246,.8)');
+  grad.addColorStop(1,'rgba(0,229,160,.7)');
+  ctx.fillStyle=grad;
+
+  for(var i=0;i<_vizBars;i++){
+    var v=_vizBuf[i*step]||0;
+    var h=Math.max(2,(v/255)*_vizH);
+    ctx.fillRect(i*w+1, _vizH-h, w-2, h);
+  }
+}
+
+function stopViz(){
+  if(_vizRaf){ cancelAnimationFrame(_vizRaf); _vizRaf=null; }
 }
 
 var _fakePhase=0;
-function drawFakeViz(ctx,canvas){
-  _fakePhase+=0.05;
-  var bars=48;
-  var w=canvas.width/bars;
-  for(var i=0;i<bars;i++){
-    var h=(_playing?(Math.sin(_fakePhase+i*0.4)*0.4+0.5)*canvas.height*0.8:4);
-    var hue=35+i*2;
-    ctx.fillStyle='hsla('+hue+',85%,55%,0.6)';
-    ctx.fillRect(i*w,canvas.height-h,w-1,h);
+function drawFakeViz(ctx){
+  _fakePhase+=0.03;
+  var w=_vizW/_vizBars;
+  var grad=ctx.createLinearGradient(0,_vizH,0,0);
+  grad.addColorStop(0,'rgba(245,158,11,.5)');
+  grad.addColorStop(1,'rgba(139,92,246,.4)');
+  ctx.fillStyle=grad;
+  for(var i=0;i<_vizBars;i++){
+    var h=_playing?(Math.sin(_fakePhase+i*0.4)*0.35+0.5)*_vizH*0.6:2;
+    ctx.fillRect(i*w+1,_vizH-h,w-2,Math.max(2,h));
   }
 }
 
