@@ -158,7 +158,7 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
    TL 결제 모달
 ══════════════════════════════ */
 .pay-overlay{
-  display:none;position:fixed;inset:0;z-index:9000;
+  display:none;position:fixed;inset:0;z-index:99999;
   background:rgba(0,0,0,.75);backdrop-filter:blur(12px);
   align-items:center;justify-content:center;padding:20px}
 .pay-overlay.open{display:flex}
@@ -316,18 +316,7 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
 </head>
 <body>
 
-<!-- ══ TL 결제 모달 ══ -->
-<div class="pay-overlay" id="payOverlay" onclick="if(event.target===this)closePayModal()">
-  <div class="pay-modal" id="payModal">
 
-    <!-- 성공 화면 -->
-    <div class="pay-success" id="paySuccess">
-      <div class="pay-success-icon">⚡</div>
-      <div class="pay-success-title">TL 충전 완료!</div>
-      <div class="pay-success-sub" id="paySuccessSub">결제가 성공적으로 처리되었습니다.</div>
-      <div class="pay-success-tl" id="paySuccessTL">+10,000 TL</div>
-      <button class="pay-success-btn" onclick="closePayModal()">확인</button>
-    </div>
 
     <!-- 결제 폼 -->
     <div id="payForm">
@@ -476,8 +465,22 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
   </div>
 </div>
 
+
+<!-- ══ TL 결제 모달 ══ -->
+<div class="pay-overlay" id="payOverlay" onclick="if(event.target===this)closePayModal()">
+  <div class="pay-modal" id="payModal">
+
+    <!-- 성공 화면 -->
+    <div class="pay-success" id="paySuccess">
+      <div class="pay-success-icon">⚡</div>
+      <div class="pay-success-title">TL 충전 완료!</div>
+      <div class="pay-success-sub" id="paySuccessSub">결제가 성공적으로 처리되었습니다.</div>
+      <div class="pay-success-tl" id="paySuccessTL">+10,000 TL</div>
+      <button class="pay-success-btn" onclick="closePayModal()">확인</button>
+    </div>
+
 <!-- TL 소진 알림 오버레이 -->
-<div id="tlChargeNotice" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.88);backdrop-filter:blur(14px);align-items:center;justify-content:center">
+<div id="tlChargeNotice" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.88);backdrop-filter:blur(14px);align-items:center;justify-content:center">
   <div style="background:#080B12;border:1px solid rgba(0,229,255,.25);border-radius:18px;padding:32px 28px;max-width:340px;width:90%;text-align:center">
     <div style="font-size:32px;margin-bottom:12px">🚗</div>
     <div style="font-size:17px;font-weight:700;margin-bottom:8px">TL이 소진되었습니다</div>
@@ -492,6 +495,24 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
     </div>
   </div>
 </div>
+
+<!-- TL 소진 알림 오버레이 -->
+<div id="tlChargeNotice" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.88);backdrop-filter:blur(14px);align-items:center;justify-content:center">
+  <div style="background:#080B12;border:1px solid rgba(0,229,255,.25);border-radius:18px;padding:32px 28px;max-width:340px;width:90%;text-align:center">
+    <div style="font-size:32px;margin-bottom:12px">🚗</div>
+    <div style="font-size:17px;font-weight:700;margin-bottom:8px">TL이 소진되었습니다</div>
+    <div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.7;margin-bottom:20px">
+      인카방송을 계속하려면 TL을 충전해주세요.<br>
+      <span style="color:var(--cyan);font-family:'JetBrains Mono',monospace;font-size:11px">잔액: <span id="incarNoticebal">0</span> TL</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button onclick="incarGoCharge()" style="padding:13px;border-radius:11px;border:none;background:var(--cyan);color:#000;font-size:14px;font-weight:700;cursor:pointer">⚡ 충전하기</button>
+      <button onclick="incarWatchAd()" style="padding:11px;border-radius:11px;border:1px solid rgba(0,229,255,.2);background:rgba(0,229,255,.05);color:var(--t2);font-size:12px;cursor:pointer">📺 광고 보고 300 TL 받기</button>
+      <button onclick="closeTLNotice()" style="padding:9px;border-radius:10px;border:none;background:transparent;color:var(--t3);font-size:11px;cursor:pointer">나중에</button>
+    </div>
+  </div>
+</div>
+
 <div class="scanlines"></div>
 <div id="toast-box"></div>
 <div class="voice-ind" id="voiceInd">🎤 음성 인식 중...</div>
@@ -761,12 +782,35 @@ function launchDrive(){
 // GPS
 var _lastPos = null;
 function initGPS(){
-  if(!navigator.geolocation){ g('gpsStatus').textContent = 'GPS 미지원'; return; }
+  if(!navigator.geolocation){
+    g('gpsStatus').textContent = 'GPS 미지원';
+    simulateSpeed(); return;
+  }
+
+  // 권한 상태 먼저 확인 (Permissions API)
+  if(navigator.permissions && navigator.permissions.query){
+    navigator.permissions.query({name:'geolocation'}).then(function(status){
+      if(status.state === 'denied'){
+        // 이미 차단된 경우 요청 없이 바로 시뮬레이션
+        g('gpsStatus').textContent = '🚗 시뮬';
+        g('gpsStatus').title = 'GPS 권한이 차단됨. 브라우저 주소창 왼쪽 자물쇠 아이콘에서 재설정하세요.';
+        simulateSpeed();
+        return;
+      }
+      // 허용되었거나 prompt 상태면 실제 요청
+      _startGPSWatch();
+    }).catch(function(){ _startGPSWatch(); });
+  } else {
+    _startGPSWatch();
+  }
+}
+
+function _startGPSWatch(){
   g('gpsStatus').textContent = 'GPS 연결 중';
   _gpsWatch = navigator.geolocation.watchPosition(
     function(pos){
       g('gpsStatus').textContent = 'GPS ✓';
-      var spd = pos.coords.speed ? pos.coords.speed * 3.6 : 0; // m/s → km/h
+      var spd = pos.coords.speed ? pos.coords.speed * 3.6 : 0;
       updateSpeed(spd);
       if(_lastPos){
         var dlat = pos.coords.latitude - _lastPos.latitude;
@@ -777,8 +821,15 @@ function initGPS(){
       }
       _lastPos = pos.coords;
     },
-    function(err){ g('gpsStatus').textContent = 'GPS 오류'; simulateSpeed(); },
-    {enableHighAccuracy:true, maximumAge:1000, timeout:5000}
+    function(err){
+      var msg = err.code === 1 ? '🚗 시뮬 (GPS 거부)' : 'GPS 오류';
+      g('gpsStatus').textContent = msg;
+      if(err.code === 1){
+        g('gpsStatus').title = '브라우저 주소창 자물쇠 아이콘 → 위치 → 허용';
+      }
+      simulateSpeed();
+    },
+    {enableHighAccuracy:false, maximumAge:3000, timeout:8000}
   );
 }
 
@@ -933,7 +984,9 @@ async function safeJumpTo(idx){
   if(myTL > 0){ jumpTo(idx); return; }
 
   if(walletTL > 0){
-    var amt = Math.min(walletTL, Math.max(s.file_tl||300, 100));
+    var rate = _tlDeductRate || 1.0;
+    var dur = s.duration || 180;
+    var amt = Math.min(walletTL, Math.max(Math.ceil(dur * rate), Math.ceil(60 * rate)));
     toast('⚡ '+amt.toLocaleString()+' TL 자동 충전 중...','w');
     try{
       var tk = localStorage.getItem('tl_token')||'';
@@ -1217,10 +1270,15 @@ function openPayModal(pendingTrack){
   var el = document.getElementById('payOverlay');
   var form = document.getElementById('payForm');
   var succ = document.getElementById('paySuccess');
+  // setupScreen/driveScreen이 클릭 가로채지 않도록
+  var ss = document.getElementById('setupScreen');
+  var ds = document.getElementById('driveScreen');
+  if(ss) ss.style.zIndex = '1';
+  if(ds) ds.style.zIndex = '1';
   el.classList.add('open');
   form.style.display = '';
   succ.classList.remove('show');
-  document.getElementById('payBalanceVal').textContent = Number((_user&&_user.tl)||0).toLocaleString() + ' TL';
+  document.getElementById('payBalanceVal').textContent = getTotalTL().toLocaleString() + ' TL';
   switchPayMethod('portone', document.querySelector('.pay-method-tab'));
   document.getElementById('payAmountInput').value = '';
   document.getElementById('payStripeAmountInput').value = '';
@@ -1230,6 +1288,10 @@ function openPayModal(pendingTrack){
 
 function closePayModal(){
   document.getElementById('payOverlay').classList.remove('open');
+  var ss = document.getElementById('setupScreen');
+  var ds = document.getElementById('driveScreen');
+  if(ss) ss.style.zIndex = '';
+  if(ds) ds.style.zIndex = '';
 }
 
 // ── 결제 방식 탭 전환 ──
