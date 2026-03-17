@@ -229,7 +229,6 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
 .pg-info{font-size:11px;color:rgba(255,255,255,.3);font-family:var(--fm);margin:0 8px}
 </style>
 <script src="i18n.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
 </head>
 <body>
 
@@ -961,88 +960,128 @@ function getCategory(){
 
 // UPLOAD
 
-/* ══ ffmpeg.wasm 압축 ══ */
+/* ══ 브라우저 네이티브 영상 압축 (MediaRecorder) ══
+   - 외부 라이브러리 불필요
+   - Canvas + MediaRecorder로 재인코딩
+   - WebM(VP8/VP9) 출력 → 서버에서 그대로 저장
+   - 지원 브라우저: Chrome, Edge, Firefox (Safari 제한적)
+══════════════════════════════════════════════════ */
 var _ffmpegLoaded = false;
 var _ffmpegLoading = false;
 
-async function loadFFmpeg(){
-  if(_ffmpegLoaded) return window._ffmpegInst;
-  if(_ffmpegLoading){
-    while(_ffmpegLoading) await new Promise(function(r){setTimeout(r,200);});
-    return window._ffmpegInst;
-  }
-  _ffmpegLoading = true;
-  setProg(5, '🗜️ 압축 엔진 로딩 중...', 'ffmpeg.wasm 다운로드 중 (약 25MB)', 5);
-  try{
-    // 0.11.x API: createFFmpeg + fetchFile (SharedArrayBuffer 불필요)
-    var ffmpeg = window.FFmpeg.createFFmpeg({
-      log: false,
-      corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
-      progress: function(p){
-        var pct = Math.round((p.ratio||0) * 100);
-        setProg(10 + pct*0.5, '🗜️ 압축 중...', pct+'% 완료', 10 + pct*0.5);
-      }
-    });
-    await ffmpeg.load();
-    window._ffmpegInst = ffmpeg;
-    window._fetchFile = window.FFmpeg.fetchFile;
-    _ffmpegLoaded = true;
-    _ffmpegLoading = false;
-    return ffmpeg;
-  }catch(e){
-    _ffmpegLoading = false;
-    throw new Error('ffmpeg 로드 실패: '+e.message);
-  }
-}
-
 async function compressVideo(file){
-  var ffmpeg = await loadFFmpeg();
-  var fetchFile = window._fetchFile;
-  
-  setProg(10, '🗜️ 파일 분석 중...', '원본: '+fmtBytes(file.size), 10);
-  
-  var ext = file.name.split('.').pop().toLowerCase() || 'mp4';
-  var inputName = 'input.'+ext;
-  var outputName = 'output.mp4';
-  
-  // 파일 로드
-  ffmpeg.FS('writeFile', inputName, await fetchFile(file));
-  
-  setProg(12, '🗜️ 압축 시작...', 'H.264 인코딩 중', 12);
-  
-  // 압축 설정:
-  // -c:v libx264: H.264 인코딩
-  // -crf 28: 화질 (18=최고, 28=균형, 35=작은용량) 
-  // -preset fast: 인코딩 속도
-  // -c:a aac -b:a 128k: 오디오 128kbps
-  // -movflags +faststart: 웹 스트리밍 최적화
-  // 0.11.x: ffmpeg.run() 사용
-  await ffmpeg.run(
-    '-i', inputName,
-    '-c:v', 'libx264',
-    '-crf', '26',
-    '-preset', 'fast',
-    '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
-    '-c:a', 'aac',
-    '-b:a', '128k',
-    '-movflags', '+faststart',
-    '-y',
-    outputName
-  );
-  
-  setProg(62, '🗜️ 압축 완료!', '압축된 파일 준비 중...', 62);
-  
-  var data = ffmpeg.FS('readFile', outputName);
-  var blob = new Blob([data.buffer], {type:'video/mp4'});
-  
-  // 정리
-  try{ ffmpeg.FS('unlink', inputName); }catch(e){}
-  try{ ffmpeg.FS('unlink', outputName); }catch(e){}
-  
-  var compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '')+'-compressed.mp4', {type:'video/mp4'});
-  
-  console.log('[compress] '+fmtBytes(file.size)+' → '+fmtBytes(compressedFile.size)+' ('+Math.round(compressedFile.size/file.size*100)+'%)');
-  return compressedFile;
+  return new Promise(function(resolve, reject){
+    // 지원 여부 확인
+    if(!window.MediaRecorder){
+      reject(new Error('이 브라우저는 압축을 지원하지 않습니다. Chrome/Edge를 사용해주세요.'));
+      return;
+    }
+
+    var mimeType = 'video/webm;codecs=vp8';
+    if(!MediaRecorder.isTypeSupported(mimeType)){
+      mimeType = 'video/webm';
+      if(!MediaRecorder.isTypeSupported(mimeType)){
+        reject(new Error('브라우저가 WebM 압축을 지원하지 않습니다.'));
+        return;
+      }
+    }
+
+    var video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    var url = URL.createObjectURL(file);
+    video.src = url;
+
+    video.onloadedmetadata = function(){
+      var origW = video.videoWidth  || 1280;
+      var origH = video.videoHeight || 720;
+
+      // 해상도 축소 (1080p → 720p, 4K → 1080p)
+      var scale = 1;
+      if(origW > 1920 || origH > 1080) scale = 1080 / Math.max(origW, origH);
+      else if(origW > 1280 || origH > 720) scale = 720 / Math.max(origW, origH);
+
+      var w = Math.round(origW * scale / 2) * 2;
+      var h = Math.round(origH * scale / 2) * 2;
+
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext('2d');
+
+      // 비트레이트: 화질과 용량 균형
+      var bitsPerPixel = 0.08;
+      var fps = 30;
+      var videoBitrate = Math.min(w * h * fps * bitsPerPixel, 4000000); // max 4Mbps
+
+      var stream = canvas.captureStream(fps);
+
+      // 오디오 트랙 추가
+      var audioCtx, destination;
+      try{
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        var src = audioCtx.createMediaElementSource(video);
+        destination = audioCtx.createMediaStreamDestination();
+        src.connect(destination);
+        src.connect(audioCtx.destination);
+        destination.stream.getAudioTracks().forEach(function(t){ stream.addTrack(t); });
+      }catch(e){ console.warn('오디오 처리 실패:', e.message); }
+
+      var chunks = [];
+      var recorder = new MediaRecorder(stream, {
+        mimeType: mimeType,
+        videoBitsPerSecond: videoBitrate,
+        audioBitsPerSecond: 128000
+      });
+
+      recorder.ondataavailable = function(e){
+        if(e.data && e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = function(){
+        URL.revokeObjectURL(url);
+        if(audioCtx) audioCtx.close().catch(function(){});
+        var blob = new Blob(chunks, {type: mimeType});
+        var outName = file.name.replace(/\.[^.]+$/, '') + '-compressed.webm';
+        var compressed = new File([blob], outName, {type: mimeType});
+        console.log('[compress] '+fmtBytes(file.size)+' → '+fmtBytes(compressed.size)+
+          ' ('+Math.round(compressed.size/file.size*100)+'%)');
+        resolve(compressed);
+      };
+
+      recorder.onerror = function(e){ reject(new Error('압축 오류: '+e.error)); };
+
+      // 프레임 그리기
+      var startTime, duration;
+
+      function drawFrame(){
+        if(video.ended || video.paused) return;
+        ctx.drawImage(video, 0, 0, w, h);
+        var elapsed = video.currentTime;
+        var pct = duration > 0 ? Math.round(elapsed/duration*100) : 0;
+        setProg(10+pct*0.5, '🗜️ 압축 중...', pct+'% · '+fmtBytes(file.size)+' → 처리 중', 10+pct*0.5);
+        requestAnimationFrame(drawFrame);
+      }
+
+      video.oncanplay = function(){
+        duration = video.duration;
+        recorder.start(1000); // 1초마다 청크
+        video.play();
+        requestAnimationFrame(drawFrame);
+      };
+
+      video.onended = function(){
+        setTimeout(function(){ recorder.stop(); }, 500);
+      };
+
+      video.onerror = function(){
+        reject(new Error('영상 파일을 읽을 수 없습니다.'));
+      };
+    };
+
+    video.onerror = function(){
+      reject(new Error('영상 파일 로드 실패'));
+    };
+  });
 }
 
 async function doUpload(withCompress){
