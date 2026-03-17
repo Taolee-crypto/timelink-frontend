@@ -229,8 +229,7 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
 .pg-info{font-size:11px;color:rgba(255,255,255,.3);font-family:var(--fm);margin:0 8px}
 </style>
 <script src="i18n.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
 </head>
 <body>
 
@@ -968,28 +967,25 @@ var _ffmpegLoading = false;
 
 async function loadFFmpeg(){
   if(_ffmpegLoaded) return window._ffmpegInst;
-  if(_ffmpegLoading) { 
-    while(_ffmpegLoading) await new Promise(r=>setTimeout(r,200));
+  if(_ffmpegLoading){
+    while(_ffmpegLoading) await new Promise(function(r){setTimeout(r,200);});
     return window._ffmpegInst;
   }
   _ffmpegLoading = true;
-  setProg(5, '🗜️ 압축 엔진 로딩 중...', 'ffmpeg.wasm 다운로드 중 (약 30MB)', 5);
+  setProg(5, '🗜️ 압축 엔진 로딩 중...', 'ffmpeg.wasm 다운로드 중 (약 25MB)', 5);
   try{
-    var { FFmpeg } = FFmpegWASM;
-    var { fetchFile, toBlobURL } = FFmpegUtil;
-    var ffmpeg = new FFmpeg();
-    ffmpeg.on('log', function(e){ console.log('[ffmpeg]', e.message); });
-    ffmpeg.on('progress', function(e){
-      var pct = Math.round(e.progress * 100);
-      setProg(10 + pct*0.5, '🗜️ 압축 중...', Math.round(pct)+'% 완료', 10 + pct*0.5);
+    // 0.11.x API: createFFmpeg + fetchFile (SharedArrayBuffer 불필요)
+    var ffmpeg = window.FFmpeg.createFFmpeg({
+      log: false,
+      corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
+      progress: function(p){
+        var pct = Math.round((p.ratio||0) * 100);
+        setProg(10 + pct*0.5, '🗜️ 압축 중...', pct+'% 완료', 10 + pct*0.5);
+      }
     });
-    var baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd';
-    await ffmpeg.load({
-      coreURL: await toBlobURL(baseURL+'/ffmpeg-core.js', 'text/javascript'),
-      wasmURL: await toBlobURL(baseURL+'/ffmpeg-core.wasm', 'application/wasm'),
-    });
+    await ffmpeg.load();
     window._ffmpegInst = ffmpeg;
-    window._fetchFile = fetchFile;
+    window._fetchFile = window.FFmpeg.fetchFile;
     _ffmpegLoaded = true;
     _ffmpegLoading = false;
     return ffmpeg;
@@ -1010,7 +1006,7 @@ async function compressVideo(file){
   var outputName = 'output.mp4';
   
   // 파일 로드
-  await ffmpeg.writeFile(inputName, await fetchFile(file));
+  ffmpeg.FS('writeFile', inputName, await fetchFile(file));
   
   setProg(12, '🗜️ 압축 시작...', 'H.264 인코딩 중', 12);
   
@@ -1020,27 +1016,28 @@ async function compressVideo(file){
   // -preset fast: 인코딩 속도
   // -c:a aac -b:a 128k: 오디오 128kbps
   // -movflags +faststart: 웹 스트리밍 최적화
-  await ffmpeg.exec([
+  // 0.11.x: ffmpeg.run() 사용
+  await ffmpeg.run(
     '-i', inputName,
     '-c:v', 'libx264',
     '-crf', '26',
     '-preset', 'fast',
-    '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',  // 해상도를 짝수로
+    '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
     '-c:a', 'aac',
     '-b:a', '128k',
     '-movflags', '+faststart',
     '-y',
     outputName
-  ]);
+  );
   
   setProg(62, '🗜️ 압축 완료!', '압축된 파일 준비 중...', 62);
   
-  var data = await ffmpeg.readFile(outputName);
+  var data = ffmpeg.FS('readFile', outputName);
   var blob = new Blob([data.buffer], {type:'video/mp4'});
   
   // 정리
-  await ffmpeg.deleteFile(inputName).catch(function(){});
-  await ffmpeg.deleteFile(outputName).catch(function(){});
+  try{ ffmpeg.FS('unlink', inputName); }catch(e){}
+  try{ ffmpeg.FS('unlink', outputName); }catch(e){}
   
   var compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '')+'-compressed.mp4', {type:'video/mp4'});
   
