@@ -503,6 +503,7 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
         <label class="f-label">적용 컬럼</label>
         <select class="f-select" id="c-col">
           <option value="both">tl + tl_balance 둘 다</option>
+          <option value="tl_b">TL_B (보너스·환전불가) 무상지급</option>
           <option value="tl">tl 만 (소비용)</option>
           <option value="tl_balance">tl_balance 만</option>
         </select>
@@ -528,6 +529,7 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
           <button class="btn btn-n btn-xs" onclick="preset('SELECT COUNT(*) total, SUM(file_tl) total_tl, SUM(pulse) total_pulse FROM tl_shares')">통계</button>
           <button class="btn btn-a btn-xs" onclick="preset(`UPDATE users SET tl=999999, tl_balance=999999 WHERE email='mununglee@gmail.com'`)">내 TL 충전</button>
           <button class="btn btn-a btn-xs" onclick="preset('UPDATE users SET tl=999999, tl_balance=999999')">전체 TL 충전</button>
+          <button class="btn btn-xs" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#F87171" onclick="formatAllTL()">⚠️ 전체 TL/TLC 포맷</button>
           <button class="btn btn-p btn-xs" onclick="preset(`DELETE FROM tl_shares WHERE id=''`)">share 삭제</button>
           <button class="btn btn-r btn-xs" onclick="preset(`SELECT * FROM tl_shares WHERE stream_url IS NULL OR stream_url=''`)">빈 파일 조회</button>
         </div>
@@ -785,8 +787,24 @@ function quickCharge(email,amt){
   g('c-email').value=email; g('c-amount').value=amt; g('c-col').value='both';
   go('charge',document.querySelectorAll('.sb-item')[5]);
 }
-async function doCharge(){
+async async function doCharge(){
   var email=v('c-email'), amt=parseInt(g('c-amount').value), col=g('c-col').value;
+  
+  // TL_B (보너스·환전불가) 특별 처리
+  if(col === 'tl_b'){
+    var uid = email === 'all' ? '전체 유저' : email;
+    if(!confirm('⚠️ TL_B(보너스·환전불가) '+amt+' TL을\n['+uid+']에게 무상 지급합니다.\n\n이 TL은 현금 교환이 불가능합니다.')) return;
+    // tl_b 컬럼 마이그레이션
+    await execSQL("ALTER TABLE users ADD COLUMN tl_b INTEGER DEFAULT 0").catch(function(){});
+    var sql = email === 'all'
+      ? "UPDATE users SET tl_b=COALESCE(tl_b,0)+"+amt+", tl=COALESCE(tl,0)+"+amt
+      : "UPDATE users SET tl_b=COALESCE(tl_b,0)+"+amt+", tl=COALESCE(tl,0)+"+amt+" WHERE email='"+email+"'";
+    var res2 = await execSQL(sql);
+    if(res2) toast('✅ TL_B(보너스) '+amt+' TL 지급 완료 — 환전불가','g');
+    else toast('지급 실패','r');
+    renderTLUsers();
+    return;
+  }
   var res=g('c-result');
   if(!email||isNaN(amt)){toast('이메일과 금액을 입력하세요','a');return;}
   var cols=col==='both'?['tl','tl_balance']:[col];
@@ -1025,6 +1043,35 @@ async function checkAndShowNotice(){
 ══════════════════════════════════════ */
 
 /* ══ 재무 현황 로드 ══ */
+
+async function formatAllTL(){
+  if(!confirm('⚠️ 정말로 모든 유저의 TL과 TLC를 초기화(0으로 포맷)하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.')) return;
+  if(!confirm('최종 확인: 전체 유저 TL/TLC 포맷을 실행합니다.')) return;
+  
+  toast('⏳ 포맷 중...', 'r');
+  
+  // TL 관련 컬럼 전체 0 초기화
+  var sqls = [
+    "UPDATE users SET tl=0, tl_balance=0, tlc_balance=0",
+    "UPDATE users SET tl_p=0 WHERE tl_p IS NOT NULL",
+    "UPDATE users SET tl_a=0 WHERE tl_a IS NOT NULL",
+    "UPDATE users SET tl_b=0 WHERE tl_b IS NOT NULL",
+    "UPDATE users SET tlc=0 WHERE tlc IS NOT NULL",
+    "UPDATE users SET total_tl_spent=0 WHERE total_tl_spent IS NOT NULL",
+    "UPDATE users SET total_tl_exchanged=0 WHERE total_tl_exchanged IS NOT NULL",
+  ];
+  
+  var ok = true;
+  for(var i=0;i<sqls.length;i++){
+    try{ await execSQL(sqls[i]); }
+    catch(e){ console.warn('포맷 오류:', sqls[i], e); ok=false; }
+  }
+  
+  if(ok) toast('✅ 전체 TL/TLC 포맷 완료','g');
+  else toast('⚠️ 일부 포맷 실패 - 콘솔 확인','r');
+  renderTLUsers();
+}
+
 async function loadRevenue(){
   var API = 'https://api.timelink.digital';
   var token = localStorage.getItem('tl_token') || localStorage.getItem('tl_adm_token') || 'admin';
