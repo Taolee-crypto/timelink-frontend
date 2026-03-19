@@ -454,10 +454,18 @@ if(typeof TLi18n === 'undefined'){
   function render(){
     var el=document.getElementById('inlineLangSw');
     if(!el) return;
-    var cur=TLi18n.getLang();
-    el.innerHTML=LANGS.map(function(l){
-      return '<button title="'+l+'" class="'+(l===cur?'active':'')+'" onclick="TLi18n.setLang(\''+l+'\');renderLangSw()">'+FLAGS[l]+'</button>';
-    }).join('');
+    var cur=(typeof TLi18n!=='undefined'&&TLi18n.lang)||localStorage.getItem('tl_lang')||'ko';
+    var html='';
+    for(var i=0;i<LANGS.length;i++){
+      var l=LANGS[i];
+      var btn=document.createElement('button');
+      btn.title=l;
+      btn.className=l===cur?'active':'';
+      btn.textContent=FLAGS[l];
+      btn.setAttribute('data-lang',l);
+      btn.onclick=function(){setLangAndRender(this.getAttribute('data-lang'));};
+      el.appendChild(btn);
+    }
   }
   window.renderLangSw=render;
   if(document.readyState==='loading'){
@@ -925,7 +933,7 @@ function showTLDownloadGuide(title){
         +'style="flex:1;padding:7px;border-radius:8px;border:1px solid rgba(139,92,246,.4);'
         +'background:rgba(139,92,246,.1);color:#A78BFA;font-size:11px;text-align:center;text-decoration:none">'
         +'앱 다운로드</a>'
-      +'<button onclick="document.getElementById('_tlDlGuide').remove()" '
+      +'<button onclick="var el=document.getElementById(\'_tlDlGuide\');if(el)el.remove();" '
         +'style="padding:7px 14px;border-radius:8px;border:none;background:rgba(255,255,255,.06);'
         +'color:rgba(255,255,255,.4);font-size:11px;cursor:pointer">닫기</button>'
     +'</div>';
@@ -1171,11 +1179,12 @@ async function loadMyFileTL(){
 async function loadShares(){
   document.getElementById('sortCount').textContent='로딩 중...';
   try{
-    // 10초 타임아웃
-    var ctrl=new AbortController();
-    var timer=setTimeout(function(){ctrl.abort();},10000);
-    var r=await fetch(API_BASE+'/api/shares',{signal:ctrl.signal});
-    clearTimeout(timer);
+    // Promise.race로 타임아웃 (AbortSignal 없이)
+    var fetchPromise = fetch(API_BASE+'/api/shares');
+    var timeoutPromise = new Promise(function(_,reject){
+      setTimeout(function(){ reject(new Error('요청 시간 초과 (10초)')); }, 10000);
+    });
+    var r = await Promise.race([fetchPromise, timeoutPromise]);
     if(!r.ok) throw new Error('HTTP '+r.status);
     var d=await r.json();
     _allShares=d.shares||d.data||[];
@@ -1344,7 +1353,7 @@ function renderShares(list){
     var myTL0 = _myFileTL && _myFileTL[String(s.id)];
     var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':myTL0>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
-    var btnTitle=!hasUrl?TLi18n.t('sp.btn.no.file'):TLi18n.t('sp.btn.play');
+    var btnTitle=!hasUrl?'파일없음':'재생';
 
     var dur=s.duration?(Math.floor(s.duration/60)+':'+String(s.duration%60).padStart(2,'0')):'--:--';
 
@@ -1426,7 +1435,7 @@ function renderList(list,g){
       return priceHtml;
     }()) +
         '<div class="fl-actions">' +
-          (s.preview_url&&ftype==='audio'?'<button class="fl-btn fl-btn-prev" onclick="quickPreview(\''+escH(s.preview_url)+'\'\,\''+escH(s.title)+'\')">'+(typeof TLi18n!=='undefined'?TLi18n.t('sp.btn.preview'):'미리듣기')+'</button>':'') +
+          (s.preview_url&&ftype==='audio'?'<button class="fl-btn fl-btn-prev" onclick="quickPreview(\''+escH(s.preview_url)+'\',\''+escH(s.title)+'\')">'+(typeof TLi18n!=='undefined'?TLi18n.t('sp.btn.preview'):'미리듣기')+'</button>':'') +
           chargeBtn +
         '</div>' +
       '</div>' +
