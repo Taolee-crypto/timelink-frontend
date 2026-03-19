@@ -1021,15 +1021,36 @@ async function openTossCharge(){
   var overlay = document.getElementById('tossPayOverlay');
   if(!overlay) return;
   overlay.style.display = 'flex';
-  setTossStatus('결제 위젯 로딩 중...');
-  document.getElementById('tossPayBtn').disabled = true;
+  // 위젯 영역 숨기고 안내 표시
+  var pw = document.getElementById('tossPaymentWidget');
+  var aw = document.getElementById('tossAgreementWidget');
+  if(pw) pw.innerHTML = '<div style="padding:16px;text-align:center;color:rgba(255,255,255,.4);font-size:12px">패키지를 선택하고 결제하기를 눌러주세요</div>';
+  if(aw) aw.innerHTML = '';
+  document.getElementById('tossPayBtn').disabled = false;
+  setTossStatus('');
+  _tossWidget = { _ready: true };
+}
+
+
+async function requestTossPay(){
+  if(!_tossWidget || !_tossWidget._ready){
+    await openTossCharge();
+  }
+  var btn = document.getElementById('tossPayBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 결제 중...';
+  setTossStatus('');
+
+  var orderId = 'TL_' + Date.now() + '_' + Math.random().toString(36).slice(2,7).toUpperCase();
+  var orderName = 'TimeLink ' + _tossPkg.tl.toLocaleString() + ' TL 충전';
+  var origin = 'https://www.timelink.digital';
 
   try {
     // SDK 로드
     if(!window.TossPayments){
       await new Promise(function(resolve, reject){
         var s = document.createElement('script');
-        s.src = 'https://js.tosspayments.com/v2/standard';
+        s.src = 'https://js.tosspayments.com/v1/payment';
         s.onload = resolve;
         s.onerror = function(){ reject(new Error('SDK 로드 실패')); };
         document.head.appendChild(s);
@@ -1037,91 +1058,19 @@ async function openTossCharge(){
     }
 
     var CLIENT_KEY = 'test_ck_lpP2YxJ4K877JAdv7KX8RGZwXLOb';
-    var customerKey = 'tl_' + ((_user&&_user.id)||'guest') + '_' + Date.now();
-
-    // 위젯 초기화
     var toss = window.TossPayments(CLIENT_KEY);
-    _tossWidget = toss.widgets({ customerKey: customerKey });
 
-    // 결제수단 위젯
-    await _tossWidget.setAmount({
-      currency: 'KRW',
-      value: _tossPkg.amount
+    await toss.requestPayment('카드', {
+      amount: _tossPkg.amount,
+      orderId: orderId,
+      orderName: orderName,
+      customerName: (_user&&(_user.username||_user.email)) || 'TimeLink User',
+      successUrl: origin + '/payment-success.html',
+      failUrl:    origin + '/payment-fail.html',
     });
-
-    _tossPaymentWidget = await _tossWidget.renderPaymentMethods({
-      selector: '#tossPaymentWidget',
-      variantKey: 'DEFAULT'
-    });
-
-    // 약관 위젯
-    await _tossWidget.renderAgreement({
-      selector: '#tossAgreementWidget',
-      variantKey: 'AGREEMENT'
-    });
-
-    setTossStatus('');
-    document.getElementById('tossPayBtn').disabled = false;
 
   } catch(e){
-    console.error('[Toss]', e);
-    // 위젯 실패 시 직접 결제 방식으로 fallback
-    setTossStatus('');
-    document.getElementById('tossPaymentWidget').innerHTML =
-      '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.5);font-size:12px">'+
-      '카드 결제로 진행합니다<br><small style="opacity:.6">'+e.message+'</small></div>';
-    document.getElementById('tossAgreementWidget').innerHTML = '';
-    // _tossWidget을 sentinel로 표시 (직접 결제용)
-    _tossWidget = { _direct: true };
-    document.getElementById('tossPayBtn').disabled = false;
-  }
-}
-
-function setTossStatus(msg){
-  var el = document.getElementById('tossPayStatus');
-  if(el) el.textContent = msg;
-}
-
-async function requestTossPay(){
-  if(!_tossWidget){
-    setTossStatus('위젯을 다시 로드합니다...');
-    await openTossCharge();
-    return;
-  }
-  var btn = document.getElementById('tossPayBtn');
-  btn.disabled = true;
-  btn.textContent = '⏳ 결제 진행 중...';
-  setTossStatus('');
-
-  var orderId = 'TL_' + Date.now() + '_' + Math.random().toString(36).slice(2,7).toUpperCase();
-  var orderName = 'TimeLink ' + _tossPkg.tl.toLocaleString() + ' TL 충전';
-  var origin = window.location.origin || 'https://www.timelink.digital';
-
-  try {
-    if(_tossWidget._direct){
-      // 직접 결제 방식 (위젯 실패 fallback)
-      await window.TossPayments('test_ck_lpP2YxJ4K877JAdv7KX8RGZwXLOb').requestPayment('CARD', {
-        amount: _tossPkg.amount,
-        orderId: orderId,
-        orderName: orderName,
-        customerEmail: (_user&&_user.email)||'',
-        customerName:  (_user&&(_user.username||_user.email))||'TimeLink User',
-        successUrl: origin + '/payment-success.html',
-        failUrl:    origin + '/payment-fail.html',
-      });
-    } else {
-      // 위젯 방식
-      await _tossWidget.requestPayment({
-        orderId: orderId,
-        orderName: orderName,
-        customerEmail: (_user&&_user.email)||'',
-        customerName:  (_user&&(_user.username||_user.email))||'TimeLink User',
-        successUrl: origin + '/payment-success.html',
-        failUrl:    origin + '/payment-fail.html',
-      });
-    }
-  } catch(e){
-    if(e.code !== 'USER_CANCEL'){
+    if(e.code !== 'USER_CANCEL' && e.code !== 'PAY_PROCESS_CANCELED'){
       setTossStatus('오류: ' + (e.message||e.code||'결제 실패'));
     }
     btn.disabled = false;
@@ -1129,7 +1078,7 @@ async function requestTossPay(){
   }
 }
 
-// 결제 성공 콜백 (같은 페이지에서 처리할 때)
+
 async function handleTossSuccess(paymentKey, orderId, amount){
   try {
     var r = await fetch(API_BASE+'/api/payment/toss/confirm', {
