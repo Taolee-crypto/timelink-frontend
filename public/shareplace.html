@@ -426,6 +426,28 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 <script src="i18n.js"></script>
 <style>#tl-lang-switcher{display:none!important}</style>
 <script>
+
+// TLi18n 로드 실패 시 fallback
+if(typeof TLi18n === 'undefined'){
+  window.TLi18n = { t: function(k){ 
+    var fallbacks = {
+      'msg.no.file':'파일이 없습니다.', 'msg.play.fail':'재생 실패: ',
+      'msg.autoplay.block':'재생 버튼을 클릭하세요.', 'msg.login.required':'로그인이 필요합니다.',
+      'toast.tl.empty.total':'TL이 소진됐습니다. 충전이 필요합니다.',
+      'sp.btn.preview':'미리듣기', 'sp.btn.no.preview':'미리듣기 없음',
+      'sp.btn.charge':'TL 충전', 'sp.uncharged':'미충전',
+      'cr.no.files':'업로드한 파일이 없습니다.', 'cr.delete':'삭제',
+      'cr.share.view':'SharePlace에서 보기',
+      'toast.cr.upload.success':'업로드 완료!', 'toast.cr.delete.confirm':'을 삭제하시겠습니까?',
+      'toast.cr.upload.fail':'업로드 실패',
+      'cr.notice.confirm':'확인', 'nav.dashboard':'대시보드',
+    };
+    return fallbacks[k] || k;
+  }, lang:'ko' };
+}
+
+</script>
+<script>
 (function initInlineLang(){
   var FLAGS={ko:'🇰🇷',en:'🇺🇸',ja:'🇯🇵',zh:'🇨🇳',th:'🇹🇭',vi:'🇻🇳'};
   var LANGS=['ko','en','ja','zh','th','vi'];
@@ -1789,10 +1811,10 @@ function tlPlayCard(el){
   // 현재 재생 중인 카드 클릭 → 토글
   if(_tlShareId===s.id&&_tlPlaying){ tlToggle(); return; }
 
-  var fileUrl=proxyUrl((s.stream_url&&s.stream_url.trim())?s.stream_url:(s.preview_url&&s.preview_url.trim())?s.preview_url:'');
+  var fileUrl=getStreamUrl(s);  // TL 보호 스트리밍
 
   if(!fileUrl){
-    alert('⚠️ "'+s.title+'"\n\n'+TLi18n.t('msg.no.file'));
+    alert('⚠️ "'+s.title+'"\n\n파일이 없습니다.');
     return;
   }
   // 내 파일별 TL 잔량 확인
@@ -1919,10 +1941,10 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
       if(e.name==='NotAllowedError'){
         document.getElementById('tlPlayBtn').textContent='▶';
         document.getElementById('tlError').style.display='block';
-        document.getElementById('tlError').textContent=TLi18n.t('msg.autoplay.block');
+        document.getElementById('tlError').textContent='자동재생이 차단됐습니다. 화면을 클릭 후 다시 시도하세요.';
         _tlPlaying=false;
       } else {
-        showPlayerError(TLi18n.t('msg.play.fail')+e.message);
+        showPlayerError('재생 실패: '+e.message);
       }
     });
   };
@@ -1930,7 +1952,8 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   _tlAudio.onended=function(){ tlStop(); };
 
   // 바로 src 설정 후 재생 (HEAD 왕복 제거 — oncanplay 재발화 방지)
-  var pUrl = proxyUrl(fileUrl);
+  // TL 보호 스트리밍: fileUrl이 이미 getStreamUrl로 설정됨
+  var pUrl = fileUrl;
   _tlAudio.src = pUrl;
   _tlAudio.load();
 }
