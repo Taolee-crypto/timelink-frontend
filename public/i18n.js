@@ -6,6 +6,19 @@ var LABELS={ko:'한국어',en:'English',ja:'日本語',zh:'中文',th:'ภาษ
 
 var T={
 /* ── 네비게이션 ── */
+
+/* ── SharePlace 추가 키 ── */
+'sp.tl.charge.tab':    {ko:'⚡ TL충전',en:'⚡ Charge TL',ja:'⚡ TLチャージ',zh:'⚡ 充值TL',th:'⚡ เติม TL',vi:'⚡ Nạp TL'},
+'sp.tl.charge.link':   {ko:'TL 충전하기',en:'Charge TL',ja:'TLチャージ',zh:'充值TL',th:'เติม TL',vi:'Nạp TL'},
+'sp.tl.low':           {ko:'TL 부족!',en:'Low TL!',ja:'TL不足！',zh:'TL不足！',th:'TL ไม่พอ!',vi:'TL thấp!'},
+'sp.notice.title':     {ko:'공지사항',en:'Notice',ja:'お知らせ',zh:'公告',th:'ประกาศ',vi:'Thông báo'},
+'sp.tab.all':          {ko:'전체',en:'All',ja:'すべて',zh:'全部',th:'ทั้งหมด',vi:'Tất cả'},
+'sp.tab.music':        {ko:'🎵 음악',en:'🎵 Music',ja:'🎵 音楽',zh:'🎵 音乐',th:'🎵 เพลง',vi:'🎵 Âm nhạc'},
+'sp.tab.video':        {ko:'🎬 영상',en:'🎬 Video',ja:'🎬 動画',zh:'🎬 视频',th:'🎬 วิดีโอ',vi:'🎬 Video'},
+'sp.tab.image':        {ko:'🖼️ 이미지',en:'🖼️ Image',ja:'🖼️ 画像',zh:'🖼️ 图片',th:'🖼️ รูปภาพ',vi:'🖼️ Hình'},
+'sp.tab.doc':          {ko:'📄 문서',en:'📄 Docs',ja:'📄 文書',zh:'📄 文档',th:'📄 เอกสาร',vi:'📄 Tài liệu'},
+'sp.tab.etc':          {ko:'📦 기타',en:'📦 Etc',ja:'📦 その他',zh:'📦 其他',th:'📦 อื่นๆ',vi:'📦 Khác'},
+
 'nav.dashboard':       {ko:'대시보드',en:'Dashboard',ja:'ダッシュボード',zh:'控制台',th:'แดชบอร์ด',vi:'Bảng điều khiển'},
 'nav.shareplace':      {ko:'SHAREPLACE',en:'SHAREPLACE',ja:'SHAREPLACE',zh:'SHAREPLACE',th:'SHAREPLACE',vi:'SHAREPLACE'},
 'nav.chart':           {ko:'TL CHART',en:'TL CHART',ja:'TLチャート',zh:'TL排行榜',th:'TL ชาร์ต',vi:'BXH TL'},
