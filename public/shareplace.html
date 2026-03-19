@@ -775,6 +775,76 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 var API_BASE = 'https://api.timelink.digital';
 
 // R2 direct URL → Worker 프록시 변환 (CORS 우회)
+
+/* ── TL 파일 보호 스트리밍 ──
+   원본 R2 URL 대신 /api/stream/:shareId 사용
+   → Worker가 TL 확인 후 R2 직접 스트리밍
+   → TL 없으면 402 반환 → 재생 차단
+*/
+var API_STREAM = 'https://api.timelink.digital/api/stream/';
+var _tickInterval = null;
+var _currentShareId = null;
+
+function getTLStreamUrl(shareId){
+  // TL 보호 스트리밍 URL - 토큰 쿼리 파라미터로 전달
+  var token = _token || localStorage.getItem('tl_token') || '';
+  return API_STREAM + shareId + '?tk=' + encodeURIComponent(token);
+}
+
+function getStreamUrl(share){
+  // share.id가 있으면 TL 스트리밍, 없으면 fallback
+  if(share && share.id){
+    return getTLStreamUrl(share.id);
+  }
+  return proxyUrl(share && (share.stream_url || share.preview_url) || '');
+}
+
+async function checkTLBalance(shareId){
+  try{
+    var token = _token || localStorage.getItem('tl_token') || '';
+    var r = await fetch(API_STREAM + shareId + '/info', {
+      headers: {'Authorization': 'Bearer ' + token}
+    });
+    return await r.json();
+  }catch(e){ return {can_play: true}; }
+}
+
+function startTick(shareId, deductRate){
+  stopTick();
+  _currentShareId = shareId;
+  var token = _token || localStorage.getItem('tl_token') || '';
+  _tickInterval = setInterval(async function(){
+    if(!_currentShareId) return;
+    try{
+      var r = await fetch(API_STREAM + _currentShareId + '/tick', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body: JSON.stringify({seconds:1, deduct_rate: deductRate||1.0})
+      });
+      var d = await r.json();
+      if(d.code === 'TL_EMPTY'){
+        stopTick();
+        // TL 소진 → 재생 중단
+        if(typeof stopPlayback === 'function') stopPlayback('TL_EMPTY');
+        else if(typeof openTLNotice === 'function') openTLNotice();
+      } else if(d.ok && typeof updateTLDisplay === 'function'){
+        // TL 잔액 UI 업데이트
+        if(_user){
+          _user.tl_p = d.tl_p; _user.tl_a = d.tl_a; _user.tl_b = d.tl_b;
+          _user.tl = d.tl_balance;
+          localStorage.setItem('tl_user', JSON.stringify(_user));
+        }
+        updateTLDisplay();
+      }
+    }catch(e){}
+  }, 1000);
+}
+
+function stopTick(){
+  if(_tickInterval){ clearInterval(_tickInterval); _tickInterval = null; }
+  _currentShareId = null;
+}
+
 function proxyUrl(url){
   if(!url || typeof url !== 'string') return '';
   url = url.trim();
@@ -976,10 +1046,23 @@ function updateCounts(){
 }
 function isType(s,t){
   var ft=(s.file_type||'').toLowerCase();
-  var cat=(s.category||'').toLowerCase();
+  var cat=(s.category||s.category_type||'').toLowerCase();
   var url=(s.stream_url||s.preview_url||'').toLowerCase();
+  var name=(s.title||'').toLowerCase();
+
+  // category_type이 명확히 있으면 우선 사용
+  var ct=(s.category_type||'').toLowerCase();
+  if(ct){
+    if(t==='music') return ct==='audio';
+    if(t==='video') return ct==='video';
+    if(t==='image') return ct==='image';
+    if(t==='doc')   return ct==='doc';
+    if(t==='etc')   return !['audio','video','image','doc'].includes(ct);
+  }
+
+  // fallback: MIME + URL + category
   if(t==='music') return ft.startsWith('audio/')||/\.(mp3|wav|flac|aac|ogg|m4a|opus)(\?|$)/.test(url)||isMusicCat(s.category);
-  if(t==='video') return ft.startsWith('video/')||cat==='video'||/\.(mp4|webm|ogg|mov|avi|mkv)(\?|$)/.test(url);
+  if(t==='video') return ft.startsWith('video/')||cat==='video'||/\.(mp4|webm|mov|avi|mkv)(\?|$)/.test(url);
   if(t==='image') return ft.startsWith('image/')||cat==='image'||/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/.test(url);
   if(t==='doc')   return ft.includes('pdf')||ft.includes('document')||ft.includes('spreadsheet')||ft.includes('text/')||cat==='document'||/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)(\?|$)/.test(url);
   if(t==='etc')   return !isType(s,'music')&&!isType(s,'video')&&!isType(s,'image')&&!isType(s,'doc');
