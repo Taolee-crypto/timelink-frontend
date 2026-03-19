@@ -1821,7 +1821,7 @@ function togglePlay(){
   if(_playing){ aud.pause(); _playing=false; g('playBtn').textContent='▶'; stopPoc(); }
   else {
     if(!aud.src) loadTrack(_curIdx);
-    aud.play().then(function(){ _playing=true; g('playBtn').textContent='⏸'; startPoc(); startViz(); }).catch(function(e){ toast(TLi18n.t('sp.play.fail')+': '+e.message,'e'); });
+    aud.play().then(function(){ _playing=true; g('playBtn').textContent='⏸'; startPoc(); startViz(); }).catch(function(e){ toast((TLi18n&&TLi18n.t?TLi18n.t('sp.play.fail'):'fail')+': '+e.message,'e'); });
   }
 }
 
@@ -1856,7 +1856,7 @@ async function safeJumpTo(idx){
     toast('⚡ '+amt.toLocaleString()+' TL 자동 충전 ('+Math.floor(amt/rate)+'초분)','w');
     try{
       var tk = localStorage.getItem('tl_token')||'';
-      var r = await fetch('https://api.timelink.digital/api/shares/'+sid+'/charge',{
+      var r = await fetch(API_BASE+'/api/shares/'+sid+'/charge',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
         body: JSON.stringify({amount:amt, user_id:_user.id, email:_user.email})
@@ -1908,8 +1908,8 @@ function seekTrack(e){
 }
 
 function setVol(v){ _audA.volume=v/100; _audB.volume=_crossfading?(v/100):0; }
-function toggleShuffle(){ _shuffle=!_shuffle; g('shuffleBtn').style.color=_shuffle?'var(--amber)':''; toast(_shuffle?TLi18n.t('toast.shuffle.on'):TLi18n.t('toast.shuffle.off'),'i'); buildQueue(); }
-function toggleCrossfade(){ _crossfade=!_crossfade; g('crossBtn').style.color=_crossfade?'var(--amber)':''; toast(_crossfade?TLi18n.t('toast.crossfade.on'):TLi18n.t('toast.crossfade.off'),'i'); }
+function toggleShuffle(){ _shuffle=!_shuffle; g('shuffleBtn').style.color=_shuffle?'var(--amber)':''; toast(_shuffle?(TLi18n&&TLi18n.t?TLi18n.t('toast.shuffle.on'):'on'):(TLi18n&&TLi18n.t?TLi18n.t('toast.shuffle.off'):'off'),'i'); buildQueue(); }
+function toggleCrossfade(){ _crossfade=!_crossfade; g('crossBtn').style.color=_crossfade?'var(--amber)':''; toast(_crossfade?(TLi18n&&TLi18n.t?TLi18n.t('toast.crossfade.on'):'on'):(TLi18n&&TLi18n.t?TLi18n.t('toast.crossfade.off'):'off'),'i'); }
 
 // POC
 var _pocMult = 1.0;
@@ -1950,14 +1950,14 @@ function startPoc(){
         if(fileBal <= 0){
           // 곡별 TL 소진 → 총량(3분류 순차)으로 이어서 차감
           deductTL(whole);
-          toast(TLi18n.t('toast.tl.empty.track'),'w');
+          toast((TLi18n&&TLi18n.t?TLi18n.t('toast.tl.empty.track'):'track'),'w');
         }
         updateNowPlayingTL();
       } else {
         // ── 중앙 방송 또는 fallback: 총량 차감 (3분류 순서) ──
         deductTL(whole);
         if(getTotalTL() <= 0){
-          toast(TLi18n.t('toast.tl.empty.total'),'w');
+          toast((TLi18n&&TLi18n.t?TLi18n.t('toast.tl.empty.total'):'total'),'w');
           reportToServer();
           stopPoc();
           togglePlay();
@@ -2166,7 +2166,7 @@ function setMode(m){
   var desc = m==='incar'?'인카 주행 보너스':'카페방송 기본';
   g('pocMult').textContent=poc; g('pocMultDesc').textContent=desc;
   if(_pocInterval){ stopPoc(); startPoc(); }
-  toast(m==='cafe'?TLi18n.t('toast.mode.cafe'):TLi18n.t('toast.mode.incar'),m==='incar'?'s':'i');
+  toast(m==='cafe'?(TLi18n&&TLi18n.t?TLi18n.t('toast.mode.cafe'):'cafe'):(TLi18n&&TLi18n.t?TLi18n.t('toast.mode.incar'):'incar'),m==='incar'?'s':'i');
   buildQueue();
 }
 
@@ -2186,16 +2186,16 @@ function renderRequests(){
 function sendRequest(){
   var song = g('reqSong').value.trim();
   var story = g('reqStory').value.trim();
-  if(!song){ toast(TLi18n.t('toast.song.required'),'e'); return; }
+  if(!song){ toast((TLi18n&&TLi18n.t?TLi18n.t('toast.song.required'):'required'),'e'); return; }
   _requests.unshift({user:_user.username||'익명', song:song, story:story, time:new Date().toLocaleTimeString('ko-KR')});
   g('reqSong').value=''; g('reqStory').value='';
   renderRequests();
-  toast(TLi18n.t('toast.song.requested'),'s');
+  toast((TLi18n&&TLi18n.t?TLi18n.t('toast.song.requested'):'requeste'),'s');
 }
 
 function loadMyPlaylist(){
-  if(!_shares.length){ toast(TLi18n.t('toast.loading'),'i'); return; }
-  toast(TLi18n.t('toast.playlist.applied'),'s');
+  if(!_shares.length){ toast((TLi18n&&TLi18n.t?TLi18n.t('toast.loading'):'loading'),'i'); return; }
+  toast((TLi18n&&TLi18n.t?TLi18n.t('toast.playlist.applied'):'applied'),'s');
 }
 
 // Init
