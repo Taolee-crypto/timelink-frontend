@@ -1928,11 +1928,14 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   // ── 오디오 ──────────────────────────────────────────
   // crossOrigin 없이 시도 (CORS 문제 우회)
   _tlAudio=new Audio();
-  _tlAudio.crossOrigin='anonymous';
+  // crossOrigin='anonymous' 제거 - /api/stream은 CORS 허용됨
   _tlAudio.preload='auto';
 
   _tlAudio.onerror=function(e){
-    showPlayerError(TLi18n.t('msg.file.load.fail'));
+    var errCode=(_tlAudio&&_tlAudio.error)?_tlAudio.error.code:0;
+    var errMsg=errCode===4?'파일이 서버에 없거나 접근이 거부됐습니다 (404/403)':'파일 로드 실패 — 파일이 없거나 서버 오류입니다';
+    showPlayerError(errMsg);
+    console.warn('[TLPlayer] onerror code='+errCode+' src='+(_tlAudio&&_tlAudio.src||''));
   };
 
   // oncanplay는 여러 번 발생 → 최초 1회만 실행
