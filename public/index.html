@@ -2,372 +2,702 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy"
-  content="default-src 'self' https://api.timelink.digital; media-src blob: data: 'self'; style-src 'unsafe-inline';">
-<title>TimeLink Player</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>TimeLink — 시간이 곧 가치다</title>
+<link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="i18n.js" defer></script>
+<style>#tl-lang-switcher{display:none!important}</style>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none}
-body{background:#08080F;color:#fff;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif;
-  height:100vh;display:flex;flex-direction:column;overflow:hidden}
-.titlebar{height:38px;-webkit-app-region:drag;display:flex;align-items:center;
-  padding:0 16px;background:#08080F;border-bottom:1px solid rgba(255,255,255,.06)}
-.tl-logo{font-size:13px;font-weight:900;letter-spacing:.1em;
-  background:linear-gradient(90deg,#8B5CF6,#00E5A0);-webkit-background-clip:text;
-  -webkit-text-fill-color:transparent}
+:root{
+  --bg:#07070E;--bg2:#0D0D1A;--bg3:#111120;
+  --bd:rgba(255,255,255,.07);--bd2:rgba(255,255,255,.12);--bd3:rgba(255,255,255,.18);
+  --purple:#8B5CF6;--purple2:rgba(139,92,246,.15);
+  --mint:#00E5A0;--mint2:rgba(0,229,160,.12);
+  --rose:#FB7185;--amber:#FBBF24;--blue:#38BDF8;
+  --t1:#fff;--t2:rgba(255,255,255,.65);--t3:rgba(255,255,255,.38);--t4:rgba(255,255,255,.18);
+  --grad:linear-gradient(135deg,#8B5CF6 0%,#00E5A0 100%);
+  --fn:'Noto Sans KR',sans-serif;--fm:'JetBrains Mono',monospace;--fs:'Syncopate',sans-serif;
+  --r:24px;--r2:16px;--r3:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--fn);background:var(--bg);color:var(--t1);min-height:100vh;overflow-x:hidden}
 
-/* 로그인 화면 */
-#loginScreen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px}
-.login-title{font-size:22px;font-weight:900;margin-bottom:8px}
-.login-sub{font-size:12px;color:rgba(255,255,255,.4);margin-bottom:32px;text-align:center}
-.inp{width:100%;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.1);
-  background:rgba(255,255,255,.05);color:#fff;font-size:14px;outline:none;margin-bottom:10px}
-.inp::placeholder{color:rgba(255,255,255,.25)}
-.inp:focus{border-color:#8B5CF6}
-.btn-primary{width:100%;padding:13px;border-radius:10px;border:none;cursor:pointer;
-  background:linear-gradient(135deg,#8B5CF6,#7C3AED);color:#fff;font-size:14px;
-  font-weight:700;margin-top:6px;transition:all .2s}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(139,92,246,.4)}
-.btn-primary:disabled{opacity:.4;transform:none;cursor:default}
+/* ── 노이즈 + 앰비언트 ── */
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");pointer-events:none;z-index:0}
+.ambient{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 70% 55% at 15% 15%,rgba(139,92,246,.1) 0%,transparent 60%),
+             radial-gradient(ellipse 55% 45% at 85% 85%,rgba(0,229,160,.07) 0%,transparent 60%),
+             radial-gradient(ellipse 40% 35% at 55% 45%,rgba(56,189,248,.04) 0%,transparent 60%)}
 
-/* 플레이어 화면 */
-#playerScreen{flex:1;display:none;flex-direction:column}
-.drop-zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  margin:16px;border:2px dashed rgba(139,92,246,.3);border-radius:20px;
-  cursor:pointer;transition:all .3s;padding:24px;text-align:center}
-.drop-zone:hover,.drop-zone.drag-over{border-color:#8B5CF6;background:rgba(139,92,246,.06)}
-.drop-icon{font-size:48px;margin-bottom:12px;opacity:.4}
-.drop-title{font-size:15px;font-weight:700;margin-bottom:6px}
-.drop-sub{font-size:11px;color:rgba(255,255,255,.35)}
+/* ══════════════════════════════
+   NAV
+══════════════════════════════ */
+nav{position:fixed;top:0;left:0;right:0;z-index:1000;
+  display:flex;align-items:center;gap:0;
+  padding:0 40px;height:64px;
+  background:rgba(7,7,14,.7);
+  backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--bd);
+  transition:background .3s}
+nav.scrolled{background:rgba(7,7,14,.92)}
 
-/* 파일 정보 */
-.file-info{display:none;flex-direction:column;margin:16px;gap:0}
-.cover-wrap{width:100%;aspect-ratio:1;border-radius:16px;overflow:hidden;
-  background:linear-gradient(135deg,#1a1060,#0d3050);margin-bottom:16px;
-  display:flex;align-items:center;justify-content:center}
-.cover-icon{font-size:64px;opacity:.3}
-.file-title{font-size:18px;font-weight:900;margin-bottom:4px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.file-artist{font-size:13px;color:rgba(255,255,255,.4);margin-bottom:2px}
-.file-meta{font-size:10px;color:rgba(139,92,246,.6);font-family:monospace;margin-bottom:16px}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0}
+.nav-logo-icon{width:34px;height:34px;background:var(--grad);border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-size:15px}
+.nav-logo-text{font-family:var(--fs);font-size:13px;font-weight:700;letter-spacing:.18em;color:var(--t1)}
 
-/* 진행바 */
-.progress-wrap{height:4px;background:rgba(255,255,255,.1);border-radius:2px;
-  margin-bottom:12px;cursor:pointer;position:relative}
-.progress-fill{height:100%;background:linear-gradient(90deg,#8B5CF6,#00E5A0);
-  border-radius:2px;width:0%;transition:width .3s linear}
-.time-row{display:flex;justify-content:space-between;font-size:11px;
-  color:rgba(255,255,255,.3);font-family:monospace;margin-bottom:20px}
+.nav-links{display:flex;align-items:center;gap:2px;margin:0 auto}
+.nav-links a{
+  display:flex;align-items:center;gap:6px;
+  padding:8px 16px;border-radius:8px;
+  text-decoration:none;color:var(--t2);font-size:13px;font-weight:500;
+  transition:all .2s;white-space:nowrap;letter-spacing:.01em}
+.nav-links a:hover{color:var(--t1);background:rgba(255,255,255,.05)}
+.nav-links a.active{color:var(--t1)}
+.nav-dot{width:4px;height:4px;border-radius:50%;background:var(--grad-dot,var(--purple));display:inline-block}
 
-/* 컨트롤 */
-.controls{display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:20px}
-.ctrl-btn{width:48px;height:48px;border-radius:50%;border:none;cursor:pointer;
-  background:rgba(255,255,255,.06);color:#fff;font-size:18px;transition:all .2s}
-.ctrl-btn:hover{background:rgba(255,255,255,.12)}
-.ctrl-btn.play{width:64px;height:64px;font-size:24px;
-  background:linear-gradient(135deg,#8B5CF6,#7C3AED)}
-.ctrl-btn.play:hover{transform:scale(1.05);box-shadow:0 6px 20px rgba(139,92,246,.4)}
+.nav-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
 
-/* TL 잔액 */
-.tl-bar{display:flex;align-items:center;justify-content:space-between;
-  padding:12px 16px;background:rgba(255,255,255,.03);border-top:1px solid rgba(255,255,255,.06)}
-.tl-val{font-size:14px;font-weight:700;color:#00E5A0;font-family:monospace}
-.tl-lbl{font-size:10px;color:rgba(255,255,255,.3)}
-.open-btn{padding:6px 14px;border-radius:8px;border:1px solid rgba(139,92,246,.4);
-  background:transparent;color:#8B5CF6;font-size:11px;cursor:pointer;transition:all .2s}
-.open-btn:hover{background:rgba(139,92,246,.1)}
+.btn-nav-login{
+  padding:8px 20px;border-radius:9px;
+  border:1px solid var(--bd3);background:rgba(255,255,255,.05);
+  color:var(--t1);font-size:13px;font-weight:600;font-family:var(--fn);
+  cursor:pointer;transition:all .2s;text-decoration:none;white-space:nowrap}
+.btn-nav-login:hover{background:rgba(255,255,255,.1);border-color:var(--bd3)}
+.btn-nav-signup{
+  padding:8px 22px;border-radius:9px;
+  border:none;background:var(--grad);
+  color:#fff;font-size:13px;font-weight:700;font-family:var(--fn);
+  cursor:pointer;transition:all .2s;text-decoration:none;white-space:nowrap}
+.btn-nav-signup:hover{opacity:.88;transform:translateY(-1px)}
 
-/* 상태 메시지 */
-.status{font-size:12px;color:rgba(255,255,255,.4);text-align:center;
-  padding:8px;min-height:32px}
-.status.error{color:#F87171}
-.status.ok{color:#00E5A0}
+/* 모바일 햄버거 */
+.nav-ham{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:6px;border:none;background:none}
+.nav-ham span{width:22px;height:2px;background:var(--t2);border-radius:2px;transition:all .3s}
+
+/* ══════════════════════════════
+   HERO
+══════════════════════════════ */
+.hero{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 24px 80px}
+
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:6px 16px;border-radius:20px;
+  background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);
+  font-size:12px;font-weight:700;color:var(--purple);letter-spacing:.08em;
+  margin-bottom:28px;font-family:var(--fm)}
+.hero-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--mint);animation:pulse 2s ease infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+
+.hero-title{font-family:var(--fs);font-size:clamp(38px,8vw,88px);font-weight:700;line-height:1.0;
+  letter-spacing:.04em;margin-bottom:8px}
+.hero-title .grad{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-eq{font-family:var(--fm);font-size:clamp(14px,2.5vw,20px);color:var(--mint);
+  letter-spacing:.15em;margin-bottom:20px;opacity:.8}
+.hero-sub{max-width:640px;font-size:clamp(15px,2vw,18px);color:var(--t2);line-height:1.75;margin-bottom:44px}
+
+.hero-cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:64px}
+.btn-primary{
+  padding:16px 36px;border-radius:14px;border:none;
+  background:var(--grad);color:#fff;
+  font-size:15px;font-weight:700;font-family:var(--fn);
+  cursor:pointer;transition:all .3s;text-decoration:none;
+  box-shadow:0 8px 32px rgba(139,92,246,.25)}
+.btn-primary:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(139,92,246,.4)}
+.btn-secondary{
+  padding:16px 36px;border-radius:14px;
+  border:1px solid var(--bd3);background:rgba(255,255,255,.04);
+  color:var(--t1);font-size:15px;font-weight:600;font-family:var(--fn);
+  cursor:pointer;transition:all .3s;text-decoration:none}
+.btn-secondary:hover{background:rgba(255,255,255,.08);border-color:var(--bd3);transform:translateY(-2px)}
+
+/* 히어로 스탯 */
+.hero-stats{display:flex;gap:48px;justify-content:center;flex-wrap:wrap}
+.stat{text-align:center}
+.stat-val{font-family:var(--fs);font-size:28px;font-weight:700;background:var(--grad);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-label{font-size:11px;color:var(--t3);letter-spacing:.1em;margin-top:4px;font-family:var(--fm)}
+
+/* ══════════════════════════════
+   SECTION 공통
+══════════════════════════════ */
+section{position:relative;z-index:1}
+.container{max-width:1120px;margin:0 auto;padding:0 24px}
+.section-pad{padding:100px 0}
+.section-tag{display:inline-block;font-family:var(--fm);font-size:10px;font-weight:700;
+  letter-spacing:.15em;color:var(--purple);background:var(--purple2);
+  border:1px solid rgba(139,92,246,.25);border-radius:4px;padding:4px 10px;margin-bottom:16px}
+.section-title{font-size:clamp(28px,4vw,44px);font-weight:700;line-height:1.2;margin-bottom:16px}
+.section-sub{font-size:16px;color:var(--t2);line-height:1.75;max-width:600px}
+
+/* ══════════════════════════════
+   ECONOMY SECTION
+══════════════════════════════ */
+.eco-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:56px}
+@media(max-width:760px){.eco-grid{grid-template-columns:1fr}}
+.eco-card{
+  background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:var(--r);
+  padding:36px;transition:all .3s;position:relative;overflow:hidden}
+.eco-card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .3s;pointer-events:none}
+.eco-card:hover{border-color:var(--bd2);transform:translateY(-4px)}
+.eco-card.tl::before{background:radial-gradient(ellipse 60% 60% at 80% 20%,rgba(139,92,246,.08) 0%,transparent 70%)}
+.eco-card.tlc::before{background:radial-gradient(ellipse 60% 60% at 80% 20%,rgba(0,229,160,.06) 0%,transparent 70%)}
+.eco-card:hover::before{opacity:1}
+.eco-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:20px}
+.eco-icon.tl{background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.25)}
+.eco-icon.tlc{background:rgba(0,229,160,.12);border:1px solid rgba(0,229,160,.2)}
+.eco-name{font-family:var(--fs);font-size:22px;font-weight:700;margin-bottom:8px;letter-spacing:.05em}
+.eco-name.tl{color:var(--purple)}
+.eco-name.tlc{color:var(--mint)}
+.eco-desc{font-size:14px;color:var(--t2);line-height:1.75;margin-bottom:24px}
+.eco-formula{
+  font-family:var(--fm);font-size:13px;
+  background:rgba(255,255,255,.04);border:1px solid var(--bd2);
+  border-radius:10px;padding:14px 18px;color:var(--t2);line-height:1.8}
+.eco-formula .hi{color:var(--mint)}
+.eco-formula .hi2{color:var(--purple)}
+
+/* ══════════════════════════════
+   FEATURES SECTION
+══════════════════════════════ */
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:56px}
+@media(max-width:900px){.feat-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.feat-grid{grid-template-columns:1fr}}
+.feat-card{
+  background:rgba(255,255,255,.025);border:1px solid var(--bd);border-radius:var(--r2);
+  padding:28px;transition:all .25s;cursor:default}
+.feat-card:hover{background:rgba(255,255,255,.045);border-color:var(--bd2);transform:translateY(-3px)}
+.feat-emoji{font-size:28px;margin-bottom:16px}
+.feat-title{font-size:15px;font-weight:700;margin-bottom:8px}
+.feat-desc{font-size:13px;color:var(--t3);line-height:1.7}
+
+/* ══════════════════════════════
+   POC / RADIO SECTION (사이드-by-사이드)
+══════════════════════════════ */
+.split-section{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+@media(max-width:860px){.split-section{grid-template-columns:1fr;gap:40px}}
+.split-visual{
+  background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:var(--r);
+  padding:32px;position:relative;overflow:hidden}
+.split-visual::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 60% at 80% 20%,rgba(0,229,160,.07) 0%,transparent 70%)}
+
+/* POC 미터 */
+.poc-meter{display:flex;flex-direction:column;gap:12px}
+.poc-row{display:flex;align-items:center;gap:12px}
+.poc-label{font-family:var(--fm);font-size:11px;color:var(--t3);width:80px;flex-shrink:0}
+.poc-bar{flex:1;height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden}
+.poc-fill{height:100%;border-radius:4px;transition:width 1.2s ease;
+  background:linear-gradient(90deg,var(--purple),var(--mint))}
+.poc-val{font-family:var(--fm);font-size:11px;color:var(--mint);width:36px;text-align:right;flex-shrink:0}
+
+/* 라디오 카드 */
+.radio-cards{display:flex;flex-direction:column;gap:12px}
+.radio-card{
+  display:flex;align-items:center;gap:16px;
+  background:rgba(255,255,255,.04);border:1px solid var(--bd);
+  border-radius:12px;padding:16px 20px;transition:all .2s}
+.radio-card:hover{border-color:var(--bd2);background:rgba(255,255,255,.07)}
+.radio-card-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.radio-card-info{flex:1}
+.radio-card-name{font-size:13px;font-weight:700;margin-bottom:3px}
+.radio-card-sub{font-size:11px;color:var(--t3)}
+.radio-card-badge{font-family:var(--fm);font-size:10px;padding:3px 8px;border-radius:5px;white-space:nowrap}
+.badge-live{background:rgba(251,113,133,.15);color:var(--rose);border:1px solid rgba(251,113,133,.25)}
+.badge-poc{background:rgba(0,229,160,.12);color:var(--mint);border:1px solid rgba(0,229,160,.2)}
+
+/* ══════════════════════════════
+   PLAN SECTION
+══════════════════════════════ */
+.plan-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:56px}
+@media(max-width:640px){.plan-grid{grid-template-columns:1fr}}
+.plan-card{
+  background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:var(--r);
+  padding:36px;transition:all .3s;position:relative;overflow:hidden}
+.plan-card.featured{border-color:rgba(0,229,160,.3);background:rgba(0,229,160,.04)}
+.plan-card:hover{transform:translateY(-4px)}
+.plan-label{font-family:var(--fs);font-size:11px;letter-spacing:.15em;color:var(--t3);margin-bottom:16px}
+.plan-name{font-size:24px;font-weight:700;margin-bottom:6px}
+.plan-ratio{font-family:var(--fm);font-size:36px;font-weight:700;margin-bottom:4px}
+.plan-ratio.a{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.plan-ratio.b{color:var(--mint)}
+.plan-split{font-size:13px;color:var(--t3);margin-bottom:20px;font-family:var(--fm)}
+.plan-items{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
+.plan-items li{display:flex;align-items:flex-start;gap:10px;font-size:14px;color:var(--t2)}
+.plan-items li::before{content:'✓';color:var(--mint);font-weight:700;flex-shrink:0;margin-top:1px}
+.plan-cta{
+  display:block;width:100%;text-align:center;
+  padding:12px;border-radius:10px;font-size:14px;font-weight:700;
+  text-decoration:none;transition:all .2s;cursor:pointer;border:none;font-family:var(--fn)}
+.plan-cta.a{background:var(--grad);color:#fff}
+.plan-cta.b{background:rgba(0,229,160,.15);color:var(--mint);border:1px solid rgba(0,229,160,.3)}
+.plan-cta:hover{opacity:.85;transform:translateY(-1px)}
+
+/* ══════════════════════════════
+   AI / LICENSING SECTION
+══════════════════════════════ */
+.ai-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:56px}
+@media(max-width:860px){.ai-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.ai-grid{grid-template-columns:1fr}}
+.ai-card{
+  background:rgba(255,255,255,.025);border:1px solid var(--bd);border-radius:var(--r2);
+  padding:28px 24px;text-align:center;transition:all .25s}
+.ai-card:hover{transform:translateY(-3px);border-color:var(--bd2)}
+.ai-card-icon{font-size:32px;margin-bottom:14px}
+.ai-card-title{font-size:14px;font-weight:700;margin-bottom:8px}
+.ai-card-desc{font-size:12px;color:var(--t3);line-height:1.7}
+
+/* ══════════════════════════════
+   CTA BANNER
+══════════════════════════════ */
+.cta-banner{
+  margin:0 24px 100px;max-width:1072px;margin-left:auto;margin-right:auto;
+  background:linear-gradient(135deg,rgba(139,92,246,.15) 0%,rgba(0,229,160,.1) 100%);
+  border:1px solid rgba(139,92,246,.25);border-radius:var(--r);
+  padding:64px;text-align:center;position:relative;overflow:hidden;z-index:1}
+.cta-banner::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 80% at 50% 0%,rgba(139,92,246,.15) 0%,transparent 70%)}
+.cta-title{font-family:var(--fs);font-size:clamp(24px,4vw,42px);font-weight:700;margin-bottom:16px;position:relative}
+.cta-sub{font-size:16px;color:var(--t2);line-height:1.7;margin-bottom:36px;position:relative}
+.cta-btns{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;position:relative}
+
+/* ══════════════════════════════
+   FOOTER
+══════════════════════════════ */
+footer{border-top:1px solid var(--bd);padding:40px 24px;position:relative;z-index:1}
+.footer-inner{max-width:1120px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px}
+.footer-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.footer-logo-icon{width:28px;height:28px;background:var(--grad);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px}
+.footer-logo-text{font-family:var(--fs);font-size:11px;font-weight:700;letter-spacing:.18em;color:var(--t2)}
+.footer-links{display:flex;gap:24px;flex-wrap:wrap}
+.footer-links a{font-size:12px;color:var(--t3);text-decoration:none;transition:color .2s}
+.footer-links a:hover{color:var(--t2)}
+.footer-copy{font-size:11px;color:var(--t4);font-family:var(--fm)}
+
+/* ══════════════════════════════
+   DIVIDER
+══════════════════════════════ */
+.section-divider{width:100%;max-width:1120px;margin:0 auto;height:1px;background:var(--bd)}
+
+/* ══════════════════════════════
+   MOBILE NAV DRAWER
+══════════════════════════════ */
+.mobile-nav{
+  display:none;position:fixed;top:64px;left:0;right:0;z-index:999;
+  background:rgba(10,10,20,.97);backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--bd);
+  padding:20px 24px 28px;flex-direction:column;gap:4px}
+.mobile-nav.open{display:flex}
+.mobile-nav a{
+  padding:12px 16px;border-radius:10px;text-decoration:none;
+  color:var(--t2);font-size:14px;font-weight:500;transition:all .2s}
+.mobile-nav a:hover{color:var(--t1);background:rgba(255,255,255,.05)}
+.mobile-nav-sep{height:1px;background:var(--bd);margin:8px 0}
+.mobile-nav-ctas{display:flex;gap:10px;margin-top:8px}
+.mobile-nav-ctas a{flex:1;text-align:center}
+
+/* ══════════════════════════════
+   SCROLL ANIMATIONS
+══════════════════════════════ */
+.fade-up{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease}
+.fade-up.visible{opacity:1;transform:translateY(0)}
+
+@media(max-width:768px){
+  nav{padding:0 20px}
+  .nav-links{display:none}
+  .nav-right{gap:8px}
+  .btn-nav-login{display:none}
+  .nav-ham{display:flex}
+  .section-pad{padding:72px 0}
+  .hero{padding:100px 20px 60px}
+  .hero-stats{gap:28px}
+  .split-section{grid-template-columns:1fr}
+  .container{padding:0 20px}
+  .cta-banner{padding:40px 28px;margin:0 16px 72px}
+}
 </style>
 </head>
 <body>
+<div class="ambient"></div>
 
-<div class="titlebar">
-  <span class="tl-logo">⚡ TIMELINK</span>
-</div>
+<!-- ══ NAV ══ -->
+<nav id="mainNav">
+  <a href="/" class="nav-logo">
+    <div class="nav-logo-icon">⏱</div>
+    <span class="nav-logo-text">TIMELINK</span>
+  </a>
 
-<!-- 로그인 화면 -->
-<div id="loginScreen">
-  <div style="font-size:40px;margin-bottom:16px">⚡</div>
-  <div class="login-title">TimeLink Player</div>
-  <div class="login-sub">timelink.digital 계정으로 로그인하세요<br>.tl 파일을 재생하려면 TL 잔액이 필요합니다</div>
-  <input class="inp" id="emailInp" type="email" placeholder="이메일" autocomplete="email">
-  <input class="inp" id="pwInp" type="password" placeholder="비밀번호" autocomplete="current-password"
-    onkeydown="if(event.key==='Enter')doLogin()">
-  <button class="btn-primary" id="loginBtn" onclick="doLogin()">로그인</button>
-  <div class="status" id="loginStatus"></div>
-</div>
-
-<!-- 플레이어 화면 -->
-<div id="playerScreen">
-  <!-- 드롭존 -->
-  <div class="drop-zone" id="dropZone"
-    onclick="openFile()"
-    ondragover="event.preventDefault();this.classList.add('drag-over')"
-    ondragleave="this.classList.remove('drag-over')"
-    ondrop="onDrop(event)">
-    <div class="drop-icon">📂</div>
-    <div class="drop-title">.tl 파일을 여기에 드롭</div>
-    <div class="drop-sub">또는 클릭하여 파일 선택</div>
+  <div class="nav-links">
+    <a href="#economy">경제 모델</a>
+    <a href="#features">기능</a>
+    <a href="#radio">라디오</a>
+    <a href="#plans">수익 플랜</a>
+    <a href="#ai">AI 라이선싱</a>
   </div>
 
-  <!-- 파일 정보 + 플레이어 -->
-  <div class="file-info" id="fileInfo">
-    <div class="cover-wrap">
-      <div class="cover-icon" id="coverIcon">🎵</div>
-    </div>
-    <div class="file-title" id="fileTitle">—</div>
-    <div class="file-artist" id="fileArtist">—</div>
-    <div class="file-meta" id="fileMeta">—</div>
-
-    <div class="progress-wrap" id="progressWrap" onclick="seekTo(event)">
-      <div class="progress-fill" id="progressFill"></div>
-    </div>
-    <div class="time-row">
-      <span id="timeEl">0:00</span>
-      <span id="durEl">0:00</span>
-    </div>
-
-    <div class="controls">
-      <button class="ctrl-btn" onclick="seekRel(-10)">⏮</button>
-      <button class="ctrl-btn play" id="playBtn" onclick="togglePlay()">▶</button>
-      <button class="ctrl-btn" onclick="seekRel(10)">⏭</button>
-    </div>
-    <div class="status" id="playerStatus"></div>
+  <div class="nav-right">
+    <a href="login.html" class="btn-nav-login">로그인</a>
+    <a href="signup.html" class="btn-nav-signup">무료 시작</a>
+    <button class="nav-ham" id="hamBtn" aria-label="메뉴" onclick="toggleMobileNav()">
+      <span></span><span></span><span></span>
+    </button>
   </div>
+</nav>
 
-  <div class="tl-bar">
-    <div>
-      <div class="tl-lbl">⚡ TL 잔액</div>
-      <div class="tl-val" id="tlVal">0 TL</div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <div style="font-size:10px;color:rgba(255,255,255,.3)" id="userEmail">—</div>
-      <button class="open-btn" onclick="openFile()">📂 열기</button>
-      <button class="open-btn" onclick="doLogout()">로그아웃</button>
-    </div>
+<!-- 모바일 드로어 -->
+<div class="mobile-nav" id="mobileNav">
+  <a href="#economy" onclick="toggleMobileNav()">경제 모델</a>
+  <a href="#features" onclick="toggleMobileNav()">기능</a>
+  <a href="#radio" onclick="toggleMobileNav()">라디오</a>
+  <a href="#plans" onclick="toggleMobileNav()">수익 플랜</a>
+  <a href="#ai" onclick="toggleMobileNav()">AI 라이선싱</a>
+  <div class="mobile-nav-sep"></div>
+  <div class="mobile-nav-ctas">
+    <a href="login.html" class="btn-secondary" style="font-size:14px;font-weight:600;text-align:center;padding:12px 0;text-decoration:none;border:1px solid var(--bd3);border-radius:10px;color:var(--t1)">로그인</a>
+    <a href="signup.html" class="btn-primary" style="font-size:14px;flex:1;padding:12px 0;text-align:center;text-decoration:none">무료 시작</a>
   </div>
 </div>
 
-<audio id="audioEl" style="display:none"></audio>
+<!-- ══ HERO ══ -->
+<section class="hero">
+  <div class="hero-badge">⏱ GLOBAL DIGITAL FILE ECONOMY</div>
+  <h1 class="hero-title">TIME<span class="grad">LINK</span></h1>
+  <div class="hero-eq">1초 = 1 TL = 1원</div>
+  <p class="hero-sub">모든 디지털 파일이 시간으로 환산됩니다. 재생하고, 소비하고, 채굴하세요. 크리에이터와 청취자가 함께 만드는 새로운 디지털 경제.</p>
+  <div class="hero-cta">
+    <a href="signup.html" class="btn-primary">⚡ 무료로 시작하기</a>
+    <a href="shareplace.html" class="btn-secondary">SharePlace 둘러보기 →</a>
+  </div>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-val">42,500</div><div class="stat-label">SIGNUP BONUS TL</div></div>
+    <div class="stat"><div class="stat-val">1:1</div><div class="stat-label">TL : 원 RATIO</div></div>
+    <div class="stat"><div class="stat-val">7:3</div><div class="stat-label">CREATOR SPLIT</div></div>
+    <div class="stat"><div class="stat-val">30+</div><div class="stat-label">GENRES</div></div>
+  </div>
+</section>
+
+<!-- ══ ECONOMY ══ -->
+<section id="economy" class="section-pad">
+  <div class="container">
+    <div class="section-tag">TOKENOMICS</div>
+    <h2 class="section-title fade-up">이중 화폐 경제 구조</h2>
+    <p class="section-sub fade-up">TL(소비 토큰)과 TLC(채굴 코인)이 맞물려 지속 가능한 창작 수익 생태계를 만듭니다.</p>
+
+    <div class="eco-grid">
+      <div class="eco-card tl fade-up">
+        <div class="eco-icon tl">⚡</div>
+        <div class="eco-name tl">TL</div>
+        <p class="eco-desc">TimeLink의 소비 화폐. 파일 재생·열람 시 초당 1 TL씩 차감됩니다. 충전 후 즉시 크리에이터 수익으로 전환됩니다.</p>
+        <div class="eco-formula">
+          <div><span class="hi2">1초</span> 재생 = <span class="hi">1 TL</span> 차감</div>
+          <div>10분 음악 = <span class="hi">600 TL</span></div>
+          <div>플랜 A 크리에이터 수익 = <span class="hi">70%</span></div>
+          <div>플렛폼 수수료 = <span class="hi2">30%</span></div>
+        </div>
+      </div>
+      <div class="eco-card tlc fade-up">
+        <div class="eco-icon tlc">💎</div>
+        <div class="eco-name tlc">TLC</div>
+        <p class="eco-desc">기여 기반으로 채굴되는 거래 코인. 보유 TL, 현금교환 이력, POC 기여지수에 따라 채굴량이 결정됩니다.</p>
+        <div class="eco-formula">
+          <div>채굴량 = (<span class="hi">보유TL</span> - 현금교환TL)</div>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;× <span class="hi">50%</span> × <span class="hi2">POC기여지수</span></div>
+          <div style="margin-top:8px">기여지수 범위: <span class="hi">0.5% ~ 5%</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="container"><div class="section-divider"></div></div>
+
+<!-- ══ FEATURES ══ -->
+<section id="features" class="section-pad">
+  <div class="container">
+    <div class="section-tag">FEATURES</div>
+    <h2 class="section-title fade-up">플랫폼 핵심 기능</h2>
+    <p class="section-sub fade-up">음악, 영상, 문서, 이미지, 코드 — 모든 디지털 파일이 TL 경제 안에서 가치를 가집니다.</p>
+
+    <div class="feat-grid">
+      <div class="feat-card fade-up">
+        <div class="feat-emoji">📁</div>
+        <div class="feat-title">SharePlace</div>
+        <p class="feat-desc">모든 콘텐츠를 탐색하고 재생·열람하는 메인 허브. 카드/리스트 뷰, 실시간 TL 잔량 표시.</p>
+      </div>
+      <div class="feat-card fade-up">
+        <div class="feat-emoji">🏆</div>
+        <div class="feat-title">TL CHART</div>
+        <p class="feat-desc">TL 충전량·Pulse 기반 실시간 차트. 장르별, 파일 유형별 필터로 지금 가장 인기있는 파일을 발견하세요.</p>
+      </div>
+      <div class="feat-card fade-up">
+        <div class="feat-emoji">🎨</div>
+        <div class="feat-title">크리에이터 센터</div>
+        <p class="feat-desc">파일 업로드, Spotify 연동, AI 증빙 첨부, 수익 플랜 선택. 업로드 즉시 TL 경제에 편입됩니다.</p>
+      </div>
+      <div class="feat-card fade-up">
+        <div class="feat-emoji">📊</div>
+        <div class="feat-title">대시보드</div>
+        <p class="feat-desc">TL·TLC 잔액, POC 기여지수, 수익 내역, 콘텐츠 성과를 한눈에. TLC 채굴 버튼 원클릭.</p>
+      </div>
+      <div class="feat-card fade-up">
+        <div class="feat-emoji">⛓</div>
+        <div class="feat-title">저작권 First-to-File</div>
+        <p class="feat-desc">업로드 시각 기반 블록체인 스타일 저작권 등록. AI 생성 음악은 Suno/Udio 구독 증빙 필수.</p>
+      </div>
+      <div class="feat-card fade-up">
+        <div class="feat-emoji">🌍</div>
+        <div class="feat-title">6개국어 지원</div>
+        <p class="feat-desc">한국어·영어·일어·중국어·태국어·베트남어. 브라우저 언어 자동 감지 후 즉시 전환.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="container"><div class="section-divider"></div></div>
+
+<!-- ══ RADIO + POC ══ -->
+<section id="radio" class="section-pad">
+  <div class="container">
+    <div class="split-section">
+      <!-- 라디오 -->
+      <div class="fade-up">
+        <div class="section-tag">RADIO</div>
+        <h2 class="section-title">방송국</h2>
+        <p class="section-sub" style="margin-bottom:32px">카페, 차량, AI DJ — 공간과 이동 중에도 TimeLink. 채널 청취 시 POC 기여지수 2배 적립.</p>
+        <div class="radio-cards">
+          <div class="radio-card">
+            <div class="radio-card-icon" style="background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.2)">☕</div>
+            <div class="radio-card-info">
+              <div class="radio-card-name">카페방송</div>
+              <div class="radio-card-sub">카페 BGM 자동 큐레이션 · POC 2.0× 부스터</div>
+            </div>
+            <span class="radio-card-badge badge-live">LIVE</span>
+          </div>
+          <div class="radio-card">
+            <div class="radio-card-icon" style="background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.2)">🚗</div>
+            <div class="radio-card-info">
+              <div class="radio-card-name">인카방송</div>
+              <div class="radio-card-sub">차량 내 스트리밍 · 이동 중 TLC 채굴</div>
+            </div>
+            <span class="radio-card-badge badge-poc">POC ×2</span>
+          </div>
+          <div class="radio-card">
+            <div class="radio-card-icon" style="background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.25)">🤖</div>
+            <div class="radio-card-info">
+              <div class="radio-card-name">AI DJ 채널</div>
+              <div class="radio-card-sub">자연어 프롬프트 → 자동 플레이리스트 큐레이션</div>
+            </div>
+            <span class="radio-card-badge" style="background:rgba(139,92,246,.12);color:var(--purple);border:1px solid rgba(139,92,246,.2)">AI</span>
+          </div>
+        </div>
+      </div>
+      <!-- POC -->
+      <div class="fade-up">
+        <div class="split-visual">
+          <div style="font-size:12px;font-family:var(--fm);color:var(--t3);letter-spacing:.1em;margin-bottom:20px">POC 기여지수 — 활동별 적립</div>
+          <div class="poc-meter">
+            <div class="poc-row">
+              <div class="poc-label">파일 청취</div>
+              <div class="poc-bar"><div class="poc-fill" style="width:90%"></div></div>
+              <div class="poc-val">5.0%</div>
+            </div>
+            <div class="poc-row">
+              <div class="poc-label">카페 채널</div>
+              <div class="poc-bar"><div class="poc-fill" style="width:72%"></div></div>
+              <div class="poc-val">3.6%</div>
+            </div>
+            <div class="poc-row">
+              <div class="poc-label">파일 업로드</div>
+              <div class="poc-bar"><div class="poc-fill" style="width:60%"></div></div>
+              <div class="poc-val">3.0%</div>
+            </div>
+            <div class="poc-row">
+              <div class="poc-label">TL 충전</div>
+              <div class="poc-bar"><div class="poc-fill" style="width:50%"></div></div>
+              <div class="poc-val">2.5%</div>
+            </div>
+            <div class="poc-row">
+              <div class="poc-label">인카 방송</div>
+              <div class="poc-bar"><div class="poc-fill" style="width:40%"></div></div>
+              <div class="poc-val">2.0%</div>
+            </div>
+          </div>
+          <div style="margin-top:24px;padding:14px 16px;background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.15);border-radius:10px">
+            <div style="font-size:11px;font-family:var(--fm);color:var(--mint);margin-bottom:6px">POC 기여지수 효과</div>
+            <div style="font-size:12px;color:var(--t2);line-height:1.7">지수가 높을수록 <strong style="color:var(--mint)">TL 차감률 감소</strong> + <strong style="color:var(--purple)">TLC 채굴량 증가</strong>. 꾸준히 활동하면 비용이 줄고 수익이 늘어납니다.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="container"><div class="section-divider"></div></div>
+
+<!-- ══ PLANS ══ -->
+<section id="plans" class="section-pad">
+  <div class="container">
+    <div class="section-tag">CREATOR PLANS</div>
+    <h2 class="section-title fade-up">크리에이터 수익 플랜</h2>
+    <p class="section-sub fade-up">즉시 수익과 장기 자산 중 선택하세요. 파일마다 다르게 설정할 수 있습니다.</p>
+
+    <div class="plan-grid">
+      <div class="plan-card fade-up">
+        <div class="plan-label">PLAN A</div>
+        <div class="plan-name">즉시 수익형</div>
+        <div class="plan-ratio a">7 : 3</div>
+        <div class="plan-split">크리에이터 70% · 플랫폼 30%</div>
+        <ul class="plan-items">
+          <li>청취 즉시 TL 지급</li>
+          <li>현금 교환 가능 (1TL = 1원)</li>
+          <li>Pulse 기반 차트 노출</li>
+          <li>저작권 등록 자동 포함</li>
+        </ul>
+        <a href="signup.html" class="plan-cta a">플랜 A로 시작</a>
+      </div>
+      <div class="plan-card featured fade-up">
+        <div class="plan-label">PLAN B</div>
+        <div class="plan-name">TLC 채굴형</div>
+        <div class="plan-ratio b">5 : 5</div>
+        <div class="plan-split">크리에이터 50% · TLC 채굴 활성화</div>
+        <ul class="plan-items">
+          <li>수익 50% → TLC 채굴 기반으로 전환</li>
+          <li>POC 기여지수 3배 가속</li>
+          <li>TLC 거래소 상장 시 자동 전환</li>
+          <li>장기 자산 축적에 유리</li>
+        </ul>
+        <a href="signup.html" class="plan-cta b">플랜 B로 시작</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="container"><div class="section-divider"></div></div>
+
+<!-- ══ AI LICENSING ══ -->
+<section id="ai" class="section-pad">
+  <div class="container">
+    <div class="section-tag">AI LICENSING</div>
+    <h2 class="section-title fade-up">AI 생성 음악 라이선싱</h2>
+    <p class="section-sub fade-up">Suno·Udio로 만든 음악도 상업적으로 유통할 수 있습니다. 플랫폼이 인증하고 보호합니다.</p>
+
+    <div class="ai-grid">
+      <div class="ai-card fade-up">
+        <div class="ai-card-icon">🔍</div>
+        <div class="ai-card-title">구독 증빙 인증</div>
+        <p class="ai-card-desc">Suno/Udio 유료 구독 스크린샷을 AI 증빙으로 첨부. 상업적 이용 자격 자동 검증.</p>
+      </div>
+      <div class="ai-card fade-up">
+        <div class="ai-card-icon">⛓</div>
+        <div class="ai-card-title">First-to-File 등록</div>
+        <p class="ai-card-desc">업로드 타임스탬프 기반 선출원 등록. 분쟁 발생 시 업로드 순서로 소유권 결정.</p>
+      </div>
+      <div class="ai-card fade-up">
+        <div class="ai-card-icon">💰</div>
+        <div class="ai-card-title">즉시 수익화</div>
+        <p class="ai-card-desc">인증 완료 즉시 SharePlace 등록. 청취자가 TL을 소모할 때마다 실시간 수익 적립.</p>
+      </div>
+      <div class="ai-card fade-up">
+        <div class="ai-card-icon">📻</div>
+        <div class="ai-card-title">라디오 큐레이션</div>
+        <p class="ai-card-desc">AI DJ가 인증된 AI 음악을 카페·인카 채널에 자동 편성. 추가 노출 효과.</p>
+      </div>
+      <div class="ai-card fade-up">
+        <div class="ai-card-icon">🌐</div>
+        <div class="ai-card-title">글로벌 유통</div>
+        <p class="ai-card-desc">6개국어 플랫폼에서 전 세계 청취자에게 노출. 언어 장벽 없는 글로벌 수익.</p>
+      </div>
+      <div class="ai-card fade-up">
+        <div class="ai-card-icon">🛡</div>
+        <div class="ai-card-title">분쟁 조정</div>
+        <p class="ai-card-desc">저작권 분쟁 발생 시 플랫폼 조정 시스템 가동. 허위 신고 3회 시 계정 제재.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ CTA BANNER ══ -->
+<div class="container" style="padding-bottom:0">
+  <div class="cta-banner fade-up">
+    <h2 class="cta-title">지금 바로 시작하세요</h2>
+    <p class="cta-sub">가입 즉시 42,500 TL 지급.<br>무료 업로드 기간 중 수수료 없이 파일을 올려보세요.</p>
+    <div class="cta-btns">
+      <a href="signup.html" class="btn-primary">⚡ 무료로 시작하기</a>
+      <a href="login.html" class="btn-secondary">이미 계정이 있어요</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div class="footer-inner">
+    <a href="/" class="footer-logo">
+      <div class="footer-logo-icon">⏱</div>
+      <span class="footer-logo-text">TIMELINK</span>
+    </a>
+    <div class="footer-links">
+      <a href="#economy">경제 모델</a>
+      <a href="#features">기능</a>
+      <a href="#radio">라디오</a>
+      <a href="#plans">수익 플랜</a>
+      <a href="login.html">로그인</a>
+      <a href="signup.html">회원가입</a>
+    </div>
+    <div class="footer-copy">© 2025 TimeLink · 1초=1TL=1원</div>
+  </div>
+</footer>
 
 <script>
-const API = 'https://api.timelink.digital';
-let _token = null, _user = null;
-let _header = null, _shareId = null, _playing = false;
-let _audio = document.getElementById('audioEl');
-let _tickTimer = null, _currentBlob = null;
 
-// ── 초기화 ──
-(async function init(){
-  _token = await tlAPI.storeGet('tl_token');
-  const userJson = await tlAPI.storeGet('tl_user');
-  if(_token && userJson){
-    _user = JSON.parse(userJson);
-    showPlayer();
-  }
-
-  // .tl 파일 열기 이벤트 (더블클릭)
-  tlAPI.onTLFileOpen(fp => loadTLFile(fp));
-})();
-
-// ── 로그인 ──
-async function doLogin(){
-  const email = document.getElementById('emailInp').value.trim();
-  const pw    = document.getElementById('pwInp').value;
-  if(!email||!pw){ setStatus('loginStatus','이메일과 비밀번호를 입력하세요','error'); return; }
-  const btn = document.getElementById('loginBtn');
-  btn.disabled=true; btn.textContent='로그인 중...';
-  setStatus('loginStatus','');
+/* ── 로그인 상태면 shareplace로 리다이렉트 ── */
+(function(){
   try{
-    const r = await fetch(API+'/api/auth/login',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email,password:pw})
-    });
-    const d = await r.json();
-    if(!r.ok) throw new Error(d.error||'로그인 실패');
-    _token = d.token; _user = d.user;
-    await tlAPI.storeSet('tl_token', _token);
-    await tlAPI.storeSet('tl_user', JSON.stringify(_user));
-    showPlayer();
-  }catch(e){
-    setStatus('loginStatus', e.message, 'error');
-    btn.disabled=false; btn.textContent='로그인';
-  }
-}
-
-function doLogout(){
-  _token=null;_user=null;
-  tlAPI.storeSet('tl_token',null);
-  tlAPI.storeSet('tl_user',null);
-  stopPlayback();
-  document.getElementById('loginScreen').style.display='flex';
-  document.getElementById('playerScreen').style.display='none';
-}
-
-function showPlayer(){
-  document.getElementById('loginScreen').style.display='none';
-  document.getElementById('playerScreen').style.display='flex';
-  document.getElementById('playerScreen').style.flexDirection='column';
-  document.getElementById('userEmail').textContent = _user?.email||'';
-  updateTLDisplay();
-}
-
-// ── .tl 파일 로드 ──
-async function loadTLFile(filePath){
-  setStatus('playerStatus','⏳ 파일 파싱 중...');
-  const parsed = await tlAPI.parseTLFile(filePath);
-  if(parsed.error){ setStatus('playerStatus', parsed.error, 'error'); return; }
-
-  _header  = parsed.header;
-  _shareId = _header.shareId;
-
-  // UI 업데이트
-  document.getElementById('dropZone').style.display='none';
-  const fi = document.getElementById('fileInfo');
-  fi.style.display='flex'; fi.style.flexDirection='column';
-  const iconMap = {'audio':'🎵','video':'🎬','image':'🖼️','application':'📄'};
-  const ft = (_header.fileType||'').split('/')[0];
-  document.getElementById('coverIcon').textContent = iconMap[ft]||'📄';
-  document.getElementById('fileTitle').textContent  = _header.title||'제목 없음';
-  document.getElementById('fileArtist').textContent = _header.artist||_header.creatorName||'—';
-  document.getElementById('fileMeta').textContent   =
-    'shareId: '+_shareId+' · '+fmt(parsed.fileSize)+'  · v'+_header.version;
-  document.getElementById('durEl').textContent = fmtTime(_header.duration||0);
-
-  setStatus('playerStatus','▶ 재생 버튼을 눌러 시작하세요','ok');
-}
-
-// ── 재생 ──
-async function togglePlay(){
-  if(_playing){ stopPlayback(); return; }
-  if(!_shareId){ setStatus('playerStatus','파일을 먼저 열어주세요','error'); return; }
-
-  setStatus('playerStatus','⏳ 복호화 중...');
-  document.getElementById('playBtn').textContent='⏳';
-
-  // TL 잔액 재확인
-  await updateTLDisplay();
-  const tl = Number(_user?.tl||0);
-  if(tl<=0){
-    setStatus('playerStatus','⚡ TL 잔액이 없습니다. timelink.digital에서 충전하세요.','error');
-    document.getElementById('playBtn').textContent='▶';
-    return;
-  }
-
-  // 서버에서 복호화된 데이터 받기
-  const result = await tlAPI.decryptStream({ shareId:_shareId, token:_token });
-  if(!result.ok || result.error){
-    const msg = result.error==='TL_INSUFFICIENT'
-      ? 'TL 잔액 부족 — timelink.digital에서 충전하세요'
-      : result.error||'복호화 실패';
-    setStatus('playerStatus', msg, 'error');
-    document.getElementById('playBtn').textContent='▶';
-    return;
-  }
-
-  // Base64 → Blob → 재생
-  const bytes = Uint8Array.from(atob(result.data), c=>c.charCodeAt(0));
-  const mime  = _header.fileType||'audio/mpeg';
-  _currentBlob = new Blob([bytes],{type:mime});
-  const blobUrl = URL.createObjectURL(_currentBlob);
-
-  _audio.src = blobUrl;
-  _audio.ontimeupdate = onTimeUpdate;
-  _audio.onended = () => stopPlayback();
-  _audio.play().then(()=>{
-    _playing = true;
-    document.getElementById('playBtn').textContent='⏸';
-    setStatus('playerStatus','▶ 재생 중','ok');
-    startTick();
-  }).catch(e=>{
-    setStatus('playerStatus','재생 오류: '+e.message,'error');
-    document.getElementById('playBtn').textContent='▶';
-  });
-}
-
-function stopPlayback(){
-  _playing=false;
-  _audio.pause();
-  document.getElementById('playBtn').textContent='▶';
-  setStatus('playerStatus','');
-  stopTick();
-  if(_currentBlob){ URL.revokeObjectURL(_audio.src); }
-}
-
-// ── TL 차감 (tick) ──
-function startTick(){
-  stopTick();
-  _tickTimer = setInterval(async()=>{
-    if(!_playing||!_shareId) return;
-    const res = await tlAPI.tlTick({
-      shareId:_shareId, token:_token,
-      deduct_rate: _header?.tl_per_sec||1.0
-    });
-    if(res.code==='TL_EMPTY'){
-      stopPlayback();
-      setStatus('playerStatus','⚡ TL 소진 — 재생이 중단됩니다.','error');
-    } else if(res.ok && _user){
-      _user.tl = res.tl_balance;
-      updateTLDisplay();
-    }
-  },1000);
-}
-function stopTick(){ if(_tickTimer){ clearInterval(_tickTimer); _tickTimer=null; } }
-
-// ── 진행바 ──
-function onTimeUpdate(){
-  const dur = _audio.duration||_header?.duration||1;
-  const cur = _audio.currentTime||0;
-  document.getElementById('progressFill').style.width = (cur/dur*100).toFixed(1)+'%';
-  document.getElementById('timeEl').textContent = fmtTime(Math.floor(cur));
-}
-function seekTo(e){
-  const bar = document.getElementById('progressWrap');
-  const pct = e.offsetX / bar.offsetWidth;
-  const dur = _audio.duration||_header?.duration||0;
-  _audio.currentTime = pct*dur;
-}
-function seekRel(s){ _audio.currentTime = Math.max(0,(_audio.currentTime||0)+s); }
-
-// ── 파일 열기 ──
-async function openFile(){
-  const fp = await tlAPI.openFileDialog();
-  if(fp) loadTLFile(fp);
-}
-function onDrop(e){
-  e.preventDefault();
-  document.getElementById('dropZone').classList.remove('drag-over');
-  const fp = e.dataTransfer.files[0]?.path;
-  if(fp) loadTLFile(fp);
-}
-
-// ── TL 잔액 업데이트 ──
-async function updateTLDisplay(){
-  if(!_token||!_user) return;
-  try{
-    const r = await fetch(API+'/api/eco/wallet',{headers:{'Authorization':'Bearer '+_token}});
-    if(r.ok){
-      const d = await r.json();
-      const tl = (d.tl_p||0)+(d.tl_a||0)+(d.tl_b||0)||d.tl||0;
-      if(_user) _user.tl = tl;
-      document.getElementById('tlVal').textContent = Number(tl).toLocaleString()+' TL';
+    var u = localStorage.getItem('tl_user');
+    var t = localStorage.getItem('tl_token');
+    if(u && t){
+      var user = JSON.parse(u);
+      if(user && user.id) location.replace('shareplace.html');
     }
   }catch(e){}
-}
+})();
 
-// ── 유틸 ──
-function fmtTime(s){ const m=Math.floor(s/60); return m+':'+String(Math.floor(s%60)).padStart(2,'0'); }
-function fmt(b){ if(b<1024)return b+'B'; if(b<1048576)return (b/1024).toFixed(1)+'KB'; return (b/1048576).toFixed(1)+'MB'; }
-function setStatus(id,msg,type){
-  const el=document.getElementById(id);
-  if(!el)return;
-  el.textContent=msg;
-  el.className='status'+(type?' '+type:'');
+/* ── 스크롤 네비 ── */
+window.addEventListener('scroll',function(){
+  document.getElementById('mainNav').classList.toggle('scrolled',window.scrollY>40);
+  // 페이드업 트리거
+  document.querySelectorAll('.fade-up:not(.visible)').forEach(function(el){
+    if(el.getBoundingClientRect().top < window.innerHeight-80) el.classList.add('visible');
+  });
+});
+// 최초 실행
+document.querySelectorAll('.fade-up').forEach(function(el){
+  if(el.getBoundingClientRect().top < window.innerHeight-80) el.classList.add('visible');
+});
+
+/* ── 모바일 드로어 ── */
+function toggleMobileNav(){
+  document.getElementById('mobileNav').classList.toggle('open');
 }
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#mobileNav')&&!e.target.closest('#hamBtn'))
+    document.getElementById('mobileNav').classList.remove('open');
+});
+
+
+
+/* ── 네비 활성 섹션 하이라이트 ── */
+var sections=['economy','features','radio','plans','ai'];
+window.addEventListener('scroll',function(){
+  var cur='';
+  sections.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el&&el.getBoundingClientRect().top<=120) cur=id;
+  });
+  document.querySelectorAll('.nav-links a').forEach(function(a){
+    a.classList.toggle('active',a.getAttribute('href')==='#'+cur);
+  });
+},{ passive:true });
 </script>
 </body>
 </html>
