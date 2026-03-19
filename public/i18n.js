@@ -68,6 +68,7 @@ var T={
 'login.or':            {ko:'또는',en:'or',ja:'または',zh:'或者',th:'หรือ',vi:'hoặc'},
 'login.no.account':    {ko:'계정이 없으신가요?',en:'No account?',ja:'アカウントがない？',zh:'没有账号？',th:'ยังไม่มีบัญชี?',vi:'Chưa có tài khoản?'},
 'login.signup.link':   {ko:'무료 가입',en:'Sign up free',ja:'無料登録',zh:'免费注册',th:'สมัครฟรี',vi:'Đăng ký miễn phí'},
+'login.free.signup':   {ko:'무료 가입',en:'Sign up free',ja:'無料登録',zh:'免费注册',th:'สมัครฟรี',vi:'Đăng ký miễn phí'},
 
 /* ── 회원가입 ── */
 'signup.title':        {ko:'TimeLink 시작하기',en:'Get started',ja:'TimeLink を始める',zh:'开始使用',th:'เริ่มต้น',vi:'Bắt đầu'},
