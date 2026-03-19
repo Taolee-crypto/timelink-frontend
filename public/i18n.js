@@ -253,20 +253,23 @@ function applyAll(){
 }
 
 /* ── 언어 전환 ── */
+var _settingLang = false; // 재진입 방지
 function setLang(lang){
   if(!LANGS.includes(lang)) return;
+  if(_settingLang) return; // 재진입 방지
+  _settingLang = true;
   _lang=lang;
   localStorage.setItem('tl_lang',lang);
   applyAll();
   updateSwitcherUI();
-  if(typeof window.renderLangSw==='function') window.renderLangSw();
-  // 페이지별 동적 재렌더링
+  // 페이지별 동적 재렌더링 (renderLangSw는 updateSwitcherUI에서 처리)
   if(typeof window.applyFilter==='function') window.applyFilter();
   if(typeof window.renderMyFiles==='function') window.renderMyFiles();
+  setTimeout(function(){ _settingLang=false; }, 50);
 }
 
 function updateSwitcherUI(){
-  // 상단 고정 스위처
+  // 상단 고정 스위처 버튼 상태만 업데이트 (재생성 없음)
   var sw=document.getElementById('tl-lang-switcher');
   if(sw) sw.querySelectorAll('.tl-lang-btn').forEach(function(b){
     var on=b.dataset.lang===_lang;
@@ -275,8 +278,8 @@ function updateSwitcherUI(){
     b.style.background=on?'rgba(255,255,255,.15)':'none';
     b.style.borderColor=on?'rgba(255,255,255,.3)':'transparent';
   });
-  // 인라인 스위처
-  document.querySelectorAll('.lang-btn,[data-lang]').forEach(function(b){
+  // 인라인 스위처 (.lang-btn 클래스만, data-lang 전체 X - 너무 광범위)
+  document.querySelectorAll('.lang-btn').forEach(function(b){
     if(!b.dataset.lang) return;
     b.classList.toggle('active',b.dataset.lang===_lang);
     b.style.opacity=b.dataset.lang===_lang?'1':'0.4';
@@ -324,7 +327,7 @@ function injectSwitcher(){
       'opacity:'+(l===_lang?'1':'0.5'),
       'transition:all .2s;line-height:1;color:#fff'
     ].join(';');
-    btn.onclick=function(){ TLi18n.setLang(l); };
+    (function(lang){ btn.onclick=function(){ TLi18n.setLang(lang); }; })(l);
     sw.appendChild(btn);
   });
   document.body.appendChild(sw);
