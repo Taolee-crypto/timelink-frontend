@@ -411,6 +411,17 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   }
 }
 
+
+/* ── .tl 다운로드 버튼 ── */
+.fc-btn-dl{background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);color:#A78BFA;
+  padding:5px 10px;border-radius:7px;font-size:11px;cursor:pointer;transition:all .2s;
+  font-family:var(--fn);display:inline-flex;align-items:center;gap:4px}
+.fc-btn-dl:hover{background:rgba(139,92,246,.25);border-color:rgba(139,92,246,.6)}
+.fc-btn-dl.downloading{opacity:.6;cursor:default}
+.tl-dl-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;
+  background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.2);
+  color:#A78BFA;padding:2px 6px;border-radius:4px;font-family:var(--fm);letter-spacing:.05em}
+
 </style>
 <script src="i18n.js"></script>
 <style>#tl-lang-switcher{display:none!important}</style>
@@ -804,6 +815,102 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 var API_BASE = 'https://api.timelink.digital';
 
 // R2 direct URL → Worker 프록시 변환 (CORS 우회)
+
+
+/* ── .tl 파일 다운로드 ──
+   /api/download/:shareId → .tl 암호화 파일 반환
+   TL 잔액 확인 후 다운로드
+*/
+async function downloadTL(shareId, title, btn){
+  if(!_token){ alert('로그인이 필요합니다.'); return; }
+
+  // 버튼 상태
+  if(btn){
+    btn.classList.add('downloading');
+    btn.textContent = '⏳ 다운로드 중...';
+  }
+
+  try{
+    var r = await fetch(API_BASE+'/api/download/'+shareId, {
+      headers: {'Authorization': 'Bearer '+_token}
+    });
+
+    if(r.status === 402){
+      var d = await r.json();
+      alert('TL 잔액이 부족합니다.\n현재 잔액: '+(d.tl||0).toLocaleString()+' TL\n\nTL을 충전해주세요.');
+      if(btn){ btn.classList.remove('downloading'); btn.innerHTML='⬇ .tl'; }
+      return;
+    }
+    if(!r.ok){
+      var e = await r.json().catch(function(){return{};});
+      throw new Error(e.error||'다운로드 실패 (HTTP '+r.status+')');
+    }
+
+    // 파일 다운로드
+    var blob = await r.blob();
+    var safeTitle = (title||'file').replace(/[<>:"/\\|?*]/g,'_');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = safeTitle+'.tl';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 3000);
+
+    if(btn){
+      btn.classList.remove('downloading');
+      btn.innerHTML = '✅ .tl';
+      setTimeout(function(){ btn.innerHTML='⬇ .tl'; }, 3000);
+    }
+
+    // 다운로드 안내
+    showTLDownloadGuide(safeTitle);
+
+  }catch(e){
+    if(btn){ btn.classList.remove('downloading'); btn.innerHTML='⬇ .tl'; }
+    alert('다운로드 실패: '+e.message);
+  }
+}
+
+/* ── .tl 파일 다운로드 완료 안내 ── */
+function showTLDownloadGuide(title){
+  var old = document.getElementById('_tlDlGuide');
+  if(old) old.remove();
+
+  var guide = document.createElement('div');
+  guide.id = '_tlDlGuide';
+  guide.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:99999;'
+    +'background:#0D0D1A;border:1px solid rgba(139,92,246,.5);border-radius:14px;'
+    +'padding:16px 20px;max-width:320px;box-shadow:0 8px 40px rgba(0,0,0,.6);'
+    +'animation:slideUp .3s ease';
+
+  guide.innerHTML =
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+      +'<span style="font-size:24px">⬇</span>'
+      +'<div>'
+        +'<div style="font-size:13px;font-weight:700;color:#fff">'+title+'.tl 다운로드 완료</div>'
+        +'<div style="font-size:11px;color:rgba(139,92,246,.8)">TL 암호화 파일</div>'
+      +'</div>'
+    +'</div>'
+    +'<div style="font-size:11px;color:rgba(255,255,255,.5);line-height:1.7;margin-bottom:12px">'
+      +'<b style="color:#A78BFA">TimeLink Player</b> 앱으로만 재생할 수 있습니다.<br>'
+      +'TL 잔액이 있어야 재생됩니다.'
+    +'</div>'
+    +'<div style="display:flex;gap:8px">'
+      +'<a href="https://timelink.digital/download" target="_blank" '
+        +'style="flex:1;padding:7px;border-radius:8px;border:1px solid rgba(139,92,246,.4);'
+        +'background:rgba(139,92,246,.1);color:#A78BFA;font-size:11px;text-align:center;text-decoration:none">'
+        +'앱 다운로드</a>'
+      +'<button onclick="this.closest('#_tlDlGuide').remove()" '
+        +'style="padding:7px 14px;border-radius:8px;border:none;background:rgba(255,255,255,.06);'
+        +'color:rgba(255,255,255,.4);font-size:11px;cursor:pointer">닫기</button>'
+    +'</div>';
+
+  document.body.appendChild(guide);
+  setTimeout(function(){ if(guide.parentNode) guide.remove(); }, 8000);
+}
 
 /* ── TL 파일 보호 스트리밍 ──
    원본 R2 URL 대신 /api/stream/:shareId 사용
@@ -1247,6 +1354,7 @@ function renderShares(list){
             ? '<button class="fc-btn fc-btn-primary" onclick="quickPreview(\''+escH(s.preview_url)+'\',\''+escH(s.title)+'\')">'+TLi18n.t('sp.btn.preview')+'</button>'
             : '<button class="fc-btn fc-btn-ghost" disabled style="opacity:.35">'+TLi18n.t('sp.btn.no.preview')+'</button>') +
           '<button class="fc-btn fc-btn-charge" onclick="chargeTL(\''+s.id+'\',\''+escH(s.title)+'\')">'+TLi18n.t('sp.btn.charge')+'</button>' +
+          (hasUrl ? '<button class="fc-btn-dl" id="dlbtn-'+s.id+'" onclick="downloadTL(\''+s.id+'\',\''+escH(s.title)+'\',this)">⬇ .tl</button>' : '') +
         '</div>' +
         '<div style="font-size:10px;color:rgba(255,255,255,.2);margin-top:8px;font-family:var(--fm)">'+escH(s.username||'')+' · '+new Date(s.created_at||0).toLocaleDateString('ko')+'</div>' +
       '</div>' +
