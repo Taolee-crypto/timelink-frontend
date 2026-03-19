@@ -980,67 +980,116 @@ function updateBudgetCalc(){
 }
 
 // ── 광고 등록 ──
+
+function onAdFileSelect(input){
+  var file = input.files && input.files[0];
+  var info = g('adFileInfo');
+  if(!file || !info) return;
+  var size = file.size > 1048576 ? (file.size/1048576).toFixed(1)+'MB' : Math.round(file.size/1024)+'KB';
+  info.style.display='block';
+  info.innerHTML = '📄 <strong>'+escH(file.name)+'</strong> ('+size+') — 등록 시 자동 <strong>.tl</strong> 암호화 변환됩니다';
+}
+
 async function submitAd(){
-  var title=g('cTitle').value.trim();
-  var desc=g('cDesc').value.trim();
-  var type=g('cType').value;
-  var targetUrl=g('cTargetUrl').value.trim();
-  var mediaUrl=g('cMediaUrl').value.trim();
-  var thumbUrl=g('cThumbUrl').value.trim();
-  var budget=parseInt(g('cBudget').value)||0;
-  var reward=parseInt(g('cReward').value)||300;
-  var daily=parseInt(g('cDailyLimit').value)||100;
+  var title     = g('cTitle').value.trim();
+  var desc      = g('cDesc').value.trim();
+  var type      = g('cType').value;
+  var targetUrl = g('cTargetUrl').value.trim();
+  var mediaUrl  = g('cMediaUrl').value.trim();
+  var thumbUrl  = g('cThumbUrl').value.trim();
+  var budget    = parseInt(g('cBudget').value)||0;
+  var reward    = parseInt(g('cReward').value)||300;
+  var daily     = parseInt(g('cDailyLimit') && g('cDailyLimit').value)||100;
 
   if(!title){ toast('광고 제목을 입력하세요','e'); return; }
   var isBanner = type.startsWith('banner_');
   var minBudget = isBanner ? 50000 : (type==='image'?5000:10000);
-  if(budget < minBudget){ toast('이 광고 유형의 최소 예산은 '+minBudget.toLocaleString()+' TL입니다','e'); return; }
-  if(((_user&&_user.tl)||0)<budget){ toast('TL 잔액이 부족합니다','e'); return; }
+  if(budget < minBudget){ toast('최소 예산: '+minBudget.toLocaleString()+' TL','e'); return; }
 
-  var btn=g('createAdBtn');
-  btn.disabled=true; btn.textContent='등록 중...';
+  var btn = g('createAdBtn');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ 등록 중...'; }
 
   try{
-    var r=await fetch(API+'/api/ads/create',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
-      body:JSON.stringify({title,description:desc,ad_type:type,
-        media_url:mediaUrl,thumbnail_url:thumbUrl,target_url:targetUrl,
-        tl_reward:reward,budget_tl:budget,daily_limit:daily})
-    });
-    var d=await r.json();
-    if(!r.ok) throw new Error(d.error||'등록 실패');
-    _user.tl=Math.max(0,(_user.tl||0)-budget);
-    localStorage.setItem('tl_user',JSON.stringify(_user));
-    g('sbTL').textContent=Number(_user.tl).toLocaleString()+' TL';
-    g('mtTL').textContent=Number(_user.tl).toLocaleString();
-    g('balanceHint').textContent=Number(_user.tl).toLocaleString()+' TL';
-  }catch(e){
-    // mock 광고 추가
-    var mockAd={
-      id:'new_ad_'+Date.now(),title,description:desc,
-      ad_type:type,status:'active',views:0,completions:0,clicks:0,
-      budget_tl:budget,spent_tl:0,tl_reward:reward,daily_limit:daily,
-      media_url:mediaUrl,thumbnail_url:thumbUrl,target_url:targetUrl,
-      business_name:_user.business_name||_user.username,
-      created_at:new Date().toISOString().slice(0,10),_daily:[]
-    };
-    _myAds.unshift(mockAd);
-    _user.tl=Math.max(0,(_user.tl||0)-budget);
-    localStorage.setItem('tl_user',JSON.stringify(_user));
-    g('sbTL').textContent=Number(_user.tl).toLocaleString()+' TL';
-    g('mtTL').textContent=Number(_user.tl).toLocaleString();
-    g('balanceHint').textContent=Number(_user.tl).toLocaleString()+' TL';
-  }
+    var adId = 'ad_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+    var tlKey = '', tlFileSize = 0;
 
-  toast('광고가 등록되었습니다!','s');
-  g('createSuccess').style.display='block';
-  btn.disabled=false; btn.textContent='📢 광고 등록하기';
-  // 폼 초기화
-  ['cTitle','cDesc','cTargetUrl','cMediaUrl','cThumbUrl','cBudget','cReward','cDailyLimit'].forEach(function(id){
-    var el=g(id); if(el) el.value='';
-  });
-  updateBudgetCalc();
+    // ── Step 1: 소재 파일이 있으면 .tl 변환 업로드 ──
+    var mediaFileInput = g('cMediaFile');
+    var mediaFile = mediaFileInput && mediaFileInput.files && mediaFileInput.files[0];
+
+    if(mediaFile){
+      if(btn) btn.textContent='⏳ .tl 변환 중...';
+      toast('⏳ 광고 소재를 .tl 파일로 암호화 중...', 'i');
+
+      var fd = new FormData();
+      fd.append('file', mediaFile);
+      fd.append('adId', adId);
+      fd.append('title', title);
+      fd.append('ad_type', type);
+      fd.append('tl_per_sec', '1.0');
+
+      var uploadRes = await new Promise(function(resolve, reject){
+        var xhr = new XMLHttpRequest();
+        xhr.timeout = 120000;
+        xhr.ontimeout = function(){ reject(new Error('업로드 시간 초과')); };
+        xhr.upload.onprogress = function(e){
+          if(e.lengthComputable){
+            var pct = Math.round(e.loaded/e.total*100);
+            if(btn) btn.textContent = '⏳ .tl 변환 '+pct+'%...';
+          }
+        };
+        xhr.onload = function(){
+          try{ var d=JSON.parse(xhr.responseText); if(xhr.status<300) resolve(d); else reject(new Error(d.error||'HTTP '+xhr.status)); }
+          catch(e){ reject(new Error('응답 오류')); }
+        };
+        xhr.onerror = function(){ reject(new Error('네트워크 오류')); };
+        xhr.open('POST', API_BASE+'/api/ads/upload-tl');
+        xhr.setRequestHeader('Authorization','Bearer '+(_token||''));
+        xhr.send(fd);
+      });
+
+      if(uploadRes.ok){
+        tlKey      = uploadRes.key || '';
+        tlFileSize = uploadRes.size || 0;
+        mediaUrl   = mediaUrl || (API_BASE+'/api/ads/stream/'+adId);
+        toast('✅ .tl 변환 완료 ('+Math.round(tlFileSize/1024)+'KB)', 's');
+      }
+    }
+
+    // ── Step 2: 광고 등록 ──
+    if(btn) btn.textContent='⏳ 등록 처리 중...';
+
+    var r = await fetch(API_BASE+'/api/ads/create',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
+      body:JSON.stringify({
+        adId, title, description:desc, ad_type:type,
+        media_url:mediaUrl, thumbnail_url:thumbUrl,
+        target_url:targetUrl,
+        tl_reward:reward, budget_tl:budget, daily_limit:daily,
+        tl_key:tlKey, tl_file_size:tlFileSize, tl_per_sec:1.0
+      })
+    });
+    var d = await r.json();
+    if(!r.ok) throw new Error(d.error||'등록 실패');
+
+    // ── 성공 ──
+    g('createSuccess').style.display='block';
+    toast('🎉 광고 등록 완료! (.tl 암호화 적용)','s');
+    if(btn){ btn.disabled=false; btn.textContent='📢 광고 등록하기'; }
+
+    // 폼 초기화
+    setTimeout(function(){
+      ['cTitle','cDesc','cTargetUrl','cMediaUrl','cThumbUrl','cBudget','cReward'].forEach(function(id){
+        var el=g(id); if(el) el.value='';
+      });
+      if(mediaFileInput) mediaFileInput.value='';
+    }, 2000);
+
+  }catch(e){
+    toast('광고 등록 실패: '+e.message,'e');
+    if(btn){ btn.disabled=false; btn.textContent='📢 광고 등록하기'; }
+  }
 }
 </script>
 
