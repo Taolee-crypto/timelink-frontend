@@ -343,6 +343,13 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
   }
 }
 
+
+/* ── 커스텀 커서 ── */
+.cursor-dot{width:8px;height:8px;background:var(--purple);border-radius:50%;position:fixed;pointer-events:none;z-index:99999;transform:translate(-50%,-50%);transition:transform .1s,background .2s;mix-blend-mode:screen}
+.cursor-ring{width:32px;height:32px;border:2px solid rgba(139,92,246,.5);border-radius:50%;position:fixed;pointer-events:none;z-index:99998;transform:translate(-50%,-50%);transition:all .12s ease;mix-blend-mode:screen}
+body{cursor:none}
+a,button,[onclick]{cursor:none}
+
 </style>
 <script src="i18n.js"></script>
 </head>
@@ -423,7 +430,7 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
       </div>
     </div>
       <a class="sb-link" href="creator.html"><div class="sb-icon">🎨</div><span data-i18n="nav.creator">크리에이터 센터</span></a>
-      <a class="sb-link" href="cafe-channel.html"><div class="sb-icon">☕</div><span data-i18n="dash.cafe.link">카페 채널 개설</span></a>
+      <a class="sb-link" id="tab-cafe-link" onclick="switchTab('cafe'); return false;" href="#"><div class="sb-icon">☕</div><span data-i18n="dash.cafe.link">카페 채널 개설</span></a>
     </div>
   
     <!-- 사이드바 광고 배너 -->
@@ -773,6 +780,31 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
     <div class="tab-panel" id="tab-mission">
       <div class="mission-tabs">
         <div class="mtab active" id="mtab-daily" onclick="switchMissionTab('daily',this)">일일 미션</div>
+      <div id="tab-cafe" class="tab-content" style="display:none;padding:20px">
+        <div style="font-size:18px;font-weight:800;margin-bottom:20px;color:var(--amber)">☕ 카페 방송 현황</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+          <div style="padding:20px;border-radius:16px;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2)">
+            <div style="font-size:11px;color:var(--t3);margin-bottom:8px">내 카페 채널</div>
+            <div style="font-size:28px;font-weight:900;color:var(--amber)" id="cafeChannelCount">0</div>
+          </div>
+          <div style="padding:20px;border-radius:16px;background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.2)">
+            <div style="font-size:11px;color:var(--t3);margin-bottom:8px">오늘 청취자</div>
+            <div style="font-size:28px;font-weight:900;color:var(--mint)" id="cafeListeners">0</div>
+          </div>
+        </div>
+        <div id="cafeChannelList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+          <div style="text-align:center;padding:32px;color:var(--t3);font-size:13px">로딩 중...</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+          <a href="cafe-channel.html" style="padding:12px 20px;border-radius:10px;background:linear-gradient(135deg,var(--amber),#D97706);color:#fff;font-size:13px;font-weight:700;text-decoration:none">☕ 새 카페 채널 개설</a>
+          <a href="cafe-radio.html" style="padding:12px 20px;border-radius:10px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);color:var(--amber);font-size:13px;font-weight:700;text-decoration:none">📻 카페 방송 보기</a>
+        </div>
+        <div style="padding:16px;border-radius:12px;background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.15);font-size:11px;color:var(--t3);line-height:1.9">
+          <strong style="color:var(--amber);display:block;margin-bottom:6px">☕ 카페 방송 수익 구조</strong>
+          청취자 재생 시 초당 TL 차감 → 크리에이터 플랜 A 70% / 플랜 B 50%+TLC<br>
+          채널 개설 비용: 50,000 TL (1년 유효) · POC 기여지수에 운영 반영
+        </div>
+      </div>
         <div class="mtab" id="mtab-weekly" onclick="switchMissionTab('weekly',this)">주간 미션</div>
         <div class="mtab" id="mtab-special" onclick="switchMissionTab('special',this)">특별 미션</div>
       </div>
@@ -1050,23 +1082,52 @@ function switchTab(name){
 function toggleSbDropdown(id){ var el=document.getElementById(id); if(el) el.classList.toggle('open'); }
 
 /* ══ TL 3분류 지갑 시스템 ══ */
-async function loadWallet(){
+async async function loadWallet(){
   if(!_user) return;
   try{
-    var r=await fetch('https://api.timelink.digital/api/eco/wallet',{
+    var r = await fetch(API_BASE+'/api/eco/wallet',{
       headers:{'Authorization':'Bearer '+(_token||'')}
     });
-    var d=await r.json();
-    if(d.wallet){
-      var w=d.wallet;
-      _user.tl_p=w.tl_p||0; _user.tl_a=w.tl_a||0; _user.tl_b=w.tl_b||0;
-      _user.tl=w.tl_p||0; _user.tlc=w.tlc||_user.tlc||0;
-      _user.poc_index=w.poc_index||1.0; _user.plan=w.plan||'A';
-      localStorage.setItem('tl_user',JSON.stringify(_user));
-      updateWalletUI(w);
-    }
-  }catch(e){}
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    var data = await r.json();
+    // tl_p (구매TL), tl_a (광고TL), tl_b (보너스TL)
+    var tl_p = Number(data.tl_p || data.tl || _user.tl_p || 0);
+    var tl_a = Number(data.tl_a || _user.tl_a || 0);
+    var tl_b = Number(data.tl_b || _user.tl_b || 0);
+    var tl_total = tl_p + tl_a + tl_b;
+    var tlc = Number(data.tlc || data.tlc_balance || _user.tlc || 0);
+    var poc = Number(data.poc_index || _user.poc_index || 1.0);
+
+    // 지갑 카드 업데이트
+    var setEl = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
+    setEl('walletTl', Number(tl_total).toLocaleString());
+    setEl('tl-p-val', Number(tl_p).toLocaleString());
+    setEl('tl-a-val', Number(tl_a).toLocaleString());
+    setEl('tl-b-val', Number(tl_b).toLocaleString());
+    setEl('walletTlc', parseFloat(tlc).toFixed(2));
+    setEl('walletPoc', parseFloat(poc).toFixed(2));
+
+    // 탑바 TL 업데이트
+    var tbEl = document.getElementById('tbTl');
+    if(tbEl) tbEl.textContent = Number(tl_total).toLocaleString()+' TL';
+
+    // _user 동기화
+    _user.tl_p=tl_p; _user.tl_a=tl_a; _user.tl_b=tl_b;
+    _user.tl=tl_total; _user.tlc=tlc; _user.poc_index=poc;
+    localStorage.setItem('tl_user', JSON.stringify(_user));
+  }catch(e){
+    console.warn('[wallet]', e.message);
+    // localStorage fallback
+    var u=_user;
+    var tp=Number(u.tl_p||u.tl||0), ta=Number(u.tl_a||0), tb=Number(u.tl_b||0);
+    var setEl=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
+    setEl('walletTl',(tp+ta+tb).toLocaleString());
+    setEl('tl-p-val',tp.toLocaleString());
+    setEl('tl-a-val',ta.toLocaleString());
+    setEl('tl-b-val',tb.toLocaleString());
+  }
 }
+
 function getTotalTL(){
   return ((_user&&_user.tl_p)||0)+((_user&&_user.tl_a)||0)+((_user&&_user.tl_b)||0);
 }
@@ -1099,7 +1160,7 @@ async function doExchangeTL(){
   var amount = parseInt(amt);
   if(!amount || amount < 1000 || amount > tlP){ toast('유효한 금액을 입력하세요','e'); return; }
   try{
-    var r = await fetch('https://api.timelink.digital/api/eco/exchange',{
+    var r = await fetch(API_BASE+'/api/eco/exchange',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
       body: JSON.stringify({tl_amount:amount})
@@ -1395,6 +1456,40 @@ if(typeof _user !== "undefined" && _user){ buildTopbar({page:'DASHBOARD',actionB
   window._tlSetPlaying = function(v){ _tlPlayingMedia = !!v; };
 
 })();
+
+
+async function loadCafeTab(){
+  try{
+    var r = await fetch(API_BASE+'/api/cafe/my-channels',{
+      headers:{'Authorization':'Bearer '+(_token||'')}
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    var data = await r.json();
+    var channels = data.channels || [];
+    var cnt = document.getElementById('cafeChannelCount');
+    if(cnt) cnt.textContent = channels.length;
+    var list = document.getElementById('cafeChannelList');
+    if(!list) return;
+    if(!channels.length){
+      list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--t3);font-size:13px">개설된 카페 채널이 없습니다</div>';
+      return;
+    }
+    list.innerHTML = channels.map(function(ch){
+      var exp = new Date(ch.expires_at||Date.now()).toLocaleDateString('ko');
+      return '<div style="padding:14px 16px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between">'
+        +'<div>'
+          +'<div style="font-size:13px;font-weight:700">☕ '+escH(ch.name||ch.channel_id)+'</div>'
+          +'<div style="font-size:11px;color:var(--t3);margin-top:3px">ID: '+escH(ch.channel_id)+' · 만료: '+exp+'</div>'
+        +'</div>'
+        +'<a href="cafe-radio.html#'+escH(ch.channel_id)+'" style="padding:6px 14px;border-radius:8px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);color:var(--amber);font-size:11px;text-decoration:none">방송 보기</a>'
+      +'</div>';
+    }).join('');
+  }catch(e){
+    var list=document.getElementById('cafeChannelList');
+    if(list) list.innerHTML='<div style="text-align:center;padding:32px;color:var(--t3);font-size:13px">카페 채널 정보를 불러올 수 없습니다</div>';
+  }
+}
+function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 </script>
 </body>
