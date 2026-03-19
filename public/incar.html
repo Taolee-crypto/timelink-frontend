@@ -310,6 +310,35 @@ body.night .ctrl-btn.play{background:rgba(0,229,255,.7)}
 .sb-sub-link:hover{color:var(--t1);background:rgba(255,255,255,.04)}
 .sb-sub-link.active{color:var(--purple)}
 
+
+/* ── 콘텐츠 보호 CSS ── */
+/* 스크린샷 방해용 오버레이 (재생 중에만 활성) */
+.tl-playing-overlay{
+  position:fixed;inset:0;z-index:99990;pointer-events:none;
+  background:transparent;
+  -webkit-user-select:none;user-select:none;
+}
+/* 이미지/문서 뷰어 보호 */
+.tl-protected-content{
+  -webkit-user-select:none !important;
+  user-select:none !important;
+  -webkit-touch-callout:none !important;
+  pointer-events:none;
+}
+.tl-protected-wrap{
+  position:relative;
+  -webkit-user-select:none;user-select:none;
+}
+/* 인쇄 시 전체 콘텐츠 숨김 */
+@media print{
+  body > *{ display:none !important; }
+  body::after{
+    display:block !important;
+    content:'⛔ TimeLink 콘텐츠는 인쇄할 수 없습니다. 저작권법에 의해 보호됩니다.';
+    font-size:24px;text-align:center;margin-top:200px;color:#333;
+  }
+}
+
 </style>
 <script src="i18n.js"></script>
 <script src="https://cdn.iamport.kr/v1/iamport.js"></script>
@@ -1613,6 +1642,139 @@ async function loadPayHistory(){
     el.innerHTML = '<div style="text-align:center;padding:30px;color:#FB7185;font-size:13px">불러오기 실패</div>';
   }
 }
+
+</script>
+<script>
+
+/* ══════════════════════════════════════════════════════
+   TL 콘텐츠 보호 시스템
+   - 우클릭 차단
+   - 키보드 캡처 차단 (PrintScreen, Ctrl+P, Ctrl+S 등)
+   - CSS 선택 차단
+   - 개발자도구 감지
+   - 인쇄 차단
+   - 드래그 차단
+══════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  // ── 1. 키보드 단축키 차단 ──
+  document.addEventListener('keydown', function(e){
+    var k = e.key || '';
+    var ctrl = e.ctrlKey || e.metaKey;
+
+    // PrintScreen 차단
+    if(k === 'PrintScreen' || k === 'Print'){
+      e.preventDefault();
+      _tlWarnCapture();
+      return false;
+    }
+    // Ctrl+P (인쇄)
+    if(ctrl && k === 'p'){ e.preventDefault(); _tlWarnPrint(); return false; }
+    // Ctrl+S (저장)
+    if(ctrl && k === 's'){ e.preventDefault(); return false; }
+    // Ctrl+Shift+I/J/C (개발자도구)
+    if(ctrl && e.shiftKey && (k==='I'||k==='i'||k==='J'||k==='j'||k==='C'||k==='c')){
+      e.preventDefault(); return false;
+    }
+    // F12 (개발자도구)
+    if(k === 'F12'){ e.preventDefault(); return false; }
+    // Ctrl+U (소스보기)
+    if(ctrl && k === 'u'){ e.preventDefault(); return false; }
+  }, true);
+
+  // ── 2. 우클릭 차단 (재생 중인 미디어에만) ──
+  document.addEventListener('contextmenu', function(e){
+    var t = e.target;
+    // 오디오/비디오/이미지/캔버스 우클릭 차단
+    if(t.tagName === 'AUDIO' || t.tagName === 'VIDEO' ||
+       t.tagName === 'IMG'   || t.tagName === 'CANVAS' ||
+       t.closest('.tl-protected-wrap') || t.closest('.file-card') ||
+       t.closest('.np-area') || t.closest('.now-playing')){
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // ── 3. 드래그 차단 ──
+  document.addEventListener('dragstart', function(e){
+    if(e.target.tagName==='IMG'||e.target.tagName==='VIDEO'||e.target.tagName==='AUDIO'){
+      e.preventDefault(); return false;
+    }
+  });
+
+  // ── 4. 인쇄 이벤트 차단 ──
+  window.addEventListener('beforeprint', function(e){
+    e.preventDefault ? e.preventDefault() : (e.returnValue = false);
+    _tlWarnPrint();
+    // 동적으로 print() 호출 시도 차단
+    setTimeout(function(){ document.title = document.title; }, 100);
+  });
+
+  // 원본 print 함수 교체
+  var _origPrint = window.print;
+  window.print = function(){
+    _tlWarnPrint();
+    return false;
+  };
+
+  // ── 5. 스크린샷 감지 (VisibilityChange + 포커스 손실) ──
+  var _tlPlayingMedia = false; // 재생 중일 때만 강화 보호
+
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden && _tlPlayingMedia){
+      // 재생 중 탭이 숨겨지면 → 스크린샷 앱 가능성
+      _tlDimOverlay(true);
+    } else {
+      _tlDimOverlay(false);
+    }
+  });
+
+  // ── 6. 화면 보호 오버레이 (재생 중) ──
+  var _overlay = null;
+  function _tlDimOverlay(show){
+    if(!_overlay){
+      _overlay = document.createElement('div');
+      _overlay.className = 'tl-playing-overlay';
+      _overlay.setAttribute('aria-hidden','true');
+      document.body.appendChild(_overlay);
+    }
+    // 재생 중 포커스 손실 시 반투명 오버레이 (스크린샷 방해)
+    _overlay.style.background = show ? 'rgba(0,0,0,0.85)' : 'transparent';
+  }
+
+  // ── 7. 알림 함수 ──
+  function _tlWarnCapture(){
+    console.warn('[TimeLink] 화면 캡처는 허용되지 않습니다.');
+    // 캡처 감지 시 오버레이 잠깐 활성
+    _tlDimOverlay(true);
+    setTimeout(function(){ _tlDimOverlay(false); }, 1500);
+  }
+
+  function _tlWarnPrint(){
+    var msg = document.getElementById('_tlPrintWarn');
+    if(!msg){
+      msg = document.createElement('div');
+      msg.id = '_tlPrintWarn';
+      msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);'
+        +'z-index:999999;background:#0D0D1A;border:2px solid #F87171;border-radius:16px;'
+        +'padding:32px 40px;text-align:center;color:#fff;font-size:15px;font-family:sans-serif;'
+        +'box-shadow:0 20px 60px rgba(0,0,0,.8);max-width:360px;width:90%';
+      msg.innerHTML = '<div style="font-size:28px;margin-bottom:12px">⛔</div>'
+        +'<div style="font-weight:700;margin-bottom:8px;color:#F87171">인쇄 불가</div>'
+        +'<div style="font-size:13px;color:rgba(255,255,255,.6);line-height:1.6">'
+        +'TimeLink 콘텐츠는 저작권법에 의해<br>인쇄 및 캡처가 금지됩니다.</div>'
+        +'<button onclick="this.parentNode.remove()" style="margin-top:16px;padding:8px 24px;'
+        +'border-radius:8px;border:none;background:#F87171;color:#fff;cursor:pointer;font-size:13px">확인</button>';
+      document.body.appendChild(msg);
+      setTimeout(function(){ if(msg.parentNode) msg.remove(); }, 4000);
+    }
+  }
+
+  // ── 8. 전역에 재생 상태 알림 함수 노출 ──
+  window._tlSetPlaying = function(v){ _tlPlayingMedia = !!v; };
+
+})();
 
 </script>
 </body>
