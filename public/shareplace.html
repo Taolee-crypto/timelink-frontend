@@ -422,6 +422,15 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.2);
   color:#A78BFA;padding:2px 6px;border-radius:4px;font-family:var(--fm);letter-spacing:.05em}
 
+
+/* ── TL 패키지 선택 ── */
+.tl-pkg{padding:14px;border-radius:12px;border:1px solid var(--bd);background:rgba(255,255,255,.03);cursor:pointer;text-align:center;transition:all .2s}
+.tl-pkg:hover{border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06)}
+.tl-pkg.active{border-color:var(--purple);background:rgba(139,92,246,.12)}
+.pkg-tl{font-size:15px;font-weight:800;color:var(--t1);font-family:var(--fm)}
+.pkg-price{font-size:12px;color:var(--t3);margin-top:3px}
+.pkg-bonus{font-size:10px;color:var(--mint);font-weight:700;margin-top:3px}
+
 </style>
 <script src="i18n.js"></script>
 <style>#tl-lang-switcher{display:none!important}</style>
@@ -952,6 +961,165 @@ function showTLDownloadGuide(title){
   document.body.appendChild(guide);
   setTimeout(function(){ if(guide.parentNode) guide.remove(); }, 8000);
 }
+
+
+/* ── 토스페이먼츠 TL 충전 ── */
+var _tossWidget = null;
+var _tossPaymentWidget = null;
+var _tossPkg = {amount:10000, tl:10500};
+
+var TL_PKGS = {
+  5000:  {tl:5000,  bonus:0,     label:'5,000 TL'},
+  10000: {tl:10000, bonus:500,   label:'10,500 TL'},
+  30000: {tl:30000, bonus:2000,  label:'32,000 TL'},
+  50000: {tl:50000, bonus:5000,  label:'55,000 TL'},
+  100000:{tl:100000,bonus:15000, label:'115,000 TL'},
+};
+
+function selectPkg(el){
+  document.querySelectorAll('.tl-pkg').forEach(function(b){ b.classList.remove('active'); });
+  el.classList.add('active');
+  var amt = parseInt(el.dataset.amount);
+  var pkg = TL_PKGS[amt];
+  _tossPkg = { amount: amt, tl: pkg.tl + pkg.bonus };
+  var amtEl = document.getElementById('pkgAmount');
+  var tlEl  = document.getElementById('pkgTL');
+  if(amtEl) amtEl.textContent = '₩' + amt.toLocaleString();
+  if(tlEl)  tlEl.textContent  = pkg.label;
+  // 위젯 금액 업데이트
+  if(_tossPaymentWidget) _tossPaymentWidget.updateAmount(amt).catch(function(){});
+}
+
+async function openTossCharge(){
+  var overlay = document.getElementById('tossPayOverlay');
+  if(!overlay) return;
+  overlay.style.display = 'flex';
+  document.getElementById('tossPayStatus').textContent = '결제 위젯 로딩 중...';
+  document.getElementById('tossPayBtn').disabled = true;
+
+  // 토스페이먼츠 SDK 로드
+  if(!window.TossPayments){
+    await new Promise(function(resolve, reject){
+      var s = document.createElement('script');
+      s.src = 'https://js.tosspayments.com/v2/standard';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  var CLIENT_KEY = 'test_ck_lpP2YxJ4K877JAdv7KX8RGZwXLOb';
+  var customerKey = 'tl_user_' + ((_user&&_user.id)||'guest') + '_' + Date.now();
+
+  try {
+    _tossWidget = await window.TossPayments(CLIENT_KEY).widgets({ customerKey });
+
+    _tossPaymentWidget = _tossWidget.paymentMethods({
+      selector: '#tossPaymentWidget',
+      variantKey: 'DEFAULT',
+    });
+    await _tossPaymentWidget.render();
+    await _tossPaymentWidget.updateAmount(_tossPkg.amount);
+
+    var agreementWidget = _tossWidget.agreement({ selector: '#tossAgreementWidget', variantKey: 'AGREEMENT' });
+    await agreementWidget.render();
+
+    document.getElementById('tossPayStatus').textContent = '';
+    document.getElementById('tossPayBtn').disabled = false;
+  } catch(e){
+    document.getElementById('tossPayStatus').textContent = '위젯 로드 실패: ' + e.message;
+    document.getElementById('tossPayBtn').disabled = false;
+  }
+}
+
+async function requestTossPay(){
+  if(!_tossWidget){ alert('결제 위젯이 로드되지 않았습니다.'); return; }
+  var btn = document.getElementById('tossPayBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 결제 진행 중...';
+
+  var orderId = 'TL_' + Date.now() + '_' + Math.random().toString(36).slice(2,7).toUpperCase();
+  var orderName = 'TimeLink ' + _tossPkg.tl.toLocaleString() + ' TL 충전';
+
+  try {
+    await _tossWidget.requestPayment({
+      method: 'CARD',
+      amount: { currency: 'KRW', value: _tossPkg.amount },
+      orderId,
+      orderName,
+      customerEmail: (_user&&_user.email)||'',
+      customerName:  (_user&&_user.username)||'TimeLink User',
+      successUrl: window.location.origin + '/payment-success.html?orderId=' + orderId,
+      failUrl:    window.location.origin + '/payment-fail.html',
+    });
+  } catch(e){
+    if(e.code !== 'USER_CANCEL'){
+      document.getElementById('tossPayStatus').textContent = '오류: ' + e.message;
+    }
+    btn.disabled = false;
+    btn.textContent = '💳 결제하기';
+  }
+}
+
+// 결제 성공 콜백 (같은 페이지에서 처리할 때)
+async function handleTossSuccess(paymentKey, orderId, amount){
+  try {
+    var r = await fetch(API_BASE+'/api/payment/toss/confirm', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
+      body: JSON.stringify({ paymentKey, orderId, amount: parseInt(amount) })
+    });
+    var d = await r.json();
+    if(!r.ok) throw new Error(d.error||'결제 처리 실패');
+
+    // TL 잔액 업데이트
+    if(_user){
+      _user.tl   = d.tl_balance;
+      _user.tl_p = d.tl_p;
+      localStorage.setItem('tl_user', JSON.stringify(_user));
+    }
+    var tbEl = document.getElementById('tbTLval') || document.getElementById('tbTl');
+    if(tbEl) tbEl.textContent = Number(d.tl_balance).toLocaleString() + ' TL';
+
+    closeTossPay();
+    // 성공 팝업
+    var msg = '🎉 충전 완료!\n\n+' + d.total_tl.toLocaleString() + ' TL 지급';
+    if(d.bonus_tl > 0) msg += '\n(보너스 +' + d.bonus_tl.toLocaleString() + ' TL 포함)';
+    alert(msg);
+  } catch(e){
+    alert('결제 처리 중 오류: ' + e.message);
+  }
+}
+
+function closeTossPay(){
+  var overlay = document.getElementById('tossPayOverlay');
+  if(overlay) overlay.style.display = 'none';
+  _tossWidget = null; _tossPaymentWidget = null;
+  var widget = document.getElementById('tossPaymentWidget');
+  var agree  = document.getElementById('tossAgreementWidget');
+  if(widget) widget.innerHTML = '';
+  if(agree)  agree.innerHTML  = '';
+}
+
+// URL 파라미터로 결제 결과 처리 (리다이렉트 방식)
+(function checkPaymentResult(){
+  var params = new URLSearchParams(window.location.search);
+  var paymentKey = params.get('paymentKey');
+  var orderId    = params.get('orderId');
+  var amount     = params.get('amount');
+  if(paymentKey && orderId && amount){
+    // URL 파라미터 제거
+    window.history.replaceState({}, '', window.location.pathname);
+    // 로그인 후 처리
+    var tryConfirm = function(){
+      if(_user && _token) {
+        handleTossSuccess(paymentKey, orderId, amount);
+      } else {
+        setTimeout(tryConfirm, 500);
+      }
+    };
+    setTimeout(tryConfirm, 800);
+  }
+})();
 
 /* ── TL 파일 보호 스트리밍 ──
    원본 R2 URL 대신 /api/stream/:shareId 사용
@@ -1531,6 +1699,7 @@ var _stripeAmount = 0;
 
 // ── 모달 열기 ──
 function openPayModal(pendingTrack){
+  openTossCharge(); return;  // 토스페이먼츠로 라우팅
   if(!_user){ alert(TLi18n.t('msg.login.required')); return; }
   if(typeof pendingTrack !== 'undefined') window._payPendingTrack = pendingTrack;
   var el = document.getElementById('payOverlay');
