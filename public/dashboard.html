@@ -936,37 +936,87 @@ function renderUser(){
 
 async function calcMining(){
   if(!_user) return;
-  var poc = parseFloat(localStorage.getItem('tl_poc_today')||'0');
-  var pocIdx = 1 + poc/100;
-  var totalSpent = Number(_user.total_tl_spent||0);
-  var exchanged = Number(_user.total_tl_exchanged||0);
-  var mineable = Math.max(0, (totalSpent - exchanged) * 0.5 * pocIdx);
+  var btn = document.querySelector('[onclick="calcMining()"]');
+  if(btn){ btn.disabled=true; btn.textContent='⛏️ 계산 중...'; }
 
-  // 서버에 TLC 채굴 요청
   try{
-    var r = await fetch(API+'/api/user/mine-tlc', {
+    // 1단계: POC 계산
+    var pocRes = await fetch(API_BASE+'/api/eco/calc-poc', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        user_id: _user.id,
-        poc_total: poc,
-        poc_index: pocIdx,
-        total_tl_spent: totalSpent,
-        total_tl_exchanged: exchanged,
-        tlc_amount: mineable
-      })
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')}
+    });
+    var pocData = await pocRes.json();
+    if(!pocData.ok) throw new Error(pocData.error||'POC 계산 실패');
+
+    var poc = pocData.poc_index;
+    var mineable = pocData.mineable_tlc;
+
+    // POC 표시 업데이트
+    var pocEl = document.getElementById('miningPoc');
+    if(pocEl) pocEl.textContent = poc.toFixed(2);
+    var availEl = document.getElementById('miningAvailable');
+    if(availEl) availEl.textContent = mineable.toFixed(2);
+
+    if(mineable <= 0){
+      toast('채굴 가능한 TLC가 없습니다. TL을 더 소비하세요.','w');
+      if(btn){ btn.disabled=false; btn.textContent='⛏️ TLC 채굴'; }
+      return;
+    }
+
+    // 2단계: 실제 채굴
+    if(btn){ btn.textContent='⛏️ 채굴 중...'; }
+    var mineRes = await fetch(API_BASE+'/api/eco/mine', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')}
+    });
+    var mineData = await mineRes.json();
+
+    if(mineData.ok){
+      var mined = mineData.mined||0;
+      _user.tlc = mineData.tlc_total||0;
+      _user.poc_index = poc;
+      localStorage.setItem('tl_user', JSON.stringify(_user));
+
+      // UI 업데이트
+      var tlcEl = document.getElementById('walletTlc');
+      if(tlcEl) tlcEl.textContent = Number(mineData.tlc_total||0).toFixed(2);
+      var miningTlcEl = document.getElementById('miningTlc');
+      if(miningTlcEl) miningTlcEl.textContent = Number(mineData.tlc_total||0).toFixed(2);
+
+      toast('⛏️ '+mined.toFixed(4)+' TLC 채굴 완료! (POC '+poc+')','s');
+      loadMiningHistory();
+    } else {
+      toast(mineData.error||'채굴 실패','e');
+    }
+  }catch(e){
+    toast('채굴 오류: '+e.message,'e');
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent='⛏️ TLC 채굴'; }
+  }
+}
+
+async function loadMiningHistory(){
+  try{
+    var r = await fetch(API_BASE+'/api/eco/mining-history',{
+      headers:{'Authorization':'Bearer '+(_token||'')}
     });
     var d = await r.json();
-    if(d.ok){
-      _user.tlc = (_user.tlc||0) + (d.mined||0);
-      _user.poc_index = pocIdx;
-      localStorage.setItem('tl_user', JSON.stringify(_user));
-      toast('⛏️ '+((d.mined||0).toFixed(4))+' TLC '+(TLi18n&&TLi18n.t?TLi18n.t('toast.mine.success'):'success').replace('⛏️ {0} TLC ',''),'s');
-      renderUser();
-    } else {
-      toast(d.error||(TLi18n&&TLi18n.t?TLi18n.t('toast.mine.fail'):'fail'),'e');
+    var list = document.getElementById('miningHistoryList');
+    if(!list || !d.ok) return;
+    var rows = d.history||[];
+    if(!rows.length){
+      list.innerHTML='<div style="color:var(--t3);font-size:12px;text-align:center;padding:16px">채굴 내역 없음</div>';
+      return;
     }
-  }catch(e){ toast((TLi18n&&TLi18n.t?TLi18n.t('toast.mine.fail'):'fail')+': '+e.message,'e'); }
+    list.innerHTML = rows.map(function(row){
+      var dt = new Date(row.created_at).toLocaleDateString('ko-KR');
+      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bd);font-size:12px">'
+        +'<span style="color:var(--t3)">'+dt+'</span>'
+        +'<span style="color:var(--mint);font-family:monospace">+'+Number(row.tlc_mined).toFixed(4)+' TLC</span>'
+        +'<span style="color:var(--amber)">POC '+Number(row.poc_index).toFixed(2)+'</span>'
+        +'</div>';
+    }).join('');
+  }catch(e){}
 }
 
 
