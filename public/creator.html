@@ -8,7 +8,7 @@
 <meta property="og:image" content="https://www.timelink.digital/og-image.png">
 <meta property="og:url" content="https://www.timelink.digital/creator.html">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TimeLink — 창작자 센터</title>
+<title>TimeLink — 크리에이터 센터</title>
 <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -262,6 +262,11 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
   }
 }
 
+
+/* ── 커스텀 커서 ── */
+.cursor-dot{width:8px;height:8px;background:var(--purple);border-radius:50%;position:fixed;pointer-events:none;z-index:99999;left:-100px;top:-100px;transform:translate(-50%,-50%);mix-blend-mode:screen;will-change:left,top}
+.cursor-ring{width:32px;height:32px;border:2px solid rgba(139,92,246,.5);border-radius:50%;position:fixed;pointer-events:none;z-index:99998;left:-100px;top:-100px;transform:translate(-50%,-50%);will-change:left,top}
+
 </style>
 <script src="i18n.js"></script>
 <script src="auto_translate.js"></script>
@@ -299,20 +304,32 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
         <a href="incar.html" class="sb-sub-link">🚗 인카방송</a>
       </div>
     </div>
-      <a href="creator.html" class="sb-link active"><span class="sb-icon">🎨</span>창작자 센터</a>
+      <a href="creator.html" class="sb-link active"><span class="sb-icon">🎨</span><span data-i18n="nav.creator">크리에이터 센터</span></a>
     <a href="ads.html" class="sb-link"><span class="sb-icon">📺</span><span data-i18n="ad.watch">광고 시청</span></a>
     <a href="download.html" class="sb-link" style="color:#00E5A0"><span class="sb-icon">⬇</span><span data-i18n="nav.appdownload">앱 다운로드</span></a>
       <a href="advertiser.html" class="sb-link"><span class="sb-icon">📢</span><span data-i18n="nav.advertiser">광고주 센터</span></a>
-      <a href="wallet.html" class="sb-link"><span class="sb-icon">💰</span>지갑 & 채굴</a>
+      <a href="dashboard.html" onclick="setTimeout(function(){if(window.switchTab)switchTab('mining');},300)" class="sb-link"><span class="sb-icon">💰</span>지갑 & 채굴</a>
     </nav>
     <div style="padding:14px 16px;border-top:1px solid var(--bd)">
-      <div style="font-size:10px;color:var(--t3);font-family:var(--fm);margin-bottom:8px">TL 경제</div>
-      <div style="font-size:11px;color:var(--t2);line-height:1.8">
-        🎵 오디오 → 초당 1 TL<br>
-        🎬 영상 → 초당 1 TL<br>
-        🖼️ 이미지 → 시간당 TL<br>
-        📄 문서 → 시간당 TL
+      <div style="font-size:10px;color:var(--t3);font-family:var(--fm);margin-bottom:8px">내 TL 현황</div>
+      <div style="font-size:12px;line-height:2">
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--t3)">⚡ TL 잔액</span>
+          <span id="crTLbal" style="color:var(--purple);font-weight:700;font-family:monospace">-</span>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--t3)">💎 TLC 보유</span>
+          <span id="crTLCbal" style="color:var(--mint);font-weight:700;font-family:monospace">-</span>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--t3)">📊 POC 지수</span>
+          <span id="crPOC" style="color:var(--amber);font-weight:700;font-family:monospace">-</span>
+        </div>
       </div>
+      <a href="dashboard.html" onclick="setTimeout(function(){if(window.switchTab)switchTab('mining');},300)" 
+         style="display:block;margin-top:10px;padding:8px 12px;border-radius:8px;background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.2);color:var(--mint);font-size:11px;font-weight:700;text-align:center;text-decoration:none">
+        ⛏️ TLC 채굴하기
+      </a>
     </div>
   
     <!-- 사이드바 광고 배너 -->
@@ -812,6 +829,28 @@ function switchTab(el,t){
   document.getElementById('tabUpload').style.display=t==='upload'?'block':'none';
   document.getElementById('tabMyfiles').style.display=t==='myfiles'?'block':'none';
   if(t==='myfiles') loadMyFiles();
+  loadCreatorWallet();
+}
+
+async function loadCreatorWallet(){
+  if(!_user||!_token) return;
+  try{
+    var r = await fetch(API+'/api/eco/wallet',{
+      headers:{'Authorization':'Bearer '+(_token||'')}
+    });
+    var d = await r.json();
+    var w = d.wallet || d;
+    var tl = Number(w.tl_total||w.tl||0)||(Number(w.tl_p||0)+Number(w.tl_a||0)+Number(w.tl_b||0));
+    var tlc = Number(w.tlc_balance||w.tlc||0);
+    var poc = Number(w.poc_index||1.0);
+    var el = function(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; };
+    el('crTLbal',  Number(tl).toLocaleString()+' TL');
+    el('crTLCbal', tlc.toFixed(2)+' TLC');
+    el('crPOC',    poc.toFixed(2));
+    // 상단바도 업데이트
+    var tbEl = document.getElementById('tbTLval');
+    if(tbEl) tbEl.textContent = Number(tl).toLocaleString();
+  }catch(e){ console.warn('[creator wallet]', e); }
 }
 
 // FILE TYPE
@@ -1793,6 +1832,26 @@ if(_user){ buildTopbar({page:'CREATOR CENTER',actionBtn:'📤 업로드',actionU
   if(langEl)    langEl.value = tl_lang;
 })();
 
+</script>
+<script>
+(function(){
+  var dot=document.createElement('div');dot.className='cursor-dot';
+  var ring=document.createElement('div');ring.className='cursor-ring';
+  document.body.appendChild(dot);document.body.appendChild(ring);
+  var mx=0,my=0,rx=0,ry=0;
+  document.addEventListener('mousemove',function(e){
+    mx=e.clientX;my=e.clientY;
+    dot.style.left=mx+'px';dot.style.top=my+'px';
+  });
+  (function loop(){
+    rx+=(mx-rx)*.15;ry+=(my-ry)*.15;
+    ring.style.left=rx.toFixed(1)+'px';ring.style.top=ry.toFixed(1)+'px';
+    requestAnimationFrame(loop);
+  })();
+  document.addEventListener('mousedown',function(){dot.style.transform='translate(-50%,-50%) scale(0.6)';ring.style.transform='translate(-50%,-50%) scale(1.4)';});
+  document.addEventListener('mouseup',function(){dot.style.transform='translate(-50%,-50%) scale(1)';ring.style.transform='translate(-50%,-50%) scale(1)';});
+  var s=document.createElement('style');s.textContent='body,a,button,[onclick]{cursor:none!important}';document.head.appendChild(s);
+})();
 </script>
 </body>
 </html>
