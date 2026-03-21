@@ -918,6 +918,7 @@ var _missions = {
 
 
 var API = 'https://api.timelink.digital';
+var API_BASE = 'https://api.timelink.digital';
 var _user = null;
 
 // Auth
@@ -1046,7 +1047,7 @@ async function calcMining(){
 async function loadMiningHistory(){
   try{
     var r = await fetch(API_BASE+'/api/eco/mining-history',{
-      headers:{'Authorization':'Bearer '+(_token||'')}
+      headers:{'Authorization':'Bearer '+(typeof _token!=='undefined'?_token:tk||'')}
     });
     var d = await r.json();
     var list = document.getElementById('miningHistoryList');
@@ -1186,6 +1187,11 @@ function switchTab(name){
   g('tab-'+name).classList.add('active');
   var link = g('tab-'+name+'-link');
   if(link) link.classList.add('active');
+  // 탭별 데이터 로드
+  if(name==='wallet') { if(typeof loadWallet==='function') loadWallet(); }
+  if(name==='mining') { if(typeof loadMiningHistory==='function') loadMiningHistory(); }
+  if(name==='cafe')   { if(typeof loadCafeTab==='function') loadCafeTab(); }
+  if(name==='content'){ if(typeof loadShares==='function') loadShares(); }
 }
 
 
@@ -1197,7 +1203,7 @@ async function loadWallet(){
   if(!_user) return;
   try{
     var r = await fetch(API_BASE+'/api/eco/wallet',{
-      headers:{'Authorization':'Bearer '+(_token||'')}
+      headers:{'Authorization':'Bearer '+(typeof _token!=='undefined'?_token:tk||'')}
     });
     if(!r.ok) throw new Error('HTTP '+r.status);
     var data = await r.json();
@@ -1432,6 +1438,7 @@ if(typeof _user !== "undefined" && _user){ buildTopbar({page:'DASHBOARD',actionB
   }
   async function load(){
     var tk=localStorage.getItem('tl_token')||'';
+var _token = tk;
     try{
       var r=await fetch(API_AD+'/api/ads/sidebar',{headers:{'Authorization':'Bearer '+tk}});
       if(r.ok){var d=await r.json();if(d.ad) render(d.ad);}
@@ -1618,7 +1625,7 @@ function closeTonModal(){
 async function loadTonStatus(){
   try{
     var r = await fetch(API_BASE+'/api/ton/status',{
-      headers:{'Authorization':'Bearer '+(_token||'')}
+      headers:{'Authorization':'Bearer '+(typeof _token!=='undefined'?_token:tk||'')}
     });
     var d = await r.json();
     if(d.ok){
