@@ -1989,7 +1989,12 @@ async function chargeTL(shareId,title){
     });
     var d=await r.json();
     if(!r.ok) throw new Error(d.error||'충전 실패');
-    _user.tl=((_user&&_user.tl)||0)-amt;
+    // 3분류 순차 차감 (광고TL → 보너스TL → 구매TL)
+    var _rem=amt;
+    var _da=Math.min(_user.tl_a||0,_rem); _user.tl_a=(_user.tl_a||0)-_da; _rem-=_da;
+    var _db=Math.min(_user.tl_b||0,_rem); _user.tl_b=(_user.tl_b||0)-_db; _rem-=_db;
+    var _dp=Math.min(_user.tl_p||_user.tl||0,_rem); _user.tl_p=(_user.tl_p||_user.tl||0)-_dp;
+    _user.tl=(_user.tl_p||0)+(_user.tl_a||0)+(_user.tl_b||0);
     localStorage.setItem('tl_user',JSON.stringify(_user));
     var el=document.getElementById('sp-tl-bal'); if(el) el.textContent=getTotalTL().toLocaleString()+' TL';
     // 내 파일별 TL 캐시 업데이트
@@ -2423,7 +2428,7 @@ async function loadWallet(){
     if(d.wallet){
       var w=d.wallet;
       _user.tl_p=w.tl_p||0; _user.tl_a=w.tl_a||0; _user.tl_b=w.tl_b||0;
-      _user.tl=w.tl_p||0; _user.tlc=w.tlc||_user.tlc||0;
+      _user.tl=(w.tl_p||0)+(w.tl_a||0)+(w.tl_b||0); _user.tlc=w.tlc||_user.tlc||0;
       _user.poc_index=w.poc_index||1.0; _user.plan=w.plan||'A';
       localStorage.setItem('tl_user',JSON.stringify(_user));
       updateWalletUI(w);

@@ -746,6 +746,15 @@ function stopTick(){
   _currentShareId = null;
 }
 
+// TL UI 갱신 (서버 tick 응답 후 호출됨)
+function updateTLDisplay(){
+  var total = getTotalTL();
+  var el = document.getElementById('tbTL');
+  if(el) el.textContent = total.toLocaleString();
+  var dd = document.getElementById('tbDeduct');
+  if(dd) dd.textContent = (_tlDeductRate||1).toFixed(3)+' TL/s';
+}
+
 function proxyUrl(url){
   if(!url||typeof url!=='string') return '';
   url=url.trim();
@@ -1163,10 +1172,16 @@ function startPoc(){
       if(_curShareId && _myFileTL[_curShareId]>0){
         // 곡별 충전 TL 차감
         _myFileTL[_curShareId] = Math.max(0,(_myFileTL[_curShareId]||0)-whole);
+        // npTl 표시 즉시 갱신
+        var npTlEl = g('npTl');
+        if(npTlEl) npTlEl.textContent = '⚡ '+(_myFileTL[_curShareId]||0).toLocaleString()+' TL 남음';
         if(_myFileTL[_curShareId]<=0) toast((TLi18n&&TLi18n.t?TLi18n.t('toast.tl.empty.track'):'track'),'w');
       } else {
         // 총량 차감 (3분류 순서)
         deductTL(whole);
+        // _user.tl 동기화
+        _user.tl = getTotalTL();
+        localStorage.setItem('tl_user', JSON.stringify(_user));
         if(getTotalTL()<=0){ toast((TLi18n&&TLi18n.t?TLi18n.t('toast.tl.empty.total'):'total'),'w'); stopPoc(); openPayModal(); return; }
       }
       // UI 즉시 갱신
