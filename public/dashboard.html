@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="description" content="TL 잔액, TLC 채굴, 내 콘텐츠를 한눈에 확인하세요.">
-<meta property="og:title" content="대시보드 — TimeLink">
+<meta property="og:title" content="대시보드 - TimeLink">
 <meta property="og:description" content="TL 잔액, TLC 채굴, 내 콘텐츠를 한눈에 확인하세요.">
 <meta property="og:image" content="https://www.timelink.digital/og-image.png">
 <meta property="og:url" content="https://www.timelink.digital/dashboard.html">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TimeLink — 대시보드</title>
+<title>TimeLink - 대시보드</title>
 <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -274,42 +274,81 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 </style>
 <script src="i18n.js"></script>
 <script src="auto_translate.js"></script>
+<!-- TON Connect UI SDK -->
+<script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 </head>
 <body>
 
 <!-- TON 지갑 모달 -->
-<div id="tonModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);align-items:center;justify-content:center">
-  <div style="background:#0D0D1A;border:1px solid rgba(0,229,160,.3);border-radius:20px;padding:28px;width:92%;max-width:420px;position:relative">
-    <button onclick="closeTonModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:rgba(255,255,255,.4);font-size:20px;cursor:pointer">✕</button>
+<div id="tonModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.85);backdrop-filter:blur(12px);align-items:center;justify-content:center">
+  <div style="background:#0D0D1A;border:1px solid rgba(0,229,160,.3);border-radius:24px;padding:28px;width:92%;max-width:440px;position:relative;max-height:90vh;overflow-y:auto">
+    <button onclick="closeTonModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:rgba(255,255,255,.4);font-size:20px;cursor:pointer;line-height:1">✕</button>
+
+    <!-- 헤더 -->
     <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:40px;margin-bottom:8px">💎</div>
+      <div style="width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,#0098EA,#0066CC);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 12px">💎</div>
       <div style="font-size:18px;font-weight:800">TON 지갑 연결</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:6px">TLC를 TON 체인으로 출금하려면 지갑을 연결하세요</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:6px">TLC를 TON 네트워크로 출금하려면 지갑을 연결하세요</div>
     </div>
-    <div id="tonConnectedInfo" style="display:none;padding:14px;border-radius:12px;background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.2);margin-bottom:16px">
-      <div style="font-size:11px;color:var(--mint);font-weight:700;margin-bottom:4px">✅ 연결된 지갑</div>
-      <div id="tonAddressDisplay" style="font-size:11px;font-family:monospace;color:rgba(255,255,255,.7);word-break:break-all"></div>
-    </div>
-    <div id="tonConnectBtn" style="margin-bottom:16px">
-      <button onclick="connectTonWallet()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#0098EA,#0066CC);color:#fff;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px">
-        <span style="font-size:20px">💎</span> TON Wallet로 연결
-      </button>
-    </div>
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:8px;text-align:center">또는 TON 주소 직접 입력</div>
-      <input id="tonAddressInput" placeholder="EQ... 또는 UQ... (48자)" style="width:100%;padding:11px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.15);border-radius:10px;color:#fff;font-size:12px;font-family:monospace;outline:none;box-sizing:border-box">
-      <button onclick="saveTonAddress()" style="width:100%;margin-top:8px;padding:11px;border-radius:10px;border:none;background:rgba(0,229,160,.15);border:1px solid rgba(0,229,160,.3);color:var(--mint);font-size:13px;font-weight:700;cursor:pointer">저장</button>
-    </div>
-    <div id="tonModalStatus" style="text-align:center;font-size:11px;color:rgba(255,255,255,.4);min-height:16px"></div>
-    <div id="tonWithdrawSection" style="display:none;margin-top:20px;padding-top:20px;border-top:1px solid rgba(255,255,255,.08)">
-      <div style="font-size:13px;font-weight:700;margin-bottom:12px">⬆ TLC 출금 신청</div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px">
-        <span style="color:rgba(255,255,255,.5)">보유 TLC</span>
-        <span id="tonTlcBalance" style="color:var(--mint);font-weight:700;font-family:monospace">0.00</span>
+
+    <!-- 연결된 지갑 상태 -->
+    <div id="tonConnectedInfo" style="display:none;padding:14px;border-radius:12px;background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.25);margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:11px;color:var(--mint);font-weight:700">✅ 연결된 지갑</span>
+        <button onclick="disconnectTonWallet()" style="font-size:10px;padding:3px 10px;border-radius:6px;border:1px solid rgba(251,113,133,.3);background:rgba(251,113,133,.1);color:#FB7185;cursor:pointer">연결 해제</button>
       </div>
-      <input id="tonWithdrawAmt" type="number" min="1" placeholder="출금할 TLC 수량 (최소 1)" style="width:100%;padding:10px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.15);border-radius:10px;color:#fff;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px">
-      <button onclick="withdrawTLC()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#8B5CF6,#7C3AED);color:#fff;font-size:13px;font-weight:700;cursor:pointer">출금 신청</button>
-      <div style="font-size:10px;color:rgba(255,255,255,.3);text-align:center;margin-top:8px">출금 신청 후 관리자 검토 (1-3일) → TON 체인 전송</div>
+      <div id="tonAddressDisplay" style="font-size:11px;font-family:monospace;color:rgba(255,255,255,.7);word-break:break-all;line-height:1.5"></div>
+      <div id="tonWalletName" style="font-size:10px;color:rgba(255,255,255,.35);margin-top:4px"></div>
+    </div>
+
+    <!-- TON Connect 버튼 영역 -->
+    <div id="tonConnectArea" style="margin-bottom:16px">
+      <!-- TON Connect UI가 여기에 렌더링됨 -->
+      <div id="ton-connect-button" style="display:flex;justify-content:center;margin-bottom:12px"></div>
+
+      <!-- 지갑 앱 바로가기 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+        <button onclick="openTonWalletApp('tonkeeper')" style="padding:10px 6px;border-radius:10px;border:1px solid rgba(0,152,234,.3);background:rgba(0,152,234,.08);color:#0098EA;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:20px">💎</span>Tonkeeper
+        </button>
+        <button onclick="openTonWalletApp('mytonwallet')" style="padding:10px 6px;border-radius:10px;border:1px solid rgba(0,152,234,.3);background:rgba(0,152,234,.08);color:#0098EA;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:20px">💼</span>MyTonWallet
+        </button>
+        <button onclick="openTonWalletApp('tonhub')" style="padding:10px 6px;border-radius:10px;border:1px solid rgba(0,152,234,.3);background:rgba(0,152,234,.08);color:#0098EA;font-size:11px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:20px">🔷</span>Tonhub
+        </button>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <div style="flex:1;height:1px;background:rgba(255,255,255,.08)"></div>
+        <span style="font-size:10px;color:rgba(255,255,255,.3)">또는 직접 입력</span>
+        <div style="flex:1;height:1px;background:rgba(255,255,255,.08)"></div>
+      </div>
+
+      <input id="tonAddressInput" placeholder="EQ... 또는 UQ... (48자)" style="width:100%;padding:11px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#fff;font-size:12px;font-family:monospace;outline:none;box-sizing:border-box;margin-bottom:8px">
+      <button onclick="saveTonAddress()" style="width:100%;padding:11px;border-radius:10px;border:none;background:rgba(0,229,160,.12);border:1px solid rgba(0,229,160,.3);color:var(--mint);font-size:13px;font-weight:700;cursor:pointer">저장</button>
+    </div>
+
+    <div id="tonModalStatus" style="text-align:center;font-size:11px;color:rgba(255,255,255,.4);min-height:16px;margin-bottom:8px"></div>
+
+    <!-- TLC 출금 섹션 -->
+    <div id="tonWithdrawSection" style="display:none;margin-top:20px;padding-top:20px;border-top:1px solid rgba(255,255,255,.08)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px">⬆ TLC 출금 신청</div>
+
+      <div style="padding:12px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+          <span style="color:rgba(255,255,255,.5)">보유 TLC</span>
+          <span id="tonTlcBalance" style="color:var(--mint);font-weight:700;font-family:monospace">0.00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px">
+          <span style="color:rgba(255,255,255,.35)">출금 수수료</span>
+          <span style="color:rgba(255,255,255,.35)">네트워크 수수료 별도</span>
+        </div>
+      </div>
+
+      <input id="tonWithdrawAmt" type="number" min="1" step="0.1" placeholder="출금할 TLC 수량 (최소 1)" style="width:100%;padding:11px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#fff;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:10px">
+      <button onclick="withdrawTLC()" style="width:100%;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#8B5CF6,#7C3AED);color:#fff;font-size:14px;font-weight:700;cursor:pointer">출금 신청</button>
+      <div style="font-size:10px;color:rgba(255,255,255,.25);text-align:center;margin-top:10px;line-height:1.6">출금 신청 후 관리자 검토 (1-3일)<br>검토 완료 시 TON 체인으로 직접 전송</div>
     </div>
   </div>
 </div>
@@ -738,7 +777,7 @@ function fmt(n){ return Number(n||0).toLocaleString(); }
 
 function renderUser(){
   var name = _user.username||_user.email||'사용자';
-  // 항상 3분류 합계 사용 — _user.tl 단일필드 절대 사용 안 함
+  // 항상 3분류 합계 사용. _user.tl 단일필드 사용 안 함
   var tlTotal = getTotalTL();
   var tlc = Number(_user.tlc||0);
   var poc = parseFloat(localStorage.getItem('tl_poc_today')||'0');
@@ -974,7 +1013,15 @@ async function loadWallet(){
 }
 
 function getTotalTL(){
-  return Number((_user&&_user.tl_p)||0)+Number((_user&&_user.tl_a)||0)+Number((_user&&_user.tl_b)||0);
+  if(!_user) return 0;
+  // tl_p 미설정 레거시 유저 - tl 값으로 자동 초기화
+  if(_user.tl_p === undefined || _user.tl_p === null){
+    _user.tl_p = Number(_user.tl || _user.tl_balance || 0);
+    _user.tl_a = Number(_user.tl_a || 0);
+    _user.tl_b = Number(_user.tl_b || 0);
+    localStorage.setItem('tl_user', JSON.stringify(_user));
+  }
+  return Number(_user.tl_p||0) + Number(_user.tl_a||0) + Number(_user.tl_b||0);
 }
 
 async function doExchangeTL(){
@@ -1079,17 +1126,96 @@ function doLogout(){
 }
 
 // ──────────────────────────────────────────────
-// TON 지갑
+// TON Connect 지갑 연동
 // ──────────────────────────────────────────────
 var _tonAddress = '';
+var _tonConnector = null;
+var _tonConnected = false;
+
+function initTonConnect(){
+  try{
+    var TCUI = window.TonConnectUI;
+    if(!TCUI){ console.warn('[TON] SDK 미로드'); return; }
+    _tonConnector = new TCUI({
+      manifestUrl: 'https://www.timelink.digital/tonconnect-manifest.json',
+      buttonRootId: 'ton-connect-button'
+    });
+    _tonConnector.onStatusChange(function(wallet){
+      if(wallet){
+        var addr = wallet.account.address || '';
+        _tonConnected = true;
+        _tonAddress = addr;
+        saveTonAddressToServer(addr, wallet.device && wallet.device.appName || '');
+        updateTonConnectedUI(addr, wallet.device && wallet.device.appName || 'TON Wallet');
+      } else {
+        _tonConnected = false;
+        _tonAddress = '';
+        var info = g('tonConnectedInfo');
+        if(info) info.style.display = 'none';
+        var ws = g('tonWithdrawSection');
+        if(ws) ws.style.display = 'none';
+      }
+    });
+  }catch(e){ console.warn('[TON init]', e.message); }
+}
+
+function updateTonConnectedUI(addr, walletName){
+  var info = g('tonConnectedInfo');
+  var addrEl = g('tonAddressDisplay');
+  var nameEl = g('tonWalletName');
+  var ws = g('tonWithdrawSection');
+  var status = g('tonModalStatus');
+  if(info) info.style.display = 'block';
+  if(addrEl) addrEl.textContent = addr;
+  if(nameEl && walletName) nameEl.textContent = '연결된 앱: ' + walletName;
+  if(ws) ws.style.display = 'block';
+  var inp = g('tonAddressInput');
+  if(inp) inp.value = addr;
+  if(status) status.textContent = '연결 완료!';
+}
+
+async function saveTonAddressToServer(addr, walletName){
+  if(!addr || !_token) return;
+  try{
+    var r = await fetch(API_BASE+'/api/ton/connect',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
+      body: JSON.stringify({ton_address: addr})
+    });
+    var d = await r.json();
+    if(d.ok){
+      toast('💎 TON 지갑 연결! ('+addr.slice(0,6)+'...'+addr.slice(-4)+')','s');
+      loadTonStatus();
+    }
+  }catch(e){}
+}
+
+function openTonWalletApp(wallet){
+  var urls = {
+    tonkeeper:'https://app.tonkeeper.com',
+    mytonwallet:'https://mytonwallet.io',
+    tonhub:'https://tonhub.com'
+  };
+  if(_tonConnector){ try{ _tonConnector.openModal(); return; }catch(e){} }
+  window.open(urls[wallet]||'https://ton.org/wallets','_blank');
+}
+
+function disconnectTonWallet(){
+  if(_tonConnector){ try{ _tonConnector.disconnect(); }catch(e){} }
+  _tonConnected = false; _tonAddress = '';
+  var info = g('tonConnectedInfo'); if(info) info.style.display='none';
+  var ws = g('tonWithdrawSection'); if(ws) ws.style.display='none';
+  var status = g('tonModalStatus'); if(status) status.textContent='연결이 해제됐습니다.';
+  var inp = g('tonAddressInput'); if(inp) inp.value='';
+  toast('TON 지갑 연결이 해제됐습니다.','i');
+}
 
 function openTonModal(){
   g('tonModal').style.display='flex';
   loadTonStatus();
+  if(!_tonConnector) initTonConnect();
 }
-function closeTonModal(){
-  g('tonModal').style.display='none';
-}
+function closeTonModal(){ g('tonModal').style.display='none'; }
 
 async function loadTonStatus(){
   try{
@@ -1098,62 +1224,47 @@ async function loadTonStatus(){
     if(d.ok){
       _tonAddress = d.ton_address||'';
       if(g('tonTlcBalance')) g('tonTlcBalance').textContent = Number(d.tlc_balance||0).toFixed(2);
-      if(_tonAddress){
-        g('tonConnectedInfo').style.display='block';
-        g('tonAddressDisplay').textContent=_tonAddress;
-        g('tonWithdrawSection').style.display='block';
-        g('tonAddressInput').value=_tonAddress;
-      }
+      if(_tonAddress) updateTonConnectedUI(_tonAddress,'');
     }
   }catch(e){ console.warn('[ton status]',e); }
 }
 
-async function connectTonWallet(){
-  g('tonModalStatus').textContent='아래 주소 직접 입력란을 사용하세요';
-  g('tonAddressInput').focus();
-}
-
 async function saveTonAddress(){
-  var addr = g('tonAddressInput').value.trim();
+  var addr = (g('tonAddressInput').value||'').trim();
   if(!addr){ g('tonModalStatus').textContent='주소를 입력하세요'; return; }
+  if(!/^[EU]Q[A-Za-z0-9_-]{46}$/.test(addr)){
+    g('tonModalStatus').textContent='올바른 TON 주소가 아닙니다 (EQ... 또는 UQ... 48자)';
+    return;
+  }
   try{
     var r = await fetch(API_BASE+'/api/ton/connect',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
-      body: JSON.stringify({ton_address:addr})
+      body:JSON.stringify({ton_address:addr})
     });
     var d = await r.json();
-    if(d.ok){
-      _tonAddress=addr;
-      g('tonConnectedInfo').style.display='block';
-      g('tonAddressDisplay').textContent=addr;
-      g('tonWithdrawSection').style.display='block';
-      g('tonModalStatus').textContent='✅ 지갑 연결 완료!';
-      toast('💎 TON 지갑이 연결됐습니다!','s');
-    } else {
-      g('tonModalStatus').textContent='❌ '+(d.error||'저장 실패');
-    }
+    if(d.ok){ _tonAddress=addr; updateTonConnectedUI(addr,'수동 입력'); toast('💎 TON 지갑 연결!','s'); }
+    else g('tonModalStatus').textContent='❌ '+(d.error||'저장 실패');
   }catch(e){ g('tonModalStatus').textContent='❌ '+e.message; }
 }
 
 async function withdrawTLC(){
-  var amt = parseFloat(g('tonWithdrawAmt').value||'0');
+  if(!_tonAddress){ toast('먼저 TON 지갑을 연결하세요','e'); return; }
+  var amt = parseFloat((g('tonWithdrawAmt').value)||'0');
   if(!amt||amt<1){ toast('최소 1 TLC 이상 입력하세요','e'); return; }
   try{
     var r = await fetch(API_BASE+'/api/ton/withdraw',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
-      body: JSON.stringify({tlc_amount:amt})
+      body:JSON.stringify({tlc_amount:amt})
     });
     var d = await r.json();
-    if(d.ok){
-      toast('✅ '+amt+' TLC 출금 신청 완료! 1-3일 내 TON 지갑으로 전송됩니다.','s');
-      g('tonWithdrawAmt').value='';
-      loadTonStatus();
-      closeTonModal();
-    } else { toast('❌ '+(d.error||'출금 실패'),'e'); }
-  }catch(e){ toast('❌ '+e.message,'e'); }
+    if(d.ok){ toast(amt+' TLC 출금 신청 완료!','s'); g('tonWithdrawAmt').value=''; loadTonStatus(); closeTonModal(); }
+    else toast('-'+(d.error||'출금 실패'),'e');
+  }catch(e){ toast('-'+e.message,'e'); }
 }
+
+window.addEventListener('load', function(){ setTimeout(initTonConnect, 800); });
 </script>
 
 <!-- 사이드바 광고 -->
