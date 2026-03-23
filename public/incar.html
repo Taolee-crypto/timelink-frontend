@@ -693,11 +693,12 @@ function getTLStreamUrl(shareId){
 }
 
 function getStreamUrl(share){
-  // share.id가 있으면 TL 스트리밍, 없으면 fallback
-  if(share && share.id){
-    return getTLStreamUrl(share.id);
-  }
-  return proxyUrl(share && (share.stream_url || share.preview_url) || '');
+  if(!share) return '';
+  var sid = String(share.id||'');
+  var fileTL = _myFileTL && _myFileTL[sid];
+  // 파일별 TL이 충전돼있을 때만 TL 스트리밍, 아니면 직접 R2
+  if(fileTL > 0 && share.id){ return getTLStreamUrl(share.id); }
+  return proxyUrl(share.stream_url || share.preview_url || '');
 }
 
 async function checkTLBalance(shareId){
@@ -782,6 +783,7 @@ var _pocInterval = null, _gpsWatch = null;
 var _useA = true, _audA, _audB, _crossfading = false;
 var _myFileTL = {};          // 곡별 충전 TL { share_id: balance }
 var _curShareId = null;      // 현재 재생 중인 share id
+var _curTlMode = 'total';    // file | total
 var _token = localStorage.getItem('tl_token') || '';
 var _tlDeductRate = 1.0;     // 초당 TL 차감율 (POC에 따라 감소)
 
@@ -809,8 +811,9 @@ function deductTL(amount){
   if(_user.tl_p > 0 && remain > 0){
     var d=Math.min(_user.tl_p,remain);
     _user.tl_p=Math.max(0,_user.tl_p-d);
-    _user.tl=_user.tl_p; remain-=d; deducted+=d;
+    remain-=d; deducted+=d;
   }
+  _user.tl = (_user.tl_p||0)+(_user.tl_a||0)+(_user.tl_b||0);
   localStorage.setItem('tl_user',JSON.stringify(_user));
   return deducted;
 }
@@ -1051,7 +1054,7 @@ function startCrossfade(){
   _crossfading=true;
   var ni = (_curIdx+1)%_queue.length;
   var ns = _queue[ni];
-  var nu = ns.stream_url||ns.file_tl;
+  var nu = getStreamUrl(ns);  // fix: file_tl(숫자) URL 버그 수정
   var fo=getAud(), fi=_useA?_audB:_audA;
   fi.src=nu; fi.volume=0; fi.load();
   if(_playing) fi.play().catch(function(){});
@@ -1175,7 +1178,10 @@ function startPoc(){
         // npTl 표시 즉시 갱신
         var npTlEl = g('npTl');
         if(npTlEl) npTlEl.textContent = '⚡ '+(_myFileTL[_curShareId]||0).toLocaleString()+' TL 남음';
-        if(_myFileTL[_curShareId]<=0) toast((TLi18n&&TLi18n.t?TLi18n.t('toast.tl.empty.track'):'track'),'w');
+        if(_myFileTL[_curShareId]<=0){
+          toast((TLi18n&&TLi18n.t?TLi18n.t('toast.tl.empty.track'):'파일 TL 소진'),'w');
+          _curTlMode = 'total'; // 파일 TL 소진 시 총량 모드로 전환
+        }
       } else {
         // 총량 차감 (3분류 순서)
         deductTL(whole);
@@ -1185,8 +1191,9 @@ function startPoc(){
         if(getTotalTL()<=0){ toast((TLi18n&&TLi18n.t?TLi18n.t('toast.tl.empty.total'):'total'),'w'); stopPoc(); openPayModal(); return; }
       }
       // UI 즉시 갱신
-      if(g('tlBal')) g('tlBal').textContent = getTotalTL().toLocaleString();
-      if(g('tbTL')) g('tbTL').textContent = getTotalTL().toLocaleString();
+      var _tot = getTotalTL();
+      if(g('tlBal')) g('tlBal').textContent = _tot.toLocaleString();
+      if(g('tbTL')) g('tbTL').textContent = _tot.toLocaleString();
     }
 
     if(_pocReportSec>=30){ reportIncar(); _pocReportSec=0; _pocReportTL=0; }
