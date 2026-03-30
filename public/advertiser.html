@@ -489,7 +489,17 @@ textarea.form-input{min-height:80px;resize:vertical}
         </div>
       </div>
 
-      <button class="submit-btn" id="createAdBtn" onclick="submitAd()">📢 광고 등록하기</button>
+      <!-- AI 윤리성 검사 결과 -->
+      <div id="ethicsResult" style="display:none;margin-bottom:16px;padding:16px;border-radius:12px;border:1px solid var(--bd)"></div>
+
+      <div style="display:flex;gap:10px">
+        <button class="submit-btn" id="ethicsBtn" onclick="runEthicsCheck()" style="background:linear-gradient(135deg,#0ea5e9,#6366f1);flex:0 0 auto;padding:14px 20px">
+          🤖 AI 윤리 검사
+        </button>
+        <button class="submit-btn" id="createAdBtn" onclick="submitAd()" disabled style="flex:1">
+          📢 광고 등록하기
+        </button>
+      </div>
 
       <!-- 등록 완료 -->
       <div id="createSuccess" style="display:none;margin-top:20px;padding:20px;border-radius:14px;
@@ -623,7 +633,7 @@ textarea.form-input{min-height:80px;resize:vertical}
           • 허위·과장 광고, 불법 콘텐츠 <strong style="color:#FB7185">등록 금지</strong><br>
           • 등록 후 예산은 즉시 차감, <strong style="color:var(--t2)">환불 불가</strong><br>
           • 예산 소진 시 자동 종료 (재충전 가능)<br>
-          • 광고 문의: <a href="mailto:ad@timelink.digital" style="color:var(--purple)">ad@timelink.digital</a>
+          • 광고 문의: <a href="/cdn-cgi/l/email-protection#4021240034292d252c292e2b6e2429272934212c" style="color:var(--purple)"><span class="__cf_email__" data-cfemail="45242105312c2820292c2b2e6b212c222c312429">[email&#160;protected]</span></a>
         </div>
       </div>
 
@@ -633,7 +643,7 @@ textarea.form-input{min-height:80px;resize:vertical}
 </main>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 var API = 'https://api.timelink.digital';
 var _user = null, _token = null;
 var _myAds = [], _isLoggedIn = false;
@@ -999,7 +1009,112 @@ function onAdFileSelect(input){
   info.innerHTML = '📄 <strong>'+escH(file.name)+'</strong> ('+size+') — 등록 시 자동 <strong>.tl</strong> 암호화 변환됩니다';
 }
 
+// ── AI 윤리성 검사 ──
+var _ethicsPassed = false;
+
+async function runEthicsCheck(){
+  var title   = g('cTitle').value.trim();
+  var desc    = g('cDesc').value.trim();
+  var url     = g('cTargetUrl').value.trim();
+
+  if(!title){ toast('광고 제목을 먼저 입력하세요','e'); return; }
+
+  var btn = g('ethicsBtn');
+  var resultBox = g('ethicsResult');
+  var submitBtn = g('createAdBtn');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ AI 검사 중...';
+  resultBox.style.display = 'none';
+  _ethicsPassed = false;
+  submitBtn.disabled = true;
+
+  try{
+    var prompt = '다음 광고를 윤리성 검사해주세요. 성인물, 폭력, 사기, 도박, 불법, 혐오표현, 허위과장 광고 여부를 판단하세요.\n\n'
+      + '광고 제목: ' + title + '\n'
+      + (desc ? '광고 설명: ' + desc + '\n' : '')
+      + (url  ? '연결 URL: ' + url + '\n' : '')
+      + '\n반드시 아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):\n'
+      + '{"pass":true또는false,"score":0~100,"category":"통과|성인물|폭력|사기|도박|불법|혐오|허위과장|기타","reason":"판단 이유 한국어 1~2문장","suggestion":"개선 제안 (통과 시 빈 문자열)"}';
+
+    var res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        system: '당신은 광고 윤리성 검사 AI입니다. 성인물, 폭력, 사기, 도박, 불법 광고를 차단합니다. 반드시 JSON만 반환하세요.',
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    var data = await res.json();
+    var raw = (data.content && data.content[0] && data.content[0].text) || '{}';
+    var clean = raw.replace(/```json|```/g,'').trim();
+    var result = JSON.parse(clean);
+
+    var pass = result.pass === true;
+    var score = Number(result.score) || 0;
+    var category = result.category || '';
+    var reason = result.reason || '';
+    var suggestion = result.suggestion || '';
+
+    _ethicsPassed = pass;
+
+    // 결과 표시
+    var color = pass ? 'rgba(0,229,160,.15)' : 'rgba(251,113,133,.15)';
+    var border = pass ? 'rgba(0,229,160,.3)' : 'rgba(251,113,133,.3)';
+    var icon = pass ? '✅' : '❌';
+    var scoreColor = score >= 80 ? '#00E5A0' : score >= 50 ? '#FBBF24' : '#FB7185';
+
+    resultBox.style.display = 'block';
+    resultBox.style.background = color;
+    resultBox.style.borderColor = border;
+    resultBox.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+      + '<div style="font-size:14px;font-weight:700">' + icon + ' ' + (pass ? '윤리 검사 통과' : '윤리 검사 불통과') + '</div>'
+      + '<div style="font-size:11px;color:var(--t3)">카테고리: <strong style="color:#fff">' + category + '</strong></div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+      + '<div style="font-size:10px;color:var(--t3)">윤리 점수</div>'
+      + '<div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">'
+      + '<div style="height:100%;width:' + score + '%;background:' + scoreColor + ';border-radius:3px;transition:width .5s"></div>'
+      + '</div>'
+      + '<div style="font-size:13px;font-weight:700;color:' + scoreColor + '">' + score + '점</div>'
+      + '</div>'
+      + '<div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;margin-bottom:' + (suggestion?'8px':'0') + '">' + reason + '</div>'
+      + (suggestion ? '<div style="font-size:11px;color:#FBBF24;margin-top:4px">💡 ' + suggestion + '</div>' : '');
+
+    if(pass){
+      submitBtn.disabled = false;
+      submitBtn.style.opacity = '1';
+      toast('✅ 윤리 검사 통과! 광고를 등록할 수 있습니다.','s');
+    } else {
+      submitBtn.disabled = true;
+      toast('❌ 윤리 검사 불통과. 광고 내용을 수정해주세요.','e');
+    }
+
+  }catch(e){
+    console.error('[ethics]', e);
+    // API 오류 시 통과 처리 (검사 실패)
+    resultBox.style.display = 'block';
+    resultBox.style.background = 'rgba(251,191,36,.08)';
+    resultBox.style.borderColor = 'rgba(251,191,36,.3)';
+    resultBox.innerHTML = '<div style="font-size:13px">⚠️ AI 검사 일시 오류 — 수동 검토 후 등록됩니다.</div>';
+    _ethicsPassed = true;
+    submitBtn.disabled = false;
+    toast('⚠️ AI 검사 오류 — 수동 검토 모드','w');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '🔄 다시 검사';
+  }
+}
+
 async function submitAd(){
+  if(!_ethicsPassed){
+    toast('먼저 AI 윤리 검사를 통과해야 합니다','e');
+    return;
+  }
   var title     = g('cTitle').value.trim();
   var desc      = g('cDesc').value.trim();
   var type      = g('cType').value;
@@ -1151,13 +1266,4 @@ async function submitAd(){
   async function load(){
     var s={};
     try{var cached=JSON.parse(localStorage.getItem("tl_footer_settings")||"null");if(cached&&cached.company){Object.assign(s,cached);render(s);}}catch(e){}
-    try{var r=await fetch(API+"/api/admin/sql",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sql:"SELECT value FROM tl_settings WHERE key='footer_settings' LIMIT 1"})});var d=await r.json();if(d.results&&d.results.length){var fresh=JSON.parse(d.results[0].value||"null");if(fresh&&fresh.company){Object.assign(s,fresh);localStorage.setItem("tl_footer_settings",JSON.stringify(fresh));}}}catch(e){}
-    render(s);
-  }
-  document.readyState==="loading"?document.addEventListener("DOMContentLoaded",load):load();
-})();
-</script>
-
-
-</body>
-</html>
+    try{var r=await fetch(API+"/api/admin/sql",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sql:"SELECT value FROM tl_settings WHERE key='footer_settings' LIMIT 1"})});var d=await r.json();if(d.results&&d.results.length){var fresh=JSON.parse(d.results[0].value||"null");if(fresh&&fresh.company){Objec
