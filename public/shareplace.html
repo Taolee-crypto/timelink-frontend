@@ -1373,26 +1373,35 @@ async function loadMyFileTL(){
 }
 
 async function loadShares(){
-  document.getElementById('sortCount').textContent='로딩 중...';
-  try{
-    // Promise.race로 타임아웃 (AbortSignal 없이)
-    var fetchPromise = fetch(API_BASE+'/api/shares');
-    var timeoutPromise = new Promise(function(_,reject){
-      setTimeout(function(){ reject(new Error('요청 시간 초과 (10초)')); }, 10000);
-    });
-    var r = await Promise.race([fetchPromise, timeoutPromise]);
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    var d=await r.json();
-    _allShares=d.shares||d.data||[];
-  }catch(e){
-    console.warn('[loadShares] 오류:', e.message);
-    _allShares=[];
-    // 오류 상태 표시
-    var sc=document.getElementById('sortCount');
-    if(sc) sc.textContent='연결 오류 — 새로고침 해주세요';
+  var sc=document.getElementById('sortCount');
+  if(sc) sc.textContent='로딩 중...';
+  var retries = 3;
+  for(var attempt=1; attempt<=retries; attempt++){
+    try{
+      var ctrl = new AbortController();
+      var tid = setTimeout(function(){ ctrl.abort(); }, 15000);
+      var r = await fetch(API_BASE+'/api/shares', { signal: ctrl.signal });
+      clearTimeout(tid);
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      var d = await r.json();
+      _allShares = d.shares||d.data||[];
+      updateCounts();
+      applyFilter();
+      return;
+    }catch(e){
+      console.warn('[loadShares] 시도 '+attempt+'/'+retries+':', e.message);
+      if(attempt < retries){
+        await new Promise(function(res){ setTimeout(res, 1500 * attempt); });
+      } else {
+        _allShares = [];
+        if(sc){
+          sc.innerHTML = '연결 오류 <button onclick="loadShares()" style="margin-left:8px;padding:3px 10px;border-radius:6px;border:1px solid var(--purple);background:transparent;color:var(--purple);font-size:11px;cursor:pointer">🔄 재시도</button>';
+        }
+        updateCounts();
+        applyFilter();
+      }
+    }
   }
-  updateCounts();
-  applyFilter();
 }
 
 function isMusicCat(c){ c=(c||'').toLowerCase(); return c.includes('pop')||c.includes('ballad')||c.includes('indie')||c.includes('hip')||c.includes('jazz')||c.includes('electronic')||c.includes('classical')||c==='music'||c==='k-pop'; }
