@@ -204,8 +204,8 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 @media(max-width:600px){.file-grid{grid-template-columns:1fr}}
 
 /* ── 인기 차트 위젯 ── */
-.chart-widget{padding:16px 28px;border-bottom:1px solid var(--bd);background:linear-gradient(180deg,rgba(139,92,246,.04) 0%,transparent 100%)}
-.cw-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+
+
 .cw-title{font-size:12px;font-weight:700;letter-spacing:.08em;display:flex;align-items:center;gap:7px}
 .cw-title-badge{font-family:var(--fm);font-size:9px;padding:2px 7px;border-radius:4px;background:var(--purple);color:#fff;letter-spacing:.05em}
 .cw-more{font-family:var(--fm);font-size:10px;color:var(--purple);text-decoration:none;opacity:.8;transition:opacity .2s}
@@ -213,7 +213,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .cw-tabs{display:flex;gap:4px;margin-bottom:10px}
 .cw-tab{padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--bd);color:var(--t3);cursor:pointer;background:none;transition:all .2s;font-family:var(--fn)}
 .cw-tab.active{background:var(--purple);border-color:var(--purple);color:#fff}
-.cw-list{display:flex;flex-direction:column;gap:3px}
+
 .cw-item{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;cursor:pointer;transition:all .2s}
 .cw-item:hover{background:rgba(139,92,246,.07)}
 .cw-rank{font-family:var(--fm);font-size:13px;font-weight:700;text-align:center}
@@ -818,19 +818,7 @@ function setLangAndRender(lang){
       </div>
       <div class="lang-sw" id="inlineLangSw"></div>
     </div>
-    <!-- 인기 차트 미니 위젯 -->
-    <div class="chart-widget" id="chartWidget">
-      <div class="cw-header">
-        <div class="cw-title">🏆 <span>TL CHART</span> <span class="cw-title-badge">LIVE</span></div>
-        <a href="chart.html" class="cw-more" data-i18n="sp.chart.all">전체 차트 →</a>
-      </div>
-      <div class="cw-tabs">
-        <button class="cw-tab active" onclick="switchCwTab(this,'music')">🎵 음악</button>
-        <button class="cw-tab" onclick="switchCwTab(this,'video')">🎬 영상</button>
-        <button class="cw-tab" onclick="openPayModal()" data-i18n="sp.tl.charge.tab">⚡ TL충전</button>
-      </div>
-      <div class="cw-list" id="cwList"><div style="padding:10px 0;color:var(--t3);font-size:11px" data-i18n="common.loading" data-i18n="common.loading"><span data-i18n="common.loading">로딩 중...</span></div></div>
-    </div>
+
     <!-- 정렬 + 뷰 토글 -->
     <div class="sort-bar">
       <div class="sort-tabs">
@@ -1656,29 +1644,7 @@ function renderList(list,g){
 var _cwType = 'music';
 var _cwCache = {};
 
-async function loadChartWidget(type){
-  _cwType = type;
-  var el = document.getElementById('cwList');
-  if(!el) return;
 
-  if(_cwCache[type]){
-    renderCwList(_cwCache[type]);
-    return;
-  }
-
-  el.innerHTML = '<div style="padding:10px 0;color:var(--t3);font-size:11px"><span data-i18n="common.loading">로딩 중...</span></div>';
-  try{
-    var r = await fetch(API_BASE+'/api/chart?type='+type+'&limit=5', {
-      headers:{'Authorization':'Bearer '+(_token||'')}
-    });
-    var d = await r.json();
-    var items = d.chart||[];
-    _cwCache[type] = items;
-    renderCwList(items);
-  }catch(e){
-    el.innerHTML = '<div style="padding:10px 0;color:var(--t3);font-size:11px">차트 데이터 없음</div>';
-  }
-}
 
 function renderCwList(items){
   var el = document.getElementById('cwList');
@@ -1711,11 +1677,6 @@ document.addEventListener('click', function(e){
   if(item){ location.href='shareplace.html'; }
 });
 
-function switchCwTab(el, type){
-  document.querySelectorAll('.cw-tab').forEach(function(x){x.classList.remove('active');});
-  el.classList.add('active');
-  loadChartWidget(type);
-}
 
 
 /* ════════════════════════════════════════
@@ -2358,7 +2319,6 @@ function tlCharge(){
 
 // 초기 로드
 (async function(){
-  loadChartWidget('music'); // 차트 위젯 비동기 로드
   await loadShares();
   await loadMyFileTL(); // 내 파일별 TL 잔량 로드 후 카드 재렌더링
   applyFilter(); // sortCount + 필터 + 페이지 함께 갱신
