@@ -715,14 +715,16 @@ function fmtTL(v){ return Number(v||0).toLocaleString()+' TL'; }
 
 // ── 초기화 ──
 (function init(){
-  try{ _user=JSON.parse(localStorage.getItem('tl_user')||'null'); }catch(e){}
-  _token=localStorage.getItem('tl_token')||'';
+  // 광고주 센터는 사업자 번호로 로그인한 세션만 인정
+  // biz_token / biz_user 별도 키 사용
+  try{ _user=JSON.parse(localStorage.getItem('biz_user')||'null'); }catch(e){}
+  _token=localStorage.getItem('biz_token')||'';
   if(_user && _token){
-    // 이미 로그인 상태면 바로 광고주 대시보드
     enterDashboard();
   } else {
-    // 로그인 안 된 경우 사업자 로그인 화면 표시
-    g('bizLoginScreen').style.display='flex';
+    // 항상 사업자 로그인 화면 표시 (일반 tl_user 무시)
+    var el=g('bizLoginScreen');
+    if(el) el.style.display='flex';
   }
 })();
 
@@ -805,8 +807,8 @@ async function doBizSignup(){
       var d2=await r2.json();
       if(r2.ok){ _user=d2.user; _token=d2.token; }
     }
-    localStorage.setItem('tl_user',JSON.stringify(_user));
-    localStorage.setItem('tl_token',_token);
+    localStorage.setItem('biz_user',JSON.stringify(_user));
+    localStorage.setItem('biz_token',_token);
     toast('🎉 가입 완료! 광고주 센터에 오신 걸 환영합니다','s');
     enterDashboard();
   }catch(e){ showSignupErr(e.message); }
