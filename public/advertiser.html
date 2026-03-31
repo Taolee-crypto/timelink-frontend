@@ -956,7 +956,42 @@ function onAdFileSelect(input){
 // ── AI 윤리성 검사 ──
 var _ethicsPassed = false;
 
-async function runEthicsCheck(){
+// ── 키워드 기반 윤리 검사 (서버 불필요) ──
+var BLOCK_KEYWORDS = [
+  '마약','대마초','필로폰','메스암페타민','코카인','헤로인','향정신성',
+  '아동 성착취','아동 포르노','아동 음란','lolita','cp 배포',
+  '테러','폭탄 제조','총기 밀수','무기 밀수',
+  '보이스피싱','계좌 대여','통장 매매','명의 대여','불법 대출',
+  '불법 도박사이트','사설 도박','토토 운영','바카라 불법'
+];
+var WARN_KEYWORDS = [
+  '성인','19금','음란','포르노','nude','xxx',
+  '도박','카지노','배팅','베팅','슬롯머신',
+  '사기','피싱','스팸','불법','무허가','미신고'
+];
+
+function checkEthicsLocal(title, desc, url){
+  var text = (title+' '+(desc||'')+' '+(url||'')).toLowerCase();
+  for(var i=0;i<BLOCK_KEYWORDS.length;i++){
+    if(text.includes(BLOCK_KEYWORDS[i].toLowerCase())){
+      return {pass:false,score:0,category:'불법',
+        reason:'"'+BLOCK_KEYWORDS[i]+'" 키워드가 포함된 광고는 등록할 수 없습니다.',
+        suggestion:'광고 내용에서 해당 키워드를 제거해 주세요.'};
+    }
+  }
+  var warnFound=[];
+  for(var j=0;j<WARN_KEYWORDS.length;j++){
+    if(text.includes(WARN_KEYWORDS[j].toLowerCase())) warnFound.push(WARN_KEYWORDS[j]);
+  }
+  if(warnFound.length>0){
+    return {pass:false,score:35,category:'주의',
+      reason:'"'+warnFound.join(', ')+'" 관련 표현이 포함되어 있습니다. 성인/도박/불법 광고는 등록이 제한됩니다.',
+      suggestion:'합법적인 서비스임을 명확히 하거나 해당 표현을 수정해 주세요.'};
+  }
+  return {pass:true,score:92,category:'통과',reason:'일반 상업 광고로 판단됩니다.',suggestion:''};
+}
+
+function runEthicsCheck(){
   var title   = g('cTitle').value.trim();
   var desc    = g('cDesc').value.trim();
   var url     = g('cTargetUrl').value.trim();
@@ -968,38 +1003,19 @@ async function runEthicsCheck(){
   var submitBtn = g('createAdBtn');
 
   btn.disabled = true;
-  btn.textContent = '⏳ AI 검사 중...';
+  btn.textContent = '⏳ 검사 중...';
   resultBox.style.display = 'none';
   _ethicsPassed = false;
   submitBtn.disabled = true;
 
-  try{
-    var prompt = '아래 광고를 검토해주세요. 명백히 불법(마약/아동착취/테러/보이스피싱)인 경우만 차단하고, 일반 상업 광고는 모두 통과시키세요.\n\n'
-      + '광고 제목: ' + title + '\n'
-      + (desc ? '광고 설명: ' + desc + '\n' : '')
-      + (url  ? '연결 URL: ' + url + '\n' : '')
-      + '\n반드시 아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):\n'
-      + '{"pass":true또는false,"score":0~100,"category":"통과|성인물|폭력|사기|도박|불법|혐오|허위과장|기타","reason":"판단 이유 한국어 1~2문장","suggestion":"개선 제안 (통과 시 빈 문자열)"}';
+  // 키워드 검사 (즉시)
+  var result = checkEthicsLocal(title, desc, url);
 
-    var res = await fetch(API+'/api/ethics/check', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+(_token||'') },
-      body: JSON.stringify({ title, desc, url })
-    });
-
-    var data = await res.json();
-    // 프록시에서 직접 result 반환
-    var result = data.result || data;
-    if(typeof result === 'string'){
-      var clean = result.replace(/```json|```/g,'').trim();
-      result = JSON.parse(clean);
-    }
-
-    var pass = result.pass === true;
-    var score = Number(result.score) || 0;
-    var category = result.category || '';
-    var reason = result.reason || '';
-    var suggestion = result.suggestion || '';
+  var pass = result.pass;
+  var score = result.score;
+  var category = result.category;
+  var reason = result.reason;
+  var suggestion = result.suggestion;
 
     _ethicsPassed = pass;
 
