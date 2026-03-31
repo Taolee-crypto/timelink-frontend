@@ -224,52 +224,43 @@ footer{border-top:1px solid var(--bd);padding:24px;text-align:center;font-size:1
 </footer>
 
 <script>
-var REPO='Taolee-crypto/timelink-app';
-(async function(){
-  try{
-    var r=await fetch('https://api.github.com/repos/'+REPO+'/releases/latest');
-    var d=await r.json();
-    document.getElementById('verNum').textContent=d.tag_name||'v1.0.0';
-    document.getElementById('verDate').textContent=(d.published_at||'').slice(0,7).replace('-','.')||'2026.03';
-    var assets=d.assets||[];
-    function find(kws){return assets.find(function(a){return kws.every(function(k){return a.name.toLowerCase().includes(k);});});}
-    function sz(b){return b?' · '+(b/1024/1024).toFixed(1)+' MB':'';}
-    var latest='https://github.com/'+REPO+'/releases/latest';
-    var wa=find(['setup','.exe'])||find(['.exe']),ma=find(['.dmg']),la=find(['.appimage']);
-    var dw=document.getElementById('dlWin'),dm=document.getElementById('dlMac'),dl=document.getElementById('dlLinux');
-    var ws=document.getElementById('dlWinSize'),ms=document.getElementById('dlMacSize'),ls=document.getElementById('dlLinuxSize');
-    if(dw)dw.href=wa?wa.browser_download_url:latest;
-    if(ws)ws.textContent=wa?wa.name+sz(wa.size):'.exe · Windows 10/11';
-    // 설치 가이드 파일명 업데이트
-    var gwf=document.getElementById('guideWinFile'), gmf=document.getElementById('guideMacFile');
-    if(gwf&&wa) gwf.textContent=wa.name;
-    if(gmf&&ma) gmf.textContent=ma.name;
-    if(dm)dm.href=ma?ma.browser_download_url:latest;
-    if(ms)ms.textContent=ma?ma.name+sz(ma.size):'.dmg · macOS 12+';
-    if(dl)dl.href=la?la.browser_download_url:latest;
-    if(ls)ls.textContent=la?la.name+sz(la.size):'.AppImage · Linux';
-    var ua=navigator.userAgent,target=ua.includes('Win')?'win':ua.includes('Mac')?'mac':'linux';
-    document.querySelectorAll('.dl-btn').forEach(function(btn){
-      if(btn.classList.contains(target)){
-        btn.style.boxShadow='0 0 0 2px var(--purple)';btn.style.borderColor='var(--purple)';btn.style.position='relative';
-        var b=document.createElement('span');
-        b.style.cssText='position:absolute;top:-8px;right:12px;background:var(--purple);color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px';
-        b.textContent='내 OS ✓';btn.appendChild(b);
-      }
-    });
-  }catch(e){
-    if(document.getElementById('verNum'))document.getElementById('verNum').textContent='v1.0.0';
-    if(document.getElementById('verDate'))document.getElementById('verDate').textContent='2026.03';
-    var base='https://github.com/'+REPO+'/releases/latest';
-    ['dlWin','dlMac','dlLinux'].forEach(function(id){var el=document.getElementById(id);if(el)el.href=base;});
-    var ws=document.getElementById('dlWinSize'),ms=document.getElementById('dlMacSize'),ls=document.getElementById('dlLinuxSize');
-    if(ws)ws.textContent='.exe · Windows 10/11';
-    if(ms)ms.textContent='.dmg · macOS 12+';
-    if(ls)ls.textContent='.AppImage · Linux';
+var REPO = 'Taolee-crypto/timelink-app';
+var VER  = 'v1.1.0';
+var WIN_FILE = 'TimeLink-Player-Setup-1.1.0.exe';
+var MAC_FILE = 'TimeLink-Player.dmg';
+var LNX_FILE = 'TimeLink-Player.AppImage';
+var BASE = 'https://github.com/'+REPO+'/releases/download/'+VER+'/';
+
+// 직접 링크 설정 (항상 정확한 버전)
+document.getElementById('dlWin').href   = BASE + WIN_FILE;
+document.getElementById('dlMac').href   = BASE + MAC_FILE;
+document.getElementById('dlLinux').href = BASE + LNX_FILE;
+document.getElementById('dlWinSize').textContent   = WIN_FILE + ' · Windows 10/11';
+document.getElementById('dlMacSize').textContent   = MAC_FILE + ' · macOS 12+';
+document.getElementById('dlLinuxSize').textContent = LNX_FILE + ' · Linux';
+document.getElementById('verNum').textContent  = VER;
+document.getElementById('verDate').textContent = '2026.03';
+if(document.getElementById('guideWinFile')) document.getElementById('guideWinFile').textContent = WIN_FILE;
+if(document.getElementById('guideMacFile')) document.getElementById('guideMacFile').textContent = MAC_FILE;
+
+// OS 하이라이트
+var ua=navigator.userAgent, target=ua.includes('Win')?'win':ua.includes('Mac')?'mac':'linux';
+document.querySelectorAll('.dl-btn').forEach(function(btn){
+  if(btn.classList.contains(target)){
+    btn.style.boxShadow='0 0 0 2px var(--purple)';
+    btn.style.borderColor='var(--purple)';
+    btn.style.position='relative';
+    var b=document.createElement('span');
+    b.style.cssText='position:absolute;top:-8px;right:12px;background:var(--purple);color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px';
+    b.textContent='내 OS ✓'; btn.appendChild(b);
   }
-})();
+});
+
 function trackDownload(os){
-  fetch('https://api.timelink.digital/api/eco/activity',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'app_download',os:os,ts:Date.now()})}).catch(function(){});
+  fetch('https://api.timelink.digital/api/eco/activity',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'app_download',os:os,ts:Date.now()})
+  }).catch(function(){});
 }
 </script>
 </body>
