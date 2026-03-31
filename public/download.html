@@ -106,35 +106,35 @@ footer{border-top:1px solid var(--bd);padding:24px;text-align:center;font-size:1
 
   <!-- 버전 정보 -->
   <div class="version-wrap">
-    <span class="ver-badge">버전 <span>v1.0.0</span></span>
-    <span class="ver-badge">출시일 <span>2026.03</span></span>
+    <span class="ver-badge">버전 <span id="verNum">...</span></span>
+    <span class="ver-badge">출시일 <span id="verDate">...</span></span>
     <span class="ver-badge">포맷 <span>.tl v1</span></span>
   </div>
 
   <!-- 다운로드 버튼 -->
   <div class="dl-group">
-    <a href="https://github.com/Taolee-crypto/timelink-app/releases/latest/download/TimeLink.Player.Setup.1.0.0.exe"
+    <a href="#" id="dlWin"
        class="dl-btn win" onclick="trackDownload('win')">
       <span class="dl-os-icon">🪟</span>
       <div class="dl-info">
         <div class="dl-os">Windows</div>
-        <div class="dl-size">.exe 설치파일 · Windows 10/11</div>
+        <div class="dl-size" id="dlWinSize">불러오는 중...</div>
       </div>
     </a>
-    <a href="https://github.com/Taolee-crypto/timelink-app/releases/latest/download/TimeLink-Player.dmg"
+    <a href="#" id="dlMac"
        class="dl-btn mac" onclick="trackDownload('mac')">
       <span class="dl-os-icon">🍎</span>
       <div class="dl-info">
         <div class="dl-os">macOS</div>
-        <div class="dl-size">.dmg · macOS 12+</div>
+        <div class="dl-size" id="dlMacSize">불러오는 중...</div>
       </div>
     </a>
-    <a href="https://github.com/Taolee-crypto/timelink-app/releases/latest/download/TimeLink-Player.AppImage"
+    <a href="#" id="dlLinux"
        class="dl-btn linux" onclick="trackDownload('linux')">
       <span class="dl-os-icon">🐧</span>
       <div class="dl-info">
         <div class="dl-os">Linux</div>
-        <div class="dl-size">.AppImage</div>
+        <div class="dl-size" id="dlLinuxSize">불러오는 중...</div>
       </div>
     </a>
   </div>
@@ -220,36 +220,53 @@ footer{border-top:1px solid var(--bd);padding:24px;text-align:center;font-size:1
 
 <footer>
   <div style="margin-bottom:8px">⚡ TimeLink Player는 <a href="https://github.com/Taolee-crypto/timelink-app" target="_blank" style="color:var(--purple)">오픈소스</a>입니다</div>
-  씨엠피 주식회사 · timelink.digital · support@timelink.digital
+  씨엠피 주식회사 · timelink.digital · <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="05767075756a777145716c6860696c6b6e2b616c626c716469">[email&#160;protected]</a>
 </footer>
 
 <script>
-function trackDownload(os){
-  // 다운로드 통계
-  fetch('https://api.timelink.digital/api/eco/activity',{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'app_download',os:os,ts:Date.now()})
-  }).catch(function(){});
-}
-
-// OS 자동 감지 → 해당 버튼 하이라이트
-(function(){
-  var ua = navigator.userAgent;
-  var btns = document.querySelectorAll('.dl-btn');
-  var target = ua.includes('Win') ? 'win' : ua.includes('Mac') ? 'mac' : 'linux';
-  btns.forEach(function(btn){
-    if(btn.classList.contains(target)){
-      btn.style.boxShadow = '0 0 0 2px var(--purple)';
-      btn.style.borderColor = 'var(--purple)';
-      // 해당 버튼 상단에 "내 OS" 배지 추가
-      var badge = document.createElement('span');
-      badge.style.cssText = 'position:absolute;top:-8px;right:12px;background:var(--purple);color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px';
-      badge.textContent = '내 OS';
-      btn.style.position = 'relative';
-      btn.appendChild(badge);
-    }
-  });
+var REPO='Taolee-crypto/timelink-app';
+(async function(){
+  try{
+    var r=await fetch('https://api.github.com/repos/'+REPO+'/releases/latest');
+    var d=await r.json();
+    document.getElementById('verNum').textContent=d.tag_name||'v1.0.0';
+    document.getElementById('verDate').textContent=(d.published_at||'').slice(0,7).replace('-','.')||'2026.03';
+    var assets=d.assets||[];
+    function find(kws){return assets.find(function(a){return kws.every(function(k){return a.name.toLowerCase().includes(k);});});}
+    function sz(b){return b?' · '+(b/1024/1024).toFixed(1)+' MB':'';}
+    var latest='https://github.com/'+REPO+'/releases/latest';
+    var wa=find(['setup','.exe'])||find(['.exe']),ma=find(['.dmg']),la=find(['.appimage']);
+    var dw=document.getElementById('dlWin'),dm=document.getElementById('dlMac'),dl=document.getElementById('dlLinux');
+    var ws=document.getElementById('dlWinSize'),ms=document.getElementById('dlMacSize'),ls=document.getElementById('dlLinuxSize');
+    if(dw)dw.href=wa?wa.browser_download_url:latest;
+    if(ws)ws.textContent=wa?wa.name+sz(wa.size):'.exe · Windows 10/11';
+    if(dm)dm.href=ma?ma.browser_download_url:latest;
+    if(ms)ms.textContent=ma?ma.name+sz(ma.size):'.dmg · macOS 12+';
+    if(dl)dl.href=la?la.browser_download_url:latest;
+    if(ls)ls.textContent=la?la.name+sz(la.size):'.AppImage · Linux';
+    var ua=navigator.userAgent,target=ua.includes('Win')?'win':ua.includes('Mac')?'mac':'linux';
+    document.querySelectorAll('.dl-btn').forEach(function(btn){
+      if(btn.classList.contains(target)){
+        btn.style.boxShadow='0 0 0 2px var(--purple)';btn.style.borderColor='var(--purple)';btn.style.position='relative';
+        var b=document.createElement('span');
+        b.style.cssText='position:absolute;top:-8px;right:12px;background:var(--purple);color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px';
+        b.textContent='내 OS ✓';btn.appendChild(b);
+      }
+    });
+  }catch(e){
+    if(document.getElementById('verNum'))document.getElementById('verNum').textContent='v1.0.0';
+    if(document.getElementById('verDate'))document.getElementById('verDate').textContent='2026.03';
+    var base='https://github.com/'+REPO+'/releases/latest';
+    ['dlWin','dlMac','dlLinux'].forEach(function(id){var el=document.getElementById(id);if(el)el.href=base;});
+    var ws=document.getElementById('dlWinSize'),ms=document.getElementById('dlMacSize'),ls=document.getElementById('dlLinuxSize');
+    if(ws)ws.textContent='.exe · Windows 10/11';
+    if(ms)ms.textContent='.dmg · macOS 12+';
+    if(ls)ls.textContent='.AppImage · Linux';
+  }
 })();
+function trackDownload(os){
+  fetch('https://api.timelink.digital/api/eco/activity',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'app_download',os:os,ts:Date.now()})}).catch(function(){});
+}
 </script>
 </body>
 </html>
