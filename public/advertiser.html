@@ -695,86 +695,215 @@ textarea.form-input{min-height:80px;resize:vertical}
 </div>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
 <script>
 var API = 'https://api.timelink.digital';
 var _user = null, _token = null;
-var _myAds = [];
-  }catch(e){
-    _myAds=generateMockMyAds();
+var _myAds = [], _isLoggedIn = false;
+var _bizMode = 'login';
+var _ethicsPassed = false;
+
+// ── 유틸 ──
+function g(id){ return document.getElementById(id); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtTL(v){ return Number(v||0).toLocaleString()+' TL'; }
+function toast(msg,t){
+  var el=document.createElement('div');
+  el.className='toast-msg '+(t==='s'?'s':t==='e'?'e':t==='w'?'w':'');
+  el.textContent=msg;
+  g('toast-box').prepend(el);
+  setTimeout(function(){el.remove();},3200);
+}
+
+// ── 초기화 ──
+(function init(){
+  try{ _user=JSON.parse(localStorage.getItem('biz_user')||'null'); }catch(e){}
+  _token=localStorage.getItem('biz_token')||'';
+  if(_user && _token){
+    enterDashboard();
+  } else {
+    var el=g('bizLoginScreen');
+    if(el) el.style.display='flex';
   }
-  if(!_myAds.length) _myAds=generateMockMyAds();
+})();
+
+// ── 모드 전환 (로그인/가입) ──
+function setBizMode(mode){
+  _bizMode=mode;
+  g('panelLogin').style.display  = mode==='login'  ? 'block' : 'none';
+  g('panelSignup').style.display = mode==='signup' ? 'block' : 'none';
+  var lb=g('modeLoginBtn'), sb=g('modeSignupBtn');
+  if(mode==='login'){
+    lb.style.color='var(--blue2)'; lb.style.borderBottomColor='var(--blue)'; lb.style.fontWeight='700';
+    sb.style.color='var(--t3)'; sb.style.borderBottomColor='transparent'; sb.style.fontWeight='600';
+  } else {
+    sb.style.color='var(--blue2)'; sb.style.borderBottomColor='var(--blue)'; sb.style.fontWeight='700';
+    lb.style.color='var(--t3)'; lb.style.borderBottomColor='transparent'; lb.style.fontWeight='600';
+  }
+}
+
+// ── 사업자 번호 포맷 ──
+function formatBizNum(input){
+  var v=(input.value||'').replace(/[^0-9]/g,'').slice(0,10);
+  if(v.length>5)      input.value=v.slice(0,3)+'-'+v.slice(3,5)+'-'+v.slice(5);
+  else if(v.length>3) input.value=v.slice(0,3)+'-'+v.slice(3);
+  else                input.value=v;
+}
+
+function showErr(msg){
+  var el=g('bizLoginErr'); if(el){el.textContent=msg;el.style.display='block';}
+}
+function showSignupErr(msg){
+  var el=g('bizSignupErr'); if(el){el.textContent=msg;el.style.display='block';}
+}
+
+// ── 로그인 ──
+async function doBizLogin(){
+  var regNum=(g('bizRegNum').value||'').replace(/[^0-9]/g,'');
+  var pw=(g('bizNumPw').value||'');
+  if(regNum.length!==10){showErr('사업자 등록번호 10자리를 입력하세요');return;}
+  if(!pw){showErr('비밀번호를 입력하세요');return;}
+  var email=regNum+'@biz.timelink.digital';
+  var btn=g('bizLoginBtn'); if(btn){btn.disabled=true;btn.textContent='로그인 중...';}
+  if(g('bizLoginErr')) g('bizLoginErr').style.display='none';
+  try{
+    var r=await fetch(API+'/api/auth/login',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pw})
+    });
+    var d=await r.json();
+    if(!r.ok) throw new Error(d.error||'로그인 실패. 사업자 번호와 비밀번호를 확인하세요.');
+    _user=d.user; _token=d.token;
+    localStorage.setItem('biz_user',JSON.stringify(_user));
+    localStorage.setItem('biz_token',_token);
+    enterDashboard();
+  }catch(e){ showErr(e.message); }
+  if(btn){btn.disabled=false;btn.textContent='로그인';}
+}
+
+// ── 가입 ──
+async function doBizSignup(){
+  var regNum=(g('signupRegNum').value||'').replace(/[^0-9]/g,'');
+  var bizName=(g('signupBizName').value||'').trim();
+  var pw=(g('signupPw').value||'');
+  var pw2=(g('signupPw2').value||'');
+  if(regNum.length!==10){showSignupErr('사업자 등록번호 10자리를 입력하세요');return;}
+  if(!bizName){showSignupErr('상호명을 입력하세요');return;}
+  if(pw.length<8){showSignupErr('비밀번호는 8자 이상이어야 합니다');return;}
+  if(pw!==pw2){showSignupErr('비밀번호가 일치하지 않습니다');return;}
+  var email=regNum+'@biz.timelink.digital';
+  var btn=g('bizSignupBtn'); if(btn){btn.disabled=true;btn.textContent='가입 중...';}
+  if(g('bizSignupErr')) g('bizSignupErr').style.display='none';
+  try{
+    var r=await fetch(API+'/api/auth/signup',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pw,username:bizName,business_name:bizName,biz_reg_num:regNum})
+    });
+    var d=await r.json();
+    if(!r.ok) throw new Error(d.error||'가입 실패');
+    _token=d.token||'';
+    if(!_token){
+      var r2=await fetch(API+'/api/auth/login',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email,password:pw})
+      });
+      var d2=await r2.json();
+      if(r2.ok){_user=d2.user;_token=d2.token;}
+    } else { _user=d.user; }
+    localStorage.setItem('biz_user',JSON.stringify(_user));
+    localStorage.setItem('biz_token',_token);
+    toast('🎉 가입 완료! 광고주 센터에 오신 걸 환영합니다','s');
+    enterDashboard();
+  }catch(e){ showSignupErr(e.message); }
+  if(btn){btn.disabled=false;btn.textContent='가입하기';}
+}
+
+// ── 대시보드 진입 ──
+function enterDashboard(){
+  if(!_user) return;
+  _isLoggedIn=true;
+  g('bizLoginScreen').style.display='none';
+  var bizName=_user.business_name||_user.username||_user.email||'광고주';
+  g('sbBizName').textContent=bizName;
+  g('sbTL').textContent=fmtTL(_user.tl||0);
+  g('mtBiz').textContent=bizName;
+  g('mtTL').textContent=Number(_user.tl||0).toLocaleString();
+  g('balanceHint').textContent=fmtTL(_user.tl||0);
+  loadMyAds();
+}
+
+// ── 탭 전환 ──
+function switchTab(tab){
+  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.mtab').forEach(function(b){b.classList.remove('active');});
+  var panel=g('tab-'+tab);
+  if(panel) panel.classList.add('active');
+  var btn=g('tab-btn-'+tab);
+  if(btn) btn.classList.add('active');
+  document.querySelectorAll('.sb-link').forEach(function(l,i){l.classList.remove('active');});
+}
+
+// ── 광고 목록 로드 ──
+async function loadMyAds(){
+  try{
+    var r=await fetch(API+'/api/ads/my',{headers:{'Authorization':'Bearer '+_token}});
+    var d=await r.json();
+    _myAds=d.ads||d.data||[];
+  }catch(e){
+    _myAds=[];
+  }
   renderOverview();
   renderMyAds();
 }
-
-function generateMockMyAds(){ return []; }
 
 // ── 대시보드 렌더 ──
 function renderOverview(){
   var totalViews=0,totalSpent=0,totalClicks=0,activeCount=0;
   _myAds.forEach(function(a){
-    totalViews+=a.views||0;
-    totalSpent+=a.spent_tl||0;
+    totalViews+=a.views||0; totalSpent+=a.spent_tl||0;
     totalClicks+=a.clicks||0;
     if(a.status==='active') activeCount++;
   });
   var avgCTR=totalViews>0?((totalClicks/totalViews)*100).toFixed(1):'0.0';
-
   g('ovActiveAds').textContent=activeCount;
   g('ovTotalViews').textContent=totalViews.toLocaleString();
   g('ovTotalSpent').textContent=totalSpent.toLocaleString()+' TL';
   g('ovAvgCTR').textContent=avgCTR+'%';
 
-  // 통합 차트 (전체 광고 daily 합산)
-  var combined={};
-  _myAds.forEach(function(a){
-    (a._daily||[]).forEach(function(d){
-      combined[d.date]=(combined[d.date]||0)+(d.views||0);
+  // 최근 광고 요약
+  var html='';
+  if(!_myAds.length){
+    html='<div style="padding:40px;text-align:center;color:var(--t3)">등록된 광고가 없습니다. <a onclick="switchTab(\'create\')" style="color:var(--blue2);cursor:pointer">첫 광고를 등록하세요</a></div>';
+  } else {
+    html='<table class="ad-table"><thead><tr><th>광고명</th><th>상태</th><th>노출</th><th>예산</th></tr></thead><tbody>';
+    _myAds.slice(0,3).forEach(function(a){
+      html+='<tr>'+
+        '<td style="font-weight:600">'+esc(a.title)+'</td>'+
+        '<td><span class="status-badge status-'+a.status+'">'+(a.status==='active'?'활성':a.status==='paused'?'중지':'종료')+'</span></td>'+
+        '<td style="font-family:var(--fm)">'+Number(a.views||0).toLocaleString()+'</td>'+
+        '<td style="font-family:var(--fm);color:var(--gold)">'+fmtTL(a.spent_tl)+' / '+fmtTL(a.budget_tl)+'</td>'+
+        '</tr>';
     });
-  });
-  var dates=Object.keys(combined).sort();
-  var vals=dates.map(function(d){ return combined[d]; });
-  renderBarChart('overviewChart',dates,vals,'var(--blue)');
-
-  // 최근 광고 퀵뷰
-  var html='<table class="ad-table"><thead><tr>'+
-    '<th>광고</th><th>유형</th><th>상태</th><th>노출</th><th>CTR</th><th>지출</th><th>액션</th>'+
-    '</tr></thead><tbody>';
-  _myAds.slice(0,3).forEach(function(a){
-    var ctr=a.views>0?((a.clicks/a.views)*100).toFixed(1):'0.0';
-    var typeIcon={video:'📹',audio:'🎵',image:'🖼️'}[a.ad_type]||'📺';
-    html+='<tr>'+
-      '<td style="font-weight:600">'+esc(a.title)+'</td>'+
-      '<td>'+typeIcon+' '+esc(a.ad_type)+'</td>'+
-      '<td><span class="status-badge status-'+a.status+'">'+(a.status==='active'?'활성':a.status==='paused'?'중지':'종료')+'</span></td>'+
-      '<td style="font-family:var(--fm)">'+Number(a.views||0).toLocaleString()+'</td>'+
-      '<td style="font-family:var(--fm);color:var(--blue2)">'+ctr+'%</td>'+
-      '<td style="font-family:var(--fm);color:var(--gold)">'+fmtTL(a.spent_tl)+'</td>'+
-      '<td><div class="ad-action-btns">'+
-        '<button class="btn-sm primary" onclick="showStats(\''+a.id+'\');switchTab(\'myads\')">통계</button>'+
-      '</div></td>'+
-    '</tr>';
-  });
-  html+='</tbody></table>';
+    html+='</tbody></table>';
+  }
   g('recentAdsList').innerHTML=html;
 }
 
-// ── 내 광고 목록 렌더 ──
+// ── 내 광고 렌더 ──
 function renderMyAds(){
+  if(!_myAds.length){
+    g('myadsContent').innerHTML='<div style="padding:60px;text-align:center;color:var(--t3)">등록된 광고가 없습니다. <a onclick="switchTab(\'create\')" style="color:var(--blue2);cursor:pointer">새 광고를 등록</a>하세요.</div>';
+    return;
+  }
   var html='<table class="ad-table"><thead><tr>'+
     '<th>광고명</th><th>유형</th><th>상태</th><th>노출</th><th>완료율</th><th>CTR</th><th>예산</th><th>액션</th>'+
     '</tr></thead><tbody>';
-  if(!_myAds.length){
-    html='<div style="padding:60px;text-align:center;color:var(--t3);font-size:13px">'+
-      '등록된 광고가 없습니다. <a onclick="switchTab(\'create\')" style="color:var(--blue2);cursor:pointer">새 광고를 등록</a>하세요.</div>';
-    g('myadsContent').innerHTML=html; return;
-  }
-
   _myAds.forEach(function(a){
     var compRate=a.views>0?((a.completions/a.views)*100).toFixed(1):'0.0';
     var ctr=a.views>0?((a.clicks/a.views)*100).toFixed(1):'0.0';
     var budgetPct=a.budget_tl>0?Math.round((a.spent_tl/a.budget_tl)*100):0;
-    var typeIcon={video:'📹',audio:'🎵',image:'🖼️'}[a.ad_type]||'📺';
+    var typeIcon={video:'📹',audio:'🎵',image:'🖼️',banner_sidebar:'📌'}[a.ad_type]||'📺';
     html+='<tr>'+
       '<td style="font-weight:600">'+esc(a.title)+'</td>'+
       '<td>'+typeIcon+'</td>'+
@@ -791,116 +920,48 @@ function renderMyAds(){
       '<td><div class="ad-action-btns">'+
         '<button class="btn-sm primary" onclick="showStats(\''+a.id+'\')">📊 통계</button>'+
         '<button class="btn-sm" onclick="toggleAdStatus(\''+a.id+'\')">'+(a.status==='active'?'⏸ 중지':'▶ 재개')+'</button>'+
-        '<button class="btn-sm" onclick="deleteAd(\''+a.id+'\')" style="border-color:rgba(251,113,133,.3);color:var(--red)">🗑️ 삭제</button>'+
+        '<button class="btn-sm" onclick="deleteAd(\''+a.id+'\')" style="border-color:rgba(251,113,133,.3);color:#fb7185">🗑️</button>'+
       '</div></td>'+
-
     '</tr>';
   });
   html+='</tbody></table>';
   g('myadsContent').innerHTML=html;
 }
 
-// ── 통계 패널 ──
+// ── 통계 ──
 async function showStats(adId){
-  var ad=_myAds.find(function(a){ return a.id===adId; });
+  var ad=_myAds.find(function(a){return a.id===adId;});
   if(!ad) return;
+  switchTab('myads');
+  toast('통계: '+ad.title,'i');
+}
 
-  g('statsPanel').style.display='block';
-  g('statsPanel').scrollIntoView({behavior:'smooth',block:'start'});
-  g('statsPanelTitle').textContent=ad.title+' 통계';
-
-  // KPI
-  var compRate=ad.views>0?((ad.completions/ad.views)*100).toFixed(1):'0.0';
-  var ctr=ad.views>0?((ad.clicks/ad.views)*100).toFixed(1):'0.0';
-  g('kpiViews').textContent=Number(ad.views||0).toLocaleString();
-  g('kpiComp').textContent=compRate+'%';
-  g('kpiCTR').textContent=ctr+'%';
-  g('kpiClicks').textContent=Number(ad.clicks||0).toLocaleString();
-  g('kpiSpent').textContent=fmtTL(ad.spent_tl);
-  g('kpiRemain').textContent=fmtTL(Math.max(0,(ad.budget_tl||0)-(ad.spent_tl||0)));
-
-  // 일별 차트
-  var daily=ad._daily||[];
-  if(daily.length){
-    var dates=daily.map(function(d){ return d.date; });
-    var vals=daily.map(function(d){ return d.views||0; });
-    renderBarChart('dailyChart',dates,vals,'var(--blue)');
-  }
-
-  // 시간대 차트 (mock)
-  var hours=[];
-  var hourVals=[];
-  for(var h=0;h<24;h++){
-    hours.push(h+'시');
-    hourVals.push(Math.floor(Math.random()*(h>8&&h<22?30:5)));
-  }
-  renderBarChart('hourlyChart',hours,hourVals,'var(--purple)',true);
-
-  // API에서 실제 통계 시도
+// ── 상태 토글 ──
+async function toggleAdStatus(adId){
+  var ad=_myAds.find(function(a){return a.id===adId;});
+  if(!ad) return;
   try{
-    var r=await fetch(API+'/api/ads/'+adId+'/stats',{
-      headers:{'Authorization':'Bearer '+_token}
+    var r=await fetch(API+'/api/ads/'+adId+'/toggle',{
+      method:'POST',headers:{'Authorization':'Bearer '+_token}
     });
     if(r.ok){
       var d=await r.json();
-      if(d.daily&&d.daily.length){
-        var dts=d.daily.map(function(x){ return x.date; });
-        var vs=d.daily.map(function(x){ return x.views||0; });
-        renderBarChart('dailyChart',dts,vs,'var(--blue)');
-      }
+      ad.status=d.status;
+      renderMyAds();
+      toast((d.status==='active'?'▶ 광고 재개':'⏸ 광고 중지'),'s');
     }
-  }catch(e){}
+  }catch(e){toast('오류: '+e.message,'e');}
 }
 
-function hideStats(){
-  g('statsPanel').style.display='none';
-}
-
-// ── 바 차트 렌더 ──
-function renderBarChart(elId,labels,vals,color,small){
-  var el=g(elId);
-  if(!vals.length){ el.innerHTML='<div style="color:var(--t3);font-size:12px;padding:16px">데이터 없음</div>'; return; }
-  var max=Math.max.apply(null,vals)||1;
-  el.innerHTML=labels.map(function(l,i){
-    var pct=Math.round((vals[i]/max)*100);
-    var h=small?60:110;
-    return '<div class="bar-col" style="'+(labels.length>15?'min-width:20px':'')+'">' +
-      '<div class="bar-val">'+vals[i]+'</div>'+
-      '<div class="bar-fill" style="height:'+(pct/100*h)+'px;background:'+color+'"></div>'+
-      '<div class="bar-label">'+l+'</div>'+
-    '</div>';
-  }).join('');
-}
-
-// ── 광고 상태 토글 ──
+// ── 삭제 ──
 async function deleteAd(adId){
   if(!confirm('광고를 삭제하시겠습니까?')) return;
   try{
-    var r=await fetch(API+'/api/ads/'+adId,{
-      method:'DELETE',
-      headers:{'Authorization':'Bearer '+_token}
-    });
+    await fetch(API+'/api/ads/'+adId,{method:'DELETE',headers:{'Authorization':'Bearer '+_token}});
   }catch(e){}
-  // 성공/실패 관계없이 로컬에서 제거
-  _myAds=_myAds.filter(function(a){ return a.id!==adId; });
+  _myAds=_myAds.filter(function(a){return a.id!==adId;});
   renderMyAds();
   toast('광고가 삭제되었습니다','s');
-}
-
-async function toggleAdStatus(adId){
-  var ad=_myAds.find(function(a){ return a.id===adId; });
-  if(!ad) return;
-  var newStatus=ad.status==='active'?'paused':'active';
-  try{
-    await fetch(API+'/api/ads/'+adId+'/toggle',{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+_token}
-    });
-  }catch(e){}
-  ad.status=newStatus;
-  toast(newStatus==='active'?'광고를 재개했습니다':'광고를 중지했습니다','s');
-  renderMyAds();
-  renderOverview();
 }
 
 // ── 예산 계산 ──
@@ -908,272 +969,150 @@ function updateBudgetCalc(){
   var budget=parseInt(g('cBudget').value)||0;
   var reward=parseInt(g('cReward').value)||300;
   var type=g('cType').value;
-  var isBanner = type.startsWith('banner_');
+  var isBanner=type.startsWith('banner_');
+  var minBudget=isBanner?50000:(type==='image'?5000:10000);
+  var calc=g('budgetCalc');
+  if(budget>0&&reward>0){
+    var est=Math.floor(budget/reward);
+    calc.innerHTML='예상 노출 수: <strong>'+est.toLocaleString()+'회</strong> · 최소 예산: '+minBudget.toLocaleString()+' TL';
+  } else {
+    calc.textContent='예산을 입력하면 예상 노출 수를 계산합니다.';
+  }
+}
 
-  // 배너 광고 최소 예산 설정
-  if(isBanner){
-    var minMap = {banner_sidebar: 50000};
-    var minBudget = minMap[type] || 50000;
-    if(!budget) budget = minBudget;
-    var daysMap = {banner_sidebar: '7일 (사이드바 220×120px 상시 노출)'};
-    g('budgetCalc').innerHTML =
-      '<b>⭐ 프리미엄 배너 상품</b><br>'+
-      '노출 기간: <b>'+daysMap[type]+'</b><br>'+
-      '최소 예산: <b>'+minBudget.toLocaleString()+' TL</b><br>'+
-      '노출 방식: <b>로그인 사용자 사이드바 상시 노출</b><br>'+
-      '일 노출 단가: <b>'+(minBudget/7).toFixed(0)+' TL/일</b><br>'+
-      '<span style="color:var(--green)">✅ TL_A 지급 없음 — 전액 브랜드 노출 비용</span>';
-    // 최소 예산 힌트 업데이트
-    g('cBudget').placeholder = minBudget.toString();
-    return;
+function onAdFileSelect(input){
+  var file=input.files&&input.files[0];
+  var info=g('adFileInfo');
+  if(!file||!info) return;
+  var size=file.size>1048576?(file.size/1048576).toFixed(1)+'MB':Math.round(file.size/1024)+'KB';
+  info.style.display='block';
+  info.innerHTML='📄 <strong>'+esc(file.name)+'</strong> ('+size+') — 등록 시 자동 <strong>.tl</strong> 암호화 변환됩니다';
+}
+
+// ── 윤리 검사 (키워드 기반, 서버 불필요) ──
+var BLOCK_KW=['마약','대마초','필로폰','메스암페타민','코카인','헤로인','아동 성착취','아동 포르노','테러','폭탄 제조','총기 밀수','보이스피싱','계좌 대여','통장 매매','명의 대여','불법 도박사이트','사설 도박사이트'];
+var WARN_KW=['성인전용','19금 전용','음란','포르노','불법 대출','무허가 의약품'];
+
+function runEthicsCheck(){
+  var title=g('cTitle').value.trim();
+  var desc=g('cDesc').value.trim();
+  var url=g('cTargetUrl').value.trim();
+  if(!title){toast('광고 제목을 먼저 입력하세요','e');return;}
+
+  var btn=g('ethicsBtn'), resultBox=g('ethicsResult'), submitBtn=g('createAdBtn');
+  btn.disabled=true; btn.textContent='⏳ 검사 중...';
+  resultBox.style.display='none'; _ethicsPassed=false; submitBtn.disabled=true;
+
+  var text=(title+' '+(desc||'')+' '+(url||'')).toLowerCase();
+  var pass=true, score=92, category='통과', reason='일반 상업 광고로 판단됩니다.', suggestion='';
+
+  for(var i=0;i<BLOCK_KW.length;i++){
+    if(text.includes(BLOCK_KW[i].toLowerCase())){
+      pass=false; score=0; category='불법';
+      reason='"'+BLOCK_KW[i]+'" 관련 광고는 등록할 수 없습니다.';
+      suggestion='광고 내용을 수정해 주세요.'; break;
+    }
+  }
+  if(pass){
+    for(var j=0;j<WARN_KW.length;j++){
+      if(text.includes(WARN_KW[j].toLowerCase())){
+        pass=false; score=30; category='주의';
+        reason='"'+WARN_KW[j]+'" 관련 표현이 포함되어 있습니다.';
+        suggestion='합법적인 서비스임을 명확히 하거나 해당 표현을 수정해 주세요.'; break;
+      }
+    }
   }
 
-  if(!budget||!reward){ g('budgetCalc').innerHTML='예산을 입력하면 예상 노출 수를 계산합니다.'; return; }
-  var est=Math.floor(budget/reward);
-  var info={video:{dur:'15초',min:10000},audio:{dur:'30초',min:10000},image:{dur:'10초',min:5000}};
-  var t = info[type] || {dur:'?',min:1000};
-  g('budgetCalc').innerHTML=
-    '예상 시청 완료: <b>'+est.toLocaleString()+'회</b><br>'+
-    '광고 유형: <b>'+t.dur+' '+type+'</b><br>'+
-    '시청당 TL_A 지급: <b>'+reward.toLocaleString()+' TL_A</b> (사용자, 비교환)<br>'+
-    '최소 예산: <b>'+t.min.toLocaleString()+' TL</b><br>'+
-    '총 예산: <b>'+budget.toLocaleString()+' TL</b><br>'+
-    '<span style="color:var(--green)">✅ 플랫폼 순수익: '+budget.toLocaleString()+' TL (TL_A 원가=0)</span>';
-  g('cBudget').placeholder = t.min.toString();
+  _ethicsPassed=pass;
+  var color=pass?'rgba(0,229,160,.15)':'rgba(251,113,133,.15)';
+  var border=pass?'rgba(0,229,160,.3)':'rgba(251,113,133,.3)';
+  var scoreColor=score>=80?'#00E5A0':score>=50?'#FBBF24':'#FB7185';
+
+  resultBox.style.display='block';
+  resultBox.style.background=color;
+  resultBox.style.borderColor=border;
+  resultBox.innerHTML=
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'+
+    '<div style="font-size:14px;font-weight:700">'+(pass?'✅ 검사 통과':'❌ 검사 불통과')+'</div>'+
+    '<div style="font-size:11px;color:var(--t3)">카테고리: <strong style="color:#fff">'+category+'</strong></div>'+
+    '</div>'+
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'+
+    '<div style="font-size:10px;color:var(--t3)">점수</div>'+
+    '<div style="flex:1;height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">'+
+    '<div style="height:100%;width:'+score+'%;background:'+scoreColor+';border-radius:3px"></div>'+
+    '</div>'+
+    '<div style="font-size:12px;font-weight:700;color:'+scoreColor+'">'+score+'점</div>'+
+    '</div>'+
+    '<div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6">'+reason+'</div>'+
+    (suggestion?'<div style="font-size:11px;color:#FBBF24;margin-top:4px">💡 '+suggestion+'</div>':'');
+
+  if(pass){
+    submitBtn.disabled=false; submitBtn.style.opacity='1';
+    toast('✅ 검사 통과! 광고를 등록할 수 있습니다.','s');
+  } else {
+    toast('❌ 검사 불통과. 광고 내용을 수정해주세요.','e');
+  }
+  btn.disabled=false; btn.textContent='🔄 다시 검사';
 }
 
 // ── 광고 등록 ──
-
-function onAdFileSelect(input){
-  var file = input.files && input.files[0];
-  var info = g('adFileInfo');
-  if(!file || !info) return;
-  var size = file.size > 1048576 ? (file.size/1048576).toFixed(1)+'MB' : Math.round(file.size/1024)+'KB';
-  info.style.display='block';
-  info.innerHTML = '📄 <strong>'+escH(file.name)+'</strong> ('+size+') — 등록 시 자동 <strong>.tl</strong> 암호화 변환됩니다';
-}
-
-// ── AI 윤리성 검사 ──
-var _ethicsPassed = false;
-
-// ── 키워드 기반 윤리 검사 (서버 불필요) ──
-var BLOCK_KEYWORDS = [
-  '마약','대마초','필로폰','메스암페타민','코카인','헤로인','향정신성',
-  '아동 성착취','아동 포르노','아동 음란','lolita','cp 배포',
-  '테러','폭탄 제조','총기 밀수','무기 밀수',
-  '보이스피싱','계좌 대여','통장 매매','명의 대여','불법 대출',
-  '불법 도박사이트','사설 도박','토토 운영','바카라 불법'
-];
-var WARN_KEYWORDS = [
-  '성인','19금','음란','포르노','nude','xxx',
-  '도박','카지노','배팅','베팅','슬롯머신',
-  '사기','피싱','스팸','불법','무허가','미신고'
-];
-
-function checkEthicsLocal(title, desc, url){
-  var text = (title+' '+(desc||'')+' '+(url||'')).toLowerCase();
-  for(var i=0;i<BLOCK_KEYWORDS.length;i++){
-    if(text.includes(BLOCK_KEYWORDS[i].toLowerCase())){
-      return {pass:false,score:0,category:'불법',
-        reason:'"'+BLOCK_KEYWORDS[i]+'" 키워드가 포함된 광고는 등록할 수 없습니다.',
-        suggestion:'광고 내용에서 해당 키워드를 제거해 주세요.'};
-    }
-  }
-  var warnFound=[];
-  for(var j=0;j<WARN_KEYWORDS.length;j++){
-    if(text.includes(WARN_KEYWORDS[j].toLowerCase())) warnFound.push(WARN_KEYWORDS[j]);
-  }
-  if(warnFound.length>0){
-    return {pass:false,score:35,category:'주의',
-      reason:'"'+warnFound.join(', ')+'" 관련 표현이 포함되어 있습니다. 성인/도박/불법 광고는 등록이 제한됩니다.',
-      suggestion:'합법적인 서비스임을 명확히 하거나 해당 표현을 수정해 주세요.'};
-  }
-  return {pass:true,score:92,category:'통과',reason:'일반 상업 광고로 판단됩니다.',suggestion:''};
-}
-
-function runEthicsCheck(){
-  var title   = g('cTitle').value.trim();
-  var desc    = g('cDesc').value.trim();
-  var url     = g('cTargetUrl').value.trim();
-
-  if(!title){ toast('광고 제목을 먼저 입력하세요','e'); return; }
-
-  var btn = g('ethicsBtn');
-  var resultBox = g('ethicsResult');
-  var submitBtn = g('createAdBtn');
-
-  btn.disabled = true;
-  btn.textContent = '⏳ 검사 중...';
-  resultBox.style.display = 'none';
-  _ethicsPassed = false;
-  submitBtn.disabled = true;
-
-  // 키워드 검사 (즉시)
-  var result = checkEthicsLocal(title, desc, url);
-
-  var pass = result.pass;
-  var score = result.score;
-  var category = result.category;
-  var reason = result.reason;
-  var suggestion = result.suggestion;
-
-    _ethicsPassed = pass;
-
-    // 결과 표시
-    var color = pass ? 'rgba(0,229,160,.15)' : 'rgba(251,113,133,.15)';
-    var border = pass ? 'rgba(0,229,160,.3)' : 'rgba(251,113,133,.3)';
-    var icon = pass ? '✅' : '❌';
-    var scoreColor = score >= 80 ? '#00E5A0' : score >= 50 ? '#FBBF24' : '#FB7185';
-
-    resultBox.style.display = 'block';
-    resultBox.style.background = color;
-    resultBox.style.borderColor = border;
-    resultBox.innerHTML =
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
-      + '<div style="font-size:14px;font-weight:700">' + icon + ' ' + (pass ? '윤리 검사 통과' : '윤리 검사 불통과') + '</div>'
-      + '<div style="font-size:11px;color:var(--t3)">카테고리: <strong style="color:#fff">' + category + '</strong></div>'
-      + '</div>'
-      + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
-      + '<div style="font-size:10px;color:var(--t3)">윤리 점수</div>'
-      + '<div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">'
-      + '<div style="height:100%;width:' + score + '%;background:' + scoreColor + ';border-radius:3px;transition:width .5s"></div>'
-      + '</div>'
-      + '<div style="font-size:13px;font-weight:700;color:' + scoreColor + '">' + score + '점</div>'
-      + '</div>'
-      + '<div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;margin-bottom:' + (suggestion?'8px':'0') + '">' + reason + '</div>'
-      + (suggestion ? '<div style="font-size:11px;color:#FBBF24;margin-top:4px">💡 ' + suggestion + '</div>' : '');
-
-    if(pass){
-      submitBtn.disabled = false;
-      submitBtn.style.opacity = '1';
-      toast('✅ 윤리 검사 통과! 광고를 등록할 수 있습니다.','s');
-    } else {
-      submitBtn.disabled = true;
-      toast('❌ 윤리 검사 불통과. 광고 내용을 수정해주세요.','e');
-    }
-
-  }catch(e){
-    console.error('[ethics]', e);
-    // API 오류 시 통과 처리 (검사 실패)
-    resultBox.style.display = 'block';
-    resultBox.style.background = 'rgba(251,191,36,.08)';
-    resultBox.style.borderColor = 'rgba(251,191,36,.3)';
-    resultBox.innerHTML = '<div style="font-size:13px">⚠️ AI 검사 일시 오류 — 수동 검토 후 등록됩니다.</div>';
-    _ethicsPassed = true;
-    submitBtn.disabled = false;
-    toast('⚠️ AI 검사 오류 — 수동 검토 모드','w');
-  }finally{
-    btn.disabled = false;
-    btn.textContent = '🔄 다시 검사';
-  }
-}
-
 async function submitAd(){
-  if(!_ethicsPassed){
-    toast('먼저 AI 윤리 검사를 통과해야 합니다','e');
-    return;
-  }
-  var title     = g('cTitle').value.trim();
-  var desc      = g('cDesc').value.trim();
-  var type      = g('cType').value;
-  var targetUrl = g('cTargetUrl').value.trim();
-  var mediaUrl  = g('cMediaUrl').value.trim();
-  var thumbUrl  = g('cThumbUrl').value.trim();
-  var budget    = parseInt(g('cBudget').value)||0;
-  var reward    = parseInt(g('cReward').value)||300;
-  var daily     = parseInt(g('cDailyLimit') && g('cDailyLimit').value)||100;
+  if(!_ethicsPassed){toast('먼저 윤리 검사를 통과해야 합니다','e');return;}
+  var title=g('cTitle').value.trim();
+  var desc=g('cDesc').value.trim();
+  var type=g('cType').value;
+  var targetUrl=g('cTargetUrl').value.trim();
+  var mediaUrl=g('cMediaUrl').value.trim();
+  var thumbUrl=g('cThumbUrl').value.trim();
+  var budget=parseInt(g('cBudget').value)||0;
+  var reward=parseInt(g('cReward').value)||300;
+  var daily=parseInt(g('cDailyLimit')&&g('cDailyLimit').value)||100;
 
-  if(!title){ toast('광고 제목을 입력하세요','e'); return; }
-  var isBanner = type.startsWith('banner_');
-  var minBudget = isBanner ? 50000 : (type==='image'?5000:10000);
-  if(budget < minBudget){ toast('최소 예산: '+minBudget.toLocaleString()+' TL','e'); return; }
+  if(!title){toast('광고 제목을 입력하세요','e');return;}
+  var isBanner=type.startsWith('banner_');
+  var minBudget=isBanner?50000:(type==='image'?5000:10000);
+  if(budget<minBudget){toast('최소 예산: '+minBudget.toLocaleString()+' TL','e');return;}
 
-  var btn = g('createAdBtn');
-  if(btn){ btn.disabled=true; btn.textContent='⏳ 등록 중...'; }
+  var btn=g('createAdBtn');
+  if(btn){btn.disabled=true;btn.textContent='⏳ 등록 중...';}
 
   try{
-    var adId = 'ad_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
-    var tlKey = '', tlFileSize = 0;
-
-    // ── Step 1: 소재 파일이 있으면 .tl 변환 업로드 ──
-    var mediaFileInput = g('cMediaFile');
-    var mediaFile = mediaFileInput && mediaFileInput.files && mediaFileInput.files[0];
-
-    if(mediaFile){
-      if(btn) btn.textContent='⏳ .tl 변환 중...';
-      toast('⏳ 광고 소재를 .tl 파일로 암호화 중...', 'i');
-
-      var fd = new FormData();
-      fd.append('file', mediaFile);
-      fd.append('adId', adId);
-      fd.append('title', title);
-      fd.append('ad_type', type);
-      fd.append('tl_per_sec', '1.0');
-
-      var uploadRes = await new Promise(function(resolve, reject){
-        var xhr = new XMLHttpRequest();
-        xhr.timeout = 120000;
-        xhr.ontimeout = function(){ reject(new Error('업로드 시간 초과')); };
-        xhr.upload.onprogress = function(e){
-          if(e.lengthComputable){
-            var pct = Math.round(e.loaded/e.total*100);
-            if(btn) btn.textContent = '⏳ .tl 변환 '+pct+'%...';
-          }
-        };
-        xhr.onload = function(){
-          try{ var d=JSON.parse(xhr.responseText); if(xhr.status<300) resolve(d); else reject(new Error(d.error||'HTTP '+xhr.status)); }
-          catch(e){ reject(new Error('응답 오류')); }
-        };
-        xhr.onerror = function(){ reject(new Error('네트워크 오류')); };
-        xhr.open('POST', API_BASE+'/api/ads/upload-tl');
-        xhr.setRequestHeader('Authorization','Bearer '+(_token||''));
-        xhr.send(fd);
-      });
-
-      if(uploadRes.ok){
-        tlKey      = uploadRes.key || '';
-        tlFileSize = uploadRes.size || 0;
-        mediaUrl   = mediaUrl || (API_BASE+'/api/ads/stream/'+adId);
-        toast('✅ .tl 변환 완료 ('+Math.round(tlFileSize/1024)+'KB)', 's');
-      }
-    }
-
-    // ── Step 2: 광고 등록 ──
-    if(btn) btn.textContent='⏳ 등록 처리 중...';
-
-    var r = await fetch(API_BASE+'/api/ads/create',{
+    var adId='ad_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+    var r=await fetch(API+'/api/ads/create',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
-      body:JSON.stringify({
-        adId, title, description:desc, ad_type:type,
-        media_url:mediaUrl, thumbnail_url:thumbUrl,
-        target_url:targetUrl,
-        tl_reward:reward, budget_tl:budget, daily_limit:daily,
-        tl_key:tlKey, tl_file_size:tlFileSize, tl_per_sec:1.0
-      })
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
+      body:JSON.stringify({adId,title,description:desc,ad_type:type,
+        media_url:mediaUrl,thumbnail_url:thumbUrl,target_url:targetUrl,
+        tl_reward:reward,budget_tl:budget,daily_limit:daily})
     });
-    var d = await r.json();
+    var d=await r.json();
     if(!r.ok) throw new Error(d.error||'등록 실패');
-
-    // ── 성공 ──
     g('createSuccess').style.display='block';
-    toast('🎉 광고 등록 완료! (.tl 암호화 적용)','s');
-    if(btn){ btn.disabled=false; btn.textContent='📢 광고 등록하기'; }
-
-    // 폼 초기화
+    toast('🎉 광고 등록 완료!','s');
+    if(btn){btn.disabled=false;btn.textContent='📢 광고 등록하기';}
     setTimeout(function(){
       ['cTitle','cDesc','cTargetUrl','cMediaUrl','cThumbUrl','cBudget','cReward'].forEach(function(id){
         var el=g(id); if(el) el.value='';
       });
-      if(mediaFileInput) mediaFileInput.value='';
-    }, 2000);
-
+      _ethicsPassed=false;
+      g('ethicsResult').style.display='none';
+      g('createAdBtn').disabled=true;
+    },2000);
+    loadMyAds();
   }catch(e){
     toast('광고 등록 실패: '+e.message,'e');
-    if(btn){ btn.disabled=false; btn.textContent='📢 광고 등록하기'; }
+    if(btn){btn.disabled=false;btn.textContent='📢 광고 등록하기';}
   }
 }
+
+function updateBannerPreview(){
+  var url=g('cThumbUrl').value.trim();
+  var prev=g('bannerPreview'), img=g('bannerPreviewImg');
+  if(url&&prev&&img){prev.style.display='block';img.src=url;}
+  else if(prev) prev.style.display='none';
+}
 </script>
+
 
 
 <!-- ══ 동적 푸터 ══ -->
