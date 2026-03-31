@@ -1275,8 +1275,8 @@ async function loadTonStatus(){
 async function saveTonAddress(){
   var addr = (g('tonAddressInput').value||'').trim();
   if(!addr){ g('tonModalStatus').textContent='주소를 입력하세요'; return; }
-  if(!/^[EU]Q[A-Za-z0-9_-]{46}$/.test(addr)){
-    g('tonModalStatus').textContent='올바른 TON 주소가 아닙니다 (EQ... 또는 UQ... 48자)';
+  if(!/^[0EU]Q[A-Za-z0-9_-]{46}$/.test(addr)){
+    g('tonModalStatus').textContent='올바른 TON 주소가 아닙니다 (EQ.../UQ.../0Q... 48자)';
     return;
   }
   try{
@@ -1303,7 +1303,13 @@ async function withdrawTLC(){
     });
     var d = await r.json();
     if(d.ok){ toast(amt+' TLC 출금 신청 완료!','s'); g('tonWithdrawAmt').value=''; loadTonStatus(); closeTonModal(); }
-    else toast('-'+(d.error||'출금 실패'),'e');
+    else {
+      if(d.code==='PENDING_EXISTS'){
+        toast('⏳ 이미 처리 중인 출금이 있습니다. 처리 완료 후 신청하세요.','w');
+      } else {
+        toast('❌ '+(d.error||'출금 실패'),'e');
+      }
+    }
   }catch(e){ toast('-'+e.message,'e'); }
 }
 
