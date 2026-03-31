@@ -981,7 +981,9 @@ function renderMyAds(){
       '<td><div class="ad-action-btns">'+
         '<button class="btn-sm primary" onclick="showStats(\''+a.id+'\')">📊 통계</button>'+
         '<button class="btn-sm" onclick="toggleAdStatus(\''+a.id+'\')">'+(a.status==='active'?'⏸ 중지':'▶ 재개')+'</button>'+
+        '<button class="btn-sm" onclick="deleteAd(\''+a.id+'\')" style="border-color:rgba(251,113,133,.3);color:var(--red)">🗑️ 삭제</button>'+
       '</div></td>'+
+
     '</tr>';
   });
   html+='</tbody></table>';
@@ -1061,6 +1063,24 @@ function renderBarChart(elId,labels,vals,color,small){
 }
 
 // ── 광고 상태 토글 ──
+async function deleteAd(adId){
+  if(!confirm('광고를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+  try{
+    var r=await fetch(API+'/api/ads/'+adId,{
+      method:'DELETE',
+      headers:{'Authorization':'Bearer '+_token}
+    });
+    if(r.ok){
+      _myAds=_myAds.filter(function(a){ return a.id!==adId; });
+      renderMyAds();
+      toast('광고가 삭제되었습니다','s');
+    } else {
+      var d=await r.json();
+      toast('삭제 실패: '+(d.error||'오류'),'e');
+    }
+  }catch(e){ toast('삭제 오류: '+e.message,'e'); }
+}
+
 async function toggleAdStatus(adId){
   var ad=_myAds.find(function(a){ return a.id===adId; });
   if(!ad) return;
@@ -1148,7 +1168,7 @@ async function runEthicsCheck(){
   submitBtn.disabled = true;
 
   try{
-    var prompt = '다음 광고를 윤리성 검사해주세요. 성인물, 폭력, 사기, 도박, 불법, 혐오표현, 허위과장 광고 여부를 판단하세요.\n\n'
+    var prompt = '아래 광고를 검토해주세요. 명백히 불법(마약/아동착취/테러/보이스피싱)인 경우만 차단하고, 일반 상업 광고는 모두 통과시키세요.\n\n'
       + '광고 제목: ' + title + '\n'
       + (desc ? '광고 설명: ' + desc + '\n' : '')
       + (url  ? '연결 URL: ' + url + '\n' : '')
@@ -1161,7 +1181,7 @@ async function runEthicsCheck(){
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 300,
-        system: '당신은 광고 윤리성 검사 AI입니다. 성인물, 폭력, 사기, 도박, 불법 광고를 차단합니다. 반드시 JSON만 반환하세요.',
+        system: '당신은 광고 심의 AI입니다. 명백히 불법이거나 심각하게 유해한 광고만 차단하고, 일반적인 상업 광고는 모두 통과시킵니다. 애매한 경우는 통과 처리합니다. JSON만 반환하세요.',
         messages: [{ role: 'user', content: prompt }]
       })
     });
