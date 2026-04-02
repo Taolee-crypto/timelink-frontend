@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>크리에이터 스튜디오 — TimeLink</title>
+<link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07070E;--bg2:#0D0D1A;--bg3:#111120;
+  --bd:rgba(255,255,255,.07);--bd2:rgba(255,255,255,.12);--bd3:rgba(255,255,255,.18);
+  --purple:#8B5CF6;--purple2:rgba(139,92,246,.15);
+  --mint:#00E5A0;--mint2:rgba(0,229,160,.12);
+  --rose:#FB7185;--amber:#FBBF24;
+  --t1:#fff;--t2:rgba(255,255,255,.65);--t3:rgba(255,255,255,.38);--t4:rgba(255,255,255,.18);
+  --grad:linear-gradient(135deg,#8B5CF6 0%,#00E5A0 100%);
+  --fn:'Noto Sans KR',sans-serif;--fm:'JetBrains Mono',monospace;--fs:'Syncopate',sans-serif;
+  --r:20px;--r2:14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--fn);background:var(--bg);color:var(--t1);min-height:100vh;overflow-x:hidden}
+.ambient{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 70% 55% at 15% 15%,rgba(139,92,246,.1) 0%,transparent 60%),
+             radial-gradient(ellipse 55% 45% at 85% 85%,rgba(0,229,160,.07) 0%,transparent 60%)}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:1000;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 40px;height:64px;
+  background:rgba(7,7,14,.8);backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--bd)}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.nav-logo-icon{width:32px;height:32px;background:var(--grad);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:14px}
+.nav-logo-text{font-family:var(--fs);font-size:12px;font-weight:700;letter-spacing:.18em}
+.nav-back{font-size:13px;color:var(--t3);text-decoration:none;transition:color .2s}
+.nav-back:hover{color:var(--t1)}
+
+/* MAIN */
+main{position:relative;z-index:1;padding:100px 24px 80px;max-width:720px;margin:0 auto}
+
+/* 카드 */
+.card{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:var(--r);
+  padding:32px;margin-bottom:16px;transition:border-color .3s}
+.card.active{border-color:rgba(139,92,246,.4)}
+.card.done{border-color:rgba(0,229,160,.3)}
+
+/* 스텝바 */
+.stepbar{display:flex;align-items:center;gap:0;margin-bottom:48px}
+.step{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;position:relative}
+.step::before{content:'';position:absolute;top:14px;left:0;right:50%;height:2px;
+  background:var(--bd2);z-index:0}
+.step::after{content:'';position:absolute;top:14px;left:50%;right:0;height:2px;
+  background:var(--bd2);z-index:0}
+.step:first-child::before,.step:last-child::after{display:none}
+.step.done::before,.step.done::after{background:var(--mint)}
+.step.done + .step::before{background:var(--mint)}
+.step-dot{width:28px;height:28px;border-radius:50%;border:2px solid var(--bd2);
+  background:var(--bg);display:flex;align-items:center;justify-content:center;
+  font-size:12px;z-index:1;transition:all .3s;font-family:var(--fm)}
+.step.active .step-dot{border-color:var(--purple);background:rgba(139,92,246,.2);color:var(--purple)}
+.step.done .step-dot{border-color:var(--mint);background:rgba(0,229,160,.15);color:var(--mint)}
+.step-label{font-size:10px;color:var(--t3);text-align:center;font-family:var(--fm);letter-spacing:.05em}
+.step.active .step-label{color:var(--t2)}
+.step.done .step-label{color:var(--mint)}
+
+/* 폼 요소 */
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;color:var(--t3);margin-bottom:6px;font-family:var(--fm)}
+.field input,.field textarea,.field select{
+  width:100%;padding:12px 14px;background:rgba(255,255,255,.05);
+  border:1px solid var(--bd2);border-radius:10px;
+  color:var(--t1);font-size:14px;font-family:var(--fn);outline:none;
+  transition:border-color .2s}
+.field input:focus,.field textarea:focus{border-color:rgba(139,92,246,.5)}
+.field textarea{resize:vertical;min-height:80px}
+
+/* 버튼 */
+.btn-primary{display:block;width:100%;padding:14px;border-radius:12px;border:none;
+  background:var(--grad);color:#fff;font-size:15px;font-weight:700;
+  font-family:var(--fn);cursor:pointer;transition:all .3s;text-align:center}
+.btn-primary:hover{opacity:.88;transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-outline{display:block;width:100%;padding:12px;border-radius:12px;
+  border:1px solid var(--bd2);background:transparent;color:var(--t2);
+  font-size:14px;font-family:var(--fn);cursor:pointer;transition:all .2s;text-align:center}
+.btn-outline:hover{border-color:var(--bd3);color:var(--t1)}
+
+/* 업로드 존 */
+.upload-zone{border:2px dashed var(--bd2);border-radius:14px;padding:40px;
+  text-align:center;cursor:pointer;transition:all .2s;min-height:140px;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px}
+.upload-zone:hover,.upload-zone.over{border-color:rgba(139,92,246,.5);background:rgba(139,92,246,.04)}
+.upload-zone img{width:100%;border-radius:10px;max-height:200px;object-fit:contain}
+
+/* 결과 박스 */
+.result-ok{background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.3);border-radius:12px;padding:20px}
+.result-fail{background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.3);border-radius:12px;padding:20px}
+
+/* 태그 */
+.tag{display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-family:var(--fm)}
+.tag-purple{background:var(--purple2);color:var(--purple);border:1px solid rgba(139,92,246,.3)}
+.tag-mint{background:var(--mint2);color:var(--mint);border:1px solid rgba(0,229,160,.2)}
+.tag-amber{background:rgba(251,191,36,.12);color:var(--amber);border:1px solid rgba(251,191,36,.2)}
+
+/* 장르 칩 */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chip{padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;transition:all .2s;
+  border:1px solid var(--bd2);background:transparent;color:var(--t3);font-family:var(--fn)}
+.chip.on{border-color:var(--purple);background:var(--purple2);color:var(--purple)}
+
+/* 보상 테이블 */
+.reward-row{display:flex;justify-content:space-between;align-items:center;
+  padding:10px 0;border-bottom:1px solid var(--bd);font-size:13px}
+.reward-row:last-child{border-bottom:none}
+
+/* 성공 화면 */
+.success-badge{width:80px;height:80px;border-radius:50%;
+  background:var(--grad);display:flex;align-items:center;justify-content:center;
+  font-size:36px;margin:0 auto 20px}
+
+/* 로딩 */
+.spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,.2);
+  border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:600px){
+  nav{padding:0 20px}
+  main{padding:90px 16px 60px}
+  .card{padding:20px}
+  .stepbar{gap:0}
+  .step-label{font-size:9px}
+}
+</style>
+</head>
+<body>
+<div class="ambient"></div>
+
+<nav>
+  <a href="/" class="nav-logo">
+    <div class="nav-logo-icon">⏱</div>
+    <span class="nav-logo-text">TIMELINK</span>
+  </a>
+  <a href="shareplace.html" class="nav-back">← SharePlace</a>
+</nav>
+
+<main>
+  <!-- 헤더 -->
+  <div style="margin-bottom:40px">
+    <div class="tag tag-purple" style="margin-bottom:14px;font-size:10px;letter-spacing:.12em">AI MUSIC STUDIO</div>
+    <h1 style="font-family:var(--fs);font-size:clamp(22px,4vw,36px);font-weight:700;margin-bottom:10px;letter-spacing:.04em">
+      크리에이터 스튜디오
+    </h1>
+    <p style="color:var(--t3);font-size:14px;line-height:1.7">
+      Suno로 음악을 만들고 → DistroKid로 발행 → Spotify 등록 → tl3 원재료 자동 등록
+    </p>
+  </div>
+
+  <!-- 스텝바 -->
+  <div class="stepbar" id="stepbar">
+    <div class="step" data-step="0"><div class="step-dot">♪</div><div class="step-label">Suno 인증</div></div>
+    <div class="step" data-step="1"><div class="step-dot">↓</div><div class="step-label">파일 업로드</div></div>
+    <div class="step" data-step="2"><div class="step-dot">◉</div><div class="step-label">DistroKid</div></div>
+    <div class="step" data-step="3"><div class="step-dot">▶</div><div class="step-label">Spotify</div></div>
+    <div class="step" data-step="4"><div class="step-dot">★</div><div class="step-label">tl3 등록</div></div>
+  </div>
+
+  <!-- ═══ STEP 0: Suno 플랜 인증 ═══ -->
+  <div id="panel-0" class="card active">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span class="tag tag-purple">STEP 1</span>
+      <h2 style="font-size:17px;font-weight:700">Suno 플랜 인증</h2>
+    </div>
+    <p style="font-size:13px;color:var(--t3);margin-bottom:24px;line-height:1.7">
+      Suno Pro 이상 구독자만 음악을 업로드할 수 있습니다.<br>
+      Suno 계정 화면 스크린샷을 업로드하면 AI가 자동으로 확인합니다.
+    </p>
+
+    <!-- 캡처 가이드 -->
+    <div style="background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:20px">
+      <div style="font-size:12px;font-family:var(--fm);color:var(--t3);margin-bottom:10px;letter-spacing:.08em">캡처 방법</div>
+      <ol style="padding-left:18px;color:var(--t3);font-size:13px;line-height:2.2">
+        <li>suno.com 접속 → 로그인</li>
+        <li>우측 상단 프로필 → <b style="color:var(--t2)">Manage Plan</b></li>
+        <li>상단 바에 Current Plan, Plan End Date가 보이게 캡처</li>
+      </ol>
+      <!-- 예시 표시 -->
+      <div style="margin-top:12px;background:#1a1210;border-radius:8px;padding:10px 16px;
+        display:flex;gap:20px;font-size:11px;font-family:var(--fm)">
+        <div><div style="color:var(--t4)">Current Plan</div><div style="color:#fff;font-weight:700">Pro Plan</div></div>
+        <div><div style="color:var(--t4)">Plan End Date</div><div style="color:#fff;font-weight:700">Mar 11, 2026</div></div>
+        <div><div style="color:var(--t4)">Credits Remaining</div><div style="color:#fff;font-weight:700">1812</div></div>
+      </div>
+    </div>
+
+    <!-- 업로드 -->
+    <div class="upload-zone" id="verifyZone" onclick="document.getElementById('verifyInput').click()">
+      <input type="file" id="verifyInput" accept="image/*" style="display:none" onchange="handleVerifyFile(this)">
+      <div id="verifyPlaceholder">
+        <div style="font-size:28px;opacity:.3;margin-bottom:8px">↑</div>
+        <div style="font-size:14px;color:var(--t3)">스크린샷 클릭하여 업로드</div>
+        <div style="font-size:12px;color:var(--t4);margin-top:4px">PNG · JPG</div>
+      </div>
+      <img id="verifyPreview" style="display:none">
+    </div>
+
+    <div style="height:16px"></div>
+    <button class="btn-primary" id="verifyBtn" onclick="verifyPlan()" disabled>Suno 플랜 자동 인증</button>
+    <div id="verifyResult" style="margin-top:16px"></div>
+  </div>
+
+  <!-- ═══ STEP 1: 트랙 정보 + 파일 업로드 ═══ -->
+  <div id="panel-1" class="card" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span class="tag tag-purple">STEP 2</span>
+      <h2 style="font-size:17px;font-weight:700">음악 생성 & 업로드</h2>
+    </div>
+    <p style="font-size:13px;color:var(--t3);margin-bottom:24px;line-height:1.7">
+      Suno에서 음악을 만들고 다운받은 후 아래에 정보를 입력하세요.
+    </p>
+
+    <button class="btn-outline" onclick="window.open('https://suno.com/create','_blank')"
+      style="margin-bottom:20px;color:var(--mint);border-color:rgba(0,229,160,.3)">
+      ♪ Suno 열기 →
+    </button>
+
+    <div class="field">
+      <label>트랙 제목 *</label>
+      <input type="text" id="trackTitle" placeholder="예: Midnight Seoul">
+    </div>
+    <div class="field">
+      <label>생성 프롬프트 *</label>
+      <textarea id="trackPrompt" placeholder="예: 서울 밤거리를 걷는 감성적인 K-pop 발라드, 피아노와 일렉트릭 기타"></textarea>
+    </div>
+    <div class="field">
+      <label>장르/스타일</label>
+      <div class="chips" id="genreChips"></div>
+      <input type="text" id="trackStyle" placeholder="직접 입력...">
+    </div>
+    <div class="field">
+      <label>가사 (선택)</label>
+      <textarea id="trackLyrics" placeholder="Suno에서 생성된 가사를 붙여넣으세요..."></textarea>
+    </div>
+
+    <!-- 파일 업로드 -->
+    <div class="field">
+      <label>음악 파일 (MP3/WAV)</label>
+      <div class="upload-zone" id="audioZone" onclick="document.getElementById('audioInput').click()" style="padding:24px">
+        <input type="file" id="audioInput" accept=".mp3,.wav,audio/*" style="display:none" onchange="handleAudioFile(this)">
+        <div id="audioPlaceholder">
+          <div style="font-size:24px;opacity:.3;margin-bottom:6px">🎵</div>
+          <div style="font-size:13px;color:var(--t3)">MP3 또는 WAV 파일 선택</div>
+        </div>
+        <div id="audioFileInfo" style="display:none;font-size:13px;color:var(--t2)"></div>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="uploadBtn" onclick="uploadTrack()">다음: DistroKid 발행 →</button>
+  </div>
+
+  <!-- ═══ STEP 2: DistroKid ═══ -->
+  <div id="panel-2" class="card" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span class="tag tag-amber">STEP 3</span>
+      <h2 style="font-size:17px;font-weight:700">DistroKid 발행</h2>
+    </div>
+    <p style="font-size:13px;color:var(--t3);margin-bottom:24px;line-height:1.7">
+      메타데이터를 자동 생성하고 DistroKid에서 음반을 발행하세요.
+    </p>
+
+    <div class="field">
+      <label>앨범/싱글 제목 *</label>
+      <input type="text" id="releaseTitle">
+    </div>
+    <div class="field">
+      <label>아티스트명 *</label>
+      <input type="text" id="artistName" placeholder="이름 또는 아티스트명">
+    </div>
+    <div class="field">
+      <label>발매 예정일</label>
+      <input type="date" id="releaseDate">
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="aiDisclosure" checked>
+        <span>AI 생성 음악 공시 (DistroKid 정책 준수)</span>
+      </label>
+    </div>
+
+    <button class="btn-outline" id="exportBtn" onclick="exportMetadata()"
+      style="margin-bottom:12px;color:var(--amber);border-color:rgba(251,191,36,.3)">
+      ↓ 메타데이터 JSON 다운로드
+    </button>
+
+    <div id="dkGuide" style="display:none;background:rgba(255,255,255,.03);border:1px solid var(--bd);
+      border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-size:12px;font-family:var(--fm);color:var(--t3);margin-bottom:10px">DISTROKID 업로드 가이드</div>
+      <div id="guideSteps"></div>
+    </div>
+
+    <button class="btn-primary" id="dkBtn" onclick="openDistroKid()" style="background:linear-gradient(135deg,#FBBF24,#F59E0B);display:none">
+      DistroKid 업로드 페이지 열기 →
+    </button>
+    <button class="btn-outline" id="dkNextBtn" onclick="goStep(3)" style="display:none;margin-top:10px">
+      Spotify에 올렸어요, 다음으로 →
+    </button>
+  </div>
+
+  <!-- ═══ STEP 3: Spotify ═══ -->
+  <div id="panel-3" class="card" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span class="tag tag-mint">STEP 4</span>
+      <h2 style="font-size:17px;font-weight:700">Spotify 등록 확인</h2>
+    </div>
+    <div style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);
+      border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:rgba(56,189,248,.9)">
+      ℹ️ DistroKid → Spotify 반영까지 보통 1~7일 소요됩니다.
+    </div>
+
+    <div class="field">
+      <label>Spotify 트랙 URL</label>
+      <input type="text" id="spotifyUrl" placeholder="https://open.spotify.com/track/...">
+    </div>
+    <div style="text-align:center;font-size:12px;color:var(--t4);margin:8px 0">또는</div>
+    <div class="field">
+      <label>ISRC 코드</label>
+      <input type="text" id="isrcCode" placeholder="KRA12345678" oninput="this.value=this.value.toUpperCase()">
+    </div>
+
+    <button class="btn-primary" onclick="fetchSpotify()">Spotify 데이터 자동 수집</button>
+    <div id="spotifyResult" style="margin-top:16px"></div>
+    <button class="btn-outline" id="spotifySkip" onclick="goStep(4)"
+      style="margin-top:12px;display:none">Spotify 없이 tl3 등록 →</button>
+    <button class="btn-primary" id="spotifyNext" onclick="goStep(4)"
+      style="display:none;margin-top:10px;background:linear-gradient(135deg,#1DB954,#16a34a)">
+      다음: tl3 원재료 등록 →
+    </button>
+  </div>
+
+  <!-- ═══ STEP 4: tl3 등록 ═══ -->
+  <div id="panel-4" class="card" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span class="tag tag-mint">STEP 5</span>
+      <h2 style="font-size:17px;font-weight:700">tl3 원재료 등록</h2>
+    </div>
+    <p style="font-size:13px;color:var(--t3);margin-bottom:24px;line-height:1.7">
+      생성된 음악 데이터를 tl3 원재료 DB에 등록합니다. 창작 보상 TL이 지급됩니다.
+    </p>
+
+    <!-- 보상 미리보기 -->
+    <div style="background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:20px">
+      <div style="font-size:12px;font-family:var(--fm);color:var(--t3);margin-bottom:12px">예상 보상</div>
+      <div class="reward-row"><span style="color:var(--t3)">기본 보상</span><span style="font-family:var(--fm);color:var(--mint)">+200 TL</span></div>
+      <div class="reward-row" id="rewardSpotify"><span style="color:var(--t3)">Spotify 연동</span><span style="font-family:var(--fm);color:var(--mint)">+200 TL</span></div>
+      <div class="reward-row" id="rewardLyrics"><span style="color:var(--t3)">가사 제공</span><span style="font-family:var(--fm);color:var(--mint)">+50 TL</span></div>
+      <div class="reward-row" id="rewardPrompt"><span style="color:var(--t3)">상세 프롬프트</span><span style="font-family:var(--fm);color:var(--mint)">+50 TL</span></div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);
+        display:flex;justify-content:space-between;font-size:15px;font-weight:700">
+        <span>합계</span>
+        <span id="totalReward" style="font-family:var(--fm);color:var(--mint)">500 TL</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="tl3Consent">
+        <span>tl3 AI 원재료로 제공하는 것에 동의합니다 (창작 보상 TL 지급)</span>
+      </label>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="tl3Anonymous">
+        <span style="color:var(--t3)">익명으로 등록 (아티스트명 비공개)</span>
+      </label>
+    </div>
+
+    <button class="btn-primary" id="tl3Btn" onclick="registerTL3()">tl3 원재료 등록 + 창작자 인증 받기</button>
+  </div>
+
+  <!-- 완료 화면 -->
+  <div id="panel-done" style="display:none;text-align:center;padding:40px 0">
+    <div class="success-badge">★</div>
+    <h2 style="font-size:22px;font-weight:500;margin-bottom:8px">tl3 원재료 등록 완료!</h2>
+    <p style="color:var(--t3);font-size:14px;margin-bottom:28px" id="doneDesc"></p>
+    <div style="background:rgba(255,255,255,.03);border:1px solid var(--bd);
+      border-radius:14px;padding:20px;margin-bottom:24px;display:inline-block;min-width:200px">
+      <div style="font-size:12px;color:var(--t3);margin-bottom:6px">창작 보상</div>
+      <div style="font-size:36px;font-weight:700;font-family:var(--fm);color:var(--amber)" id="doneReward">+500 TL</div>
+      <div style="font-size:12px;color:var(--t4);margin-top:4px" id="doneRewardKrw"></div>
+    </div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <a href="creator-studio.html" class="btn-outline" style="text-decoration:none;max-width:200px">새 음악 만들기</a>
+      <a href="shareplace.html" class="btn-primary" style="text-decoration:none;max-width:200px">SharePlace 이동</a>
+    </div>
+  </div>
+</main>
+
+<script>
+const API = 'https://api.timelink.digital';
+
+// 상태 저장
+const S = {
+  step: 0,
+  verifiedPlan: null,
+  trackTitle: '', trackPrompt: '', trackStyle: '', trackLyrics: '',
+  r2Key: null, artistName: '', releaseTitle: '',
+  spotifyUrl: '', isrc: '', spotifyData: null,
+};
+
+// 토큰
+function getToken() { return localStorage.getItem('tl_token') || ''; }
+function getUser()  { try { return JSON.parse(localStorage.getItem('tl_user') || '{}'); } catch { return {}; } }
+
+// 로그인 체크
+(function() {
+  const t = getToken(), u = getUser();
+  if (!t || !u.id) { location.href = 'login.html?redirect=creator-studio.html'; return; }
+
+  // 기존 인증 상태 확인
+  fetch(API + '/api/v1/suno/status', { headers: { Authorization: 'Bearer ' + t } })
+    .then(r => r.json())
+    .then(d => {
+      if (d.verified) {
+        S.verifiedPlan = d.plan;
+        document.querySelector('#panel-0').classList.remove('active');
+        document.querySelector('#panel-0').innerHTML +=
+          `<div class="result-ok" style="margin-top:16px">
+            <div style="color:var(--mint);font-weight:700;margin-bottom:8px">✓ 인증됨 — ${d.plan}</div>
+            <div style="font-size:13px;color:var(--t3)">만료일: ${d.endDate || '-'}</div>
+            <button class="btn-outline" style="margin-top:14px;color:var(--mint);border-color:rgba(0,229,160,.3)" onclick="goStep(1)">스튜디오 시작 →</button>
+          </div>`;
+        markStepDone(0);
+      }
+    }).catch(() => {});
+})();
+
+// 장르 칩
+const GENRES = ['K-pop','Hip-hop','Lo-fi','EDM','Jazz','Rock','R&B','Folk','Ambient','Classic'];
+const chipsEl = document.getElementById('genreChips');
+GENRES.forEach(g => {
+  const b = document.createElement('button');
+  b.className = 'chip'; b.textContent = g;
+  b.onclick = () => {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+    b.classList.add('on');
+    document.getElementById('trackStyle').value = g;
+    S.trackStyle = g;
+  };
+  chipsEl.appendChild(b);
+});
+
+// 발매일 기본값 (7일 후)
+const rd = new Date(); rd.setDate(rd.getDate() + 7);
+document.getElementById('releaseDate').value = rd.toISOString().split('T')[0];
+
+// ─── 스텝 이동 ────────────────────────────────────────────
+function goStep(n) {
+  S.step = n;
+  document.querySelectorAll('[id^="panel-"]').forEach(el => el.style.display = 'none');
+  if (n >= 5) { document.getElementById('panel-done').style.display = 'block'; return; }
+  const panel = document.getElementById('panel-' + n);
+  if (panel) { panel.style.display = 'block'; panel.classList.add('active'); }
+  updateStepbar();
+  // STEP 2 초기화
+  if (n === 2) {
+    document.getElementById('releaseTitle').value = S.trackTitle;
+  }
+}
+
+function markStepDone(n) {
+  const el = document.querySelector(`[data-step="${n}"]`);
+  if (el) { el.classList.remove('active'); el.classList.add('done'); el.querySelector('.step-dot').textContent = '✓'; }
+}
+
+function updateStepbar() {
+  document.querySelectorAll('.step').forEach((el, i) => {
+    el.classList.remove('active');
+    if (i < S.step) el.classList.add('done');
+    else if (i === S.step) el.classList.add('active');
+  });
+}
+
+// ─── STEP 0: Suno 인증 ───────────────────────────────────
+let verifyFile = null;
+function handleVerifyFile(input) {
+  const f = input.files[0]; if (!f) return;
+  verifyFile = f;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('verifyPlaceholder').style.display = 'none';
+    const img = document.getElementById('verifyPreview');
+    img.src = e.target.result; img.style.display = 'block';
+  };
+  reader.readAsDataURL(f);
+  document.getElementById('verifyBtn').disabled = false;
+}
+
+async function verifyPlan() {
+  if (!verifyFile) return;
+  const btn = document.getElementById('verifyBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> AI 분석 중...';
+  document.getElementById('verifyResult').innerHTML = '';
+
+  try {
+    const form = new FormData();
+    form.append('screenshot', verifyFile);
+    const res = await fetch(API + '/api/v1/suno/verify-plan', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + getToken() }, body: form
+    });
+    const d = await res.json();
+    const el = document.getElementById('verifyResult');
+
+    if (d.ok) {
+      S.verifiedPlan = d.plan;
+      el.innerHTML = `<div class="result-ok">
+        <div style="color:var(--mint);font-size:15px;font-weight:700;margin-bottom:12px">✓ 인증 완료!</div>
+        <div style="font-size:13px;color:var(--t2);margin-bottom:4px">플랜: <b>${d.plan}</b></div>
+        <div style="font-size:13px;color:var(--t3);margin-bottom:4px">만료일: ${d.endDate || '-'}</div>
+        <div style="font-size:13px;color:var(--t3);margin-bottom:16px">크레딧: ${d.credits || '-'}</div>
+        <div style="font-size:12px;color:var(--mint);margin-bottom:14px">+100 TL 지급됨 ★ 크리에이터 배지 획득!</div>
+        <button class="btn-primary" onclick="goStep(1)">스튜디오 시작하기 →</button>
+      </div>`;
+      markStepDone(0);
+    } else {
+      el.innerHTML = `<div class="result-fail">
+        <div style="color:var(--rose);font-size:14px;font-weight:700;margin-bottom:8px">✗ 인증 실패</div>
+        <div style="font-size:13px;color:var(--t3);margin-bottom:8px">${d.reason}</div>
+        ${d.plan ? `<div style="font-size:13px">감지된 플랜: <b>${d.plan}</b></div>` : ''}
+        <a href="https://suno.com/pricing" target="_blank"
+          style="display:inline-block;margin-top:12px;font-size:13px;color:var(--purple)">
+          Suno 업그레이드 →
+        </a>
+      </div>`;
+      btn.disabled = false;
+      btn.textContent = '다시 인증하기';
+    }
+  } catch(e) {
+    document.getElementById('verifyResult').innerHTML =
+      `<div class="result-fail"><div style="color:var(--rose)">오류: ${e.message}</div></div>`;
+    btn.disabled = false; btn.textContent = 'Suno 플랜 자동 인증';
+  }
+}
+
+// ─── STEP 1: 파일 업로드 ────────────────────────────────
+let audioFile = null;
+function handleAudioFile(input) {
+  const f = input.files[0]; if (!f) return;
+  audioFile = f;
+  document.getElementById('audioPlaceholder').style.display = 'none';
+  document.getElementById('audioFileInfo').style.display = 'block';
+  document.getElementById('audioFileInfo').innerHTML =
+    `🎵 ${f.name} <span style="color:var(--t3)">(${(f.size/1024/1024).toFixed(1)} MB)</span>`;
+}
+
+async function uploadTrack() {
+  const title  = document.getElementById('trackTitle').value.trim();
+  const prompt = document.getElementById('trackPrompt').value.trim();
+  if (!title || !prompt) { alert('제목과 프롬프트는 필수입니다.'); return; }
+  S.trackTitle  = title;
+  S.trackPrompt = prompt;
+  S.trackStyle  = document.getElementById('trackStyle').value.trim();
+  S.trackLyrics = document.getElementById('trackLyrics').value.trim();
+
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 업로드 중...';
+
+  try {
+    if (audioFile) {
+      const form = new FormData();
+      form.append('file', audioFile);
+      form.append('trackId', 'tl_' + Date.now());
+      const res = await fetch(API + '/api/upload', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + getToken() }, body: form
+      });
+      const d = await res.json();
+      if (d.ok) S.r2Key = d.key;
+    }
+    markStepDone(1); goStep(2);
+  } catch(e) {
+    btn.disabled = false; btn.textContent = '다음: DistroKid 발행 →';
+    alert('오류: ' + e.message);
+  }
+}
+
+// ─── STEP 2: DistroKid 메타데이터 export ────────────────
+function exportMetadata() {
+  S.artistName   = document.getElementById('artistName').value.trim() || getUser().username || '';
+  S.releaseTitle = document.getElementById('releaseTitle').value.trim() || S.trackTitle;
+  const meta = {
+    release_title: S.releaseTitle, artist_name: S.artistName,
+    label: 'Self-released', genre: S.trackStyle,
+    release_date: document.getElementById('releaseDate').value,
+    ai_generated: document.getElementById('aiDisclosure').checked,
+    ai_tool: 'Suno AI', prompt: S.trackPrompt, lyrics: S.trackLyrics,
+  };
+  const blob = new Blob([JSON.stringify(meta, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (S.releaseTitle || 'timelink') + '-distrokid-meta.json';
+  a.click();
+
+  // 가이드 표시
+  const steps = [
+    'DistroKid 열기 → "Upload a Song or Album" 클릭',
+    '다운받은 MP3/WAV 파일 업로드',
+    '메타데이터 JSON 참고해서 정보 입력',
+    '"AI-generated music" 체크박스 확인',
+    'Spotify 배포 선택 후 결제 완료',
+    '배포 후 Spotify URL 복사해두기',
+  ];
+  document.getElementById('dkGuide').style.display = 'block';
+  document.getElementById('guideSteps').innerHTML = steps.map((s,i) =>
+    `<div style="display:flex;gap:10px;margin-bottom:8px;font-size:13px">
+      <span style="min-width:20px;height:20px;border-radius:50%;background:var(--purple);
+        color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</span>
+      <span style="color:var(--t3);line-height:1.5">${s}</span>
+    </div>`
+  ).join('');
+  document.getElementById('dkBtn').style.display = 'block';
+  document.getElementById('dkNextBtn').style.display = 'block';
+}
+
+function openDistroKid() {
+  window.open('https://distrokid.com/upload', '_blank');
+  markStepDone(2);
+}
+
+// ─── STEP 3: Spotify ─────────────────────────────────────
+document.getElementById('spotifySkip').style.display = 'block';
+async function fetchSpotify() {
+  const url  = document.getElementById('spotifyUrl').value.trim();
+  const isrc = document.getElementById('isrcCode').value.trim();
+  if (!url && !isrc) { alert('Spotify URL 또는 ISRC를 입력해주세요.'); return; }
+  S.spotifyUrl = url; S.isrc = isrc;
+
+  const el = document.getElementById('spotifyResult');
+  el.innerHTML = '<div style="color:var(--t3);font-size:13px">수집 중...</div>';
+
+  try {
+    // Spotify 검색 (기존 /api/spotify/search 활용)
+    let trackName = S.trackTitle;
+    const searchRes = await fetch(
+      `${API}/api/spotify/search?q=${encodeURIComponent(trackName + ' ' + S.artistName)}`
+    );
+    const searchData = await searchRes.json();
+    const track = searchData.tracks?.[0];
+
+    if (track) {
+      S.spotifyData = track;
+      el.innerHTML = `<div style="background:rgba(29,185,84,.08);border:1px solid rgba(29,185,84,.25);
+        border-radius:12px;overflow:hidden">
+        <div style="padding:16px;display:flex;gap:12px;align-items:center">
+          ${track.cover_url ? `<img src="${track.cover_url}" style="width:56px;height:56px;border-radius:8px">` : ''}
+          <div>
+            <div style="font-weight:700;font-size:15px">${track.title}</div>
+            <div style="font-size:13px;color:var(--t3)">${track.artist}</div>
+            <a href="${track.spotify_url}" target="_blank" style="font-size:12px;color:#1DB954">Spotify에서 보기 →</a>
+          </div>
+        </div>
+        <div style="padding:12px 16px;background:rgba(139,92,246,.06);font-size:12px;color:var(--purple);font-weight:700">
+          ★ Spotify 창작자 인증 준비 완료
+        </div>
+      </div>`;
+      document.getElementById('spotifyNext').style.display = 'block';
+      markStepDone(3);
+    } else {
+      el.innerHTML = `<div class="result-fail" style="font-size:13px">
+        Spotify에서 트랙을 찾을 수 없습니다. DistroKid 배포 후 1~7일 기다려 주세요.
+      </div>`;
+    }
+  } catch(e) {
+    el.innerHTML = `<div class="result-fail" style="font-size:13px">오류: ${e.message}</div>`;
+  }
+}
+
+// ─── STEP 4: tl3 등록 ────────────────────────────────────
+function calcReward() {
+  let r = 200;
+  if (S.spotifyData) r += 200;
+  if (S.trackLyrics?.length > 50) r += 50;
+  if (S.trackPrompt?.length > 30) r += 50;
+  document.getElementById('totalReward').textContent = '+' + r + ' TL';
+  document.getElementById('rewardSpotify').style.opacity = S.spotifyData ? 1 : 0.3;
+  document.getElementById('rewardLyrics').style.opacity = S.trackLyrics?.length > 50 ? 1 : 0.3;
+  document.getElementById('rewardPrompt').style.opacity = S.trackPrompt?.length > 30 ? 1 : 0.3;
+  return r;
+}
+
+async function registerTL3() {
+  if (!document.getElementById('tl3Consent').checked) {
+    alert('동의가 필요합니다.'); return;
+  }
+  const reward = calcReward();
+  const btn = document.getElementById('tl3Btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 등록 중...';
+
+  try {
+    const res = await fetch(API + '/api/v1/suno/register-track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + getToken() },
+      body: JSON.stringify({
+        title:      S.trackTitle, artist: S.artistName,
+        prompt:     S.trackPrompt, style:  S.trackStyle,
+        lyrics:     S.trackLyrics, spotifyUrl: S.spotifyUrl,
+        isrc:       S.isrc, spotifyData: S.spotifyData,
+        anonymous:  document.getElementById('tl3Anonymous').checked,
+      })
+    });
+    const d = await res.json();
+    if (d.ok) {
+      document.getElementById('doneDesc').textContent =
+        `"${S.trackTitle}" 이(가) tl3 원재료 DB에 등록되었습니다.`;
+      document.getElementById('doneReward').textContent = '+' + d.tlReward + ' TL';
+      document.getElementById('doneRewardKrw').textContent = '= ' + d.tlReward + '원 상당';
+      goStep(5);
+    } else {
+      throw new Error(d.error || '등록 실패');
+    }
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'tl3 원재료 등록 + 창작자 인증 받기';
+    alert('오류: ' + e.message);
+  }
+}
+
+// 초기 보상 계산
+calcReward();
+</script>
+</body>
+</html>
+
