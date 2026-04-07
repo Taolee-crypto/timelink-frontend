@@ -480,22 +480,30 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
     </div>
 
     <div class="panel" id="panel-users">
-      <div class="tbox">
-        <div class="tbox-top">
-          <div class="tbox-title">유저 목록</div>
-          <div class="tbox-tools">
-            <input class="s-input" placeholder="이메일 검색..." oninput="filterUsers(this.value)">
-            <button class="btn btn-g btn-xs" onclick="loadUsers()">↻</button>
-          </div>
-        </div>
-        <table>
-          <thead><tr><th>ID</th><th>이메일</th><th>유저명</th><th>TL</th><th>TL_BALANCE</th><th>TLC</th><th>빠른충전</th></tr></thead>
-          <tbody id="users-tbody"></tbody>
-        </table>
+  <!-- 유저 유형 탭 -->
+  <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+    <button class="btn btn-g btn-xs" id="ut-all"    onclick="setUserTab('all')"        style="opacity:1">전체</button>
+    <button class="btn btn-n btn-xs" id="ut-normal" onclick="setUserTab('normal')"     style="opacity:.5">👤 일반</button>
+    <button class="btn btn-n btn-xs" id="ut-creator" onclick="setUserTab('creator')"   style="opacity:.5">🎵 크리에이터</button>
+    <button class="btn btn-n btn-xs" id="ut-biz"    onclick="setUserTab('biz')"        style="opacity:.5">🏢 사업자</button>
+    <button class="btn btn-n btn-xs" id="ut-adv"    onclick="setUserTab('advertiser')" style="opacity:.5">📢 광고주</button>
+    <span id="ut-count" style="margin-left:auto;font-size:11px;color:var(--t3);line-height:2.2"></span>
+  </div>
+  <div class="tbox">
+    <div class="tbox-top">
+      <div class="tbox-title" id="ut-title">전체 유저</div>
+      <div class="tbox-tools">
+        <input class="s-input" placeholder="이메일/이름 검색..." oninput="filterUsers(this.value)">
+        <button class="btn btn-g btn-xs" onclick="loadUsers()">↻</button>
       </div>
     </div>
-
-    <!-- TL 충전/차감 -->
+    <table>
+      <thead><tr><th>ID</th><th>유형</th><th>이메일</th><th>유저명</th><th>TL</th><th>TL_P</th><th>TLC</th><th>빠른충전</th></tr></thead>
+      <tbody id="users-tbody"></tbody>
+    </table>
+  </div>
+</div>
+<!-- TL 충전/차감 -->
     <div class="panel" id="panel-charge">
       <div class="sec-title">⚡ TL 충전 / 차감</div>
       <div class="charge-form">
@@ -984,19 +992,63 @@ async function updateFileTL(id,val){
 
 // ─ Users ─
 function filterUsers(q){_userFilter=q.toLowerCase();renderUsers();}
+var _userTab = 'all';
+
+function getUserType(u){
+  if(Number(u.is_advertiser)===1) return 'advertiser';
+  if(Number(u.biz_reg_num||''.length)>0 || (u.business_name && u.business_name!==u.username)) return 'biz';
+  if(Number(u.share_count)>0) return 'creator';
+  return 'normal';
+}
+
+function getUserTypeBadge(u){
+  var t = getUserType(u);
+  var badges = {
+    advertiser: '<span style="padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(59,130,246,.15);color:#60A5FA;border:1px solid rgba(59,130,246,.3)">📢 광고주</span>',
+    biz:        '<span style="padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(251,191,36,.15);color:#FBBF24;border:1px solid rgba(251,191,36,.3)">🏢 사업자</span>',
+    creator:    '<span style="padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(0,229,160,.12);color:#00E5A0;border:1px solid rgba(0,229,160,.25)">🎵 크리에이터</span>',
+    normal:     '<span style="padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(255,255,255,.06);color:var(--t3);border:1px solid var(--bd)">👤 일반</span>',
+  };
+  return badges[t] || badges.normal;
+}
+
+function setUserTab(tab){
+  _userTab = tab;
+  var titles = {all:'전체 유저', normal:'👤 일반회원', creator:'🎵 크리에이터', biz:'🏢 사업자', advertiser:'📢 광고주'};
+  if(g('ut-title')) g('ut-title').textContent = titles[tab]||'전체';
+  ['all','normal','creator','biz','advertiser'].forEach(function(t){
+    var btn = g('ut-'+t);
+    if(btn) btn.style.opacity = t===tab ? '1' : '.5';
+  });
+  renderUsers();
+}
+
 function renderUsers(){
-  var list=_userFilter?_users.filter(function(u){return(u.email||'').toLowerCase().includes(_userFilter)||(u.username||'').toLowerCase().includes(_userFilter);}):_users;
-  var tb=g('users-tbody');
-  if(!list.length){tb.innerHTML='<tr><td colspan="8"><div class="empty">'+(_users.length?'검색 결과 없음':'/api/users 없음 — SQL탭에서 SELECT * FROM users 실행')+'</div></td></tr>';return;}
-  tb.innerHTML=list.map(function(u){
+  var filtered = _userFilter ? _users.filter(function(u){
+    return (u.email||'').toLowerCase().includes(_userFilter)||(u.username||'').toLowerCase().includes(_userFilter);
+  }) : _users;
+
+  var list = _userTab==='all' ? filtered : filtered.filter(function(u){ return getUserType(u)===_userTab; });
+
+  var counts = {all:filtered.length, normal:0, creator:0, biz:0, advertiser:0};
+  filtered.forEach(function(u){ counts[getUserType(u)]++; });
+  if(g('ut-count')) g('ut-count').textContent =
+    '전체 '+counts.all+' · 일반 '+counts.normal+' · 크리에이터 '+counts.creator+' · 사업자 '+counts.biz+' · 광고주 '+counts.advertiser;
+
+  var tb = g('users-tbody');
+  if(!list.length){
+    tb.innerHTML='<tr><td colspan="8"><div class="empty">'+( _users.length ? '해당 유형 없음' : '/api/users 없음')+'</div></td></tr>';
+    return;
+  }
+  tb.innerHTML = list.map(function(u){
     return '<tr>'+
       '<td class="td-mono" style="color:var(--t4)">'+u.id+'</td>'+
+      '<td>'+getUserTypeBadge(u)+'</td>'+
       '<td style="font-size:11px">'+esc(u.email||'-')+'</td>'+
       '<td style="font-weight:600">'+esc(u.username||'-')+'</td>'+
       '<td class="td-mono" style="color:var(--g)">'+Number(u.tl||0).toLocaleString()+'</td>'+
       '<td class="td-mono" style="color:var(--sky)">'+Number(u.tl_balance||0).toLocaleString()+'</td>'+
-      '<td class="td-mono" style="color:var(--amber)">'+Number(u.tlc||0).toFixed(4)+'</td>'+
-
+      '<td class="td-mono" style="color:var(--amber)">'+Number(u.tlc||0).toFixed(2)+'</td>'+
       '<td><div style="display:flex;gap:4px">'+
         '<button class="btn btn-g btn-xs" onclick="quickCharge(\''+esc(u.email)+'\',100000)">+10만</button>'+
         '<button class="btn btn-a btn-xs" onclick="quickCharge(\''+esc(u.email)+'\',999999)">맥스</button>'+
@@ -1005,6 +1057,7 @@ function renderUsers(){
     '</tr>';
   }).join('');
 }
+
 function renderTLUsers(){
   var tb=g('tl-users-tbody');
   if(!_users.length){tb.innerHTML='<tr><td colspan="6"><div class="empty">유저 탭 또는 SQL로 먼저 조회하세요</div></td></tr>';return;}
@@ -1492,6 +1545,9 @@ async function saveFooterSettings(){
 </script>
 </body>
 </html>
+
+
+
 
 
 

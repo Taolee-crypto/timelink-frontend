@@ -355,7 +355,12 @@ textarea.form-input{min-height:80px;resize:vertical}
     <a class="sb-link" onclick="switchTab('charge')"><span class="sb-icon">⚡</span>TL 충전</a>
     <a class="sb-link" onclick="switchTab('create')"><span class="sb-icon">✚</span>광고 등록</a>
     <div class="sb-section" style="margin-top:8px">바로가기</div>
-    <a href="shareplace.html" class="sb-link"><span class="sb-icon">🏠</span>홈</a>
+    <div style="padding:8px 16px 3px;font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--t3);text-transform:uppercase">플랫폼</div>
+      <a href="dashboard.html" class="sb-link"><span class="sb-icon">📊</span>대시보드</a>
+      <a href="shareplace.html" class="sb-link"><span class="sb-icon">🏠</span>홈</a>
+      <a href="chart.html" class="sb-link"><span class="sb-icon">🏆</span>TL CHART</a>
+      <a href="radio.html" class="sb-link"><span class="sb-icon">📻</span>TL방송국</a>
+      <a href="creator.html" class="sb-link"><span class="sb-icon">🎨</span>크리에이터 센터</a>
     <a href="ads.html" class="sb-link"><span class="sb-icon">📺</span>광고 시청</a>
   </nav>
   <div class="sb-biz-box">
@@ -531,7 +536,7 @@ textarea.form-input{min-height:80px;resize:vertical}
 <div class="tab-panel" id="tab-create">
     <div style="font-size:15px;font-weight:700;margin-bottom:6px">새 광고 등록</div>
     <div style="font-size:12px;color:var(--t3);margin-bottom:24px;line-height:1.6">
-      광고 예산(TL)은 등록 즉시 차감되며, 사용자가 광고를 시청할 때마다 해당 TL이 지급됩니다.
+      광고 TL 잔액에서 예산을 설정합니다. 시청 완료 시 TL_A가 자동 지급되며, 예산 소진 시 자동 종료됩니다.
     </div>
   <div class="create-layout">
     <div class="create-form">
@@ -559,6 +564,9 @@ textarea.form-input{min-height:80px;resize:vertical}
                 <option value="audio">🎵 오디오 광고 (30초) — 시청당 300 TL_A</option>
                 <option value="image">🖼️ 이미지 광고 (10초) — 시청당 150 TL_A</option>
               </optgroup>
+              <optgroup label="🎵 음원 롤링 광고 (내부 재생)">
+                <option value="audio_rolling">🎵 음원 롤링 — 라디오/카페 채널 자동 재생</option>
+              </optgroup>
               <optgroup label="⭐ 프리미엄 배너 (상시 노출)">
                 <option value="banner_sidebar">📌 사이드바 배너 (220×120px) — 7일 50,000 TL</option>
               </optgroup>
@@ -572,20 +580,87 @@ textarea.form-input{min-height:80px;resize:vertical}
       </div>
 
       <div class="form-section">
-        <div class="form-section-title">미디어</div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">미디어 URL (영상/오디오)</label>
-            <input class="form-input" id="cMediaUrl" placeholder="https://... (R2 또는 CDN URL)">
-            <div class="form-hint">직접 업로드는 준비 중. R2 URL 직접 입력 가능</div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">썸네일 / 배너 이미지 URL</label>
-            <input class="form-input" id="cThumbUrl" placeholder="https://... (배너: 220×120px 권장)" oninput="updateBannerPreview()">
-            <div id="bannerPreview" style="display:none;margin-top:8px;border-radius:8px;overflow:hidden;width:220px;height:120px;background:rgba(255,255,255,.05);border:1px solid var(--bd2)">
-              <img id="bannerPreviewImg" style="width:100%;height:100%;object-fit:cover" src="">
+        <div class="form-section-title">미디어 소재</div>
+
+        <!-- 소재 입력 방식 선택 -->
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button onclick="setAdMediaMode('upload')" id="admode-upload"
+            style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(59,130,246,.4);background:rgba(59,130,246,.1);color:#60A5FA;font-size:12px;font-weight:700;cursor:pointer">
+            📁 파일 업로드
+          </button>
+          <button onclick="setAdMediaMode('url')" id="admode-url"
+            style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--bd2);background:transparent;color:var(--t3);font-size:12px;font-weight:700;cursor:pointer">
+            🔗 URL 입력
+          </button>
+          <button onclick="setAdMediaMode('internal')" id="admode-internal"
+            style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--bd2);background:transparent;color:var(--t3);font-size:12px;font-weight:700;cursor:pointer">
+            🎵 내 음원 선택
+          </button>
+        </div>
+
+        <!-- 파일 업로드 방식 -->
+        <div id="adMediaUpload">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">미디어 파일 (이미지/영상)</label>
+              <div onclick="document.getElementById('adMediaFile').click()"
+                style="border:2px dashed var(--bd2);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:all .2s"
+                onmouseover="this.style.borderColor='rgba(59,130,246,.4)'"
+                onmouseout="this.style.borderColor='var(--bd2)'"
+                id="adMediaDropzone">
+                <div style="font-size:28px;margin-bottom:8px">📁</div>
+                <div style="font-size:13px;color:var(--t2);font-weight:600" id="adMediaFileName">이미지 또는 영상 파일 선택</div>
+                <div style="font-size:11px;color:var(--t3);margin-top:4px">JPG · PNG · GIF · MP4 · WebM (최대 50MB)</div>
+              </div>
+              <input type="file" id="adMediaFile" style="display:none"
+                accept="image/*,video/*,.jpg,.jpeg,.png,.gif,.webp,.mp4,.webm"
+                onchange="onAdMediaFileSelect(this)">
+            </div>
+            <div class="form-group">
+              <label class="form-label">썸네일 이미지 (선택)</label>
+              <div onclick="document.getElementById('adThumbFile').click()"
+                style="border:2px dashed var(--bd2);border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:all .2s"
+                onmouseover="this.style.borderColor='rgba(59,130,246,.4)'"
+                onmouseout="this.style.borderColor='var(--bd2)'"
+                id="adThumbDropzone">
+                <div style="font-size:22px;margin-bottom:6px">🖼️</div>
+                <div style="font-size:11px;color:var(--t3)" id="adThumbFileName">220×120px 권장</div>
+              </div>
+              <input type="file" id="adThumbFile" style="display:none"
+                accept="image/*" onchange="onAdThumbFileSelect(this)">
+              <div id="adThumbPreview" style="display:none;margin-top:8px;border-radius:8px;overflow:hidden;width:220px;height:120px">
+                <img id="adThumbPreviewImg" style="width:100%;height:100%;object-fit:cover" src="">
+              </div>
             </div>
           </div>
+        </div>
+
+        <!-- URL 입력 방식 -->
+        <div id="adMediaUrl" style="display:none">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">미디어 URL (영상/오디오)</label>
+              <input class="form-input" id="cMediaUrl" placeholder="https://... (MP4, WebM, MP3 등)">
+            </div>
+            <div class="form-group">
+              <label class="form-label">썸네일 / 배너 이미지 URL</label>
+              <input class="form-input" id="cThumbUrl" placeholder="https://... (220×120px 권장)" oninput="updateBannerPreview()">
+              <div id="bannerPreview" style="display:none;margin-top:8px;border-radius:8px;overflow:hidden;width:220px;height:120px;background:rgba(255,255,255,.05);border:1px solid var(--bd2)">
+                <img id="bannerPreviewImg" style="width:100%;height:100%;object-fit:cover" src="">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 내 음원 선택 방식 -->
+        <div id="adMediaInternal" style="display:none">
+          <div style="background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.2);border-radius:10px;padding:14px;margin-bottom:12px;font-size:12px;color:var(--t3);line-height:1.7">
+            🎵 내 TimeLink 음원을 광고로 롤링 재생합니다. 선택한 곡이 플랫폼 라디오/카페채널에서 자동 노출됩니다.
+          </div>
+          <div id="mySharesList" style="max-height:240px;overflow-y:auto;border:1px solid var(--bd);border-radius:10px">
+            <div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">로딩 중...</div>
+          </div>
+          <div id="selectedShareInfo" style="display:none;margin-top:12px;padding:12px;border-radius:8px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);font-size:12px;color:var(--purple)"></div>
         </div>
       </div>
 
@@ -597,11 +672,7 @@ textarea.form-input{min-height:80px;resize:vertical}
             <input class="form-input" id="cBudget" type="number" placeholder="10000" min="1000" oninput="updateBudgetCalc()">
             <div class="form-hint">최소 1,000 TL · 잔액: <span id="balanceHint" style="color:var(--gold)">-- TL</span></div>
           </div>
-          <div class="form-group">
-            <label class="form-label">시청당 TL 지급액</label>
-            <input class="form-input" id="cReward" type="number" placeholder="300" min="50" max="1000" oninput="updateBudgetCalc()">
-            <div class="form-hint">50~1,000 TL (기본 300 TL)</div>
-          </div>
+          <div class="form-group"><label class="form-label">시청당 TL 지급액 (플랫폼 고정)</label><div style="padding:11px 13px;background:rgba(255,255,255,.02);border:1px solid var(--bd);border-radius:9px;font-size:15px;font-weight:900;color:var(--gold);font-family:var(--fm)" id="rewardDisplay">300 TL_A</div><div class="form-hint" id="rewardHint">영상 15초 시청 완료 시 자동 지급</div></div>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -694,21 +765,21 @@ textarea.form-input{min-height:80px;resize:vertical}
             <span style="color:var(--t2)">📹 영상 15초</span>
             <div style="display:flex;align-items:center;gap:8px">
               <span class="price-badge" style="background:rgba(139,92,246,.12);color:#A78BFA">리워드</span>
-              <span style="color:var(--t1);font-weight:700;font-family:var(--fm)">최소 10,000 TL</span>
+              <span style="color:var(--t1);font-weight:700;font-family:var(--fm)">시청당 300 TL_A · 최소 10,000 TL</span>
             </div>
           </div>
           <div class="price-row">
             <span style="color:var(--t2)">🎵 오디오 30초</span>
             <div style="display:flex;align-items:center;gap:8px">
               <span class="price-badge" style="background:rgba(139,92,246,.12);color:#A78BFA">리워드</span>
-              <span style="color:var(--t1);font-weight:700;font-family:var(--fm)">최소 10,000 TL</span>
+              <span style="color:var(--t1);font-weight:700;font-family:var(--fm)">시청당 300 TL_A · 최소 10,000 TL</span>
             </div>
           </div>
           <div class="price-row">
             <span style="color:var(--t2)">🖼️ 이미지 10초</span>
             <div style="display:flex;align-items:center;gap:8px">
               <span class="price-badge" style="background:rgba(139,92,246,.12);color:#A78BFA">리워드</span>
-              <span style="color:var(--t1);font-weight:700;font-family:var(--fm)">최소 5,000 TL</span>
+              <span style="color:var(--t1);font-weight:700;font-family:var(--fm)">시청당 150 TL_A · 최소 5,000 TL</span>
             </div>
           </div>
           <div class="guide-divider"></div>
@@ -868,6 +939,86 @@ async function doAdCharge(){
     resultEl.textContent = '결제 취소 또는 오류: '+e.message;
   }
 }
+// ── 광고 미디어 모드 ──
+var _adMediaMode = 'upload';
+var _adMediaFileObj = null;
+var _adThumbFileObj = null;
+var _adSelectedShareId = null;
+
+function setAdMediaMode(mode){
+  _adMediaMode = mode;
+  ['upload','url','internal'].forEach(function(m){
+    var btn = document.getElementById('admode-'+m);
+    var panel = document.getElementById('adMedia'+m.charAt(0).toUpperCase()+m.slice(1));
+    if(btn) {
+      btn.style.borderColor = m===mode ? 'rgba(59,130,246,.4)' : 'var(--bd2)';
+      btn.style.background  = m===mode ? 'rgba(59,130,246,.1)' : 'transparent';
+      btn.style.color       = m===mode ? '#60A5FA' : 'var(--t3)';
+    }
+    if(panel) panel.style.display = m===mode ? 'block' : 'none';
+  });
+  if(mode==='internal') loadMySharesForAd();
+}
+
+function onAdMediaFileSelect(input){
+  var f = input.files[0]; if(!f) return;
+  _adMediaFileObj = f;
+  document.getElementById('adMediaFileName').textContent = f.name + ' (' + (f.size/1024/1024).toFixed(1) + 'MB)';
+  document.getElementById('adMediaDropzone').style.borderColor = 'rgba(59,130,246,.4)';
+}
+
+function onAdThumbFileSelect(input){
+  var f = input.files[0]; if(!f) return;
+  _adThumbFileObj = f;
+  document.getElementById('adThumbFileName').textContent = f.name;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    document.getElementById('adThumbPreview').style.display = 'block';
+    document.getElementById('adThumbPreviewImg').src = e.target.result;
+  };
+  reader.readAsDataURL(f);
+}
+
+async function loadMySharesForAd(){
+  var list = document.getElementById('mySharesList');
+  if(!list) return;
+  try {
+    var r = await fetch(API+'/api/shares', {headers:{'Authorization':'Bearer '+_token}});
+    var d = await r.json();
+    var shares = (d.shares||[]).filter(function(s){ return String(s.user_id)===String(_user&&_user.id); });
+    if(!shares.length){
+      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">업로드한 음원이 없습니다</div>';
+      return;
+    }
+    list.innerHTML = shares.map(function(s){
+      var icon = s.file_type&&s.file_type.startsWith('video') ? '🎬' : '🎵';
+      return '<div onclick="selectShareForAd(\''+s.id+'\',\''+s.title+'\')" '+
+        'style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bd);cursor:pointer;transition:all .2s" '+
+        'onmouseover="this.style.background=\'rgba(139,92,246,.06)\'" '+
+        'onmouseout="this.style.background=\'transparent\'" '+
+        'id="share-ad-'+s.id+'">'+
+        '<span style="font-size:20px">'+icon+'</span>'+
+        '<div style="flex:1"><div style="font-size:13px;font-weight:600">'+s.title+'</div>'+
+        '<div style="font-size:11px;color:var(--t3)">'+s.artist+'</div></div>'+
+        '<span style="font-size:10px;color:var(--t3);font-family:var(--fm)">🔥'+Number(s.pulse||0)+'</span>'+
+        '</div>';
+    }).join('');
+  } catch(e){ list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--rose)">로드 실패</div>'; }
+}
+
+function selectShareForAd(shareId, title){
+  _adSelectedShareId = shareId;
+  document.querySelectorAll('[id^="share-ad-"]').forEach(function(el){
+    el.style.background = 'transparent';
+  });
+  var el = document.getElementById('share-ad-'+shareId);
+  if(el) el.style.background = 'rgba(139,92,246,.12)';
+  var info = document.getElementById('selectedShareInfo');
+  if(info){ info.style.display='block'; info.textContent='✓ 선택됨: '+title+' — 플랫폼 롤링 재생 광고로 등록됩니다'; }
+}
+
+var AD_FIXED_REWARDS = {video:300,audio:300,image:150,audio_rolling:0,banner_sidebar:0};
+function getFixedReward(){return AD_FIXED_REWARDS[document.getElementById("cType")?.value||"video"]||300;}
 var _myAds = [], _isLoggedIn = false;
 var _bizMode = 'login';
 var _ethicsPassed = false;
@@ -1146,6 +1297,17 @@ async function deleteAd(adId){
 
 // ── 예산 계산 ──
 function updateBudgetCalc(){
+  var type=document.getElementById("cType")?.value||"video";
+  var reward=AD_FIXED_REWARDS[type]||300;
+  var hints={video:"영상 15초 시청 완료 시 자동 지급",audio:"오디오 30초 청취 완료 시 자동 지급",image:"이미지 10초 노출 완료 시 자동 지급",audio_rolling:"라디오/카페 채널 롤링 재생",banner_sidebar:"사이드바 상시 노출"};
+  var rd=document.getElementById("rewardDisplay"); if(rd) rd.textContent=reward>0?reward+" TL_A":"별도 과금";
+  var rh=document.getElementById("rewardHint"); if(rh) rh.textContent=hints[type]||"";
+  var budget=parseInt(document.getElementById("cBudget")?.value||"0");
+  var bc=document.getElementById("budgetCalc");
+  if(bc&&budget>0&&reward>0){
+    var views=Math.floor(budget/reward);
+    bc.innerHTML="예상 노출 수: <b>"+views.toLocaleString()+"회</b> · 시청당 <b>"+reward+" TL_A</b> 지급";
+  } else if(bc){ bc.textContent="예산을 입력하면 예상 노출 수를 계산합니다."; }
   var budget=parseInt(g('cBudget').value)||0;
   var reward=parseInt(g('cReward').value)||300;
   var type=g('cType').value;
@@ -1299,6 +1461,12 @@ function updateBannerPreview(){
 
 </body>
 </html>
+
+
+
+
+
+
 
 
 
