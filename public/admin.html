@@ -164,6 +164,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
   <div class="sb-item" onclick="go('footer',this)"><span class="ico">🦶</span>푸터 관리</div>
   <div class="sb-item" onclick="go('sql',this)"><span class="ico">▸</span>SQL 실행</div>
   <div class="sb-section">블록체인</div>
+  <div class="sb-item" onclick="go('advertiser',this)"><span class="ico">📢</span>광고주 관리 <span class="sb-badge g" id="sb-adv-cnt">0</span></div>
   <div class="sb-item" onclick="go('ton',this)"><span class="ico">💎</span>TLC 출금 관리 <span class="sb-badge" id="sb-ton-cnt">0</span></div>
   <div class="sb-footer">api.timelink.digital<br><span id="sb-time">--:--:--</span></div>
 </div>
@@ -552,7 +553,69 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
     </div>
 
     <!-- TON 출금 관리 -->
-    <div class="panel" id="panel-ton">
+    <div class="panel" id="panel-advertiser">
+  <div class="tbox" style="margin-bottom:16px">
+    <div class="tbox-top">
+      <div style="font-size:13px;font-weight:700">📢 광고주 현황</div>
+      <button class="btn btn-g btn-xs" onclick="loadAdvertisers()">↻ 새로고침</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px">
+      <div class="stat"><div class="stat-label">전체 광고주</div><div class="stat-val" id="adv-total">—</div></div>
+      <div class="stat"><div class="stat-label">활성 광고</div><div class="stat-val" id="adv-active">—</div></div>
+      <div class="stat"><div class="stat-label">총 광고 예산 TL</div><div class="stat-val" id="adv-budget">—</div></div>
+      <div class="stat"><div class="stat-label">소진 TL (순매출)</div><div class="stat-val" id="adv-spent">—</div></div>
+    </div>
+  </div>
+  <div class="tbox" style="margin-bottom:16px">
+    <div class="tbox-top"><div style="font-size:13px;font-weight:700">광고 목록</div></div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr>
+          <th>광고명</th><th>광고주</th><th>타입</th><th>상태</th>
+          <th>예산 TL</th><th>소진 TL</th><th>노출수</th><th>관리</th>
+        </tr></thead>
+        <tbody id="advTable"><tr><td colspan="8" style="text-align:center;padding:30px;color:var(--t3)">로딩 중...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="tbox">
+    <div class="tbox-top"><div style="font-size:13px;font-weight:700">🧪 테스트 광고 생성</div></div>
+    <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:6px">광고명</div>
+        <input id="newAdTitle" class="s-input" style="width:100%" value="테스트 광고" placeholder="광고명">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:6px">광고주명</div>
+        <input id="newAdBiz" class="s-input" style="width:100%" value="씨엠피 주식회사" placeholder="광고주명">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:6px">타입</div>
+        <select id="newAdType" class="s-select" style="width:100%">
+          <option value="video">📹 영상</option>
+          <option value="audio">🎵 오디오</option>
+          <option value="image" selected>🖼️ 이미지</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:6px">예산 TL</div>
+        <input id="newAdBudget" class="s-input" style="width:100%" value="10000" type="number">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:6px">리워드 TL (시청당)</div>
+        <input id="newAdReward" class="s-input" style="width:100%" value="300" type="number">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:6px">설명</div>
+        <input id="newAdDesc" class="s-input" style="width:100%" value="TimeLink 플랫폼 광고 테스트" placeholder="설명">
+      </div>
+      <div style="grid-column:1/-1">
+        <button class="btn btn-g" onclick="createTestAd()" style="width:100%;padding:10px;justify-content:center">➕ 테스트 광고 생성</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="panel" id="panel-ton">
       <div class="tbox" style="margin-bottom:14px">
         <div class="tbox-top">
           <div class="tbox-title">💎 TLC 출금 신청 목록</div>
@@ -643,7 +706,43 @@ function login(){
 function logout(){ localStorage.removeItem('tl_adm'); location.reload(); }
 
 // ─ Nav ─
-var TITLES={dashboard:'대시보드',revenue:'재무 현황',shares:'공유 파일 관리',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리'};
+async function loadAdvertisers(){
+  try {
+    var r = await execSQL("SELECT * FROM tl_ads ORDER BY created_at DESC");
+    var ads = (r && r.results) ? r.results : (Array.isArray(r) ? r : []);
+    document.getElementById('adv-total').textContent = ads.length;
+    document.getElementById('adv-active').textContent = ads.filter(function(a){return a.status==='active';}).length;
+    document.getElementById('adv-budget').textContent = ads.reduce(function(s,a){return s+(Number(a.budget_tl)||0);},0).toLocaleString()+' TL';
+    document.getElementById('adv-spent').textContent = ads.reduce(function(s,a){return s+(Number(a.spent_tl)||0);},0).toLocaleString()+' TL';
+    document.getElementById('sb-adv-cnt').textContent = ads.filter(function(a){return a.status==='active';}).length;
+    if(!ads.length){
+      document.getElementById('advTable').innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--t3)">등록된 광고가 없습니다</td></tr>';
+      return;
+    }
+    document.getElementById('advTable').innerHTML = ads.map(function(a){
+      var statusBadge = a.status==='active'?'<span style="color:var(--g);font-size:10px">● 활성</span>':'<span style="color:var(--t3);font-size:10px">○ 중지</span>';
+      var typeIcon = {video:'📹',audio:'🎵',image:'🖼️'}[a.ad_type]||'📺';
+      return '<tr><td>'+esc(a.title||'-')+'</td><td>'+esc(a.business_name||'-')+'</td><td>'+typeIcon+' '+esc(a.ad_type||'-')+'</td><td>'+statusBadge+'</td><td style="color:var(--amber)">'+Number(a.budget_tl||0).toLocaleString()+'</td><td style="color:var(--g)">'+Number(a.spent_tl||0).toLocaleString()+'</td><td>'+Number(a.views||0).toLocaleString()+'</td><td><button class="btn btn-xs btn-r" onclick="deleteAd(\''+a.id+'\')">삭제</button></td></tr>';
+    }).join('');
+  } catch(e){ toast('광고 로드 실패: '+e.message,'r'); }
+}
+async function deleteAd(id){
+  if(!confirm('광고를 삭제하시겠습니까?')) return;
+  await execSQL("DELETE FROM tl_ads WHERE id='"+id+"'");
+  toast('삭제됨','r'); loadAdvertisers();
+}
+async function createTestAd(){
+  var id='ad_'+Date.now();
+  var title=document.getElementById('newAdTitle').value;
+  var biz=document.getElementById('newAdBiz').value;
+  var type=document.getElementById('newAdType').value;
+  var budget=document.getElementById('newAdBudget').value;
+  var reward=document.getElementById('newAdReward').value;
+  var desc=document.getElementById('newAdDesc').value;
+  await execSQL("INSERT INTO tl_ads (id,business_name,title,description,ad_type,status,budget_tl,spent_tl,tl_reward,views,created_at) VALUES ('"+id+"','"+biz+"','"+title+"','"+desc+"','"+type+"','active',"+budget+",0,"+reward+",0,datetime('now'))");
+  toast('광고 생성됨!','g'); loadAdvertisers();
+}
+var TITLES={dashboard:'대시보드',revenue:'재무 현황',shares:'공유 파일 관리',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리'};
 function go(id,el){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
   document.querySelectorAll('.sb-item').forEach(function(i){i.classList.remove('on');});
@@ -656,6 +755,7 @@ function go(id,el){
   if(id==='notice') initNoticePanel();
   if(id==='footer') initFooterPanel();
   if(id==='revenue') loadRevenue();
+  if(id==='advertiser') loadAdvertisers();
 }
 
 // ─ API ─
@@ -1247,7 +1347,7 @@ async function loadRevenue(){
 
     // 요약 테이블
     var summaryRows = [
-      ['💵 누적 현금 매출',   fmtKRW(rv.total_krw),         '포트원+Stripe 결제 완료 합계'],
+      ['💵 누적 현금 매출',   fmtKRW(rv.total_krw),         '토스페이먼츠 결제 완료 합계'],
       ['⚡ 판매된 구매TL',    fmtTL(rv.total_tl_sold),      '충전된 TL_P 총량'],
       ['📺 광고 수익 TL',    fmtTL(rv.total_ad_tl),        '광고주가 소진한 TL (플랫폼 순수익)'],
       ['🔥 총 TL 소비',      fmtTL(rv.total_tl_consumed),  '리스너 재생으로 소모된 TL 합계'],
@@ -1268,7 +1368,7 @@ async function loadRevenue(){
     if(pays.length){
       g('revPayBody').innerHTML = pays.map(function(p){
         var dt = (p.created_at||'').slice(0,16).replace('T',' ');
-        var pg = p.method==='portone'?'포트원':'Stripe';
+        var pg = p.method==='toss'?'토스페이먼츠':p.method==='portone'?'포트원':'기타';
         var pgColor = p.method==='portone'?'var(--amber)':'#4ADE80';
         var badge = '<span style="padding:2px 8px;border-radius:4px;font-size:10px;background:rgba(16,185,129,.12);color:#10B981">완료</span>';
         return '<tr>'
@@ -1392,3 +1492,13 @@ async function saveFooterSettings(){
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
