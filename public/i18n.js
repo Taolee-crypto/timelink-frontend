@@ -379,17 +379,23 @@ function createLangSwitcher(containerId){
 }
 
 /* ── 상단 고정 스위처 자동 삽입 ── */
-function injectSwitcher(){
+function injectSwitcher(){ return; // 크롬 자동번역 사용
+
   if(document.getElementById('tl-lang-switcher')) return;
   var sw=document.createElement('div');
   sw.id='tl-lang-switcher';
-  sw.style.cssText=[
-    'position:fixed;top:12px;right:16px;z-index:99999',
-    'display:flex;gap:2px;align-items:center',
-    'background:rgba(10,10,20,.92);backdrop-filter:blur(16px)',
-    'border:1px solid rgba(255,255,255,.15);border-radius:22px',
-    'padding:5px 10px;box-shadow:0 4px 20px rgba(0,0,0,.5)'
-  ].join(';');
+  var topbar = document.querySelector('.topbar');
+  if(topbar){
+    sw.style.cssText='display:flex;gap:2px;align-items:center;margin-left:8px';
+  } else {
+    sw.style.cssText=[
+      'position:fixed;top:12px;right:16px;z-index:99999',
+      'display:flex;gap:2px;align-items:center',
+      'background:rgba(10,10,20,.92);backdrop-filter:blur(16px)',
+      'border:1px solid rgba(255,255,255,.15);border-radius:22px',
+      'padding:5px 10px;box-shadow:0 4px 20px rgba(0,0,0,.5)'
+    ].join(';');
+  }
   LANGS.forEach(function(l){
     var btn=document.createElement('button');
     btn.className='tl-lang-btn'+(l===_lang?' tl-lang-active':'');
@@ -406,7 +412,12 @@ function injectSwitcher(){
     (function(lang){ btn.onclick=function(){ TLi18n.setLang(lang); }; })(l);
     sw.appendChild(btn);
   });
-  document.body.appendChild(sw);
+  var topbar2 = document.querySelector('.topbar');
+  if(topbar2){
+    topbar2.appendChild(sw);
+  } else {
+    document.body.appendChild(sw);
+  }
 }
 
 function injectStyle(){
@@ -446,3 +457,9 @@ window.TLi18n={
 Object.defineProperty(window.TLi18n,'lang',{get:function(){return _lang;}});
 
 })();
+
+
+
+
+
+
