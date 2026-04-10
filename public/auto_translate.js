@@ -147,19 +147,10 @@
     });
   }
 
-  // TLi18n.setLang 후킹 - 언어 변경 감지
   function hookTLi18n(){
-    if(typeof window.TLi18n === 'undefined') {
-      setTimeout(hookTLi18n, 100); return;
-    }
-    var origSetLang = window.TLi18n.setLang;
-    window.TLi18n.setLang = function(lang){
-      origSetLang.call(window.TLi18n, lang);
-      setLang(lang);
-    };
-    // 현재 언어 감지
-    _currentLang = window.TLi18n.getLang() || localStorage.getItem('tl_lang') || 'ko';
-    if(_currentLang !== 'ko'){
+    // TLi18n 없어도 작동
+    _currentLang = localStorage.getItem("tl_lang") || "ko";
+    if(_currentLang !== "ko"){
       setTimeout(function(){ scanDOM(); }, 500);
     }
   }
@@ -178,3 +169,5 @@
 
   window.TLAutoTranslate = { setLang, scanDOM };
 })();
+
+

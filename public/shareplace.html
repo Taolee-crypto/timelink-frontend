@@ -950,7 +950,7 @@ function showTLDownloadGuide(title){
         +'앱 다운로드</a>'
       +'<button onclick="var el=document.getElementById(\'_tlDlGuide\');if(el)el.remove();" '
         +'style="padding:7px 14px;border-radius:8px;border:none;background:rgba(255,255,255,.06);'
-        +'color:rgba(255,255,255,.4);font-size:11px;cursor:pointer"><span data-i18n="common.close">닫기</span></button>'
+        +'color:rgba(255,255,255,.4);font-size:11px;cursor:pointer">닫기</button>'
     +'</div>';
 
   document.body.appendChild(guide);
@@ -1505,6 +1505,32 @@ function goPage(n){
   if(grid) grid.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
+function autoGenerateCover(s){
+  if(s.cover_url) return;
+  var shareId = s.id;
+  fetch(API_BASE+'/api/covers/generate',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({share_id:shareId,title:s.title,artist:s.artist||'',genre:s.category||'Music'})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.ok&&d.cover_url){
+      s.cover_url=d.cover_url;
+      // ID 특수문자 이스케이프
+      var escapedId = shareId.replace(/([!"#$%&'()*+,.\/:;<=>?@[\\]^`{|}~])/g,'\\$1');
+      var card = document.getElementById('card-'+shareId);
+      if(!card) return;
+      var thumb = card.querySelector('.file-thumb');
+      if(thumb){
+        var img=document.createElement('img');
+        img.src=d.cover_url;
+        img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.85';
+        img.onerror=function(){this.hidden=true;};
+        thumb.insertBefore(img,thumb.firstChild);
+      }
+    }
+  }).catch(function(){});
+}
+
 function renderShares(list){
   // 페이지네이션: 현재 페이지 슬라이스
   var _totalCount = list.length;
@@ -1547,8 +1573,8 @@ function renderShares(list){
       '</div>' +
       '<div class="fc-body">' +
         '<div class="fc-type">'+typeLabel(ftype)+' · '+dur+'</div>' +
-        '<div class="fc-title">'+escH(s.title)+'</div>' +
-        '<div class="fc-artist">'+escH(s.artist||'')+(s.album?' · '+escH(s.album):'')+'</div>' +
+        '<div class="fc-title" style="cursor:pointer" onclick="location.href=\'track.html?id='+s.id+'\'">'+escH(s.title)+'</div>' +
+        '<div class="fc-artist" style="cursor:pointer" onclick="location.href=\'track.html?id='+s.id+'\'">'+escH(s.artist||'')+(s.album?' · '+escH(s.album):'')+'</div>' +
         '<div class="fc-meta">' +
           (function(){
         var myTL = _myFileTL && _myFileTL[String(s.id)];
