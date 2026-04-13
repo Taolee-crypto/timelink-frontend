@@ -1043,11 +1043,20 @@ function loadTrack(idx){
 
 function scheduleCrossfade(){
   var aud = getAud();
-  aud.addEventListener('durationchange', function onDur(){
-    aud.removeEventListener('durationchange',onDur);
-    var at = Math.max(0,(aud.duration||60)-4);
-    setTimeout(startCrossfade, at*1000);
-  },{once:true});
+  // durationchange 대신 timeupdate로 체크 (더 안정적)
+  var _cfScheduled = false;
+  var onUpdate = function(){
+    if(_cfScheduled) return;
+    if(!aud.duration || aud.duration < 5) return;
+    var remaining = aud.duration - aud.currentTime;
+    // 곡 끝 10초 전에 crossfade 시작
+    if(remaining <= 10 && remaining > 0){
+      _cfScheduled = true;
+      aud.removeEventListener('timeupdate', onUpdate);
+      startCrossfade();
+    }
+  };
+  aud.addEventListener('timeupdate', onUpdate);
 }
 
 function startCrossfade(){
