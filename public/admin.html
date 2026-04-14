@@ -162,6 +162,15 @@ tr:hover td{background:rgba(255,255,255,.015)}
   <div class="sb-item" onclick="go('revenue',this)"><span class="ico">💰</span>재무 현황</div>
   <div class="sb-item" onclick="go('footer',this)"><span class="ico">🦶</span>푸터 관리</div>
   <div class="sb-item" onclick="go('sql',this)"><span class="ico">▸</span>SQL 실행</div>
+  <div class="sb-section">P1 운영</div>
+  <div class="sb-item" onclick="go('realtime',this)"><span class="ico">🔴</span>실시간 현황</div>
+  <div class="sb-item" onclick="go('payout',this)"><span class="ico">💸</span>크리에이터 정산 <span class="sb-badge" id="sb-payout-cnt">0</span></div>
+  <div class="sb-item" onclick="go('tl-flow',this)"><span class="ico">♻</span>TL 이코노미</div>
+  <div class="sb-section">P2 분석</div>
+  <div class="sb-item" onclick="go('music-analytics',this)"><span class="ico">🎵</span>음악 분석</div>
+  <div class="sb-item" onclick="go('cafe-mgmt',this)"><span class="ico">☕</span>카페방송 관리 <span class="sb-badge g" id="sb-cafe-cnt">0</span></div>
+  <div class="sb-section">P3 인프라</div>
+  <div class="sb-item" onclick="go('infra',this)"><span class="ico">🖥</span>인프라/비용</div>
   <div class="sb-section">블록체인</div>
   <div class="sb-item" onclick="go('advertiser',this)"><span class="ico">📢</span>광고주 관리 <span class="sb-badge g" id="sb-adv-cnt">0</span></div>
   <div class="sb-item" onclick="go('ton',this)"><span class="ico">💎</span>TLC 출금 관리 <span class="sb-badge" id="sb-ton-cnt">0</span></div>
@@ -674,6 +683,120 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
   </div>
 </div>
 
+
+<!-- ═══════════════ P1: 실시간 현황 ═══════════════ -->
+<div class="panel" id="panel-realtime">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+    <div class="stat" style="--ac:#EF4444"><div class="stat-val" id="rt-users">—</div><div class="stat-lbl">총 유저</div><div class="stat-sub" id="rt-tl">TL —</div></div>
+    <div class="stat" style="--ac:#8B5CF6"><div class="stat-val" id="rt-tracks">—</div><div class="stat-lbl">총 트랙</div><div class="stat-sub" id="rt-pulse">Pulse —</div></div>
+    <div class="stat" style="--ac:#10B981"><div class="stat-val" id="rt-today-pay">—</div><div class="stat-lbl">오늘 결제</div><div class="stat-sub" id="rt-today-krw">— 원</div></div>
+    <div class="stat" style="--ac:#F59E0B"><div class="stat-val" id="rt-cafe">—</div><div class="stat-lbl">활성 카페채널</div><div class="stat-sub">월정액 구독 중</div></div>
+  </div>
+  <div class="grid2">
+    <div class="tbox"><div class="tbox-top"><div class="tbox-title">🔥 인기 트랙 TOP 5</div><button class="btn btn-g btn-xs" onclick="loadRealtime()">↻</button></div>
+    <table><thead><tr><th>#</th><th>제목</th><th>아티스트</th><th>Pulse</th></tr></thead><tbody id="rt-top-tracks"></tbody></table></div>
+    <div class="tbox"><div class="tbox-top"><div class="tbox-title">📊 TL 현황</div></div><div style="padding:16px" id="rt-tl-summary"></div></div>
+  </div>
+</div>
+
+<!-- ═══════════════ P1: 크리에이터 정산 ═══════════════ -->
+<div class="panel" id="panel-payout">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+    <div class="stat" style="--ac:#10B981"><div class="stat-val" id="po-unpaid">—</div><div class="stat-lbl">미지급 TL 합계</div><div class="stat-sub" id="po-creators">크리에이터 — 명</div></div>
+    <div class="stat" style="--ac:#8B5CF6"><div class="stat-val" id="po-req-cnt">—</div><div class="stat-lbl">정산 요청</div><div class="stat-sub">처리 대기 중</div></div>
+    <div class="stat" style="--ac:#F59E0B"><div class="stat-val" id="po-total-earned">—</div><div class="stat-lbl">총 획득 TL</div><div class="stat-sub">전체 크리에이터 합산</div></div>
+  </div>
+  <div class="tbox" style="margin-bottom:16px">
+    <div class="tbox-top"><div class="tbox-title">💸 크리에이터별 수익</div><button class="btn btn-g btn-xs" onclick="loadPayout()">↻</button></div>
+    <table><thead><tr><th>유저</th><th>트랙</th><th>총획득TL</th><th>지급완료TL</th><th>미지급TL</th><th>TL잔액</th><th>정산</th></tr></thead>
+    <tbody id="po-creators-tbody"></tbody></table>
+  </div>
+  <div class="tbox">
+    <div class="tbox-top"><div class="tbox-title">📋 정산 이력</div></div>
+    <table><thead><tr><th>날짜</th><th>유저</th><th>TL</th><th>원화</th><th>상태</th><th>메모</th></tr></thead>
+    <tbody id="po-requests-tbody"></tbody></table>
+  </div>
+  <div id="po-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);align-items:center;justify-content:center">
+    <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:24px;width:360px">
+      <div style="font-size:15px;font-weight:700;margin-bottom:16px">💸 정산 처리</div>
+      <input id="po-modal-user" type="hidden">
+      <div style="margin-bottom:10px"><div id="po-modal-username" style="font-weight:600;font-size:14px"></div></div>
+      <div style="margin-bottom:10px"><label style="font-size:12px;color:var(--t3)">TL 금액</label><input id="po-modal-tl" type="number" class="inp" style="width:100%;margin-top:4px" placeholder="0"></div>
+      <div style="margin-bottom:10px"><label style="font-size:12px;color:var(--t3)">원화 환산</label><input id="po-modal-krw" type="number" class="inp" style="width:100%;margin-top:4px" placeholder="0"></div>
+      <div style="margin-bottom:16px"><label style="font-size:12px;color:var(--t3)">메모</label><input id="po-modal-note" class="inp" style="width:100%;margin-top:4px" value="관리자 수동 정산"></div>
+      <div style="display:flex;gap:8px"><button class="btn btn-g" onclick="document.getElementById('po-modal').style.display='none'" style="flex:1">취소</button><button class="btn btn-b" onclick="submitPayout()" style="flex:2">✅ 정산 처리</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ P1: TL 이코노미 ═══════════════ -->
+<div class="panel" id="panel-tl-flow">
+  <div style="max-width:900px;margin:0 auto">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px" id="tl-flow-kpi"></div>
+    <div class="tbox" style="margin-bottom:20px">
+      <div class="tbox-top"><div class="tbox-title">♻ TL 이코노미 흐름</div><button class="btn btn-g btn-xs" onclick="loadTLFlow()">↻</button></div>
+      <div style="padding:24px" id="tl-flow-visual"></div>
+    </div>
+    <div class="grid2">
+      <div class="tbox"><div class="tbox-top"><div class="tbox-title">💵 수입</div></div><div style="padding:16px" id="tl-income-detail"></div></div>
+      <div class="tbox"><div class="tbox-top"><div class="tbox-title">💸 지출</div></div><div style="padding:16px" id="tl-expense-detail"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ P2: 음악 분석 ═══════════════ -->
+<div class="panel" id="panel-music-analytics">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+    <div class="stat" style="--ac:#8B5CF6"><div class="stat-val" id="ma-total">—</div><div class="stat-lbl">총 트랙</div><div class="stat-sub" id="ma-pulse">총 Pulse —</div></div>
+    <div class="stat" style="--ac:#10B981"><div class="stat-val" id="ma-bpm">—</div><div class="stat-lbl">평균 BPM</div><div class="stat-sub" id="ma-bpm-measured">측정 — 곡</div></div>
+    <div class="stat" style="--ac:#F59E0B"><div class="stat-val" id="ma-genres">—</div><div class="stat-lbl">장르 수</div><div class="stat-sub">등록 카테고리</div></div>
+  </div>
+  <div class="grid2" style="margin-bottom:16px">
+    <div class="tbox"><div class="tbox-top"><div class="tbox-title">🎸 장르 분포</div><button class="btn btn-g btn-xs" onclick="loadMusicAnalytics()">↻</button></div><div style="padding:16px" id="ma-genre-chart"></div></div>
+    <div class="tbox"><div class="tbox-top"><div class="tbox-title">🥁 BPM 분포</div></div><div style="padding:16px" id="ma-bpm-chart"></div></div>
+  </div>
+  <div class="tbox" style="margin-bottom:16px">
+    <div class="tbox-top"><div class="tbox-title">🔥 인기 TOP 10</div></div>
+    <table><thead><tr><th>#</th><th>제목</th><th>아티스트</th><th>장르</th><th>BPM</th><th>Pulse</th><th>File TL</th></tr></thead>
+    <tbody id="ma-top-tbody"></tbody></table>
+  </div>
+</div>
+
+<!-- ═══════════════ P2: 카페방송 채널 관리 ═══════════════ -->
+<div class="panel" id="panel-cafe-mgmt">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+    <div class="stat" style="--ac:#10B981"><div class="stat-val" id="cm-active">—</div><div class="stat-lbl">활성 채널</div><div class="stat-sub">만료일 이전</div></div>
+    <div class="stat" style="--ac:#EF4444"><div class="stat-val" id="cm-expired">—</div><div class="stat-lbl">만료 채널</div><div class="stat-sub">갱신 필요</div></div>
+    <div class="stat" style="--ac:#8B5CF6"><div class="stat-val" id="cm-revenue">—</div><div class="stat-lbl">월 구독 수익 (TL)</div><div class="stat-sub">50,000 × 채널수</div></div>
+  </div>
+  <div class="tbox">
+    <div class="tbox-top"><div class="tbox-title">☕ 카페 채널 목록</div><button class="btn btn-g btn-xs" onclick="loadCafeMgmt()">↻</button></div>
+    <table><thead><tr><th>채널명</th><th>사장</th><th>주소</th><th>만료일</th><th>잔여일</th><th>상태</th></tr></thead>
+    <tbody id="cm-tbody"></tbody></table>
+  </div>
+</div>
+
+<!-- ═══════════════ P3: 인프라/비용 ═══════════════ -->
+<div class="panel" id="panel-infra">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+    <div class="stat" style="--ac:#3B82F6"><div class="stat-val" id="if-storage">—</div><div class="stat-lbl">R2 스토리지</div><div class="stat-sub" id="if-files">파일 — 개</div></div>
+    <div class="stat" style="--ac:#8B5CF6"><div class="stat-val" id="if-workers">—</div><div class="stat-lbl">Workers 요청 (30일)</div><div class="stat-sub" id="if-workers-cost">예상 —</div></div>
+    <div class="stat" style="--ac:#10B981"><div class="stat-val" id="if-total-cost">—</div><div class="stat-lbl">월 예상 비용</div><div class="stat-sub" id="if-total-krw">— 원</div></div>
+  </div>
+  <div class="tbox">
+    <div class="tbox-top"><div class="tbox-title">🖥 인프라 현황</div><button class="btn btn-g btn-xs" onclick="loadInfra()">↻</button></div>
+    <div style="padding:20px" id="if-detail"><div class="empty">로딩 중...</div></div>
+  </div>
+  <div class="tbox" style="margin-top:14px">
+    <div class="tbox-top"><div class="tbox-title">💡 비용 최적화 현황</div></div>
+    <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+      <div style="padding:10px 14px;border-radius:8px;background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.2);font-size:13px">✅ MP3 자동변환 적용 — WAV 대비 스토리지 90% 절약</div>
+      <div style="padding:10px 14px;border-radius:8px;background:rgba(59,130,246,.05);border:1px solid rgba(59,130,246,.2);font-size:13px">✅ 스트리밍 청크 2MB 최적화 — Workers 요청 75% 감소</div>
+      <div style="padding:10px 14px;border-radius:8px;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.2);font-size:13px">⚠️ Cloudflare Free: Workers 10만req/일, D1 5GB 한도 확인 권장</div>
+    </div>
+  </div>
+</div>
+
 <div id="toast-root"></div>
 
 <script>
@@ -749,7 +872,7 @@ async function createTestAd(){
   await execSQL("INSERT INTO tl_ads (id,business_name,title,description,ad_type,status,budget_tl,spent_tl,tl_reward,views,created_at) VALUES ('"+id+"','"+biz+"','"+title+"','"+desc+"','"+type+"','active',"+budget+",0,"+reward+",0,datetime('now'))");
   toast('광고 생성됨!','g'); loadAdvertisers();
 }
-var TITLES={dashboard:'대시보드',revenue:'재무 현황',shares:'공유 파일 관리',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리'};
+var TITLES={dashboard:'대시보드',revenue:'재무 현황',shares:'공유 파일 관리',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리',realtime:'🔴 실시간 현황',payout:'💸 크리에이터 정산','tl-flow':'♻ TL 이코노미 흐름','music-analytics':'🎵 음악 콘텐츠 분석','cafe-mgmt':'☕ 카페방송 채널 관리',infra:'🖥 인프라/비용 추적'};
 function go(id,el){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
   document.querySelectorAll('.sb-item').forEach(function(i){i.classList.remove('on');});
@@ -762,6 +885,12 @@ function go(id,el){
   if(id==='notice') initNoticePanel();
   if(id==='footer') initFooterPanel();
   if(id==='revenue') loadRevenue();
+  if(id==='realtime') loadRealtime();
+  if(id==='payout') loadPayout();
+  if(id==='tl-flow') loadTLFlow();
+  if(id==='music-analytics') loadMusicAnalytics();
+  if(id==='cafe-mgmt') loadCafeMgmt();
+  if(id==='infra') loadInfra();
   if(id==='advertiser') loadAdvertisers();
 }
 
@@ -1541,6 +1670,250 @@ async function saveFooterSettings(){
     if(e.key==='Enter'&&g('loginWrap').style.display!=='none') login();
   });
 })();
+
+// ═══════════════════════════════════════
+// P1: 실시간 현황
+// ═══════════════════════════════════════
+async function loadRealtime(){
+  try{
+    var d = await api('/api/admin/realtime');
+    if(!d.ok) return;
+    g('rt-users').textContent = Number(d.users.total).toLocaleString();
+    g('rt-tl').textContent = 'TL ' + Number(d.users.total_tl).toLocaleString();
+    g('rt-tracks').textContent = Number(d.shares.total).toLocaleString();
+    g('rt-pulse').textContent = 'Pulse ' + Number(d.shares.total_pulse).toLocaleString();
+    g('rt-today-pay').textContent = d.today.payments + '건';
+    g('rt-today-krw').textContent = Number(d.today.revenue_krw).toLocaleString() + ' 원';
+    g('rt-cafe').textContent = d.cafe_channels + '개';
+    // 상위 트랙
+    var tb = g('rt-top-tracks');
+    tb.innerHTML = (d.top_tracks||[]).map(function(t,i){
+      return '<tr><td style="color:var(--amber);font-weight:700">'+(i+1)+'</td><td>'+esc(t.title)+'</td><td style="color:var(--t3)">'+esc(t.artist||'-')+'</td><td style="color:var(--g);font-family:var(--mono)">'+Number(t.pulse).toLocaleString()+'</td></tr>';
+    }).join('') || '<tr><td colspan="4"><div class="empty">데이터 없음</div></td></tr>';
+    // TL 요약
+    var tls = g('rt-tl-summary');
+    tls.innerHTML = [
+      ['파일 TL 합계', Number(d.shares.total_file_tl).toLocaleString()+' TL'],
+      ['유저 TL 합계', Number(d.users.total_tl).toLocaleString()+' TL'],
+      ['오늘 매출', Number(d.today.revenue_krw).toLocaleString()+' 원'],
+    ].map(function(r){ return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bd);font-size:13px"><span style="color:var(--t3)">'+r[0]+'</span><span style="font-weight:600;font-family:var(--mono)">'+r[1]+'</span></div>'; }).join('');
+  }catch(e){ toast('실시간 로드 실패: '+e.message,'r'); }
+}
+
+// ═══════════════════════════════════════
+// P1: 크리에이터 정산
+// ═══════════════════════════════════════
+async function loadPayout(){
+  try{
+    var d = await api('/api/admin/creators/payouts');
+    if(!d.ok) return;
+    var s = d.summary;
+    g('po-unpaid').textContent = Number(s?.unpaid_tl||0).toLocaleString()+' TL';
+    g('po-creators').textContent = '크리에이터 '+(s?.creator_count||0)+'명';
+    g('po-req-cnt').textContent = (d.requests||[]).filter(function(r){return r.status==='pending';}).length+'건';
+    var totalEarned = (d.creators||[]).reduce(function(sum,c){return sum+Number(c.total_earned||0);},0);
+    g('po-total-earned').textContent = totalEarned.toLocaleString()+' TL';
+    // 크리에이터 목록
+    g('po-creators-tbody').innerHTML = (d.creators||[]).map(function(cr){
+      var unpaid = Math.max(0, Number(cr.total_earned||0)-Number(cr.total_exchanged||0));
+      return '<tr>'+
+        '<td><div style="font-weight:600">'+esc(cr.username||'')+'</div><div style="font-size:11px;color:var(--t3)">'+esc(cr.email||'')+'</div></td>'+
+        '<td style="text-align:center">'+cr.track_count+'</td>'+
+        '<td style="font-family:var(--mono);color:var(--g)">'+Number(cr.total_earned||0).toLocaleString()+'</td>'+
+        '<td style="font-family:var(--mono);color:var(--t3)">'+Number(cr.total_exchanged||0).toLocaleString()+'</td>'+
+        '<td style="font-family:var(--mono);color:'+(unpaid>0?'var(--amber)':'var(--t3)')+'">'+unpaid.toLocaleString()+'</td>'+
+        '<td style="font-family:var(--mono)">'+Number(cr.tl_balance||0).toLocaleString()+'</td>'+
+        '<td><button class="btn btn-b btn-xs" onclick="openPayoutModal('+cr.id+',''+esc(cr.username)+'','+unpaid+')">정산</button></td>'+
+      '</tr>';
+    }).join('') || '<tr><td colspan="7"><div class="empty">크리에이터 없음</div></td></tr>';
+    // 정산 이력
+    g('po-requests-tbody').innerHTML = (d.requests||[]).map(function(r){
+      return '<tr>'+
+        '<td style="font-size:11px;color:var(--t3)">'+(r.created_at||'').slice(0,16)+'</td>'+
+        '<td>'+esc(r.username||r.user_id)+'</td>'+
+        '<td style="font-family:var(--mono);color:var(--g)">'+Number(r.amount_tl).toLocaleString()+' TL</td>'+
+        '<td style="font-family:var(--mono)">'+Number(r.amount_krw||0).toLocaleString()+'원</td>'+
+        '<td><span style="padding:2px 8px;border-radius:6px;font-size:11px;background:'+(r.status==='completed'?'rgba(16,185,129,.15)':'rgba(245,158,11,.15)')+';color:'+(r.status==='completed'?'var(--g)':'var(--amber)')+'">'+r.status+'</span></td>'+
+        '<td style="font-size:11px;color:var(--t3)">'+esc(r.note||'')+'</td>'+
+      '</tr>';
+    }).join('') || '<tr><td colspan="6"><div class="empty">정산 이력 없음</div></td></tr>';
+    g('sb-payout-cnt').textContent = d.creators?.length||0;
+  }catch(e){ toast('정산 로드 실패: '+e.message,'r'); }
+}
+
+function openPayoutModal(userId, username, unpaidTL){
+  g('po-modal-user').value = userId;
+  g('po-modal-username').textContent = username + ' (미지급: '+Number(unpaidTL).toLocaleString()+' TL)';
+  g('po-modal-tl').value = unpaidTL;
+  g('po-modal-krw').value = unpaidTL;
+  g('po-modal').style.display = 'flex';
+}
+
+async function submitPayout(){
+  var userId = g('po-modal-user').value;
+  var tl = Number(g('po-modal-tl').value||0);
+  var krw = Number(g('po-modal-krw').value||0);
+  var note = g('po-modal-note').value;
+  if(!tl){ toast('TL 금액을 입력하세요','r'); return; }
+  try{
+    var r = await fetch(API+'/api/admin/creators/'+userId+'/payout',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({amount_tl:tl,amount_krw:krw,note,status:'completed'})
+    });
+    var d = await r.json();
+    if(d.ok){ toast('✅ 정산 처리 완료','g'); g('po-modal').style.display='none'; loadPayout(); }
+    else toast('오류: '+d.error,'r');
+  }catch(e){ toast('정산 실패: '+e.message,'r'); }
+}
+
+// ═══════════════════════════════════════
+// P1: TL 이코노미 흐름
+// ═══════════════════════════════════════
+async function loadTLFlow(){
+  try{
+    var d = await api('/api/admin/revenue');
+    if(!d.ok) return;
+    var rv = d.revenue;
+    var fmtTL = function(n){ return Number(n||0).toLocaleString()+' TL'; };
+    var fmtKRW = function(n){ return Number(n||0).toLocaleString()+'원'; };
+    // KPI
+    g('tl-flow-kpi').innerHTML = [
+      {label:'현금 매출', val:fmtKRW(rv.total_krw), color:'#10B981'},
+      {label:'판매 TL', val:fmtTL(rv.total_tl_sold), color:'#8B5CF6'},
+      {label:'소비 TL', val:fmtTL(rv.total_tl_consumed), color:'#F59E0B'},
+      {label:'분배 TL', val:fmtTL(rv.total_tl_a_distributed||0), color:'#3B82F6'},
+    ].map(function(k){
+      return '<div class="stat" style="--ac:'+k.color+'"><div class="stat-val">'+k.val+'</div><div class="stat-lbl">'+k.label+'</div></div>';
+    }).join('');
+    // 흐름 시각화
+    var sold = Number(rv.total_tl_sold||0);
+    var consumed = Number(rv.total_tl_consumed||0);
+    var distributed = Number(rv.total_tl_a_distributed||0);
+    var platform = consumed - distributed;
+    g('tl-flow-visual').innerHTML =
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px">'+
+      flowBox('💵 현금 결제', fmtKRW(rv.total_krw), '#10B981')+
+      arrow()+
+      flowBox('⚡ TL 발행', fmtTL(sold), '#8B5CF6')+
+      arrow()+
+      flowBox('🔥 TL 소비', fmtTL(consumed), '#F59E0B')+
+      '<div style="display:flex;flex-direction:column;gap:6px">'+
+        arrow()+flowBox('🎵 크리에이터', fmtTL(distributed), '#3B82F6')+'<br>'+
+        arrow()+flowBox('🏢 플랫폼 수익', fmtTL(Math.max(0,platform)), '#EF4444')+
+      '</div></div>';
+    // 수입/지출
+    g('tl-income-detail').innerHTML = [
+      ['💵 현금 결제 (TL구매)', fmtKRW(rv.total_krw)],
+      ['📺 광고 수익', fmtTL(rv.total_ad_tl||0)],
+      ['☕ 카페방송 구독', '집계 예정'],
+    ].map(function(r){ return detailRow(r[0],r[1]); }).join('');
+    g('tl-expense-detail').innerHTML = [
+      ['🎵 크리에이터 분배', fmtTL(distributed)],
+      ['🎁 광고 리워드', fmtTL(rv.total_tl_a_distributed||0)],
+      ['💰 현금교환 요청', fmtTL(rv.total_exchange_requested||0)],
+    ].map(function(r){ return detailRow(r[0],r[1]); }).join('');
+  }catch(e){ toast('TL흐름 로드 실패: '+e.message,'r'); }
+}
+function flowBox(label,val,color){
+  return '<div style="padding:10px 14px;border-radius:8px;border:1px solid '+color+'40;background:'+color+'15;min-width:120px;text-align:center"><div style="font-size:12px;color:var(--t3);margin-bottom:4px">'+label+'</div><div style="font-weight:700;font-size:13px;color:'+color+';font-family:var(--mono)">'+val+'</div></div>';
+}
+function arrow(){ return '<span style="color:var(--t3);font-size:18px">→</span>'; }
+function detailRow(k,v){ return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bd);font-size:13px"><span style="color:var(--t3)">'+k+'</span><span style="font-weight:600;font-family:var(--mono)">'+v+'</span></div>'; }
+
+// ═══════════════════════════════════════
+// P2: 음악 콘텐츠 분석
+// ═══════════════════════════════════════
+async function loadMusicAnalytics(){
+  try{
+    var d = await api('/api/admin/music/analytics');
+    if(!d.ok) return;
+    var t = d.totals;
+    g('ma-total').textContent = Number(t?.total||0).toLocaleString();
+    g('ma-pulse').textContent = 'Pulse '+Number(t?.pulse||0).toLocaleString();
+    g('ma-bpm').textContent = Math.round(t?.avg_bpm||0);
+    // BPM 측정된 곡 수
+    var bpmMeasured = (d.bpm_dist||[]).filter(function(b){return b.range!=='미측정';}).reduce(function(s,b){return s+Number(b.cnt);},0);
+    g('ma-bpm-measured').textContent = '측정 '+bpmMeasured+'곡';
+    g('ma-genres').textContent = (d.genres||[]).length;
+    // 장르 차트
+    var maxGenre = Math.max.apply(null, (d.genres||[]).map(function(g){return Number(g.cnt);})||[1]);
+    g('ma-genre-chart').innerHTML = (d.genres||[]).slice(0,10).map(function(genre){
+      var pct = Math.round(Number(genre.cnt)/maxGenre*100);
+      return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>'+esc(genre.category||'미분류')+'</span><span style="color:var(--t3)">'+genre.cnt+'곡</span></div>'+
+        '<div style="height:6px;background:var(--bd);border-radius:3px"><div style="height:100%;width:'+pct+'%;background:var(--purple);border-radius:3px"></div></div></div>';
+    }).join('') || '<div class="empty">데이터 없음</div>';
+    // BPM 차트
+    g('ma-bpm-chart').innerHTML = (d.bpm_dist||[]).map(function(b){
+      var pct = Math.round(Number(b.cnt)/Math.max(1,Number(t?.total||1))*100);
+      var color = b.range==='미측정'?'var(--t3)':b.range.includes('느림')?'#3B82F6':b.range.includes('보통')?'#10B981':b.range.includes('신남')?'#F59E0B':'#EF4444';
+      return '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>'+b.range+'</span><span style="color:var(--t3)">'+b.cnt+'곡 ('+pct+'%)</span></div>'+
+        '<div style="height:6px;background:var(--bd);border-radius:3px"><div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:3px"></div></div></div>';
+    }).join('') || '<div class="empty">데이터 없음</div>';
+    // 상위 트랙
+    g('ma-top-tbody').innerHTML = (d.top_tracks||[]).map(function(t,i){
+      return '<tr><td style="color:var(--amber);font-weight:700">'+(i+1)+'</td>'+
+        '<td>'+esc(t.title||'')+'</td><td style="color:var(--t3)">'+esc(t.artist||'')+'</td>'+
+        '<td><span style="font-size:11px;padding:2px 6px;background:rgba(139,92,246,.1);border-radius:4px;color:var(--purple)">'+esc(t.category||'-')+'</span></td>'+
+        '<td style="font-family:var(--mono);color:'+(t.bpm?'var(--g)':'var(--t3)')+'">'+( t.bpm||'-')+'</td>'+
+        '<td style="font-family:var(--mono);color:var(--g)">'+Number(t.pulse).toLocaleString()+'</td>'+
+        '<td style="font-family:var(--mono)">'+Number(t.file_tl).toLocaleString()+'</td></tr>';
+    }).join('') || '<tr><td colspan="7"><div class="empty">데이터 없음</div></td></tr>';
+  }catch(e){ toast('음악분석 로드 실패: '+e.message,'r'); }
+}
+
+// ═══════════════════════════════════════
+// P2: 카페방송 채널 관리
+// ═══════════════════════════════════════
+async function loadCafeMgmt(){
+  try{
+    var d = await api('/api/admin/cafe/channels');
+    if(!d.ok) return;
+    var s = d.summary;
+    g('cm-active').textContent = s?.active||0;
+    g('cm-expired').textContent = s?.expired||0;
+    g('cm-revenue').textContent = ((s?.active||0)*50000).toLocaleString()+' TL';
+    g('sb-cafe-cnt').textContent = s?.active||0;
+    g('cm-tbody').innerHTML = (d.channels||[]).map(function(ch){
+      var isActive = ch.status==='active';
+      var daysLeft = Number(ch.days_left||0);
+      return '<tr>'+
+        '<td><div style="font-weight:600">'+esc(ch.name||'')+'</div></td>'+
+        '<td style="font-size:12px"><div>'+esc(ch.username||'')+'</div><div style="color:var(--t3)">'+esc(ch.email||'')+'</div></td>'+
+        '<td style="font-size:12px;color:var(--t3)">'+esc(ch.addr||'-')+'</td>'+
+        '<td style="font-size:12px;font-family:var(--mono)">'+(ch.expires_at||'-').slice(0,10)+'</td>'+
+        '<td style="font-family:var(--mono);color:'+(daysLeft<=7?'var(--rose)':daysLeft<=30?'var(--amber)':'var(--g)')+'">'+daysLeft+'일</td>'+
+        '<td><span style="padding:2px 8px;border-radius:6px;font-size:11px;background:'+(isActive?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)')+';color:'+(isActive?'var(--g)':'var(--rose)')+'">'+ch.status+'</span></td>'+
+      '</tr>';
+    }).join('') || '<tr><td colspan="6"><div class="empty">채널 없음</div></td></tr>';
+  }catch(e){ toast('카페관리 로드 실패: '+e.message,'r'); }
+}
+
+// ═══════════════════════════════════════
+// P3: 인프라/비용
+// ═══════════════════════════════════════
+async function loadInfra(){
+  try{
+    var d = await api('/api/admin/infra/stats');
+    if(!d.ok){ g('if-detail').innerHTML = '<div class="empty">upload_logs 테이블 없음 — 비용 추정 불가</div>'; return; }
+    g('if-storage').textContent = d.storage.total_gb + ' GB';
+    g('if-files').textContent = '파일 '+Number(d.storage.files).toLocaleString()+'개';
+    g('if-workers').textContent = Number(d.workers.requests_30d).toLocaleString();
+    g('if-workers-cost').textContent = '$'+d.workers.cost_usd;
+    g('if-total-cost').textContent = '$'+d.estimated_monthly_usd;
+    g('if-total-krw').textContent = Number(d.estimated_monthly_krw).toLocaleString()+'원';
+    g('if-detail').innerHTML = [
+      ['R2 스토리지', d.storage.total_gb+' GB', '예상 $'+d.storage.cost_usd+'/월'],
+      ['Workers 요청 (30일)', Number(d.workers.requests_30d).toLocaleString()+'건', '예상 $'+d.workers.cost_usd+'/월'],
+      ['월 총 예상 비용', '$'+d.estimated_monthly_usd, Number(d.estimated_monthly_krw).toLocaleString()+'원'],
+    ].map(function(r){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--bd)">'+
+        '<span style="color:var(--t2);font-size:13px">'+r[0]+'</span>'+
+        '<div style="text-align:right"><div style="font-weight:700;font-family:var(--mono)">'+r[1]+'</div><div style="font-size:11px;color:var(--t3)">'+r[2]+'</div></div></div>';
+    }).join('');
+  }catch(e){ g('if-detail').innerHTML = '<div class="empty">데이터 없음: '+e.message+'</div>'; }
+}
+
 </script>
 </body>
 </html>
