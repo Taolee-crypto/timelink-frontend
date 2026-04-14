@@ -895,9 +895,15 @@ function go(id,el){
 }
 
 // ─ API ─
+function getAdminToken(){
+  return localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'';
+}
 async function api(path,opts){
   try{
-    var r=await fetch(API+path,Object.assign({mode:'cors'},opts||{}));
+    var tk = getAdminToken();
+    var fetchOpts = Object.assign({mode:'cors'}, opts||{});
+    fetchOpts.headers = Object.assign({'Authorization':'Bearer '+tk}, fetchOpts.headers||{});
+    var r=await fetch(API+path, fetchOpts);
     if(!r.ok){ toast('HTTP '+r.status+' — '+path,'r'); return null; }
     return await r.json();
   } catch(e){ toast('네트워크 오류: '+e.message,'r'); return null; }
