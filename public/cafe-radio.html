@@ -834,6 +834,35 @@ if(typeof TLi18n === 'undefined'){
       </div>
     </div>
 
+    <!-- AI DJ 채널 타입 선택 -->
+    <div class="sb-section" style="padding:12px 16px 8px">
+      <div class="sb-label" style="margin-bottom:8px">🎛️ 채널 유형</div>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button id="btnDirectCh" onclick="setCafeChannelType('direct')"
+          style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid var(--amber);background:var(--amber3);color:var(--amber);font-size:11px;font-weight:700;cursor:pointer">
+          📋 직접 채널
+        </button>
+        <button id="btnAIDJCh" onclick="setCafeChannelType('aidj')"
+          style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid var(--bd2);background:transparent;color:var(--t3);font-size:11px;font-weight:700;cursor:pointer">
+          🤖 AI DJ 채널
+        </button>
+      </div>
+      <div id="aiDJSettings" style="display:none;background:rgba(139,92,246,.05);border:1px solid rgba(139,92,246,.15);border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="font-size:11px;color:var(--t3);margin-bottom:8px;font-family:var(--fm)">🌟 분위기 설정</div>
+        <div id="vibeButtons" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+          <button onclick="setVibe(this,'조용한 카페')" class="vibe-btn" data-active="1" style="padding:4px 10px;border-radius:12px;border:1px solid var(--purple);background:var(--purple2);color:var(--purple);font-size:10px;cursor:pointer">☕ 조용한 카페</button>
+          <button onclick="setVibe(this,'활기찬 브런치')" class="vibe-btn" style="padding:4px 10px;border-radius:12px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:10px;cursor:pointer">🥐 활기찬 브런치</button>
+          <button onclick="setVibe(this,'감성 저녁')" class="vibe-btn" style="padding:4px 10px;border-radius:12px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:10px;cursor:pointer">🌙 감성 저녁</button>
+          <button onclick="setVibe(this,'재즈 바')" class="vibe-btn" style="padding:4px 10px;border-radius:12px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:10px;cursor:pointer">🎷 재즈 바</button>
+          <button onclick="setVibe(this,'공부 카페')" class="vibe-btn" style="padding:4px 10px;border-radius:12px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:10px;cursor:pointer">📚 공부 카페</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
+          <span style="font-size:10px;color:var(--t3)">📰 뉴스 읽기</span>
+          <button id="newsToggleBtn" onclick="toggleNews()" style="padding:3px 10px;border-radius:8px;border:1px solid rgba(0,229,255,.3);background:rgba(0,229,255,.08);color:var(--cyan);font-size:10px;cursor:pointer">ON</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Channel List -->
     <div class="sb-section" style="padding-bottom:8px">
       <div class="sb-label" data-i18n="radio.live.ch">라이브 채널</div>
@@ -981,6 +1010,12 @@ if(typeof TLi18n === 'undefined'){
               <div class="dj-orb-ring-outer"></div>
               <div class="dj-orb-ring-pulse"></div>
               <div class="dj-orb-inner" id="djOrb">🎧</div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+              <button id="tiloTTSBtn" onclick="toggleTiloTTS()"
+                style="font-size:10px;padding:3px 10px;border-radius:8px;border:1px solid rgba(0,229,255,.3);background:rgba(0,229,255,.08);color:var(--cyan);cursor:pointer;font-family:var(--fm)">
+                🔊 TiLo 목소리 ON
+              </button>
             </div>
             <div class="dj-listen-row" id="djListenRow">
               <div class="dj-listen-wave">
@@ -1219,11 +1254,85 @@ function getTimeSlot(){
   return {slot:'latenight', label:'🌃 심야', mood:'재즈, 로파이, 어쿠스틱', poc:'2.0x 🌙'};
 }
 
+// ── 전역 상태 ──
+var _weather = { desc:'맑음', temp:20, code:0, icon:'☀️', loaded:false };
+var _cafeVibe = '조용한 카페';
+var _cafeChannelType = 'direct'; // 'direct' | 'aidj'
+var _newsEnabled = true;
+var _newsHeadlines = [];
+
+async function fetchWeather(){
+  try{
+    var pos = await new Promise(function(res,rej){
+      navigator.geolocation.getCurrentPosition(res,rej,{timeout:5000});
+    });
+    var lat = pos.coords.latitude.toFixed(4);
+    var lon = pos.coords.longitude.toFixed(4);
+    var r = await fetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current=temperature_2m,weather_code&timezone=auto');
+    var d = await r.json();
+    var code = d.current.weather_code||0;
+    var temp = Math.round(d.current.temperature_2m||20);
+    var desc = code===0?'맑음':code<=3?'구름':code<=48?'안개':code<=67?'비':code<=77?'눈':code<=82?'소나기':'뇌우';
+    var icon = code===0?'☀️':code<=3?'⛅':code<=48?'🌫️':code<=67?'🌧️':code<=77?'❄️':code<=82?'🌦️':'⛈️';
+    _weather = {desc:desc,temp:temp,code:code,icon:icon,loaded:true};
+    if(g('weatherBar')) g('weatherBar').textContent = icon+' '+temp+'°C '+desc+' • '+getTimeSlot().label;
+  }catch(e){
+    if(g('weatherBar')) g('weatherBar').textContent = getTimeSlot().label+' • AI DJ 선곡 중';
+  }
+}
+
+async function fetchNews(){
+  try{
+    // 공개 뉴스 RSS → CORS 프록시
+    var r = await fetch('https://api.timelink.digital/api/news/headlines');
+    var d = await r.json();
+    _newsHeadlines = d.headlines || [];
+  }catch(e){ _newsHeadlines=[]; }
+}
+
+function setCafeChannelType(type){
+  _cafeChannelType = type;
+  var direct = g('btnDirectCh'), aidj = g('btnAIDJCh');
+  var settings = g('aiDJSettings');
+  if(type==='aidj'){
+    direct.style.borderColor='var(--bd2)'; direct.style.background='transparent'; direct.style.color='var(--t3)';
+    aidj.style.borderColor='var(--purple)'; aidj.style.background='var(--purple2)'; aidj.style.color='var(--purple)';
+    settings.style.display='block';
+    toast('🤖 AI DJ 채널 모드','s');
+    aiBuildQueue();
+  } else {
+    aidj.style.borderColor='var(--bd2)'; aidj.style.background='transparent'; aidj.style.color='var(--t3)';
+    direct.style.borderColor='var(--amber)'; direct.style.background='var(--amber3)'; direct.style.color='var(--amber)';
+    settings.style.display='none';
+    toast('📋 직접 채널 모드','i');
+    fallbackBuildQueue();
+  }
+}
+
+function setVibe(btn, vibe){
+  _cafeVibe = vibe;
+  document.querySelectorAll('.vibe-btn').forEach(function(b){
+    b.style.borderColor='var(--bd)'; b.style.background='transparent'; b.style.color='var(--t3)';
+  });
+  btn.style.borderColor='var(--purple)'; btn.style.background='var(--purple2)'; btn.style.color='var(--purple)';
+  toast('분위기: '+vibe,'i');
+  if(_cafeChannelType==='aidj') aiBuildQueue();
+}
+
+function toggleNews(){
+  _newsEnabled = !_newsEnabled;
+  var btn = g('newsToggleBtn');
+  if(btn){ btn.textContent=_newsEnabled?'ON':'OFF'; btn.style.color=_newsEnabled?'var(--cyan)':'var(--t3)'; }
+  toast(_newsEnabled?'📰 뉴스 ON':'📰 뉴스 OFF','i');
+}
+
 function initWeather(){
   var ts = getTimeSlot();
-  g('weatherBar').textContent = ts.label + ' • AI DJ 선곡 중';
-  g('djMood').textContent = ts.label;
-  g('djReason').textContent = ts.mood + ' 음악 선곡';
+  if(g('weatherBar')) g('weatherBar').textContent = ts.label+' • 날씨 확인 중...';
+  if(g('djMood')) g('djMood').textContent = ts.label;
+  if(g('djReason')) g('djReason').textContent = ts.mood+' 음악 선곡';
+  fetchWeather();
+  if(_newsEnabled) fetchNews();
   updateDJPanel();
 }
 
@@ -1237,16 +1346,19 @@ var _djTyping = false;
 function getDJContext(){
   var ts = getTimeSlot();
   var now = new Date();
-  var tracks = _queue.slice(0,5).map(function(t){ return t.title + ' - ' + t.artist; }).join(', ');
+  var tracks = _queue.slice(0,5).map(function(t){ return t.title+' - '+t.artist; }).join(', ');
+  var reqs = _requests.slice(0,3).map(function(r){ return r.song+(r.story?' ('+r.story+')':''); }).join(' / ');
   return {
-    time: ts.label,
-    slot: ts.slot,
-    mood: ts.mood,
-    mode: _mode === 'cafe' ? '카페방송' : '인카방송',
-    currentTrack: _queue[_curIdx] ? (_queue[_curIdx].title + ' by ' + _queue[_curIdx].artist) : '없음',
-    queueTracks: tracks || '없음',
-    pocMult: ts.poc,
-    hour: now.getHours()
+    time: ts.label, slot: ts.slot, mood: ts.mood,
+    mode: _mode==='cafe'?'카페방송':'인카방송',
+    channelType: _cafeChannelType,
+    vibe: _cafeVibe,
+    weather: _weather.loaded?(_weather.icon+' '+_weather.temp+'°C '+_weather.desc):'정보없음',
+    news: _newsEnabled&&_newsHeadlines.length?_newsHeadlines.slice(0,3).join(' / '):'없음',
+    currentTrack: _queue[_curIdx]?(_queue[_curIdx].title+' by '+_queue[_curIdx].artist):'없음',
+    queueTracks: tracks||'없음',
+    pendingRequests: reqs||'없음',
+    pocMult: ts.poc, hour: now.getHours()
   };
 }
 
@@ -1254,25 +1366,31 @@ async function updateDJPanel(){
   var ts = getTimeSlot();
   renderDJCriteria(ts);
   renderDJTags(ts);
-  // 처음 진입 시 자동 인사
   if(_djHistory.length === 0){
+    // 즉시 TTS 인사
+    tiloTTS('안녕하세요! 저는 TiLo입니다. 오늘도 최고의 음악으로 함께할게요!');
     await djSpeak(null, true);
   }
 }
 
 async function djSpeak(userMsg, isAuto){
   var ctx = getDJContext();
+  var newsLine = ctx.news!=='없음' ? '\n- 오늘 뉴스: '+ctx.news : '';
+  var vibeLine = '\n- 카페 분위기 설정: '+ctx.vibe;
+  var weatherLine = '\n- 날씨: '+ctx.weather;
+  var reqLine = ctx.pendingRequests!=='없음' ? '\n- 신청곡 대기: '+ctx.pendingRequests : '';
   var systemPrompt = [
-    'You are TiLo, an AI DJ for TimeLink — a Korean digital music economy platform.',
-    'You are warm, witty, and knowledgeable about music. You speak naturally in Korean.',
-    'Current context: ' + JSON.stringify(ctx),
+    'You are TiLo, AI DJ for TimeLink — Korean digital music economy platform.',
+    'You speak warmly and naturally in Korean. You are a real radio DJ, not an assistant.',
+    'Current context: time='+ctx.time+', slot='+ctx.slot+weatherLine+vibeLine+newsLine+reqLine,
+    'Now playing: '+ctx.currentTrack,
     'Rules:',
-    '- Keep responses short: 2-3 sentences max.',
-    '- When a user requests a mood or song type, acknowledge it naturally and say you will find matching music.',
-    '- Mention current time/mood naturally. Reference the actual tracks playing if available.',
-    '- Use casual Korean (반말 or 존댓말 mixed naturally). Add music emoji occasionally.',
-    '- Do NOT list songs explicitly — just describe the vibe and say you are cueing it up.',
-    '- Never break character. You are a real DJ, not an AI assistant.'
+    '- Respond in Korean only. 2-3 sentences max.',
+    '- Mention weather/time/vibe naturally when relevant.',
+    '- If news is available and newsEnabled, read one headline naturally.',
+    '- If there are pending song requests, acknowledge them warmly.',
+    '- Never break character. Never say you are AI.',
+    '- Add music emoji occasionally. Be warm and engaging.'
   ].join('\n');
 
   var messages = _djHistory.slice(-6).map(function(h){
@@ -1307,6 +1425,7 @@ async function djSpeak(userMsg, isAuto){
 
     setDJState('playing');
     showDJBubble(reply);
+    tiloTTS(reply);
     if(userMsg) addDJHistoryItem(userMsg, reply);
 
   } catch(e){
@@ -1326,6 +1445,7 @@ async function djSpeak(userMsg, isAuto){
     _djHistory.push({role:'assistant', content:msg});
     setDJState('playing');
     showDJBubble(msg);
+    tiloTTS(msg);
     if(userMsg) addDJHistoryItem(userMsg, msg);
   }
 }
@@ -1396,6 +1516,22 @@ function quickRequest(msg){
   var inp = g('djTalkInput');
   inp.value = msg;
   talkToDJ();
+}
+
+async function autoAnnounceTrack(s){
+  if(!_playing) return;
+  var token = _token||localStorage.getItem('tl_token')||'';
+  var ctx = getDJContext();
+  var prompt = '"'+s.title+'" by '+(s.artist||'Unknown')+' 재생. 1-2문장으로 자연스럽게 소개. 날씨('+ctx.weather+')나 분위기('+ctx.vibe+') 언급 가능.';
+  try{
+    var res = await fetch(API+'/api/dj/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({system:'You are TiLo, AI DJ. Korean only. 1-2 sentences. Be natural.', messages:[{role:'user',content:prompt}], max_tokens:100})
+    });
+    var data = await res.json();
+    if(data.reply&&!data.fallback){ showDJBubble(data.reply); tiloTTS(data.reply); setDJState('playing'); }
+  }catch(e){}
 }
 
 async function talkToDJ(){
@@ -1546,24 +1682,109 @@ async function loadShares(){
 }
 
 // Build queue based on time/mode
+// ── TiLo TTS ──
+var _tiloTTSEnabled = true;
+function tiloTTS(text){
+  if(!_tiloTTSEnabled || !window.speechSynthesis) return;
+  var clean = text.replace(/[\u{1F300}-\u{1FFFF}\u{2600}-\u{27BF}]/gu,'').trim();
+  if(!clean) return;
+  window.speechSynthesis.cancel();
+  var utt = new SpeechSynthesisUtterance(clean);
+  utt.lang='ko-KR'; utt.rate=0.93; utt.pitch=1.05; utt.volume=0.9;
+  function speak(){
+    var voices = window.speechSynthesis.getVoices();
+    var v = voices.find(function(v){ return v.lang.startsWith('ko')&&/female|heami|yuna/i.test(v.name); })
+         || voices.find(function(v){ return v.lang.startsWith('ko'); });
+    if(v) utt.voice=v;
+    window.speechSynthesis.speak(utt);
+  }
+  window.speechSynthesis.getVoices().length>0 ? speak() : (window.speechSynthesis.onvoiceschanged=function(){ window.speechSynthesis.onvoiceschanged=null; speak(); });
+}
+function toggleTiloTTS(){
+  _tiloTTSEnabled=!_tiloTTSEnabled;
+  var btn=g('tiloTTSBtn');
+  if(btn){ btn.textContent=_tiloTTSEnabled?'🔊 TiLo 목소리 ON':'🔇 TiLo 목소리 OFF'; btn.style.color=_tiloTTSEnabled?'var(--cyan)':'var(--t3)'; }
+  if(!_tiloTTSEnabled) window.speechSynthesis.cancel();
+  toast(_tiloTTSEnabled?'🔊 TiLo 목소리 켜짐':'🔇 TiLo 목소리 꺼짐','i');
+}
+
+// ── 곡 전환 자동 멘트 ──
+var _lastAnnouncedId=null, _announceCount=0;
+
+// ── AI 선곡 ──
 function buildQueue(){
   if(!_shares.length) return;
-  var ts = getTimeSlot();
+  if(_cafeChannelType==='aidj'){
+    aiBuildQueue().catch(function(){ fallbackBuildQueue(); });
+  } else {
+    fallbackBuildQueue();
+  }
+}
+
+function fallbackBuildQueue(){
   var pool = _shares.slice();
-
-  // AI sort: pulse + time mood
-  pool.sort(function(a,b){
-    var scoreA = (a.pulse||0)*2 + Math.random()*10;
-    var scoreB = (b.pulse||0)*2 + Math.random()*10;
-    return scoreB - scoreA;
-  });
-
+  pool.sort(function(a,b){ return ((b.pulse||0)-(a.pulse||0)); });
   if(_shuffle) pool = pool.sort(function(){ return Math.random()-.5; });
   _queue = pool.slice(0,50);
   g('queueCnt').textContent = _queue.length;
   renderQueue();
-
   if(!_playing && _queue.length) loadTrack(0);
+}
+
+async function aiBuildQueue(){
+  if(!_shares.length) return;
+  var ts = getTimeSlot();
+  var token = _token||localStorage.getItem('tl_token')||'';
+  // 신청곡 매칭
+  var reqMatches = [];
+  _requests.forEach(function(req){
+    var match = _shares.find(function(s){
+      return (s.title||'').toLowerCase().includes(req.song.toLowerCase()) ||
+             (s.artist||'').toLowerCase().includes(req.song.toLowerCase());
+    });
+    if(match) reqMatches.push({share:match, story:req.story, user:req.user});
+  });
+  // 곡 목록 (최대 30곡)
+  var songList = _shares.slice(0,30).map(function(s){
+    return {id:s.id, title:s.title, artist:s.artist||'', category:s.category||'', pulse:s.pulse||0};
+  });
+  var newsCtx = _newsEnabled&&_newsHeadlines.length ? '뉴스: '+_newsHeadlines.slice(0,2).join(' / ') : '';
+  var systemPrompt = [
+    'You are TiLo, AI DJ. Return ONLY a JSON array of share IDs in play order.',
+    'No explanation. Just: ["id1","id2","id3"]',
+    'Context: time='+ts.label+', weather='+(_weather.loaded?_weather.icon+_weather.desc:'?')+', vibe='+_cafeVibe+(newsCtx?', '+newsCtx:''),
+    'Requests: '+(_requests.length?_requests.map(function(r){return r.song;}).join(', '):'없음'),
+    'Rules: put requested songs first, match vibe/weather, vary genres, max 20 IDs'
+  ].join('\n');
+  try{
+    var res = await fetch(API+'/api/dj/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({system:systemPrompt, messages:[{role:'user',content:'Songs: '+JSON.stringify(songList)}], max_tokens:300})
+    });
+    var data = await res.json();
+    var match2 = (data.reply||'').match(/\[.*?\]/s);
+    if(!match2) throw new Error('no array');
+    var ids = JSON.parse(match2[0]);
+    if(!Array.isArray(ids)||!ids.length) throw new Error('empty');
+    var ordered=[];
+    ids.forEach(function(id){ var s=_shares.find(function(x){return x.id===id;}); if(s) ordered.push(s); });
+    _shares.forEach(function(s){ if(!ordered.includes(s)) ordered.push(s); });
+    reqMatches.forEach(function(req){ var idx=ordered.indexOf(req.share); if(idx>0){ordered.splice(idx,1);ordered.unshift(req.share);} });
+    _queue = ordered.slice(0,50);
+    g('queueCnt').textContent = _queue.length;
+    renderQueue();
+    // DJ 멘트
+    var weatherStr = _weather.loaded?_weather.icon+' '+_weather.temp+'°C '+_weather.desc+', ':'';
+    var msg = weatherStr+_cafeVibe+' 분위기로 '+_queue.length+'곡 선곡했어요';
+    if(reqMatches.length) msg = '"'+reqMatches[0].share.title+'" 신청곡 포함! '+msg;
+    if(_newsEnabled&&_newsHeadlines.length) msg += '. 오늘 뉴스: '+_newsHeadlines[0];
+    djSpeak(msg, false);
+    if(!_playing&&_queue.length) loadTrack(0);
+  }catch(e){
+    console.warn('[AI DJ] fallback:', e.message);
+    fallbackBuildQueue();
+  }
 }
 
 function renderQueue(){
@@ -1762,6 +1983,15 @@ function loadTrack(idx){
 function updateNowPlaying(s){
   g('npTitle').textContent = s.title || 'Untitled';
   g('npArtist').textContent = s.artist || s.username || 'Unknown';
+  // 곡 전환 시 AI DJ 자동 멘트 (매 3곡마다)
+  if(s.id && s.id!==_lastAnnouncedId){
+    _lastAnnouncedId=s.id; _announceCount++;
+    if(_announceCount===1 || _announceCount%3===0){
+      setTimeout(function(){
+        if(_playing) autoAnnounceTrack(s);
+      }, 1500);
+    }
+  }
   var activeCh = _channels.find(function(c){ return c.id===_activeChannel; });
   var isChBroadcast = activeCh && activeCh.type==='cafe';
   var fileTL = _myFileTL[String(s.id||'')] || 0;
@@ -2265,12 +2495,14 @@ function renderRequests(){
 
 function sendRequest(){
   var song = g('reqSong').value.trim();
-  var story = g('reqStory').value.trim();
-  if(!song){ toast((TLi18n&&TLi18n.t?TLi18n.t('toast.song.required'):'required'),'e'); return; }
-  _requests.unshift({user:_user.username||'익명', song:song, story:story, time:new Date().toLocaleTimeString('ko-KR')});
-  g('reqSong').value=''; g('reqStory').value='';
+  var story = (g('reqStory')&&g('reqStory').value||'').trim();
+  if(!song){ toast('신청할 곡명을 입력하세요','e'); return; }
+  _requests.unshift({user:(_user&&_user.username)||'익명', song:song, story:story, time:new Date().toLocaleTimeString('ko-KR')});
+  g('reqSong').value=''; if(g('reqStory')) g('reqStory').value='';
   renderRequests();
-  toast((TLi18n&&TLi18n.t?TLi18n.t('toast.song.requested'):'requeste'),'s');
+  toast('🎤 TiLo가 신청곡을 받았습니다!','s');
+  // AI DJ 재선곡
+  if(_cafeChannelType==='aidj') aiBuildQueue().catch(function(){ fallbackBuildQueue(); });
 }
 
 function loadMyPlaylist(){
