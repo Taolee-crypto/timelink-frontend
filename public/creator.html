@@ -269,6 +269,8 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
 
 
 </style>
+<!-- lamejs: 순수 JS MP3 인코더 (WAV→MP3 자동변환용) -->
+<script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
 </head>
 <body>
 
@@ -822,6 +824,17 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
         </div>
       </div>
 
+      <!-- WAV→MP3 자동변환 안내 -->
+      <div id="convertNotice" style="display:none;margin-bottom:12px;padding:12px 16px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);border-radius:10px;font-size:12px;color:var(--t2)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span id="convertIcon">🔄</span>
+          <span id="convertTitle" style="font-weight:700;color:var(--purple)">WAV 파일 감지</span>
+        </div>
+        <div id="convertMsg" style="color:var(--t3);margin-bottom:8px">MP3 320kbps로 변환 중... (음질 동일, 용량 1/10)</div>
+        <div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden">
+          <div id="convertBar" style="height:100%;width:0%;background:var(--purple);transition:width .3s;border-radius:2px"></div>
+        </div>
+      </div>
       <button class="upload-btn" id="uploadBtn" onclick="doUpload()" disabled>
         📤 업로드 및 공유 등록
       </button>
@@ -1006,7 +1019,37 @@ function onFileSelected(f){
     document.getElementById('tlDuration').textContent='열람 시간';
     document.getElementById('tlEstimate').textContent='시간당 3,600 TL';
   }
-  document.getElementById('uploadBtn').disabled=false;
+  // WAV / FLAC 감지 → MP3 320kbps 자동변환
+  var needConvert = f.type === 'audio/wav' || f.type === 'audio/x-wav' ||
+    f.type === 'audio/flac' || f.type === 'audio/x-flac' ||
+    /\.(wav|flac|aiff|aif)$/i.test(f.name);
+
+  if(needConvert && typeof lamejs !== 'undefined'){
+    document.getElementById('uploadBtn').disabled = true;
+    document.getElementById('convertNotice').style.display = 'block';
+    document.getElementById('convertIcon').textContent = '🔄';
+    document.getElementById('convertTitle').textContent = 'WAV → MP3 변환 중';
+    document.getElementById('convertMsg').textContent = 'MP3 320kbps로 변환 중... (음질 동일, 용량 1/10)';
+    document.getElementById('convertBar').style.width = '0%';
+    convertToMp3(f, function(mp3File){
+      _file = mp3File;
+      document.getElementById('convertIcon').textContent = '✅';
+      document.getElementById('convertTitle').textContent = '변환 완료';
+      document.getElementById('convertMsg').textContent =
+        '원본 ' + fmtBytes(f.size) + ' → MP3 ' + fmtBytes(mp3File.size) + ' (절약: ' + fmtBytes(f.size - mp3File.size) + ')';
+      document.getElementById('convertBar').style.width = '100%';
+      document.getElementById('uploadBtn').disabled = false;
+    }, function(err){
+      document.getElementById('convertIcon').textContent = '⚠️';
+      document.getElementById('convertTitle').textContent = '변환 실패 - 원본으로 업로드';
+      document.getElementById('convertMsg').textContent = err.message;
+      document.getElementById('uploadBtn').disabled = false;
+    });
+  } else {
+    document.getElementById('uploadBtn').disabled = false;
+    if(document.getElementById('convertNotice'))
+      document.getElementById('convertNotice').style.display = 'none';
+  }
   // 영상 파일이면 압축 안내 표시
   var _isVideo = f.type.startsWith('video/') || /\.(mp4|mov|avi|mkv|webm)$/i.test(f.name);
 }
@@ -1357,6 +1400,59 @@ async function compressVideo(file){
 }
 
 var _tlPerSec = _tlPerSec || 1.0;
+// ── WAV/FLAC → MP3 320kbps 변환 (lamejs 사용) ──
+function convertToMp3(file, onSuccess, onError){
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    ctx.decodeAudioData(e.target.result, function(audioBuffer){
+      try{
+        var ch = audioBuffer.numberOfChannels;
+        var sr = audioBuffer.sampleRate;
+        var mp3enc = new lamejs.Mp3Encoder(ch > 1 ? 2 : 1, sr, 320);
+        var mp3Data = [];
+        var left = audioBuffer.getChannelData(0);
+        var right = ch > 1 ? audioBuffer.getChannelData(1) : left;
+        var BLOCK = 1152;
+        var total = left.length;
+
+        // Float32 → Int16 변환 함수
+        function f32ToI16(f32){
+          var i16 = new Int16Array(f32.length);
+          for(var i=0;i<f32.length;i++){
+            var s = Math.max(-1, Math.min(1, f32[i]));
+            i16[i] = s < 0 ? s * 32768 : s * 32767;
+          }
+          return i16;
+        }
+
+        for(var i=0; i<total; i+=BLOCK){
+          var leftChunk  = f32ToI16(left.subarray(i, i+BLOCK));
+          var rightChunk = f32ToI16(right.subarray(i, i+BLOCK));
+          var encoded = ch > 1
+            ? mp3enc.encodeBuffer(leftChunk, rightChunk)
+            : mp3enc.encodeBuffer(leftChunk);
+          if(encoded.length > 0) mp3Data.push(new Int8Array(encoded));
+          // 진행률 업데이트
+          var pct = Math.round((i/total)*95);
+          if(document.getElementById('convertBar'))
+            document.getElementById('convertBar').style.width = pct + '%';
+        }
+        var final = mp3enc.flush();
+        if(final.length > 0) mp3Data.push(new Int8Array(final));
+
+        var mp3Blob = new Blob(mp3Data, {type:'audio/mpeg'});
+        var mp3Name = file.name.replace(/\.[^.]+$/, '.mp3');
+        var mp3File = new File([mp3Blob], mp3Name, {type:'audio/mpeg'});
+        ctx.close();
+        onSuccess(mp3File);
+      } catch(err){ ctx.close(); onError(err); }
+    }, function(err){ onError(new Error('오디오 디코딩 실패: ' + err)); });
+  };
+  reader.onerror = function(){ onError(new Error('파일 읽기 실패')); };
+  reader.readAsArrayBuffer(file);
+}
+
 async function doUpload(){
   if(!_file){alert('파일을 선택하세요');return;}
   var title=document.getElementById('fTitle').value.trim();
