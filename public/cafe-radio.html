@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -1773,11 +1773,24 @@ function updateNowPlayingTL(){
 function scheduleCrossfade(){
   if(_fadeTimeout) clearTimeout(_fadeTimeout);
   var aud = getActiveAud();
-  aud.addEventListener('durationchange', function onDurChange(){
-    aud.removeEventListener('durationchange', onDurChange);
-    var fadeAt = Math.max(0, (aud.duration||60) - 4);
+  function doSchedule(){
+    var dur = aud.duration;
+    if(!dur || isNaN(dur) || dur === Infinity || dur < 5){
+      // duration 아직 모름 → 500ms 후 재시도
+      _fadeTimeout = setTimeout(doSchedule, 500);
+      return;
+    }
+    var fadeAt = Math.max(0, dur - 4);
     _fadeTimeout = setTimeout(function(){ startCrossfade(); }, fadeAt*1000);
-  }, {once:true});
+  }
+  if(aud.duration && !isNaN(aud.duration) && aud.duration > 5){
+    doSchedule();
+  } else {
+    aud.addEventListener('durationchange', function onDurChange(){
+      aud.removeEventListener('durationchange', onDurChange);
+      doSchedule();
+    }, {once:true});
+  }
 }
 
 function startCrossfade(){
@@ -1896,7 +1909,10 @@ function onTimeUpdate(){
 }
 
 function onEnded(){
-  if(!_crossfading) nextTrack();
+  if(_crossfading) return;
+  if(_fadeTimeout) clearTimeout(_fadeTimeout);
+  _crossfading = false;
+  nextTrack();
 }
 
 function seekTrack(e){
