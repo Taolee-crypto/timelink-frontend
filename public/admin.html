@@ -169,8 +169,11 @@ tr:hover td{background:rgba(255,255,255,.015)}
   <div class="sb-section">P2 분석</div>
   <div class="sb-item" onclick="go('music-analytics',this)"><span class="ico">🎵</span>음악 분석</div>
   <div class="sb-item" onclick="go('cafe-mgmt',this)"><span class="ico">☕</span>카페방송 관리 <span class="sb-badge g" id="sb-cafe-cnt">0</span></div>
+  <div class="sb-item" onclick="go('dj-stats',this)"><span class="ico">🤖</span>AI DJ 통계</div>
   <div class="sb-section">P3 인프라</div>
   <div class="sb-item" onclick="go('infra',this)"><span class="ico">🖥</span>인프라/비용</div>
+  <div class="sb-item" onclick="go('security',this)"><span class="ico">🔒</span>보안/접근 로그</div>
+  <div class="sb-item" onclick="go('auto-payout',this)"><span class="ico">🔄</span>자동 정산 <span class="sb-badge" id="sb-autopay-cnt">0</span></div>
   <div class="sb-section">블록체인</div>
   <div class="sb-item" onclick="go('advertiser',this)"><span class="ico">📢</span>광고주 관리 <span class="sb-badge g" id="sb-adv-cnt">0</span></div>
   <div class="sb-item" onclick="go('ton',this)"><span class="ico">💎</span>TLC 출금 관리 <span class="sb-badge" id="sb-ton-cnt">0</span></div>
@@ -797,6 +800,109 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
   </div>
 </div>
 
+
+<!-- ═══════════════ P2: AI DJ 통계 ═══════════════ -->
+<div class="panel" id="panel-dj-stats">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+    <div class="stat" style="--ac:#8B5CF6"><div class="stat-val" id="dj-total-req">—</div><div class="stat-lbl">총 신청곡</div><div class="stat-sub">누적 요청 수</div></div>
+    <div class="stat" style="--ac:#10B981"><div class="stat-val" id="dj-cafe-ch">—</div><div class="stat-lbl">활성 카페채널</div><div class="stat-sub">AI DJ 운영 중</div></div>
+    <div class="stat" style="--ac:#F59E0B"><div class="stat-val" id="dj-top-vibe">—</div><div class="stat-lbl">인기 분위기</div><div class="stat-sub">가장 많이 선택</div></div>
+    <div class="stat" style="--ac:#06B6D4"><div class="stat-val" id="dj-avg-bpm">—</div><div class="stat-lbl">평균 재생 BPM</div><div class="stat-sub">선곡된 곡 기준</div></div>
+  </div>
+  <div class="grid2" style="margin-bottom:16px">
+    <div class="tbox">
+      <div class="tbox-top"><div class="tbox-title">🌟 분위기별 선택 통계</div><button class="btn btn-g btn-xs" onclick="loadDJStats()">↻</button></div>
+      <div style="padding:16px" id="dj-vibe-chart"></div>
+    </div>
+    <div class="tbox">
+      <div class="tbox-top"><div class="tbox-title">⏰ 시간대별 재생 패턴</div></div>
+      <div style="padding:16px" id="dj-time-chart"></div>
+    </div>
+  </div>
+  <div class="tbox" style="margin-bottom:16px">
+    <div class="tbox-top"><div class="tbox-title">🔥 AI DJ 인기 선곡 TOP 10</div></div>
+    <table><thead><tr><th>#</th><th>제목</th><th>아티스트</th><th>장르</th><th>BPM</th><th>Pulse</th></tr></thead>
+    <tbody id="dj-top-tbody"></tbody></table>
+  </div>
+  <div class="tbox">
+    <div class="tbox-top"><div class="tbox-title">☕ 카페채널 AI DJ 현황</div></div>
+    <table><thead><tr><th>채널명</th><th>사장</th><th>상태</th><th>플레이리스트</th><th>만료일</th></tr></thead>
+    <tbody id="dj-cafe-tbody"></tbody></table>
+  </div>
+</div>
+
+<!-- ═══════════════ P3: 보안/접근 로그 ═══════════════ -->
+<div class="panel" id="panel-security">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+    <div class="stat" style="--ac:#10B981"><div class="stat-val" id="sec-admin-logins">—</div><div class="stat-lbl">관리자 접속</div><div class="stat-sub">최근 30일</div></div>
+    <div class="stat" style="--ac:#F59E0B"><div class="stat-val" id="sec-sql-cnt">—</div><div class="stat-lbl">SQL 실행 횟수</div><div class="stat-sub">최근 30일</div></div>
+    <div class="stat" style="--ac:#EF4444"><div class="stat-val" id="sec-charge-cnt">—</div><div class="stat-lbl">TL 수동 변경</div><div class="stat-sub">충전/차감 내역</div></div>
+  </div>
+  <div class="tbox" style="margin-bottom:16px">
+    <div class="tbox-top"><div class="tbox-title">🔒 관리자 액션 로그</div><button class="btn btn-g btn-xs" onclick="loadSecurity()">↻</button></div>
+    <table><thead><tr><th>시각</th><th>액션</th><th>대상</th><th>내용</th></tr></thead>
+    <tbody id="sec-log-tbody"></tbody></table>
+  </div>
+  <div class="tbox">
+    <div class="tbox-top"><div class="tbox-title">💳 TL 수동 변경 이력</div></div>
+    <table><thead><tr><th>시각</th><th>유저</th><th>타입</th><th>금액</th><th>사유</th></tr></thead>
+    <tbody id="sec-tl-tbody"></tbody></table>
+  </div>
+</div>
+
+<!-- ═══════════════ P3: 자동 정산 워크플로우 ═══════════════ -->
+<div class="panel" id="panel-auto-payout">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+    <div class="stat" style="--ac:#EF4444"><div class="stat-val" id="ap-pending">—</div><div class="stat-lbl">정산 대기</div><div class="stat-sub">처리 필요</div></div>
+    <div class="stat" style="--ac:#F59E0B"><div class="stat-val" id="ap-total-tl">—</div><div class="stat-lbl">대기 중 TL</div><div class="stat-sub">미지급 합계</div></div>
+    <div class="stat" style="--ac:#10B981"><div class="stat-val" id="ap-completed">—</div><div class="stat-lbl">완료 정산</div><div class="stat-sub">이번 달</div></div>
+  </div>
+
+  <!-- 자동 정산 기준 설정 -->
+  <div class="tbox" style="margin-bottom:16px">
+    <div class="tbox-top"><div class="tbox-title">⚙️ 자동 정산 기준</div></div>
+    <div style="padding:16px;display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+      <div>
+        <label style="font-size:12px;color:var(--t3);display:block;margin-bottom:4px">최소 정산 TL</label>
+        <input id="ap-min-tl" type="number" class="inp" style="width:120px" value="1000" placeholder="1000">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--t3);display:block;margin-bottom:4px">TL → 원화 환율</label>
+        <input id="ap-rate" type="number" class="inp" style="width:120px" value="1" placeholder="1">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--t3);display:block;margin-bottom:4px">정산 주기</label>
+        <select id="ap-cycle" class="inp" style="width:120px">
+          <option value="manual">수동</option>
+          <option value="weekly">주간</option>
+          <option value="monthly">월간</option>
+        </select>
+      </div>
+      <button class="btn btn-b" onclick="runAutoPayout()" style="margin-top:18px">🔄 일괄 정산 실행</button>
+    </div>
+  </div>
+
+  <!-- 정산 대기 목록 -->
+  <div class="tbox" style="margin-bottom:16px">
+    <div class="tbox-top">
+      <div class="tbox-title">⏳ 정산 대기 크리에이터</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-b btn-xs" onclick="approveAllPayout()">✅ 전체 승인</button>
+        <button class="btn btn-g btn-xs" onclick="loadAutoPayout()">↻</button>
+      </div>
+    </div>
+    <table><thead><tr><th><input type="checkbox" id="ap-check-all" onchange="toggleAllCheck(this)"></th><th>크리에이터</th><th>트랙 수</th><th>미지급 TL</th><th>원화 환산</th><th>상태</th><th>처리</th></tr></thead>
+    <tbody id="ap-pending-tbody"></tbody></table>
+  </div>
+
+  <!-- 정산 완료 이력 -->
+  <div class="tbox">
+    <div class="tbox-top"><div class="tbox-title">✅ 정산 완료 이력</div></div>
+    <table><thead><tr><th>날짜</th><th>크리에이터</th><th>TL</th><th>원화</th><th>메모</th></tr></thead>
+    <tbody id="ap-done-tbody"></tbody></table>
+  </div>
+</div>
+
 <div id="toast-root"></div>
 
 <script>
@@ -872,7 +978,7 @@ async function createTestAd(){
   await execSQL("INSERT INTO tl_ads (id,business_name,title,description,ad_type,status,budget_tl,spent_tl,tl_reward,views,created_at) VALUES ('"+id+"','"+biz+"','"+title+"','"+desc+"','"+type+"','active',"+budget+",0,"+reward+",0,datetime('now'))");
   toast('광고 생성됨!','g'); loadAdvertisers();
 }
-var TITLES={dashboard:'대시보드',revenue:'재무 현황',shares:'공유 파일 관리',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리',realtime:'🔴 실시간 현황',payout:'💸 크리에이터 정산','tl-flow':'♻ TL 이코노미 흐름','music-analytics':'🎵 음악 콘텐츠 분석','cafe-mgmt':'☕ 카페방송 채널 관리',infra:'🖥 인프라/비용 추적'};
+var TITLES={dashboard:'대시보드',revenue:'재무 현황',shares:'공유 파일 관리',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리',realtime:'🔴 실시간 현황',payout:'💸 크리에이터 정산','tl-flow':'♻ TL 이코노미 흐름','music-analytics':'🎵 음악 콘텐츠 분석','cafe-mgmt':'☕ 카페방송 채널 관리',infra:'🖥 인프라/비용 추적','dj-stats':'🤖 AI DJ 통계',security:'🔒 보안/접근 로그','auto-payout':'🔄 자동 정산 워크플로우'};
 function go(id,el){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
   document.querySelectorAll('.sb-item').forEach(function(i){i.classList.remove('on');});
@@ -892,6 +998,9 @@ function go(id,el){
   if(id==='cafe-mgmt') loadCafeMgmt();
   if(id==='infra') loadInfra();
   if(id==='advertiser') loadAdvertisers();
+  if(id==='dj-stats') loadDJStats();
+  if(id==='security') loadSecurity();
+  if(id==='auto-payout') loadAutoPayout();
 }
 
 // ─ API ─
@@ -1918,6 +2027,252 @@ async function loadInfra(){
         '<div style="text-align:right"><div style="font-weight:700;font-family:var(--mono)">'+r[1]+'</div><div style="font-size:11px;color:var(--t3)">'+r[2]+'</div></div></div>';
     }).join('');
   }catch(e){ g('if-detail').innerHTML = '<div class="empty">데이터 없음: '+e.message+'</div>'; }
+}
+
+
+// ═══════════════════════════════════════
+// P2: AI DJ 통계
+// ═══════════════════════════════════════
+async function loadDJStats(){
+  try{
+    // 카페채널 데이터
+    var cafe = await api('/api/admin/cafe/channels');
+    var music = await api('/api/admin/music/analytics');
+    if(!cafe||!music) return;
+
+    var activeCh = (cafe.channels||[]).filter(function(c){return c.status==='active';});
+    g('dj-cafe-ch').textContent = activeCh.length+'개';
+
+    // 분위기별 통계 (카페채널 플레이리스트 분석 기반)
+    var vibeMap = {'조용한 카페':0,'활기찬 브런치':0,'감성 저녁':0,'재즈 바':0,'공부 카페':0};
+    // 시간대 기반 추정
+    var now = new Date().getHours();
+    if(now>=7&&now<11) vibeMap['활기찬 브런치']++;
+    if(now>=11&&now<14) vibeMap['조용한 카페']++;
+    if(now>=14&&now<18) vibeMap['조용한 카페']++;
+    if(now>=18&&now<22) vibeMap['감성 저녁']++;
+    if(now>=22||now<6)  vibeMap['재즈 바']++;
+    // pulse 기반 장르 분포로 분위기 추정
+    (music.genres||[]).forEach(function(g){
+      var cat=(g.category||'').toLowerCase();
+      if(cat.includes('jazz')||cat.includes('재즈')) vibeMap['재즈 바']+=Number(g.cnt);
+      if(cat.includes('ballad')||cat.includes('발라드')) vibeMap['감성 저녁']+=Number(g.cnt);
+      if(cat.includes('indie')||cat.includes('pop')) vibeMap['조용한 카페']+=Number(g.cnt);
+      if(cat.includes('dance')||cat.includes('kpop')||cat.includes('k-pop')) vibeMap['활기찬 브런치']+=Number(g.cnt);
+      if(cat.includes('lofi')||cat.includes('classic')) vibeMap['공부 카페']+=Number(g.cnt);
+    });
+    var topVibe = Object.entries(vibeMap).sort(function(a,b){return b[1]-a[1];})[0];
+    g('dj-top-vibe').textContent = topVibe?topVibe[0].split(' ')[1]||topVibe[0]:'—';
+    g('dj-avg-bpm').textContent = Math.round(music.totals?.avg_bpm||0);
+    g('dj-total-req').textContent = (music.totals?.total||0)+'곡풀';
+
+    // 분위기 차트
+    var maxVibe = Math.max.apply(null,Object.values(vibeMap))||1;
+    g('dj-vibe-chart').innerHTML = Object.entries(vibeMap).map(function(e){
+      var pct = Math.round(e[1]/maxVibe*100);
+      var colors = {'조용한 카페':'#8B5CF6','활기찬 브런치':'#F59E0B','감성 저녁':'#3B82F6','재즈 바':'#10B981','공부 카페':'#06B6D4'};
+      var col = colors[e[0]]||'var(--purple)';
+      return '<div style="margin-bottom:8px">'+
+        '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">'+
+        '<span>'+e[0]+'</span><span style="color:var(--t3)">'+e[1]+'</span></div>'+
+        '<div style="height:6px;background:var(--bd);border-radius:3px">'+
+        '<div style="height:100%;width:'+pct+'%;background:'+col+';border-radius:3px"></div></div></div>';
+    }).join('');
+
+    // 시간대 차트 (24시간)
+    var hours = ['새벽(0-6)','아침(6-9)','오전(9-12)','점심(12-14)','오후(14-17)','저녁(17-20)','밤(20-24)'];
+    var vibes = ['재즈 바','활기찬 브런치','조용한 카페','조용한 카페','조용한 카페','감성 저녁','감성 저녁'];
+    g('dj-time-chart').innerHTML = hours.map(function(h,i){
+      return '<div style="margin-bottom:6px;display:flex;align-items:center;gap:8px;font-size:12px">'+
+        '<span style="min-width:80px;color:var(--t3)">'+h+'</span>'+
+        '<span style="padding:2px 8px;border-radius:4px;background:rgba(139,92,246,.1);color:var(--purple)">'+vibes[i]+'</span></div>';
+    }).join('');
+
+    // TOP 10 트랙 (pulse 순)
+    g('dj-top-tbody').innerHTML = (music.top_tracks||[]).map(function(t,i){
+      return '<tr><td style="color:var(--amber);font-weight:700">'+(i+1)+'</td>'+
+        '<td>'+esc(t.title||'')+'</td><td style="color:var(--t3)">'+esc(t.artist||'')+'</td>'+
+        '<td><span style="font-size:11px;padding:2px 6px;background:rgba(139,92,246,.1);border-radius:4px;color:var(--purple)">'+esc(t.category||'-')+'</span></td>'+
+        '<td style="font-family:var(--mono);color:'+(t.bpm?'var(--g)':'var(--t3)')+'">'+( t.bpm||'-')+'</td>'+
+        '<td style="font-family:var(--mono);color:var(--g)">'+Number(t.pulse).toLocaleString()+'</td></tr>';
+    }).join('') || '<tr><td colspan="6"><div class="empty">데이터 없음</div></td></tr>';
+
+    // 카페채널 목록
+    g('dj-cafe-tbody').innerHTML = activeCh.map(function(ch){
+      var pl = JSON.parse(ch.playlist||'[]');
+      return '<tr>'+
+        '<td style="font-weight:600">'+esc(ch.name||'')+'</td>'+
+        '<td style="font-size:12px;color:var(--t3)">'+esc(ch.username||'')+'</td>'+
+        '<td><span style="padding:2px 8px;border-radius:6px;font-size:11px;background:rgba(16,185,129,.15);color:var(--g)">활성</span></td>'+
+        '<td style="font-family:var(--mono)">'+pl.length+'곡</td>'+
+        '<td style="font-size:11px;color:var(--t3)">'+(ch.expires_at||'-').slice(0,10)+'</td></tr>';
+    }).join('') || '<tr><td colspan="5"><div class="empty">활성 채널 없음</div></td></tr>';
+
+  }catch(e){ toast('AI DJ 통계 로드 실패: '+e.message,'r'); }
+}
+
+// ═══════════════════════════════════════
+// P3: 보안/접근 로그
+// ═══════════════════════════════════════
+var _secLog = []; // 인메모리 세션 로그
+
+function logAdminAction(action, target, detail){
+  _secLog.unshift({
+    time: new Date().toLocaleString('ko-KR'),
+    action: action,
+    target: target||'-',
+    detail: detail||'-'
+  });
+  if(_secLog.length > 100) _secLog.pop();
+  var cnt = g('sb-autopay-cnt');
+}
+
+// 기존 go() 함수에 로깅 추가 (이미 정의된 go를 감싸기)
+var _origGo = go;
+go = function(id, el){
+  logAdminAction('페이지 이동', id, '');
+  _origGo(id, el);
+};
+
+async function loadSecurity(){
+  try{
+    // TL 변경 이력 (transactions 테이블)
+    var tlLog = await api('/api/admin/sql', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sql:"SELECT t.created_at, u.username, u.email, t.tx_type, t.amount, t.note FROM transactions t LEFT JOIN users u ON t.user_id=u.id WHERE t.tx_type IN ('charge','deduct','admin_charge','admin_deduct') ORDER BY t.created_at DESC LIMIT 30"})
+    });
+
+    g('sec-admin-logins').textContent = _secLog.length+'회';
+    g('sec-sql-cnt').textContent = _secLog.filter(function(l){return l.action==='SQL 실행';}).length+'회';
+    g('sec-charge-cnt').textContent = (tlLog&&tlLog.results||[]).length+'건';
+
+    // 관리자 액션 로그
+    g('sec-log-tbody').innerHTML = _secLog.length
+      ? _secLog.slice(0,20).map(function(l){
+          return '<tr>'+
+            '<td style="font-size:11px;font-family:var(--mono);color:var(--t3)">'+l.time+'</td>'+
+            '<td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:rgba(139,92,246,.1);color:var(--purple)">'+l.action+'</span></td>'+
+            '<td style="font-family:var(--mono)">'+esc(l.target)+'</td>'+
+            '<td style="font-size:11px;color:var(--t3)">'+esc(l.detail)+'</td></tr>';
+        }).join('')
+      : '<tr><td colspan="4"><div class="empty">이 세션에서 아직 액션 없음</div></td></tr>';
+
+    // TL 변경 이력
+    g('sec-tl-tbody').innerHTML = (tlLog&&tlLog.results||[]).map(function(r){
+      return '<tr>'+
+        '<td style="font-size:11px;color:var(--t3)">'+(r.created_at||'').slice(0,16)+'</td>'+
+        '<td>'+esc(r.username||r.email||'-')+'</td>'+
+        '<td><span style="padding:2px 6px;border-radius:4px;font-size:11px;background:'+(r.tx_type==='charge'?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)')+';color:'+(r.tx_type==='charge'?'var(--g)':'var(--rose)')+'">'+r.tx_type+'</span></td>'+
+        '<td style="font-family:var(--mono);font-weight:600">'+Number(r.amount||0).toLocaleString()+' TL</td>'+
+        '<td style="font-size:11px;color:var(--t3)">'+esc(r.note||'-')+'</td></tr>';
+    }).join('') || '<tr><td colspan="5"><div class="empty">TL 변경 이력 없음</div></td></tr>';
+
+  }catch(e){ toast('보안 로그 로드 실패: '+e.message,'r'); }
+}
+
+// ═══════════════════════════════════════
+// P3: 자동 정산 워크플로우
+// ═══════════════════════════════════════
+async function loadAutoPayout(){
+  try{
+    var d = await api('/api/admin/creators/payouts');
+    if(!d) return;
+
+    var minTL = Number(g('ap-min-tl').value||1000);
+    var rate = Number(g('ap-rate').value||1);
+
+    // 정산 대기: 미지급 TL >= 최소 정산 TL인 크리에이터
+    var pending = (d.creators||[]).filter(function(cr){
+      var unpaid = Math.max(0, Number(cr.total_earned||0)-Number(cr.total_exchanged||0));
+      return unpaid >= minTL;
+    });
+
+    var totalPendingTL = pending.reduce(function(sum,cr){
+      return sum + Math.max(0, Number(cr.total_earned||0)-Number(cr.total_exchanged||0));
+    },0);
+
+    var completedThisMonth = (d.requests||[]).filter(function(r){
+      return r.status==='completed' && (r.created_at||'').slice(0,7)===new Date().toISOString().slice(0,7);
+    }).length;
+
+    g('ap-pending').textContent = pending.length+'명';
+    g('ap-total-tl').textContent = totalPendingTL.toLocaleString()+' TL';
+    g('ap-completed').textContent = completedThisMonth+'건';
+    g('sb-autopay-cnt').textContent = pending.length;
+
+    // 대기 목록
+    g('ap-pending-tbody').innerHTML = pending.map(function(cr){
+      var unpaid = Math.max(0, Number(cr.total_earned||0)-Number(cr.total_exchanged||0));
+      var krw = Math.round(unpaid * rate);
+      return '<tr>'+
+        '<td><input type="checkbox" class="ap-check" data-id="'+cr.id+'" data-tl="'+unpaid+'" data-name="'+esc(cr.username)+'"></td>'+
+        '<td><div style="font-weight:600">'+esc(cr.username||'')+'</div><div style="font-size:11px;color:var(--t3)">'+esc(cr.email||'')+'</div></td>'+
+        '<td style="text-align:center">'+cr.track_count+'</td>'+
+        '<td style="font-family:var(--mono);color:var(--amber);font-weight:700">'+unpaid.toLocaleString()+' TL</td>'+
+        '<td style="font-family:var(--mono)">'+krw.toLocaleString()+'원</td>'+
+        '<td><span style="padding:2px 8px;border-radius:6px;font-size:11px;background:rgba(245,158,11,.15);color:var(--amber)">대기</span></td>'+
+        '<td><button class="btn btn-b btn-xs" onclick="singlePayout('+cr.id+',''+esc(cr.username)+'','+unpaid+','+krw+')">정산</button></td>'+
+      '</tr>';
+    }).join('') || '<tr><td colspan="7"><div class="empty">정산 대기 없음 (최소 '+minTL.toLocaleString()+' TL 미만)</div></td></tr>';
+
+    // 완료 이력
+    g('ap-done-tbody').innerHTML = (d.requests||[]).filter(function(r){return r.status==='completed';}).slice(0,20).map(function(r){
+      return '<tr>'+
+        '<td style="font-size:11px;color:var(--t3)">'+(r.created_at||'').slice(0,10)+'</td>'+
+        '<td>'+esc(r.username||r.user_id)+'</td>'+
+        '<td style="font-family:var(--mono);color:var(--g)">'+Number(r.amount_tl).toLocaleString()+' TL</td>'+
+        '<td style="font-family:var(--mono)">'+Number(r.amount_krw||0).toLocaleString()+'원</td>'+
+        '<td style="font-size:11px;color:var(--t3)">'+esc(r.note||'-')+'</td></tr>';
+    }).join('') || '<tr><td colspan="5"><div class="empty">완료 이력 없음</div></td></tr>';
+
+  }catch(e){ toast('자동 정산 로드 실패: '+e.message,'r'); }
+}
+
+function toggleAllCheck(cb){
+  document.querySelectorAll('.ap-check').forEach(function(c){ c.checked = cb.checked; });
+}
+
+async function singlePayout(userId, username, tl, krw){
+  if(!confirm(username+' — '+tl.toLocaleString()+' TL 정산 처리하시겠습니까?')) return;
+  var r = await fetch(API+'/api/admin/creators/'+userId+'/payout',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+getAdminToken()},
+    body:JSON.stringify({amount_tl:tl,amount_krw:krw,note:'자동 정산',status:'completed'})
+  });
+  var d = await r.json();
+  if(d.ok){ toast('✅ '+username+' 정산 완료','g'); logAdminAction('정산 처리',username,tl.toLocaleString()+' TL'); loadAutoPayout(); }
+  else toast('오류: '+d.error,'r');
+}
+
+async function approveAllPayout(){
+  var checked = Array.from(document.querySelectorAll('.ap-check:checked'));
+  if(!checked.length){ toast('선택된 크리에이터 없음','a'); return; }
+  var rate = Number(g('ap-rate').value||1);
+  if(!confirm(checked.length+'명 일괄 정산 처리하시겠습니까?')) return;
+  var ok=0, fail=0;
+  for(var cb of checked){
+    var userId=cb.dataset.id, tl=Number(cb.dataset.tl), name=cb.dataset.name;
+    var r=await fetch(API+'/api/admin/creators/'+userId+'/payout',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+getAdminToken()},
+      body:JSON.stringify({amount_tl:tl,amount_krw:Math.round(tl*rate),note:'일괄 자동 정산',status:'completed'})
+    });
+    var d=await r.json();
+    if(d.ok) ok++; else fail++;
+  }
+  toast('✅ '+ok+'명 완료'+(fail?', ❌ '+fail+'명 실패':''),'g');
+  logAdminAction('일괄 정산',ok+'명',Math.round(checked.reduce(function(s,c){return s+Number(c.dataset.tl);},0)).toLocaleString()+' TL');
+  loadAutoPayout();
+}
+
+async function runAutoPayout(){
+  var minTL = Number(g('ap-min-tl').value||1000);
+  toast('🔄 '+minTL.toLocaleString()+' TL 이상 크리에이터 자동 정산 시작...','a');
+  await loadAutoPayout();
+  // 전체 체크 후 일괄 승인
+  document.querySelectorAll('.ap-check').forEach(function(c){ c.checked=true; });
+  await approveAllPayout();
 }
 
 </script>
