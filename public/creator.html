@@ -735,6 +735,10 @@ select.form-input{cursor:pointer;appearance:none;background-image:url("data:imag
             <span class="tl-val" id="tlDuration">-</span>
             <span class="tl-lbl">재생 길이</span>
           </div>
+          <div class="tl-card" id="bpmCard" style="display:none;border-color:rgba(0,229,255,.3);background:rgba(0,229,255,.04)">
+            <span class="tl-val" id="tlBpm" style="color:var(--cyan)">-</span>
+            <span class="tl-lbl">🥁 BPM</span>
+          </div>
           <div class="tl-card" style="border-color:rgba(139,92,246,.3);background:rgba(139,92,246,.06)">
             <span class="tl-val" id="tlFileTL" style="color:var(--purple)">0 TL</span>
             <span class="tl-lbl">파일 TL (길이×가중치)</span>
@@ -881,7 +885,7 @@ if(typeof TLi18n === 'undefined'){
 </script>
 <script>/* v2 */
 var API='https://api.timelink.digital';
-var _user=null,_token=null,_file=null,_ftype='audio',_plan='A',_spTrack=null;
+var _user=null,_token=null,_file=null,_ftype='audio',_plan='A',_spTrack=null,_fileBpm=0,_fileBpmEnergy=0;
 var _fileDuration=0, _fileWeight=1.0; // 파일 길이(초), 가중치
 
 // AUTH
@@ -1011,9 +1015,22 @@ function onFileSelected(f){
     med.onloadedmetadata=function(){
       var d=Math.round(med.duration)||0;
       _fileDuration=d;
-        document.getElementById('tlDuration').textContent=Math.floor(d/60)+':'+String(d%60).padStart(2,'0');
+      document.getElementById('tlDuration').textContent=Math.floor(d/60)+':'+String(d%60).padStart(2,'0');
       updateFileTL();
       URL.revokeObjectURL(url);
+      // BPM 분석 시작 (오디오만)
+      if(mt.startsWith('audio')){
+        var bpmCard = document.getElementById('bpmCard');
+        if(bpmCard){ bpmCard.style.display=''; document.getElementById('tlBpm').textContent='분석 중...'; }
+        analyzeBPM(f).then(function(bpm){
+          _fileBpm = bpm;
+          var bpmLabel = bpm <= 0 ? '측정불가' :
+            bpm < 80 ? bpm+' (느린 곡)' :
+            bpm < 110 ? bpm+' (보통)' :
+            bpm < 135 ? bpm+' (신나는)' : bpm+' (매우 빠름)';
+          document.getElementById('tlBpm').textContent = bpmLabel;
+        }).catch(function(){ _fileBpm=0; document.getElementById('tlBpm').textContent='측정불가'; });
+      }
     };
   } else {
     document.getElementById('tlDuration').textContent='열람 시간';
@@ -1054,10 +1071,11 @@ function onFileSelected(f){
   var _isVideo = f.type.startsWith('video/') || /\.(mp4|mov|avi|mkv|webm)$/i.test(f.name);
 }
 function clearFile(){
-  _file=null;_spTrack=null;
+  _file=null;_spTrack=null;_fileBpm=0;
   document.getElementById('fileSelectedBar').classList.remove('show');
   document.getElementById('imgPreview').classList.remove('show');
   document.getElementById('fileInput').value='';
+  var bc=document.getElementById('bpmCard'); if(bc) bc.style.display='none';
   document.getElementById('tlFileSize').textContent='-';
   document.getElementById('tlDuration').textContent='-';
   document.getElementById('tlEstimate').textContent='0 TL';
@@ -1400,6 +1418,67 @@ async function compressVideo(file){
 }
 
 var _tlPerSec = _tlPerSec || 1.0;
+// ── BPM 분석 (Web Audio API 기반 beat detection) ──
+async function analyzeBPM(file){
+  return new Promise(function(resolve){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var ctx = new (window.AudioContext||window.webkitAudioContext)();
+      ctx.decodeAudioData(e.target.result, function(buf){
+        try{
+          // 모노로 합산
+          var sr = buf.sampleRate;
+          var ch0 = buf.getChannelData(0);
+          var ch1 = buf.numberOfChannels > 1 ? buf.getChannelData(1) : ch0;
+          // 처음 90초만 분석 (속도)
+          var len = Math.min(ch0.length, sr * 90);
+          var mono = new Float32Array(len);
+          for(var i=0;i<len;i++) mono[i] = (ch0[i]+ch1[i])*0.5;
+
+          // 저주파 에너지 계산 (윈도우 = 512샘플)
+          var WIN = 512;
+          var energies = [];
+          for(var i=0;i<len-WIN;i+=WIN){
+            var e2=0; for(var j=0;j<WIN;j++) e2+=mono[i+j]*mono[i+j];
+            energies.push(e2/WIN);
+          }
+
+          // 에너지 평균 대비 임계값으로 비트 감지
+          var avg = energies.reduce(function(a,b){return a+b;},0)/energies.length;
+          var threshold = avg * 1.4;
+          var beats = [];
+          var lastBeat = -1;
+          for(var i=0;i<energies.length;i++){
+            if(energies[i]>threshold && (lastBeat<0||i-lastBeat>sr/(WIN*3))){
+              beats.push(i * WIN / sr); // 비트 시각(초)
+              lastBeat = i;
+            }
+          }
+
+          if(beats.length < 4){ ctx.close(); resolve(0); return; }
+
+          // 비트 간격으로 BPM 계산
+          var intervals = [];
+          for(var i=1;i<beats.length;i++) intervals.push(beats[i]-beats[i-1]);
+          intervals.sort(function(a,b){return a-b;});
+          // 중앙값 사용
+          var med = intervals[Math.floor(intervals.length/2)];
+          var bpm = Math.round(60/med);
+          // 합리적 범위로 보정
+          while(bpm > 200) bpm = Math.round(bpm/2);
+          while(bpm < 50)  bpm = bpm*2;
+          ctx.close();
+          resolve(bpm);
+        }catch(err){ ctx.close(); resolve(0); }
+      }, function(){ resolve(0); });
+    };
+    reader.onerror = function(){ resolve(0); };
+    // 처음 5MB만 읽어서 분석 (속도 최적화)
+    var slice = file.slice(0, Math.min(file.size, 5*1024*1024));
+    reader.readAsArrayBuffer(slice);
+  });
+}
+
 // ── WAV/FLAC → MP3 320kbps 변환 (lamejs 사용) ──
 function convertToMp3(file, onSuccess, onError){
   var reader = new FileReader();
@@ -1525,6 +1604,7 @@ async function doUpload(){
       country:(document.getElementById('fCountry')&&document.getElementById('fCountry').value)||'KR',
       content_lang:(document.getElementById('fLang')&&document.getElementById('fLang').value)||'ko',
       duration:_fileDuration||0,
+      bpm:_fileBpm||0,
       user_id:_user.id,
       email:_user.email,
       username:_user.username||_user.email

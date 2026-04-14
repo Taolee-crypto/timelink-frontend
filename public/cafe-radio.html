@@ -1728,7 +1728,13 @@ function fallbackBuildQueue(){
   _queue = pool.slice(0,50);
   g('queueCnt').textContent = _queue.length;
   renderQueue();
-  if(!_playing && _queue.length) loadTrack(0);
+  if(_queue.length){
+    loadTrack(0);
+    _playing = true;
+    g('playBtn').textContent = '⏸';
+    startPoc();
+    startViz();
+  }
 }
 
 async function aiBuildQueue(){
@@ -1745,16 +1751,23 @@ async function aiBuildQueue(){
     if(match) reqMatches.push({share:match, story:req.story, user:req.user});
   });
   // 곡 목록 (최대 30곡)
+  // BPM 범위 (분위기별)
+  var bpmRange = {
+    '조용한 카페':{min:60,max:100}, '활기찬 브런치':{min:100,max:135},
+    '감성 저녁':{min:65,max:95}, '재즈 바':{min:70,max:120}, '공부 카페':{min:60,max:90}
+  }[_cafeVibe]||{min:60,max:140};
+
   var songList = _shares.slice(0,30).map(function(s){
-    return {id:s.id, title:s.title, artist:s.artist||'', category:s.category||'', pulse:s.pulse||0};
+    return {id:s.id, title:s.title, artist:s.artist||'', category:s.category||'', pulse:s.pulse||0, bpm:s.bpm||0};
   });
   var newsCtx = _newsEnabled&&_newsHeadlines.length ? '뉴스: '+_newsHeadlines.slice(0,2).join(' / ') : '';
   var systemPrompt = [
     'You are TiLo, AI DJ. Return ONLY a JSON array of share IDs in play order.',
     'No explanation. Just: ["id1","id2","id3"]',
     'Context: time='+ts.label+', weather='+(_weather.loaded?_weather.icon+_weather.desc:'?')+', vibe='+_cafeVibe+(newsCtx?', '+newsCtx:''),
+    'BPM preference for '+_cafeVibe+': '+bpmRange.min+'~'+bpmRange.max+' BPM (songs with bpm=0 can be included)',
     'Requests: '+(_requests.length?_requests.map(function(r){return r.song;}).join(', '):'없음'),
-    'Rules: put requested songs first, match vibe/weather, vary genres, max 20 IDs'
+    'Rules: prefer songs in BPM range, put requested songs first, match vibe/weather, vary genres, max 20 IDs'
   ].join('\n');
   try{
     var res = await fetch(API+'/api/dj/chat',{
@@ -1779,8 +1792,16 @@ async function aiBuildQueue(){
     var msg = weatherStr+_cafeVibe+' 분위기로 '+_queue.length+'곡 선곡했어요';
     if(reqMatches.length) msg = '"'+reqMatches[0].share.title+'" 신청곡 포함! '+msg;
     if(_newsEnabled&&_newsHeadlines.length) msg += '. 오늘 뉴스: '+_newsHeadlines[0];
-    djSpeak(msg, false);
-    if(!_playing&&_queue.length) loadTrack(0);
+    // 큐 구성 완료 → 무조건 첫 곡 재생 시작
+    if(_queue.length){
+      loadTrack(0);
+      _playing = true;
+      g('playBtn').textContent = '⏸';
+      startPoc();
+      startViz();
+    }
+    // DJ 멘트는 재생 시작 후 1.5초 뒤에 (곡 먼저 나오게)
+    setTimeout(function(){ djSpeak(msg, false); }, 1500);
   }catch(e){
     console.warn('[AI DJ] fallback:', e.message);
     fallbackBuildQueue();
