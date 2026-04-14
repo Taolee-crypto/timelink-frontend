@@ -1803,10 +1803,17 @@ function startCrossfade(){
 
   var fadeOut = getActiveAud();
   var fadeIn = getNextAud();
-  fadeIn.src = nextUrl;
   fadeIn.volume = 0;
-  fadeIn.load();
-  if(_playing) fadeIn.play().catch(function(){});
+  // 이미 preload된 경우 src 재설정 생략
+  if(fadeIn.src !== nextUrl){ fadeIn.src = nextUrl; fadeIn.preload='auto'; fadeIn.load(); }
+  if(_playing){
+    var _cfPlay = function(){
+      fadeIn.removeEventListener('canplay', _cfPlay);
+      fadeIn.play().catch(function(){});
+    };
+    if(fadeIn.readyState >= 3){ fadeIn.play().catch(function(){}); }
+    else { fadeIn.addEventListener('canplay', _cfPlay, {once:true}); }
+  }
 
   var steps = 40, step = 0;
   var iv = setInterval(function(){    step++;
