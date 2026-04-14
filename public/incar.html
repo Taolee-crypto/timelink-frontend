@@ -776,6 +776,8 @@ if(!_user){ location.href='login.html'; }
 
 var _plate = '', _shares = [], _queue = [], _curIdx = 0;
 var _playing = false, _shuffle = false, _night = false, _voiceOn = false;
+var _incarAutoTimer = null;  // 30분 자동 갱신
+var _incarQueueTimer = null; // 큐 선제 갱신
 var _speed = 0, _distance = 0, _poc = 0, _pocMult = 1.0;
 var _pocInterval = null, _gpsWatch = null;
 var _useA = true, _audA, _audB, _crossfading = false;
@@ -1013,6 +1015,26 @@ async function loadShares(){
   g('queueCnt').textContent = _queue.length;
   renderQueue();
   if(_queue.length) loadTrack(0);
+
+  // 30분마다 자동 재선곡
+  if(_incarAutoTimer) clearInterval(_incarAutoTimer);
+  _incarAutoTimer = setInterval(async function(){
+    await Promise.all([fetchIncarWeather()]);
+    aiCurateQueue().catch(function(){});
+  }, 30*60*1000);
+}
+
+// 인카 날씨 (간단 버전)
+async function fetchIncarWeather(){
+  try{
+    var pos = await new Promise(function(res,rej){ navigator.geolocation.getCurrentPosition(res,rej,{timeout:5000}); });
+    var r = await fetch('https://api.open-meteo.com/v1/forecast?latitude='+pos.coords.latitude.toFixed(4)+'&longitude='+pos.coords.longitude.toFixed(4)+'&current=temperature_2m,weather_code&timezone=auto');
+    var d = await r.json();
+    var code=d.current.weather_code||0;
+    var desc=code===0?'맑음':code<=3?'구름':code<=48?'안개':code<=67?'비':code<=77?'눈':'흐림';
+    if(g('hudWeather')) g('hudWeather').textContent=(code===0?'☀️':code<=3?'⛅':code<=67?'🌧️':'❄️')+' '+Math.round(d.current.temperature_2m)+'°C';
+    return desc;
+  }catch(e){ return '맑음'; }
 }
 
 function loadTrack(idx){
@@ -1161,7 +1183,23 @@ function togglePlay(){
   }
 }
 function prevTrack(){ if(_curIdx>0){_playing=true;loadTrack(_curIdx-1);g('playBtn').textContent='⏸';startPoc();} }
-function nextTrack(){ _playing=true; loadTrack((_curIdx+1)%_queue.length); g('playBtn').textContent='⏸'; startPoc(); }
+function nextTrack(){
+  _playing=true;
+  var nextIdx = _curIdx+1;
+  if(nextIdx >= _queue.length){
+    // 큐 소진 → AI 재선곡
+    aiCurateQueue().catch(function(){ _queue=_shares.slice().sort(function(a,b){return (b.pulse||0)-(a.pulse||0);}).slice(0,50); loadTrack(0); });
+    return;
+  }
+  loadTrack(nextIdx);
+  g('playBtn').textContent='⏸';
+  startPoc();
+  // 잔여 3곡 미만 → 선제 갱신
+  if((_queue.length - nextIdx) <= 3){
+    if(_incarQueueTimer) clearTimeout(_incarQueueTimer);
+    _incarQueueTimer = setTimeout(function(){ aiCurateQueue().catch(function(){}); }, 5000);
+  }
+}
 
 // ── 안전 점프: TL 체크 → 자동충전 → 재생 ──
 async function safeJumpTo(idx){
