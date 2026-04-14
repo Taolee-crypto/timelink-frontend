@@ -1704,9 +1704,39 @@ function loadTrack(idx){
   var url = getStreamUrl(s);
   if(!url) return;
   var aud = getActiveAud();
+  // 기존 canplay 리스너 정리
+  if(aud._tlCanplayHandler){ aud.removeEventListener('canplay', aud._tlCanplayHandler); aud._tlCanplayHandler = null; }
+  if(aud._tlSafetyTimer){ clearTimeout(aud._tlSafetyTimer); aud._tlSafetyTimer = null; }
   aud.src = url;
+  aud.preload = 'auto';
   aud.load();
-  if(_playing) aud.play().catch(function(e){ console.warn(e); });
+  if(_playing){
+    var _onReady = function(){
+      aud.removeEventListener('canplay', _onReady);
+      aud._tlCanplayHandler = null;
+      if(aud._tlSafetyTimer){ clearTimeout(aud._tlSafetyTimer); aud._tlSafetyTimer = null; }
+      aud.play().catch(function(e){ console.warn('[Radio] play failed:', e); });
+    };
+    aud._tlCanplayHandler = _onReady;
+    aud.addEventListener('canplay', _onReady, {once:true});
+    // 안전장치: 4초 내 canplay 없으면 강제 재생 시도
+    aud._tlSafetyTimer = setTimeout(function(){
+      aud.removeEventListener('canplay', _onReady);
+      aud._tlCanplayHandler = null;
+      aud._tlSafetyTimer = null;
+      if(_playing && aud.paused) aud.play().catch(function(e){ console.warn('[Radio] safety play:', e); });
+    }, 4000);
+  }
+  // 다음 곡 백그라운드 preload
+  var nextIdx = (idx + 1) % _queue.length;
+  if(_queue[nextIdx]){
+    var ns = _queue[nextIdx];
+    var nUrl = getStreamUrl(ns);
+    var preAud = getNextAud();
+    if(nUrl && preAud.src !== nUrl && !_crossfading){
+      preAud.src = nUrl; preAud.preload = 'auto'; preAud.load();
+    }
+  }
 
   // 곡 전환 시 TL 모드 결정
   _curShareId = String(s.id||'');
@@ -1798,40 +1828,68 @@ function startCrossfade(){
   _crossfading = true;
   var nextIdx = (_curIdx+1) % _queue.length;
   var nextS = _queue[nextIdx];
-  var nextUrl = proxyUrl(nextS.stream_url);
-  if(!nextUrl) return;
+  var nextUrl = getStreamUrl(nextS);  // Fix: proxyUrl → getStreamUrl (TL 인증 포함)
+  if(!nextUrl){ _crossfading = false; return; }  // Fix: stuck 방지
 
   var fadeOut = getActiveAud();
   var fadeIn = getNextAud();
   fadeIn.volume = 0;
-  // 이미 preload된 경우 src 재설정 생략
   if(fadeIn.src !== nextUrl){ fadeIn.src = nextUrl; fadeIn.preload='auto'; fadeIn.load(); }
-  if(_playing){
-    var _cfPlay = function(){
-      fadeIn.removeEventListener('canplay', _cfPlay);
-      fadeIn.play().catch(function(){});
-    };
-    if(fadeIn.readyState >= 3){ fadeIn.play().catch(function(){}); }
-    else { fadeIn.addEventListener('canplay', _cfPlay, {once:true}); }
-  }
 
-  var steps = 40, step = 0;
-  var iv = setInterval(function(){    step++;
-    fadeOut.volume = Math.max(0, 0.7*(1-step/steps));
-    fadeIn.volume = Math.min(0.7, 0.7*(step/steps));
-    if(step>=steps){
+  // crossfade 시작 전 fadeIn 버퍼 확인
+  function doFade(){
+    if(!_playing){ _crossfading = false; return; }
+    var steps = 40, step = 0;
+    // 안전장치: 8초 내 완료 안 되면 강제 전환
+    var safetyTimer = setTimeout(function(){
       clearInterval(iv);
       fadeOut.pause(); fadeOut.src='';
-      _useA = !_useA;
-      _crossfading = false;
-      _curIdx = nextIdx;
-      updateNowPlaying(nextS);
-      renderQueue();
-      _songCount++;
-      g('todaySongs').textContent = _songCount;
+      fadeIn.volume = 0.7;
+      _useA = !_useA; _crossfading = false; _curIdx = nextIdx;
+      updateNowPlaying(nextS); renderQueue();
+      _songCount++; if(g('todaySongs')) g('todaySongs').textContent = _songCount;
       scheduleCrossfade();
+    }, 8000);
+    var iv = setInterval(function(){
+      step++;
+      fadeOut.volume = Math.max(0, 0.7*(1-step/steps));
+      fadeIn.volume = Math.min(0.7, 0.7*(step/steps));
+      if(step >= steps){
+        clearTimeout(safetyTimer);
+        clearInterval(iv);
+        fadeOut.pause(); fadeOut.src='';
+        _useA = !_useA; _crossfading = false; _curIdx = nextIdx;
+        updateNowPlaying(nextS); renderQueue();
+        _songCount++; if(g('todaySongs')) g('todaySongs').textContent = _songCount;
+        scheduleCrossfade();
+      }
+    }, 100);
+  }
+
+  if(_playing){
+    if(fadeIn.readyState >= 2){
+      fadeIn.play().catch(function(){});
+      doFade();
+    } else {
+      var _cfPlay = function(){
+        fadeIn.removeEventListener('canplay', _cfPlay);
+        clearTimeout(_cfSafetyT);
+        if(!_playing){ _crossfading = false; return; }
+        fadeIn.play().catch(function(){});
+        doFade();
+      };
+      fadeIn.addEventListener('canplay', _cfPlay, {once:true});
+      // fadeIn canplay 안 오면 4초 후 강제 진행
+      var _cfSafetyT = setTimeout(function(){
+        fadeIn.removeEventListener('canplay', _cfPlay);
+        if(!_playing){ _crossfading = false; return; }
+        fadeIn.play().catch(function(){});
+        doFade();
+      }, 4000);
     }
-  }, 100);
+  } else {
+    _crossfading = false;
+  }
 }
 
 function togglePlay(){

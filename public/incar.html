@@ -1027,8 +1027,32 @@ function loadTrack(idx){
   _curTlMode = (fileTL !== undefined && fileTL > 0) ? 'file' : 'total';
 
   var aud = getAud();
-  aud.src = url; aud.load();
-  if(_playing) aud.play().catch(function(){});
+  // 기존 canplay 리스너 정리
+  if(aud._tlCanplayHandler){ aud.removeEventListener('canplay', aud._tlCanplayHandler); aud._tlCanplayHandler = null; }
+  if(aud._tlSafetyTimer){ clearTimeout(aud._tlSafetyTimer); aud._tlSafetyTimer = null; }
+  aud.src = url; aud.preload = 'auto'; aud.load();
+  if(_playing){
+    var _onReady = function(){
+      aud.removeEventListener('canplay', _onReady);
+      aud._tlCanplayHandler = null;
+      if(aud._tlSafetyTimer){ clearTimeout(aud._tlSafetyTimer); aud._tlSafetyTimer = null; }
+      aud.play().catch(function(e){ console.warn('[InCar] play failed:', e); });
+    };
+    aud._tlCanplayHandler = _onReady;
+    aud.addEventListener('canplay', _onReady, {once:true});
+    aud._tlSafetyTimer = setTimeout(function(){
+      aud.removeEventListener('canplay', _onReady);
+      aud._tlCanplayHandler = null; aud._tlSafetyTimer = null;
+      if(_playing && aud.paused) aud.play().catch(function(){});
+    }, 4000);
+  }
+  // 다음 곡 preload
+  var _ni2 = (idx+1) % _queue.length;
+  if(_queue[_ni2] && !_crossfading){
+    var _ns2 = _queue[_ni2]; var _nu2 = getStreamUrl(_ns2);
+    var _pre = _useA ? _audB : _audA;
+    if(_nu2 && _pre.src !== _nu2){ _pre.src = _nu2; _pre.preload = 'auto'; _pre.load(); }
+  }
 
   g('npTitle').textContent = s.title||'Untitled';
   g('npArtist').textContent = s.artist||s.username||'Unknown';
@@ -1041,22 +1065,29 @@ function loadTrack(idx){
   scheduleCrossfade();
 }
 
+// 누적 방지: 전역으로 현재 timeupdate 핸들러 관리
+var _cfUpdateHandlerA = null, _cfUpdateHandlerB = null;
+
 function scheduleCrossfade(){
   var aud = getAud();
-  // durationchange 대신 timeupdate로 체크 (더 안정적)
+  // 이전 리스너 제거 (누적 방지 - 핵심 수정)
+  if(_audA && _cfUpdateHandlerA){ _audA.removeEventListener('timeupdate', _cfUpdateHandlerA); _cfUpdateHandlerA = null; }
+  if(_audB && _cfUpdateHandlerB){ _audB.removeEventListener('timeupdate', _cfUpdateHandlerB); _cfUpdateHandlerB = null; }
+
   var _cfScheduled = false;
   var onUpdate = function(){
-    if(_cfScheduled) return;
+    if(_cfScheduled || _crossfading) return;
     if(!aud.duration || aud.duration < 5) return;
     var remaining = aud.duration - aud.currentTime;
-    // 곡 끝 10초 전에 crossfade 시작
     if(remaining <= 10 && remaining > 0){
       _cfScheduled = true;
       aud.removeEventListener('timeupdate', onUpdate);
+      if(_useA) _cfUpdateHandlerA = null; else _cfUpdateHandlerB = null;
       startCrossfade();
     }
   };
   aud.addEventListener('timeupdate', onUpdate);
+  if(_useA) _cfUpdateHandlerA = onUpdate; else _cfUpdateHandlerB = onUpdate;
 }
 
 function startCrossfade(){
@@ -1064,22 +1095,60 @@ function startCrossfade(){
   _crossfading=true;
   var ni = (_curIdx+1)%_queue.length;
   var ns = _queue[ni];
-  var nu = getStreamUrl(ns);  // fix: file_tl(숫자) URL 버그 수정
+  var nu = getStreamUrl(ns);
+  if(!nu){ _crossfading=false; return; }  // stuck 방지
   var fo=getAud(), fi=_useA?_audB:_audA;
-  fi.src=nu; fi.volume=0; fi.load();
-  if(_playing) fi.play().catch(function(){});
-  var steps=40,step=0;
-  var iv=setInterval(function(){
-    step++;
-    fo.volume=Math.max(0,0.75*(1-step/steps));
-    fi.volume=Math.min(0.75,0.75*(step/steps));
-    if(step>=steps){ clearInterval(iv); fo.pause(); fo.src=''; _useA=!_useA; _crossfading=false; _curIdx=ni;
-      g('npTitle').textContent=ns.title||'Untitled'; g('npArtist').textContent=ns.artist||ns.username||'Unknown';
-      var img=g('npCoverImg');
-      if(ns.cover_url){img.src=ns.cover_url;img.style.display='block';g('npCoverEmoji').style.display='none';}
-      else{img.style.display='none';g('npCoverEmoji').style.display='';}
-      renderQueue(); scheduleCrossfade(); }
-  },100);
+  if(fi.src !== nu){ fi.src=nu; fi.preload='auto'; fi.volume=0; fi.load(); }
+  else { fi.volume=0; }
+
+  function doFade(){
+    if(!_playing){ _crossfading=false; return; }
+    var steps=40,step=0;
+    var safetyT = setTimeout(function(){
+      clearInterval(iv);
+      fo.pause(); fo.src=''; fi.volume=0.75;
+      _useA=!_useA; _crossfading=false; _curIdx=ni;
+      _applyNowPlaying(ns); renderQueue(); scheduleCrossfade();
+    }, 8000);
+    var iv=setInterval(function(){
+      step++;
+      fo.volume=Math.max(0,0.75*(1-step/steps));
+      fi.volume=Math.min(0.75,0.75*(step/steps));
+      if(step>=steps){
+        clearTimeout(safetyT); clearInterval(iv);
+        fo.pause(); fo.src=''; _useA=!_useA; _crossfading=false; _curIdx=ni;
+        _applyNowPlaying(ns); renderQueue(); scheduleCrossfade();
+      }
+    },100);
+  }
+
+  if(_playing){
+    if(fi.readyState >= 2){
+      fi.play().catch(function(){}); doFade();
+    } else {
+      var _cfH = function(){
+        fi.removeEventListener('canplay', _cfH); clearTimeout(_cfST);
+        if(!_playing){ _crossfading=false; return; }
+        fi.play().catch(function(){}); doFade();
+      };
+      fi.addEventListener('canplay', _cfH, {once:true});
+      var _cfST = setTimeout(function(){
+        fi.removeEventListener('canplay', _cfH);
+        if(!_playing){ _crossfading=false; return; }
+        fi.play().catch(function(){}); doFade();
+      }, 4000);
+    }
+  } else { _crossfading=false; }
+}
+
+function _applyNowPlaying(ns){
+  if(g('npTitle')) g('npTitle').textContent=ns.title||'Untitled';
+  if(g('npArtist')) g('npArtist').textContent=ns.artist||ns.username||'Unknown';
+  var img=g('npCoverImg');
+  if(img){
+    if(ns.cover_url){img.src=ns.cover_url;img.style.display='block';if(g('npCoverEmoji'))g('npCoverEmoji').style.display='none';}
+    else{img.style.display='none';if(g('npCoverEmoji'))g('npCoverEmoji').style.display='';}
+  }
 }
 
 function togglePlay(){
