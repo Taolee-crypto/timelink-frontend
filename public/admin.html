@@ -1027,7 +1027,7 @@ async function loadTonWithdrawals(){
   try{
     var r = await fetch(API+'/api/admin/sql', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('tl_token')||'')},
       body: JSON.stringify({sql})
     });
     var d = await r.json();
@@ -1075,7 +1075,7 @@ async function approveWithdrawal(){
       : "UPDATE tlc_withdrawals SET status='processing', processed_at=datetime('now') WHERE id="+id;
     var r = await fetch(API+'/api/admin/sql',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'')},
       body: JSON.stringify({sql})
     });
     var d = await r.json();
@@ -1097,12 +1097,12 @@ async function rejectWithdrawal(id){
   if(!confirm('#'+id+' 출금을 거절하시겠습니까? TLC가 반환됩니다.')) return;
   try{
     // TLC 반환 + 상태 변경
-    var wdR = await fetch(API+'/api/admin/sql',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sql:"SELECT user_id, tlc_amount FROM tlc_withdrawals WHERE id="+id})});
+    var wdR = await fetch(API+'/api/admin/sql',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'')},body:JSON.stringify({sql:"SELECT user_id, tlc_amount FROM tlc_withdrawals WHERE id="+id})});
     var wd = await wdR.json();
     var row = (wd.results||[])[0];
     if(row){
-      await fetch(API+'/api/admin/sql',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sql:"UPDATE users SET tlc_balance=COALESCE(tlc_balance,0)+"+row.tlc_amount+", tlc=COALESCE(tlc,0)+"+row.tlc_amount+" WHERE id="+row.user_id})});
-      await fetch(API+'/api/admin/sql',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sql:"UPDATE tlc_withdrawals SET status='rejected', processed_at=datetime('now') WHERE id="+id})});
+      await fetch(API+'/api/admin/sql',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'')},body:JSON.stringify({sql:"UPDATE users SET tlc_balance=COALESCE(tlc_balance,0)+"+row.tlc_amount+", tlc=COALESCE(tlc,0)+"+row.tlc_amount+" WHERE id="+row.user_id})});
+      await fetch(API+'/api/admin/sql',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'')},body:JSON.stringify({sql:"UPDATE tlc_withdrawals SET status='rejected', processed_at=datetime('now') WHERE id="+id})});
     }
     toast('거절 완료 — TLC 반환됨','g');
     loadTonWithdrawals();
@@ -1561,7 +1561,7 @@ async function checkAndShowNotice(){
   try{
     var r = await fetch(API+'/api/admin/sql',{
       method:'POST', mode:'cors',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'')},
       body:JSON.stringify({sql:"SELECT value FROM tl_settings WHERE key='free_upload' LIMIT 1"})
     });
     var d = await r.json();
@@ -2139,7 +2139,7 @@ async function loadSecurity(){
     // TL 변경 이력 (transactions 테이블)
     var tlLog = await api('/api/admin/sql', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'')},
       body:JSON.stringify({sql:"SELECT t.created_at, u.username, u.email, t.tx_type, t.amount, t.note FROM transactions t LEFT JOIN users u ON t.user_id=u.id WHERE t.tx_type IN ('charge','deduct','admin_charge','admin_deduct') ORDER BY t.created_at DESC LIMIT 30"})
     });
 
@@ -2278,6 +2278,10 @@ async function runAutoPayout(){
 </script>
 </body>
 </html>
+
+
+
+
 
 
 

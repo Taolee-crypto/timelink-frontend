@@ -1,37 +1,56 @@
 const fetch = globalThis.fetch;
 const { TonClient, WalletContractV4, internal, toNano, Address, beginCell } = require("@ton/ton");
 const { mnemonicToPrivateKey } = require("@ton/crypto");
-const { execSync } = require("child_process");
 
 const CONFIG = {
-  mnemonic: "hurt bacon already render transfer garlic wasp pole better picnic travel entire thought secret assume eager dust hold grunt law raw curious draft excess",
-  minterAddress: "EQBliopwW-3NYXWW7bKO5oW2CGiyYJ4EDxke6KwqZs9cNy_h",
+  mnemonic: process.env.TON_MNEMONIC || "hurt bacon already render transfer garlic wasp pole better picnic travel entire thought secret assume eager dust hold grunt law raw curious draft excess",
   apiKey: "cc70e713dd99c56ad4ba23ee1eae2f8545f2e71d774c35f7e2ece915e6ed9c55",
   apiUrl: "https://testnet.toncenter.com/api/v2/jsonRPC",
-  wranglerCwd: "C:\\Users\\win11\\Desktop\\timelink-backend"
+  minterAddress: "EQBliopwW-3NYXWW7bKO5oW2CGiyYJ4EDxke6KwqZs9cNy_h",
+  backendUrl: process.env.BACKEND_URL || "https://api.timelink.digital",
+  adminEmail: process.env.ADMIN_EMAIL || "mununglee@gmail.com",
+  adminPassword: process.env.ADMIN_PASSWORD || "new30year!",
 };
 
-function dbExec(sql) {
-  try {
-    execSync(`npx wrangler d1 execute timelink-db --remote --command="${sql}" --cwd "${CONFIG.wranglerCwd}"`, { stdio: "pipe" });
-    return true;
-  } catch(e) {
-    console.error("DB 오류:", e.message);
-    return false;
-  }
+async function getToken() {
+  const r = await fetch(CONFIG.backendUrl + "/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: CONFIG.adminEmail, password: CONFIG.adminPassword })
+  });
+  const d = await r.json();
+  if (!d.token) throw new Error("로그인 실패: " + JSON.stringify(d));
+  return d.token;
 }
 
-function getPendingWithdrawals() {
+async function getPendingWithdrawals(token) {
   try {
-    const result = execSync(
-      `npx wrangler d1 execute timelink-db --remote --json --command="SELECT * FROM tlc_withdrawals WHERE status='pending' OR status='processing' OR status='queued' ORDER BY created_at ASC" --cwd "${CONFIG.wranglerCwd}"`,
-      { stdio: "pipe" }
-    ).toString();
-    const parsed = JSON.parse(result);
-    return parsed?.[0]?.results || [];
+    const sql = "SELECT * FROM tlc_withdrawals WHERE status='pending' OR status='processing' OR status='queued' ORDER BY created_at ASC";
+    const r = await fetch(CONFIG.backendUrl + "/api/admin/sql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      body: JSON.stringify({ sql })
+    });
+    const d = await r.json();
+    return d.results || [];
   } catch(e) {
     console.error("조회 오류:", e.message);
     return [];
+  }
+}
+
+async function updateWithdrawal(token, id, status, txHash) {
+  try {
+    const sql = "UPDATE tlc_withdrawals SET status='" + status + "', tx_hash='" + txHash + "', processed_at=datetime('now') WHERE id=" + id;
+    const r = await fetch(CONFIG.backendUrl + "/api/admin/sql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      body: JSON.stringify({ sql })
+    });
+    return r.ok;
+  } catch(e) {
+    console.error("DB 오류:", e.message);
+    return false;
   }
 }
 
@@ -77,19 +96,22 @@ async function main() {
 
   console.log("Admin 지갑:", wallet.address.toString());
 
-  const withdrawals = getPendingWithdrawals();
+  const token = await getToken();
+  console.log("로그인 완료");
+
+  const withdrawals = await getPendingWithdrawals(token);
   console.log("처리할 출금:", withdrawals.length, "건");
 
   for (const wd of withdrawals) {
-    console.log(`처리 중: id=${wd.id}, 주소=${wd.ton_address}, 금액=${wd.tlc_amount} TLC`);
+    console.log("처리 중: id=" + wd.id + ", 주소=" + wd.ton_address + ", 금액=" + wd.tlc_amount + " TLC");
     try {
       const txHash = await mintTLC(client, wallet, keyPair, wd.ton_address, wd.tlc_amount);
-      dbExec(`UPDATE tlc_withdrawals SET status='done', tx_hash='${txHash}', processed_at=datetime('now') WHERE id=${wd.id}`);
+      await updateWithdrawal(token, wd.id, "done", txHash);
       console.log("완료:", txHash);
       await new Promise(r => setTimeout(r, 3000));
     } catch(e) {
-      console.error(`실패 id=${wd.id}:`, e.message);
-      dbExec(`UPDATE tlc_withdrawals SET status='failed', tx_hash='error_${Date.now()}', processed_at=datetime('now') WHERE id=${wd.id}`);
+      console.error("실패 id=" + wd.id + ":", e.message);
+      await updateWithdrawal(token, wd.id, "failed", "error_" + Date.now());
     }
   }
 
@@ -97,5 +119,3 @@ async function main() {
 }
 
 main().catch(console.error);
-
-
