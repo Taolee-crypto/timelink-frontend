@@ -43,7 +43,7 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 .btn-login::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.1) 0%,transparent 100%);pointer-events:none}
 .divider{display:flex;align-items:center;gap:14px;margin:22px 0;color:var(--t3);font-size:11px;font-family:var(--fm)}
 .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--bd)}
-.btn-ton{width:100%;padding:13px;border-radius:12px;border:1px solid var(--bd2);background:rgba(255,255,255,.03);color:var(--t3);font-size:13px;font-weight:600;font-family:var(--fn);cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;opacity:.4}
+.btn-ton{width:100%;padding:13px;border-radius:12px;border:1px solid rgba(0,152,234,.4);background:rgba(0,152,234,.08);color:#0098ea;font-size:14px;font-weight:700;font-family:var(--fn);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .25s}.btn-ton:hover{background:rgba(0,152,234,.18);border-color:#0098ea;transform:translateY(-1px)}.btn-ton.connected{background:rgba(0,152,234,.25);border-color:#0098ea;color:#fff}
 .card-footer{text-align:center;margin-top:22px;font-size:13px;color:var(--t3)}
 .card-footer a{color:var(--purple);text-decoration:none;font-weight:700}
 #toast-box{position:fixed;bottom:28px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
@@ -77,7 +77,7 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
   <div class="forgot"><a href="#" data-i18n="login.forgot">비밀번호를 잊으셨나요?</a></div>
   <button class="btn-login" id="login-btn" onclick="doLogin()" data-i18n="login.btn">로그인</button>
   <div class="divider" data-i18n="login.or">또는</div>
-  <button class="btn-ton" data-i18n="login.ton.btn">TON Wallet 로그인 (Phase 2)</button>
+  <button class="btn-ton" id="ton-btn" onclick="doTonConnect()"><svg width="20" height="20" viewBox="0 0 56 56" fill="none"><circle cx="28" cy="28" r="28" fill="#0098EA"/><path d="M37.5603 15.6277H18.4386C14.9228 15.6277 12.6944 19.4202 14.4632 22.4861L26.2644 43.2496C27.0345 44.5793 28.9644 44.5793 29.7345 43.2496L41.5381 22.4861C43.3045 19.4251 41.0761 15.6277 37.5603 15.6277Z" fill="white"/><path d="M37.5603 15.6277H28V44.5793C28.3951 44.5793 28.7902 44.3963 29.0133 44.0278L41.5381 22.4861C43.3045 19.4251 41.0761 15.6277 37.5603 15.6277Z" fill="rgba(255,255,255,0.6)"/></svg> <span id="ton-btn-text">TON Wallet 연결</span></button>
   <div class="card-footer"><span data-i18n="login.no.account">계정이 없으신가요?</span> <a href="signup.html" data-i18n="login.free.signup">무료 가입</a></div>
 </div>
 <script data-cfasync="false">
@@ -134,9 +134,91 @@ async function doLogin() {
   btn.disabled = false;
   btn.textContent = '로그인';
 }
-</script>
+
+// ── TON Wallet 연결 ──
+var _tonConnectUI = null; // SDK 미사용
+
+
+
+
+
+function onTonConnected(addr) {
+  var short = addr.slice(0,6) + '...' + addr.slice(-4);
+  var btn = document.getElementById('ton-btn');
+  var txt = document.getElementById('ton-btn-text');
+  if (btn) btn.classList.add('connected');
+  if (txt) txt.textContent = '✓ 연결됨 ' + short;
+  toast('TON 지갑 연결 완료!', 's');
+  localStorage.setItem('tl_ton_address', addr);
+  // 로그인된 상태면 백엔드에 저장
+  var token = localStorage.getItem('tl_token');
+  if (token) {
+    fetch(API + '/api/ton/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ ton_address: addr })
+    }).catch(function(){});
+  }
+}
+
+function onTonDisconnected() {
+  var btn = document.getElementById('ton-btn');
+  var txt = document.getElementById('ton-btn-text');
+  if (btn) btn.classList.remove('connected');
+  if (txt) txt.textContent = 'TON Wallet 연결';
+  localStorage.removeItem('tl_ton_address');
+}
+
+async function doTonConnect() {
+  var txt = document.getElementById('ton-btn-text');
+
+  if (localStorage.getItem('tl_ton_address')) {
+    localStorage.removeItem('tl_ton_address');
+    onTonDisconnected();
+    if (_tonConnectUI) { try { _tonConnectUI.disconnect(); } catch(e){} }
+    return;
+  }
+
+  if (_tonConnectUI) {
+    try {
+      if (txt) txt.textContent = '연결 중...';
+      await _tonConnectUI.connectWallet();
+      return;
+    } catch(e) {
+      if (txt) txt.textContent = 'TON Wallet 연결';
+      if (e && e.message && e.message.includes('rejected')) { toast('연결이 취소되었습니다.', 'i'); return; }
+    }
+  }
+
+  var addr = window.prompt('TonKeeper 앱에서 지갑 주소를 복사해서 붙여넣으세요\n(UQ 또는 EQ로 시작하는 48자리)', '');
+  if (!addr) return;
+  addr = addr.trim();
+  if (!/^[0EU]Q[A-Za-z0-9_-]{46}$/.test(addr)) { toast('유효하지 않은 TON 주소입니다.', 'e'); return; }
+  onTonConnected(addr);
+}
+
+// 페이지 로드 시 SDK 미리 로드
+
+
+// 로그인 성공 후 TON 주소 자동 저장
+var _origDoLogin = doLogin;
+doLogin = async function() {
+  await _origDoLogin.apply(this, arguments);
+  var token = localStorage.getItem('tl_token');
+  var tonAddr = localStorage.getItem('tl_ton_address');
+  if (token && tonAddr) {
+    fetch(API + '/api/ton/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ ton_address: tonAddr })
+    }).catch(function(){});
+  }
+};</script>
 </body>
 </html>
+
+
+
 
 
 
