@@ -120,6 +120,13 @@ tr:hover td{background:rgba(255,255,255,.015)}
 .pulse-bar{height:3px;border-radius:2px;background:var(--g4);overflow:hidden;margin-top:5px}
 .pulse-fill{height:100%;background:var(--g);border-radius:2px}
 .empty{text-align:center;padding:40px 20px;color:var(--t4);font-family:var(--mono);font-size:11px}
+.pg-wrap{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:1px solid var(--bd);font-size:11px;color:var(--t3)}
+.pg-btns{display:flex;gap:4px}
+.pg-btn{padding:3px 9px;border-radius:4px;border:1px solid var(--bd);background:transparent;color:var(--t2);font-size:11px;font-family:var(--mono);cursor:pointer;transition:all .15s}
+.pg-btn:hover{border-color:var(--g);color:var(--g)}
+.pg-btn.on{background:var(--g4);border-color:var(--g);color:var(--g)}
+.pg-btn:disabled{opacity:.3;cursor:default}
+.pg-info{font-family:var(--mono)}
 </style>
 </head>
 <body>
@@ -906,6 +913,135 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
 <div id="toast-root"></div>
 
 <script>
+
+// ── 범용 페이지네이션 ──
+var _pgState = {};
+var _pgData = {};
+var PG_SIZE = 20;
+
+function paginate(tbodyId, rows, renderFn, pageSize){
+  pageSize = pageSize || PG_SIZE;
+  if(!_pgState[tbodyId]) _pgState[tbodyId] = 1;
+  _pgData[tbodyId] = {rows: rows, renderFn: renderFn, pageSize: pageSize};
+  renderPage(tbodyId);
+}
+
+function renderPage(tbodyId){
+  var d = _pgData[tbodyId];
+  if(!d) return;
+  var rows = d.rows, renderFn = d.renderFn, pageSize = d.pageSize;
+  var total = rows.length;
+  var totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if(_pgState[tbodyId] > totalPages) _pgState[tbodyId] = 1;
+  var cur = _pgState[tbodyId];
+  var start = (cur-1)*pageSize;
+  var slice = rows.slice(start, start+pageSize);
+
+  var tb = document.getElementById(tbodyId);
+  if(!tb) return;
+  tb.innerHTML = slice.length ? slice.map(renderFn).join('') : '<tr><td colspan="20"><div class="empty">데이터 없음</div></td></tr>';
+
+  var pgId = 'pg-' + tbodyId;
+  var old = document.getElementById(pgId);
+  if(old) old.remove();
+  if(totalPages <= 1) return;
+
+  var tbox = tb.closest('.tbox');
+  if(!tbox) return;
+
+  var nums = '';
+  for(var i=1;i<=totalPages;i++){
+    if(totalPages>7 && i!==1 && i!==totalPages && Math.abs(i-cur)>2){
+      if(i===cur-3||i===cur+3) nums+='<span style="padding:0 4px;color:var(--t4)">...</span>';
+      continue;
+    }
+    var active = (i===cur) ? ' on' : '';
+    nums+='<button class="pg-btn'+active+'" onclick="goPagePg(\''+tbodyId+'\','+i+')">'+i+'</button>';
+  }
+
+  var wrap = document.createElement('div');
+  wrap.id = pgId;
+  wrap.className = 'pg-wrap';
+  wrap.innerHTML =
+    '<span class="pg-info">총 '+total+'개 · '+(start+1)+'-'+Math.min(start+pageSize,total)+'</span>'+
+    '<div class="pg-btns">'+
+    '<button class="pg-btn" '+(cur<=1?'disabled':'')+' onclick="goPagePg(\''+tbodyId+'\','+(cur-1)+')">◀</button>'+
+    nums+
+    '<button class="pg-btn" '+(cur>=totalPages?'disabled':'')+' onclick="goPagePg(\''+tbodyId+'\','+(cur+1)+')">▶</button>'+
+    '</div>';
+  tbox.appendChild(wrap);
+}
+
+function goPagePg(tbodyId, page){
+  _pgState[tbodyId] = page;
+  renderPage(tbodyId);
+} {};
+var PAGE_SIZE = 20;
+
+function paginate(tbodyId, rows, renderFn, pageSize){
+  pageSize = pageSize || PAGE_SIZE;
+  if(!_pages[tbodyId]) _pages[tbodyId] = 1;
+  var total = rows.length;
+  var totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if(_pages[tbodyId] > totalPages) _pages[tbodyId] = 1;
+  var cur = _pages[tbodyId];
+  var start = (cur-1)*pageSize;
+  var slice = rows.slice(start, start+pageSize);
+
+  var tb = g(tbodyId);
+  if(!slice.length){
+    tb.innerHTML = '<tr><td colspan="20"><div class="empty">데이터 없음</div></td></tr>';
+  } else {
+    tb.innerHTML = slice.map(renderFn).join('');
+  }
+
+  // 페이지네이션 컨트롤 (tbox 하단에 삽입)
+  var pgId = 'pg-'+tbodyId;
+  var existing = document.getElementById(pgId);
+  if(existing) existing.remove();
+
+  if(totalPages <= 1) return;
+
+  var tbox = tb.closest('.tbox');
+  if(!tbox) return;
+
+  var pgWrap = document.createElement('div');
+  pgWrap.id = pgId;
+  pgWrap.className = 'pg-wrap';
+  pgWrap.innerHTML =
+    '<span class="pg-info">'+total+'개 중 '+(start+1)+'-'+Math.min(start+pageSize,total)+'</span>'+
+    '<div class="pg-btns">'+
+      '<button class="pg-btn" '+(cur<=1?'disabled':'')+' onclick="goPage(\''+tbodyId+'\','+(cur-1)+')">◀</button>'+
+      Array.from({length:totalPages},function(_,i){
+        var p=i+1;
+        if(totalPages>7 && Math.abs(p-cur)>2 && p!==1 && p!==totalPages) return p===cur-3||p===cur+3?'<span style="padding:0 4px;color:var(--t4)">…</span>':'';
+        return '<button class="pg-btn'+(p===cur?' on':'')+'" onclick="goPage(\''+tbodyId+'\','+p+')">'+p+'</button>';
+      }).join('')+
+      '<button class="pg-btn" '+(cur>=totalPages?'disabled':'')+' onclick="goPage(\''+tbodyId+'\','+(cur+1)+')">▶</button>'+
+    '</div>';
+  tbox.appendChild(pgWrap);
+}
+
+function goPage(tbodyId, page){
+  _pages[tbodyId] = page;
+  // 각 테이블별 리렌더
+  var rerender = {
+    'shares-tbody': function(){ renderShares(); },
+    'users-tbody':  function(){ renderUsers(); },
+    'tl-users-tbody': function(){ renderTLUsers(); },
+    'po-creators-tbody': function(){ loadPayout(); },
+    'po-requests-tbody': function(){ loadPayout(); },
+    'ap-pending-tbody':  function(){ loadAutoPayout(); },
+    'ap-done-tbody':     function(){ loadAutoPayout(); },
+    'ton-tbody':         function(){ loadTonWithdrawals(); },
+    'advTable':          function(){ loadAdvertisers(); },
+    'sec-log-tbody':     function(){ loadSecurity(); },
+    'sec-tl-tbody':      function(){ loadSecurity(); },
+    'ma-top-tbody':      function(){ loadMusicAnalytics(); },
+    'cm-tbody':          function(){ loadCafeMgmt(); },
+  };
+  if(rerender[tbodyId]) rerender[tbodyId]();
+}
 var API = 'https://api.timelink.digital';
 function proxyUrl(url){
   if(!url||typeof url!=='string') return '';
@@ -936,6 +1072,7 @@ function login(){
   if(e===CRED.email && p===CRED.pw){
     hide('loginWrap');
     localStorage.setItem('tl_adm',Date.now());
+    localStorage.setItem('tl_token','token_2');
     loadAll(); startClock();
   } else { show('lErr'); }
 }
@@ -955,7 +1092,7 @@ async function loadAdvertisers(){
       document.getElementById('advTable').innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--t3)">등록된 광고가 없습니다</td></tr>';
       return;
     }
-    document.getElementById('advTable').innerHTML = ads.map(function(a){
+    paginate('advTable', ads, function(a){
       var statusBadge = a.status==='active'?'<span style="color:var(--g);font-size:10px">● 활성</span>':'<span style="color:var(--t3);font-size:10px">○ 중지</span>';
       var typeIcon = {video:'📹',audio:'🎵',image:'🖼️'}[a.ad_type]||'📺';
       return '<tr><td>'+esc(a.title||'-')+'</td><td>'+esc(a.business_name||'-')+'</td><td>'+typeIcon+' '+esc(a.ad_type||'-')+'</td><td>'+statusBadge+'</td><td style="color:var(--amber)">'+Number(a.budget_tl||0).toLocaleString()+'</td><td style="color:var(--g)">'+Number(a.spent_tl||0).toLocaleString()+'</td><td>'+Number(a.views||0).toLocaleString()+'</td><td><button class="btn btn-xs btn-r" onclick="deleteAd(\''+a.id+'\')">삭제</button></td></tr>';
@@ -1038,7 +1175,7 @@ async function loadTonWithdrawals(){
     var tb = document.getElementById('ton-tbody');
     if(!tb) return;
     if(!rows.length){ tb.innerHTML='<tr><td colspan="8"><div class="empty">출금 신청 없음</div></td></tr>'; return; }
-    tb.innerHTML = rows.map(function(w){
+    paginate('ton-tbody', rows, function(w){
       var statusColor = w.status==='pending' ? 'var(--amber)' : w.status==='done' ? 'var(--g)' : w.status==='processing' ? 'var(--purple)' : 'var(--rose)';
       var addrShort = w.ton_address ? w.ton_address.slice(0,8)+'...'+w.ton_address.slice(-6) : '-';
       var txShort = w.tx_hash ? w.tx_hash.slice(0,10)+'...' : '-';
@@ -1183,7 +1320,7 @@ function renderShares(){
   }).sort(function(a,b){return(b.created_at||0)-(a.created_at||0);});
   var tb=g('shares-tbody');
   if(!list.length){tb.innerHTML='<tr><td colspan="11"><div class="empty">공유 파일 없음</div></td></tr>';return;}
-  tb.innerHTML=list.map(function(s){return shareRowFull(s);}).join('');
+  paginate('shares-tbody', list, function(s){ return shareRowFull(s); });
 }
 function coverEl(s){
   var mt=s.file_type||'';
@@ -1283,7 +1420,7 @@ function renderUsers(){
     tb.innerHTML='<tr><td colspan="8"><div class="empty">'+( _users.length ? '해당 유형 없음' : '/api/users 없음')+'</div></td></tr>';
     return;
   }
-  tb.innerHTML = list.map(function(u){
+  paginate('users-tbody', list, function(u){
     return '<tr>'+
       '<td class="td-mono" style="color:var(--t4)">'+u.id+'</td>'+
       '<td>'+getUserTypeBadge(u)+'</td>'+
@@ -1304,7 +1441,7 @@ function renderUsers(){
 function renderTLUsers(){
   var tb=g('tl-users-tbody');
   if(!_users.length){tb.innerHTML='<tr><td colspan="6"><div class="empty">유저 탭 또는 SQL로 먼저 조회하세요</div></td></tr>';return;}
-  tb.innerHTML=_users.map(function(u){
+  paginate('tl-users-tbody', _users, function(u){
     return '<tr>'+
       '<td style="font-size:11px">'+esc(u.email||'-')+'</td>'+
       '<td style="font-weight:600">'+esc(u.username||'-')+'</td>'+
@@ -1779,6 +1916,7 @@ async function saveFooterSettings(){
   var sess=localStorage.getItem('tl_adm');
   var MAX=8*60*60*1000;
   if(sess&&Date.now()-parseInt(sess)<MAX){
+    localStorage.setItem('tl_token','token_2');
     hide('loginWrap'); loadAll(); startClock();
   }
   document.addEventListener('keydown',function(e){
@@ -1822,14 +1960,14 @@ async function loadPayout(){
   try{
     var d = await api('/api/admin/creators/payouts');
     if(!d.ok) return;
-    var s = d.summary;
-    g('po-unpaid').textContent = Number(s?.unpaid_tl||0).toLocaleString()+' TL';
+    var s = d.summary || {};
+    g('po-unpaid').textContent = Math.max(0, Number(s?.unpaid_tl||0)).toLocaleString()+' TL';
     g('po-creators').textContent = '크리에이터 '+(s?.creator_count||0)+'명';
     g('po-req-cnt').textContent = (d.requests||[]).filter(function(r){return r.status==='pending';}).length+'건';
     var totalEarned = (d.creators||[]).reduce(function(sum,c){return sum+Number(c.total_earned||0);},0);
     g('po-total-earned').textContent = totalEarned.toLocaleString()+' TL';
     // 크리에이터 목록
-    g('po-creators-tbody').innerHTML = (d.creators||[]).map(function(cr){
+    paginate('po-creators-tbody', d.creators||[], function(cr){
       var unpaid = Math.max(0, Number(cr.total_earned||0)-Number(cr.total_exchanged||0));
       return '<tr>'+
         '<td><div style="font-weight:600">'+esc(cr.username||'')+'</div><div style="font-size:11px;color:var(--t3)">'+esc(cr.email||'')+'</div></td>'+
@@ -1842,7 +1980,7 @@ async function loadPayout(){
       '</tr>';
     }).join('') || '<tr><td colspan="7"><div class="empty">크리에이터 없음</div></td></tr>';
     // 정산 이력
-    g('po-requests-tbody').innerHTML = (d.requests||[]).map(function(r){
+    paginate('po-requests-tbody', d.requests||[], function(r){
       return '<tr>'+
         '<td style="font-size:11px;color:var(--t3)">'+(r.created_at||'').slice(0,16)+'</td>'+
         '<td>'+esc(r.username||r.user_id)+'</td>'+
@@ -1966,7 +2104,7 @@ async function loadMusicAnalytics(){
         '<div style="height:6px;background:var(--bd);border-radius:3px"><div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:3px"></div></div></div>';
     }).join('') || '<div class="empty">데이터 없음</div>';
     // 상위 트랙
-    g('ma-top-tbody').innerHTML = (d.top_tracks||[]).map(function(t,i){
+    paginate('ma-top-tbody', d.top_tracks||[], function(t,i){
       return '<tr><td style="color:var(--amber);font-weight:700">'+(i+1)+'</td>'+
         '<td>'+esc(t.title||'')+'</td><td style="color:var(--t3)">'+esc(t.artist||'')+'</td>'+
         '<td><span style="font-size:11px;padding:2px 6px;background:rgba(139,92,246,.1);border-radius:4px;color:var(--purple)">'+esc(t.category||'-')+'</span></td>'+
@@ -1984,12 +2122,12 @@ async function loadCafeMgmt(){
   try{
     var d = await api('/api/admin/cafe/channels');
     if(!d.ok) return;
-    var s = d.summary;
+    var s = d.summary || {};
     g('cm-active').textContent = s?.active||0;
     g('cm-expired').textContent = s?.expired||0;
     g('cm-revenue').textContent = ((s?.active||0)*50000).toLocaleString()+' TL';
     g('sb-cafe-cnt').textContent = s?.active||0;
-    g('cm-tbody').innerHTML = (d.channels||[]).map(function(ch){
+    paginate('cm-tbody', d.channels||[], function(ch){
       var isActive = ch.status==='active';
       var daysLeft = Number(ch.days_left||0);
       return '<tr>'+
@@ -2089,7 +2227,7 @@ async function loadDJStats(){
     }).join('');
 
     // TOP 10 트랙 (pulse 순)
-    g('dj-top-tbody').innerHTML = (music.top_tracks||[]).map(function(t,i){
+    paginate('dj-top-tbody', music.top_tracks||[], function(t,i){
       return '<tr><td style="color:var(--amber);font-weight:700">'+(i+1)+'</td>'+
         '<td>'+esc(t.title||'')+'</td><td style="color:var(--t3)">'+esc(t.artist||'')+'</td>'+
         '<td><span style="font-size:11px;padding:2px 6px;background:rgba(139,92,246,.1);border-radius:4px;color:var(--purple)">'+esc(t.category||'-')+'</span></td>'+
@@ -2098,7 +2236,7 @@ async function loadDJStats(){
     }).join('') || '<tr><td colspan="6"><div class="empty">데이터 없음</div></td></tr>';
 
     // 카페채널 목록
-    g('dj-cafe-tbody').innerHTML = activeCh.map(function(ch){
+    paginate('dj-cafe-tbody', activeCh, function(ch){
       var pl = JSON.parse(ch.playlist||'[]');
       return '<tr>'+
         '<td style="font-weight:600">'+esc(ch.name||'')+'</td>'+
@@ -2159,7 +2297,7 @@ async function loadSecurity(){
       : '<tr><td colspan="4"><div class="empty">이 세션에서 아직 액션 없음</div></td></tr>';
 
     // TL 변경 이력
-    g('sec-tl-tbody').innerHTML = (tlLog&&tlLog.results||[]).map(function(r){
+    paginate('sec-tl-tbody', (tlLog&&tlLog.results)||[], function(r){
       return '<tr>'+
         '<td style="font-size:11px;color:var(--t3)">'+(r.created_at||'').slice(0,16)+'</td>'+
         '<td>'+esc(r.username||r.email||'-')+'</td>'+
@@ -2202,7 +2340,7 @@ async function loadAutoPayout(){
     g('sb-autopay-cnt').textContent = pending.length;
 
     // 대기 목록
-    g('ap-pending-tbody').innerHTML = pending.map(function(cr){
+    paginate('ap-pending-tbody', pending, function(cr){
       var unpaid = Math.max(0, Number(cr.total_earned||0)-Number(cr.total_exchanged||0));
       var krw = Math.round(unpaid * rate);
       return '<tr>'+
@@ -2278,6 +2416,7 @@ async function runAutoPayout(){
 </script>
 </body>
 </html>
+
 
 
 
