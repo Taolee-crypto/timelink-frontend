@@ -1,0 +1,30 @@
+name: TLC Auto Mint
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # 매 시간 실행
+  workflow_dispatch:      # 수동 실행도 가능
+
+jobs:
+  mint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: timelink-suno-pipeline/backend
+        run: npm install
+
+      - name: Run mint script
+        working-directory: timelink-suno-pipeline/backend
+        env:
+          TON_MNEMONIC: ${{ secrets.TON_MNEMONIC }}
+          BACKEND_URL: https://api.timelink.digital
+          ADMIN_EMAIL: mununglee@gmail.com
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          WRANGLER_API_TOKEN: ${{ secrets.WRANGLER_API_TOKEN }}
+        run: node mint-tlc.js
