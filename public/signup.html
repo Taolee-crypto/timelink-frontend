@@ -383,7 +383,7 @@ function onEmailChange(){
 // SEND CODE
 async function sendCode(){
   var email=document.getElementById('emailInput').value.trim();
-  if(!isValidEmail(email)){toast(TLi18n.t('toast.email.invalid'),true);return;}
+  if(!isValidEmail(email)){toast('올바른 이메일 형식이 아닙니다',true);return;}
 
   // ── 이메일 중복 체크 (인증번호 발송 전) ──
   var btn=document.getElementById('sendBtn');
@@ -396,7 +396,7 @@ async function sendCode(){
     });
     var cd=await chk.json();
     if(cd.exists){
-      toast(TLi18n.t('toast.email.duplicate'),true);
+      toast('이미 가입된 이메일입니다',true);
       btn.disabled=false;btn.textContent='인증 발송';
       return;
     }
@@ -407,12 +407,6 @@ async function sendCode(){
 
   sentEmail=email;
   btn.textContent='발송 중...';
-
-  // OTP 6자리 생성 (프론트)
-  var code=Math.floor(100000+Math.random()*900000).toString();
-  sessionStorage.setItem('tl_otp',code);
-  sessionStorage.setItem('tl_otp_email',email);
-  sessionStorage.setItem('tl_otp_ts',Date.now().toString());
 
   var emailBody=`
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:40px 24px;background:#08080F;color:#fff;border-radius:16px">
@@ -431,27 +425,25 @@ async function sendCode(){
   `;
 
   try{
-    var r=await fetch(EMAIL_WORKER+'/send-email',{
+    var username=document.getElementById('usernameInput').value.trim()||email;
+    var r=await fetch('https://api.timelink.digital/api/auth/send-code',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        to:email,
-        subject:'[TimeLink] 이메일 인증 코드: '+code,
-        body:emailBody
-      }),
+      body:JSON.stringify({email:email,username:username}),
       signal:AbortSignal.timeout(10000)
     });
-    if(r.ok){
-      toast(TLi18n.t('toast.code.sent'));
+    var rd=await r.json();
+    if(r.ok&&rd.ok){
+      sessionStorage.setItem('tl_otp_email',email);
+      toast('인증 코드가 발송되었습니다');
     } else {
-      var ed=await r.json().catch(function(){return {};});
-      throw new Error(ed.error||'발송 실패');
+      throw new Error(rd.error||'발송 실패');
     }
   }catch(err){
-    console.warn('[Email Worker]',err.message);
-    // Gmail API 미연결 등 오류 시 개발 폴백 안내
-    toast('📨 코드 발송됨 — 개발모드: 콘솔에서 확인',true);
-    console.log('%c[TimeLink OTP] 인증 코드: '+code,'color:#00E5A0;font-size:20px;font-weight:bold');
+    console.warn('[Email]',err.message);
+    toast('발송 실패: '+err.message,true);
+    btn.disabled=false;btn.textContent='인증 발송';
+    return;
   }
 
   document.getElementById('emailSentTo').textContent=email;
@@ -498,35 +490,35 @@ function otpKey(e,idx){
 async function verifyCode(){
   var code='';
   for(var i=0;i<6;i++) code+=document.getElementById('otp'+i).value;
-  if(code.length!==6){toast(TLi18n.t('toast.code.enter6'),true);return;}
+  if(code.length!==6){toast('6자리 코드를 입력하세요',true);return;}
 
   var btn=document.getElementById('verifyBtn');
   btn.disabled=true;btn.textContent='확인 중...';
 
-  // 만료 체크 (3분)
-  var ts=parseInt(sessionStorage.getItem('tl_otp_ts')||'0');
-  if(Date.now()-ts>180000){
-    toast(TLi18n.t('toast.code.expired'),true);
+  // 백엔드 코드 검증
+  var otpEmail=sessionStorage.getItem('tl_otp_email')||sentEmail;
+  try{
+    var r=await fetch('https://api.timelink.digital/api/auth/verify-code',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:otpEmail,code:code}),
+      signal:AbortSignal.timeout(10000)
+    });
+    var rd=await r.json();
+    if(!r.ok||!rd.ok){
+      toast(rd.error||'인증 실패',true);
+      btn.disabled=false;btn.textContent='확인';
+      return;
+    }
+  }catch(err){
+    toast('인증 실패: '+err.message,true);
     btn.disabled=false;btn.textContent='확인';
     return;
   }
-
-  // 이메일 일치 체크
-  var otpEmail=sessionStorage.getItem('tl_otp_email');
-  if(otpEmail!==sentEmail){
-    toast(TLi18n.t('toast.email.mismatch'),true);
-    btn.disabled=false;btn.textContent='확인';
-    return;
-  }
-
-  // 코드 비교
-  var savedCode=sessionStorage.getItem('tl_otp');
-  var verified=(code===savedCode);
+  var verified=true;
 
   if(verified){
-    sessionStorage.removeItem('tl_otp');
     sessionStorage.removeItem('tl_otp_email');
-    sessionStorage.removeItem('tl_otp_ts');
     emailVerified=true;
     clearInterval(timerInterval);
     document.getElementById('timerEl').textContent='';
@@ -536,9 +528,9 @@ async function verifyCode(){
     document.getElementById('emailInput').readOnly=true;
     document.getElementById('sendBtn').style.display='none';
     kycTL=5000;animateTL(totalTL());
-    toast(TLi18n.t('toast.code.verified'));
+    toast('이메일 인증 완료!');
   } else {
-    toast(TLi18n.t('toast.code.wrong'),true);
+    toast('인증 코드가 틀렸습니다',true);
     // 입력칸 초기화
     for(var j=0;j<6;j++) document.getElementById('otp'+j).value='';
     document.getElementById('otp0').focus();
@@ -569,8 +561,8 @@ function goStep3(){
   var u=document.getElementById('usernameInput').value.trim();
   var pw=document.getElementById('pwInput').value;
   var pw2=document.getElementById('pw2Input').value;
-  if(!u){toast(TLi18n.t('toast.nick.required'),true);return;}
-  if(pw.length<8){toast(TLi18n.t('toast.pw.short'),true);return;}
+  if(!u){toast('닉네임을 입력하세요',true);return;}
+  if(pw.length<8){toast('알 수 없는 오류',true);return;}
   if(pw!==pw2){document.getElementById('pwErr').className='err-msg show';return;}
   document.getElementById('pwErr').className='err-msg';
   goStep(3);
@@ -586,7 +578,7 @@ function updateRefTL(v){
 
 // SOCIAL (placeholder)
 function socialSignup(provider){
-  toast(TLi18n.t('toast.social.preparing'));
+  toast('소셜 로그인은 준비 중입니다. 이메일로 가입해주세요.', true);
 }
 
 // FINAL SUBMIT
@@ -594,7 +586,7 @@ async function doSignup(){
   var ck1=document.getElementById('ck1').checked;
   var ck2=document.getElementById('ck2').checked;
   var ck3=document.getElementById('ck3').checked;
-  if(!ck1||!ck2||!ck3){toast(TLi18n.t('toast.terms.required'),true);return;}
+  if(!ck1||!ck2||!ck3){toast('필수 약관에 동의해주세요.',true);return;}
 
   var email=document.getElementById('emailInput').value.trim();
   var username=document.getElementById('usernameInput').value.trim();
@@ -637,5 +629,7 @@ async function doSignup(){
 </script>
 </body>
 </html>
+
+
 
 
