@@ -975,55 +975,7 @@ function renderPage(tbodyId){
 function goPagePg(tbodyId, page){
   _pgState[tbodyId] = page;
   renderPage(tbodyId);
-}n paginate(tbodyId, rows, renderFn, pageSize){
-  pageSize = pageSize || PAGE_SIZE;
-  if(!_pages[tbodyId]) _pages[tbodyId] = 1;
-  var total = rows.length;
-  var totalPages = Math.max(1, Math.ceil(total / pageSize));
-  if(_pages[tbodyId] > totalPages) _pages[tbodyId] = 1;
-  var cur = _pages[tbodyId];
-  var start = (cur-1)*pageSize;
-  var slice = rows.slice(start, start+pageSize);
-
-  var tb = g(tbodyId);
-  if(!slice.length){
-    tb.innerHTML = '<tr><td colspan="20"><div class="empty">데이터 없음</div></td></tr>';
-  } else {
-    tb.innerHTML = slice.map(renderFn).join('');
-  }
-
-  // 페이지네이션 컨트롤 (tbox 하단에 삽입)
-  var pgId = 'pg-'+tbodyId;
-  var existing = document.getElementById(pgId);
-  if(existing) existing.remove();
-
-  if(totalPages <= 1) return;
-
-  var tbox = tb.closest('.tbox');
-  if(!tbox) return;
-
-  var pgWrap = document.createElement('div');
-  pgWrap.id = pgId;
-  pgWrap.className = 'pg-wrap';
-  pgWrap.innerHTML =
-    '<span class="pg-info">'+total+'개 중 '+(start+1)+'-'+Math.min(start+pageSize,total)+'</span>'+
-    '<div class="pg-btns">'+
-      '<button class="pg-btn" '+(cur<=1?'disabled':'')+' onclick="goPage(\''+tbodyId+'\','+(cur-1)+')">◀</button>'+
-      Array.from({length:totalPages},function(_,i){
-        var p=i+1;
-        if(totalPages>7 && Math.abs(p-cur)>2 && p!==1 && p!==totalPages) return p===cur-3||p===cur+3?'<span style="padding:0 4px;color:var(--t4)">…</span>':'';
-        return '<button class="pg-btn'+(p===cur?' on':'')+'" onclick="goPage(\''+tbodyId+'\','+p+')">'+p+'</button>';
-      }).join('')+
-      '<button class="pg-btn" '+(cur>=totalPages?'disabled':'')+' onclick="goPage(\''+tbodyId+'\','+(cur+1)+')">▶</button>'+
-    '</div>';
-  tbox.appendChild(pgWrap);
-}
-
-function goPage(tbodyId, page){
-  _pages[tbodyId] = page;
-  // 각 테이블별 리렌더
-  var rerender = {
-    'shares-tbody': function(){ renderShares(); },
+},
     'users-tbody':  function(){ renderUsers(); },
     'tl-users-tbody': function(){ renderTLUsers(); },
     'po-creators-tbody': function(){ loadPayout(); },
