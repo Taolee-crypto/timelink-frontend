@@ -414,11 +414,17 @@ async function loadExistingSongs(){
 function normalizeString(str){ return (str||'').toLowerCase().trim().replace(/\s+/g,' '); }
 async function isDuplicateBySpotifyId(id){
   if(!id) return null;
+  await loadExistingSongs();
+updateUserTL();
+setInterval(updateUserTL, 5000);
   for(var i=0;i<_existingSongs.length;i++) if(_existingSongs[i].spotify_id===id) return _existingSongs[i];
   return null;
 }
 async function isDuplicateByTitleArtist(title,artist){
   if(!title&&!artist) return null;
+  await loadExistingSongs();
+updateUserTL();
+setInterval(updateUserTL, 5000);
   var nt=normalizeString(title), na=normalizeString(artist);
   for(var i=0;i<_existingSongs.length;i++){
     var s=_existingSongs[i];
@@ -882,12 +888,13 @@ function addTag(){
 }
 function removeTag(i){_eTags.splice(i,1);renderTags();}
 function renderSuggTags(){
-  var el = document.getElementById('tagSuggest');
-  el.innerHTML = SUGG_TAGS.map(function(t){
-    return '<button class="tag-sug" onclick="addSugg(\'' + t + '\')">' + t + '</button>';
+  var el=document.getElementById('tagSuggest');
+  el.innerHTML=SUGG_TAGS.map(function(t){
+    return '<button class="tag-sug" onclick="addSugg(''+t+'')">'+t+'</button>';
   }).join('');
 }
 function addSugg(t){if(!_eTags.includes(t)&&_eTags.length<15){_eTags.push(t);renderTags();}}
+async function loadEditData(shareId){
   document.getElementById('editSaveBtn').disabled=true;
   try{
     var r=await fetch(API+'/api/shares/'+shareId);
@@ -997,6 +1004,9 @@ async function saveEdit(){
 
 function escapeHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function doLogout(){localStorage.removeItem('tl_token');localStorage.removeItem('tl_user');location.href='login.html';}
+loadExistingSongs();
+updateUserTL();
+setInterval(updateUserTL, 5000);
 
 // ============================================================
 // ★ .tl3 v2 변환 모듈
@@ -1193,8 +1203,3 @@ async function detectBPM(arrayBuffer){
 
 </body>
 </html>
-
-// 초기화 실행
-loadExistingSongs();
-updateUserTL();
-setInterval(updateUserTL, 5000);
