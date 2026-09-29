@@ -244,6 +244,7 @@
     var stopped = false;
     var offset = 0;
     var payloadStart = 0;
+    var started = false;
     var opened = new Promise(function(resolve, reject) {
       ms.addEventListener('sourceopen', function onOpen() {
         ms.removeEventListener('sourceopen', onOpen);
@@ -252,7 +253,7 @@
         catch (e) { reject(e); return; }
 
         function appendNext() {
-          if (stopped) return;
+          if (stopped || (started && player.paused)) return;
           fetch(baseUrl + (baseUrl.indexOf('?') >= 0 ? '&' : '?') +
             'offset=' + offset + '&length=' + CHUNK + '&session_id=' + encodeURIComponent(opts.sessionId || ''), fetchOptions)
             .then(function(res) {
@@ -285,12 +286,9 @@
               var done = bytes.length < CHUNK || /\/(\d+)$/.test(item.cr) && /\/(\d+)$/.exec(item.cr)[1] <= offset;
               sb.addEventListener('updateend', function onEnd() {
                 sb.removeEventListener('updateend', onEnd);
-                if (done) {
-                  try { if (ms.readyState === 'open') ms.endOfStream(); } catch(e) {}
-                  resolve({decoded:true, segmented:true, objectUrl:objectUrl});
-                } else {
-                  appendNext();
-                }
+                if (!started) { started = true; resolve({decoded:true, segmented:true, objectUrl:objectUrl}); }
+                if (done) { try { if (ms.readyState === 'open') ms.endOfStream(); } catch(e) {} }
+                else if (!stopped && !player.paused) { setTimeout(appendNext, 5000); }
               });
               sb.appendBuffer(out);
             })
@@ -299,6 +297,7 @@
         appendNext();
       });
     });
+    player._tl3ResumeSegments = function() { if (!stopped) appendNext(); };
     player._tl3SegmentStop = function() {
       stopped = true;
       try { if (ms.readyState === 'open') ms.endOfStream(); } catch(e) {}
