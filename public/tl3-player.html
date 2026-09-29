@@ -117,6 +117,7 @@
   var chargedAt = 0;
   var heartbeatTimer = null;
   var authToken = localStorage.getItem('tl_token') || '';
+  var consumePending = false;
 
   var $ = function(id){ return document.getElementById(id); };
 
@@ -191,12 +192,13 @@
     heartbeatTimer=setInterval(function(){ consumeTime(false); },5000);
   }
   async function consumeTime(final){
-    if(!current || !sessionId || !authToken || audio.paused) return;
+    if(consumePending || !current || !sessionId || !authToken || audio.paused) return;
+    consumePending = true;
     var now=Math.floor(audio.currentTime||0);
     var delta=now-chargedAt;
     if(final && audio.duration) delta=Math.max(delta, Math.min(10, Math.floor(audio.duration-chargedAt)));
     delta=Math.max(0,Math.min(10,Math.floor(delta)));
-    if(delta<=0)return;
+    if(delta<=0){ consumePending=false; return; }
     try{
       var r=await fetch(API+'/api/v1/playback/tl3/consume',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},body:JSON.stringify({file_id:Number(current.id),session_id:sessionId,seconds:delta})});
       var d=await r.json();
@@ -205,6 +207,7 @@
       chargedAt=now;
       $('pointStatus').textContent='사용 시간 '+d.consumed+'초 · 남은 시간 포인트 '+Number(d.balance||0).toLocaleString()+' TL';
     }catch(e){setStatus('시간 정산 실패: '+e.message,'err');}
+    finally{ consumePending=false; }
   }
 
   $('playBtn').onclick = function(){
