@@ -234,78 +234,75 @@
     opts = opts || {};
     var player = createPlayer(audioEl);
     var fetchOptions = opts.fetchOptions || {};
-    var CHUNK = 128 * 1024;
     if (!global.MediaSource || !MediaSource.isTypeSupported('audio/mpeg')) {
-      return Promise.reject(new Error('이 브라우저는 TL3 세그먼트 재생을 지원하지 않습니다.'));
+      return Promise.reject(new Error('이 브라우저는 TL3 시간 세그먼트 재생을 지원하지 않습니다.'));
     }
+    if (!opts.sessionId) return Promise.reject(new Error('TL3 재생 세션이 필요합니다.'));
     var ms = new MediaSource();
     var objectUrl = URL.createObjectURL(ms);
     _setSrc(player, objectUrl);
     var stopped = false;
-    var offset = 0;
-    var payloadStart = 0;
-    var started = false;
-    var opened = new Promise(function(resolve, reject) {
-      ms.addEventListener('sourceopen', function onOpen() {
-        ms.removeEventListener('sourceopen', onOpen);
-        var sb;
-        try { sb = ms.addSourceBuffer('audio/mpeg'); sb.mode = 'sequence'; }
-        catch (e) { reject(e); return; }
+    var segmentIndex = 0;
+    var openedResolve, openedReject;
+    var opened = new Promise(function(resolve,reject){ openedResolve=resolve; openedReject=reject; });
 
-        function appendNext() {
-          if (stopped || (started && player.paused)) return;
-          fetch(baseUrl + (baseUrl.indexOf('?') >= 0 ? '&' : '?') +
-            'offset=' + offset + '&length=' + CHUNK + '&session_id=' + encodeURIComponent(opts.sessionId || ''), fetchOptions)
-            .then(function(res) {
-              if (!res.ok) throw new Error('segment HTTP ' + res.status);
-              var cr = res.headers.get('Content-Range') || '';
-              var remaining = res.headers.get('X-TL3-Remaining-TL');
-              return res.arrayBuffer().then(function(buf) {
-                return {buf:buf, cr:cr, remaining:remaining};
-              });
-            })
-            .then(function(item) {
-              if (stopped) return;
-              var bytes = new Uint8Array(item.buf);
-              if (opts.onSegment) opts.onSegment({seconds:5, remaining:Number(item.remaining || 0)});
-              if (offset === 0) {
-                if (bytes.length < 7 || bytes[0] !== MAGIC[0] || bytes[1] !== MAGIC[1] ||
-                    bytes[2] !== MAGIC[2] || bytes[3] !== MAGIC[3]) {
-                  throw new Error('TL3 header가 없습니다.');
-                }
-                var mlen = (bytes[5] << 8) | bytes[6];
-                payloadStart = 7 + mlen;
-                if (payloadStart > bytes.length) throw new Error('TL3 header가 잘렸습니다.');
-              }
-              var start = offset === 0 ? payloadStart : 0;
-              var payload = bytes.subarray(start);
-              var payloadOffset = offset + start - payloadStart;
-              var out = new Uint8Array(payload.length);
-              for (var i=0;i<payload.length;i++) out[i] = payload[i] ^ keyBytes[(payloadOffset+i) % keyBytes.length];
-              offset += bytes.length;
-              var done = bytes.length < CHUNK || /\/(\d+)$/.test(item.cr) && /\/(\d+)$/.exec(item.cr)[1] <= offset;
-              sb.addEventListener('updateend', function onEnd() {
-                sb.removeEventListener('updateend', onEnd);
-                if (!started) { started = true; resolve({decoded:true, segmented:true, objectUrl:objectUrl}); }
-                if (done) { try { if (ms.readyState === 'open') ms.endOfStream(); } catch(e) {} }
-                else if (!stopped && !player.paused) { setTimeout(appendNext, 5000); }
-              });
-              sb.appendBuffer(out);
-            })
-            .catch(reject);
-        }
-        appendNext();
-      });
+    ms.addEventListener('sourceopen', function onOpen() {
+      ms.removeEventListener('sourceopen', onOpen);
+      var sb;
+      try { sb=ms.addSourceBuffer('audio/mpeg'); sb.mode='sequence'; }
+      catch(e) { openedReject(e); return; }
+
+      function appendSegment() {
+        if (stopped || (segmentIndex > 0 && player.paused)) return;
+        var url=baseUrl+(baseUrl.indexOf('?')>=0?'&':'?')+
+          'segment='+segmentIndex+'&session_id='+encodeURIComponent(opts.sessionId);
+        fetch(url,fetchOptions).then(function(res){
+          if (res.status===416) {
+            try { if(ms.readyState==='open') ms.endOfStream(); } catch(e) {}
+            return null;
+          }
+          if (!res.ok) throw new Error('segment HTTP '+res.status);
+          var durationMs=Number(res.headers.get('X-TL3-Segment-Duration-Ms')||5000);
+          var rawOffset=Number(res.headers.get('X-TL3-Payload-Offset')||0);
+          var remaining=Number(res.headers.get('X-TL3-Remaining-TL')||0);
+          return res.arrayBuffer().then(function(buf){
+            return {buf:buf,durationMs:durationMs,rawOffset:rawOffset,remaining:remaining};
+          });
+        }).then(function(item){
+          if (!item || stopped) return;
+          var enc=new Uint8Array(item.buf);
+          var out=new Uint8Array(enc.length);
+          for(var i=0;i<enc.length;i++) out[i]=enc[i]^keyBytes[(item.rawOffset+i)%keyBytes.length];
+          if(opts.onSegment) opts.onSegment({
+            seconds:item.durationMs/1000,
+            durationMs:item.durationMs,
+            remaining:item.remaining,
+            segment:segmentIndex
+          });
+          var thisSegment=segmentIndex++;
+          function onEnd(){
+            sb.removeEventListener('updateend',onEnd);
+            if(thisSegment===0) openedResolve({decoded:true,segmented:true,objectUrl:objectUrl});
+            if(stopped) return;
+            if(!player.paused) setTimeout(appendSegment,Math.max(4100,item.durationMs-700));
+          }
+          sb.addEventListener('updateend',onEnd);
+          sb.appendBuffer(out);
+        }).catch(function(err){
+          if(!stopped) openedReject(err);
+        });
+      }
+      appendSegment();
+      player._tl3ResumeSegments=function(){ if(!stopped) appendSegment(); };
     });
-    player._tl3ResumeSegments = function() { if (!stopped) appendNext(); };
-    player._tl3SegmentStop = function() {
-      stopped = true;
-      try { if (ms.readyState === 'open') ms.endOfStream(); } catch(e) {}
-      try { URL.revokeObjectURL(objectUrl); } catch(e) {}
+
+    player._tl3SegmentStop=function(){
+      stopped=true;
+      try{ if(ms.readyState==='open') ms.endOfStream(); }catch(e){}
+      try{ URL.revokeObjectURL(objectUrl); }catch(e){}
     };
     return opened;
   }
-
   global.TL3 = {
     XOR_KEY: XOR_KEY,
     parse: parse,
