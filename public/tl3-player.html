@@ -112,12 +112,8 @@
   var API = window.TL3_API_BASE || 'https://api.timelink.digital';
   var audio = new Audio();
   var current = null;
-  var file = null;
   var sessionId = null;
-  var chargedAt = 0;
-  var heartbeatTimer = null;
   var authToken = localStorage.getItem('tl_token') || '';
-  var consumePending = false;
 
   var $ = function(id){ return document.getElementById(id); };
 
@@ -160,7 +156,6 @@
       var t = d.track;
       current = t;
       sessionId = 'tl3_' + Date.now() + '_' + Math.random().toString(36).slice(2,10);
-      chargedAt = 0;
 
       $('player').classList.add('show');
       $('pTitle').textContent = t.title;
@@ -192,7 +187,7 @@
     else{ audio.pause(); $('playBtn').textContent='▶'; }
   };
   $('stopBtn').onclick = function(){
-    if (audio._tl3SegmentStop) { audio._tl3SegmentStop(); audio._tl3SegmentStop=null; } TL3.stop(audio); sessionId=null; chargedAt=0; $('playBtn').textContent='▶'; $('fill').style.width='0';
+    if (audio._tl3SegmentStop) { audio._tl3SegmentStop(); audio._tl3SegmentStop=null; } TL3.stop(audio); sessionId=null; $('playBtn').textContent='▶'; $('fill').style.width='0';
     $('cur').textContent='0:00'; setStatus('정지됨', '');
   };
   audio.addEventListener('timeupdate', function(){
@@ -208,29 +203,6 @@
     audio.currentTime = (e.clientX-rect.left)/rect.width * audio.duration;
   };
 
-  // ---- self-test hook (?selftest=1): verifies real playback in headless runs ----
-  if(/[?&]selftest=1/.test(location.search)){
-    setTimeout(async function(){
-      try{
-        var r = await fetch(API + '/api/tracks');
-        var d = await r.json();
-        if(!d.tracks || !d.tracks.length){ console.log('SELFTEST: no tracks to play'); return; }
-        var first = d.tracks[0];
-        console.log('SELFTEST: playing', first.id, first.title);
-        var streamUrl = API + '/api/v1/tl3/stream/' + encodeURIComponent(first.id);
-        console.log('SELFTEST: streamUrl=' + streamUrl);
-        var testSession='tl3_test_'+Date.now();
-        var res = await TL3.streamSegmented(audio, streamUrl.replace('/api/v1/tl3/stream/','/api/v1/tl3/segment/'), {sessionId:testSession,fetchOptions:{headers:{Authorization:'Bearer '+authToken}}});
-        console.log('SELFTEST: attach decoded=' + res.decoded + ' src=' + audio.src.slice(0,30));
-        try { await audio.play(); console.log('SELFTEST: play() resolved'); }
-        catch(pe){ console.log('SELFTEST: play() rejected: ' + pe.name + ' ' + pe.message); }
-        setTimeout(function(){
-          var ok = !audio.paused && audio.currentTime > 0;
-          console.log('SELFTEST RESULT: playing='+(!audio.paused)+' currentTime='+audio.currentTime.toFixed(2)+' src='+(audio.src.slice(0,24))+ ' PASS='+ok);
-        }, 1500);
-      }catch(e){ console.log('SELFTEST ERROR: '+e.message); }
-    }, 600);
-  }
 })();
 </script>
 </body>
