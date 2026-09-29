@@ -254,17 +254,19 @@
         function appendNext() {
           if (stopped) return;
           fetch(baseUrl + (baseUrl.indexOf('?') >= 0 ? '&' : '?') +
-            'offset=' + offset + '&length=' + CHUNK, fetchOptions)
+            'offset=' + offset + '&length=' + CHUNK + '&session_id=' + encodeURIComponent(opts.sessionId || ''), fetchOptions)
             .then(function(res) {
               if (!res.ok) throw new Error('segment HTTP ' + res.status);
               var cr = res.headers.get('Content-Range') || '';
+              var remaining = res.headers.get('X-TL3-Remaining-TL');
               return res.arrayBuffer().then(function(buf) {
-                return {buf:buf, cr:cr};
+                return {buf:buf, cr:cr, remaining:remaining};
               });
             })
             .then(function(item) {
               if (stopped) return;
               var bytes = new Uint8Array(item.buf);
+              if (opts.onSegment) opts.onSegment({seconds:5, remaining:Number(item.remaining || 0)});
               if (offset === 0) {
                 if (bytes.length < 7 || bytes[0] !== MAGIC[0] || bytes[1] !== MAGIC[1] ||
                     bytes[2] !== MAGIC[2] || bytes[3] !== MAGIC[3]) {
