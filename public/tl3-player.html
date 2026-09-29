@@ -109,7 +109,7 @@
 (function(){
   // The TL3 server base. Same-origin when served by the TL3 server itself;
   // falls back to the live TimeLink API when embedded elsewhere.
-  var API = window.TL3_API_BASE || '';
+  var API = window.TL3_API_BASE || 'https://api.timelink.digital';
   var audio = new Audio();
   var current = null;
   var file = null;
@@ -117,6 +117,7 @@
   var chargedAt = 0;
   var heartbeatTimer = null;
   var authToken = localStorage.getItem('tl_token') || '';
+  var consumePending = false;
 
   var $ = function(id){ return document.getElementById(id); };
 
@@ -168,9 +169,8 @@
       setStatus('TL3 디코딩 중…', '');
 
       // Decode TL3 bytes and play the resulting mp3 via a Blob URL.
-      var res = await TL3.attach(audio, API + '/api/stream/' + encodeURIComponent(id), {autoplay:false});
+      var res = await TL3.streamSegmented(audio, API + '/api/v1/tl3/segment/' + encodeURIComponent(id), {sessionId:sessionId, fetchOptions:{headers:{Authorization:'Bearer '+authToken}}, onSegment:function(x){ $('pointStatus').textContent='사용 예약 '+x.seconds+'초 · 남은 시간 포인트 '+Number(x.remaining||0).toLocaleString()+' TL'; }});
       await audio.play();
-      startHeartbeat();
       setStatus(res.decoded ? '▶ TL3 디코딩 완료 — 재생 중' : '▶ 재생 중 (일반 오디오)', 'ok');
       $('playBtn').textContent = '⏸';
       highlight(id);
@@ -186,34 +186,13 @@
   }
 
   function setStatus(msg, cls){ var s=$('playStatus'); s.textContent=msg; s.className='status '+(cls||''); }
-  function startHeartbeat(){
-    clearInterval(heartbeatTimer);
-    heartbeatTimer=setInterval(function(){ consumeTime(false); },5000);
-  }
-  async function consumeTime(final){
-    if(!current || !sessionId || !authToken || audio.paused) return;
-    var now=Math.floor(audio.currentTime||0);
-    var delta=now-chargedAt;
-    if(final && audio.duration) delta=Math.max(delta, Math.min(10, Math.floor(audio.duration-chargedAt)));
-    delta=Math.max(0,Math.min(10,Math.floor(delta)));
-    if(delta<=0)return;
-    try{
-      var r=await fetch(API+'/api/v1/playback/tl3/consume',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},body:JSON.stringify({file_id:Number(current.id),session_id:sessionId,seconds:delta})});
-      var d=await r.json();
-      if(r.status===402){clearInterval(heartbeatTimer);audio.pause();$('playBtn').textContent='▶';setStatus('시간 포인트가 부족하여 재생을 중지했습니다.','err');return;}
-      if(!d.ok)throw new Error(d.error||'시간 정산 실패');
-      chargedAt=now;
-      $('pointStatus').textContent='사용 시간 '+d.consumed+'초 · 남은 시간 포인트 '+Number(d.balance||0).toLocaleString()+' TL';
-    }catch(e){setStatus('시간 정산 실패: '+e.message,'err');}
-  }
-
   $('playBtn').onclick = function(){
     if(!current){ setStatus('재생할 곡을 선택하세요', ''); return; }
-    if(audio.paused){ audio.play().then(function(){ $('playBtn').textContent='⏸'; }); }
+    if(audio.paused){ audio.play().then(function(){ var resume=audio._tl3ResumeSegments; if(resume) setTimeout(resume,5000); $('playBtn').textContent='⏸'; }); }
     else{ audio.pause(); $('playBtn').textContent='▶'; }
   };
   $('stopBtn').onclick = function(){
-    clearInterval(heartbeatTimer); consumeTime(false); TL3.stop(audio); sessionId=null; chargedAt=0; $('playBtn').textContent='▶'; $('fill').style.width='0';
+    if (audio._tl3SegmentStop) { audio._tl3SegmentStop(); audio._tl3SegmentStop=null; } TL3.stop(audio); sessionId=null; chargedAt=0; $('playBtn').textContent='▶'; $('fill').style.width='0';
     $('cur').textContent='0:00'; setStatus('정지됨', '');
   };
   audio.addEventListener('timeupdate', function(){
@@ -222,7 +201,7 @@
     $('cur').textContent = fmt(audio.currentTime);
     $('dur').textContent = fmt(audio.duration);
   });
-  audio.addEventListener('ended', function(){ consumeTime(true); clearInterval(heartbeatTimer); $('playBtn').textContent='▶'; setStatus('재생 완료', ''); });
+  audio.addEventListener('ended', function(){ $('playBtn').textContent='▶'; setStatus('재생 완료', ''); });
   $('bar').onclick = function(e){
     if(!audio.duration) return;
     var rect = this.getBoundingClientRect();
@@ -238,9 +217,10 @@
         if(!d.tracks || !d.tracks.length){ console.log('SELFTEST: no tracks to play'); return; }
         var first = d.tracks[0];
         console.log('SELFTEST: playing', first.id, first.title);
-        var streamUrl = API + '/api/stream/' + encodeURIComponent(first.id);
+        var streamUrl = API + '/api/v1/tl3/stream/' + encodeURIComponent(first.id);
         console.log('SELFTEST: streamUrl=' + streamUrl);
-        var res = await TL3.attach(audio, streamUrl, {autoplay:false});
+        var testSession='tl3_test_'+Date.now();
+        var res = await TL3.streamSegmented(audio, streamUrl.replace('/api/v1/tl3/stream/','/api/v1/tl3/segment/'), {sessionId:testSession,fetchOptions:{headers:{Authorization:'Bearer '+authToken}}});
         console.log('SELFTEST: attach decoded=' + res.decoded + ' src=' + audio.src.slice(0,30));
         try { await audio.play(); console.log('SELFTEST: play() resolved'); }
         catch(pe){ console.log('SELFTEST: play() rejected: ' + pe.name + ' ' + pe.message); }
