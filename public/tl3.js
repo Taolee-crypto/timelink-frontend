@@ -241,10 +241,34 @@
     var ms = new MediaSource();
     var objectUrl = URL.createObjectURL(ms);
     _setSrc(player, objectUrl);
-    var stopped = false;
-    var segmentIndex = 0;
+    var stopped = false, segmentIndex = 0;
+    var confirmedDuration = 0, pendingDuration = 0, confirmBusy = false;
     var openedResolve, openedReject;
     var opened = new Promise(function(resolve,reject){ openedResolve=resolve; openedReject=reject; });
+
+    function confirmPending(force) {
+      if (confirmBusy || pendingDuration <= 0 || stopped) return Promise.resolve();
+      var played = Math.max(0, Math.min(pendingDuration, player.currentTime - confirmedDuration));
+      if (!force && played < Math.min(0.25, pendingDuration)) return Promise.resolve();
+      confirmBusy = true;
+      var url=baseUrl.replace('/segment/','/segment/confirm/')+(baseUrl.indexOf('?')>=0?'&':'?');
+      return fetch(url,{
+        method:'POST',
+        headers:Object.assign({'Content-Type':'application/json'},fetchOptions.headers||{}),
+        body:JSON.stringify({session_id:opts.sessionId,played_seconds:Number(played.toFixed(3))})
+      }).then(function(r){return r.json().then(function(d){if(!r.ok||!d.ok) throw new Error(d.error||('confirm HTTP '+r.status));return d;});})
+      .then(function(d){
+        confirmedDuration += Number(d.played_seconds||0);
+        pendingDuration = 0;
+        if(opts.onSegment) opts.onSegment({
+          seconds:Number(d.played_seconds||0),
+          durationMs:Number(d.played_seconds||0)*1000,
+          remaining:Number(d.remaining_tl||0),
+          segment:Number(d.segment||0),
+          refunded:Number(d.refund||0)
+        });
+      }).finally(function(){confirmBusy=false;});
+    }
 
     ms.addEventListener('sourceopen', function onOpen() {
       ms.removeEventListener('sourceopen', onOpen);
@@ -257,49 +281,46 @@
         var url=baseUrl+(baseUrl.indexOf('?')>=0?'&':'?')+
           'segment='+segmentIndex+'&session_id='+encodeURIComponent(opts.sessionId);
         fetch(url,fetchOptions).then(function(res){
-          if (res.status===416) {
-            try { if(ms.readyState==='open') ms.endOfStream(); } catch(e) {}
-            return null;
-          }
-          if (!res.ok) throw new Error('segment HTTP '+res.status);
+          if(res.status===416){try{if(ms.readyState==='open')ms.endOfStream();}catch(e){}return null;}
+          if(!res.ok) throw new Error('segment HTTP '+res.status);
           var durationMs=Number(res.headers.get('X-TL3-Segment-Duration-Ms')||5000);
           var rawOffset=Number(res.headers.get('X-TL3-Payload-Offset')||0);
           var remaining=Number(res.headers.get('X-TL3-Remaining-TL')||0);
-          return res.arrayBuffer().then(function(buf){
-            return {buf:buf,durationMs:durationMs,rawOffset:rawOffset,remaining:remaining};
-          });
+          return res.arrayBuffer().then(function(buf){return {buf:buf,durationMs:durationMs,rawOffset:rawOffset,remaining:remaining};});
         }).then(function(item){
-          if (!item || stopped) return;
-          var enc=new Uint8Array(item.buf);
-          var out=new Uint8Array(enc.length);
-          for(var i=0;i<enc.length;i++) out[i]=enc[i]^keyBytes[(item.rawOffset+i)%keyBytes.length];
-          if(opts.onSegment) opts.onSegment({
-            seconds:item.durationMs/1000,
-            durationMs:item.durationMs,
-            remaining:item.remaining,
-            segment:segmentIndex
-          });
+          if(!item||stopped)return;
+          var enc=new Uint8Array(item.buf),out=new Uint8Array(enc.length);
+          for(var i=0;i<enc.length;i++)out[i]=enc[i]^keyBytes[(item.rawOffset+i)%keyBytes.length];
+          pendingDuration=item.durationMs/1000;
           var thisSegment=segmentIndex++;
+          if(opts.onBuffer)opts.onBuffer({durationMs:item.durationMs,remaining:item.remaining,segment:thisSegment});
           function onEnd(){
             sb.removeEventListener('updateend',onEnd);
-            if(thisSegment===0) openedResolve({decoded:true,segmented:true,objectUrl:objectUrl});
-            if(stopped) return;
-            if(!player.paused) setTimeout(appendSegment,Math.max(4100,item.durationMs-700));
+            if(thisSegment===0)openedResolve({decoded:true,segmented:true,objectUrl:objectUrl});
+            if(stopped)return;
+            setTimeout(function(){
+              confirmPending(false).then(function(){
+                if(!stopped&&!player.paused) appendSegment();
+              }).catch(function(e){if(!stopped)openedReject(e);});
+            },Math.max(4200,item.durationMs-500));
           }
           sb.addEventListener('updateend',onEnd);
           sb.appendBuffer(out);
-        }).catch(function(err){
-          if(!stopped) openedReject(err);
-        });
+        }).catch(function(err){if(!stopped)openedReject(err);});
       }
       appendSegment();
-      player._tl3ResumeSegments=function(){ if(!stopped) appendSegment(); };
+      player._tl3ResumeSegments=function(){
+        if(stopped)return;
+        confirmPending(false).then(function(){if(!stopped&&!player.paused)appendSegment();});
+      };
+      player._tl3Confirm=function(){return confirmPending(true);};
     });
-
+    player.addEventListener('pause',function(){confirmPending(true).catch(function(){});});
+    player.addEventListener('ended',function(){confirmPending(true).catch(function(){});});
     player._tl3SegmentStop=function(){
       stopped=true;
-      try{ if(ms.readyState==='open') ms.endOfStream(); }catch(e){}
-      try{ URL.revokeObjectURL(objectUrl); }catch(e){}
+      try{if(ms.readyState==='open')ms.endOfStream();}catch(e){}
+      try{URL.revokeObjectURL(objectUrl);}catch(e){}
     };
     return opened;
   }
