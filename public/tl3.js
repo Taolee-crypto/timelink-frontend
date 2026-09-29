@@ -234,7 +234,7 @@
     opts = opts || {};
     var player = createPlayer(audioEl);
     var fetchOptions = opts.fetchOptions || {};
-    var CHUNK = 512 * 1024;
+    var CHUNK = 128 * 1024;
     if (!global.MediaSource || !MediaSource.isTypeSupported('audio/mpeg')) {
       return Promise.reject(new Error('이 브라우저는 TL3 세그먼트 재생을 지원하지 않습니다.'));
     }
