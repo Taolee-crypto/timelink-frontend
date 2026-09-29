@@ -382,6 +382,8 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 
 <footer id="tl-dynamic-footer" style="border-top:1px solid rgba(255,255,255,.07);padding:40px 24px 32px;margin-top:auto;background:rgba(3,5,8,.8)"></footer>
 
+<script src="/tl3.js"></script>
+<script src="/tl3-config.js"></script>
 <script>
 // ==================== CONFIG ====================
 var API_BASE = 'https://api.timelink.digital';
@@ -636,8 +638,10 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
     });
   };
   _tlAudio.onended=function(){ tlStop(); };
-  _tlAudio.src=fileUrl;
-  _tlAudio.load();
+  // TL3 파일이면 브라우저에서 디코딩 후 재생 (mp3 Blob URL로 변환)
+  var _applySrc=function(u){ _tlAudio.src=u; _tlAudio.load(); };
+  if(window.TL3&&TL3.resolveUrl){ TL3.resolveUrl(fileUrl).then(_applySrc).catch(function(){ _applySrc(fileUrl); }); }
+  else{ _applySrc(fileUrl); }
 }
 function showPlayerError(msg){ var el=document.getElementById('tlError'); el.style.display='block'; el.textContent='❌ '+msg; }
 function tlStartTimer(){
