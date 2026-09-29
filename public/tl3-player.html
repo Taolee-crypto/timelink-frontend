@@ -67,31 +67,13 @@
   </header>
 
   <div class="grid">
-    <!-- Convert panel -->
     <div class="card">
-      <h2>📤 MP3 → TL3 변환</h2>
-      <div class="drop" id="drop">
-        <div class="ic">🎵</div>
-        <div id="dropText">MP3 파일을 선택하거나 끌어다 놓으세요</div>
-        <div class="meta-line" id="fileMeta">최대 500MB · 브라우저/서버 양쪽 변환 지원</div>
+      <h2>💎 TL3 정식 출시</h2>
+      <div style="color:var(--t2);font-size:.86rem;line-height:1.7">
+        TL3는 Creator Studio에서 크리에이터가 직접 가격을 정해 정식 출시합니다.<br>
+        이 플레이어에서는 출시된 TL3만 재생합니다.
       </div>
-      <input type="file" id="fileInput" accept="audio/mpeg,.mp3" class="hidden">
-
-      <div class="row">
-        <div style="flex:2"><label>제목</label><input id="title" placeholder="곡 제목"></div>
-      </div>
-      <div class="row">
-        <div style="flex:1"><label>아티스트</label><input id="artist" placeholder="아티스트"></div>
-        <div style="flex:1"><label>장르</label>
-          <select id="genre">
-            <option>Pop</option><option>Rock</option><option>Hiphop</option><option>R&amp;B</option>
-            <option>K-POP</option><option>J-POP</option><option>EDM</option><option>Jazz</option>
-            <option>Classical</option><option>Ballad</option><option>Indie</option><option>Electronic</option>
-          </select>
-        </div>
-      </div>
-      <button class="btn" id="convertBtn" disabled>✨ TL3로 변환 후 등록</button>
-      <div class="status" id="convertStatus"></div>
+      <a class="btn" href="/creator-studio.html" style="display:block;text-align:center;text-decoration:none;margin-top:18px">🎵 Creator Studio에서 TL3 출시</a>
     </div>
 
     <!-- Library + player -->
@@ -116,7 +98,7 @@
           <button class="ico-btn play" id="playBtn">▶</button>
           <button class="ico-btn" id="stopBtn">■</button>
         </div>
-        <div class="status" id="playStatus"></div>
+        <div class="status" id="playStatus"></div><div class="status" id="pointStatus">TL3 재생에는 시간 포인트가 사용됩니다.</div>
       </div>
     </div>
   </div>
@@ -131,6 +113,10 @@
   var audio = new Audio();
   var current = null;
   var file = null;
+  var sessionId = null;
+  var chargedAt = 0;
+  var heartbeatTimer = null;
+  var authToken = localStorage.getItem('tl_token') || '';
 
   var $ = function(id){ return document.getElementById(id); };
 
@@ -172,6 +158,8 @@
       if(!d.ok) throw new Error(d.error || 'track not found');
       var t = d.track;
       current = t;
+      sessionId = 'tl3_' + Date.now() + '_' + Math.random().toString(36).slice(2,10);
+      chargedAt = 0;
 
       $('player').classList.add('show');
       $('pTitle').textContent = t.title;
@@ -182,6 +170,7 @@
       // Decode TL3 bytes and play the resulting mp3 via a Blob URL.
       var res = await TL3.attach(audio, API + '/api/stream/' + encodeURIComponent(id), {autoplay:false});
       await audio.play();
+      startHeartbeat();
       setStatus(res.decoded ? '▶ TL3 디코딩 완료 — 재생 중' : '▶ 재생 중 (일반 오디오)', 'ok');
       $('playBtn').textContent = '⏸';
       highlight(id);
@@ -197,6 +186,26 @@
   }
 
   function setStatus(msg, cls){ var s=$('playStatus'); s.textContent=msg; s.className='status '+(cls||''); }
+  function startHeartbeat(){
+    clearInterval(heartbeatTimer);
+    heartbeatTimer=setInterval(function(){ consumeTime(false); },5000);
+  }
+  async function consumeTime(final){
+    if(!current || !sessionId || !authToken || audio.paused) return;
+    var now=Math.floor(audio.currentTime||0);
+    var delta=now-chargedAt;
+    if(final && audio.duration) delta=Math.max(delta, Math.min(10, Math.floor(audio.duration-chargedAt)));
+    delta=Math.max(0,Math.min(10,Math.floor(delta)));
+    if(delta<=0)return;
+    try{
+      var r=await fetch(API+'/api/v1/playback/tl3/consume',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},body:JSON.stringify({file_id:Number(current.id),session_id:sessionId,seconds:delta})});
+      var d=await r.json();
+      if(r.status===402){clearInterval(heartbeatTimer);audio.pause();$('playBtn').textContent='▶';setStatus('시간 포인트가 부족하여 재생을 중지했습니다.','err');return;}
+      if(!d.ok)throw new Error(d.error||'시간 정산 실패');
+      chargedAt=now;
+      $('pointStatus').textContent='사용 시간 '+d.consumed+'초 · 남은 시간 포인트 '+Number(d.balance||0).toLocaleString()+' TL';
+    }catch(e){setStatus('시간 정산 실패: '+e.message,'err');}
+  }
 
   $('playBtn').onclick = function(){
     if(!current){ setStatus('재생할 곡을 선택하세요', ''); return; }
@@ -204,7 +213,7 @@
     else{ audio.pause(); $('playBtn').textContent='▶'; }
   };
   $('stopBtn').onclick = function(){
-    TL3.stop(audio); $('playBtn').textContent='▶'; $('fill').style.width='0';
+    clearInterval(heartbeatTimer); consumeTime(false); TL3.stop(audio); sessionId=null; chargedAt=0; $('playBtn').textContent='▶'; $('fill').style.width='0';
     $('cur').textContent='0:00'; setStatus('정지됨', '');
   };
   audio.addEventListener('timeupdate', function(){
@@ -213,69 +222,12 @@
     $('cur').textContent = fmt(audio.currentTime);
     $('dur').textContent = fmt(audio.duration);
   });
-  audio.addEventListener('ended', function(){ $('playBtn').textContent='▶'; setStatus('재생 완료', ''); });
+  audio.addEventListener('ended', function(){ consumeTime(true); clearInterval(heartbeatTimer); $('playBtn').textContent='▶'; setStatus('재생 완료', ''); });
   $('bar').onclick = function(e){
     if(!audio.duration) return;
     var rect = this.getBoundingClientRect();
     audio.currentTime = (e.clientX-rect.left)/rect.width * audio.duration;
   };
-
-  // ---- convert ----
-  var drop = $('drop'), input = $('fileInput');
-  drop.onclick = function(){ input.click(); };
-  drop.addEventListener('dragover', function(e){ e.preventDefault(); drop.classList.add('drag'); });
-  drop.addEventListener('dragleave', function(){ drop.classList.remove('drag'); });
-  drop.addEventListener('drop', function(e){
-    e.preventDefault(); drop.classList.remove('drag');
-    if(e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]);
-  });
-  input.onchange = function(){ if(this.files[0]) onFile(this.files[0]); };
-
-  function onFile(f){
-    if(!/\.mp3$/i.test(f.name) && !f.type.includes('mp3')){ setConvertStatus('MP3 파일만 업로드 가능합니다', 'err'); return; }
-    file = f;
-    $('dropText').textContent = f.name;
-    $('fileMeta').textContent = (f.size/1048576).toFixed(1)+' MB · MP3';
-    if(!$('title').value) $('title').value = f.name.replace(/\.mp3$/i,'').replace(/[_-]+/g,' ');
-    $('convertBtn').disabled = false;
-
-    // read duration locally
-    var probe = document.createElement('audio');
-    var url = URL.createObjectURL(f);
-    probe.preload = 'metadata';
-    probe.onloadedmetadata = function(){ window._dur = Math.round(probe.duration)||0; URL.revokeObjectURL(url); };
-    probe.src = url;
-  }
-
-  function setConvertStatus(msg, cls){ var s=$('convertStatus'); s.textContent=msg; s.className='status '+(cls||''); }
-
-  $('convertBtn').onclick = async function(){
-    if(!file) return;
-    var btn = this; btn.disabled = true;
-    setConvertStatus('서버에서 MP3 → TL3 변환 중…', '');
-    try{
-      var fd = new FormData();
-      fd.append('file', file, file.name);
-      fd.append('title', $('title').value.trim() || file.name);
-      fd.append('artist', $('artist').value.trim() || 'Unknown Artist');
-      fd.append('genre', $('genre').value);
-      fd.append('duration', String(window._dur||0));
-      var r = await fetch(API + '/api/convert', {method:'POST', body:fd});
-      var d = await r.json();
-      if(!d.ok) throw new Error(d.error || 'convert failed');
-      setConvertStatus('✅ TL3 변환 완료! (' + d.track.size.toLocaleString() + ' bytes)', 'ok');
-      file = null; $('dropText').textContent = 'MP3 파일을 선택하거나 끌어다 놓으세요';
-      $('fileMeta').textContent = '최대 500MB · 브라우저/서버 양쪽 변환 지원';
-      $('fileInput').value = '';
-      loadLibrary();
-    }catch(e){
-      setConvertStatus('변환 실패: ' + e.message, 'err');
-    }finally{
-      btn.disabled = false;
-    }
-  };
-
-  loadLibrary();
 
   // ---- self-test hook (?selftest=1): verifies real playback in headless runs ----
   if(/[?&]selftest=1/.test(location.search)){
