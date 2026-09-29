@@ -67,31 +67,13 @@
   </header>
 
   <div class="grid">
-    <!-- Convert panel -->
     <div class="card">
-      <h2>📤 MP3 → TL3 변환</h2>
-      <div class="drop" id="drop">
-        <div class="ic">🎵</div>
-        <div id="dropText">MP3 파일을 선택하거나 끌어다 놓으세요</div>
-        <div class="meta-line" id="fileMeta">최대 500MB · 브라우저/서버 양쪽 변환 지원</div>
+      <h2>💎 TL3 정식 출시</h2>
+      <div style="color:var(--t2);font-size:.86rem;line-height:1.7">
+        TL3는 Creator Studio에서 크리에이터가 직접 가격을 정해 정식 출시합니다.<br>
+        이 플레이어에서는 출시된 TL3만 재생합니다.
       </div>
-      <input type="file" id="fileInput" accept="audio/mpeg,.mp3" class="hidden">
-
-      <div class="row">
-        <div style="flex:2"><label>제목</label><input id="title" placeholder="곡 제목"></div>
-      </div>
-      <div class="row">
-        <div style="flex:1"><label>아티스트</label><input id="artist" placeholder="아티스트"></div>
-        <div style="flex:1"><label>장르</label>
-          <select id="genre">
-            <option>Pop</option><option>Rock</option><option>Hiphop</option><option>R&amp;B</option>
-            <option>K-POP</option><option>J-POP</option><option>EDM</option><option>Jazz</option>
-            <option>Classical</option><option>Ballad</option><option>Indie</option><option>Electronic</option>
-          </select>
-        </div>
-      </div>
-      <button class="btn" id="convertBtn" disabled>✨ TL3로 변환 후 등록</button>
-      <div class="status" id="convertStatus"></div>
+      <a class="btn" href="/creator-studio.html" style="display:block;text-align:center;text-decoration:none;margin-top:18px">🎵 Creator Studio에서 TL3 출시</a>
     </div>
 
     <!-- Library + player -->
@@ -246,63 +228,6 @@
     var rect = this.getBoundingClientRect();
     audio.currentTime = (e.clientX-rect.left)/rect.width * audio.duration;
   };
-
-  // ---- convert ----
-  var drop = $('drop'), input = $('fileInput');
-  drop.onclick = function(){ input.click(); };
-  drop.addEventListener('dragover', function(e){ e.preventDefault(); drop.classList.add('drag'); });
-  drop.addEventListener('dragleave', function(){ drop.classList.remove('drag'); });
-  drop.addEventListener('drop', function(e){
-    e.preventDefault(); drop.classList.remove('drag');
-    if(e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]);
-  });
-  input.onchange = function(){ if(this.files[0]) onFile(this.files[0]); };
-
-  function onFile(f){
-    if(!/\.mp3$/i.test(f.name) && !f.type.includes('mp3')){ setConvertStatus('MP3 파일만 업로드 가능합니다', 'err'); return; }
-    file = f;
-    $('dropText').textContent = f.name;
-    $('fileMeta').textContent = (f.size/1048576).toFixed(1)+' MB · MP3';
-    if(!$('title').value) $('title').value = f.name.replace(/\.mp3$/i,'').replace(/[_-]+/g,' ');
-    $('convertBtn').disabled = false;
-
-    // read duration locally
-    var probe = document.createElement('audio');
-    var url = URL.createObjectURL(f);
-    probe.preload = 'metadata';
-    probe.onloadedmetadata = function(){ window._dur = Math.round(probe.duration)||0; URL.revokeObjectURL(url); };
-    probe.src = url;
-  }
-
-  function setConvertStatus(msg, cls){ var s=$('convertStatus'); s.textContent=msg; s.className='status '+(cls||''); }
-
-  $('convertBtn').onclick = async function(){
-    if(!file) return;
-    var btn = this; btn.disabled = true;
-    setConvertStatus('서버에서 MP3 → TL3 변환 중…', '');
-    try{
-      var fd = new FormData();
-      fd.append('file', file, file.name);
-      fd.append('title', $('title').value.trim() || file.name);
-      fd.append('artist', $('artist').value.trim() || 'Unknown Artist');
-      fd.append('genre', $('genre').value);
-      fd.append('duration', String(window._dur||0));
-      var r = await fetch(API + '/api/convert', {method:'POST', body:fd});
-      var d = await r.json();
-      if(!d.ok) throw new Error(d.error || 'convert failed');
-      setConvertStatus('✅ TL3 변환 완료! (' + d.track.size.toLocaleString() + ' bytes)', 'ok');
-      file = null; $('dropText').textContent = 'MP3 파일을 선택하거나 끌어다 놓으세요';
-      $('fileMeta').textContent = '최대 500MB · 브라우저/서버 양쪽 변환 지원';
-      $('fileInput').value = '';
-      loadLibrary();
-    }catch(e){
-      setConvertStatus('변환 실패: ' + e.message, 'err');
-    }finally{
-      btn.disabled = false;
-    }
-  };
-
-  loadLibrary();
 
   // ---- self-test hook (?selftest=1): verifies real playback in headless runs ----
   if(/[?&]selftest=1/.test(location.search)){
