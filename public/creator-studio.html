@@ -586,11 +586,26 @@ async function uploadTrack() {
       const form = new FormData();
       form.append('file', audioFile);
       form.append('trackId', 'tl_' + Date.now());
+      form.append('title', title);
+      form.append('artist', (document.getElementById('artistName')?.value || getUser().username || '').trim());
       const res = await fetch(API + '/api/upload', {
         method: 'POST', headers: { Authorization: 'Bearer ' + getToken() }, body: form
       });
       const d = await res.json();
-      if (d.ok) S.r2Key = d.key;
+      if (res.status === 409 && d.code === 'PUBLISHED_RELEASE') {
+        btn.disabled = false;
+        btn.textContent = '다음: DistroKid 발행 →';
+        const m = d.match || {};
+        alert(
+          '이미 발행된 음원으로 확인되었습니다.\\n\\n' +
+          (m.title ? '음원: ' + m.title + '\\n' : '') +
+          (m.artist ? '아티스트: ' + m.artist + '\\n' : '') +
+          '\\n본인의 권리 또는 적법한 이용권한을 확인한 후 업로드해주세요.'
+        );
+        return;
+      }
+      if (!d.ok) throw new Error(d.error || '업로드 실패');
+      S.r2Key = d.key;
     }
     markStepDone(1); goStep(2);
   } catch(e) {
