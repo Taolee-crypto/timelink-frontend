@@ -227,6 +227,84 @@
     }
   }
 
+
+  // Stream TL3 in bounded authenticated ranges through MediaSource.
+  // The browser never receives the complete TL3 container in one response.
+  function streamSegmented(audioEl, baseUrl, opts) {
+    opts = opts || {};
+    var player = createPlayer(audioEl);
+    var fetchOptions = opts.fetchOptions || {};
+    var CHUNK = 512 * 1024;
+    if (!global.MediaSource || !MediaSource.isTypeSupported('audio/mpeg')) {
+      return Promise.reject(new Error('이 브라우저는 TL3 세그먼트 재생을 지원하지 않습니다.'));
+    }
+    var ms = new MediaSource();
+    var objectUrl = URL.createObjectURL(ms);
+    _setSrc(player, objectUrl);
+    var stopped = false;
+    var offset = 0;
+    var payloadStart = 0;
+    var opened = new Promise(function(resolve, reject) {
+      ms.addEventListener('sourceopen', function onOpen() {
+        ms.removeEventListener('sourceopen', onOpen);
+        var sb;
+        try { sb = ms.addSourceBuffer('audio/mpeg'); sb.mode = 'sequence'; }
+        catch (e) { reject(e); return; }
+
+        function appendNext() {
+          if (stopped) return;
+          fetch(baseUrl + (baseUrl.indexOf('?') >= 0 ? '&' : '?') +
+            'offset=' + offset + '&length=' + CHUNK, fetchOptions)
+            .then(function(res) {
+              if (!res.ok) throw new Error('segment HTTP ' + res.status);
+              var cr = res.headers.get('Content-Range') || '';
+              return res.arrayBuffer().then(function(buf) {
+                return {buf:buf, cr:cr};
+              });
+            })
+            .then(function(item) {
+              if (stopped) return;
+              var bytes = new Uint8Array(item.buf);
+              if (offset === 0) {
+                if (bytes.length < 7 || bytes[0] !== MAGIC[0] || bytes[1] !== MAGIC[1] ||
+                    bytes[2] !== MAGIC[2] || bytes[3] !== MAGIC[3]) {
+                  throw new Error('TL3 header가 없습니다.');
+                }
+                var mlen = (bytes[5] << 8) | bytes[6];
+                payloadStart = 7 + mlen;
+                if (payloadStart > bytes.length) throw new Error('TL3 header가 잘렸습니다.');
+              }
+              var start = offset === 0 ? payloadStart : 0;
+              var payload = bytes.subarray(start);
+              var payloadOffset = offset + start - payloadStart;
+              var out = new Uint8Array(payload.length);
+              for (var i=0;i<payload.length;i++) out[i] = payload[i] ^ keyBytes[(payloadOffset+i) % keyBytes.length];
+              offset += bytes.length;
+              var done = bytes.length < CHUNK || /\/(\d+)$/.test(item.cr) && /\/(\d+)$/.exec(item.cr)[1] <= offset;
+              sb.addEventListener('updateend', function onEnd() {
+                sb.removeEventListener('updateend', onEnd);
+                if (done) {
+                  try { if (ms.readyState === 'open') ms.endOfStream(); } catch(e) {}
+                  resolve({decoded:true, segmented:true, objectUrl:objectUrl});
+                } else {
+                  appendNext();
+                }
+              });
+              sb.appendBuffer(out);
+            })
+            .catch(reject);
+        }
+        appendNext();
+      });
+    });
+    player._tl3SegmentStop = function() {
+      stopped = true;
+      try { if (ms.readyState === 'open') ms.endOfStream(); } catch(e) {}
+      try { URL.revokeObjectURL(objectUrl); } catch(e) {}
+    };
+    return opened;
+  }
+
   global.TL3 = {
     XOR_KEY: XOR_KEY,
     parse: parse,
@@ -235,6 +313,7 @@
     createPlayer: createPlayer,
     play: play,
     attach: attach,
+    streamSegmented: streamSegmented,
     resolveUrl: resolveUrl,
     stop: stop
   };
