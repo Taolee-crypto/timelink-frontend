@@ -649,13 +649,19 @@ async function downloadTL(){
   const btn=document.getElementById('dlBtn');
   if(btn){btn.textContent='⏳...';btn.disabled=true;}
   try{
-    const r=await fetch(API+'/api/download/'+SHARE_ID,{headers:{'Authorization':'Bearer '+getTok()}});
+    const localUrl=String(_share?.stream_url||'');
+    const r=/127\.0\.0\.1|localhost/i.test(localUrl)
+      ? await fetch(localUrl,{headers:{'Authorization':'Bearer '+getTok()}})
+      : await fetch(API+'/api/download/'+SHARE_ID,{headers:{'Authorization':'Bearer '+getTok()}});
+    if(!r.ok){
+      const d=await r.json().catch(()=>({}));
+      throw new Error(d.error||('다운로드 실패 [HTTP '+r.status+']'));
+    }
     const blob=await r.blob();
-    const ftype=_share?.category_type||'audio';
-    const ext=ftype==='audio'?'tl3':ftype==='video'?'tl4':ftype==='image'?'tlg':'tlf';
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(_share?.title||'track')+'.'+ext;a.click();
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(_share?.title||'track')+'.tl3';a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),3000);
   }catch(e){alert('오류: '+e.message);}
-  finally{if(btn){btn.textContent='⬇ .tl 다운로드';btn.disabled=false;}}
+  finally{if(btn){btn.textContent='⬇ .tl3 다운로드';btn.disabled=false;}}
 }
 
 function renderCopyright(s){
