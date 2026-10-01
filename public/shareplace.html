@@ -331,7 +331,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       <a href="dashboard.html" class="tb-back">← 대시보드</a>
       <div class="tb-title">SHAREPLACE</div>
       <div class="tb-search"><span style="color:var(--t3);font-size:14px">🔍</span><input type="text" placeholder="파일명, 아티스트, 태그 검색..." oninput="onSearch(this.value)"></div>
-      <button class="tb-upload" onclick="location.href='creator.html'">📤 내 파일 업로드</button>
+      <button class="tb-upload" id="shareUploadBtn" onclick="location.href='creator.html'" style="display:none">📤 내 파일 업로드</button>
     </div>
     <div class="cat-bar">
       <div class="cat-bar-inner">
@@ -500,16 +500,25 @@ function renderPager(total){
 function renderShares(list,total){
   var g=document.getElementById('fileGrid');
   if(!list.length){
-    g.innerHTML='<div style="text-align:center;padding:80px 20px;color:var(--t3);font-size:14px">📂 공유된 파일이 없습니다<br><br><a href="creator.html" style="color:var(--purple);text-decoration:none;font-weight:700">+ 파일 공유하기</a></div>';
+    g.innerHTML='<div style="text-align:center;padding:80px 20px;color:var(--t3);font-size:14px">📂 공유된 파일이 없습니다<br><br><span id="emptyShareAction" style="display:none"></span></div>';
     renderPager(0);
     return;
   }
   document.getElementById('sortCount').textContent='총 '+total+'개 파일';
+  updateShareUploadVisibility(total);
   renderPager(total);
-  if(_view==='list'){ renderListView(list,g); return; }
+  if(_view==='list'){ updateShareUploadVisibility(total); renderListView(list,g); return; }
   renderGridView(list,g);
 }
+function updateShareUploadVisibility(total){
+  var btn=document.getElementById('shareUploadBtn');
+  var empty=document.getElementById('emptyShareAction');
+  var hasFiles=Number(total||0)>0;
+  if(btn) btn.style.display=hasFiles?'inline-block':'none';
+  if(empty) empty.style.display='none';
+}
 function renderGridView(list,g){
+  updateShareUploadVisibility(list.length);
   g.className='file-grid';
   var bgs=['linear-gradient(135deg,#1a1060,#0d3050)','linear-gradient(135deg,#0d3020,#102830)','linear-gradient(135deg,#200a40,#0a0820)'];
   g.innerHTML=list.slice(0,30).map(function(s,i){
