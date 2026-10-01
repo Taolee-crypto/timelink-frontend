@@ -142,6 +142,15 @@ app.get('/api/tracks/:id', (req, res) => {
 });
 
 // Serve TL3 file with Range support so <audio> can stream/seek.
+app.get('/api/original/:id', (req,res) => {
+  const t=loadCatalog().find(x=>x.id===req.params.id);
+  if(!t || t.file_type!=='audio/mp3') return res.status(404).json({ok:false,error:'original MP3 not found'});
+  const file=path.join(TRACKS_DIR,t.file); if(!fs.existsSync(file)) return res.status(404).json({ok:false,error:'file missing'});
+  const stat=fs.statSync(file); const range=req.headers.range; res.set('Content-Type','audio/mpeg'); res.set('Accept-Ranges','bytes');
+  if(range){const m=/bytes=(\\d*)-(\\d*)/.exec(range);let start=m&&m[1]?parseInt(m[1],10):0;let end=m&&m[2]?parseInt(m[2],10):stat.size-1;if(isNaN(start)||start<0)start=0;if(isNaN(end)||end>=stat.size)end=stat.size-1;if(start>end)return res.status(416).set('Content-Range',`bytes */${stat.size}`).end();res.status(206).set('Content-Range',`bytes ${start}-${end}/${stat.size}`).set('Content-Length',String(end-start+1));return fs.createReadStream(file,{start,end}).pipe(res);}
+  res.set('Content-Length',String(stat.size)); fs.createReadStream(file).pipe(res);
+});
+
 app.get('/api/stream/:id', (req, res) => {
   const t = loadCatalog().find((x) => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'track not found' });
@@ -180,6 +189,21 @@ app.get('/api/stream/:id', (req, res) => {
 function handleConvert(req, res) {
   try {
     if (!req.file) return res.status(400).json({ ok: false, error: 'file is required' });
+
+    // Free release: keep the original MP3 instead of converting it to TL3.
+    if ((req.body || {}).release_mode === 'free_mp3') {
+      const body = req.body || {};
+      const title = (body.title || path.basename(req.file.originalname, path.extname(req.file.originalname)) || 'Untitled').trim();
+      const artist = (body.artist || body.username || 'Unknown Artist').trim();
+      const id = 'mp3_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex');
+      const ext = path.extname(req.file.originalname).toLowerCase() || '.mp3';
+      const fileName = id + ext;
+      const hash = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
+      fs.writeFileSync(path.join(TRACKS_DIR, fileName), req.file.buffer);
+      const record = { id, title, artist, album:(body.album||'').trim(), genre:(body.category||body.genre||'Music').trim(), duration:Number(body.duration)||0, bpm:Number(body.bpm)||0, file:fileName, size:req.file.buffer.length, original_size:req.file.buffer.length, hash, file_type:'audio/mp3', cover_url:body.cover_url||'', stream_url:'/api/original/'+id, created_at:Date.now() };
+      const catalog=loadCatalog(); catalog.unshift(record); saveCatalog(catalog);
+      return res.json({ok:true,track:record,stream_url:record.stream_url});
+    }
 
     const orig = req.file.buffer;
     const body = req.body || {};
