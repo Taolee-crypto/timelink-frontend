@@ -3,6 +3,17 @@ setlocal EnableExtensions
 title TimeLink Local
 cd /d "%~dp0"
 
+rem Locate server.js even when this launcher is placed on the Desktop.
+set "AGENT_DIR=%~dp0"
+if exist "%AGENT_DIR%server.js" goto :agent_found
+if exist "%AGENT_DIR%local-agent\server.js" set "AGENT_DIR=%AGENT_DIR%local-agent\"
+if exist "%AGENT_DIR%server.js" goto :agent_found
+echo [ERROR] server.js was not found.
+echo Expected it next to this BAT file or in a local-agent subfolder.
+goto :stop
+:agent_found
+cd /d "%AGENT_DIR%"
+
 rem Include common installation locations so a newly installed app is found.
 set "PATH=%ProgramFiles%\nodejs;%ProgramFiles%\Cloudflare;%ProgramFiles(x86)%\Cloudflare;%ProgramFiles(x86)%\cloudflared;%LOCALAPPDATA%\Microsoft\WinGet\Links;%PATH%"
 
@@ -46,7 +57,7 @@ echo Local API: http://127.0.0.1:8787
 echo Keep this window open while TimeLink Local is online.
 echo.
 
-node server.js
+node "%AGENT_DIR%server.js"
 echo.
 echo TimeLink Local stopped.
 :stop
