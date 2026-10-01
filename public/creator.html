@@ -286,7 +286,16 @@ select.ei{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
         </div>
       </div>
       <div class="release-grid" style="margin-top:18px"><div class="release-card active" id="releaseFree" onclick="selectReleaseMode('free')"><div class="release-title">🆓 무료 MP3 공개</div><div class="release-desc">창작자 서버의 MP3를 연결하여 무료 스트리밍합니다.</div><span class="release-badge">무료</span></div><div class="release-card" id="releaseTL3" onclick="selectReleaseMode('tl3')"><div class="release-title">⚡ TL3 정식 출시</div><div class="release-desc">브라우저에서 TL3로 변환하고 TimeLink 방식으로 출시합니다.</div><span class="release-badge">TL3</span></div></div><div style="margin-top:18px"><label class="form-label">⚖️ 차감 가중치 (1초 재생 시 차감 TL)</label><div style="display:flex;align-items:center;gap:12px"><input type="range" id="weightRange" min="0.1" max="10" step="0.1" value="1.0" oninput="syncWeight(this.value,'range')" style="flex:1"><input type="number" id="weightInput" min="0.1" max="10" step="0.1" value="1.0" oninput="syncWeight(this.value,'input')" style="width:72px;padding:8px;background:rgba(139,92,246,.08);border:2px solid var(--purple);border-radius:9px;color:var(--purple);font-weight:900;text-align:center"><span>/초</span></div></div>
-        <div style="margin-top:14px;padding:12px;border-radius:10px;background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.2);font-size:12px">🌐 오픈 플랫폼 · MP3는 창작자 서버에서 스트리밍 · <span style="color:var(--mint)">TL3는 기존 방식 그대로 지원</span></div>
+        <div style="margin-top:14px;padding:14px;border-radius:12px;background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.2);font-size:12px">
+<strong style="color:var(--mint)">☁️ 내 저장소를 TimeLink 저장소로 사용</strong>
+<div style="margin-top:7px;color:var(--t2);line-height:1.6">음원 원본과 TL3 파일은 TimeLink 서버에 저장하지 않는다. 연결한 개인 클라우드에 직접 저장하고 TimeLink는 권리·시간·정산 정보와 파일 위치만 관리한다.</div>
+<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+<button type="button" class="mf-btn" onclick="connectStorage('google_drive')">Google Drive 연결</button>
+<button type="button" class="mf-btn" onclick="connectStorage('onedrive')">OneDrive 연결</button>
+<button type="button" class="mf-btn" onclick="selectStorage('local_agent')">내 PC 사용</button>
+</div>
+<div id="storageStatus" style="margin-top:8px;color:var(--t3)">저장 위치 확인 중...</div>
+</div>
       </div>
       <div class="form-section"><div class="fsec-title">④ 수익 배분 플랜</div><div class="plan-grid"><div class="plan-card active" onclick="selectPlan(this,'A')"><div class="plan-name">플랜 A</div><div class="plan-desc">구매TL 소비의 62% 수익</div><div class="plan-rate">크리에이터 70%</div></div><div class="plan-card" onclick="selectPlan(this,'B')"><div class="plan-name">플랜 B</div><div class="plan-desc">구매TL 소비의 45% 수익 + TLC 채굴 2배</div><div class="plan-rate">크리에이터 50%</div></div></div></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="upload-btn" id="freeUploadBtn" onclick="doFreeUpload()" style="background:linear-gradient(135deg,#10b981,#059669)">🌐 내 서버 MP3 무료 공개</button><button class="upload-btn" id="uploadBtn" onclick="doTL3Upload()">⚡ TL3 변환 후 정식 출시</button></div>
@@ -373,64 +382,88 @@ async function prepareUpload(){
   if(_file.size>500*1024*1024){alert('최대 500MB');return null;}
   return {title:title,artist:artist};
 }
+async function storageConnections(){
+  try{var r=await fetch(API+'/api/storage/connections',{headers:{'Authorization':'Bearer '+_token}});var d=await r.json();return d.connections||[];}catch(e){return[];}
+}
+async function refreshStorageStatus(){
+  var el=document.getElementById('storageStatus');if(!el)return;
+  var chosen=localStorage.getItem('tl_storage_provider')||'google_drive';
+  var cs=await storageConnections();
+  var c=cs.find(function(x){return x.provider===chosen;});
+  if(c) el.innerHTML='현재 저장 위치: <b style="color:var(--mint)">'+(c.provider==='google_drive'?'Google Drive':'OneDrive')+'</b> · '+escapeHtml(c.provider_email||c.provider_name||'연결됨')+' <button type="button" class="mf-btn del" style="margin-left:6px" onclick="disconnectStorage(\''+chosen+'\')">연결 해제</button>';
+  else el.innerHTML='현재 저장 위치: <b>내 PC</b> · Google Drive/OneDrive를 연결하면 파일이 해당 클라우드에 직접 저장됩니다.';
+}
+function selectStorage(provider){localStorage.setItem('tl_storage_provider',provider);refreshStorageStatus();}
+function connectStorage(provider){
+  if(!_token){alert('먼저 로그인하세요.');return;}
+  var w=window.open(API+'/api/storage/connect/'+provider,'timelink_storage','width=600,height=760');
+  if(!w){alert('팝업이 차단되었습니다. 팝업을 허용하세요.');return;}
+  var timer=setInterval(function(){if(w.closed){clearInterval(timer);refreshStorageStatus();}},500);
+}
+window.addEventListener('message',function(e){if(e.data&&e.data.type==='timelink-storage-connected'){localStorage.setItem('tl_storage_provider',e.data.provider);refreshStorageStatus();}});
+async function disconnectStorage(provider){if(!confirm('이 저장소 연결을 해제하시겠습니까? 기존 클라우드 파일은 삭제하지 않습니다.'))return;await fetch(API+'/api/storage/connections/'+provider,{method:'DELETE',headers:{'Authorization':'Bearer '+_token}});if(localStorage.getItem('tl_storage_provider')===provider)localStorage.removeItem('tl_storage_provider');refreshStorageStatus();}
+async function uploadToOwnedStorage(blob,name,mime,progressCb){
+  var provider=localStorage.getItem('tl_storage_provider')||'google_drive';
+  var cs=await storageConnections();
+  var c=cs.find(function(x){return x.provider===provider;});
+  if(!c) throw new Error('먼저 Google Drive 또는 OneDrive를 연결하세요.');
+  var sr=await fetch(API+'/api/storage/upload-session',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify({provider:provider,name:name,size:blob.size,mime:mime})});
+  var sd=await sr.json().catch(()=>({}));if(!sr.ok)throw new Error(sd.error||'클라우드 업로드 세션 생성 실패');
+  var u=sd.upload,chunkSize=10*1024*1024;
+  for(var off=0;off<blob.size;off+=chunkSize){
+    var end=Math.min(off+chunkSize,blob.size),chunk=blob.slice(off,end);
+    var h={'Content-Length':String(chunk.size),'Content-Range':'bytes '+off+'-'+(end-1)+'/'+blob.size,'Content-Type':'application/octet-stream'};
+    var pr=await fetch(u.uploadUrl,{method:'PUT',headers:h,body:chunk});
+    if(!(pr.ok||pr.status===201||pr.status===200))throw new Error('클라우드 청크 업로드 실패 [HTTP '+pr.status+']');
+    if(progressCb)progressCb(end/blob.size);
+  }
+  var finalJson=await (async function(){
+    // The final response is returned by the provider on the last PUT. Re-fetching is unnecessary.
+    return null;
+  })();
+  // Obtain the provider object by searching the newly created file in the provider app folder.
+  var lr=await fetch(API+'/api/storage/connections',{headers:{'Authorization':'Bearer '+_token}});
+  var ld=await lr.json(); // connection metadata is kept server-side
+  // The backend exposes a lightweight finalize-by-name endpoint for this purpose.
+  var fr=await fetch(API+'/api/storage/finalize',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify({provider:provider,connectionId:u.connectionId,name:name,size:blob.size,mime:mime})});
+  var fd=await fr.json().catch(()=>({}));if(!fr.ok)throw new Error(fd.error||'클라우드 파일 등록 실패');
+  return {provider:provider,connectionId:u.connectionId,objectId:fd.objectId,name:name,size:blob.size,mime:mime};
+}
 async function doFreeUpload(){
   if(!_file){alert('MP3 파일을 먼저 선택하세요.');return;}
-  var title=document.getElementById('fTitle').value.trim();
-  var artist=document.getElementById('fCreator').value.trim();
+  var title=document.getElementById('fTitle').value.trim(),artist=document.getElementById('fCreator').value.trim();
   if(!title){alert('작품 제목을 입력하세요.');return;}
   if(_file.size>500*1024*1024){alert('최대 500MB입니다.');return;}
-  var dup=await checkDuplicate(_spTrack,title,artist);
-  if(dup.isDuplicate){alert(dup.message);return;}
-
-  showProg('🖥️','내 컴퓨터에서 무료 공개 중...','TimeLink Local 연결을 확인합니다.',10);
+  var dup=await checkDuplicate(_spTrack,title,artist);if(dup.isDuplicate){alert(dup.message);return;}
+  var provider=localStorage.getItem('tl_storage_provider')||'local_agent';
+  showProg('☁️',provider==='local_agent'?'내 컴퓨터에서 무료 공개 중...':'내 저장소에 무료 MP3 저장 중...','TimeLink는 원본 파일을 보관하지 않습니다.',10);
   try{
-    var agentBase='http://127.0.0.1:8787';
-    var health=await fetch(agentBase+'/health');
-    if(!health.ok) throw new Error('TimeLink Local Agent가 실행되고 있지 않습니다.');
-    var hs=await health.json();
-    if(!hs.ok) throw new Error('TimeLink Local Agent 상태를 확인할 수 없습니다.');
-
-    setProg(25,'내 컴퓨터에 파일을 준비하는 중...');
-    var up=await fetch(agentBase+'/upload?name='+encodeURIComponent(_file.name),{
-      method:'POST',headers:{'Content-Type':'audio/mpeg'},body:_file
-    });
-    var ud=await up.json().catch(()=>({}));
-    if(!up.ok) throw new Error(ud.error||'로컬 서버에 파일을 전달하지 못했습니다.');
-
-    setProg(70,'TimeLink에 공개 정보 등록 중...');
-    var coverUrl='';
-    if(_spTrack&&(_spTrack.cover_url||(_spTrack.album&&_spTrack.album.images&&_spTrack.album.images[0])))
-      coverUrl=_spTrack.cover_url||_spTrack.album.images[0].url||'';
-    var body={
-      title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),
-      category:document.getElementById('fAudioCat').value,
-      description:document.getElementById('fDesc').value.trim(),
-      plan:'FREE',weight:0,file_tl:0,stream_url:ud.stream_url,cover_url:coverUrl,
-      file_type:'audio/mp3',category_type:_ftype,duration:_fileDuration||0,
-      user_id:_user.id,email:_user.email,username:_user.username||_user.email,
-      bpm:_fileBpm||0,origin_hash:'',storage_mode:'creator_pc',
-      release_mode:'free_mp3_local',reward_mode:'usage_time'
-    };
-    var sr=await fetch(API+'/api/shares',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
-      body:JSON.stringify(body)
-    });
-    var sd=await sr.json();
-    if(!sr.ok) throw new Error(sd.error||'작품 등록 실패');
-    setProg(100,'내 컴퓨터에서 무료 공개 완료!');
-    _existingSongs=null;
-    setTimeout(()=>{
-      hideProg();
-      if(confirm('공개가 완료되었습니다.\nMP3 원본은 내 컴퓨터에 남아 있고 TimeLink는 공개 정보만 보관합니다.\nSharePlace에서 확인할까요?'))
-        location.href='shareplace.html';
-      else clearFile();
-    },700);
-  }catch(err){
-    hideProg();
-    alert('내 컴퓨터에서 무료 공개 실패:\n'+err.message+'\n\nTimeLink Local Agent가 실행 중인지 확인하세요.');
-    console.error('TimeLink Local error:',err);
-  }
+    var coverUrl='';if(_spTrack&&(_spTrack.cover_url||(_spTrack.album&&_spTrack.album.images&&_spTrack.album.images[0])))coverUrl=_spTrack.cover_url||_spTrack.album.images[0].url||'';
+    var extInfo=null;
+    if(provider==='local_agent'){
+      var agentBase='http://127.0.0.1:8787',health=await fetch(agentBase+'/health');if(!health.ok)throw new Error('TimeLink Local Agent가 실행되고 있지 않습니다.');
+      var up=await fetch(agentBase+'/upload?name='+encodeURIComponent(_file.name),{method:'POST',headers:{'Content-Type':'audio/mpeg'},body:_file});
+      var ud=await up.json().catch(()=>({}));if(!up.ok)throw new Error(ud.error||'로컬 서버에 파일을 전달하지 못했습니다.');
+      extInfo={stream_url:ud.stream_url,storage_mode:'creator_pc',release_mode:'free_mp3_local'};
+    }else{
+      setProg(30,'클라우드 업로드 세션 생성 중...');
+      var upo=await uploadToOwnedStorage(_file,_file.name,'audio/mpeg',function(p){setProg(30+Math.round(p*40),'내 저장소에 MP3 저장 중... '+Math.round(p*100)+'%');});
+      extInfo={storage_mode:'external',release_mode:'free_mp3_external',externalObject:upo};
+    }
+    setProg(78,'TimeLink에 공개 정보 등록 중...');
+    var body={title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),category:document.getElementById('fAudioCat').value,description:document.getElementById('fDesc').value.trim(),plan:'FREE',weight:0,file_tl:0,stream_url:extInfo.stream_url||'',cover_url:coverUrl,file_type:'audio/mp3',category_type:_ftype,duration:_fileDuration||0,user_id:_user.id,email:_user.email,username:_user.username||_user.email,bpm:_fileBpm||0,origin_hash:'',storage_mode:extInfo.storage_mode,release_mode:extInfo.release_mode,reward_mode:'usage_time'};
+    var sr=await fetch(API+'/api/shares',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify(body)}),sd=await sr.json().catch(()=>({}));
+    if(!sr.ok)throw new Error(sd.error||'작품 등록 실패');
+    if(extInfo.externalObject){
+      await registerExternalObject(extInfo.externalObject,sd.id);
+    }
+    setProg(100,'내 저장소 무료 공개 완료!');_existingSongs=null;
+    setTimeout(()=>{hideProg();if(confirm('공개가 완료되었습니다.\n원본 MP3는 연결한 내 저장소에 있고 TimeLink는 파일을 보관하지 않습니다.\nSharePlace에서 확인할까요?'))location.href='shareplace.html';else clearFile();},700);
+  }catch(err){hideProg();alert('무료 공개 실패:\n'+(err&&err.message?err.message:String(err)));console.error(err);}
+}
+async function registerExternalObject(o,shareId){
+  var r=await fetch(API+'/api/storage/object/register',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify({connectionId:o.connectionId,provider:o.provider,objectId:o.objectId,name:o.name,size:o.size,mime:o.mime,shareId:shareId})});
+  var d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'외부 저장 파일 등록 실패');return d;
 }
 async function doTL3Upload(){
   var info=await prepareUpload(); if(!info)return;
@@ -450,45 +483,28 @@ async function doTL3Upload(){
     var tl3Buf=buildTL3(meta,encrypted);
     encrypted=null; mp3Buf=null;
     var tl3Blob=new Blob([tl3Buf],{type:'application/octet-stream'});
-    setProg(80,'TL3 파일을 TimeLink 서버에 저장 중...');
-    var trackId='track_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
-    var td=null;
-    var initRes=await fetch(API+'/api/upload/init',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify({trackId:trackId,fileName:trackId+'.tl3',size:tl3Blob.size})});
-    var initData=await initRes.json().catch(()=>({}));
-    if(initRes.ok){
-      var chunkSize=Number(initData.chunkSize||8*1024*1024), parts=[];
-      for(var off=0,partNo=1;off<tl3Blob.size;off+=chunkSize,partNo++){
-        var chunk=tl3Blob.slice(off,Math.min(off+chunkSize,tl3Blob.size));
-        var pr=await fetch(API+'/api/upload/part?key='+encodeURIComponent(initData.key)+'&uploadId='+encodeURIComponent(initData.uploadId)+'&partNumber='+partNo,{method:'PUT',headers:{'Authorization':'Bearer '+_token,'Content-Type':'application/octet-stream'},body:chunk});
-        var pd=await pr.json().catch(()=>({}));
-        if(!pr.ok) throw new Error('TL3 청크 '+partNo+' 업로드 실패 [HTTP '+pr.status+']\\n'+(pd.error||pd.message||'서버 오류'));
-        parts.push({partNumber:partNo,etag:pd.etag});
-        setProg(80+Math.round((off+chunk.size)/tl3Blob.size*10),'TL3 서버 저장 중... '+Math.round((off+chunk.size)/tl3Blob.size*100)+'%');
-      }
-      var completeRes=await fetch(API+'/api/upload/complete',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify({key:initData.key,uploadId:initData.uploadId,parts:parts})});
-      var completedData=await completeRes.json().catch(()=>({}));
-      if(!completeRes.ok) throw new Error('TL3 저장 완료 실패 [HTTP '+completeRes.status+']\\n'+(completedData.error||completedData.message||'서버 오류'));
-      td=completedData;
-    }else if(initRes.status===404){
-      setProg(80,'구버전 서버 호환 업로드 중...');
-      var tfd=new FormData();
-      tfd.append('file',tl3Blob,trackId+'.tl3'); tfd.append('trackId',trackId); tfd.append('isTl3','true');
-      tfd.append('title',title); tfd.append('artist',artist); tfd.append('album',document.getElementById('fAlbum').value.trim()); tfd.append('category',document.getElementById('fAudioCat').value);
-      var legacyRes=await fetch(API+'/api/upload',{method:'POST',headers:{'Authorization':'Bearer '+_token},body:tfd});
-      var legacyText=await legacyRes.text(), legacyData={};
-      try{legacyData=legacyText?JSON.parse(legacyText):{};}catch(e){legacyData={raw:legacyText};}
-      if(!legacyRes.ok) throw new Error('TL3 서버 업로드 실패 [HTTP '+legacyRes.status+']\\n'+(legacyData.error||legacyData.message||legacyData.raw||legacyRes.statusText||'서버 오류'));
-      td=legacyData;
+    var provider=localStorage.getItem('tl_storage_provider')||'local_agent';
+    var td=null,externalObject=null;
+    if(provider==='local_agent'){
+      // Legacy server storage is no longer the default. Local Agent is the only explicit local option.
+      var agentBase='http://127.0.0.1:8787',health=await fetch(agentBase+'/health');if(!health.ok)throw new Error('TimeLink Local Agent가 실행되고 있지 않습니다.');
+      setProg(80,'내 PC에 TL3 저장 중...');
+      var up=await fetch(agentBase+'/upload?name='+encodeURIComponent(title.replace(/[\\/:*?"<>|]/g,'_')+'.tl3'),{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:tl3Blob});
+      var ud=await up.json().catch(()=>({}));if(!up.ok)throw new Error(ud.error||'Local Agent TL3 저장 실패');
+      td={stream_url:ud.stream_url||'',storage_mode:'creator_pc',release_mode:'tl3'};
     }else{
-      throw new Error('TL3 업로드 초기화 실패 [HTTP '+initRes.status+']\\n'+(initData.error||initData.message||'서버 오류'));
+      setProg(80,'내 클라우드에 TL3 저장 중...');
+      externalObject=await uploadToOwnedStorage(tl3Blob,title.replace(/[\\/:*?"<>|]/g,'_')+'.tl3','application/octet-stream',function(p){setProg(80+Math.round(p*10),'내 저장소에 TL3 저장 중... '+Math.round(p*100)+'%');});
+      td={stream_url:'',storage_mode:'external',release_mode:'tl3'};
     }
     var fileTL=Math.round((_fileDuration||0)*_fileWeight);
-    var body={title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),category:document.getElementById('fAudioCat').value,description:document.getElementById('fDesc').value.trim(),plan:_plan,weight:_fileWeight,file_tl:fileTL,stream_url:td.stream_url||'',cover_url:'',file_type:'audio/tl3',category_type:_ftype,duration:_fileDuration||0,user_id:_user.id,email:_user.email,username:_user.username||_user.email,bpm:_fileBpm,origin_hash:origHash,storage_mode:'server',release_mode:'tl3',reward_mode:'usage_time'};
+    var body={title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),category:document.getElementById('fAudioCat').value,description:document.getElementById('fDesc').value.trim(),plan:_plan,weight:_fileWeight,file_tl:fileTL,stream_url:td.stream_url||'',cover_url:'',file_type:'audio/tl3',category_type:_ftype,duration:_fileDuration||0,user_id:_user.id,email:_user.email,username:_user.username||_user.email,bpm:_fileBpm,origin_hash:origHash,storage_mode:td.storage_mode,release_mode:'tl3',reward_mode:'usage_time'};
     if(_spTrack){body.spotify_id=_spTrack.id||'';body.spotify_url=_spTrack.url||'';body.preview_url=_spTrack.preview_url||'';}
     setProg(92,'작품 정보 등록 중...');
     var shareRes=await fetch(API+'/api/shares',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify(body)});
     var shareData=await shareRes.json().catch(()=>({}));
     if(!shareRes.ok) throw new Error('작품 등록 실패 [HTTP '+shareRes.status+']\\n'+(shareData.error||shareData.message||'서버 오류'));
+    if(externalObject) await registerExternalObject(externalObject,shareData.id);
     var dl=URL.createObjectURL(tl3Blob), a=document.createElement('a'); a.href=dl; a.download=title.replace(/[\\\\/:*?"<>|]/g,'_')+'.tl3'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(dl),3000);
     setProg(100,'TL3 정식 출시 완료!');
     _existingSongs=null;
@@ -545,3 +561,4 @@ async function saveEdit(){ if(!_eid)return; var btn=document.getElementById('edi
 </script>
 </body>
 </html>
+\n<script>window.addEventListener('load',function(){setTimeout(function(){try{refreshStorageStatus();}catch(e){}},300);});</script>\n
