@@ -407,9 +407,10 @@ var _myFileTL = {};
 function doLogout(){ localStorage.removeItem('tl_token'); localStorage.removeItem('tl_user'); location.href='login.html'; }
 function getTotalTL(){
   if(!_user) return 0;
-  var v=Number(_user.tl_balance);
-  if(Number.isFinite(v)) return v;
-  return Number(_user.tl||0)+Number(_user.tl_p||0)+Number(_user.tl_a||0)+Number(_user.tl_b||0);
+  var p=Number(_user.tl_p||0), a=Number(_user.tl_a||0), b=Number(_user.tl_b||0);
+  if(Number.isFinite(p+a+b)) return Math.max(0,p+a+b);
+  var legacy=Number(_user.tl_balance);
+  return Number.isFinite(legacy)?Math.max(0,legacy):Math.max(0,Number(_user.tl||0));
 }
 
 // ==================== API ====================
@@ -800,8 +801,16 @@ function closeTossPay(){ document.getElementById('tossPayOverlay').style.display
 async function requestTossPay(){
   var btn=document.getElementById('tossPayBtn');
   btn.disabled=true; btn.textContent='⏳ 결제 중...';
-  var orderId='TL_'+Date.now()+'_'+Math.random().toString(36).slice(2,7).toUpperCase();
+  var orderId='';
   try{
+    var orderRes=await fetch(API_BASE+'/api/payment/toss/order',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
+      body:JSON.stringify({amount:_tossPkg.amount})
+    });
+    var orderData=await orderRes.json().catch(function(){return {};});
+    if(!orderRes.ok || !orderData.orderId) throw new Error(orderData.error||'결제 주문 생성 실패');
+    orderId=orderData.orderId;
     if(!window.TossPayments){
       await new Promise(function(resolve,reject){
         var s=document.createElement('script'); s.src='https://js.tosspayments.com/v1/payment'; s.onload=resolve; s.onerror=function(){ reject(new Error('SDK 로드 실패')); }; document.head.appendChild(s);
