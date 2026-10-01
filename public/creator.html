@@ -372,10 +372,19 @@ async function prepareUpload(){
   return {title:title,artist:artist};
 }
 async function doFreeUpload(){
-  var info=await prepareUpload(); if(!info)return;
-  var title=info.title,artist=info.artist;
   var remoteUrl=(document.getElementById('externalMp3Url')?.value||'').trim();
   if(!remoteUrl){alert('내 서버의 MP3 주소를 입력하세요.\\n\\nTimeLink는 무료 MP3를 창작자의 서버에서 직접 스트리밍합니다.');return;}
+
+  var title=document.getElementById('fTitle').value.trim();
+  var artist=document.getElementById('fCreator').value.trim();
+  if(!title){
+    try{
+      var p=new URL(remoteUrl).pathname.split('/').pop()||'';
+      title=decodeURIComponent(p).replace(/\\.mp3$/i,'').replace(/[_-]+/g,' ').trim();
+      if(title) document.getElementById('fTitle').value=title;
+    }catch(e){}
+  }
+  if(!title){alert('작품 제목을 입력하세요.');return;}
   try{
     var u=new URL(remoteUrl);
     if(u.protocol!=='http:'&&u.protocol!=='https:') throw new Error('http 또는 https 주소만 사용할 수 있습니다.');
@@ -384,9 +393,12 @@ async function doFreeUpload(){
     }
   }catch(e){alert('올바른 MP3 URL을 입력하세요.\\n\\n'+e.message);return;}
 
+  var dup=await checkDuplicate(_spTrack,title,artist);
+  if(dup.isDuplicate){alert(dup.message);return;}
+
   showProg('🌐','무료 MP3 공개 중...','창작자 서버의 MP3 주소를 TimeLink에 등록합니다.',35);
   try{
-    var coverUrl=''; 
+    var coverUrl='';
     if(_spTrack&&(_spTrack.cover_url||(_spTrack.album&&_spTrack.album.images&&_spTrack.album.images[0]))) coverUrl=_spTrack.cover_url||_spTrack.album.images[0].url||'';
     setProg(65,'작품 정보 등록 중...');
     var body={
@@ -396,7 +408,7 @@ async function doFreeUpload(){
       plan:'FREE',weight:0,file_tl:0,stream_url:remoteUrl,cover_url:coverUrl,
       file_type:'audio/mp3',category_type:_ftype,duration:_fileDuration||0,
       user_id:_user.id,email:_user.email,username:_user.username||_user.email,
-      bpm:_fileBpm,origin_hash:'',storage_mode:'external_url',
+      bpm:_fileBpm||0,origin_hash:'',storage_mode:'external_url',
       release_mode:'free_mp3_external',reward_mode:'usage_time'
     };
     var sr=await fetch(API+'/api/shares',{
