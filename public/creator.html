@@ -528,7 +528,25 @@ async function doTL3Upload(){
   }
 }
 async function loadMyFiles(){ var g=document.getElementById('myFilesGrid'); g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px">로딩 중...</div>'; try{ var r=await fetch(API+'/api/shares'); var d=await r.json(); _myAllFiles=(d.shares||[]).filter(s=>String(s.user_id)===String(_user.id)); _myPage=1; if(!_myAllFiles.length){g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px"><div style="font-size:36px">📂</div><div>업로드한 파일이 없습니다</div></div>';return;} renderMyFileSlice(); }catch(e){g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--rose)">로드 실패</div>';} }
-function renderMyFileSlice(){ var g=document.getElementById('myFilesGrid'); if(!g) return; var start=(_myPage-1)*_myPerPage; var slice=_myAllFiles.slice(start,start+_myPerPage); g.innerHTML=slice.map(s=>'<div class="mf-card"><div class="mf-thumb">'+(s.cover_url?'<img src="'+escapeHtml(s.cover_url)+'" style="width:100%;height:100%;object-fit:cover">':'🎵')+'</div><div class="mf-body"><div class="mf-type">'+(s.category||'Music')+'</div><div class="mf-title">'+escapeHtml(s.title)+'</div><div class="mf-meta">'+escapeHtml(s.artist||'')+'</div><div class="mf-tl">⚡ '+Number(s.file_tl||0).toLocaleString()+' TL</div><div class="mf-actions"><button class="mf-btn" onclick="openEdit(\''+s.id+'\')">✏️ 수정</button><button class="mf-btn del" onclick="delShare(\''+s.id+'\',\''+escapeHtml(s.title)+'\')">삭제</button></div></div></div>').join(''); renderMyPager(); }
+function creatorContentType(s){
+  var ft=String(s&&s.file_type||'').toLowerCase();
+  var ck=String(s&&s.content_kind||'').toLowerCase();
+  var rm=String(s&&s.release_mode||'').toLowerCase();
+  if(ft==='audio/mp3'||ck==='mp3'||rm==='free_mp3_local'||rm==='free_mp3_external') return 'mp3';
+  if(ft==='audio/tl3'||ck==='tl3'||rm==='tl3') return 'tl3';
+  return 'unknown';
+}
+function renderMyFileSlice(){
+  var g=document.getElementById('myFilesGrid'); if(!g) return;
+  var start=(_myPage-1)*_myPerPage, slice=_myAllFiles.slice(start,start+_myPerPage);
+  g.innerHTML=slice.map(function(s){
+    var kind=creatorContentType(s), isMp3=kind==='mp3', isTl3=kind==='tl3';
+    var badge=isMp3?'🎵 무료 MP3':isTl3?'⚡ TL3':'파일';
+    var price=isTl3?'<div class="mf-tl" style="color:var(--purple)">⚡ '+Number(s.file_tl||0).toLocaleString()+' TL</div>':'<div class="mf-tl" style="color:var(--mint)">FREE · POC → TLC</div>';
+    return '<div class="mf-card"><div class="mf-thumb">'+(s.cover_url?'<img src="'+escapeHtml(s.cover_url)+'" style="width:100%;height:100%;object-fit:cover">':'🎵')+'</div><div class="mf-body"><div class="mf-type">'+badge+' · '+escapeHtml(s.category||'Music')+'</div><div class="mf-title">'+escapeHtml(s.title)+'</div><div class="mf-meta">'+escapeHtml(s.artist||'')+'</div>'+price+'<div class="mf-actions"><button class="mf-btn" onclick="openEdit(\''+s.id+'\')">✏️ 수정</button><button class="mf-btn del" onclick="delShare(\''+s.id+'\',\''+escapeHtml(s.title)+'\')">삭제</button></div></div></div>';
+  }).join('');
+  renderMyPager();
+}
 function renderMyPager(){ var el=document.getElementById('myFilesPager'); if(!el) return; var total=_myAllFiles.length,totalPages=Math.ceil(total/_myPerPage); if(totalPages<=1){el.innerHTML='';return;} var html='<button class="pg-btn" onclick="goMyPage('+(_myPage-1)+')" '+(_myPage===1?'disabled':'')+'>←</button>'; for(var i=1;i<=Math.min(5,totalPages);i++) html+='<button class="pg-btn'+(i===_myPage?' active':'')+'" onclick="goMyPage('+i+')">'+i+'</button>'; if(totalPages>5) html+='<span class="pg-info">⋯</span><button class="pg-btn" onclick="goMyPage('+totalPages+')">'+totalPages+'</button>'; html+='<button class="pg-btn" onclick="goMyPage('+(_myPage+1)+')" '+(_myPage===totalPages?'disabled':'')+'>→</button>'; el.innerHTML=html; }
 function goMyPage(n){_myPage=n;renderMyFileSlice();}
 async function delShare(id,title){ if(!confirm('"'+title+'" 을 삭제하시겠습니까?')) return; try{ await fetch(API+'/api/shares/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+_token,'Content-Type':'application/json'},body:JSON.stringify({email:_user.email,user_id:_user.id})}); _existingSongs=null; loadMyFiles(); }catch(e){alert('삭제 실패');} }
