@@ -351,6 +351,11 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       </div>
     </div>
     <div class="sort-bar">
+      <div class="sort-tabs" style="margin-right:10px">
+        <button class="sort-tab kind-tab active" onclick="switchKind('all',this)">전체</button>
+        <button class="sort-tab kind-tab" onclick="switchKind('mp3',this)">🎵 무료 MP3</button>
+        <button class="sort-tab kind-tab" onclick="switchKind('tl3',this)">⚡ TL3</button>
+      </div>
       <div class="sort-tabs">
         <button class="sort-tab active" onclick="switchSort(this,'tl')">💰 인기순</button>
         <button class="sort-tab" onclick="switchSort(this,'latest')">🆕 최신순</button>
@@ -389,7 +394,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 var API_BASE = 'https://api.timelink.digital';
 var _user = null, _token = null;
 var _allShares = [], _filter = 'all', _tab = 'tl', _search = '', _view = 'grid', _genre = 'all';
-var _curPage = 1, _perPage = 20;
+var _curPage = 1, _perPage = 20, _kind = 'all';
 var _myFileTL = {};
 
 // ==================== AUTH ====================
@@ -407,10 +412,9 @@ var _myFileTL = {};
 function doLogout(){ localStorage.removeItem('tl_token'); localStorage.removeItem('tl_user'); location.href='login.html'; }
 function getTotalTL(){
   if(!_user) return 0;
-  var p=Number(_user.tl_p||0), a=Number(_user.tl_a||0), b=Number(_user.tl_b||0);
-  if(Number.isFinite(p+a+b)) return Math.max(0,p+a+b);
-  var legacy=Number(_user.tl_balance);
-  return Number.isFinite(legacy)?Math.max(0,legacy):Math.max(0,Number(_user.tl||0));
+  var v=Number(_user.tl_balance);
+  if(Number.isFinite(v)) return v;
+  return Number(_user.tl||0)+Number(_user.tl_p||0)+Number(_user.tl_a||0)+Number(_user.tl_b||0);
 }
 
 // ==================== API ====================
@@ -438,7 +442,7 @@ function detectType(s){
 }
 function typeEmoji(t){ return t==='video'?'🎬':t==='image'?'🖼️':t==='doc'?'📄':'🎵'; }
 function typeLabel(t){ return t==='video'?'영상':t==='image'?'이미지':t==='doc'?'문서':'오디오'; }
-function contentKind(s){ var ft=String(s&&s.file_type||'').toLowerCase(), ck=String(s&&s.content_kind||'').toLowerCase(), rm=String(s&&s.release_mode||'').toLowerCase(); if(ft==='audio/mp3'||ck==='mp3'||rm==='free_mp3_local'||rm==='free_mp3_external') return 'mp3'; if(ft==='audio/tl3'||ck==='tl3'||rm==='tl3') return 'tl3'; return 'unknown'; }
+function contentKind(s){ var ft=String(s&&s.file_type||'').toLowerCase(), ck=String(s&&s.content_kind||'').toLowerCase(), rm=String(s&&s.release_mode||'').toLowerCase(), su=String(s&&s.stream_url||'').toLowerCase(); if(rm.indexOf('free_mp3')===0||ck==='mp3'||ft==='audio/mp3') return 'mp3'; if(rm==='tl3'||ck==='tl3'||ft==='audio/tl3'||/\.(tl3|tl4|tlg|tlf)(\?|$)/.test(su)) return 'tl3'; if(ft.indexOf('video/')===0||ft.indexOf('image/')===0||ft.indexOf('pdf')>=0||ft.indexOf('document')>=0) return 'tl3'; return 'mp3'; }
 function isFreeMp3(s){ return contentKind(s)==='mp3'; }
 function isTL3(s){ return contentKind(s)==='tl3'; }
 function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -472,8 +476,8 @@ function applyFilter(){
   else list.sort(function(a,b){ return new Date(b.created_at||0)-new Date(a.created_at||0); });
   if(_filter!=='all') list=list.filter(function(s){ return isType(s,_filter); });
   if(_genre!=='all') list=list.filter(function(s){ return matchGenre(s,_genre); });
-  list=list.filter(function(s){ return isType(s,'music')||isType(s,'all'); });
-  var total=list.length;
+  if(_kind!=='all') list=list.filter(function(s){ return contentKind(s)===_kind; });
+  var total=list.length; _lastTotal=total;
   var start=(_curPage-1)*_perPage, end=start+_perPage;
   var paged=list.slice(start,end);
   renderShares(paged,total);
@@ -485,9 +489,11 @@ function switchGenre(g,el){
   if(el) el.classList.add('active');
   applyFilter();
 }
-function switchSort(el,t){ document.querySelectorAll('.sort-tab').forEach(function(x){x.classList.remove('active');}); el.classList.add('active'); _tab=t; _curPage=1; applyFilter(); }
+function switchSort(el,t){ document.querySelectorAll('.sort-tab:not(.kind-tab)').forEach(function(x){x.classList.remove('active');}); el.classList.add('active'); _tab=t; _curPage=1; applyFilter(); }
 function switchView(v){ _view=v; document.getElementById('vt-grid').classList.toggle('active',v==='grid'); document.getElementById('vt-list').classList.toggle('active',v==='list'); applyFilter(); }
-function goPage(n){ var totalPages=Math.max(1,Math.ceil(_allShares.length/_perPage)); if(n<1||n>totalPages) return; _curPage=n; applyFilter(); }
+var _lastTotal=0;
+function switchKind(k,el){ _kind=k; _curPage=1; document.querySelectorAll('.kind-tab').forEach(function(x){x.classList.remove('active');}); if(el) el.classList.add('active'); applyFilter(); }
+function goPage(n){ var totalPages=Math.max(1,Math.ceil(_lastTotal/_perPage)); if(n<1||n>totalPages) return; _curPage=n; applyFilter(); }
 function renderPager(total){
   var el=document.getElementById('filePager'); if(!el) return;
   var totalPages=Math.max(1,Math.ceil(total/_perPage));
@@ -583,7 +589,7 @@ function renderListView(list,g){
 
 // ==================== TL PLAYER ====================
 var _tlAudio=null, _tlShareId=null, _tlMaxTL=0, _tlCurrentTL=0, _tlTimer=null, _tlPlaying=false, _tlElapsed=0, _tlDuration=0;
-function getStreamUrl(s){ return s.stream_url||s.preview_url||''; }
+function getStreamUrl(s){ var u=s.stream_url||s.preview_url||''; if(u&&u.charAt(0)==='/') u=API_BASE+u; return u; }
 function tlPlayCard(el){
   var sid=el.getAttribute('data-sid');
   var s=_allShares.find(function(x){return String(x.id)===String(sid);});
@@ -801,16 +807,8 @@ function closeTossPay(){ document.getElementById('tossPayOverlay').style.display
 async function requestTossPay(){
   var btn=document.getElementById('tossPayBtn');
   btn.disabled=true; btn.textContent='⏳ 결제 중...';
-  var orderId='';
+  var orderId='TL_'+Date.now()+'_'+Math.random().toString(36).slice(2,7).toUpperCase();
   try{
-    var orderRes=await fetch(API_BASE+'/api/payment/toss/order',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
-      body:JSON.stringify({amount:_tossPkg.amount})
-    });
-    var orderData=await orderRes.json().catch(function(){return {};});
-    if(!orderRes.ok || !orderData.orderId) throw new Error(orderData.error||'결제 주문 생성 실패');
-    orderId=orderData.orderId;
     if(!window.TossPayments){
       await new Promise(function(resolve,reject){
         var s=document.createElement('script'); s.src='https://js.tosspayments.com/v1/payment'; s.onload=resolve; s.onerror=function(){ reject(new Error('SDK 로드 실패')); }; document.head.appendChild(s);
