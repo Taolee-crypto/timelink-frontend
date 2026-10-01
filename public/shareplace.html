@@ -576,7 +576,8 @@ function tlPlayCard(el){
 }
 function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   tlStop(true);
-  _tlShareId=shareId; _tlMaxTL=fileTL; _tlCurrentTL=fileTL; _tlElapsed=0; _tlDuration=duration||0;
+  var isFree=!!shareObj && (String(shareObj.release_mode||'')==='free_mp3_local' || String(shareObj.release_mode||'')==='free_mp3_external' || String(shareObj.storage_mode||'')==='creator_pc' || String(shareObj.storage_mode||'')==='external_url');
+  _tlShareId=shareId; _tlMaxTL=isFree?0:fileTL; _tlCurrentTL=isFree?0:fileTL; _tlElapsed=0; _tlDuration=duration||0;
   document.getElementById('tlTitle').textContent=title;
   document.getElementById('tlArtist').textContent=artist||'';
   var cov=document.getElementById('tlCover');
@@ -650,7 +651,9 @@ function tlStartTimer(){
     if(!_tlPlaying) return;
     _tlCurrentTL=Math.max(0,_tlCurrentTL-1); _tlElapsed++;
     if(_tlAudio&&!_tlAudio.paused) _tlElapsed=Math.round(_tlAudio.currentTime)||_tlElapsed;
-    if(_tlElapsed%5===0&&_tlShareId){
+    var curShare=_allShares.find(function(x){return String(x.id)===String(_tlShareId);});
+    var isFree=!!curShare && (String(curShare.release_mode||'')==='free_mp3_local' || String(curShare.release_mode||'')==='free_mp3_external' || String(curShare.storage_mode||'')==='creator_pc' || String(curShare.storage_mode||'')==='external_url');
+    if(!isFree && _tlElapsed%5===0&&_tlShareId){
       fetch(API_BASE+'/api/shares/'+_tlShareId+'/consume',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},body:JSON.stringify({seconds:5,user_id:_user?_user.id:null})}).then(function(r){return r.json();}).then(function(d){ if(d.user_tl!==undefined){ _tlCurrentTL=d.user_tl; _myFileTL[String(_tlShareId)]=d.user_tl; } }).catch(function(){});
     }
     tlUpdateUI();
