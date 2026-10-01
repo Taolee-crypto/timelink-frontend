@@ -481,5 +481,28 @@ function addSugg(t){if(!_eTags.includes(t)&&_eTags.length<15){_eTags.push(t);ren
 async function loadEditData(shareId){ document.getElementById('editSaveBtn').disabled=true; try{ var r=await fetch(API+'/api/shares/'+shareId); var s=await r.json(); document.getElementById('editTrackName').textContent=s.title||'—'; document.getElementById('eLockedTitle').textContent=s.title||'—'; var dt=s.created_at?new Date(s.created_at*1000>1e12?s.created_at:s.created_at*1000).toLocaleDateString('ko-KR'):'—'; document.getElementById('eLockedDate').textContent=dt; document.getElementById('eLockedHash').textContent=s.origin_hash||'(없음)'; document.getElementById('eArtist').value=s.artist||''; document.getElementById('eAlbum').value=s.album||''; document.getElementById('eDescription').value=s.description||''; document.getElementById('eComposer').value=s.composer||''; document.getElementById('eLyricist').value=s.lyricist||''; document.getElementById('eLyrics').value=s.lyrics||''; document.getElementById('eCredits').value=s.credits||''; document.getElementById('eMusicalKey').value=s.musical_key||''; document.getElementById('eCreationStory').value=s.creation_story||''; document.getElementById('eProductionNote').value=s.production_note||''; var cat=document.getElementById('eCategory'); for(var i=0;i<cat.options.length;i++) if(cat.options[i].value===s.category){cat.selectedIndex=i;break;} if(s.cover_url){ document.getElementById('eCoverImg').src=s.cover_url; document.getElementById('eCoverImg').style.display='block'; document.getElementById('eCoverIcon').style.display='none'; } var gallery=[]; try{gallery=JSON.parse(s.gallery_images||'[]');}catch(e){} gallery.forEach((url,i)=>{if(i<4&&url)setGalSlot(i,url);}); _eGalUrls=[gallery[0]||'',gallery[1]||'',gallery[2]||'',gallery[3]||'']; _eTags=[]; try{_eTags=JSON.parse(s.mood_tags||'[]');}catch(e){if(s.mood_tags)_eTags=s.mood_tags.split(',').map(t=>t.trim()).filter(Boolean);} renderTags(); var links={}; try{links=JSON.parse(s.social_links||'{}');}catch(e){} document.getElementById('eYoutube').value=links.youtube||''; document.getElementById('eInstagram').value=links.instagram||''; document.getElementById('eSoundcloud').value=links.soundcloud||''; document.getElementById('eSpotify').value=links.spotify||''; document.getElementById('editSaveBtn').disabled=false; }catch(e){alert('불러오기 실패: '+e.message);closeEdit();} }
 async function saveEdit(){ if(!_eid)return; var btn=document.getElementById('editSaveBtn'); btn.disabled=true;btn.textContent='저장 중...'; try{ var coverUrl=document.getElementById('eCoverImg').src||''; if(_eCoverFile){ var cfd=new FormData();cfd.append('file',_eCoverFile);cfd.append('trackId','cover_'+_eid+'_'+Date.now()); var cr=await fetch(API+'/api/upload',{method:'POST',headers:{'Authorization':'Bearer '+_token},body:cfd}); var cd=await cr.json();if(cd.ok&&cd.url)coverUrl=cd.url; } var galUrls=_eGalUrls.slice(); for(var i=0;i<4;i++){ if(_eGalFiles[i]){ var gfd=new FormData();gfd.append('file',_eGalFiles[i]);gfd.append('trackId','gal_'+_eid+'_'+i+'_'+Date.now()); var gr=await fetch(API+'/api/upload',{method:'POST',headers:{'Authorization':'Bearer '+_token},body:gfd}); var gd=await gr.json();if(gd.ok&&gd.url)galUrls[i]=gd.url; } } var body={ artist:document.getElementById('eArtist').value.trim(), album:document.getElementById('eAlbum').value.trim(), category:document.getElementById('eCategory').value, description:document.getElementById('eDescription').value.trim(), composer:document.getElementById('eComposer').value.trim(), lyricist:document.getElementById('eLyricist').value.trim(), lyrics:document.getElementById('eLyrics').value.trim(), credits:document.getElementById('eCredits').value.trim(), musical_key:document.getElementById('eMusicalKey').value.trim(), creation_story:document.getElementById('eCreationStory').value.trim(), production_note:document.getElementById('eProductionNote').value.trim(), cover_url:coverUrl, gallery_images:JSON.stringify(galUrls.filter(u=>u)), mood_tags:JSON.stringify(_eTags), social_links:JSON.stringify({ youtube:document.getElementById('eYoutube').value.trim(), instagram:document.getElementById('eInstagram').value.trim(), soundcloud:document.getElementById('eSoundcloud').value.trim(), spotify:document.getElementById('eSpotify').value.trim() }) }; var res=await fetch(API+'/api/shares/'+_eid,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify(body)}); var data=await res.json(); if(!res.ok)throw new Error(data.error||'저장 실패'); var toast=document.getElementById('editToast'); toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),2200); btn.textContent='💾 저장';btn.disabled=false; _existingSongs=null; loadMyFiles(); }catch(e){ alert('저장 실패: '+e.message); btn.textContent='💾 저장';btn.disabled=false; } }
 </script>
+<script>
+(function(){
+  const AGENT='http://127.0.0.1:8787';
+  async function checkTimeLinkLocal(){
+    const el=document.getElementById('localAgentState');
+    if(!el)return;
+    try{
+      const r=await fetch(AGENT+'/health',{cache:'no-store'});
+      const d=await r.json();
+      if(d.ok){
+        el.textContent='🟢 TimeLink Local 온라인 · 공유 파일 '+(d.files||0)+'개';
+        el.style.color='var(--mint)';
+      }else throw new Error();
+    }catch(e){
+      el.textContent='⚪ TimeLink Local 오프라인 · 로컬 에이전트를 먼저 실행하세요.';
+      el.style.color='var(--t3)';
+    }
+  }
+  setInterval(checkTimeLinkLocal,5000);
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',checkTimeLinkLocal);
+  else checkTimeLinkLocal();
+})();
+</script>
 </body>
 </html>
