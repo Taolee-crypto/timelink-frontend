@@ -284,9 +284,7 @@ var _user = null, _token = null, _file = null, _ftype = 'audio', _plan = 'A', _r
 var _fileDuration = 0, _fileWeight = 1.0, _coverFile = null, _fileBpm = 0;
 var _existingSongs = null, _myPage = 1, _myPerPage = 12, _myAllFiles = [];
 var _eid = null, _eCoverFile = null, _eGalFiles = [null,null,null,null], _eGalUrls = ['','','',''], _eTags = [], _eGalTarget = 0;
-
-// R2 없이 방문자의 브라우저를 로컬 저장 서버처럼 사용한다.
-if('serviceWorker' in navigator){ navigator.serviceWorker.register('/local-tl3-sw.js').catch(function(e){console.warn('Local TL3 SW:',e);}); }\n\nvar SUGG_TAGS = ['#새벽감성','#드라이브','#힐링','#작업할때','#운동할때','#카페','#산책','#비오는날','#봄날','#여름밤','#인디','#어쿠스틱','#R&B','#재즈','#슬플때','#설렐때','#이별','#사랑','#위로','#잠들기전'];
+var SUGG_TAGS = ['#새벽감성','#드라이브','#힐링','#작업할때','#운동할때','#카페','#산책','#비오는날','#봄날','#여름밤','#인디','#어쿠스틱','#R&B','#재즈','#슬플때','#설렐때','#이별','#사랑','#위로','#잠들기전'];
 
 function escapeHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function fmtBytes(b){if(b<1024) return b+'B'; if(b<1048576) return (b/1024).toFixed(1)+'KB'; return (b/1048576).toFixed(1)+'MB';}
@@ -382,15 +380,14 @@ async function doUpload(){ if(!_file){alert('MP3 파일을 선택하세요');ret
     setProg(75,'.tl3 v2 조립 중...');
     var tl3Buf=buildTL3(meta,encrypted);
     var tl3Blob=new Blob([tl3Buf],{type:'application/octet-stream'});
-    setProg(82,'내 컴퓨터에 TL3 저장 중...');
-    await saveLocalTL3(trackId,tl3Buf,meta);
+    setProg(82,'TL3 파일 준비 중...');
     var downloadUrl=URL.createObjectURL(tl3Blob);
     var a=document.createElement('a');
     a.href=downloadUrl;a.download=title.replace(/[\\/:*?"<>|]/g,'_')+'.tl3';
     document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(downloadUrl),3000);
     var fileTL=Math.round(_fileDuration*_fileWeight);
-    var body={title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),category:document.getElementById('fAudioCat').value,description:document.getElementById('fDesc').value.trim(),plan:_plan,weight:_fileWeight,file_tl:fileTL,stream_url:'/local-tl3/'+encodeURIComponent(trackId),cover_url:'',file_type:'audio/tl3',category_type:_ftype,duration:_fileDuration||0,user_id:_user.id,email:_user.email,username:_user.username||_user.email,bpm:_fileBpm,origin_hash:origHash,storage_mode:'browser_local',local_track_id:trackId,release_mode:'tl3',reward_mode:'usage_time'};
+    var body={title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),category:document.getElementById('fAudioCat').value,description:document.getElementById('fDesc').value.trim(),plan:_plan,weight:_fileWeight,file_tl:fileTL,stream_url:'',cover_url:'',file_type:'audio/tl3',category_type:_ftype,duration:_fileDuration||0,user_id:_user.id,email:_user.email,username:_user.username||_user.email,bpm:_fileBpm,origin_hash:origHash,storage_mode:'client_download',release_mode:'tl3',reward_mode:'usage_time'};
     if(_spTrack){body.spotify_id=_spTrack.id||'';body.spotify_url=_spTrack.url||'';body.preview_url=_spTrack.preview_url||'';}
     setProg(92,'작품 정보 등록 중...');
     var shareRes=await fetch(API+'/api/shares',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify(body)});
@@ -400,16 +397,7 @@ async function doUpload(){ if(!_file){alert('MP3 파일을 선택하세요');ret
     _existingSongs=null;
     setTimeout(()=>{hideProg();if(confirm('TL3 변환 완료!\\n내 컴퓨터에 .tl3 파일을 저장했습니다.\\nSharePlace로 이동할까요?'))location.href='shareplace.html';else clearFile();},700);
   }catch(err){hideProg();alert('TL3 변환 실패:\\n'+err.message);console.error(err);}
-}
-async function saveLocalTL3(id,buf,meta){
-  return new Promise((resolve,reject)=>{
-    var req=indexedDB.open('TimeLinkLocalTL3',1);
-    req.onupgradeneeded=function(){var db=req.result;if(!db.objectStoreNames.contains('tracks'))db.createObjectStore('tracks',{keyPath:'id'});};
-    req.onsuccess=function(){var db=req.result;var tx=db.transaction('tracks','readwrite');tx.objectStore('tracks').put({id:id,buffer:buf,meta:meta,createdAt:Date.now()});tx.oncomplete=function(){db.close();resolve();};tx.onerror=function(){db.close();reject(tx.error||new Error('로컬 저장 실패'));};};
-    req.onerror=function(){reject(req.error||new Error('IndexedDB 오류'));};
-  });
-}
-async function loadMyFiles(){ var g=document.getElementById('myFilesGrid'); g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px">로딩 중...</div>'; try{ var r=await fetch(API+'/api/shares'); var d=await r.json(); _myAllFiles=(d.shares||[]).filter(s=>String(s.user_id)===String(_user.id)); _myPage=1; if(!_myAllFiles.length){g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px"><div style="font-size:36px">📂</div><div>업로드한 파일이 없습니다</div></div>';return;} renderMyFileSlice(); }catch(e){g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--rose)">로드 실패</div>';} }
+}async function loadMyFiles(){ var g=document.getElementById('myFilesGrid'); g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px">로딩 중...</div>'; try{ var r=await fetch(API+'/api/shares'); var d=await r.json(); _myAllFiles=(d.shares||[]).filter(s=>String(s.user_id)===String(_user.id)); _myPage=1; if(!_myAllFiles.length){g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px"><div style="font-size:36px">📂</div><div>업로드한 파일이 없습니다</div></div>';return;} renderMyFileSlice(); }catch(e){g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--rose)">로드 실패</div>';} }
 function renderMyFileSlice(){ var g=document.getElementById('myFilesGrid'); if(!g) return; var start=(_myPage-1)*_myPerPage; var slice=_myAllFiles.slice(start,start+_myPerPage); g.innerHTML=slice.map(s=>'<div class="mf-card"><div class="mf-thumb">'+(s.cover_url?'<img src="'+escapeHtml(s.cover_url)+'" style="width:100%;height:100%;object-fit:cover">':'🎵')+'</div><div class="mf-body"><div class="mf-type">'+(s.category||'Music')+'</div><div class="mf-title">'+escapeHtml(s.title)+'</div><div class="mf-meta">'+escapeHtml(s.artist||'')+'</div><div class="mf-tl">⚡ '+Number(s.file_tl||0).toLocaleString()+' TL</div><div class="mf-actions"><button class="mf-btn" onclick="openEdit(\''+s.id+'\')">✏️ 수정</button><button class="mf-btn del" onclick="delShare(\''+s.id+'\',\''+escapeHtml(s.title)+'\')">삭제</button></div></div></div>').join(''); renderMyPager(); }
 function renderMyPager(){ var el=document.getElementById('myFilesPager'); if(!el) return; var total=_myAllFiles.length,totalPages=Math.ceil(total/_myPerPage); if(totalPages<=1){el.innerHTML='';return;} var html='<button class="pg-btn" onclick="goMyPage('+(_myPage-1)+')" '+(_myPage===1?'disabled':'')+'>←</button>'; for(var i=1;i<=Math.min(5,totalPages);i++) html+='<button class="pg-btn'+(i===_myPage?' active':'')+'" onclick="goMyPage('+i+')">'+i+'</button>'; if(totalPages>5) html+='<span class="pg-info">⋯</span><button class="pg-btn" onclick="goMyPage('+totalPages+')">'+totalPages+'</button>'; html+='<button class="pg-btn" onclick="goMyPage('+(_myPage+1)+')" '+(_myPage===totalPages?'disabled':'')+'>→</button>'; el.innerHTML=html; }
 function goMyPage(n){_myPage=n;renderMyFileSlice();}
