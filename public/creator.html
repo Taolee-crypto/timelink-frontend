@@ -417,14 +417,7 @@ async function uploadToOwnedStorage(blob,name,mime,progressCb){
     if(!(pr.ok||pr.status===201||pr.status===200))throw new Error('클라우드 청크 업로드 실패 [HTTP '+pr.status+']');
     if(progressCb)progressCb(end/blob.size);
   }
-  var finalJson=await (async function(){
-    // The final response is returned by the provider on the last PUT. Re-fetching is unnecessary.
-    return null;
-  })();
-  // Obtain the provider object by searching the newly created file in the provider app folder.
-  var lr=await fetch(API+'/api/storage/connections',{headers:{'Authorization':'Bearer '+_token}});
-  var ld=await lr.json(); // connection metadata is kept server-side
-  // The backend exposes a lightweight finalize-by-name endpoint for this purpose.
+  // The backend resolves the uploaded provider object by name after the last PUT.
   var fr=await fetch(API+'/api/storage/finalize',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify({provider:provider,connectionId:u.connectionId,name:name,size:blob.size,mime:mime})});
   var fd=await fr.json().catch(()=>({}));if(!fr.ok)throw new Error(fd.error||'클라우드 파일 등록 실패');
   return {provider:provider,connectionId:u.connectionId,objectId:fd.objectId,name:name,size:blob.size,mime:mime};
@@ -561,4 +554,4 @@ async function saveEdit(){ if(!_eid)return; var btn=document.getElementById('edi
 </script>
 </body>
 </html>
-\n<script>window.addEventListener('load',function(){setTimeout(function(){try{refreshStorageStatus();}catch(e){}},300);});</script>\n
+<script>window.addEventListener('load',function(){setTimeout(function(){try{refreshStorageStatus();}catch(e){}},300);});</script>
