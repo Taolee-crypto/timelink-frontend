@@ -405,7 +405,12 @@ var _myFileTL = {};
   }
 })();
 function doLogout(){ localStorage.removeItem('tl_token'); localStorage.removeItem('tl_user'); location.href='login.html'; }
-function getTotalTL(){ return ((_user&&_user.tl_p)||0)+((_user&&_user.tl_a)||0)+((_user&&_user.tl_b)||0); }
+function getTotalTL(){
+  if(!_user) return 0;
+  var v=Number(_user.tl_balance);
+  if(Number.isFinite(v)) return v;
+  return Number(_user.tl||0)+Number(_user.tl_p||0)+Number(_user.tl_a||0)+Number(_user.tl_b||0);
+}
 
 // ==================== API ====================
 function isType(s,t){
@@ -732,7 +737,7 @@ async function chargeTL(shareId,title){
     var r=await fetch(API_BASE+'/api/shares/'+shareId+'/charge',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},body:JSON.stringify({amount:amt,user_id:_user.id,email:_user.email})});
     var d=await r.json();
     if(!r.ok) throw new Error(d.error||'충전 실패');
-    _myFileTL[String(shareId)]=(_myFileTL[String(shareId)]||0)+amt;
+    _myFileTL[String(shareId)]=Number(d.tl_balance||(_myFileTL[String(shareId)]||0)+amt);
     var balEl=document.getElementById('sp-tl-bal'); if(balEl) balEl.textContent=getTotalTL().toLocaleString()+' TL';
     alert('✅ '+amt.toLocaleString()+' TL 충전 완료!\n현재 "'+title+'" TL: '+_myFileTL[String(shareId)].toLocaleString()+' TL');
     applyFilter();
