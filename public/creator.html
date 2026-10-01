@@ -457,8 +457,9 @@ async function doTL3Upload(){
     if(!initRes.ok && initRes.status===404){
       setProg(80,'구버전 서버 호환 업로드 중...');
       var legacyRes=await fetch(API+'/api/upload',{method:'POST',headers:{'Authorization':'Bearer '+_token},body:tfd});
-      var legacyData=await legacyRes.json().catch(()=>({}));
-      if(!legacyRes.ok) throw new Error(legacyData.error||('TL3 서버 저장 실패 ('+legacyRes.status+')'));
+      var legacyText=await legacyRes.text();
+      var legacyData={}; try{ legacyData=legacyText?JSON.parse(legacyText):{}; }catch(e){ legacyData={raw:legacyText}; }
+      if(!legacyRes.ok) throw new Error('TL3 서버 업로드 실패 [HTTP '+legacyRes.status+']\\n'+(legacyData.error||legacyData.message||legacyData.raw||legacyRes.statusText||'서버 오류'));
       var td=legacyData;
       initData=null;
     } else if(!initRes.ok) {
