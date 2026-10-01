@@ -451,7 +451,17 @@ async function doTL3Upload(){
     var tl3Blob=new Blob([tl3Buf],{type:'application/octet-stream'});
     setProg(80,'TL3 파일을 TimeLink 서버에 저장 중...');
     var trackId='track_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); var tfd=new FormData(); tfd.append('file',tl3Blob,trackId+'.tl3'); tfd.append('trackId',trackId); tfd.append('isTl3','true'); tfd.append('title',title); tfd.append('artist',artist); tfd.append('album',document.getElementById('fAlbum').value.trim()); tfd.append('category',document.getElementById('fAudioCat').value);
-    var tr=await fetch(API+'/api/upload',{method:'POST',headers:{'Authorization':'Bearer '+_token},body:tfd}); var td=await tr.json(); if(!tr.ok)throw new Error(td.error||'TL3 서버 저장 실패');
+    var initRes=await fetch(API+'/api/upload/init',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify({trackId:trackId,fileName:trackId+'.tl3',size:tl3Blob.size})});
+    var initData=await initRes.json().catch(()=>({})); if(!initRes.ok) throw new Error(initData.error||('TL3 업로드 초기화 실패 ('+initRes.status+')'));
+    var chunkSize=Number(initData.chunkSize||8*1024*1024), parts=[];
+    for(var off=0,partNo=1;off<tl3Blob.size;off+=chunkSize,partNo++){
+      var chunk=tl3Blob.slice(off,Math.min(off+chunkSize,tl3Blob.size));
+      var pr=await fetch(API+'/api/upload/part?key='+encodeURIComponent(initData.key)+'&uploadId='+encodeURIComponent(initData.uploadId)+'&partNumber='+partNo,{method:'PUT',headers:{'Authorization':'Bearer '+_token,'Content-Type':'application/octet-stream'},body:chunk});
+      var pd=await pr.json().catch(()=>({})); if(!pr.ok) throw new Error(pd.error||('TL3 청크 '+partNo+' 업로드 실패 ('+pr.status+')'));
+      parts.push({partNumber:partNo,etag:pd.etag}); setProg(80+Math.round((off+chunk.size)/tl3Blob.size*10),'TL3 서버 저장 중... '+Math.round((off+chunk.size)/tl3Blob.size*100)+'%');
+    }
+    var completeRes=await fetch(API+'/api/upload/complete',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify({key:initData.key,uploadId:initData.uploadId,parts:parts})});
+    var td=await completeRes.json().catch(()=>({})); if(!completeRes.ok) throw new Error(td.error||('TL3 저장 완료 실패 ('+completeRes.status+')'));
     var fileTL=Math.round((_fileDuration||0)*_fileWeight);
     var body={title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),category:document.getElementById('fAudioCat').value,description:document.getElementById('fDesc').value.trim(),plan:_plan,weight:_fileWeight,file_tl:fileTL,stream_url:td.stream_url||'',cover_url:'',file_type:'audio/tl3',category_type:_ftype,duration:_fileDuration||0,user_id:_user.id,email:_user.email,username:_user.username||_user.email,bpm:_fileBpm,origin_hash:origHash,storage_mode:'server',release_mode:'tl3',reward_mode:'usage_time'};
     if(_spTrack){body.spotify_id=_spTrack.id||'';body.spotify_url=_spTrack.url||'';body.preview_url=_spTrack.preview_url||'';}
