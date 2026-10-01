@@ -190,6 +190,42 @@ function handleConvert(req, res) {
   try {
     if (!req.file) return res.status(400).json({ ok: false, error: 'file is required' });
 
+    // Browser-generated TL3: store the already converted TL3 without wrapping/converting it again.
+    if ((req.body || {}).isTl3 === 'true') {
+      const body = req.body || {};
+      const buf = req.file.buffer;
+      if (buf.length < 7 || !buf.subarray(0, 4).equals(TLNK_MAGIC) || buf[4] !== 0x02) {
+        return res.status(400).json({ ok: false, error: 'valid TL3 v2 file is required' });
+      }
+      const mlen = buf.readUInt16BE(5);
+      if (7 + mlen > buf.length) return res.status(400).json({ ok: false, error: 'invalid TL3 header' });
+      const meta = JSON.parse(buf.subarray(7, 7 + mlen).toString('utf8'));
+      const trackId = String(body.trackId || ('track_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex')));
+      const fileName = trackId + '.tl3';
+      fs.writeFileSync(path.join(TRACKS_DIR, fileName), buf);
+      const record = {
+        id: trackId,
+        title: meta.title || body.title || path.basename(req.file.originalname, '.tl3'),
+        artist: meta.name || meta.artist || body.artist || 'Unknown Artist',
+        album: (body.album || '').trim(),
+        genre: meta.genre || body.category || 'Music',
+        duration: Number(meta.dur) || Number(body.duration) || 0,
+        bpm: Number(meta.bpm) || Number(body.bpm) || 0,
+        file: fileName,
+        size: buf.length,
+        original_size: 0,
+        hash: meta.hash || '',
+        file_type: 'audio/tl3',
+        cover_url: body.cover_url || '',
+        stream_url: '/api/stream/' + trackId,
+        created_at: Date.now()
+      };
+      const catalog = loadCatalog();
+      catalog.unshift(record);
+      saveCatalog(catalog);
+      return res.json({ ok: true, track: record, stream_url: record.stream_url, url: record.stream_url });
+    }
+
     // Free release: keep the original MP3 instead of converting it to TL3.
     if ((req.body || {}).release_mode === 'free_mp3') {
       const body = req.body || {};
