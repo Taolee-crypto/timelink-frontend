@@ -292,7 +292,7 @@ select.ei{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
 <button type="button" class="mf-btn" onclick="connectStorage('google_drive')">Google Drive 연결</button>
 <button type="button" class="mf-btn" onclick="connectStorage('onedrive')">OneDrive 연결</button>
-<button type="button" class="mf-btn" onclick="selectStorage('local_agent')">내 PC 사용</button>
+<button type="button" class="mf-btn" onclick="selectLocalStorage()">내 PC 사용</button>
 </div>
 <div id="storageStatus" style="margin-top:8px;color:var(--t3)">저장 위치 확인 중...</div>
 </div>
@@ -394,11 +394,30 @@ async function refreshStorageStatus(){
   else el.innerHTML='현재 저장 위치: <b>내 PC</b> · Google Drive/OneDrive를 연결하면 파일이 해당 클라우드에 직접 저장됩니다.';
 }
 function selectStorage(provider){localStorage.setItem('tl_storage_provider',provider);refreshStorageStatus();}
-function connectStorage(provider){
+function selectLocalStorage(){
+  localStorage.setItem('tl_storage_provider','local_agent');
+  refreshStorageStatus();
+  var input=document.getElementById('fileInput');
+  if(input) input.click();
+}
+async function connectStorage(provider){
   if(!_token){alert('먼저 로그인하세요.');return;}
-  var w=window.open(API+'/api/storage/connect/'+provider,'timelink_storage','width=600,height=760');
+  var w=window.open('about:blank','timelink_storage','width=600,height=760');
   if(!w){alert('팝업이 차단되었습니다. 팝업을 허용하세요.');return;}
-  var timer=setInterval(function(){if(w.closed){clearInterval(timer);refreshStorageStatus();}},500);
+  try{
+    var r=await fetch(API+'/api/storage/connect',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+_token,'Content-Type':'application/json'},
+      body:JSON.stringify({provider:provider})
+    });
+    var d=await r.json();
+    if(!r.ok||!d.authorization_url) throw new Error(d.error||'저장소 연결을 시작할 수 없습니다.');
+    w.location.href=d.authorization_url;
+    var timer=setInterval(function(){if(w.closed){clearInterval(timer);refreshStorageStatus();}},500);
+  }catch(e){
+    try{w.close();}catch(_){}
+    alert(e.message||'저장소 연결 실패');
+  }
 }
 window.addEventListener('message',function(e){if(e.data&&e.data.type==='timelink-storage-connected'){localStorage.setItem('tl_storage_provider',e.data.provider);refreshStorageStatus();}});
 async function disconnectStorage(provider){if(!confirm('이 저장소 연결을 해제하시겠습니까? 기존 클라우드 파일은 삭제하지 않습니다.'))return;await fetch(API+'/api/storage/connections/'+provider,{method:'DELETE',headers:{'Authorization':'Bearer '+_token}});if(localStorage.getItem('tl_storage_provider')===provider)localStorage.removeItem('tl_storage_provider');refreshStorageStatus();}
