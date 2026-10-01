@@ -4,7 +4,11 @@ title TimeLink Local
 cd /d "%~dp0"
 
 rem Include common installation locations so a newly installed app is found.
-set "PATH=%ProgramFiles%\nodejs;%ProgramFiles%\Cloudflare;%ProgramFiles(x86)%\Cloudflare;%LOCALAPPDATA%\Microsoft\WinGet\Links;%PATH%"
+set "PATH=%ProgramFiles%\nodejs;%ProgramFiles%\Cloudflare;%ProgramFiles(x86)%\Cloudflare;%ProgramFiles(x86)%\cloudflared;%LOCALAPPDATA%\Microsoft\WinGet\Links;%PATH%"
+
+rem Cloudflare may install directly under Program Files (x86)\cloudflared.
+if exist "%ProgramFiles(x86)%\cloudflared\cloudflared.exe" set "CLOUDFLARED_BIN=%ProgramFiles(x86)%\cloudflared\cloudflared.exe"
+if not defined CLOUDFLARED_BIN if exist "%ProgramFiles%\cloudflared\cloudflared.exe" set "CLOUDFLARED_BIN=%ProgramFiles%\cloudflared\cloudflared.exe"
 
 echo.
 echo ==========================================
@@ -29,7 +33,13 @@ if errorlevel 1 (
 echo Node.js:
 node --version
 echo cloudflared:
-cloudflared --version
+if defined CLOUDFLARED_BIN (
+ echo %CLOUDFLARED_BIN%
+ "%CLOUDFLARED_BIN%" --version
+) else (
+ where cloudflared
+ cloudflared --version
+)
 echo.
 echo Starting TimeLink Local...
 echo Local API: http://127.0.0.1:8787
