@@ -244,6 +244,33 @@ function handleConvert(req, res) {
 app.post('/api/convert', upload.single('file'), handleConvert);
 app.post('/api/upload', upload.single('file'), handleConvert);
 
+// Accept a TL3 file already converted in the creator's browser.
+// This keeps the existing server/storage/streaming path and avoids R2.
+app.post('/api/upload-tl3', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ ok:false, error:'file is required' });
+    const buf = req.file.buffer;
+    if (buf.length < 7 || !buf.subarray(0,4).equals(TLNK_MAGIC) || buf[4] !== 0x02) {
+      return res.status(400).json({ ok:false, error:'valid TL3 v2 file is required' });
+    }
+    const mlen = buf.readUInt16BE(5);
+    if (7 + mlen > buf.length) return res.status(400).json({ok:false,error:'invalid TL3 header'});
+    const meta = JSON.parse(buf.subarray(7,7+mlen).toString('utf8'));
+    const id = 'tl3_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex');
+    const fileName = id + '.tl3';
+    fs.writeFileSync(path.join(TRACKS_DIR,fileName),buf);
+    const record = {
+      id, title: meta.title || path.basename(req.file.originalname,'.tl3'),
+      artist: meta.name || meta.artist || 'Unknown Artist', album:(req.body.album||'').trim(),
+      genre: meta.genre || req.body.category || 'Music', duration:Number(meta.dur)||0, bpm:Number(meta.bpm)||0,
+      file:fileName, size:buf.length, original_size:0, hash:meta.hash||'', file_type:'audio/tl3',
+      cover_url:req.body.cover_url||'', stream_url:'/api/stream/'+id, created_at:Date.now()
+    };
+    const catalog=loadCatalog(); catalog.unshift(record); saveCatalog(catalog);
+    res.json({ok:true,track:record,stream_url:record.stream_url});
+  } catch(e) { res.status(400).json({ok:false,error:e.message}); }
+});
+
 /**
  * Decode endpoint — returns the raw MP3 bytes (for download / verification).
  */
