@@ -432,8 +432,9 @@ function detectType(s){
 }
 function typeEmoji(t){ return t==='video'?'🎬':t==='image'?'🖼️':t==='doc'?'📄':'🎵'; }
 function typeLabel(t){ return t==='video'?'영상':t==='image'?'이미지':t==='doc'?'문서':'오디오'; }
-function isFreeMp3(s){ var ft=String(s&&s.file_type||'').toLowerCase(), rm=String(s&&s.release_mode||'').toLowerCase(); return ft==='audio/mp3' || rm==='free_mp3_local' || rm==='free_mp3_external'; }
-function isTL3(s){ var ft=String(s&&s.file_type||'').toLowerCase(), rm=String(s&&s.release_mode||'').toLowerCase(); return ft==='audio/tl3' || rm==='tl3'; }
+function contentKind(s){ var ft=String(s&&s.file_type||'').toLowerCase(), ck=String(s&&s.content_kind||'').toLowerCase(), rm=String(s&&s.release_mode||'').toLowerCase(); if(ft==='audio/mp3'||ck==='mp3'||rm==='free_mp3_local'||rm==='free_mp3_external') return 'mp3'; if(ft==='audio/tl3'||ck==='tl3'||rm==='tl3') return 'tl3'; return 'unknown'; }
+function isFreeMp3(s){ return contentKind(s)==='mp3'; }
+function isTL3(s){ return contentKind(s)==='tl3'; }
 function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 async function loadShares(){
@@ -532,9 +533,10 @@ function renderGridView(list,g){
       (!hasUrl?'<span class="fc-tag" style="color:rgba(255,100,100,.7);border-color:rgba(255,100,100,.2)">파일없음</span>':'')+'</div>'+
       '<div class="fc-actions">'+
       (s.preview_url&&ftype==='audio'?'<button class="fc-btn fc-btn-primary" onclick="quickPreview(\''+escH(s.preview_url)+'\',\''+escH(s.title)+'\')">미리듣기</button>':'<button class="fc-btn fc-btn-ghost" disabled style="opacity:.35">미리듣기 없음</button>')+
-      '<button class="fc-btn fc-btn-charge" onclick="chargeTL(\''+s.id+'\',\''+escH(s.title)+'\')">TL 충전</button>'+
-      (hasUrl?'<button class="fc-btn-dl" onclick="downloadTL(\''+s.id+'\',\''+escH(s.title)+'\',this)">⬇ .tl</button>':'')+
-      '</div><div style="font-size:10px;color:rgba(255,255,255,.2);margin-top:8px;font-family:var(--fm)">'+escH(s.username||'')+' · '+new Date(s.created_at||0).toLocaleDateString('ko')+'</div></div></div>';
+      (isTl3?'<button class="fc-btn fc-btn-charge" onclick="chargeTL(\''+s.id+'\',\''+escH(s.title)+'\')">TL 충전</button>':'')+
+      (isTl3&&hasUrl?'<button class="fc-btn-dl" onclick="downloadTL(\''+s.id+'\',\''+escH(s.title)+'\',this)">⬇ .tl3</button>':'')+
+      (isMp3?'<span class="fc-btn" style="color:var(--mint);cursor:default">무료 재생 · TLC 보상</span>':'')+
+      '</div></div><div style="font-size:10px;color:rgba(255,255,255,.2);margin-top:8px;font-family:var(--fm)">'+escH(s.username||'')+' · '+new Date(s.created_at||0).toLocaleDateString('ko')+'</div></div></div>';
   }).join('');
 }
 function renderListView(list,g){
