@@ -432,6 +432,8 @@ function detectType(s){
 }
 function typeEmoji(t){ return t==='video'?'🎬':t==='image'?'🖼️':t==='doc'?'📄':'🎵'; }
 function typeLabel(t){ return t==='video'?'영상':t==='image'?'이미지':t==='doc'?'문서':'오디오'; }
+function isFreeMp3(s){ var ft=String(s&&s.file_type||'').toLowerCase(), rm=String(s&&s.release_mode||'').toLowerCase(); return ft==='audio/mp3' || rm==='free_mp3_local' || rm==='free_mp3_external'; }
+function isTL3(s){ var ft=String(s&&s.file_type||'').toLowerCase(), rm=String(s&&s.release_mode||'').toLowerCase(); return ft==='audio/tl3' || rm==='tl3'; }
 function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 async function loadShares(){
@@ -569,7 +571,7 @@ function tlPlayCard(el){
   if(_tlShareId===s.id&&_tlPlaying){ tlToggle(); return; }
   var fileUrl=getStreamUrl(s);
   if(!fileUrl){ alert('⚠️ "'+s.title+'"\n\n파일이 없습니다.'); return; }
-  var isFree=String(s.release_mode||'')==='free_mp3_local' || String(s.release_mode||'')==='free_mp3_external' || String(s.storage_mode||'')==='creator_pc' || String(s.storage_mode||'')==='external_url';
+  var isFree=isFreeMp3(s);
   var myTL=_myFileTL[String(s.id)]||0;
   var tlForPlay=myTL>0?myTL:(s.file_tl||0);
   if(!isFree && tlForPlay<=0){ if(confirm('"'+s.title+'"\n\nTL이 필요합니다.\n지금 충전하시겠습니까?')) chargeTL(String(s.id),s.title); return; }
@@ -577,7 +579,7 @@ function tlPlayCard(el){
 }
 function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   tlStop(true);
-  var isFree=!!shareObj && (String(shareObj.release_mode||'')==='free_mp3_local' || String(shareObj.release_mode||'')==='free_mp3_external' || String(shareObj.storage_mode||'')==='creator_pc' || String(shareObj.storage_mode||'')==='external_url');
+  var isFree=isFreeMp3(shareObj);
   _tlShareId=shareId; _tlMaxTL=isFree?0:fileTL; _tlCurrentTL=isFree?0:fileTL; _tlElapsed=0; _tlDuration=duration||0;
   document.getElementById('tlTitle').textContent=title;
   document.getElementById('tlArtist').textContent=artist||'';
@@ -653,7 +655,7 @@ function tlStartTimer(){
     _tlCurrentTL=Math.max(0,_tlCurrentTL-1); _tlElapsed++;
     if(_tlAudio&&!_tlAudio.paused) _tlElapsed=Math.round(_tlAudio.currentTime)||_tlElapsed;
     var curShare=_allShares.find(function(x){return String(x.id)===String(_tlShareId);});
-    var isFree=!!curShare && (String(curShare.release_mode||'')==='free_mp3_local' || String(curShare.release_mode||'')==='free_mp3_external' || String(curShare.storage_mode||'')==='creator_pc' || String(curShare.storage_mode||'')==='external_url');
+    var isFree=isFreeMp3(curShare);
     if(!isFree && _tlElapsed%5===0&&_tlShareId){
       fetch(API_BASE+'/api/shares/'+_tlShareId+'/consume',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},body:JSON.stringify({seconds:5,user_id:_user?_user.id:null})}).then(function(r){return r.json();}).then(function(d){ if(d.user_tl!==undefined){ _tlCurrentTL=d.user_tl; _myFileTL[String(_tlShareId)]=d.user_tl; } }).catch(function(){});
     }
