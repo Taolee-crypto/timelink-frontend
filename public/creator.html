@@ -495,20 +495,15 @@ async function doTL3Upload(){
     var tl3Buf=buildTL3(meta,encrypted);
     encrypted=null; mp3Buf=null;
     var tl3Blob=new Blob([tl3Buf],{type:'application/octet-stream'});
-    var provider=localStorage.getItem('tl_storage_provider')||'local_agent';
     var td=null,externalObject=null;
-    if(provider==='local_agent'){
-      // Legacy server storage is no longer the default. Local Agent is the only explicit local option.
-      var agentBase='http://127.0.0.1:8787',health=await fetch(agentBase+'/health');if(!health.ok)throw new Error('TimeLink Local Agent가 실행되고 있지 않습니다.');
-      setProg(80,'내 PC에 TL3 저장 중...');
-      var up=await fetch(agentBase+'/upload?name='+encodeURIComponent(title.replace(/[\\/:*?"<>|]/g,'_')+'.tl3'),{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:tl3Blob});
-      var ud=await up.json().catch(()=>({}));if(!up.ok)throw new Error(ud.error||'Local Agent TL3 저장 실패');
-      td={stream_url:ud.stream_url||'',storage_mode:'creator_pc',release_mode:'tl3'};
-    }else{
-      setProg(80,'내 클라우드에 TL3 저장 중...');
-      externalObject=await uploadToOwnedStorage(tl3Blob,title.replace(/[\\/:*?"<>|]/g,'_')+'.tl3','application/octet-stream',function(p){setProg(80+Math.round(p*10),'내 저장소에 TL3 저장 중... '+Math.round(p*100)+'%');});
-      td={stream_url:'',storage_mode:'external',release_mode:'tl3'};
-    }
+    // 변환 결과는 로그인 사용자와 서버에서 연결해 저장한다. Local Agent 의존성을 제거한다.
+    setProg(80,'TimeLink에 TL3 저장 중...');
+    var tr=new FormData();
+    tr.append('file',tl3Blob,title.replace(/[\\/:*?"<>|]/g,'_')+'.tl3');
+    var ur=await fetch(API+'/api/upload/tl3',{method:'POST',headers:{'Authorization':'Bearer '+_token},body:tr});
+    var ud=await ur.json().catch(function(){return {};});
+    if(!ur.ok||!ud.ok) throw new Error(ud.error||('TL3 저장 실패 [HTTP '+ur.status+']'));
+    td={stream_url:ud.stream_url||'',storage_mode:'timelink_d1',release_mode:'tl3'};
     var fileTL=Math.max(1,Math.round((_fileDuration||0)*_fileWeight));
     var body={title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),category:document.getElementById('fAudioCat').value,description:document.getElementById('fDesc').value.trim(),plan:_plan,weight:_fileWeight,file_tl:fileTL,stream_url:td.stream_url||'',cover_url:'',file_type:'audio/tl3',category_type:_ftype,duration:_fileDuration||0,user_id:_user.id,email:_user.email,username:_user.username||_user.email,bpm:_fileBpm,origin_hash:origHash,storage_mode:td.storage_mode,release_mode:'tl3',reward_mode:'tl_usage_poc',content_kind:'tl3'};
     if(_spTrack){body.spotify_id=_spTrack.id||'';body.spotify_url=_spTrack.url||'';body.preview_url=_spTrack.preview_url||'';}
