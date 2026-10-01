@@ -500,7 +500,8 @@ function renderPager(total){
 function renderShares(list,total){
   var g=document.getElementById('fileGrid');
   if(!list.length){
-    g.innerHTML='<div style="text-align:center;padding:80px 20px;color:var(--t3);font-size:14px">📂 공유된 파일이 없습니다<br><br><span id="emptyShareAction" style="display:none"></span></div>';
+    updateShareUploadVisibility(0);
+    g.innerHTML='<div style="text-align:center;padding:80px 20px;color:var(--t3);font-size:14px">📂 공유된 파일이 없습니다</div>';
     renderPager(0);
     return;
   }
@@ -524,9 +525,10 @@ function renderGridView(list,g){
   g.innerHTML=list.slice(0,30).map(function(s,i){
     var ftype=detectType(s);
     var hasUrl=!!(s.stream_url||s.preview_url);
+    var kind=contentKind(s), isMp3=kind==='mp3', isTl3=kind==='tl3';
     var myTL=_myFileTL[String(s.id)]||0;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
-    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':myTL>0?'playable':'need-charge');
+    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':isMp3||myTL>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     var dur=s.duration?(Math.floor(s.duration/60)+':'+String(s.duration%60).padStart(2,'0')):'--:--';
     return '<div class="file-card" id="card-'+s.id+'"><div class="file-thumb" style="background:'+bgs[i%bgs.length]+';position:relative">'+
@@ -536,7 +538,7 @@ function renderGridView(list,g){
       '<div class="fc-body"><div class="fc-type">'+typeLabel(ftype)+' · '+dur+'</div>'+
       '<div class="fc-title" style="cursor:pointer" onclick="location.href=\'track.html?id='+s.id+'\'">'+escH(s.title)+'</div>'+
       '<div class="fc-artist">'+escH(s.artist||s.username||'')+'</div>'+
-      '<div class="fc-meta"><span class="fc-price" style="color:'+(myTL>0?'var(--mint)':'var(--purple)')+'">⚡ '+(myTL>0?myTL.toLocaleString():Number(s.file_tl||0).toLocaleString())+' TL</span>'+
+      '<div class="fc-meta"><span class="fc-price" style="color:'+(isMp3?'var(--mint)':myTL>0?'var(--mint)':'var(--purple)')+'">'+(isMp3?'FREE · POC → TLC':'⚡ '+(myTL>0?myTL.toLocaleString():Number(s.file_tl||0).toLocaleString())+' TL')+'</span>'+
       '<span class="fc-stats">🔥'+Number(s.pulse||0).toLocaleString()+'</span></div>'+
       '<div class="fc-tags"><span class="fc-tag">#'+escH(s.category||'Music')+'</span>'+
       (!hasUrl?'<span class="fc-tag" style="color:rgba(255,100,100,.7);border-color:rgba(255,100,100,.2)">파일없음</span>':'')+'</div>'+
@@ -554,6 +556,7 @@ function renderListView(list,g){
     var ftype=detectType(s);
     var tc={audio:'audio',video:'video',image:'image',doc:'doc'}[ftype]||'audio';
     var hasUrl=!!(s.stream_url||s.preview_url);
+    var kind=contentKind(s), isMp3=kind==='mp3', isTl3=kind==='tl3';
     var myTL=_myFileTL[String(s.id)]||0;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
     var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':isMp3||myTL>0?'playable':'need-charge');
@@ -568,7 +571,7 @@ function renderListView(list,g){
       '<div class="fl-type-badge '+tc+'">'+(isMp3?'무료 MP3':isTl3?'TL3':typeLabel(ftype))+'</div>'+
       '<div class="fl-right"><div class="fl-pulse">🔥 '+Number(s.pulse||0).toLocaleString()+'</div>'+
       (isMp3?'<div class="fl-price" style="color:var(--mint)">FREE · POC → TLC</div>':'<div class="fl-price" style="color:'+(myTL>0?'var(--mint)':'var(--purple)')+'">⚡ '+(myTL>0?myTL.toLocaleString():Number(s.file_tl||0).toLocaleString())+' TL</div>')+
-      '<div class="fl-actions"><button class="fl-btn fl-btn-charge" onclick="chargeTL(\''+s.id+'\',\''+escH(s.title)+'\')">TL 충전</button></div></div></div>';
+      '<div class="fl-actions">'+(isTl3?'<button class="fl-btn fl-btn-charge" onclick="chargeTL(\''+s.id+'\',\''+escH(s.title)+'\')">TL 충전</button>':'<span class="fl-btn" style="color:var(--mint);cursor:default">무료 재생 · TLC 보상</span>')+'</div></div></div>';
   }).join('');
 }
 
@@ -671,7 +674,7 @@ function tlStartTimer(){
       fetch(API_BASE+'/api/shares/'+_tlShareId+'/consume',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},body:JSON.stringify({seconds:5,user_id:_user?_user.id:null})}).then(function(r){return r.json();}).then(function(d){ if(d.user_tl!==undefined){ _tlCurrentTL=d.user_tl; _myFileTL[String(_tlShareId)]=d.user_tl; } }).catch(function(){});
     }
     tlUpdateUI();
-    if(_tlCurrentTL<=0){ tlStop(); document.getElementById('tlWarning').style.display='block'; }
+    if(!isFree && _tlCurrentTL<=0){ tlStop(); document.getElementById('tlWarning').style.display='block'; }
   },1000);
 }
 function tlUpdateUI(){
