@@ -348,20 +348,17 @@ function buildTL3(meta,encAudio){ var mb=new TextEncoder().encode(JSON.stringify
 async function detectBPM(arrayBuffer){ try{ var ctx=new (window.AudioContext||window.webkitAudioContext)(); var audio=await ctx.decodeAudioData(arrayBuffer.slice(0)); var data=audio.getChannelData(0), sr=audio.sampleRate; var chunkSize=Math.floor(sr*0.01), energies=[], limit=Math.min(data.length,sr*60); for(var i=0;i<limit;i+=chunkSize){ var e=0; for(var j=i;j<Math.min(i+chunkSize,data.length);j++) e+=data[j]*data[j]; energies.push(e/chunkSize); } var avg=energies.reduce((a,b)=>a+b,0)/energies.length, beats=0; for(var k=1;k<energies.length;k++) if(energies[k]>avg*1.5&&energies[k-1]<=avg*1.5) beats++; var bpm=Math.round((beats/(limit/sr))*60); if(bpm<50) bpm*=2; if(bpm>200) bpm/=2; ctx.close(); return Math.max(60,Math.min(180,bpm))||120; }catch(e){ return 120; } }
 async function doUpload(){ if(!_file){alert('MP3 파일을 선택하세요');return;} var title=document.getElementById('fTitle').value.trim(); if(!title){alert('제목을 입력하세요');return;} var artist=document.getElementById('fCreator').value.trim(); var dup=await checkDuplicate(_spTrack,title,artist); if(dup.isDuplicate){alert(dup.message);return;} if(_file.size>500*1024*1024){alert('최대 500MB');return;}
   if(_releaseMode==='free'){
-    showProg('🆓','무료 MP3 공개 중...','원본 MP3를 공개 저장소에 업로드 중',0);
+    showProg('🆓','무료 MP3 공개 중...','기존 TimeLink 서버에 원본 MP3 저장 중',0);
     try{
-      var freeId='free_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
-      var fd=new FormData(); fd.append('file',_file,_file.name); fd.append('trackId',freeId); fd.append('isTl3','false'); fd.append('releaseMode','free_mp3');
-      setProg(20,'MP3 업로드 중...');
-      var xhrRes=await new Promise((resolve,reject)=>{var xhr=new XMLHttpRequest();xhr.timeout=180000;xhr.upload.onprogress=e=>{if(e.lengthComputable)setProg(20+Math.round(e.loaded/e.total*60),fmtBytes(e.loaded)+' / '+fmtBytes(e.total));};xhr.onload=()=>{try{var d=JSON.parse(xhr.responseText);if(xhr.status<300)resolve(d);else reject(new Error(d.error||'HTTP '+xhr.status));}catch(e){reject(new Error('응답 오류'));}};xhr.onerror=()=>reject(new Error('네트워크 오류'));xhr.open('POST',API+'/api/upload-original');xhr.setRequestHeader('Authorization','Bearer '+_token);xhr.send(fd);});
-      var coverUrl='';
-      if(_coverFile){var cfd=new FormData();cfd.append('file',_coverFile);cfd.append('trackId','cover_'+freeId);try{var cr=await fetch(API+'/api/upload',{method:'POST',headers:{'Authorization':'Bearer '+_token},body:cfd});var cd=await cr.json();if(cd.ok)coverUrl=cd.url||'';}catch(e){}}
-      if(_spTrack&&(_spTrack.cover_url||(_spTrack.album&&_spTrack.album.images&&_spTrack.album.images[0]))) coverUrl=_spTrack.cover_url||_spTrack.album.images[0].url||'';
-      setProg(90,'무료 파일 등록 중...');
-      var freeBody={title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),category:document.getElementById('fAudioCat').value,description:document.getElementById('fDesc').value.trim(),plan:'FREE',weight:0,file_tl:0,stream_url:xhrRes.url||xhrRes.stream_url||'',cover_url:coverUrl,file_type:'audio/mp3',category_type:_ftype,duration:_fileDuration||0,user_id:_user.id,email:_user.email,username:_user.username||_user.email,bpm:_fileBpm,origin_hash:'' ,release_mode:'free_mp3',reward_mode:'usage_time'};
+      var fd=new FormData(); fd.append('file',_file,_file.name); fd.append('title',title); fd.append('artist',artist); fd.append('album',document.getElementById('fAlbum').value.trim()); fd.append('category',document.getElementById('fAudioCat').value); fd.append('duration',String(_fileDuration||0)); fd.append('bpm',String(_fileBpm||0)); fd.append('release_mode','free_mp3');
+      setProg(15,'MP3 업로드 중...');
+      var xhrRes=await new Promise((resolve,reject)=>{var xhr=new XMLHttpRequest();xhr.timeout=180000;xhr.upload.onprogress=e=>{if(e.lengthComputable)setProg(15+Math.round(e.loaded/e.total*65),fmtBytes(e.loaded)+' / '+fmtBytes(e.total));};xhr.onload=()=>{try{var d=JSON.parse(xhr.responseText);if(xhr.status<300)resolve(d);else reject(new Error(d.error||'HTTP '+xhr.status));}catch(e){reject(new Error('응답 오류'));}};xhr.onerror=()=>reject(new Error('네트워크 오류'));xhr.ontimeout=()=>reject(new Error('업로드 시간 초과'));xhr.open('POST',API+'/api/upload');xhr.setRequestHeader('Authorization','Bearer '+_token);xhr.send(fd);});
+      var coverUrl=''; if(_spTrack&&(_spTrack.cover_url||(_spTrack.album&&_spTrack.album.images&&_spTrack.album.images[0]))) coverUrl=_spTrack.cover_url||_spTrack.album.images[0].url||'';
+      setProg(90,'무료 작품 정보 등록 중...');
+      var freeBody={title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),category:document.getElementById('fAudioCat').value,description:document.getElementById('fDesc').value.trim(),plan:'FREE',weight:0,file_tl:0,stream_url:xhrRes.stream_url||xhrRes.track&&xhrRes.track.stream_url||'',cover_url:coverUrl,file_type:'audio/mp3',category_type:_ftype,duration:_fileDuration||0,user_id:_user.id,email:_user.email,username:_user.username||_user.email,bpm:_fileBpm,origin_hash:'',release_mode:'free_mp3',reward_mode:'usage_time'};
       var sr=await fetch(API+'/api/shares',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify(freeBody)});var sd=await sr.json();if(!sr.ok)throw new Error(sd.error||'등록 실패');
-      setProg(100,'공개 완료!');_existingSongs=null;setTimeout(()=>{hideProg();if(confirm('무료 MP3 공개 완료!\nSharePlace에서 보기?'))location.href='shareplace.html';else clearFile();},600);
-    }catch(err){hideProg();alert('무료 공개 실패:\n'+err.message);console.error(err);} return;
+      setProg(100,'공개 완료!');_existingSongs=null;setTimeout(()=>{hideProg();if(confirm('무료 MP3 공개 완료!\\nSharePlace에서 보기?'))location.href='shareplace.html';else clearFile();},600);
+    }catch(err){hideProg();alert('무료 공개 실패:\\n'+err.message);console.error(err);} return;
   }
   showProg('⚙️','.tl3 생성 중...','내 컴퓨터에서 변환 중',0);
   try{
@@ -387,7 +384,15 @@ async function doUpload(){ if(!_file){alert('MP3 파일을 선택하세요');ret
     document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(downloadUrl),3000);
     var fileTL=Math.round(_fileDuration*_fileWeight);
-    var body={title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),category:document.getElementById('fAudioCat').value,description:document.getElementById('fDesc').value.trim(),plan:_plan,weight:_fileWeight,file_tl:fileTL,stream_url:'',cover_url:'',file_type:'audio/tl3',category_type:_ftype,duration:_fileDuration||0,user_id:_user.id,email:_user.email,username:_user.username||_user.email,bpm:_fileBpm,origin_hash:origHash,storage_mode:'client_download',release_mode:'tl3',reward_mode:'usage_time'};
+    setProg(84,'TL3 파일을 TimeLink 서버에 저장 중...');
+    var tfd=new FormData();
+    tfd.append('file',tl3Blob,title.replace(/[\\/:*?"<>|]/g,'_')+'.tl3');
+    tfd.append('album',document.getElementById('fAlbum').value.trim());
+    tfd.append('category',document.getElementById('fAudioCat').value);
+    tfd.append('cover_url','');
+    var tr=await fetch(API+'/api/upload-tl3',{method:'POST',headers:{'Authorization':'Bearer '+_token},body:tfd});
+    var td=await tr.json(); if(!tr.ok) throw new Error(td.error||'TL3 저장 실패');
+    var body={title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),category:document.getElementById('fAudioCat').value,description:document.getElementById('fDesc').value.trim(),plan:_plan,weight:_fileWeight,file_tl:fileTL,stream_url:td.stream_url||'',cover_url:'',file_type:'audio/tl3',category_type:_ftype,duration:_fileDuration||0,user_id:_user.id,email:_user.email,username:_user.username||_user.email,bpm:_fileBpm,origin_hash:origHash,storage_mode:'client_download',release_mode:'tl3',reward_mode:'usage_time'};
     if(_spTrack){body.spotify_id=_spTrack.id||'';body.spotify_url=_spTrack.url||'';body.preview_url=_spTrack.preview_url||'';}
     setProg(92,'작품 정보 등록 중...');
     var shareRes=await fetch(API+'/api/shares',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify(body)});
