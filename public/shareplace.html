@@ -449,7 +449,7 @@ function detectType(s){
 }
 function typeEmoji(t){ return t==='video'?'🎬':t==='image'?'🖼️':t==='doc'?'📄':'🎵'; }
 function typeLabel(t){ return t==='video'?'영상':t==='image'?'이미지':t==='doc'?'문서':'오디오'; }
-function contentKind(s){ var ft=String(s&&s.file_type||'').toLowerCase(), ck=String(s&&s.content_kind||'').toLowerCase(), rm=String(s&&s.release_mode||'').toLowerCase(), su=String(s&&s.stream_url||'').toLowerCase(); if(rm.indexOf('free_mp3')===0||ck==='mp3'||ft==='audio/mp3') return 'mp3'; if(rm==='tl3'||ck==='tl3'||ft==='audio/tl3'||/\.(tl3|tl4|tlg|tlf)(\?|$)/.test(su)) return 'tl3'; return Number(s&&s.file_tl||0)>0?'tl3':'mp3'; }
+function contentKind(s){ var ft=String(s&&s.file_type||'').toLowerCase(), ck=String(s&&s.content_kind||'').toLowerCase(), rm=String(s&&s.release_mode||'').toLowerCase(), su=String(s&&s.stream_url||'').toLowerCase(); if(rm.indexOf('free_mp3')===0||ck==='mp3'||ft==='audio/mp3') return 'mp3'; if(rm==='tl3'||ck==='tl3'||ft==='audio/tl3'||/\.(tl3|tl4|tlg|tlf)(\?|$)/.test(su)) return 'tl3'; if (/\.tl3(\?|$)/.test(su)) return 'tl3'; return 'mp3'; }
 function isFreeMp3(s){ return contentKind(s)==='mp3'; }
 function isTL3(s){ return contentKind(s)==='tl3'; }
 function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -672,7 +672,7 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   _tlAudio=new Audio();
   _tlAudio.preload='auto';
   _tlAudio.onerror=function(){
-    showPlayerError('파일 로드 실패 — 스트림 주소 또는 파일 형식을 확인하세요');
+    if(!(_tlAudio&&_tlAudio.src&&(_tlAudio.src.startsWith('blob:')||_tlAudio.src.includes('.tl3')))) showPlayerError('파일 로드 실패 — 스트림 주소 또는 파일 형식을 확인하세요');
   };
   _tlAudio.onended=function(){ tlStop(); };
 
@@ -738,7 +738,7 @@ function tlStartTimer(){
     var curShare=_allShares.find(function(x){return String(x.id)===String(_tlShareId);});
     var isFree=isFreeMp3(curShare);
     if(!isFree && _tlElapsed%5===0&&_tlShareId){
-      fetch(API_BASE+'/api/shares/'+_tlShareId+'/consume',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},body:JSON.stringify({seconds:5,user_id:_user?_user.id:null})}).then(function(r){return r.json();}).then(function(d){ if(d.ok&&d.user_tl!==undefined){ _tlCurrentTL=d.user_tl; _myFileTL[String(_tlShareId)]=d.user_tl; } else if(d.need_charge){ tlStop(); if(confirm('곡의 TL이 부족합니다.\n지금 충전하시겠습니까?\n\n필요: '+d.required+' TL\n곡 잔액: '+d.current+' TL\n지갑: '+d.wallet+' TL')){ chargeTL(_tlShareId, document.getElementById('tlTitle').textContent); } } }).catch(function(){});
+      fetch(API_BASE+'/api/shares/'+_tlShareId+'/consume',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},body:JSON.stringify({seconds:5,user_id:_user?_user.id:null})}).then(function(r){return r.json();}).then(function(d){ if(d.ok&&d.user_tl!==undefined){ _tlCurrentTL=d.user_tl; _myFileTL[String(_tlShareId)]=d.user_tl; if(d.wallet_tl!==undefined){ _user.tl=Number(d.wallet_tl||0); var el=document.getElementById('tbTL'); if(el) el.textContent=Number(_user.tl).toLocaleString()+' TL'; } } else if(d.need_charge){ tlStop(); if(confirm('곡의 TL이 부족합니다.\n지금 충전하시겠습니까?\n\n필요: '+d.required+' TL\n곡 잔액: '+d.current+' TL\n지갑: '+d.wallet+' TL')){ chargeTL(_tlShareId, document.getElementById('tlTitle').textContent); } } }).catch(function(){});
     }
     tlUpdateUI();
     if(!isFree && _tlCurrentTL<=0){ tlStop(); document.getElementById('tlWarning').style.display='block'; }
