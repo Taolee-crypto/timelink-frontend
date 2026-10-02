@@ -223,8 +223,15 @@ select.ei{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
         <div class="fsec-title">① 파일 형식 선택</div>
         <div class="file-type-selector"><div class="ftype-btn active" onclick="selectFType(this,'audio')" style="grid-column:1/-1"><span class="ftype-icon">🎵</span><span class="ftype-label">MP3 음악 파일</span><span class="ftype-exts">원본 MP3 · 무료 공개 또는 TL3 변환 선택</span></div></div>
         <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)"><div class="dz-icon">🎵</div><div class="dz-title">MP3 파일을 여기에 드롭</div><div class="dz-sub">또는 <span onclick="event.stopPropagation();document.getElementById('fileInput').click()">파일 선택</span></div></div>
-        <input type="file" id="fileInput" style="display:none" accept="audio/mpeg,.mp3" onchange="onFileSelected(this.files[0])">
-        <div class="file-selected" id="fileSelectedBar"><div class="fs-icon" id="fsIcon">🎵</div><div class="fs-info"><div class="fs-name" id="fsName">-</div><div class="fs-meta" id="fsMeta">-</div></div><button class="fs-remove" onclick="clearFile()">✕ 제거</button></div><div id="localPreviewWrap" style="display:none;margin-top:12px;padding:12px 14px;border:1px solid rgba(0,229,160,.22);border-radius:10px;background:rgba(0,229,160,.04)">
+        <input type="file" id="fileInput" style="display:none" accept="audio/mpeg,.mp3" multiple onchange="onFilesSelected(this.files)">
+        <div id="fileListWrap" style="display:none;margin-top:14px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div style="font-size:12px;font-weight:700;color:var(--t2)">📁 선택된 파일 <span id="fileCount" style="color:var(--purple)">0</span>개</div>
+    <button onclick="clearAllFiles()" style="padding:5px 12px;border-radius:7px;border:1px solid rgba(251,113,133,.3);background:transparent;color:var(--rose);font-size:11px;cursor:pointer">전체 제거</button>
+  </div>
+  <div id="fileList" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto"></div>
+</div>
+<div class="file-selected" id="fileSelectedBar"><div class="fs-icon" id="fsIcon">🎵</div><div class="fs-info"><div class="fs-name" id="fsName">-</div><div class="fs-meta" id="fsMeta">-</div></div><button class="fs-remove" onclick="clearFile()">✕ 제거</button></div><div id="localPreviewWrap" style="display:none;margin-top:12px;padding:12px 14px;border:1px solid rgba(0,229,160,.22);border-radius:10px;background:rgba(0,229,160,.04)">
 <div style="font-size:11px;color:var(--mint);font-weight:700;margin-bottom:7px">▶ 현재 브라우저에서 재생</div>
 <audio id="localPreviewAudio" controls preload="metadata" style="width:100%"></audio>
 </div>
@@ -367,6 +374,97 @@ function switchTab(el,t){ document.querySelectorAll('.tab').forEach(x=>x.classLi
 async function loadCreatorWallet(){ if(!_user||!_token) return; try{ var r=await fetch(API+'/api/eco/wallet',{headers:{'Authorization':'Bearer '+_token}}); var d=await r.json(); var w=d.wallet||d; document.getElementById('crTLbal').textContent=Number(w.tl_total||w.tl||0).toLocaleString()+' TL'; document.getElementById('crTLCbal').textContent=Number(w.tlc_balance||w.tlc||0).toFixed(2)+' TLC'; document.getElementById('crPOC').textContent=Number(w.poc_index||1.0).toFixed(2); }catch(e){} }
 async function searchSpotify(){ var q=document.getElementById('spQuery').value.trim(); if(!q){alert('검색어를 입력하세요');return;} var res=document.getElementById('spResults'); res.innerHTML='<div style="text-align:center;padding:16px;color:var(--t3)">🔍 검색 중...</div>'; try{ var r=await fetch(API+'/api/spotify/search?q='+encodeURIComponent(q)+'&type=track&limit=30'); var d=await r.json(); var tracks=d.tracks||[]; if(!tracks.length){res.innerHTML='<div style="text-align:center;padding:16px;color:var(--t3)">😔 검색 결과 없음</div>';return;} window._spTracks=tracks; res.innerHTML=tracks.map((t,i)=>{ var dur=t.duration_ms?Math.floor(t.duration_ms/60000)+':'+String(Math.floor((t.duration_ms%60000)/1000)).padStart(2,'0'):'--:--'; var artists=Array.isArray(t.artists)?t.artists.map(a=>a.name).join(', '):(t.artist||''); var cover=t.cover_url||(t.album&&t.album.images&&t.album.images[0]?t.album.images[0].url:''); return '<div class="sp-item" onclick="pickSpotify('+i+')" id="sp-'+i+'"><img class="sp-cover" src="'+escapeHtml(cover)+'" onerror="this.style.display=\'none\'"><div style="flex:1"><div class="sp-name">'+escapeHtml(t.title||t.name||'')+'</div><div class="sp-sub">'+escapeHtml(artists)+(t.album?' · '+escapeHtml(t.album):'')+' </div></div><div class="sp-dur">'+dur+'</div></div>'; }).join(''); }catch(e){res.innerHTML='<div style="text-align:center;padding:16px;color:var(--rose)">❌ 검색 실패</div>';} }
 async function pickSpotify(i){ document.querySelectorAll('.sp-item').forEach(x=>x.classList.remove('selected')); var item=document.getElementById('sp-'+i); if(item) item.classList.add('selected'); var t=window._spTracks[i]; if(!t) return; var title=t.title||t.name||''; var artist=Array.isArray(t.artists)?t.artists.map(a=>a.name).join(', '):(t.artist||''); var dup=await checkDuplicate(t,title,artist); if(dup.isDuplicate){alert(dup.message); _spTrack=null;return;} _spTrack=t; document.getElementById('fTitle').value=title; document.getElementById('fCreator').value=artist; if(t.album) document.getElementById('fAlbum').value=t.album; var cover=t.cover_url||(t.album&&t.album.images&&t.album.images[0]?t.album.images[0].url:''); if(cover){document.getElementById('coverPreviewImg').src=cover;document.getElementById('coverPreviewImg').style.display='block';document.getElementById('coverPreviewIcon').style.display='none';} clearDuplicateWarning(); if(_file) document.getElementById('uploadBtn').disabled=false; updateFreeButtonState(); }
+// ⭐ 여러 파일 처리
+var _pendingFiles = [];   // [{file, title, artist, coverUrl, duration, size, bpm}]
+async function onFilesSelected(fileList){
+  if(!fileList || !fileList.length) return;
+  var arr = Array.from(fileList);
+  // MP3만 필터
+  var mp3s = arr.filter(function(f){ return f.type.includes('mp3') || f.name.match(/\.mp3$/i); });
+  if(mp3s.length !== arr.length){
+    alert('MP3 파일만 업로드 가능합니다. (MP3가 아닌 '+(arr.length - mp3s.length)+'개 제외)');
+  }
+  if(!mp3s.length) return;
+
+  for(var i=0; i<mp3s.length; i++){
+    var f = mp3s[i];
+    var title = f.name.replace(/\.mp3$/i,'').replace(/[_\-]+/g,' ').trim();
+    _pendingFiles.push({
+      file: f,
+      title: title,
+      artist: '',
+      coverUrl: '',
+      coverFile: null,
+      duration: 0,
+      size: f.size,
+      bpm: 0
+    });
+  }
+  document.getElementById('fileInput').value = '';
+  renderFileList();
+  // 첫 파일을 메인 UI에도 표시 (기존 단일 파일 UI 호환)
+  if(!_file && _pendingFiles.length){
+    // 기존 단일 UI에는 첫 파일만 미리보기
+    onFileSelectedPreview(_pendingFiles[0].file);
+  }
+}
+
+function onFileSelectedPreview(f){
+  _file = f;
+  document.getElementById('fsIcon').textContent='🎵';
+  document.getElementById('fsName').textContent=f.name;
+  document.getElementById('fsMeta').textContent=fmtBytes(f.size)+' · MP3';
+  document.getElementById('fileSelectedBar').classList.add('show');
+  document.getElementById('tlFileSize').textContent=fmtBytes(f.size);
+  var audio = document.createElement('audio');
+  var url = URL.createObjectURL(f);
+  audio.src = url;
+  audio.onloadedmetadata = function(){
+    _fileDuration = Math.round(audio.duration) || 0;
+    var m = Math.floor(_fileDuration/60), s = _fileDuration % 60;
+    document.getElementById('tlDuration').textContent = m+':'+String(s).padStart(2,'0');
+    updateFileTL();
+    URL.revokeObjectURL(url);
+  };
+}
+
+function renderFileList(){
+  var wrap = document.getElementById('fileListWrap');
+  var list = document.getElementById('fileList');
+  var cnt = document.getElementById('fileCount');
+  if(!wrap || !list) return;
+  if(!_pendingFiles.length){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  if(cnt) cnt.textContent = _pendingFiles.length;
+  list.innerHTML = _pendingFiles.map(function(p, i){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px;background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:10px">' +
+      '<div style="width:38px;height:38px;border-radius:8px;background:rgba(139,92,246,.15);display:flex;align-items:center;justify-content:center;font-size:16px">🎵</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<input type="text" value="'+escapeHtml(p.title)+'" placeholder="제목" onchange="_pendingFiles['+i+'].title=this.value" style="width:100%;padding:5px 8px;background:rgba(255,255,255,.04);border:1px solid var(--bd2);border-radius:6px;color:#fff;font-size:12px;outline:none">' +
+        '<div style="font-size:10px;color:var(--t3);margin-top:3px">'+fmtBytes(p.size)+'</div>' +
+      '</div>' +
+      '<button onclick="removeFileItem('+i+')" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(251,113,133,.3);background:transparent;color:var(--rose);font-size:11px;cursor:pointer">✕</button>' +
+    '</div>';
+  }).join('');
+}
+
+function removeFileItem(i){
+  _pendingFiles.splice(i, 1);
+  renderFileList();
+  if(!_pendingFiles.length){
+    _file = null;
+    document.getElementById('fileSelectedBar').classList.remove('show');
+  }
+}
+
+function clearAllFiles(){
+  _pendingFiles = [];
+  _file = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('fileSelectedBar').classList.remove('show');
+  renderFileList();
+}
+
 async function onFileSelected(f){ if(!f) return; if(!f.type.includes('mp3')&&!f.name.match(/\.mp3$/i)){alert('MP3 파일만 업로드 가능합니다.');document.getElementById('fileInput').value='';return;} if(window._localPreviewUrl){URL.revokeObjectURL(window._localPreviewUrl);window._localPreviewUrl=null;} _file=f; _fileBpm=0; document.getElementById('fsIcon').textContent='🎵'; document.getElementById('fsName').textContent=f.name; var pw=document.getElementById('localPreviewWrap'),pa=document.getElementById('localPreviewAudio'); if(pw&&pa){window._localPreviewUrl=URL.createObjectURL(f);pa.src=window._localPreviewUrl;pw.style.display='block';} document.getElementById('fsMeta').textContent=fmtBytes(f.size)+' · MP3'; document.getElementById('fileSelectedBar').classList.add('show'); document.getElementById('tlFileSize').textContent=fmtBytes(f.size); document.getElementById('tlBpm').textContent=f.size>30*1024*1024?'120 BPM (대용량 기본값)':'분석 중...'; if(!document.getElementById('fTitle').value) document.getElementById('fTitle').value=f.name.replace(/\.mp3$/i,'').replace(/[_\-]+/g,' '); var audio=document.createElement('audio'); var url=URL.createObjectURL(f); audio.src=url; audio.onloadedmetadata=function(){ _fileDuration=Math.round(audio.duration)||0; var m=Math.floor(_fileDuration/60), s=_fileDuration%60; document.getElementById('tlDuration').textContent=m+':'+String(s).padStart(2,'0'); updateFileTL(); URL.revokeObjectURL(url); }; if(f.size<=30*1024*1024){ f.arrayBuffer().then(buf=>detectBPM(buf)).then(bpm=>{ _fileBpm=bpm; document.getElementById('tlBpm').textContent=bpm+' BPM'; }).catch(()=>{ _fileBpm=120; document.getElementById('tlBpm').textContent='120 BPM (기본값)'; }); } else { _fileBpm=120; } var currentTitle=document.getElementById('fTitle').value.trim(); var currentArtist=document.getElementById('fCreator').value.trim(); if(currentTitle&&currentArtist){ var dup=await checkDuplicate(_spTrack,currentTitle,currentArtist); if(dup.isDuplicate){alert(dup.message);document.getElementById('uploadBtn').disabled=true; if(document.getElementById('freeUploadBtn')) document.getElementById('freeUploadBtn').disabled=true; return;} } document.getElementById('uploadBtn').disabled=false; updateFreeButtonState(); }
 function showProg(ic,tt,sb,p){ document.getElementById('poIcon').textContent=ic; document.getElementById('poTitle').textContent=tt; document.getElementById('poSub').textContent=sb; document.getElementById('poBar').style.width=p+'%'; document.getElementById('poPct').textContent=p+'%'; document.getElementById('progressOverlay').classList.add('show'); }
 function setProg(p,sb){ document.getElementById('poBar').style.width=p+'%'; document.getElementById('poPct').textContent=p+'%'; if(sb) document.getElementById('poSub').textContent=sb; }
