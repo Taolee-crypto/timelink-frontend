@@ -699,7 +699,7 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   }
 
   // TL3는 서버 스트림을 가져와 TLNK 컨테이너를 복호화한 뒤 MP3 Blob으로 재생한다.
-  var authHeaders=_token?{'Authorization':'Bearer '+_token}:{};
+  var authHeaders=_token?{'Authorization':'Bearer '+_token}:{}; if(/trycloudflare\.com|127\.0\.0\.1|localhost/i.test(fileUrl)) authHeaders={};
   var _applySrc=function(u){
     _tlAudio.src=u;
     _tlAudio.load();
@@ -738,7 +738,7 @@ function tlStartTimer(){
     var curShare=_allShares.find(function(x){return String(x.id)===String(_tlShareId);});
     var isFree=isFreeMp3(curShare);
     if(!isFree && _tlElapsed%5===0&&_tlShareId){
-      fetch(API_BASE+'/api/shares/'+_tlShareId+'/consume',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},body:JSON.stringify({seconds:5,user_id:_user?_user.id:null})}).then(function(r){return r.json();}).then(function(d){ if(d.user_tl!==undefined){ _tlCurrentTL=d.user_tl; _myFileTL[String(_tlShareId)]=d.user_tl; } }).catch(function(){});
+      fetch(API_BASE+'/api/shares/'+_tlShareId+'/consume',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},body:JSON.stringify({seconds:5,user_id:_user?_user.id:null})}).then(function(r){return r.json();}).then(function(d){ if(d.ok&&d.user_tl!==undefined){ _tlCurrentTL=d.user_tl; _myFileTL[String(_tlShareId)]=d.user_tl; } else if(d.need_charge){ tlStop(); if(confirm('곡의 TL이 부족합니다.\n지금 충전하시겠습니까?\n\n필요: '+d.required+' TL\n곡 잔액: '+d.current+' TL\n지갑: '+d.wallet+' TL')){ chargeTL(_tlShareId, document.getElementById('tlTitle').textContent); } } }).catch(function(){});
     }
     tlUpdateUI();
     if(!isFree && _tlCurrentTL<=0){ tlStop(); document.getElementById('tlWarning').style.display='block'; }
