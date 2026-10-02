@@ -493,27 +493,35 @@ async function doFreeUpload(){
     var coverUrl='';
     if(_spTrack&&(_spTrack.cover_url||(_spTrack.album&&_spTrack.album.images&&_spTrack.album.images[0])))
       coverUrl=_spTrack.cover_url||_spTrack.album.images[0].url||'';
-    setProg(30,'TimeLink 무료 MP3 저장 중...');
-    var mp3fd=new FormData(); mp3fd.append('file',_file,_file.name);
-    var mp3r=await fetch(API+'/api/upload/mp3',{method:'POST',headers:{'Authorization':'Bearer '+_token},body:mp3fd});
-    var mp3d=await mp3r.json().catch(()=>({}));
-    if(!mp3r.ok||!mp3d.ok) throw new Error(mp3d.error||('MP3 저장 실패 [HTTP '+mp3r.status+']'));
-    var upo=null;
-    setProg(80,'TimeLink에 무료 MP3 등록 중...');
+    setProg(30,'내 컴퓨터의 TimeLink Local에 MP3 저장 중...');
+    var localAgent='http://127.0.0.1:8787';
+    var ar=await fetch(localAgent+'/health',{cache:'no-store'});
+    var ad=await ar.json().catch(()=>({}));
+    if(!ar.ok||!ad.ok) throw new Error('TimeLink Local이 실행되어 있지 않습니다. 먼저 TimeLink Local을 실행하세요.');
+    var localUpload=await fetch(localAgent+'/upload?name='+encodeURIComponent(_file.name),{
+      method:'POST',
+      headers:{'Content-Type':'audio/mpeg','Content-Length':String(_file.size)},
+      body:_file
+    });
+    var localData=await localUpload.json().catch(()=>({}));
+    if(!localUpload.ok||!localData.ok) throw new Error(localData.error||('내 PC 저장 실패 [HTTP '+localUpload.status+']'));
+    if(!localData.stream_url) throw new Error('내 PC 공개 스트림 주소를 만들지 못했습니다.');
+    setProg(80,'TimeLink에 무료 MP3 정보 등록 중...');
     var body={
       title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),
       category:document.getElementById('fAudioCat').value,description:document.getElementById('fDesc').value.trim(),
-      plan:'FREE',weight:0,file_tl:0,stream_url:mp3d.stream_url||'',cover_url:coverUrl,file_type:'audio/mp3',
+      plan:'FREE',weight:0,file_tl:0,stream_url:localData.stream_url,cover_url:coverUrl,file_type:'audio/mp3',
       category_type:_ftype,duration:_fileDuration||0,user_id:_user.id,email:_user.email,
       username:_user.username||_user.email,bpm:_fileBpm||0,origin_hash:hash,
-      storage_mode:'external',release_mode:'free_mp3_external',reward_mode:'poc_tlc',
-      content_kind:'mp3',rights_confirmed:true,release_check:dup.verification||'unavailable'
+      storage_mode:'creator_pc',release_mode:'free_mp3_local',reward_mode:'poc_tlc',
+      content_kind:'mp3',rights_confirmed:true,release_check:dup.verification||'unavailable',
+      local_storage_token:localData.token||'',local_agent:'timelink-local'
     };
     if(_spTrack){body.spotify_id=_spTrack.id||'';body.spotify_url=_spTrack.url||_spTrack.spotify_url||'';body.preview_url=_spTrack.preview_url||'';}
     var sr=await fetch(API+'/api/shares',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify(body)});
     var sd=await sr.json().catch(()=>({}));
     if(!sr.ok) throw new Error(sd.error||'무료 MP3 등록 실패');
-    setProg(90,'로컬 브라우저 재생 준비 중...');
+    setProg(90,'무료 MP3 공개 재생 준비 중...');
     window._localPreviewUrl=URL.createObjectURL(_file);
     var audio=document.getElementById('localPreviewAudio');
     if(audio){audio.src=window._localPreviewUrl;audio.load();}
@@ -521,7 +529,7 @@ async function doFreeUpload(){
     _existingSongs=null;
     setTimeout(()=>{
       hideProg();
-      alert('무료 MP3 등록이 완료되었습니다.\n\n원본 MP3는 TimeLink 서버에 업로드하지 않았습니다.\n현재 브라우저에서 바로 재생할 수 있습니다.\n다른 이용자가 지속적으로 재생하려면 창작자 서버/웹호스팅 또는 개인 클라우드 같은 외부 저장 위치가 필요합니다.');
+      alert('무료 MP3 등록이 완료되었습니다.\n\n원본 MP3는 TimeLink 서버에 저장하지 않았습니다.\n내 컴퓨터의 TimeLink Local에서 공개 스트리밍합니다.\n내 컴퓨터가 꺼지면 재생할 수 없습니다.');
       if(audio) audio.scrollIntoView({behavior:'smooth',block:'center'});
     },500);
   }catch(err){
