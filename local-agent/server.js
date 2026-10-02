@@ -38,8 +38,11 @@ function cors(res) {
   res.setHeader('Access-Control-Allow-Private-Network', 'true');
 }
 
-function safeName(name) {
-  const base = path.basename(String(name || 'audio.mp3')).replace(/[^a-zA-Z0-9._ -]/g, '_');
+function safeName(name, kind) {
+  const k = String(kind || 'mp3').toLowerCase();
+  const fallback = k === 'tl3' ? 'file.tl3' : 'audio.mp3';
+  const base = path.basename(String(name || fallback)).replace(/[^a-zA-Z0-9._ -]/g, '_');
+  if(k === 'tl3') return base.toLowerCase().endsWith('.tl3') ? base : base + '.tl3';
   return base.toLowerCase().endsWith('.mp3') ? base : base + '.mp3';
 }
 
@@ -73,7 +76,8 @@ function startTunnel() {
 }
 
 async function handleUpload(req, res, url) {
-  const name = safeName(url.searchParams.get('name'));
+  const kind = String(url.searchParams.get('kind') || 'mp3').toLowerCase() === 'tl3' ? 'tl3' : 'mp3';
+  const name = safeName(url.searchParams.get('name'), kind);
   const token = crypto.randomBytes(18).toString('hex');
   const filePath = path.join(DATA_DIR, token + '-' + name);
   await fsp.mkdir(DATA_DIR, { recursive: true });
@@ -115,8 +119,11 @@ async function handleUpload(req, res, url) {
       token,
       name,
       size: total,
-      public_url: publicBaseUrl + '/local/' + token,
-      stream_url: publicBaseUrl + '/local/' + token,
+      public_url: publicBaseUrl ? publicBaseUrl + '/local/' + token : null,
+      stream_url: publicBaseUrl ? publicBaseUrl + '/local/' + token : 'http://' + HOST + ':' + PORT + '/local/' + token,
+      local_url: 'http://' + HOST + ':' + PORT + '/local/' + token,
+      public_available: !!publicBaseUrl,
+      kind,
       storage_mode: 'creator_pc'
     });
   } catch (e) {
@@ -139,7 +146,7 @@ async function serveFile(req, res, token) {
 
   const range = req.headers.range;
   const common = {
-    'Content-Type': 'audio/mpeg',
+    'Content-Type': item.name.toLowerCase().endsWith('.tl3') ? 'application/octet-stream' : 'audio/mpeg',
     'Accept-Ranges': 'bytes',
     'Access-Control-Allow-Origin': '*',
     'Cache-Control': 'no-store',
