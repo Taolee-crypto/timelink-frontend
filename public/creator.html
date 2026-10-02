@@ -493,13 +493,17 @@ async function doFreeUpload(){
     var coverUrl='';
     if(_spTrack&&(_spTrack.cover_url||(_spTrack.album&&_spTrack.album.images&&_spTrack.album.images[0])))
       coverUrl=_spTrack.cover_url||_spTrack.album.images[0].url||'';
-    setProg(30,'내 구글 드라이브에 MP3 저장 중...');
-    var upo=await uploadToOwnedStorage(_file,_file.name,'audio/mpeg',function(p){setProg(30+Math.round(p*45),'내 드라이브에 MP3 저장 중... '+Math.round(p*100)+'%');});
+    setProg(30,'TimeLink 무료 MP3 저장 중...');
+    var mp3fd=new FormData(); mp3fd.append('file',_file,_file.name);
+    var mp3r=await fetch(API+'/api/upload/mp3',{method:'POST',headers:{'Authorization':'Bearer '+_token},body:mp3fd});
+    var mp3d=await mp3r.json().catch(()=>({}));
+    if(!mp3r.ok||!mp3d.ok) throw new Error(mp3d.error||('MP3 저장 실패 [HTTP '+mp3r.status+']'));
+    var upo=null;
     setProg(80,'TimeLink에 무료 MP3 등록 중...');
     var body={
       title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),
       category:document.getElementById('fAudioCat').value,description:document.getElementById('fDesc').value.trim(),
-      plan:'FREE',weight:0,file_tl:0,stream_url:'',cover_url:coverUrl,file_type:'audio/mp3',
+      plan:'FREE',weight:0,file_tl:0,stream_url:mp3d.stream_url||'',cover_url:coverUrl,file_type:'audio/mp3',
       category_type:_ftype,duration:_fileDuration||0,user_id:_user.id,email:_user.email,
       username:_user.username||_user.email,bpm:_fileBpm||0,origin_hash:hash,
       storage_mode:'external',release_mode:'free_mp3_external',reward_mode:'poc_tlc',
@@ -509,7 +513,6 @@ async function doFreeUpload(){
     var sr=await fetch(API+'/api/shares',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify(body)});
     var sd=await sr.json().catch(()=>({}));
     if(!sr.ok) throw new Error(sd.error||'무료 MP3 등록 실패');
-    await registerExternalObject(upo,sd.id);
     setProg(90,'로컬 브라우저 재생 준비 중...');
     window._localPreviewUrl=URL.createObjectURL(_file);
     var audio=document.getElementById('localPreviewAudio');
