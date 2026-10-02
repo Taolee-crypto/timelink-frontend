@@ -305,7 +305,13 @@ select.ei{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 </label>
 <div id="releaseCheckStatus" style="margin-top:9px;color:var(--t3)">파일을 선택하면 TimeLink와 외부 음악 카탈로그를 확인합니다.</div>
 </div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="upload-btn" id="freeUploadBtn" onclick="doFreeUpload()" disabled style="background:linear-gradient(135deg,#10b981,#059669)">🌐 무료 MP3 공개</button><button class="upload-btn" id="uploadBtn" onclick="doTL3Upload()">⚡ TL3 변환 후 공유</button></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+  <button class="upload-btn" id="freeUploadBtn" onclick="doFreeUploadOrGroup()" disabled style="background:linear-gradient(135deg,#10b981,#059669)">🌐 무료 MP3 공개</button>
+  <button class="upload-btn" id="uploadBtn" onclick="doTL3UploadOrGroup()">⚡ TL3 변환 후 공유</button>
+</div>
+<div id="groupUploadInfo" style="display:none;margin-top:10px;padding:10px 14px;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);border-radius:10px;font-size:12px;color:var(--t2)">
+  📁 <span id="groupUploadCount">0</span>개 파일을 순차 업로드합니다.
+</div>
     </div>
     <div id="tabMyfiles" style="display:none" class="content"><div style="display:flex;justify-content:space-between;margin-bottom:20px"><div><div style="font-size:15px;font-weight:700">내 공유 파일</div><div style="font-size:12px;color:var(--t3)">업로드한 파일 목록</div></div><button onclick="loadMyFiles()" style="padding:8px 18px;border-radius:9px;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.2);color:var(--purple);font-size:12px;font-weight:700;cursor:pointer">🔄 새로고침</button></div><div class="my-files-grid" id="myFilesGrid"><div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--t3)">로딩 중...</div></div><div class="pager" id="myFilesPager"></div></div>
   </main>
@@ -606,15 +612,39 @@ function updateFreeButtonState(){
   var rights=document.getElementById('rightsConfirm');
   var title=document.getElementById('fTitle');
   var status=document.getElementById('releaseCheckStatus');
-  var ready=!!_file && !!(rights&&rights.checked) && !!(title&&title.value.trim());
+
+  // ⭐ 그룹 모드 vs 단일 모드
+  var isGroup = _pendingFiles && _pendingFiles.length > 1;
+  var hasAny = !!_file || (_pendingFiles && _pendingFiles.length > 0);
+
+  var ready;
+  if (isGroup) {
+    ready = hasAny && !!(rights && rights.checked);
+  } else {
+    ready = !!_file && !!(rights && rights.checked) && !!(title && title.value.trim());
+  }
+
   if(btn){
     btn.disabled=!ready;
     btn.style.opacity=ready?'1':'0.5';
     btn.style.cursor=ready?'pointer':'not-allowed';
   }
+
+  // 그룹 안내 표시
+  var groupInfo = document.getElementById('groupUploadInfo');
+  var groupCnt = document.getElementById('groupUploadCount');
+  if (groupInfo && groupCnt) {
+    if (_pendingFiles && _pendingFiles.length > 1) {
+      groupInfo.style.display = 'block';
+      groupCnt.textContent = _pendingFiles.length;
+    } else {
+      groupInfo.style.display = 'none';
+    }
+  }
+
   if(status && !ready){
-    if(!_file) status.textContent='파일을 선택하면 TimeLink와 외부 음악 카탈로그를 확인합니다.';
-    else if(!(title&&title.value.trim())) status.textContent='작품 제목을 입력하세요.';
+    if(!hasAny) status.textContent='파일을 선택하면 TimeLink와 외부 음악 카탈로그를 확인합니다.';
+    else if(!isGroup && !(title&&title.value.trim())) status.textContent='작품 제목을 입력하세요.';
     else if(!(rights&&rights.checked)) status.textContent='무료 공개 권리 확인에 동의하세요.';
   }
 }
@@ -641,7 +671,96 @@ document.addEventListener('DOMContentLoaded',function(){
   if(r)r.addEventListener('change',updateFreeButtonState);
   updateFreeButtonState();
 });
-async function doFreeUpload(){
+// ⭐ 그룹 업로드: 무료 MP3 vs TL3 선택
+async function doFreeUploadOrGroup(){
+  if (_pendingFiles && _pendingFiles.length > 1) {
+    return doGroupUpload('free');
+  }
+  return doFreeUpload();
+}
+
+async function doTL3UploadOrGroup(){
+  if (_pendingFiles && _pendingFiles.length > 1) {
+    return doGroupUpload('tl3');
+  }
+  return doTL3Upload();
+}
+
+// ⭐ 그룹 업로드 (순차 처리)
+async function doGroupUpload(mode){
+  var list = _pendingFiles.slice();
+  if(!list.length){ alert('파일을 선택하세요.'); return; }
+
+  var rights = document.getElementById('rightsConfirm');
+  if(mode === 'free' && !(rights && rights.checked)){
+    alert('무료 MP3 공개 권리 확인에 동의해야 합니다.');
+    return;
+  }
+
+  // 기존 단일 파일 UI 상태 저장
+  var savedFile = _file;
+  var savedTitle = document.getElementById('fTitle').value;
+  var savedArtist = document.getElementById('fCreator').value;
+  var savedAlbum = document.getElementById('fAlbum').value;
+
+  var total = list.length;
+  var success = 0, failed = 0;
+  var failedTitles = [];
+
+  for(var i = 0; i < total; i++){
+    var p = list[i];
+
+    // ⭐ 각 곡 정보를 단일 UI에 세팅 (doFreeUpload가 이걸 참조)
+    _file = p.file;
+    _fileDuration = p.duration || 0;
+    _fileBpm = p.bpm || 0;
+    document.getElementById('fTitle').value = p.title || '';
+    document.getElementById('fCreator').value = p.artist || '';
+    document.getElementById('fAlbum').value = p.album || '';
+
+    // 진행률 표시
+    showProg('📤', '그룹 업로드 중...',
+      (i+1)+' / '+total+' — '+(p.title||p.file.name), Math.round((i/total)*100));
+
+    try {
+      if (mode === 'free') {
+        await doFreeUpload(true);   // 조용한 모드 (alert 없이)
+      } else {
+        await doTL3Upload(true);
+      }
+      success++;
+    } catch(err){
+      failed++;
+      failedTitles.push(p.title || p.file.name);
+    }
+
+    setProg(Math.round(((i+1)/total)*100), (i+1)+' / '+total+' 완료');
+  }
+
+  // 원래 상태 복원
+  _file = savedFile;
+  document.getElementById('fTitle').value = savedTitle;
+  document.getElementById('fCreator').value = savedArtist;
+  document.getElementById('fAlbum').value = savedAlbum;
+
+  hideProg();
+
+  var msg = '📁 그룹 업로드 완료\n\n✅ 성공: ' + success + '개';
+  if (failed > 0) {
+    msg += '\n❌ 실패: ' + failed + '개';
+    msg += '\n\n실패한 곡:\n' + failedTitles.slice(0, 5).join('\n');
+    if (failedTitles.length > 5) msg += '\n... 외 ' + (failedTitles.length - 5) + '개';
+  }
+  alert(msg);
+
+  // 성공 시 리스트 비우기
+  if (failed === 0) {
+    _pendingFiles = [];
+    renderFileList();
+  }
+}
+
+async function doFreeUpload(silent){
   if(!_file){alert('MP3 파일을 먼저 선택하세요.');return;}
   if(!document.getElementById('rightsConfirm')?.checked){alert('무료 MP3 공개 권리 확인에 동의해야 합니다.');return;}
   var title=document.getElementById('fTitle').value.trim(),artist=document.getElementById('fCreator').value.trim();
@@ -699,13 +818,13 @@ async function doFreeUpload(){
     _existingSongs=null;
     setTimeout(()=>{
       hideProg();
-      alert('무료 MP3 등록이 완료되었습니다.\n\n원본 MP3는 TimeLink 서버에 저장하지 않았습니다.\n내 컴퓨터의 TimeLink Local에서 공개 스트리밍합니다.\n내 컴퓨터가 꺼지면 재생할 수 없습니다.');
+      if(!silent) alert('무료 MP3 등록이 완료되었습니다.\n\n원본 MP3는 TimeLink 서버에 저장하지 않았습니다.\n내 컴퓨터의 TimeLink Local에서 공개 스트리밍합니다.\n내 컴퓨터가 꺼지면 재생할 수 없습니다.');
       if(audio) audio.scrollIntoView({behavior:'smooth',block:'center'});
     },500);
   }catch(err){
     hideProg();
     if(status) status.innerHTML='<span style="color:var(--rose)">❌ '+escapeHtml(err?.message||String(err))+'</span>';
-    alert('무료 MP3 공개 실패:\n'+(err?.message||String(err)));
+    if(!silent) alert('무료 MP3 공개 실패:\n'+(err?.message||String(err)));
     console.error('Free MP3 release error:',err);
   }
 }
@@ -713,7 +832,7 @@ async function registerExternalObject(o,shareId){
   var r=await fetch(API+'/api/storage/object/register',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify({connectionId:o.connectionId,provider:o.provider,objectId:o.objectId,name:o.name,size:o.size,mime:o.mime,shareId:shareId})});
   var d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'외부 저장 파일 등록 실패');return d;
 }
-async function doTL3Upload(){
+async function doTL3Upload(silent){
   var info=await prepareUpload(); if(!info)return;
   var title=info.title, artist=info.artist;
   showProg('⚡','TL3 변환 시작...','브라우저에서 안전하게 변환합니다.',0);
@@ -757,10 +876,10 @@ async function doTL3Upload(){
     var dl=URL.createObjectURL(tl3Blob), a=document.createElement('a'); a.href=dl; a.download=title.replace(/[\\\\/:*?"<>|]/g,'_')+'.tl3'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(dl),3000);
     setProg(100,'TL3 공유 완료!');
     _existingSongs=null;
-    setTimeout(()=>{hideProg();if(confirm('TL3 공유가 완료되었습니다.\\n내 컴퓨터에도 .tl3 파일을 저장했습니다.\\nSharePlace에서 확인할까요?'))location.href='shareplace.html';else clearFile();},700);
+    setTimeout(()=>{hideProg();if(silent){clearFile();return;} if(confirm('TL3 공유가 완료되었습니다.\\n내 컴퓨터에도 .tl3 파일을 저장했습니다.\\nSharePlace에서 확인할까요?'))location.href='shareplace.html';else clearFile();},700);
   }catch(err){
     hideProg();
-    alert('TL3 변환 실패\\n\\n'+(err&&err.message?err.message:String(err)));
+    if(!silent) alert('TL3 변환 실패\\n\\n'+(err&&err.message?err.message:String(err)));
     console.error('TL3 conversion error:',err);
   }
 }
