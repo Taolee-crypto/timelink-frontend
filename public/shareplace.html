@@ -473,6 +473,27 @@ async function loadShares(){
     if(sc) sc.innerHTML='연결 오류 <button onclick="loadShares()" style="margin-left:8px;padding:3px 10px;border-radius:6px;border:1px solid var(--purple);background:transparent;color:var(--purple);font-size:11px;cursor:pointer">🔄 재시도</button>';
     applyFilter();
   }
+  // ⭐ 로그인 유저라면 각 곡의 내 TL 잔액 로드
+  if (_token) loadMyTL();
+}
+
+// ⭐ 내 곡별 TL 잔액 로드
+async function loadMyTL(){
+  var tl3Songs = _allShares.filter(function(s){ return contentKind(s) === 'tl3'; });
+  if (!tl3Songs.length) return;
+  for (var i = 0; i < tl3Songs.length; i++) {
+    var s = tl3Songs[i];
+    try {
+      var r = await fetch(API_BASE + '/api/shares/' + s.id + '/my-tl', {
+        headers: { 'Authorization': 'Bearer ' + (_token || '') }
+      });
+      var d = await r.json();
+      if (d && d.ok) {
+        _myFileTL[String(s.id)] = Number(d.tl_balance || 0);
+      }
+    } catch(e){}
+  }
+  applyFilter();   // UI 재렌더
 }
 function updateCounts(){
   var s=_allShares;
