@@ -582,16 +582,39 @@ function playTrack(){
   if(_tlAudio){ _tlAudio.pause(); _tlAudio = null; }
   _tlAudio = new Audio();
   _tlAudio.preload = 'auto';
-  _tlAudio.onerror = function(){ alert('재생 실패. 파일을 확인해주세요'); stopPlay(); };
-  _tlAudio.oncanplay = function(){
-    _tlAudio.play().then(()=>{
-      _tlPlaying = true;
-      startTLTimer();
-    }).catch(e=>{ alert('재생 실패: '+e.message); stopPlay(); });
+  _tlAudio.onerror = function(){
+    if(_tlAudio && _tlAudio.src && (_tlAudio.src.startsWith('blob:') || _tlAudio.src.includes('.tl3'))) return;
+    alert('재생 실패. 파일을 확인해주세요'); stopPlay();
   };
   _tlAudio.onended = function(){ stopPlay(); };
-  _tlAudio.src = fileUrl;
-  _tlAudio.load();
+
+  // ⭐ MP3는 그냥 재생, TL3는 디코딩 후 재생
+  if(_tlFree){
+    _tlAudio.oncanplay = function(){
+      _tlAudio.play().then(()=>{ _tlPlaying = true; startTLTimer(); })
+        .catch(e=>{ alert('재생 실패: '+e.message); stopPlay(); });
+    };
+    _tlAudio.src = fileUrl;
+    _tlAudio.load();
+  } else if(window.TL3 && TL3.resolveUrl){
+    TL3.resolveUrl(fileUrl, {
+      fetchOptions: { headers: getTok() ? {'Authorization':'Bearer '+getTok()} : {} },
+      fallbackDirect: false
+    }).then(function(u){
+      _tlAudio.src = u;
+      _tlAudio.load();
+      return _tlAudio.play();
+    }).then(function(){
+      _tlPlaying = true;
+      startTLTimer();
+    }).catch(function(e){
+      alert('TL3 재생 실패: ' + (e && e.message ? e.message : e));
+      stopPlay();
+    });
+  } else {
+    alert('TL3 플레이어 모듈을 불러오지 못했습니다');
+    stopPlay();
+  }
 }
 
 function startTLTimer(){
