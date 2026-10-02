@@ -514,13 +514,19 @@ async function doTL3Upload(){
     var tl3Blob=new Blob([tl3Buf],{type:'application/octet-stream'});
     var td=null,externalObject=null;
     // 변환 결과는 로그인 사용자와 서버에서 연결해 저장한다. Local Agent 의존성을 제거한다.
-    setProg(80,'TimeLink에 TL3 저장 중...');
-    var tr=new FormData();
-    tr.append('file',tl3Blob,title.replace(/[\\/:*?"<>|]/g,'_')+'.tl3');
-    var ur=await fetch(API+'/api/upload/tl3',{method:'POST',headers:{'Authorization':'Bearer '+_token},body:tr});
-    var ud=await ur.json().catch(function(){return {};});
-    if(!ur.ok||!ud.ok) throw new Error(ud.error||('TL3 저장 실패 [HTTP '+ur.status+']'));
-    td={stream_url:ud.stream_url||'',storage_mode:'timelink_d1',release_mode:'tl3'};
+    setProg(80,'내 컴퓨터의 TimeLink Local에 TL3 저장 중...');
+    var localAgent='http://127.0.0.1:8787';
+    var ar=await fetch(localAgent+'/health',{cache:'no-store'});
+    var ad=await ar.json().catch(function(){return {};});
+    if(!ar.ok||!ad.ok) throw new Error('TimeLink Local이 실행되어 있지 않습니다. 먼저 TimeLink Local을 실행하세요.');
+    var localUpload=await fetch(localAgent+'/upload?kind=tl3&name='+encodeURIComponent(title.replace(/[\\/:*?"<>|]/g,'_')+'.tl3'),{
+      method:'POST',
+      headers:{'Content-Type':'application/octet-stream'},
+      body:tl3Blob
+    });
+    var localData=await localUpload.json().catch(function(){return {};});
+    if(!localUpload.ok||!localData.ok) throw new Error(localData.error||('내 PC TL3 저장 실패 [HTTP '+localUpload.status+']'));
+    td={stream_url:localData.stream_url||localData.local_url||'',storage_mode:'creator_pc',release_mode:'tl3'};
     var fileTL=Math.max(1,Math.round((_fileDuration||0)*_fileWeight));
     var body={title:title,artist:artist,album:document.getElementById('fAlbum').value.trim(),category:document.getElementById('fAudioCat').value,description:document.getElementById('fDesc').value.trim(),plan:_plan,weight:_fileWeight,file_tl:fileTL,stream_url:td.stream_url||'',cover_url:'',file_type:'audio/tl3',category_type:_ftype,duration:_fileDuration||0,user_id:_user.id,email:_user.email,username:_user.username||_user.email,bpm:_fileBpm,origin_hash:origHash,storage_mode:td.storage_mode,release_mode:'tl3',reward_mode:'tl_usage_poc',content_kind:'tl3'};
     if(_spTrack){body.spotify_id=_spTrack.id||'';body.spotify_url=_spTrack.url||'';body.preview_url=_spTrack.preview_url||'';}
