@@ -1,4 +1,4 @@
-const http = require('http');
+﻿const http = require('http');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
@@ -25,7 +25,7 @@ function json(res, status, body) {
     'Content-Length': data.length,
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Private-Network': 'true'
   });
   res.end(data);
@@ -34,7 +34,7 @@ function json(res, status, body) {
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Private-Network', 'true');
 }
 
@@ -84,7 +84,7 @@ async function handleUpload(req, res, url) {
 
   const declared = Number(req.headers['content-length'] || 0);
   if (declared > MAX_FILE) {
-    json(res, 413, { ok: false, error: '파일이 너무 큽니다 (최대 500MB)' });
+    json(res, 413, { ok: false, error: '?뚯씪???덈Т ?쎈땲??(理쒕? 500MB)' });
     req.resume();
     return;
   }
@@ -104,7 +104,7 @@ async function handleUpload(req, res, url) {
       out.on('finish', resolve);
       req.pipe(out);
     });
-    if (total === 0) throw new Error('빈 파일입니다.');
+    if (total === 0) throw new Error('鍮??뚯씪?낅땲??');
     files.set(token, { path: filePath, name, size: total, createdAt: Date.now() });
     startTunnel();
 
@@ -112,7 +112,7 @@ async function handleUpload(req, res, url) {
     while (!publicBaseUrl && Date.now() < waitUntil) {
       await new Promise(r => setTimeout(r, 250));
     }
-    if (!publicBaseUrl) { /* PC 저장은 성공으로 유지하고 공개 URL만 비워 둔다. */ }
+    if (!publicBaseUrl) { /* PC ??μ? ?깃났?쇰줈 ?좎??섍퀬 怨듦컻 URL留?鍮꾩썙 ?붾떎. */ }
 
     json(res, 200, {
       ok: true,
@@ -130,19 +130,19 @@ async function handleUpload(req, res, url) {
     out.destroy();
     await fsp.rm(filePath, { force: true }).catch(() => {});
     if (e.message === 'FILE_TOO_LARGE') {
-      return json(res, 413, { ok: false, error: '파일이 너무 큽니다 (최대 500MB)' });
+      return json(res, 413, { ok: false, error: '?뚯씪???덈Т ?쎈땲??(理쒕? 500MB)' });
     }
-    json(res, 400, { ok: false, error: e.message || '업로드 실패' });
+    json(res, 400, { ok: false, error: e.message || '?낅줈???ㅽ뙣' });
   }
 }
 
 async function serveFile(req, res, token) {
   const item = files.get(token);
-  if (!item) return json(res, 404, { ok: false, error: '공유 파일을 찾을 수 없습니다.' });
+  if (!item) return json(res, 404, { ok: false, error: '怨듭쑀 ?뚯씪??李얠쓣 ???놁뒿?덈떎.' });
 
   let stat;
   try { stat = await fsp.stat(item.path); }
-  catch { return json(res, 404, { ok: false, error: '원본 파일이 존재하지 않습니다.' }); }
+  catch { return json(res, 404, { ok: false, error: '?먮낯 ?뚯씪??議댁옱?섏? ?딆뒿?덈떎.' }); }
 
   const range = req.headers.range;
   const common = {
@@ -183,9 +183,45 @@ async function serveFile(req, res, token) {
   fs.createReadStream(item.path, { start, end }).pipe(res);
 }
 
+// ⭐ 시작 시 디스크의 파일을 files Map에 로드 (재시작 후에도 재생 가능)
+(async () => {
+  try {
+    await fsp.mkdir(DATA_DIR, { recursive: true });
+    const entries = await fsp.readdir(DATA_DIR);
+    for (const name of entries) {
+      const m = /^([0-9a-f]{36})-(.+)$/.exec(name);
+      if (!m) continue;
+      const token = m[1];
+      const filePath = path.join(DATA_DIR, name);
+      const stat = await fsp.stat(filePath).catch(() => null);
+      if (!stat || !stat.isFile()) continue;
+      const storedName = m[2];
+      const isTl3 = /\.tl3(\.|$)/i.test(storedName);
+      files.set(token, {
+        token,
+        name: storedName,
+        size: stat.size,
+        path: filePath,
+        mime: isTl3 ? 'application/octet-stream' : 'audio/mpeg',
+        createdAt: stat.mtimeMs
+      });
+    }
+    console.log('[TimeLink Local] loaded ' + files.size + ' files from disk');
+  } catch (e) {
+    console.error('[TimeLink Local] load files error:', e && e.message);
+  }
+})();
 const server = http.createServer(async (req, res) => {
   cors(res);
-  if (req.method === 'OPTIONS') return res.writeHead(204).end();
+  if (req.method === 'OPTIONS') {
+    return res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Private-Network': 'true',
+      'Access-Control-Max-Age': '86400'
+    }).end();
+  }
 
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
 
