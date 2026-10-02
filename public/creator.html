@@ -905,6 +905,60 @@ function renderMyFileSlice(){
 }
 function renderMyPager(){ var el=document.getElementById('myFilesPager'); if(!el) return; var total=_myAllFiles.length,totalPages=Math.ceil(total/_myPerPage); if(totalPages<=1){el.innerHTML='';return;} var html='<button class="pg-btn" onclick="goMyPage('+(_myPage-1)+')" '+(_myPage===1?'disabled':'')+'>←</button>'; for(var i=1;i<=Math.min(5,totalPages);i++) html+='<button class="pg-btn'+(i===_myPage?' active':'')+'" onclick="goMyPage('+i+')">'+i+'</button>'; if(totalPages>5) html+='<span class="pg-info">⋯</span><button class="pg-btn" onclick="goMyPage('+totalPages+')">'+totalPages+'</button>'; html+='<button class="pg-btn" onclick="goMyPage('+(_myPage+1)+')" '+(_myPage===totalPages?'disabled':'')+'>→</button>'; el.innerHTML=html; }
 function goMyPage(n){_myPage=n;renderMyFileSlice();}
+async function convertToTL3(shareId){
+  try{
+    var r=await fetch(API+'/api/shares/'+shareId);
+    var s=await r.json();
+    if(creatorContentType(s)!=='mp3'){alert('이미 TL3입니다');return;}
+    if(!confirm('"'+s.title+'"을 TL3로 전환하시겠습니까?\n\n⚡ TL3는 유료 재생 (1초 = 1 TL)\n변환 후에는 되돌릴 수 없습니다.'))return;
+
+    showProg('⚡','TL3 변환 중...','MP3 다운로드 중...',10);
+
+    // MP3 다운로드
+    var mp3Res=await fetch(s.stream_url);
+    if(!mp3Res.ok) throw new Error('MP3 다운로드 실패');
+    var mp3Buf=await mp3Res.arrayBuffer();
+
+    // 해시 + BPM
+    setProg(30,'BPM 분석 중...');
+    var hash=await sha256Hex(mp3Buf);
+    var bpm=s.bpm||await detectBPM(mp3Buf)||120;
+
+    // TL3 변환
+    setProg(50,'TL3 암호화 중...');
+    var meta={v:2,fmt:'mp3',dur:s.duration||0,bpm:bpm,genre:s.category||'Music',title:s.title,cid:String(_user.id),name:s.artist||_user.username||_user.email,plan:'A',ts:new Date().toISOString(),hash:hash,enc:'xor',key_id:'k_2026_01'};
+    var encrypted=xorEncrypt(new Uint8Array(mp3Buf),getXorKey());
+    var tl3Buf=buildTL3(meta,encrypted);
+    var tl3Blob=new Blob([tl3Buf],{type:'application/octet-stream'});
+
+    // Local Agent 업로드
+    setProg(70,'Local Agent 업로드 중...');
+    var name=s.title.replace(/[\\/:*?"<>|]/g,'_')+'.tl3';
+    var localUpload=await fetch('http://127.0.0.1:8787/upload?kind=tl3&name='+encodeURIComponent(name),{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:tl3Blob});
+    var localData=await localUpload.json().catch(function(){return{};});
+    if(!localUpload.ok||!localData.ok) throw new Error(localData.error||'Local Agent 업로드 실패');
+    if(!localData.stream_url) throw new Error('공개 스트림 URL 없음');
+
+    // DB PATCH
+    setProg(90,'DB 업데이트 중...');
+    var fileTL=Math.max(1,Math.round((s.duration||0)*1.0));
+    var patchBody={release_mode:'tl3',content_kind:'tl3',stream_url:localData.stream_url,file_type:'audio/tl3',file_tl:fileTL,storage_mode:'creator_pc',origin_hash:hash};
+    var patchRes=await fetch(API+'/api/shares/'+shareId,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify(patchBody)});
+    var patchData=await patchRes.json().catch(function(){return{};});
+    if(!patchRes.ok) throw new Error(patchData.error||'DB 업데이트 실패');
+
+    setProg(100,'TL3 전환 완료!');
+    setTimeout(function(){
+      hideProg();
+      alert('✅ "'+s.title+'"이 TL3로 전환되었습니다!\n\n⚡ 이제 유료 재생 (1초 = 1 TL)');
+      _existingSongs=null;
+      loadMyFiles();
+    },500);
+  }catch(e){
+    hideProg();
+    alert('❌ TL3 전환 실패: '+(e.message||e));
+  }
+}
 async function delShare(id,title){ if(!confirm('"'+title+'" 을 삭제하시겠습니까?')) return; try{ await fetch(API+'/api/shares/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+_token,'Content-Type':'application/json'},body:JSON.stringify({email:_user.email,user_id:_user.id})}); _existingSongs=null; loadMyFiles(); }catch(e){alert('삭제 실패');} }
 function openEdit(shareId){ _eid=shareId;_eCoverFile=null;_eGalFiles=[null,null,null,null];_eGalUrls=['','','',''];_eTags=[]; resetGalUI(); document.getElementById('editOverlay').classList.add('show'); document.body.style.overflow='hidden'; loadEditData(shareId); renderSuggTags(); }
 function closeEdit(){ document.getElementById('editOverlay').classList.remove('show'); document.body.style.overflow='';_eid=null; }
