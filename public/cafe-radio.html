@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -1853,8 +1853,15 @@ function getTLStreamUrl(shareId){
 }
 
 function getStreamUrl(share){
-  // share.id가 있으면 TL 스트리밍, 없으면 fallback
-  if(share && share.id){
+  if(!share) return '';
+  var kind = String(share.content_kind||'').toLowerCase();
+  var mode = String(share.release_mode||'').toLowerCase();
+  // MP3 (무료) -> Local Agent URL 직접 사용
+  if(kind==='mp3' || mode.indexOf('free_mp3')===0){
+    return share.stream_url || share.preview_url || '';
+  }
+  // TL3 -> TL 보호 스트리밍
+  if(share.id){
     return getTLStreamUrl(share.id);
   }
   return proxyUrl(share && (share.stream_url || share.preview_url) || '');
@@ -1984,14 +1991,21 @@ function loadTrack(idx){
 
   // 곡 전환 시 TL 모드 결정
   _curShareId = String(s.id||'');
-  // 채널 타입으로 모드 결정: AI(중앙방송)=총량, cafe(채널방송)=곡별
-  var activeCh = _channels.find(function(c){ return c.id===_activeChannel; });
-  var isChannelBroadcast = activeCh && activeCh.type === 'cafe';
-  if(isChannelBroadcast){
-    var fileTL = _myFileTL[_curShareId];
-    _curTlMode = (fileTL !== undefined && fileTL > 0) ? 'file' : 'total';
+  var _k = String(s.content_kind||'').toLowerCase();
+  var _m = String(s.release_mode||'').toLowerCase();
+  var _isMp3 = (_k==='mp3' || _m.indexOf('free_mp3')===0);
+  if(_isMp3){
+    _curTlMode = 'none';
   } else {
-    _curTlMode = 'total'; // 중앙 방송 → 항상 총량
+    // 채널 타입으로 모드 결정: AI(중앙방송)=총량, cafe(채널방송)=곡별
+    var activeCh = _channels.find(function(c){ return c.id===_activeChannel; });
+    var isChannelBroadcast = activeCh && activeCh.type === 'cafe';
+    if(isChannelBroadcast){
+      var fileTL = _myFileTL[_curShareId];
+      _curTlMode = (fileTL !== undefined && fileTL > 0) ? 'file' : 'total';
+    } else {
+      _curTlMode = 'total';
+    }
   }
 
   updateNowPlaying(s);
@@ -2041,6 +2055,10 @@ function updateNowPlaying(s){
 
 function updateNowPlayingTL(){
   if(!_curShareId||!_user||!g('npTl')) return;
+  if(_curTlMode==='none'){
+    g('npTl').textContent = '🎵 무료 MP3';
+    return;
+  }
   var activeCh = _channels.find(function(c){ return c.id===_activeChannel; });
   var isChBroadcast = activeCh && activeCh.type==='cafe';
   var fileTL = _myFileTL[_curShareId] || 0;
