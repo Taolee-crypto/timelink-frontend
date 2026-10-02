@@ -386,6 +386,7 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
     <a href="creator.html" class="tb-action" title="크리에이터 센터">🎨</a>
     <a href="ads.html" class="tb-action" title="광고 시청">📺</a>
     <a href="advertiser.html" class="tb-action" title="광고주 센터">📢</a>
+    <div class="tb-action" onclick="openPwModal()" title="비밀번호 변경" style="cursor:pointer">🔑</div>
     <div class="tb-action logout" onclick="doLogout()" title="로그아웃">↩</div>
   </div>
 </div>
@@ -1535,6 +1536,98 @@ window.addEventListener('load', function(){ setTimeout(initTonConnect, 800); set
     render(s);
   }
   document.readyState==="loading"?document.addEventListener("DOMContentLoaded",load):load();
+})();
+</script>
+<!-- ⭐ 비밀번호 변경 모달 -->
+<div id="pwModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);align-items:center;justify-content:center">
+  <div style="background:#0a0a15;border:1px solid rgba(139,92,246,.3);border-radius:16px;padding:28px;width:min(420px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.6)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-size:16px;font-weight:700;color:#fff">🔑 비밀번호 변경</div>
+      <button onclick="closePwModal()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:18px;cursor:pointer;padding:4px 8px">✕</button>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:6px;font-family:'JetBrains Mono',monospace;letter-spacing:.1em">현재 비밀번호</div>
+      <input type="password" id="pwCurrent" autocomplete="current-password" style="width:100%;padding:11px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13px;outline:none;box-sizing:border-box">
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:6px;font-family:'JetBrains Mono',monospace;letter-spacing:.1em">새 비밀번호 (8자 이상)</div>
+      <input type="password" id="pwNew" autocomplete="new-password" style="width:100%;padding:11px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13px;outline:none;box-sizing:border-box">
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:6px;font-family:'JetBrains Mono',monospace;letter-spacing:.1em">새 비밀번호 확인</div>
+      <input type="password" id="pwNew2" autocomplete="new-password" style="width:100%;padding:11px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13px;outline:none;box-sizing:border-box">
+    </div>
+    <div id="pwMsg" style="font-size:12px;margin-bottom:14px;min-height:18px;text-align:center"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button onclick="closePwModal()" style="padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:transparent;color:rgba(255,255,255,.7);font-size:13px;font-weight:700;cursor:pointer">취소</button>
+      <button id="pwSubmitBtn" onclick="submitPwChange()" style="padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#8B5CF6,#00E5A0);color:#fff;font-size:13px;font-weight:700;cursor:pointer">변경하기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  window.openPwModal = function(){
+    document.getElementById('pwModal').style.display='flex';
+    document.getElementById('pwCurrent').value='';
+    document.getElementById('pwNew').value='';
+    document.getElementById('pwNew2').value='';
+    document.getElementById('pwMsg').textContent='';
+    setTimeout(()=>document.getElementById('pwCurrent').focus(), 100);
+  };
+  window.closePwModal = function(){
+    document.getElementById('pwModal').style.display='none';
+  };
+  window.submitPwChange = async function(){
+    var cur = document.getElementById('pwCurrent').value;
+    var np = document.getElementById('pwNew').value;
+    var np2 = document.getElementById('pwNew2').value;
+    var msg = document.getElementById('pwMsg');
+    var btn = document.getElementById('pwSubmitBtn');
+    
+    msg.style.color = '#FB7185';
+    if(!cur){ msg.textContent='현재 비밀번호를 입력하세요'; return; }
+    if(!np){ msg.textContent='새 비밀번호를 입력하세요'; return; }
+    if(np.length < 8){ msg.textContent='새 비밀번호는 8자 이상'; return; }
+    if(np !== np2){ msg.textContent='새 비밀번호가 일치하지 않습니다'; return; }
+    if(cur === np){ msg.textContent='이전과 다른 비밀번호를 입력하세요'; return; }
+    
+    btn.disabled = true; btn.textContent = '변경 중...';
+    try {
+      var tk = localStorage.getItem('tl_token') || '';
+      var r = await fetch('https://api.timelink.digital/api/v1/auth/change-password', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tk},
+        body: JSON.stringify({current_password: cur, new_password: np})
+      });
+      var d = await r.json().catch(()=>({}));
+      if(r.ok && d.ok){
+        msg.style.color = '#00E5A0';
+        msg.textContent = '✅ ' + (d.message || '비밀번호가 변경되었습니다');
+        setTimeout(function(){ closePwModal(); alert('✅ 비밀번호가 변경되었습니다.\n다음 로그인 시 새 비밀번호를 사용하세요.'); }, 800);
+      } else {
+        msg.style.color = '#FB7185';
+        msg.textContent = '❌ ' + (d.error || '변경 실패');
+        btn.disabled = false; btn.textContent = '변경하기';
+      }
+    } catch(e){
+      msg.style.color = '#FB7185';
+      msg.textContent = '❌ ' + e.message;
+      btn.disabled = false; btn.textContent = '변경하기';
+    }
+  };
+  // 모달 바깥 클릭 시 닫기
+  document.addEventListener('click', function(e){
+    var m = document.getElementById('pwModal');
+    if(m && e.target === m) closePwModal();
+  });
+  // ESC 닫기
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var m = document.getElementById('pwModal');
+      if(m && m.style.display === 'flex') closePwModal();
+    }
+  });
 })();
 </script>
 </body>
