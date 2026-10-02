@@ -319,6 +319,15 @@ function doLogout(){localStorage.removeItem('tl_token');localStorage.removeItem(
 (async function(){
   try{ _user = JSON.parse(localStorage.getItem('tl_user')||'null'); _token = localStorage.getItem('tl_token'); }catch(e){}
   if(!_user || !_token){ localStorage.removeItem('tl_token'); localStorage.removeItem('tl_user'); location.href='login.html'; return; }
+  try{
+    var me=await fetch(API+'/api/auth/me',{headers:{'Authorization':'Bearer '+_token},cache:'no-store'});
+    var md=await me.json().catch(function(){return {};});
+    if(!me.ok || !md.ok || !md.user) throw new Error(md.error||'인증 만료');
+    _user=md.user; localStorage.setItem('tl_user',JSON.stringify(_user));
+  }catch(e){
+    localStorage.removeItem('tl_token'); localStorage.removeItem('tl_user');
+    location.href='login.html?redirect='+encodeURIComponent(location.pathname+location.search); return;
+  }
   document.getElementById('tbTL').textContent = Number((_user&&_user.tl)||0).toLocaleString()+' TL';
   loadExistingSongs(); updateUserTL(); setInterval(updateUserTL, 5000); selectReleaseMode('free');
 })();
