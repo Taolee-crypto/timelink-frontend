@@ -102,8 +102,8 @@ async function handleUpload(req, res, url) {
     files.set(token, { path: filePath, name, size: total, createdAt: Date.now() });
     startTunnel();
 
-    const waitUntil = Date.now() + 15000;
-    while (!publicBaseUrl && Date.now() < waitUntil && tunnel) {
+    const waitUntil = Date.now() + 30000;
+    while (!publicBaseUrl && Date.now() < waitUntil) {
       await new Promise(r => setTimeout(r, 250));
     }
     if (!publicBaseUrl) {
@@ -111,7 +111,7 @@ async function handleUpload(req, res, url) {
       files.delete(token);
       return json(res, 503, {
         ok: false,
-        error: '공개 터널을 만들지 못했습니다. cloudflared가 설치되어 있고 PATH에 있는지 확인하십시오.'
+        error: '공개 터널을 만들지 못했습니다. TimeLink Local 창에서 cloudflared 오류를 확인하십시오.'
       });
     }
 
