@@ -104,18 +104,11 @@ async function handleUpload(req, res, url) {
     files.set(token, { path: filePath, name, size: total, createdAt: Date.now() });
     startTunnel();
 
-    const waitUntil = Date.now() + 30000;
+    const waitUntil = Date.now() + 12000;
     while (!publicBaseUrl && Date.now() < waitUntil) {
       await new Promise(r => setTimeout(r, 250));
     }
-    if (!publicBaseUrl) {
-      await fsp.rm(filePath, { force: true });
-      files.delete(token);
-      return json(res, 503, {
-        ok: false,
-        error: '공개 터널을 만들지 못했습니다. TimeLink Local 창에서 cloudflared 오류를 확인하십시오.'
-      });
-    }
+    if (!publicBaseUrl) { /* PC 저장은 성공으로 유지하고 공개 URL만 비워 둔다. */ }
 
     json(res, 200, {
       ok: true,
