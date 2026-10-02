@@ -289,18 +289,7 @@ select.ei{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
         </div>
       </div>
       <div class="release-grid" style="margin-top:18px"><div class="release-card active" id="releaseFree" onclick="selectReleaseMode('free')"><div class="release-title">🆓 무료 MP3 공개</div><div class="release-desc">원본 MP3를 그대로 공개합니다. 이용자는 TL 없이 재생하고, POC에 따른 TLC만 보상합니다.</div><span class="release-badge">무료</span></div><div class="release-card" id="releaseTL3" onclick="selectReleaseMode('tl3')"><div class="release-title">⚡ TL3 정식 출시</div><div class="release-desc">MP3를 TL3로 변환합니다. TL 사용 기반으로 재생·정산하며 POC 보상을 별도 적용합니다.</div><span class="release-badge">TL3</span></div></div><div style="margin-top:18px"><label class="form-label">⚖️ 차감 가중치 (1초 재생 시 차감 TL)</label><div style="display:flex;align-items:center;gap:12px"><input type="range" id="weightRange" min="0.1" max="10" step="0.1" value="1.0" oninput="syncWeight(this.value,'range')" style="flex:1"><input type="number" id="weightInput" min="0.1" max="10" step="0.1" value="1.0" oninput="syncWeight(this.value,'input')" style="width:72px;padding:8px;background:rgba(139,92,246,.08);border:2px solid var(--purple);border-radius:9px;color:var(--purple);font-weight:900;text-align:center"><span>/초</span></div></div>
-        <div style="margin-top:14px;padding:14px;border-radius:12px;background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.2);font-size:12px">
-<strong style="color:var(--mint)">☁️ 내 저장소를 TimeLink 저장소로 사용</strong>
-<div style="margin-top:7px;color:var(--t2);line-height:1.6">음원 원본과 TL3 파일은 TimeLink 서버에 저장하지 않는다. 연결한 개인 클라우드에 직접 저장하고 TimeLink는 권리·시간·정산 정보와 파일 위치만 관리한다.</div>
-<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
-<button type="button" class="mf-btn" onclick="connectStorage('google_drive')">Google Drive 연결</button>
-<button type="button" class="mf-btn" onclick="connectStorage('onedrive')">OneDrive 연결</button>
-<button type="button" class="mf-btn" onclick="selectLocalStorage()">내 PC 사용</button>
-</div>
-<div id="storageStatus" style="margin-top:8px;color:var(--t3)">저장 위치 확인 중...</div>
-</div>
-      </div>
-      <div class="form-section"><div class="fsec-title">④ 수익 배분 플랜</div><div class="plan-grid"><div class="plan-card active" onclick="selectPlan(this,'A')"><div class="plan-name">플랜 A</div><div class="plan-desc">구매TL 소비의 62% 수익</div><div class="plan-rate">크리에이터 70%</div></div><div class="plan-card" onclick="selectPlan(this,'B')"><div class="plan-name">플랜 B</div><div class="plan-desc">구매TL 소비의 45% 수익 + TLC 채굴 2배</div><div class="plan-rate">크리에이터 50%</div></div></div></div>
+        <div class="form-section"><div class="fsec-title">③ 수익 배분 플랜</div><div class="plan-grid"><div class="plan-card active" onclick="selectPlan(this,'A')"><div class="plan-name">플랜 A</div><div class="plan-desc">구매TL 소비의 62% 수익</div><div class="plan-rate">크리에이터 70%</div></div><div class="plan-card" onclick="selectPlan(this,'B')"><div class="plan-name">플랜 B</div><div class="plan-desc">구매TL 소비의 45% 수익 + TLC 채굴 2배</div><div class="plan-rate">크리에이터 50%</div></div></div></div>
       <div style="margin:16px 0 12px;padding:14px 16px;border-radius:12px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);font-size:12px;line-height:1.65">
 <label style="display:flex;gap:9px;align-items:flex-start;cursor:pointer">
 <input type="checkbox" id="rightsConfirm" onchange="updateFreeButtonState()" style="margin-top:3px">
@@ -391,85 +380,6 @@ async function prepareUpload(){
   var dup=await checkDuplicate(_spTrack,title,artist); if(dup.isDuplicate){alert(dup.message);return null;}
   if(_file.size>500*1024*1024){alert('최대 500MB');return null;}
   return {title:title,artist:artist};
-}
-async function storageConnections(){
-  try{var r=await fetch(API+'/api/storage/connections',{headers:{'Authorization':'Bearer '+_token}});var d=await r.json();return d.connections||[];}catch(e){return[];}
-}
-async function refreshStorageStatus(){
-  var el=document.getElementById('storageStatus');if(!el)return;
-  var chosen=localStorage.getItem('tl_storage_provider')||'local_agent';
-  var cs=await storageConnections();
-  var c=cs.find(function(x){return x.provider===chosen;});
-  if(c) el.innerHTML='현재 저장 위치: <b style="color:var(--mint)">'+(c.provider==='google_drive'?'Google Drive':'OneDrive')+'</b> · '+escapeHtml(c.provider_email||c.provider_name||'연결됨')+' <button type="button" class="mf-btn del" style="margin-left:6px" onclick="disconnectStorage(\''+chosen+'\')">연결 해제</button>';
-  else if(chosen==='local_agent') el.innerHTML='현재 저장 위치: <b style="color:var(--mint)">내 PC</b> · TimeLink Local Agent';
-}
-function selectStorage(provider){localStorage.setItem('tl_storage_provider',provider);refreshStorageStatus();}
-function selectLocalStorage(){
-  // 내 PC는 파일 선택이 아니라 저장소 선택이다.
-  // 실제 MP3/TL3 파일 선택은 아래 업로드 영역의 "파일 선택"에서 한다.
-  localStorage.setItem('tl_storage_provider','local_agent');
-  refreshStorageStatus();
-}
-async function connectStorage(provider){
-  if(!_token){alert('먼저 로그인하세요.');return;}
-  var w=window.open('about:blank','timelink_storage','width=600,height=760');
-  if(!w){alert('팝업이 차단되었습니다. 팝업을 허용하세요.');return;}
-  try{
-    var r=await fetch(API+'/api/storage/connect',{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+_token,'Content-Type':'application/json'},
-      body:JSON.stringify({provider:provider})
-    });
-    var d=await r.json();
-    if(!r.ok||!d.authorization_url) throw new Error(d.error||'저장소 연결을 시작할 수 없습니다.');
-    w.location.href=d.authorization_url;
-    var timer=setInterval(function(){if(w.closed){clearInterval(timer);refreshStorageStatus();}},500);
-  }catch(e){
-    try{w.close();}catch(_){}
-    alert(e.message||'저장소 연결 실패');
-  }
-}
-window.addEventListener('message',function(e){if(e.data&&e.data.type==='timelink-storage-connected'){localStorage.setItem('tl_storage_provider',e.data.provider);refreshStorageStatus();}});
-async function disconnectStorage(provider){if(!confirm('이 저장소 연결을 해제하시겠습니까? 기존 클라우드 파일은 삭제하지 않습니다.'))return;await fetch(API+'/api/storage/connections/'+provider,{method:'DELETE',headers:{'Authorization':'Bearer '+_token}});if(localStorage.getItem('tl_storage_provider')===provider)localStorage.removeItem('tl_storage_provider');refreshStorageStatus();}
-async function uploadToOwnedStorage(blob,name,mime,progressCb){
-  var provider=localStorage.getItem('tl_storage_provider')||'google_drive';
-  var cs=await storageConnections();
-  var c=cs.find(function(x){return x.provider===provider;});
-  if(!c) throw new Error('먼저 Google Drive 또는 OneDrive를 연결하세요.');
-  var sr=await fetch(API+'/api/storage/upload-session',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify({provider:provider,name:name,size:blob.size,mime:mime})});
-  var sd=await sr.json().catch(()=>({}));if(!sr.ok)throw new Error(sd.error||'클라우드 업로드 세션 생성 실패');
-  var u=sd.upload,chunkSize=10*1024*1024;
-  for(var off=0;off<blob.size;off+=chunkSize){
-    var end=Math.min(off+chunkSize,blob.size),chunk=blob.slice(off,end);
-    var h={'Content-Length':String(chunk.size),'Content-Range':'bytes '+off+'-'+(end-1)+'/'+blob.size,'Content-Type':'application/octet-stream'};
-    var pr=await fetch(u.uploadUrl,{method:'PUT',headers:h,body:chunk});
-    if(!(pr.ok||pr.status===201||pr.status===200||pr.status===308))throw new Error('클라우드 청크 업로드 실패 [HTTP '+pr.status+']');
-    if(progressCb)progressCb(end/blob.size);
-  }
-  // The backend resolves the uploaded provider object by name after the last PUT.
-  var fr=await fetch(API+'/api/storage/finalize',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},body:JSON.stringify({provider:provider,connectionId:u.connectionId,name:name,size:blob.size,mime:mime})});
-  var fd=await fr.json().catch(()=>({}));if(!fr.ok)throw new Error(fd.error||'클라우드 파일 등록 실패');
-  return {provider:provider,connectionId:u.connectionId,objectId:fd.objectId,name:name,size:blob.size,mime:mime};
-}
-function updateFreeButtonState(){
-  var b=document.getElementById('freeUploadBtn'),ok=!!_file&&!!document.getElementById('rightsConfirm')?.checked;
-  if(b) b.disabled=!ok;
-}
-async function verifyFreeRelease(title,artist,duration,hash){
-  var status=document.getElementById('releaseCheckStatus');
-  if(status) status.textContent='🔎 TimeLink 등록 이력과 기출시 음원을 확인하는 중...';
-  var r=await fetch(API+'/api/music/verify-release',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
-    body:JSON.stringify({title:title,artist:artist,duration:duration,origin_hash:hash})
-  });
-  var d=await r.json().catch(()=>({}));
-  if(!r.ok) throw new Error(d.error||'기출시 확인에 실패했습니다.');
-  if(d.blocked) return d;
-  if(status) status.textContent=d.verification==='spotify_no_match'
-    ? '✓ TimeLink 중복 없음 · Spotify 동일 곡 확인 없음'
-    : '✓ TimeLink 중복 없음 · 외부 카탈로그 확인 가능 범위 완료';
-  return d;
 }
 async function doFreeUpload(){
   if(!_file){alert('MP3 파일을 먼저 선택하세요.');return;}
