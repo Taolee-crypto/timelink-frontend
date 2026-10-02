@@ -10,6 +10,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>TimeLink — 크리에이터 센터</title>
 <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.7/dist/jsmediatags.min.js"></script>
 <style>
 :root{
   --bg:#08080F;--bg2:#0D0D1A;--bg3:rgba(255,255,255,.04);
@@ -376,10 +377,54 @@ async function searchSpotify(){ var q=document.getElementById('spQuery').value.t
 async function pickSpotify(i){ document.querySelectorAll('.sp-item').forEach(x=>x.classList.remove('selected')); var item=document.getElementById('sp-'+i); if(item) item.classList.add('selected'); var t=window._spTracks[i]; if(!t) return; var title=t.title||t.name||''; var artist=Array.isArray(t.artists)?t.artists.map(a=>a.name).join(', '):(t.artist||''); var dup=await checkDuplicate(t,title,artist); if(dup.isDuplicate){alert(dup.message); _spTrack=null;return;} _spTrack=t; document.getElementById('fTitle').value=title; document.getElementById('fCreator').value=artist; if(t.album) document.getElementById('fAlbum').value=t.album; var cover=t.cover_url||(t.album&&t.album.images&&t.album.images[0]?t.album.images[0].url:''); if(cover){document.getElementById('coverPreviewImg').src=cover;document.getElementById('coverPreviewImg').style.display='block';document.getElementById('coverPreviewIcon').style.display='none';} clearDuplicateWarning(); if(_file) document.getElementById('uploadBtn').disabled=false; updateFreeButtonState(); }
 // ⭐ 여러 파일 처리
 var _pendingFiles = [];   // [{file, title, artist, coverUrl, duration, size, bpm}]
+// ⭐ MP3 ID3 태그 읽기
+function readMP3Tags(file){
+  return new Promise(function(resolve){
+    if(!window.jsmediatags){ resolve({}); return; }
+    try{
+      window.jsmediatags.read(file, {
+        onSuccess: function(tag){
+          var t = tag.tags || {};
+          var coverUrl = '';
+          if(t.picture && t.picture.data){
+            try{
+              var bytes = new Uint8Array(t.picture.data);
+              var blob = new Blob([bytes], {type: t.picture.format || 'image/jpeg'});
+              coverUrl = URL.createObjectURL(blob);
+            }catch(e){}
+          }
+          resolve({
+            title: t.title || '',
+            artist: t.artist || '',
+            album: t.album || '',
+            composer: t.TCOM || t.composer || '',
+            lyricist: t.TEXT || t.lyricist || '',
+            lyrics: t.lyrics || '',
+            coverUrl: coverUrl
+          });
+        },
+        onError: function(){ resolve({}); }
+      });
+    }catch(e){ resolve({}); }
+  });
+}
+
+// ⭐ Unsplash 커버 자동 매칭
+async function fetchUnsplashCover(keyword){
+  if(!keyword) return '';
+  try{
+    var r = await fetch('https://api.timelink.digital/api/unsplash/search?q=' + encodeURIComponent(keyword));
+    var d = await r.json();
+    if(d.ok && d.photos && d.photos.length){
+      return d.photos[0].url || '';
+    }
+  }catch(e){}
+  return '';
+}
+
 async function onFilesSelected(fileList){
   if(!fileList || !fileList.length) return;
   var arr = Array.from(fileList);
-  // MP3만 필터
   var mp3s = arr.filter(function(f){ return f.type.includes('mp3') || f.name.match(/\.mp3$/i); });
   if(mp3s.length !== arr.length){
     alert('MP3 파일만 업로드 가능합니다. (MP3가 아닌 '+(arr.length - mp3s.length)+'개 제외)');
@@ -388,23 +433,44 @@ async function onFilesSelected(fileList){
 
   for(var i=0; i<mp3s.length; i++){
     var f = mp3s[i];
-    var title = f.name.replace(/\.mp3$/i,'').replace(/[_\-]+/g,' ').trim();
+    var fallbackTitle = f.name.replace(/\.mp3$/i,'').replace(/[_\-]+/g,' ').trim();
+    var tags = await readMP3Tags(f);
+    var title = tags.title || fallbackTitle;
+    var artist = tags.artist || '';
+    var coverUrl = tags.coverUrl || '';
+
     _pendingFiles.push({
       file: f,
       title: title,
-      artist: '',
-      coverUrl: '',
+      artist: artist,
+      album: tags.album || '',
+      composer: tags.composer || '',
+      lyricist: tags.lyricist || '',
+      lyrics: tags.lyrics || '',
+      coverUrl: coverUrl,
       coverFile: null,
       duration: 0,
       size: f.size,
-      bpm: 0
+      bpm: 0,
+      id3Loaded: true
     });
+    renderFileList();   // 하나씩 추가되면서 UI 갱신
   }
+
+  // ⭐ ID3 커버 없는 곡들 → Unsplash 자동 매칭 (백그라운드)
+  (async function autoUnsplash(){
+    for(var i=0; i<_pendingFiles.length; i++){
+      var p = _pendingFiles[i];
+      if(!p.coverUrl && p.title){
+        var u = await fetchUnsplashCover(p.title);
+        if(u){ p.coverUrl = u; renderFileList(); }
+      }
+    }
+  })();
+
   document.getElementById('fileInput').value = '';
   renderFileList();
-  // 첫 파일을 메인 UI에도 표시 (기존 단일 파일 UI 호환)
   if(!_file && _pendingFiles.length){
-    // 기존 단일 UI에는 첫 파일만 미리보기
     onFileSelectedPreview(_pendingFiles[0].file);
   }
 }
@@ -436,16 +502,68 @@ function renderFileList(){
   if(!_pendingFiles.length){ wrap.style.display='none'; return; }
   wrap.style.display='block';
   if(cnt) cnt.textContent = _pendingFiles.length;
+
+  var inputStyle = 'width:100%;padding:5px 8px;background:rgba(255,255,255,.04);border:1px solid var(--bd2);border-radius:6px;color:#fff;font-size:12px;outline:none';
+
   list.innerHTML = _pendingFiles.map(function(p, i){
-    return '<div style="display:flex;align-items:center;gap:10px;padding:10px;background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:10px">' +
-      '<div style="width:38px;height:38px;border-radius:8px;background:rgba(139,92,246,.15);display:flex;align-items:center;justify-content:center;font-size:16px">🎵</div>' +
-      '<div style="flex:1;min-width:0">' +
-        '<input type="text" value="'+escapeHtml(p.title)+'" placeholder="제목" onchange="_pendingFiles['+i+'].title=this.value" style="width:100%;padding:5px 8px;background:rgba(255,255,255,.04);border:1px solid var(--bd2);border-radius:6px;color:#fff;font-size:12px;outline:none">' +
-        '<div style="font-size:10px;color:var(--t3);margin-top:3px">'+fmtBytes(p.size)+'</div>' +
+    var coverThumb = p.coverUrl
+      ? '<img src="'+escapeHtml(p.coverUrl)+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px" onerror="this.style.display=\'none\'">'
+      : '<div style="font-size:20px;opacity:.4">🎵</div>';
+
+    return '<div style="display:flex;gap:12px;padding:12px;background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:12px">' +
+
+      // 커버 썸네일 + 변경 버튼
+      '<div style="display:flex;flex-direction:column;gap:6px;align-items:center;flex-shrink:0">' +
+        '<div onclick="changeCover('+i+')" style="width:64px;height:64px;border-radius:10px;background:rgba(139,92,246,.15);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;border:1px solid var(--bd2)">' +
+          coverThumb +
+        '</div>' +
+        '<button onclick="changeCover('+i+')" style="padding:3px 8px;border-radius:6px;border:1px solid var(--bd2);background:transparent;color:var(--t3);font-size:9px;cursor:pointer">🖼️ 변경</button>' +
       '</div>' +
-      '<button onclick="removeFileItem('+i+')" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(251,113,133,.3);background:transparent;color:var(--rose);font-size:11px;cursor:pointer">✕</button>' +
+
+      // 필드들
+      '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">' +
+        '<input type="text" value="'+escapeHtml(p.title)+'" placeholder="🎵 제목" oninput="_pendingFiles['+i+'].title=this.value" style="'+inputStyle+'">' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">' +
+          '<input type="text" value="'+escapeHtml(p.artist||'')+'" placeholder="🎤 가수" oninput="_pendingFiles['+i+'].artist=this.value" style="'+inputStyle+'">' +
+          '<input type="text" value="'+escapeHtml(p.album||'')+'" placeholder="💿 앨범" oninput="_pendingFiles['+i+'].album=this.value" style="'+inputStyle+'">' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">' +
+          '<input type="text" value="'+escapeHtml(p.composer||'')+'" placeholder="✍️ 작곡" oninput="_pendingFiles['+i+'].composer=this.value" style="'+inputStyle+'">' +
+          '<input type="text" value="'+escapeHtml(p.lyricist||'')+'" placeholder="📝 작사" oninput="_pendingFiles['+i+'].lyricist=this.value" style="'+inputStyle+'">' +
+        '</div>' +
+        '<div style="font-size:10px;color:var(--t3);display:flex;gap:10px">' +
+          '<span>'+fmtBytes(p.size)+'</span>' +
+          (p.duration?'<span>⏱ '+Math.floor(p.duration/60)+':'+String(p.duration%60).padStart(2,'0')+'</span>':'') +
+          (p.bpm?'<span>🥁 '+p.bpm+' BPM</span>':'') +
+        '</div>' +
+      '</div>' +
+
+      // 제거 버튼
+      '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">' +
+        '<button onclick="removeFileItem('+i+')" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(251,113,133,.3);background:transparent;color:var(--rose);font-size:11px;cursor:pointer">✕</button>' +
+      '</div>' +
+
     '</div>';
   }).join('');
+}
+
+// ⭐ 개별 커버 변경 (파일 선택)
+function changeCover(i){
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = function(){
+    var f = input.files[0];
+    if(!f) return;
+    var reader = new FileReader();
+    reader.onload = function(e){
+      _pendingFiles[i].coverUrl = e.target.result;   // Data URL
+      _pendingFiles[i].coverFile = f;
+      renderFileList();
+    };
+    reader.readAsDataURL(f);
+  };
+  input.click();
 }
 
 function removeFileItem(i){
