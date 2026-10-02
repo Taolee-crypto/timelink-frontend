@@ -656,29 +656,65 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
     applyFilter();
     return;
   }
-  _tlAudio=new Audio(); _tlAudio.preload='auto';
-  _tlAudio.onerror=function(){ showPlayerError('파일 로드 실패 — 파일이 없거나 서버 오류입니다'); };
-  var _didStart=false;
-  _tlAudio.oncanplay=function(){
-    if(_didStart) return;
-    _didStart=true;
-    _tlAudio.play().then(function(){
-      tlStartTimer(); _tlPlaying=true; document.getElementById('tlPlayBtn').textContent='⏸';
-      applyFilter();
-    }).catch(function(e){
-      if(e.name==='NotAllowedError'){
-        document.getElementById('tlPlayBtn').textContent='▶';
-        document.getElementById('tlError').style.display='block';
-        document.getElementById('tlError').textContent='자동재생이 차단됐습니다. 화면을 클릭 후 다시 시도하세요.';
-        _tlPlaying=false;
-      } else { showPlayerError('재생 실패: '+e.message); }
-    });
+  _tlAudio=new Audio();
+  _tlAudio.preload='auto';
+  _tlAudio.crossOrigin='anonymous';
+  _tlAudio.onerror=function(){
+    showPlayerError('파일 로드 실패 — 스트림 주소 또는 파일 형식을 확인하세요');
   };
   _tlAudio.onended=function(){ tlStop(); };
-  // TL3 파일이면 브라우저에서 디코딩 후 재생 (mp3 Blob URL로 변환)
-  var _applySrc=function(u){ _tlAudio.src=u; _tlAudio.load(); };
-  if(window.TL3&&TL3.resolveUrl){ TL3.resolveUrl(fileUrl).then(_applySrc).catch(function(){ _applySrc(fileUrl); }); }
-  else{ _applySrc(fileUrl); }
+
+  // MP3는 원본 URL을 바로 재생한다. 불필요한 fetch/decode를 하지 않는다.
+  if(isFree){
+    _tlAudio.src=fileUrl;
+    _tlAudio.load();
+    _tlAudio.play().then(function(){
+      _tlPlaying=true;
+      tlStartTimer();
+      document.getElementById('tlPlayBtn').textContent='⏸';
+      applyFilter();
+    }).catch(function(e){
+      _tlPlaying=false;
+      document.getElementById('tlPlayBtn').textContent='▶';
+      if(e.name==='NotAllowedError'){
+        document.getElementById('tlError').style.display='block';
+        document.getElementById('tlError').textContent='▶ 재생 버튼을 눌러주세요.';
+      }else{
+        showPlayerError('MP3 재생 실패: '+(e.message||e.name||e));
+      }
+    });
+    return;
+  }
+
+  // TL3는 서버 스트림을 가져와 TLNK 컨테이너를 복호화한 뒤 MP3 Blob으로 재생한다.
+  var authHeaders=_token?{'Authorization':'Bearer '+_token}:{};
+  var _applySrc=function(u){
+    _tlAudio.src=u;
+    _tlAudio.load();
+    return _tlAudio.play();
+  };
+  if(window.TL3&&TL3.resolveUrl){
+    TL3.resolveUrl(fileUrl,{fetchOptions:{headers:authHeaders},fallbackDirect:false})
+      .then(function(u){ return _applySrc(u); })
+      .then(function(){
+        _tlPlaying=true;
+        tlStartTimer();
+        document.getElementById('tlPlayBtn').textContent='⏸';
+        applyFilter();
+      })
+      .catch(function(e){
+        _tlPlaying=false;
+        document.getElementById('tlPlayBtn').textContent='▶';
+        if(e&&e.name==='NotAllowedError'){
+          document.getElementById('tlError').style.display='block';
+          document.getElementById('tlError').textContent='▶ 재생 버튼을 눌러주세요.';
+        }else{
+          showPlayerError('TL3 재생 실패: '+(e&&e.message?e.message:e));
+        }
+      });
+  }else{
+    showPlayerError('TL3 플레이어 모듈을 불러오지 못했습니다');
+  }
 }
 function showPlayerError(msg){ var el=document.getElementById('tlError'); el.style.display='block'; el.textContent='❌ '+msg; }
 function tlStartTimer(){
