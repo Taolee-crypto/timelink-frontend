@@ -691,9 +691,14 @@ async function downloadTL(){
   if(btn){btn.textContent='⏳...';btn.disabled=true;}
   try{
     const localUrl=String(_share?.stream_url||'');
-    const r=/127\.0\.0\.1|localhost/i.test(localUrl)
-      ? await fetch(localUrl,{headers:{'Authorization':'Bearer '+getTok()}})
-      : await fetch(API+'/api/download/'+SHARE_ID,{headers:{'Authorization':'Bearer '+getTok()}});
+    let r;
+    if(/127\.0\.0\.1|localhost|trycloudflare\.com/i.test(localUrl)){
+      // 창작자 PC or Cloudflare Tunnel → 직접 fetch
+      r = await fetch(localUrl,{headers:{'Authorization':'Bearer '+getTok()}});
+    } else {
+      // D1 스토리지 → 서버 API
+      r = await fetch(API+'/api/download/'+SHARE_ID,{headers:{'Authorization':'Bearer '+getTok()}});
+    }
     if(!r.ok){
       const d=await r.json().catch(()=>({}));
       throw new Error(d.error||('다운로드 실패 [HTTP '+r.status+']'));
