@@ -137,6 +137,7 @@ textarea.form-input{resize:vertical;min-height:80px}
 </style>
 </head>
 <body>
+<script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 <div id="toast-box"></div>
 
 <!-- TOPBAR -->
@@ -208,7 +209,7 @@ textarea.form-input{resize:vertical;min-height:80px}
       <label class="form-label"><span data-i18n="ch.addr">도로명 주소</span> *</label>
       <div style="display:flex;gap:8px">
         <input class="form-input" id="cafeAddr" placeholder="주소 입력 후 검색" style="flex:1">
-        <button onclick="searchAddr()" style="padding:12px 16px;border-radius:10px;border:1px solid rgba(245,166,35,.3);background:var(--amber3);color:var(--amber);font-size:12px;cursor:pointer;white-space:nowrap">🔍 지도</button>
+        <button onclick="openAddressSearch()" style="padding:12px 16px;border-radius:10px;border:1px solid rgba(245,166,35,.3);background:var(--amber3);color:var(--amber);font-size:12px;cursor:pointer;white-space:nowrap">🔍 주소 검색</button>
       </div>
     </div>
     <div class="form-group" style="margin-bottom:10px">
@@ -380,15 +381,37 @@ function validateChannelId(el){
   el.value = el.value.toLowerCase().replace(/[^a-z0-9_]/g,'');
 }
 
-function searchAddr(){
-  var addr = g('cafeAddr').value.trim();
-  if(!addr){ toast(TLi18n.t('toast.addr.required'),'e'); return; }
+function openAddressSearch(){
+  if(typeof daum === 'undefined' || !daum.Postcode){
+    toast('주소 검색 모듈 로딩 중입니다. 잠시 후 다시 시도해주세요.','e');
+    return;
+  }
+  new daum.Postcode({
+    oncomplete: function(data){
+      var addr = data.roadAddress || data.jibunAddress || '';
+      g('cafeAddr').value = addr;
+      var zipEl = g('cafeZipNo');
+      if(!zipEl){
+        zipEl = document.createElement('input');
+        zipEl.type = 'hidden';
+        zipEl.id = 'cafeZipNo';
+        g('cafeAddr').parentNode.appendChild(zipEl);
+      }
+      zipEl.value = data.zonecode || '';
+      showMap(addr);
+      g('cafeAddrDetail').focus();
+      toast('주소가 선택되었습니다: '+addr,'s');
+    }
+  }).open();
+}
+
+function showMap(addr){
+  if(!addr) return;
   var frame = g('mapFrame');
   var encoded = encodeURIComponent(addr);
-  frame.src = 'https://maps.google.com/maps?q='+encoded+'&output=embed&z=16';
+  frame.src = 'https://maps.google.com/maps?q='+encoded+'&output=embed&z=16&hl=ko';
   frame.style.display='block';
   g('mapPlaceholder').style.display='none';
-  toast(TLi18n.t('toast.map.linked'),'s');
 }
 
 // Images
@@ -488,56 +511,74 @@ function toggleSched(i){ _schedules[i].active=!_schedules[i].active; renderSched
 // Submit
 async function submitChannel(){
   var name = g('cafeName').value.trim();
-  var chId = g('channelId').value.trim();
+  var chId = g('channelId').value.trim().toLowerCase();
   var bizNo = g('bizNo').value.trim();
   var addr = g('cafeAddr').value.trim();
 
   if(!name||!chId||!bizNo||!addr){ toast(TLi18n.t('toast.required.fields'),'e'); return; }
   if(!chId.match(/^[a-z0-9_]{3,20}$/)){ toast(TLi18n.t('toast.ch.id.format'),'e'); return; }
 
-  var bal = _user ? (_user.tl||0) : 0;
-  if(bal < CHANNEL_FEE){ toast(TLi18n.t('toast.ch.tl.short.cafe'),'e'); return; }
-
   var btn = g('submitBtn');
   btn.disabled=true; btn.textContent='⏳ 처리 중...';
 
   try{
-    // TL 차감
-    var r = await fetch(API+'/api/admin/sql', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({sql:"UPDATE users SET tl=tl-"+CHANNEL_FEE+", tl_balance=tl_balance-"+CHANNEL_FEE+" WHERE id="+(_user.id)})
-    });
-
-    // 로컬 업데이트
-    _user.tl = Math.max(0, bal - CHANNEL_FEE);
-    localStorage.setItem('tl_user', JSON.stringify(_user));
-    updateBalance();
-
-    // 채널 정보 저장 (localStorage — 백엔드 채널 테이블 추가 전까지)
-    var channelData = {
-      id: chId,
+    var body = {
+      channel_id: chId,
       name: name,
-      bizNo: bizNo,
+      country: 'KR',
+      biz_reg_num: bizNo,
+      biz_type: 'individual',
       addr: addr,
-      addrDetail: g('cafeAddrDetail').value,
-      desc: g('cafeDesc').value,
-      owner: _user.id,
-      ownerName: g('ownerName').value,
+      addr_detail: g('cafeAddrDetail').value.trim(),
+      description: g('cafeDesc').value.trim(),
+      images: _images || [],
       playlist: Array.from(_selected),
-      schedules: _schedules,
-      createdAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now()+30*24*60*60*1000).toISOString(),
-      fee: CHANNEL_FEE
+      schedules: _schedules
     };
-    localStorage.setItem('tl_cafe_channel', JSON.stringify(channelData));
 
+    var r = await fetch(API+'/api/cafe/channels', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+(_token||'')
+      },
+      body: JSON.stringify(body)
+    });
+    var d = await r.json().catch(function(){ return {}; });
+
+    if(!r.ok || !d.ok){
+      throw new Error((d && d.error) || ('채널 개설 실패 [HTTP '+r.status+']'));
+    }
+
+    // 서버에서 차감된 금액을 로컬에 반영
+    if(d.fee && _user){
+      _user.tl = Math.max(0, (_user.tl||0) - d.fee);
+      _user.tl_balance = _user.tl;
+      localStorage.setItem('tl_user', JSON.stringify(_user));
+      updateBalance();
+    }
+
+    // 성공 UI
     btn.style.display='none';
     g('successBox').classList.add('show');
-    toast(TLi18n.t('toast.ch.cafe.success'),'s');
+    toast('🎉 카페 채널이 개설되었습니다!','s');
 
+    // 성공 박스에 채널 정보 표시
+    var sb = g('successBox');
+    if(sb){
+      var info = sb.querySelector('.channel-info');
+      if(!info){
+        info = document.createElement('div');
+        info.className = 'channel-info';
+        info.style.cssText = 'margin-top:12px;padding:12px;background:rgba(255,255,255,.04);border-radius:8px;font-size:12px;font-family:var(--fm);color:var(--t2);text-align:left';
+        sb.insertBefore(info, sb.querySelector('a'));
+      }
+      info.innerHTML = '<div>채널 ID: <b style="color:var(--amber)">'+chId+'</b></div>'+
+        '<div>카페명: '+name+'</div>'+
+        '<div>만료일: '+new Date(d.expires_at).toLocaleDateString('ko-KR')+'</div>';
+    }
   }catch(e){
-    toast(TLi18n.t('toast.general.error')+': '+e.message,'e');
+    toast((e && e.message) || '채널 개설 실패','e');
     btn.disabled=false;
     btn.innerHTML='☕ 카페 채널 개설 (50,000 TL 결제)';
   }
