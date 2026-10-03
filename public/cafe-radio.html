@@ -1716,17 +1716,41 @@ var _lastAnnouncedId=null, _announceCount=0;
 // ── AI 선곡 ──
 function buildQueue(){
   if(!_shares.length) return;
-  if(_cafeChannelType==='aidj'){
-    aiBuildQueue().catch(function(){ fallbackBuildQueue(); });
-  } else {
-    fallbackBuildQueue();
-  }
+  // AI DJ TiLo 비활성화 (초기 버전) — 항상 fallback 사용
+  // if(_cafeChannelType==='aidj'){ aiBuildQueue().catch(...); }
+  fallbackBuildQueue();
 }
 
 function fallbackBuildQueue(){
-  var pool = _shares.slice();
-  pool.sort(function(a,b){ return ((b.pulse||0)-(a.pulse||0)); });
-  if(_shuffle) pool = pool.sort(function(){ return Math.random()-.5; });
+  if(!_shares.length) return;
+  
+  // 장르별로 그룹화
+  var byCat = {};
+  _shares.forEach(function(s){
+    var cat = String(s.category||'기타').trim() || '기타';
+    if(!byCat[cat]) byCat[cat] = [];
+    byCat[cat].push(s);
+  });
+  
+  // 각 장르 내부 셔플
+  var cats = Object.keys(byCat);
+  cats.forEach(function(cat){
+    byCat[cat].sort(function(){ return Math.random()-.5; });
+  });
+  
+  // 장르를 번갈아가며 뽑기 (라운드 로빈)
+  var pool = [];
+  var maxLen = 0;
+  cats.forEach(function(cat){ if(byCat[cat].length > maxLen) maxLen = byCat[cat].length; });
+  for(var i = 0; i < maxLen; i++){
+    cats.forEach(function(cat){
+      if(byCat[cat][i]) pool.push(byCat[cat][i]);
+    });
+  }
+  
+  // 셔플 옵션이 켜져 있으면 완전 랜덤
+  if(_shuffle) pool.sort(function(){ return Math.random()-.5; });
+  
   _queue = pool.slice(0,50);
   g('queueCnt').textContent = _queue.length;
   renderQueue();
