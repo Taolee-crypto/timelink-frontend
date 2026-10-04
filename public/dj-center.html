@@ -637,6 +637,8 @@ async function saveBroadcastSet(){
    🎵 방송 세트
 ══════════════════════════════════════ */
 var _isLive = false;
+var _djAudio = null;        // DJ 오디오 객체
+var _currentSetTracks = []; // 현재 방송 세트 곡 ID 목록
 var _liveHeartbeat = null;
 
 async function loadBroadcastSet(){
@@ -676,8 +678,57 @@ async function startBroadcast(){
     toast('🔴 라이브 방송 시작!', 's');
     startLiveHeartbeat();
     loadBroadcastSet();
+    // 첫 곡 자동 재생
+    setTimeout(playCurrentTrack, 1000);
   } catch(e) {
     toast('방송 시작 실패: '+e.message, 'e');
+  }
+}
+
+// ── 현재 곡 재생 (DJ 브라우저) ──
+async function playCurrentTrack(){
+  if(!_isLive) return;
+  try {
+    var r = await fetch(API+'/api/dj-cafe/broadcast/status', {
+      headers:{'Authorization':'Bearer '+_token}
+    });
+    var d = await r.json();
+    if(!d.live || !d.live.is_live) return;
+    
+    var trackId = d.live.live_current_track_id;
+    if(!trackId) return;
+    
+    // 곡 정보 조회
+    var tr = await fetch(API+'/api/dj-cafe/live/'+d.live.id+'/now');
+    var td = await tr.json();
+    if(!td.ok || !td.current_track || !td.current_track.stream_url) return;
+    
+    var track = td.current_track;
+    
+    // 오디오 정지 (기존)
+    if(_djAudio){ _djAudio.pause(); _djAudio = null; }
+    
+    // 새 오디오 재생
+    _djAudio = new Audio(track.stream_url);
+    _djAudio.crossOrigin = 'anonymous';
+    // 시간 동기화
+    if(track.elapsed_ms > 0 && track.elapsed_ms < 60000){
+      _djAudio.currentTime = track.elapsed_ms / 1000;
+    }
+    _djAudio.play().then(function(){
+      console.log('[DJ] 재생:', track.title);
+    }).catch(function(e){
+      console.warn('[DJ] 재생 실패:', e.message);
+    });
+  } catch(e) {
+    console.warn('[DJ] 곡 재생 오류:', e.message);
+  }
+}
+
+function stopDjAudio(){
+  if(_djAudio){
+    _djAudio.pause();
+    _djAudio = null;
   }
 }
 
@@ -690,6 +741,7 @@ async function stopBroadcast(){
     });
     _isLive = false;
     if(_liveHeartbeat){ clearInterval(_liveHeartbeat); _liveHeartbeat = null; }
+    stopDjAudio();
     toast('⏹ 방송 종료', 'i');
     loadBroadcastSet();
   } catch(e) {
@@ -706,6 +758,8 @@ function startLiveHeartbeat(){
         method:'POST',
         headers:{'Authorization':'Bearer '+_token}
       });
+      // 다음 곡 재생
+      playCurrentTrack();
     } catch(e){}
   }, 30000);
 }
