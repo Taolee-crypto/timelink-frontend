@@ -271,6 +271,8 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 /* 콘텐츠 보호 */
 .tl-playing-overlay{position:fixed;inset:0;z-index:99990;pointer-events:none;background:transparent;-webkit-user-select:none;user-select:none}
 @media print{body > *{display:none !important}body::after{display:block !important;content:'⛔ TimeLink 콘텐츠는 인쇄할 수 없습니다.';font-size:24px;text-align:center;margin-top:200px;color:#333}}
+.file-delete-btn{padding:6px 10px;background:rgba(255,69,58,.1);border:1px solid rgba(255,69,58,.3);border-radius:8px;color:#FF453A;cursor:pointer;font-size:14px;transition:all .2s;font-family:inherit}
+.file-delete-btn:hover{background:rgba(255,69,58,.25)}
 </style>
 <!-- TON Connect UI SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@tonconnect/ui@2.0.6/dist/tonconnect-ui.min.js"></script>
@@ -1006,6 +1008,23 @@ async function loadShares(){
       }).join('');
     }
   }catch(e){ console.warn('shares 로드 실패:', e); }
+
+async function deleteMyFile(id, title){
+  if(!confirm('"' + title + '" 을 삭제하시겠습니까?')) return;
+  try{
+    var r = await fetch(API + '/api/shares/' + id, {
+      method: 'DELETE',
+      headers: {'Authorization': 'Bearer ' + (localStorage.getItem('tl_token')||'')}
+    });
+    if(!r.ok){ throw new Error('삭제 실패'); }
+    if(typeof toast === 'function') toast('삭제 완료', 'success');
+    else alert('삭제 완료');
+    loadShares();
+  }catch(e){
+    if(typeof toast === 'function') toast((e && e.message) || '삭제 실패', 'error');
+    else alert((e && e.message) || '삭제 실패');
+  }
+}
 }
 
 async function loadCafeChannels(){
