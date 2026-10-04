@@ -130,25 +130,60 @@ body{background:var(--bg);color:var(--t1);font-family:var(--fn);min-height:100vh
 
 <!-- 충전 모달 -->
 <div class="modal-overlay" id="chargeModal">
-  <div class="modal" style="max-width:420px">
+  <div class="modal" style="max-width:440px">
     <div class="modal-hdr">
       <span class="modal-title">⚡ TL 충전</span>
       <button class="modal-close" onclick="closeChargeModal()">✕</button>
     </div>
-    <div style="margin-bottom:16px">
-      <div style="font-size:13px;color:var(--t2);margin-bottom:12px">충전할 TL을 선택하세요 (1TL = 1원)</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="chargePkgs">
-        <div class="charge-pkg" data-amount="1000" onclick="selectChargePkg(this)"><div style="font-size:16px;font-weight:900;color:var(--purple)">1,000 TL</div><div style="font-size:12px;color:var(--t3)">₩1,000</div></div>
-        <div class="charge-pkg" data-amount="3000" onclick="selectChargePkg(this)"><div style="font-size:16px;font-weight:900;color:var(--purple)">3,000 TL</div><div style="font-size:12px;color:var(--t3)">₩3,000</div></div>
-        <div class="charge-pkg" data-amount="5000" onclick="selectChargePkg(this)"><div style="font-size:16px;font-weight:900;color:var(--purple)">5,000 TL</div><div style="font-size:12px;color:var(--t3)">₩5,000</div></div>
-        <div class="charge-pkg active" data-amount="10000" onclick="selectChargePkg(this)"><div style="font-size:16px;font-weight:900;color:var(--purple)">10,000 TL</div><div style="font-size:12px;color:var(--t3)">₩10,000 +500 보너스</div></div>
+
+    <!-- 부족 상태 표시 -->
+    <div id="tlShortageBox" style="display:none;padding:14px;border-radius:12px;background:rgba(255,69,58,.08);border:1px solid rgba(255,69,58,.3);margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px">⚠️ TL이 부족합니다</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px">
+        <div><div style="color:var(--t3);margin-bottom:2px">필요</div><div style="font-weight:700" id="shortageReq">0</div></div>
+        <div><div style="color:var(--t3);margin-bottom:2px">보유</div><div style="font-weight:700;color:var(--teal)" id="shortageHave">0</div></div>
+        <div><div style="color:var(--t3);margin-bottom:2px">부족</div><div style="font-weight:700;color:var(--red)" id="shortageNeed">0</div></div>
       </div>
     </div>
-    <div style="background:rgba(0,113,227,.1);border:1px solid rgba(0,113,227,.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--t2)">
-      이 곡에 충전: <strong id="chargeTargetTitle" style="color:var(--t1)"></strong>
+
+    <!-- 1. TL 구매 -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:13px;font-weight:700;color:var(--t2);margin-bottom:10px">💳 TL 구매 (1TL = 1원)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="chargePkgs">
+        <div class="charge-pkg" data-amount="1000" onclick="selectChargePkg(this)"><div style="font-size:16px;font-weight:900;color:var(--accent)">1,000 TL</div><div style="font-size:12px;color:var(--t3)">₩1,000</div></div>
+        <div class="charge-pkg" data-amount="3000" onclick="selectChargePkg(this)"><div style="font-size:16px;font-weight:900;color:var(--accent)">3,000 TL</div><div style="font-size:12px;color:var(--t3)">₩3,000</div></div>
+        <div class="charge-pkg" data-amount="5000" onclick="selectChargePkg(this)"><div style="font-size:16px;font-weight:900;color:var(--accent)">5,000 TL</div><div style="font-size:12px;color:var(--t3)">₩5,000</div></div>
+        <div class="charge-pkg active" data-amount="10000" onclick="selectChargePkg(this)"><div style="font-size:16px;font-weight:900;color:var(--accent)">10,000 TL</div><div style="font-size:12px;color:var(--t3)">₩10,000 +500 보너스</div></div>
+      </div>
+      <button onclick="openTossChargeFromTrack()" style="width:100%;padding:13px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px">
+        💳 결제하기
+      </button>
     </div>
-    <button id="directChargeBtn" style="width:100%;padding:13px;border-radius:12px;border:none;background:rgba(100,210,255,.15);border:1px solid rgba(100,210,255,.3);color:var(--mint);font-size:14px;font-weight:700;cursor:pointer">
-      보유 TL로 직접 충전
+
+    <!-- 2. 광고 보기 -->
+    <div style="margin-bottom:20px;padding:16px;border-radius:12px;background:linear-gradient(135deg,rgba(255,159,10,.08),rgba(0,113,227,.04));border:1px solid rgba(255,159,10,.2)">
+      <div style="font-size:13px;font-weight:700;color:var(--orange);margin-bottom:6px">📺 광고 보고 무료 충전</div>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:12px;line-height:1.6">
+        짧은 광고를 시청하면 <strong style="color:var(--orange)">300 TL_A</strong>가 지급됩니다
+      </div>
+      <button onclick="openAdsPageFromTrack()" style="width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#FF9F0A,#FFB340);color:#000;font-size:14px;font-weight:700;cursor:pointer">
+        📺 광고 보러 가기
+      </button>
+    </div>
+
+    <!-- 3. 보유 TL로 직접 충전 -->
+    <div style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--t2);margin-bottom:10px">⚡ 보유 TL로 직접 충전</div>
+      <div style="background:rgba(0,113,227,.08);border:1px solid rgba(0,113,227,.2);border-radius:10px;padding:12px;margin-bottom:10px;font-size:13px;color:var(--t2)">
+        이 곡: <strong id="chargeTargetTitle" style="color:var(--t1)"></strong>
+      </div>
+      <button id="directChargeBtn" style="width:100%;padding:13px;border-radius:12px;border:1px solid rgba(100,210,255,.3);background:rgba(100,210,255,.15);color:var(--teal);font-size:14px;font-weight:700;cursor:pointer">
+        ⚡ 보유 TL로 직접 충전
+      </button>
+    </div>
+
+    <button onclick="closeChargeModal()" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:13px;cursor:pointer;margin-top:8px">
+      닫기
     </button>
   </div>
 </div>
@@ -523,11 +558,50 @@ function closeChargeModal(){
   document.getElementById('chargeModal').classList.remove('open'); 
 }
 
-function chargeTL(){ 
-  const modal=document.getElementById('chargeModal'); 
-  const title=document.getElementById('chargeTargetTitle'); 
-  if(title) title.textContent=_share?.title||''; 
-  if(modal) modal.classList.add('open'); 
+function chargeTL(){
+  const modal=document.getElementById('chargeModal');
+  const title=document.getElementById('chargeTargetTitle');
+  if(title) title.textContent=_share?.title||'';
+
+  // 부족 TL 정보 표시
+  var required = Number(_share?.file_tl||0);
+  var have = _myFileTL||0;
+  var need = Math.max(0, required - have);
+
+  var box = document.getElementById('tlShortageBox');
+  if(box){
+    if(required > 0 && need > 0){
+      box.style.display = 'block';
+      document.getElementById('shortageReq').textContent = required.toLocaleString()+' TL';
+      document.getElementById('shortageHave').textContent = have.toLocaleString()+' TL';
+      document.getElementById('shortageNeed').textContent = need.toLocaleString()+' TL';
+    } else {
+      box.style.display = 'none';
+    }
+  }
+
+  // 10000 패키지 기본 선택
+  document.querySelectorAll('.charge-pkg').forEach(function(p){
+    p.classList.remove('active');
+    if(p.dataset.amount==='10000') p.classList.add('active');
+  });
+  _chargeAmount = 10000;
+
+  if(modal) modal.classList.add('open');
+}
+
+// ⭐ Toss 충전 (shareplace.html#charge 새 창)
+function openTossChargeFromTrack(){
+  var url = 'shareplace.html#charge';
+  if(_chargeAmount) url += '?amount=' + _chargeAmount;
+  window.location.href = url;
+}
+
+// ⭐ 광고 보러 가기 (return 파라미터)
+function openAdsPageFromTrack(){
+  var url = 'ads.html?return=track';
+  if(SHARE_ID) url += '&id=' + encodeURIComponent(SHARE_ID);
+  window.location.href = url;
 }
 
 async function toggleLike(){

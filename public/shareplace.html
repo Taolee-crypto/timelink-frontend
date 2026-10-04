@@ -1003,6 +1003,42 @@ function toggleSbDropdown(id){ var el=document.getElementById(id); if(el) el.cla
 
 // ==================== INIT ====================
 loadShares();
+
+// ⭐ #charge 앵커 처리 (track.html 등에서 'TL 충전'으로 왔을 때)
+(function checkChargeHash(){
+  if(!location.hash || !location.hash.startsWith('#charge')) return;
+
+  var params = new URLSearchParams(location.search);
+  var amount = parseInt(params.get('amount')) || 0;
+
+  if(!localStorage.getItem('tl_token')){
+    alert('TL 충전은 로그인 후 이용 가능합니다');
+    location.href = 'login.html?redirect=' + encodeURIComponent('shareplace.html#charge');
+    return;
+  }
+
+  setTimeout(function(){
+    if(typeof openTossCharge === 'function'){
+      if(amount > 0){
+        var pkgs = document.querySelectorAll('#tlPackages > div, .tl-pkg, .charge-pkg');
+        pkgs.forEach(function(p){
+          var pAmt = parseInt(p.dataset?.amount || p.getAttribute('data-amount') || 0);
+          if(pAmt === amount){
+            p.click();
+            p.classList.add('active');
+          }
+        });
+      }
+      openTossCharge();
+      console.log('[charge] Toss 모달 열림 (amount:', amount, ')');
+    } else {
+      console.warn('[charge] openTossCharge 함수 없음');
+    }
+  }, 500);
+
+  history.replaceState(null, '', location.pathname + location.search);
+})();
+
 </script>
 </body>
 </html>
