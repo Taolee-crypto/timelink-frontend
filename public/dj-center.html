@@ -155,6 +155,7 @@ textarea.form-input{resize:vertical;min-height:80px}
       <div class="tabs">
         <button class="tab active" onclick="switchTab('profile',this)">👤 내 프로필</button>
         <button class="tab" onclick="switchTab('cafes',this)">☕ 카페 찾기</button>
+        <button class="tab" onclick="switchTab('files',this)">📁 내 파일</button>
         <button class="tab" onclick="switchTab('applications',this)">📩 지원 현황</button>
         <button class="tab" onclick="switchTab('contracts',this)">🎙️ 내 방송 계약</button>
       </div>
@@ -170,6 +171,15 @@ textarea.form-input{resize:vertical;min-height:80px}
           <div class="section-title">☕ 방송할 카페 찾기 <span class="badge" id="cafeCount">-</span></div>
           <div id="cafesContent">
             <div class="loading"><span class="spinner"></span>카페 목록 로딩 중...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-files">
+        <div class="section">
+          <div class="section-title">📁 내 TL3 파일 <span class="badge" id="fileCount">-</span></div>
+          <div id="filesContent">
+            <div class="loading"><span class="spinner"></span>파일 로딩 중...</div>
           </div>
         </div>
       </div>
@@ -226,6 +236,7 @@ function switchTab(name, btn){
   if(btn) btn.classList.add('active');
   g('tab-'+name).classList.add('active');
   if(name==='cafes') loadCafes();
+  if(name==='files') loadFiles();
   if(name==='applications') loadApplications();
   if(name==='contracts') loadContracts();
 }
@@ -477,6 +488,59 @@ async function loadApplications(){
   }
 }
 
+
+/* ══════════════════════════════════════
+   📁 내 파일 (TL3)
+══════════════════════════════════════ */
+async function loadFiles(){
+  try {
+    var r = await fetch(API+'/api/dj-cafe/my-files', {
+      headers: { 'Authorization': 'Bearer '+_token }
+    });
+    var d = await r.json();
+    var files = (d && d.files) || [];
+    var cntEl = g('fileCount');
+    if(cntEl) cntEl.textContent = files.length;
+    renderFiles(files);
+  } catch(e) {
+    g('filesContent').innerHTML = '<div class="empty">로드 실패: '+esc(e.message)+'</div>';
+  }
+}
+
+function renderFiles(files){
+  if(!files.length){
+    g('filesContent').innerHTML =
+      '<div class="empty">' +
+        '<div class="empty-icon">📁</div>' +
+        '<div class="empty-title">아직 업로드한 TL3 파일이 없습니다</div>' +
+        '<div class="empty-desc">크리에이터 센터에서 TL3 음악을 업로드하면 여기에 표시됩니다.</div>' +
+      '</div>';
+    return;
+  }
+
+  var html = files.map(function(f){
+    var cover = f.cover_url
+      ? '<img src="'+esc(f.cover_url)+'" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'🎵\'">'
+      : '🎵';
+    var duration = Number(f.duration||0);
+    var durStr = duration > 0 ? Math.floor(duration/60)+':'+String(duration%60).padStart(2,'0') : '--:--';
+    return '<div class="profile-card" style="margin-bottom:12px">' +
+      '<div class="profile-avatar" style="border-radius:12px;background:rgba(100,210,255,.1);border-color:rgba(100,210,255,.25);overflow:hidden">' + cover + '</div>' +
+      '<div class="profile-info">' +
+        '<div class="profile-name" style="font-size:15px">'+esc(f.title||'Untitled')+'</div>' +
+        '<div class="profile-bio" style="font-size:12px">'+esc(f.artist||'-')+' · '+esc(f.category||'-')+' · '+durStr+'</div>' +
+        '<div style="margin-top:8px;display:flex;gap:14px;font-size:12px;font-family:var(--fm);flex-wrap:wrap">' +
+          '<span style="color:var(--mint)">⚡ '+Number(f.file_tl||0)+' TL/초</span>' +
+          '<span style="color:var(--rose)">🔥 Pulse '+Number(f.pulse||0).toLocaleString()+'</span>' +
+          '<span style="color:var(--amber)">▶ 재생 '+Number(f.play_count||0)+'회</span>' +
+          '<span style="color:var(--green)">💰 수익 '+Number(f.total_revenue||0).toLocaleString()+' TL</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  g('filesContent').innerHTML = html;
+}
 async function loadContracts(){
   if(!_profile){
     g('contractsContent').innerHTML = '<div class="empty"><div class="empty-title">먼저 DJ 프로필을 등록하세요</div></div>';
