@@ -1199,26 +1199,20 @@ async function loadAll(){
 }
 async function loadShares(){
   var d=await api('/api/shares');
-  if(d&&d.shares){ _shares=d.shares; }
+  if(Array.isArray(d)){ _shares=d; }
+  else if(d&&d.shares){ _shares=d.shares; }
+  else { _shares=[]; }
   g('sb-shares-cnt').textContent=_shares.length;
   renderShares();
   toast('파일 '+_shares.length+'개 로드','g');
 }
 async function loadUsers(){
   var d=await api('/api/users');
-  if(d && (d.users||Array.isArray(d))){
-    _users=d.users||(Array.isArray(d)?d:[]);
-  } else {
-    // /api/users 없으면 shares에서 유저 추출 (폴백)
-    var seen={};
-    _users=[];
-    _shares.forEach(function(s){
-      if(s.user_id && !seen[s.user_id]){
-        seen[s.user_id]=true;
-        _users.push({id:s.user_id,email:'',username:s.username||'User #'+s.user_id,tl:0,tl_balance:0,tlc:0,account_type:'personal'});
-      }
-    });
-    if(_users.length) toast('/api/users 없음 — shares에서 '+_users.length+'명 추출','a');
+  if(d && d.users){ _users = d.users; }
+  else if(Array.isArray(d)){ _users = d; }
+  else {
+    _users = [];
+    toast('/api/users 응답 오류 — 관리자 role 확인 필요 (role=admin)','r');
   }
   g('sb-users-cnt').textContent=_users.length;
   renderUsers(); renderTLUsers();
@@ -2364,8 +2358,6 @@ async function runAutoPayout(){
 </script>
 </body>
 </html>
-
-
 
 
 
