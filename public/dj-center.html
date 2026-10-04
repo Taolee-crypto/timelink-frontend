@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DJ 센터 — TimeLink</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070709;--bg2:#0C0C12;--bg3:#111118;
+  --purple:#0071E3;--mint:#64D2FF;--cyan:#00E5FF;
+  --amber:#F5A623;--green:#2ECC71;--red:#FF4757;
+  --bd:rgba(255,255,255,.07);--bd2:rgba(255,255,255,.13);
+  --t1:#fff;--t2:rgba(255,255,255,.6);--t3:rgba(255,255,255,.3);
+  --fn:'Noto Sans KR',sans-serif;--fm:'JetBrains Mono',monospace;--fb:'Bebas Neue',cursive;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--fn);background:var(--bg);color:var(--t1);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse 60% 40% at 80% 10%,rgba(0,113,227,.08),transparent 60%),
+             radial-gradient(ellipse 50% 50% at 10% 80%,rgba(100,210,255,.05),transparent 60%);
+  pointer-events:none;z-index:0}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh;position:relative;z-index:1}
+.sidebar{background:#090D12;border-right:1px solid var(--bd);position:sticky;top:0;height:100vh;
+  overflow-y:auto;display:flex;flex-direction:column;flex-shrink:0}
+.sb-logo{padding:20px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;text-decoration:none}
+.sb-logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--purple),var(--mint));
+  border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff}
+.sb-logo-text{font-family:var(--fb);font-size:16px;letter-spacing:.08em;color:var(--t1)}
+.sb-nav{padding:10px 0;flex:1}
+.sb-section{padding:12px 16px 4px;font-size:9px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--t3);font-family:var(--fm)}
+.sb-link{display:flex;align-items:center;gap:9px;padding:9px 16px;text-decoration:none;color:var(--t2);
+  font-size:12px;font-weight:500;transition:all .2s;position:relative;cursor:pointer}
+.sb-link:hover{color:var(--t1);background:rgba(255,255,255,.03)}
+.sb-link.active{color:var(--mint);background:rgba(100,210,255,.08)}
+.sb-link.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--mint)}
+.sb-icon{font-size:14px;width:20px;text-align:center}
+.main{overflow-y:auto;padding:0}
+.topbar{display:flex;align-items:center;gap:14px;padding:18px 32px;border-bottom:1px solid var(--bd);
+  background:rgba(7,7,9,.85);backdrop-filter:blur(20px);position:sticky;top:0;z-index:100}
+.tb-title{font-family:var(--fb);font-size:22px;letter-spacing:.06em;color:var(--mint)}
+.tb-user{margin-left:auto;font-size:12px;color:var(--t3);font-family:var(--fm)}
+.tb-back{padding:6px 14px;border-radius:8px;border:1px solid var(--bd);color:var(--t3);font-size:12px;
+  text-decoration:none;cursor:pointer;transition:all .2s}
+.tb-back:hover{color:var(--t1);border-color:var(--bd2)}
+.content{padding:32px;max-width:1000px;margin:0 auto}
+.tabs{display:flex;gap:4px;margin-bottom:28px;border-bottom:1px solid var(--bd);padding-bottom:0}
+.tab{padding:12px 20px;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;
+  border-bottom:2px solid transparent;transition:all .2s;font-family:var(--fn);background:transparent;border-top:none;border-left:none;border-right:none}
+.tab:hover{color:var(--t2)}
+.tab.active{color:var(--mint);border-bottom-color:var(--mint)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.section{background:rgba(255,255,255,.025);border:1px solid var(--bd);border-radius:16px;padding:28px;margin-bottom:20px}
+.section-title{font-size:16px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px;color:var(--t1)}
+.section-title .badge{padding:3px 10px;border-radius:8px;font-size:10px;font-family:var(--fm);
+  background:rgba(100,210,255,.12);border:1px solid rgba(100,210,255,.25);color:var(--mint);font-weight:700}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.form-row.one{grid-template-columns:1fr}
+.form-group{display:flex;flex-direction:column;gap:7px}
+.form-label{font-size:11px;color:var(--t3);letter-spacing:.06em;font-weight:600;
+  text-transform:uppercase;font-family:var(--fm)}
+.form-input{padding:12px 14px;background:rgba(255,255,255,.04);border:1px solid var(--bd2);
+  border-radius:10px;color:var(--t1);font-size:13px;font-family:var(--fn);outline:none;transition:all .2s;width:100%}
+.form-input:focus{border-color:rgba(100,210,255,.5);background:rgba(100,210,255,.04)}
+.form-input::placeholder{color:var(--t3)}
+textarea.form-input{resize:vertical;min-height:80px}
+.tag-grid{display:flex;flex-wrap:wrap;gap:8px}
+.tag{padding:7px 14px;border-radius:20px;background:rgba(255,255,255,.04);border:1px solid var(--bd);
+  color:var(--t3);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;user-select:none}
+.tag:hover{border-color:var(--bd2);color:var(--t2)}
+.tag.active{background:rgba(100,210,255,.12);border-color:rgba(100,210,255,.35);color:var(--mint)}
+.tag.active.purple{background:rgba(0,113,227,.12);border-color:rgba(0,113,227,.35);color:var(--purple)}
+.btn{padding:13px 26px;border-radius:11px;border:none;font-size:14px;font-weight:700;
+  cursor:pointer;transition:all .2s;font-family:var(--fn);display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:linear-gradient(135deg,var(--purple),var(--mint));color:#fff}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,113,227,.35)}
+.btn-primary:disabled{opacity:.5;transform:none;cursor:not-allowed}
+.btn-ghost{background:transparent;border:1px solid var(--bd2);color:var(--t2)}
+.btn-ghost:hover{background:rgba(255,255,255,.05);color:var(--t1)}
+.profile-card{display:flex;gap:20px;align-items:flex-start;padding:20px;
+  background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:14px;margin-bottom:20px}
+.profile-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--mint));
+  display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;overflow:hidden;border:2px solid var(--bd2)}
+.profile-avatar img{width:100%;height:100%;object-fit:cover}
+.profile-info{flex:1;min-width:0}
+.profile-name{font-size:22px;font-weight:900;margin-bottom:4px;color:var(--t1)}
+.profile-bio{font-size:13px;color:var(--t2);line-height:1.6;margin-bottom:10px}
+.profile-stats{display:flex;gap:20px;margin-top:10px}
+.profile-stat{display:flex;flex-direction:column;gap:2px}
+.profile-stat-val{font-family:var(--fm);font-size:18px;font-weight:700;color:var(--mint)}
+.profile-stat-lbl{font-size:10px;color:var(--t3);font-family:var(--fm)}
+.empty{text-align:center;padding:60px 20px;color:var(--t3)}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:.3}
+.empty-title{font-size:16px;font-weight:700;color:var(--t2);margin-bottom:8px}
+.empty-desc{font-size:13px;line-height:1.7;max-width:400px;margin:0 auto}
+.loading{text-align:center;padding:40px;color:var(--t3);font-family:var(--fm);font-size:13px}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid rgba(255,255,255,.1);
+  border-top-color:var(--mint);border-radius:50%;animation:sp .7s linear infinite;margin-right:8px;vertical-align:middle}
+@keyframes sp{to{transform:rotate(360deg)}}
+#toast-box{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.t{padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;backdrop-filter:blur(20px);
+  border:1px solid var(--bd2);color:var(--t1);animation:tin .25s ease;max-width:320px;background:rgba(15,15,25,.95)}
+.t.s{background:rgba(46,204,113,.15);color:var(--green);border-color:rgba(46,204,113,.35)}
+.t.e{background:rgba(255,71,87,.15);color:var(--red);border-color:rgba(255,71,87,.35)}
+.t.i{background:rgba(100,210,255,.12);color:var(--mint);border-color:rgba(100,210,255,.3)}
+@keyframes tin{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-thumb{background:rgba(100,210,255,.15);border-radius:3px}
+@media(max-width:768px){
+  .app{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .content{padding:20px}
+  .form-row{grid-template-columns:1fr}
+}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="/apple-theme.css">
+</head>
+<body>
+
+<div id="toast-box"></div>
+
+<div class="app">
+  <aside class="sidebar">
+    <a href="shareplace.html" class="sb-logo">
+      <div class="sb-logo-icon">DJ</div>
+      <span class="sb-logo-text">DJ CENTER</span>
+    </a>
+    <nav class="sb-nav">
+      <div class="sb-section">DJ</div>
+      <a href="dj-center.html" class="sb-link active"><span class="sb-icon">🎧</span>내 DJ 센터</a>
+      <a href="radio.html" class="sb-link"><span class="sb-icon">📻</span>TL방송국</a>
+      <a href="cafe-radio.html" class="sb-link"><span class="sb-icon">☕</span>카페방송</a>
+      <a href="incar.html" class="sb-link"><span class="sb-icon">🚗</span>인카방송</a>
+      <div class="sb-section">카페</div>
+      <a href="cafe-channel.html" class="sb-link"><span class="sb-icon">+</span>채널 개설</a>
+      <a href="cafe-owner.html" class="sb-link"><span class="sb-icon">☕</span>카페 주인 센터</a>
+      <div class="sb-section">플랫폼</div>
+      <a href="shareplace.html" class="sb-link"><span class="sb-icon">🏠</span>홈</a>
+      <a href="dashboard.html" class="sb-link"><span class="sb-icon">📊</span>대시보드</a>
+      <a href="creator.html" class="sb-link"><span class="sb-icon">🎨</span>크리에이터 센터</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="tb-title">🎧 DJ CENTER</div>
+      <a href="radio.html" class="tb-back">← 방송국</a>
+      <div class="tb-user" id="tbUser">--</div>
+    </div>
+
+    <div class="content">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('profile',this)">👤 내 프로필</button>
+        <button class="tab" onclick="switchTab('cafes',this)">☕ 카페 찾기</button>
+        <button class="tab" onclick="switchTab('applications',this)">📩 지원 현황</button>
+        <button class="tab" onclick="switchTab('contracts',this)">🎙️ 내 방송 계약</button>
+      </div>
+
+      <div class="tab-panel active" id="tab-profile">
+        <div id="profileContent">
+          <div class="loading"><span class="spinner"></span>프로필 로딩 중...</div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-cafes">
+        <div class="section">
+          <div class="section-title">☕ 방송할 카페 찾기 <span class="badge" id="cafeCount">-</span></div>
+          <div id="cafesContent">
+            <div class="loading"><span class="spinner"></span>카페 목록 로딩 중...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-applications">
+        <div class="section">
+          <div class="section-title">📩 내 지원 현황</div>
+          <div id="applicationsContent">
+            <div class="loading"><span class="spinner"></span>지원 목록 로딩 중...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-contracts">
+        <div class="section">
+          <div class="section-title">🎙️ 활동 중인 카페</div>
+          <div id="contractsContent">
+            <div class="loading"><span class="spinner"></span>계약 목록 로딩 중...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+var API = 'https://api.timelink.digital';
+var _user = null, _token = null;
+var _profile = null;
+var _selectedGenres = [];
+var _selectedMoods = [];
+
+try {
+  _user = JSON.parse(localStorage.getItem('tl_user') || 'null');
+  _token = localStorage.getItem('tl_token') || '';
+} catch(e) {}
+if (!_user) { location.href = 'login.html'; }
+document.getElementById('tbUser').textContent = (_user && (_user.username || _user.email)) || '';
+
+function g(id){ return document.getElementById(id); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg, t){
+  t = t||'i';
+  var el = document.createElement('div');
+  el.className = 't '+t; el.textContent = msg;
+  g('toast-box').prepend(el);
+  setTimeout(function(){ el.remove(); }, 3200);
+}
+
+function switchTab(name, btn){
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  if(btn) btn.classList.add('active');
+  g('tab-'+name).classList.add('active');
+  if(name==='cafes') loadCafes();
+  if(name==='applications') loadApplications();
+  if(name==='contracts') loadContracts();
+}
+
+async function loadProfile(){
+  try {
+    var r = await fetch(API+'/api/dj-cafe/profile', {
+      headers: { 'Authorization': 'Bearer '+_token }
+    });
+    var d = await r.json();
+    if(d.ok && d.profile) {
+      _profile = d.profile;
+      renderProfile();
+    } else {
+      renderProfileForm();
+    }
+  } catch(e) {
+    renderProfileForm();
+  }
+}
+
+function renderProfile(){
+  var p = _profile;
+  var genres = [];
+  var moods = [];
+  try { genres = JSON.parse(p.genres || '[]'); } catch(e) {}
+  try { moods = JSON.parse(p.mood || '[]'); } catch(e) {}
+
+  var html = 
+    '<div class="profile-card">' +
+      '<div class="profile-avatar">' +
+        (p.avatar_url ? '<img src="'+esc(p.avatar_url)+'" onerror="this.style.display=\'none\'">' : '🎧') +
+      '</div>' +
+      '<div class="profile-info">' +
+        '<div class="profile-name">'+esc(p.dj_name)+'</div>' +
+        '<div class="profile-bio">'+esc(p.bio || '소개 없음')+'</div>' +
+        '<div style="font-size:12px;color:var(--t3);margin-top:8px">🎵 '+(genres.join(', ')||'장르 미설정')+'</div>' +
+        '<div class="profile-stats">' +
+          '<div class="profile-stat"><span class="profile-stat-val">'+Number(p.total_broadcasts||0)+'</span><span class="profile-stat-lbl">방송 수</span></div>' +
+          '<div class="profile-stat"><span class="profile-stat-val">'+Number(p.total_listeners||0).toLocaleString()+'</span><span class="profile-stat-lbl">누적 청취자</span></div>' +
+          '<div class="profile-stat"><span class="profile-stat-val">'+Number(p.rating||0).toFixed(1)+'</span><span class="profile-stat-lbl">평점</span></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:10px">' +
+      '<button class="btn btn-primary" onclick="renderProfileForm(true)">✏️ 프로필 수정</button>' +
+      '<button class="btn btn-ghost" onclick="switchTab(\'cafes\', document.querySelectorAll(\'.tab\')[1])">☕ 카페 찾기</button>' +
+    '</div>';
+
+  g('profileContent').innerHTML = html;
+}
+
+var GENRES = ['jazz','indie','pop','acoustic','lofi','ambient','classical','ballad','rock','hiphop','edm','rnb'];
+var GENRE_LABELS = {jazz:'🎷 재즈',indie:'🎸 인디',pop:'🎵 팝',acoustic:'🪕 어쿠스틱',lofi:'📻 로파이',ambient:'🌌 앰비언트',classical:'🎻 클래식',ballad:'💙 발라드',rock:'🎸 록',hiphop:'🎤 힙합',edm:'🎛️ EDM',rnb:'🎹 R&B'};
+var MOODS = ['조용한','신나는','감성적인','차분한','몽환적인','경쾌한','우울한','밝은'];
+var MOOD_ICONS = {'조용한':'🤫','신나는':'🔥','감성적인':'🌙','차분한':'☕','몽환적인':'✨','경쾌한':'🎈','우울한':'🌧️','밝은':'☀️'};
+
+function renderProfileForm(isEdit){
+  var p = isEdit && _profile ? _profile : {};
+  if(isEdit) {
+    try { _selectedGenres = JSON.parse(p.genres || '[]'); } catch(e) { _selectedGenres = []; }
+    try { _selectedMoods = JSON.parse(p.mood || '[]'); } catch(e) { _selectedMoods = []; }
+  }
+
+  var genresHtml = GENRES.map(function(gn){
+    var active = _selectedGenres.includes(gn) ? ' active' : '';
+    return '<div class="tag'+active+'" onclick="toggleGenre(\''+gn+'\')">'+(GENRE_LABELS[gn]||gn)+'</div>';
+  }).join('');
+
+  var moodsHtml = MOODS.map(function(m){
+    var active = _selectedMoods.includes(m) ? ' active purple' : '';
+    return '<div class="tag'+active+'" onclick="toggleMood(\''+m+'\')">'+(MOOD_ICONS[m]||'')+' '+m+'</div>';
+  }).join('');
+
+  var html = 
+    '<div class="section">' +
+      '<div class="section-title">🎧 DJ 프로필 '+(isEdit?'수정':'등록')+'</div>' +
+      '<div class="form-row">' +
+        '<div class="form-group">' +
+          '<label class="form-label">DJ 활동명 *</label>' +
+          '<input class="form-input" id="fDjName" placeholder="예: DJ TiLo" value="'+esc(p.dj_name||'')+'">' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label class="form-label">프로필 이미지 URL</label>' +
+          '<input class="form-input" id="fAvatar" placeholder="https://..." value="'+esc(p.avatar_url||'')+'">' +
+        '</div>' +
+      '</div>' +
+      '<div class="form-row one">' +
+        '<div class="form-group">' +
+          '<label class="form-label">소개</label>' +
+          '<textarea class="form-input" id="fBio" placeholder="어떤 음악을 트는지 소개해주세요">'+esc(p.bio||'')+'</textarea>' +
+        '</div>' +
+      '</div>' +
+      '<div class="form-row one">' +
+        '<div class="form-group">' +
+          '<label class="form-label">주 장르 (다중 선택)</label>' +
+          '<div class="tag-grid">'+genresHtml+'</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="form-row one">' +
+        '<div class="form-group">' +
+          '<label class="form-label">선호 분위기 (다중 선택)</label>' +
+          '<div class="tag-grid">'+moodsHtml+'</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="form-row">' +
+        '<div class="form-group">' +
+          '<label class="form-label">인스타그램</label>' +
+          '<input class="form-input" id="fInsta" placeholder="@username" value="'+esc(p.instagram||'')+'">' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label class="form-label">유튜브</label>' +
+          '<input class="form-input" id="fYoutube" placeholder="채널 URL" value="'+esc(p.youtube||'')+'">' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;margin-top:8px">' +
+        '<button class="btn btn-primary" onclick="saveProfile()">💾 저장</button>' +
+        (isEdit ? '<button class="btn btn-ghost" onclick="renderProfile()">취소</button>' : '') +
+      '</div>' +
+    '</div>';
+
+  g('profileContent').innerHTML = html;
+}
+
+function toggleGenre(gn){
+  var i = _selectedGenres.indexOf(gn);
+  if(i>=0) _selectedGenres.splice(i,1);
+  else _selectedGenres.push(gn);
+  renderProfileForm(true);
+}
+function toggleMood(m){
+  var i = _selectedMoods.indexOf(m);
+  if(i>=0) _selectedMoods.splice(i,1);
+  else _selectedMoods.push(m);
+  renderProfileForm(true);
+}
+
+async function saveProfile(){
+  var djName = g('fDjName').value.trim();
+  if(!djName){ toast('DJ 활동명을 입력하세요','e'); return; }
+
+  var body = {
+    dj_name: djName,
+    bio: g('fBio').value.trim(),
+    genres: _selectedGenres,
+    mood: _selectedMoods,
+    avatar_url: g('fAvatar').value.trim(),
+    instagram: g('fInsta').value.trim(),
+    youtube: g('fYoutube').value.trim()
+  };
+
+  try {
+    var r = await fetch(API+'/api/dj-cafe/profile', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+_token },
+      body: JSON.stringify(body)
+    });
+    var d = await r.json();
+    if(!r.ok) throw new Error(d.error || '저장 실패');
+    toast('✅ '+(d.message || '저장 완료'), 's');
+    await loadProfile();
+  } catch(e) {
+    toast('저장 실패: '+e.message, 'e');
+  }
+}
+
+async function loadCafes(){
+  try {
+    var r = await fetch(API+'/api/cafe/channels');
+    var d = await r.json();
+    var cafes = d.channels || [];
+    g('cafeCount').textContent = cafes.length;
+    if(!cafes.length){
+      g('cafesContent').innerHTML =
+        '<div class="empty">' +
+          '<div class="empty-icon">☕</div>' +
+          '<div class="empty-title">아직 카페 채널이 없습니다</div>' +
+          '<div class="empty-desc">카페 채널이 개설되면 여기에 표시됩니다.</div>' +
+        '</div>';
+      return;
+    }
+    g('cafesContent').innerHTML = cafes.map(function(c){
+      return '<div class="profile-card" style="margin-bottom:12px">' +
+        '<div class="profile-avatar" style="background:rgba(245,166,35,.15);border-color:rgba(245,166,35,.3)">☕</div>' +
+        '<div class="profile-info">' +
+          '<div class="profile-name" style="font-size:16px">'+esc(c.name||c.channel_id)+'</div>' +
+          '<div class="profile-bio">📍 '+esc(c.addr||'주소 없음')+' · '+esc(c.description||'')+'</div>' +
+          '<div style="margin-top:10px;display:flex;gap:8px">' +
+            '<button class="btn btn-primary" style="padding:8px 16px;font-size:12px" onclick="applyCafe(\''+esc(c.channel_id)+'\',\''+esc(c.name)+'\')">📩 방송 지원</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  } catch(e) {
+    g('cafesContent').innerHTML = '<div class="empty">카페 목록 로드 실패: '+e.message+'</div>';
+  }
+}
+
+function applyCafe(channelId, cafeName){
+  var msg = prompt('☕ "'+cafeName+'" 에 방송 지원\n\n카페 주인에게 보낼 메시지를 입력하세요:');
+  if(msg === null) return;
+  submitApply(channelId, msg);
+}
+
+async function submitApply(channelId, message){
+  try {
+    var r = await fetch(API+'/api/dj-cafe/apply', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+_token },
+      body: JSON.stringify({ cafe_channel_id: channelId, message: message })
+    });
+    var d = await r.json();
+    if(!r.ok) throw new Error(d.error || '지원 실패');
+    toast('✅ '+(d.message || '지원 완료!'), 's');
+  } catch(e) {
+    toast('지원 실패: '+e.message, 'e');
+  }
+}
+
+async function loadApplications(){
+  if(!_profile){
+    g('applicationsContent').innerHTML = '<div class="empty"><div class="empty-title">먼저 DJ 프로필을 등록하세요</div></div>';
+    return;
+  }
+  try {
+    var r = await fetch(API+'/api/dj-cafe/my-applications', {
+      headers: { 'Authorization': 'Bearer '+_token }
+    });
+    var d = await r.json();
+    var apps = d.applications || [];
+    if(!apps.length){
+      g('applicationsContent').innerHTML = '<div class="empty"><div class="empty-icon">📩</div><div class="empty-title">아직 지원한 카페가 없습니다</div></div>';
+      return;
+    }
+    var statusMap = { pending: '⏳ 대기 중', active: '✅ 수락됨', rejected: '❌ 거절됨', ended: '🚪 종료됨' };
+    g('applicationsContent').innerHTML = apps.map(function(a){
+      return '<div class="profile-card" style="margin-bottom:12px">' +
+        '<div class="profile-avatar" style="background:rgba(245,166,35,.15);border-color:rgba(245,166,35,.3)">☕</div>' +
+        '<div class="profile-info">' +
+          '<div class="profile-name" style="font-size:16px">'+esc(a.cafe_name||a.cafe_channel_id)+'</div>' +
+          '<div class="profile-bio">'+esc(a.cafe_addr||'')+'</div>' +
+          '<div style="margin-top:8px;font-size:12px;color:var(--t3)">📝 '+(a.message?esc(a.message):'메시지 없음')+'</div>' +
+          '<div style="margin-top:8px;font-size:13px;font-weight:700;color:'+(a.status==='active'?'var(--green)':a.status==='pending'?'var(--amber)':'var(--red)')+'">'+(statusMap[a.status]||a.status)+'</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  } catch(e) {
+    g('applicationsContent').innerHTML = '<div class="empty">로드 실패: '+e.message+'</div>';
+  }
+}
+
+async function loadContracts(){
+  if(!_profile){
+    g('contractsContent').innerHTML = '<div class="empty"><div class="empty-title">먼저 DJ 프로필을 등록하세요</div></div>';
+    return;
+  }
+  try {
+    var r = await fetch(API+'/api/dj-cafe/my-contracts', {
+      headers: { 'Authorization': 'Bearer '+_token }
+    });
+    var d = await r.json();
+    var list = d.contracts || [];
+    if(!list.length){
+      g('contractsContent').innerHTML = '<div class="empty"><div class="empty-icon">🎙️</div><div class="empty-title">아직 활동 중인 카페가 없습니다</div></div>';
+      return;
+    }
+    g('contractsContent').innerHTML = list.map(function(c){
+      return '<div class="profile-card" style="margin-bottom:12px">' +
+        '<div class="profile-avatar" style="background:rgba(46,204,113,.15);border-color:rgba(46,204,113,.3)">🎙️</div>' +
+        '<div class="profile-info">' +
+          '<div class="profile-name" style="font-size:16px">'+esc(c.cafe_name||c.cafe_channel_id)+'</div>' +
+          '<div class="profile-bio">📍 '+esc(c.cafe_addr||'')+'</div>' +
+          '<div style="margin-top:8px;font-size:12px;color:var(--t3)">DJ 요율: '+(c.dj_rate||0.3)+' TL/s · 수익 배분: '+(Math.round((c.revenue_share_dj||0.5)*100))+'%</div>' +
+          '<div style="margin-top:10px;display:flex;gap:8px">' +
+            '<a href="cafe-radio.html" class="btn btn-primary" style="padding:8px 16px;font-size:12px;text-decoration:none">📻 방송 시작</a>' +
+            '<button class="btn btn-ghost" style="padding:8px 16px;font-size:12px" onclick="endContract('+c.id+')">🚪 종료</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  } catch(e) {
+    g('contractsContent').innerHTML = '<div class="empty">로드 실패: '+e.message+'</div>';
+  }
+}
+
+async function endContract(id){
+  if(!confirm('이 카페와의 방송 계약을 종료하시겠습니까?')) return;
+  try {
+    var r = await fetch(API+'/api/dj-cafe/contracts/'+id+'/end', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer '+_token }
+    });
+    var d = await r.json();
+    if(!r.ok) throw new Error(d.error || '실패');
+    toast('✅ 계약이 종료되었습니다', 's');
+    loadContracts();
+  } catch(e) {
+    toast('실패: '+e.message, 'e');
+  }
+}
+
+loadProfile();
+</script>
+</body>
+</html>
