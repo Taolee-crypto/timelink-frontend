@@ -646,6 +646,18 @@ function tlPlayCard(el){
   var s=_allShares.find(function(x){return String(x.id)===String(sid);});
   if(!s) return;
   if(_tlShareId===s.id&&_tlPlaying){ tlToggle(); return; }
+  // ⭐ 새 곡 재생 전 이전 audio 완전 정리
+  if(_tlAudio){
+    try{
+      _tlAudio.onerror=null;
+      _tlAudio.onended=null;
+      _tlAudio.oncanplay=null;
+      _tlAudio.pause();
+      _tlAudio.src='';
+      _tlAudio.load();
+    }catch(e){}
+    _tlAudio=null;
+  }
   var fileUrl=getStreamUrl(s);
   if(!fileUrl){ alert('⚠️ "'+s.title+'"\n\n파일이 없습니다.'); return; }
   var isFree=isFreeMp3(s);
@@ -703,7 +715,15 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   _tlAudio=new Audio();
   _tlAudio.preload='auto';
   _tlAudio.onerror=function(){
-    if(!(_tlAudio&&_tlAudio.src&&(_tlAudio.src.startsWith('blob:')||_tlAudio.src.includes('.tl3')))) showPlayerError('파일 로드 실패 — 스트림 주소 또는 파일 형식을 확인하세요');
+    var src = _tlAudio && _tlAudio.src || '';
+    console.warn('[shareplace audio error]', src.slice(0, 100), _tlAudio && _tlAudio.error);
+    if(src.startsWith('blob:') || src.includes('.tl3') || src.includes('/api/stream/') || src.includes('agent.timelink.digital') || src.includes('trycloudflare.com')) return;
+    if(!src) return;
+    setTimeout(function(){
+      if(_tlAudio && _tlAudio.error && !_tlPlaying){
+        showPlayerError('파일 로드 실패 — 스트림 주소 또는 파일 형식을 확인하세요');
+      }
+    }, 500);
   };
   _tlAudio.onended=function(){ tlStop(); };
 
@@ -737,8 +757,13 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
     return _tlAudio.play();
   };
   if(window.TL3&&TL3.resolveUrl){
+    var _expectedShareId = shareId;  // ⭐ 현재 요청한 shareId 기억
     TL3.resolveUrl(fileUrl,{fetchOptions:{headers:authHeaders},fallbackDirect:false})
-      .then(function(u){ return _applySrc(u); })
+      .then(function(u){
+        // ⭐ 이미 다른 곡으로 바뀌었으면 무시
+        if(_tlShareId !== _expectedShareId){ console.log('[skip] 다른 곡으로 전환됨'); return; }
+        return _applySrc(u);
+      })
       .then(function(){
         _tlPlaying=true;
         tlStartTimer();
