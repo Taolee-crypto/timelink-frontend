@@ -407,41 +407,23 @@ async function previewDj(djId){
 }
 
 // ── 청취 (개인, ×1.0) ──
-async function listenDj(djId){
+// ── 청취 (팝업 플레이어) ──
+function listenDj(djId){
   if(!_user){ toast('로그인이 필요합니다', 'e'); return; }
   var dj = _liveDjs.find(function(d){ return Number(d.id) === Number(djId); });
   if(!dj) return;
 
-  stopPlay();
-  _preview = false;
-  _playing = dj;
-
-  // 계약 여부로 role 결정
   var isContracted = _myContracts.some(function(c){ return Number(c.dj_id) === Number(djId); });
-  var role = (_isCafeOwner && isContracted) ? 'cafe' : 'normal';
-  var mult = role === 'cafe' ? _rates.cafe : _rates.normal;
+  var role = isContracted ? 'cafe' : 'normal';
 
-  // 현재 곡 재생
-  await playDjTrack(djId, false, role);
+  var url = '/player-host.html?dj_id=' + djId + '&role=' + role;
+  var w = window.open(url, 'tl_live_player',
+    'width=380,height=660,menubar=no,toolbar=no,location=no,status=no,resizable=yes');
+  if(!w){ toast('팝업이 차단되었습니다. 브라우저 설정을 확인하세요.', 'e'); return; }
+  w.focus();
 
-  // UI
-  g('playerBar').classList.add('show');
-  g('pbTitle').textContent = dj.dj_name + ' 방송';
-  g('pbSub').textContent = '청취 중 (×' + mult.toFixed(1) + ')';
-  g('pbTL').textContent = '-- TL/초';
-  toast('🎧 ' + dj.dj_name + ' 청취 시작 (×' + mult.toFixed(1) + ')', 's');
-
-  // 과금 시작
-  startCharging(djId, role);
-
-  // 5초마다 곡 폴링 (곡 바뀌면 새로 재생)
-  if(_trackPolling) clearInterval(_trackPolling);
-  _trackPolling = setInterval(function(){
-    if(_playing && !_preview) playDjTrack(djId, true, role);
-  }, 5000);
+  toast('🎧 팝업 플레이어에서 재생 중', 's');
 }
-
-// ── DJ의 현재 곡 재생 ──
 async function playDjTrack(djId, skipIfSame, role){
   try {
     var r = await fetch(API+'/api/dj-cafe/live/'+djId+'/now');

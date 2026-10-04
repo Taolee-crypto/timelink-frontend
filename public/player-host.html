@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>TL 라이브 플레이어</title>
+<style>
+:root{--bg:#0a0a14;--bd:rgba(255,255,255,.08);--red:#ff4757;--mint:#64D2FF;--t1:#fff;--t3:rgba(255,255,255,.4)}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--t1);font-family:-apple-system,'Noto Sans KR',sans-serif;height:100%}
+.wrap{display:flex;flex-direction:column;height:100vh;padding:20px;gap:16px}
+.cover{width:100%;aspect-ratio:1;border-radius:16px;background:linear-gradient(135deg,#4f46e5,#7c3aed);
+  display:flex;align-items:center;justify-content:center;font-size:64px;overflow:hidden;position:relative}
+.cover img{width:100%;height:100%;object-fit:cover}
+.cover .badge{position:absolute;top:12px;left:12px;background:rgba(255,71,87,.9);color:#fff;padding:4px 10px;
+  border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.08em;display:flex;align-items:center;gap:5px}
+.cover .badge .dot{width:7px;height:7px;border-radius:50%;background:#fff;animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.title{font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.artist{font-size:12px;color:var(--t3);margin-top:4px}
+.tl-box{padding:12px 14px;border:1px solid var(--bd);border-radius:12px;background:rgba(255,255,255,.02)}
+.tl-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px}
+.tl-val{font-family:'JetBrains Mono',monospace;color:var(--mint);font-weight:700}
+.bar-bg{height:5px;background:rgba(255,255,255,.08);border-radius:5px;overflow:hidden}
+.bar{height:100%;background:linear-gradient(90deg,#4f46e5,#a855f7);border-radius:5px;width:100%;transition:width .5s}
+.controls{display:flex;gap:10px;justify-content:center}
+.btn{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;font-size:20px;
+  display:flex;align-items:center;justify-content:center;transition:transform .15s}
+.btn:hover{transform:scale(1.08)}
+.btn-play{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff}
+.btn-stop{background:rgba(255,255,255,.08);border:1px solid var(--bd);color:var(--t3)}
+.status{font-size:11px;color:var(--t3);text-align:center;font-family:'JetBrains Mono',monospace}
+audio{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cover" id="cover">
+    <div class="badge"><span class="dot"></span>LIVE</div>
+    &#127911;
+  </div>
+  <div>
+    <div class="title" id="title">방송 준비 중...</div>
+    <div class="artist" id="artist">-</div>
+  </div>
+  <div class="tl-box">
+    <div class="tl-row"><span>초당 소모</span><span class="tl-val" id="rate">-- TL/s</span></div>
+    <div class="tl-row"><span>남은 잔액</span><span class="tl-val" id="balance">-- TL</span></div>
+    <div class="bar-bg"><div class="bar" id="bar"></div></div>
+  </div>
+  <div class="controls">
+    <button class="btn btn-play" id="playBtn" onclick="togglePlay()">&#9208;</button>
+    <button class="btn btn-stop" onclick="stopAll()">&#9209;</button>
+  </div>
+  <div class="status" id="status">연결 중...</div>
+</div>
+<audio id="audio" crossorigin="anonymous"></audio>
+
+<script src="/tl3.js"></script>
+<script>
+var API = 'https://api.timelink.digital';
+var _token = localStorage.getItem('tl_token') || '';
+var _dj = null, _role = 'normal', _playing = false, _trackId = null;
+var _pollTimer = null, _chargeTimer = null;
+
+var qs = new URLSearchParams(location.search);
+var djId = Number(qs.get('dj_id') || 0);
+var role = qs.get('role') || 'normal';
+
+function g(id){ return document.getElementById(id); }
+
+async function init(){
+  if(!djId){ g('status').textContent = '\u274c DJ 정보 없음'; return; }
+  try {
+    var r = await fetch(API + '/api/dj-cafe/live/' + djId + '/now');
+    var d = await r.json();
+    if(!d.ok){ g('status').textContent = '\u274c 방송 없음'; return; }
+    _dj = d.dj || {dj_name:'DJ'};
+    g('title').textContent = _dj.dj_name + ' 라이브';
+    if(_dj.avatar_url) g('cover').innerHTML = '<img src="'+_dj.avatar_url+'"><div class="badge"><span class="dot"></span>LIVE</div>';
+  } catch(e){ g('status').textContent = '\u274c 로드 실패'; return; }
+
+  await loadAndPlay();
+  _playing = true;
+  g('playBtn').textContent = '\u23f8';
+
+  _pollTimer = setInterval(loadAndPlay, 5000);
+  startCharging();
+
+  g('status').textContent = '\u2705 재생 중 \u00b7 이 창을 닫으면 정지됩니다';
+}
+
+async function loadAndPlay(){
+  try {
+    var r = await fetch(API + '/api/dj-cafe/live/' + djId + '/now');
+    var d = await r.json();
+    if(!d.ok || !d.current_track) return;
+    var t = d.current_track;
+    if(_trackId === t.id) return;
+
+    _trackId = t.id;
+    g('title').textContent = t.title || 'Unknown';
+    g('artist').textContent = (t.artist || '') + (t.category ? ' \u00b7 ' + t.category : '');
+
+    var audio = g('audio');
+    var auth = _token ? {'Authorization':'Bearer '+_token} : {};
+    if(/trycloudflare\.com|127\.0\.0\.1|localhost|agent\.timelink\.digital/i.test(t.stream_url)) auth = {};
+
+    var playable = (window.TL3 && TL3.resolveUrl)
+      ? await TL3.resolveUrl(t.stream_url, {fetchOptions:{headers:auth}, fallbackDirect:false})
+      : t.stream_url;
+
+    audio.src = playable;
+    audio.load();
+    if(t.elapsed_ms && t.elapsed_ms > 0 && t.elapsed_ms < 120000){
+      try { audio.currentTime = t.elapsed_ms / 1000; } catch(e){}
+    }
+    if(_playing) await audio.play();
+  } catch(e){
+    console.warn('[player] load 실패:', e);
+  }
+}
+
+function startCharging(){
+  if(_chargeTimer) clearInterval(_chargeTimer);
+  _chargeTimer = setInterval(async function(){
+    if(!_playing) return;
+    try {
+      var r = await fetch(API + '/api/dj-cafe/charge', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+_token},
+        body: JSON.stringify({ dj_id: djId, share_id: 'stream', seconds: 1, role: role })
+      });
+      if(r.status === 402){
+        var d = await r.json();
+        g('status').textContent = '\u26a0\ufe0f TL 부족: ' + d.current + ' / ' + d.required;
+        stopAll();
+        return;
+      }
+      if(r.ok){
+        var d = await r.json();
+        if(d.charged !== undefined) g('rate').textContent = Number(d.charged).toFixed(1) + ' TL/s';
+        if(d.balance !== undefined) g('balance').textContent = Number(d.balance).toFixed(0) + ' TL';
+      }
+    } catch(e){}
+  }, 1000);
+}
+
+function togglePlay(){
+  var audio = g('audio');
+  if(_playing){
+    audio.pause();
+    _playing = false;
+    g('playBtn').textContent = '\u25b6';
+    g('status').textContent = '\u23f8 일시정지 (과금 중단됨)';
+  } else {
+    audio.play().catch(function(){});
+    _playing = true;
+    g('playBtn').textContent = '\u23f8';
+    g('status').textContent = '\u2705 재생 중';
+  }
+}
+
+function stopAll(){
+  if(_pollTimer)   { clearInterval(_pollTimer);   _pollTimer = null; }
+  if(_chargeTimer) { clearInterval(_chargeTimer); _chargeTimer = null; }
+  var audio = g('audio');
+  audio.pause(); audio.src = '';
+  _playing = false;
+  _trackId = null;
+  g('playBtn').textContent = '\u25b6';
+  g('status').textContent = '\u23f9 정지됨';
+}
+
+window.addEventListener('beforeunload', function(){ stopAll(); });
+
+init();
+</script>
+</body>
+</html>
