@@ -1093,7 +1093,7 @@ async function doBizLogin(){
       body:JSON.stringify({email,password:pw})
     });
     var d=await r.json();
-    if(!r.ok) throw new Error(d.error||'로그인 실패. 사업자 번호와 비밀번호를 확인하세요.');
+    if(!r.ok){if(r.status===401)throw new Error('사업자 등록번호 또는 비밀번호가 올바르지 않습니다. 가입 이력이 없다면 [사업자 가입] 탭에서 먼저 가입해주세요.');throw new Error(d.error||'로그인 실패');}
     _user=d.user; _token=d.token;
     localStorage.setItem('biz_user',JSON.stringify(_user));
     localStorage.setItem('biz_token',_token);
@@ -1116,9 +1116,9 @@ async function doBizSignup(){
   var btn=g('bizSignupBtn'); if(btn){btn.disabled=true;btn.textContent='가입 중...';}
   if(g('bizSignupErr')) g('bizSignupErr').style.display='none';
   try{
-    var r=await fetch(API+'/api/auth/signup',{
+    var r=await fetch(API+'/api/auth/register',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email,password:pw,username:bizName,business_name:bizName,biz_reg_num:regNum})
+      body:JSON.stringify({email,password:pw,username:'biz_'+regNum,business_name:bizName,biz_reg_num:regNum,is_advertiser:true})
     });
     var d=await r.json();
     if(!r.ok) throw new Error(d.error||'가입 실패');
