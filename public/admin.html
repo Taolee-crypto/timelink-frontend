@@ -1967,48 +1967,50 @@ async function submitPayout(){
 // ═══════════════════════════════════════
 async function loadTLFlow(){
   try{
-    var d = await api('/api/admin/revenue');
-    if(!d.ok) return;
-    var rv = d.revenue;
+    var u = await execSQL("SELECT COUNT(*) cnt, SUM(COALESCE(tl,0)) total_tl, SUM(COALESCE(tlc,0)) total_tlc, SUM(COALESCE(tl_a,0)) total_tla, SUM(COALESCE(tl_b,0)) total_tlb FROM users");
+    var a = await execSQL("SELECT COUNT(*) cnt, SUM(COALESCE(budget_tl,0)) total_budget, SUM(COALESCE(spent_tl,0)) total_spent FROM tl_ads");
+    var s = await execSQL("SELECT COUNT(*) cnt, SUM(COALESCE(file_tl,0)) total_file_tl, SUM(COALESCE(pulse,0)) total_pulse FROM tl_shares");
+    var uData = (u && u.results && u.results[0]) || {};
+    var aData = (a && a.results && a.results[0]) || {};
+    var sData = (s && s.results && s.results[0]) || {};
     var fmtTL = function(n){ return Number(n||0).toLocaleString()+' TL'; };
-    var fmtKRW = function(n){ return Number(n||0).toLocaleString()+'원'; };
-    // KPI
-    g('tl-flow-kpi').innerHTML = [
-      {label:'현금 매출', val:fmtKRW(rv.total_krw), color:'#10B981'},
-      {label:'판매 TL', val:fmtTL(rv.total_tl_sold), color:'#0071E3'},
-      {label:'소비 TL', val:fmtTL(rv.total_tl_consumed), color:'#F59E0B'},
-      {label:'분배 TL', val:fmtTL(rv.total_tl_a_distributed||0), color:'#3B82F6'},
+    var fmtNum = function(n){ return Number(n||0).toLocaleString(); };
+    var kpiEl = g('tl-flow-kpi');
+    if(kpiEl) kpiEl.innerHTML = [
+      {label:'총 유저', val:fmtNum(uData.cnt)+'명', color:'#10B981'},
+      {label:'유통 TL', val:fmtTL(uData.total_tl), color:'#0071E3'},
+      {label:'광고 소진 TL', val:fmtTL(aData.total_spent), color:'#F59E0B'},
+      {label:'총 파일 TL', val:fmtTL(sData.total_file_tl), color:'#3B82F6'},
     ].map(function(k){
       return '<div class="stat" style="--ac:'+k.color+'"><div class="stat-val">'+k.val+'</div><div class="stat-lbl">'+k.label+'</div></div>';
-    });
-    // 흐름 시각화
-    var sold = Number(rv.total_tl_sold||0);
-    var consumed = Number(rv.total_tl_consumed||0);
-    var distributed = Number(rv.total_tl_a_distributed||0);
-    var platform = consumed - distributed;
-    g('tl-flow-visual').innerHTML =
+    }).join('');
+    var visualEl = g('tl-flow-visual');
+    if(visualEl) visualEl.innerHTML = 
       '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px">'+
-      flowBox('💵 현금 결제', fmtKRW(rv.total_krw), '#10B981')+
+      flowBox('💵 유통 TL', fmtTL(uData.total_tl), '#10B981')+
       arrow()+
-      flowBox('⚡ TL 발행', fmtTL(sold), '#0071E3')+
+      flowBox('⚡ 광고 예산', fmtTL(aData.total_budget), '#0071E3')+
       arrow()+
-      flowBox('🔥 TL 소비', fmtTL(consumed), '#F59E0B')+
-      '<div style="display:flex;flex-direction:column;gap:6px">'+
-        arrow()+flowBox('🎵 크리에이터', fmtTL(distributed), '#3B82F6')+'<br>'+
-        arrow()+flowBox('🏢 플랫폼 수익', fmtTL(Math.max(0,platform)), '#EF4444')+
-      '</div></div>';
-    // 수입/지출
-    g('tl-income-detail').innerHTML = [
-      ['💵 현금 결제 (TL구매)', fmtKRW(rv.total_krw)],
-      ['📺 광고 수익', fmtTL(rv.total_ad_tl||0)],
-      ['☕ 카페방송 구독', '집계 예정'],
-    ].map(function(r){ return detailRow(r[0],r[1]); });
-    g('tl-expense-detail').innerHTML = [
-      ['🎵 크리에이터 분배', fmtTL(distributed)],
-      ['🎁 광고 리워드', fmtTL(rv.total_tl_a_distributed||0)],
-      ['💰 현금교환 요청', fmtTL(rv.total_exchange_requested||0)],
-    ].map(function(r){ return detailRow(r[0],r[1]); });
-  }catch(e){ toast('TL흐름 로드 실패: '+e.message,'r'); }
+      flowBox('🔥 광고 소진', fmtTL(aData.total_spent), '#F59E0B')+
+      arrow()+
+      flowBox('🎵 파일 TL', fmtTL(sData.total_file_tl), '#3B82F6')+
+      '</div>';
+    var incomeEl = g('tl-income-detail');
+    if(incomeEl) incomeEl.innerHTML = [
+      ['💵 유저 TL 합계', fmtTL(uData.total_tl)],
+      ['📺 광고 예산', fmtTL(aData.total_budget)],
+      ['📁 공유 파일', fmtNum(sData.cnt)+'개'],
+    ].map(function(r){ return detailRow(r[0],r[1]); }).join('');
+    var expenseEl = g('tl-expense-detail');
+    if(expenseEl) expenseEl.innerHTML = [
+      ['🔥 광고 소진', fmtTL(aData.total_spent)],
+      ['🎁 TL_A 합계', fmtTL(uData.total_tla)],
+      ['🎁 TL_B 합계', fmtTL(uData.total_tlb)],
+    ].map(function(r){ return detailRow(r[0],r[1]); }).join('');
+  }catch(e){ 
+    console.error('[loadTLFlow]', e); 
+    toast('TL 이코노미 로드 실패: '+e.message,'r'); 
+  }
 }
 function flowBox(label,val,color){
   return '<div style="padding:10px 14px;border-radius:8px;border:1px solid '+color+'40;background:'+color+'15;min-width:120px;text-align:center"><div style="font-size:12px;color:var(--t3);margin-bottom:4px">'+label+'</div><div style="font-weight:700;font-size:13px;color:'+color+';font-family:var(--mono)">'+val+'</div></div>';
@@ -2358,7 +2360,6 @@ async function runAutoPayout(){
 </script>
 </body>
 </html>
-
 
 
 
