@@ -568,6 +568,11 @@ canvas#viz{width:100%;height:100%}
   }
 }
 
+@keyframes bonusPop{
+  0%{opacity:0;transform:translateX(-50%) scale(.8) translateY(-20px)}
+  50%{transform:translateX(-50%) scale(1.05) translateY(0)}
+  100%{opacity:1;transform:translateX(-50%) scale(1) translateY(0)}
+}
 </style>
 <script>
 
@@ -1277,6 +1282,137 @@ function initWeather(){
 /* ══════════════════════════════
    AI DJ TiLo — Claude API 연동
 ══════════════════════════════ */
+/* ══════════════════════════════════════
+   🎧 DJ 세션 + 보너스
+══════════════════════════════════════ */
+async function checkDJProfile(){
+  if(!_user || !_user.id) return false;
+  try {
+    var r = await fetch(API+'/api/dj-cafe/profile', {
+      headers: {'Authorization': 'Bearer '+(_token||'')}
+    });
+    var d = await r.json();
+    if(d.ok && d.profile){
+      _isDJ = true;
+      return true;
+    }
+  } catch(e){}
+  return false;
+}
+
+async function startDJSession(){
+  if(!_user || !_user.id) return;
+  if(_currentSessionId) return;
+  if(!_isDJ){
+    var ok = await checkDJProfile();
+    if(!ok) return;
+  }
+  try {
+    var r = await fetch(API+'/api/dj-cafe/session/start', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
+      body: JSON.stringify({ cafe_channel_id: _activeChannel || 'ai-main' })
+    });
+    var d = await r.json();
+    if(d.ok && d.session_id){
+      _currentSessionId = d.session_id;
+      console.log('[DJ Session] 시작:', d.session_id);
+      if(d.granted_bonus){
+        showBonusToast(d.granted_bonus);
+      }
+      startSessionHeartbeat();
+    }
+  } catch(e){ console.warn('[DJ Session] 시작 실패:', e); }
+}
+
+function startSessionHeartbeat(){
+  if(_sessionHeartbeatTimer) clearInterval(_sessionHeartbeatTimer);
+  _sessionHeartbeatTimer = setInterval(async function(){
+    if(!_currentSessionId) return;
+    var listeners = 5 + Math.floor(Math.random()*45);
+    try {
+      var r = await fetch(API+'/api/dj-cafe/session/heartbeat', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
+        body: JSON.stringify({
+          session_id: _currentSessionId,
+          listeners: listeners,
+          seconds: 30
+        })
+      });
+      var d = await r.json();
+      if(d.granted_bonuses && d.granted_bonuses.length > 0){
+        d.granted_bonuses.forEach(function(b){ showBonusToast(b); });
+      }
+    } catch(e){}
+  }, 30000);
+}
+
+async function endDJSession(){
+  if(!_currentSessionId) return;
+  var sid = _currentSessionId;
+  _currentSessionId = null;
+  if(_sessionHeartbeatTimer){ clearInterval(_sessionHeartbeatTimer); _sessionHeartbeatTimer=null; }
+  try {
+    await fetch(API+'/api/dj-cafe/session/end', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
+      body: JSON.stringify({ session_id: sid })
+    });
+  } catch(e){}
+}
+
+function showBonusToast(bonus){
+  var labels = {
+    first_broadcast: '🎉 첫 방송 보너스',
+    hour_1: '⏰ 1시간 방송 달성',
+    hour_3: '🔥 3시간 방송 달성',
+    listener_10: '👥 청취자 10명',
+    listener_50: '👥 청취자 50명',
+    listener_100: '🏆 청취자 100명',
+    daily_3: '📅 하루 3회 방송',
+    weekly_10: '📆 주간 10회 방송',
+    monthly_30: '📅 월간 30회 방송'
+  };
+  var label = labels[bonus.type] || '🎁 보너스';
+  var text = label + ' +' + Number(bonus.amount).toLocaleString() + ' TL_B';
+
+  // 1) 토스트
+  toast(text, 's');
+
+  // 2) 중앙 강조 팝업
+  var el = document.createElement('div');
+  el.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;'+
+    'padding:18px 32px;border-radius:16px;'+
+    'background:linear-gradient(135deg,rgba(46,204,113,.95),rgba(100,210,255,.95));'+
+    'color:#fff;font-size:16px;font-weight:900;'+
+    'box-shadow:0 12px 40px rgba(46,204,113,.5);'+
+    'font-family:var(--fn);text-align:center;animation:bonusPop .5s ease';
+  el.innerHTML = '<div style="font-size:24px;margin-bottom:6px">🎁</div><div>'+text+'</div>';
+  document.body.appendChild(el);
+  setTimeout(function(){ el.remove(); }, 5000);
+
+  // 3) TL 잔액 새로고침
+  if(_user){
+    var newTlb = (Number(_user.tl_b)||0) + Number(bonus.amount);
+    _user.tl_b = newTlb;
+    _user.tl = (Number(_user.tl_p)||0) + (Number(_user.tl_a)||0) + newTlb;
+    localStorage.setItem('tl_user', JSON.stringify(_user));
+    if(typeof updateTLDisplay === 'function') updateTLDisplay();
+  }
+}
+
+// ── 페이지 종료 시 세션 종료 ──
+window.addEventListener('beforeunload', function(){
+  if(_currentSessionId){
+    try {
+      navigator.sendBeacon(API+'/api/dj-cafe/session/end',
+        new Blob([JSON.stringify({session_id:_currentSessionId})], {type:'application/json'}));
+    } catch(e){}
+  }
+});
+
+/* ── 기존 AI DJ ── */
 var _djHistory = [];
 var _djListening = false;
 var _djTyping = false;
@@ -1806,6 +1942,11 @@ var API_STREAM = 'https://api.timelink.digital/api/stream/';
 var _tickInterval = null;
 var _currentShareId = null;
 
+/* ── DJ 세션 (보너스) ── */
+var _currentSessionId = null;
+var _sessionHeartbeatTimer = null;
+var _isDJ = false;
+
 function getTLStreamUrl(shareId){
   // TL 보호 스트리밍 URL - 토큰 쿼리 파라미터로 전달
   var token = _token || localStorage.getItem('tl_token') || '';
@@ -2123,15 +2264,28 @@ function startCrossfade(){
   }
 }
 
-function togglePlay(){
-  if(!_queue[_curIdx]) return;
-  var aud = getActiveAud();
-  if(_playing){ aud.pause(); _playing=false; g('playBtn').textContent='▶'; stopPoc(); }
-  else {
-    if(!aud.src) loadTrack(_curIdx);
-    aud.play().then(function(){ _playing=true; g('playBtn').textContent='⏸'; startPoc(); startViz(); }).catch(function(e){ toast((TLi18n&&TLi18n.t?TLi18n.t('sp.play.fail'):'fail')+': '+e.message,'e'); });
+  function togglePlay(){
+    if(!_queue[_curIdx]) return;
+    var aud = getActiveAud();
+    if(_playing){
+      aud.pause();
+      _playing=false;
+      g('playBtn').textContent='▶';
+      stopPoc();
+      endDJSession();
+    } else {
+      if(!aud.src) loadTrack(_curIdx);
+      aud.play().then(function(){
+        _playing=true;
+        g('playBtn').textContent='⏸';
+        startPoc();
+        startViz();
+        startDJSession();
+      }).catch(function(e){
+        toast((TLi18n&&TLi18n.t?TLi18n.t('sp.play.fail'):'fail')+': '+e.message,'e');
+      });
+    }
   }
-}
 
 function prevTrack(){ if(_curIdx>0) loadTrack(_curIdx-1); }
 function nextTrack(){ loadTrack((_curIdx+1)%_queue.length); }
@@ -3047,5 +3201,4 @@ async function loadPayHistory(){
 <script src="/notice-popup.js"></script>
 </body>
 </html>
-
 
