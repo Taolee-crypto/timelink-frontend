@@ -219,6 +219,7 @@ body::before{content:'';position:fixed;inset:0;
 
 <audio id="liveAudio" crossorigin="anonymous"></audio>
 
+<script src="/tl3.js"></script>
 <script>
 var API = 'https://api.timelink.digital';
 var _user = null, _token = null;
@@ -463,21 +464,46 @@ async function playDjTrack(djId, skipIfSame, role){
 }
 
 // ── 오디오 재생 ──
+// ── 오디오 재생 (TL3 aware) ──
 function playAudio(url, isPreview, startMs){
   stopAudio();
-  _audio = new Audio(url);
+  _audio = new Audio();
   _audio.crossOrigin = 'anonymous';
-  if(startMs && startMs > 0 && startMs < 120000){
-    try { _audio.currentTime = startMs / 1000; } catch(e) {}
-  }
-  _audio.play().then(function(){
-    console.log('[cafe-radio] 재생:', url.slice(-20));
-  }).catch(function(e){
-    console.warn('[cafe-radio] 재생 실패:', e.message);
-    toast('재생 실패: 브라우저 오디오 허용 필요', 'e');
-  });
-}
 
+  var _expectedUrl = url;
+
+  var _attach = function(playableUrl){
+    if(_expectedUrl !== url) { console.log('[skip] 곡 전환됨'); return; }
+    _audio.src = playableUrl;
+    _audio.load();
+    if(startMs && startMs > 0 && startMs < 120000){
+      try { _audio.currentTime = startMs / 1000; } catch(e) {}
+    }
+    return _audio.play();
+  };
+
+  var authHeaders = _token ? {'Authorization':'Bearer '+_token} : {};
+  if(/trycloudflare\.com|127\.0\.0\.1|localhost|agent\.timelink\.digital/i.test(url)) authHeaders = {};
+
+  if(window.TL3 && TL3.resolveUrl){
+    TL3.resolveUrl(url, {fetchOptions:{headers:authHeaders}, fallbackDirect:false})
+      .then(_attach)
+      .then(function(){
+        console.log('[cafe-radio] 재생(TL3):', url.slice(-30));
+      })
+      .catch(function(e){
+        console.warn('[cafe-radio] TL3 재생 실패:', e && e.message);
+        toast('재생 실패: ' + (e && e.message ? e.message : e), 'e');
+      });
+  } else {
+    _attach(url).then(function(){
+      console.log('[cafe-radio] 재생(plain):', url.slice(-20));
+    }).catch(function(e){
+      console.warn('[cafe-radio] 재생 실패:', e.message);
+      toast('재생 실패: 브라우저 오디오 허용 필요', 'e');
+    });
+  }
+}
 function stopAudio(){
   if(_audio){ 
     try { _audio.pause(); } catch(e) {}
