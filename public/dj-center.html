@@ -114,6 +114,10 @@ textarea.form-input{resize:vertical;min-height:80px}
   .content{padding:20px}
   .form-row{grid-template-columns:1fr}
 }
+@keyframes blink{
+  0%,100%{opacity:1}
+  50%{opacity:.3}
+}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <link rel="stylesheet" href="/apple-theme.css">
@@ -632,12 +636,19 @@ async function saveBroadcastSet(){
 /* ══════════════════════════════════════
    🎵 방송 세트
 ══════════════════════════════════════ */
+var _isLive = false;
+var _liveHeartbeat = null;
+
 async function loadBroadcastSet(){
   try {
-    var r = await fetch(API+'/api/dj-cafe/broadcast-set', {
-      headers: { 'Authorization': 'Bearer '+_token }
-    });
-    var d = await r.json();
+    // 세트 + 라이브 상태 동시 조회
+    var [r1, r2] = await Promise.all([
+      fetch(API+'/api/dj-cafe/broadcast-set', {headers:{'Authorization':'Bearer '+_token}}),
+      fetch(API+'/api/dj-cafe/broadcast/status', {headers:{'Authorization':'Bearer '+_token}})
+    ]);
+    var d = await r1.json();
+    var s = await r2.json();
+    _isLive = (s.live && s.live.is_live === 1);
     if(!d.ok || !d.set){
       g('broadcastSetContent').innerHTML =
         '<div class="empty">' +
@@ -647,11 +658,73 @@ async function loadBroadcastSet(){
         '</div>';
       return;
     }
-    renderBroadcastSet(d.set);
+    renderBroadcastSet(d.set, s.live);
   } catch(e) {
     g('broadcastSetContent').innerHTML = '<div class="empty">로드 실패: '+esc(e.message)+'</div>';
   }
 }
+
+async function startBroadcast(){
+  try {
+    var r = await fetch(API+'/api/dj-cafe/broadcast/start', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+_token}
+    });
+    var d = await r.json();
+    if(!r.ok) throw new Error(d.error || '시작 실패');
+    _isLive = true;
+    toast('🔴 라이브 방송 시작!', 's');
+    startLiveHeartbeat();
+    loadBroadcastSet();
+  } catch(e) {
+    toast('방송 시작 실패: '+e.message, 'e');
+  }
+}
+
+async function stopBroadcast(){
+  if(!confirm('방송을 종료하시겠습니까?')) return;
+  try {
+    await fetch(API+'/api/dj-cafe/broadcast/stop', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+_token}
+    });
+    _isLive = false;
+    if(_liveHeartbeat){ clearInterval(_liveHeartbeat); _liveHeartbeat = null; }
+    toast('⏹ 방송 종료', 'i');
+    loadBroadcastSet();
+  } catch(e) {
+    toast('종료 실패: '+e.message, 'e');
+  }
+}
+
+function startLiveHeartbeat(){
+  if(_liveHeartbeat) clearInterval(_liveHeartbeat);
+  _liveHeartbeat = setInterval(async function(){
+    if(!_isLive) return;
+    try {
+      await fetch(API+'/api/dj-cafe/broadcast/next', {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+_token}
+      });
+    } catch(e){}
+  }, 30000);
+}
+
+// 페이지 진입 시 라이브 상태면 heartbeat 재개
+(function checkLiveOnLoad(){
+  setTimeout(async function(){
+    try {
+      var r = await fetch(API+'/api/dj-cafe/broadcast/status', {
+        headers:{'Authorization':'Bearer '+_token}
+      });
+      var d = await r.json();
+      if(d.live && d.live.is_live === 1){
+        _isLive = true;
+        startLiveHeartbeat();
+      }
+    } catch(e){}
+  }, 1000);
+})();
 
 function renderBroadcastSet(set){
   var tracks = set.tracks || [];
@@ -663,7 +736,12 @@ function renderBroadcastSet(set){
     return f || { id: id, title: '(삭제된 곡)', artist: '-' };
   });
 
+  var liveBadge = _isLive 
+    ? '<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;background:rgba(255,71,87,.15);border:1px solid rgba(255,71,87,.3);font-size:11px;color:#FF4757;font-weight:700;font-family:var(--fm);margin-bottom:12px"><span style="width:6px;height:6px;border-radius:50%;background:#FF4757;animation:blink 1.2s infinite"></span>LIVE 방송 중</div>'
+    : '<div style="padding:4px 12px;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid var(--bd);font-size:11px;color:var(--t3);font-family:var(--fm);margin-bottom:12px;display:inline-block">⏹ 방송 중지됨</div>';
+
   var html = 
+    liveBadge +
     '<div class="profile-card" style="border-color:rgba(100,210,255,.3);background:rgba(100,210,255,.04)">' +
       '<div class="profile-avatar" style="background:linear-gradient(135deg,var(--purple),var(--mint))">🎵</div>' +
       '<div class="profile-info">' +
@@ -694,7 +772,11 @@ function renderBroadcastSet(set){
       }).join('') +
     '</div>' +
     '<div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">' +
-      '<button class="btn btn-primary" onclick="switchTab(\'files\', document.querySelectorAll(\'.tab\')[2])">✏️ 세트 수정 (파일 탭에서)</button>' +
+      (_isLive 
+        ? '<button class="btn" style="background:linear-gradient(135deg,#FF4757,#C41E3A);color:#fff;padding:14px 32px;font-size:15px;font-weight:900" onclick="stopBroadcast()">⏹ 라이브 방송 종료</button>'
+        : '<button class="btn" style="background:linear-gradient(135deg,#FF4757,#C41E3A);color:#fff;padding:14px 32px;font-size:15px;font-weight:900;box-shadow:0 8px 24px rgba(255,71,87,.4)" onclick="startBroadcast()">📡 라이브 방송 시작</button>'
+      ) +
+      '<button class="btn btn-ghost" onclick="switchTab(\'files\', document.querySelectorAll(\'.tab\')[2])">✏️ 세트 수정</button>' +
       '<button class="btn btn-ghost" onclick="deleteBroadcastSet()">🗑️ 세트 삭제</button>' +
     '</div>';
 
