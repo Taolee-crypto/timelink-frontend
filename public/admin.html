@@ -1469,10 +1469,10 @@ async function execSQL(sql){
       });
       if(r.ok){
         var d = await r.json();
-        // 결과 정규화: {results:[...]} 또는 직접 배열
-        if(d && d.results) return d;
+        // 결과 정규화: SELECT는 results, UPDATE/DELETE는 ok/changes
+        if(d && (d.results || d.ok || d.success || d.changes !== undefined)) return d;
         if(Array.isArray(d)) return {results: d};
-        return {results: []};
+        return {ok: true, results: []};
       }
     }catch(e){}
   }
@@ -1487,7 +1487,7 @@ async function runSQLQuery(sql){
   var endpoints=['/api/admin/sql','/api/admin/query','/api/sql'];
   for(var i=0;i<endpoints.length;i++){
     try{
-      var r=await fetch(API+endpoints[i],{method:'POST',mode:'cors',headers:{'Content-Type':'application/json','Authorization':'Bearer admin'},body:JSON.stringify({sql:sql,query:sql})});
+      var r=await fetch(API+endpoints[i],{method:'POST',mode:'cors',headers:{'Content-Type':'application/json','Authorization':'Bearer ' + (localStorage.getItem('tl_token') || localStorage.getItem('tl_adm_token') || '')},body:JSON.stringify({sql:sql,query:sql})});
       if(r.ok) return await r.json();
     } catch(e){}
   }
@@ -1596,7 +1596,7 @@ async function saveFreeUpload(){
   try{
     await fetch(ADMIN_API+'/api/admin/settings/free_upload', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('tl_token')||'admin')},
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'')},
       body: JSON.stringify({value: jsonStr})
     });
     toast('✅ D1 저장 완료! SharePlace·Creator에 즉시 반영됩니다', 'g');
@@ -1793,7 +1793,7 @@ async function loadFooterSettings(){
   if(!el) return;
   try{
     var r2 = await fetch(ADMIN_API+'/api/admin/settings/footer_settings', {
-      headers: {'Authorization': 'Bearer ' + (localStorage.getItem('tl_token')||'admin')}
+      headers: {'Authorization': 'Bearer ' + (localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'')}
     });
     var d2 = await r2.json();
     var d = d2.value ? {results: [{value: d2.value}]} : {results: []};
@@ -1835,7 +1835,7 @@ async function saveFooterSettings(){
   try{
     var r = await fetch(ADMIN_API+'/api/admin/settings/footer_settings', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('tl_token')||'admin')},
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'')},
       body: JSON.stringify({value: JSON.stringify(settings)})
     });
     var d = await r.json();
