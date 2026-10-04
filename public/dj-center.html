@@ -492,6 +492,9 @@ async function loadApplications(){
 /* ══════════════════════════════════════
    📁 내 파일 (TL3)
 ══════════════════════════════════════ */
+var _selectedTrackIds = [];  // 선택된 곡 ID 목록
+var _allMyFiles = [];        // 전체 파일 목록
+
 async function loadFiles(){
   try {
     var r = await fetch(API+'/api/dj-cafe/my-files', {
@@ -508,6 +511,7 @@ async function loadFiles(){
 }
 
 function renderFiles(files){
+  _allMyFiles = files || [];
   if(!files.length){
     g('filesContent').innerHTML =
       '<div class="empty">' +
@@ -518,28 +522,100 @@ function renderFiles(files){
     return;
   }
 
-  var html = files.map(function(f){
-    var cover = f.cover_url
-      ? '<img src="'+esc(f.cover_url)+'" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'🎵\'">'
-      : '🎵';
-    var duration = Number(f.duration||0);
-    var durStr = duration > 0 ? Math.floor(duration/60)+':'+String(duration%60).padStart(2,'0') : '--:--';
-    return '<div class="profile-card" style="margin-bottom:12px">' +
-      '<div class="profile-avatar" style="border-radius:12px;background:rgba(100,210,255,.1);border-color:rgba(100,210,255,.25);overflow:hidden">' + cover + '</div>' +
-      '<div class="profile-info">' +
-        '<div class="profile-name" style="font-size:15px">'+esc(f.title||'Untitled')+'</div>' +
-        '<div class="profile-bio" style="font-size:12px">'+esc(f.artist||'-')+' · '+esc(f.category||'-')+' · '+durStr+'</div>' +
-        '<div style="margin-top:8px;display:flex;gap:14px;font-size:12px;font-family:var(--fm);flex-wrap:wrap">' +
-          '<span style="color:var(--mint)">⚡ '+Number(f.file_tl||0)+' TL/초</span>' +
-          '<span style="color:var(--rose)">🔥 Pulse '+Number(f.pulse||0).toLocaleString()+'</span>' +
-          '<span style="color:var(--amber)">▶ 재생 '+Number(f.play_count||0)+'회</span>' +
-          '<span style="color:var(--green)">💰 수익 '+Number(f.total_revenue||0).toLocaleString()+' TL</span>' +
-        '</div>' +
+  var html = 
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px 16px;background:rgba(100,210,255,.06);border:1px solid rgba(100,210,255,.2);border-radius:12px;flex-wrap:wrap">' +
+      '<div style="font-size:13px;color:var(--t2)">📁 전체 <b style="color:var(--mint)">'+files.length+'</b>개</div>' +
+      '<div style="font-size:13px;color:var(--t2)">✅ 선택 <b style="color:var(--mint)" id="selectedCount">0</b>개</div>' +
+      '<div style="margin-left:auto;display:flex;gap:8px">' +
+        '<button class="btn btn-ghost" style="padding:8px 14px;font-size:12px" onclick="selectAllFiles()">전체 선택</button>' +
+        '<button class="btn btn-ghost" style="padding:8px 14px;font-size:12px" onclick="clearAllFiles()">전체 해제</button>' +
+        '<button class="btn btn-primary" style="padding:8px 18px;font-size:12px" onclick="saveBroadcastSet()">🎵 방송 세트 저장</button>' +
       '</div>' +
-    '</div>';
-  }).join('');
+    '</div>' +
+    files.map(function(f){
+      var cover = f.cover_url
+        ? '<img src="'+esc(f.cover_url)+'" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'🎵\'">'
+        : '🎵';
+      var duration = Number(f.duration||0);
+      var durStr = duration > 0 ? Math.floor(duration/60)+':'+String(duration%60).padStart(2,'0') : '--:--';
+      var checked = _selectedTrackIds.includes(String(f.id));
+      return '<div class="profile-card" style="margin-bottom:12px;'+(checked?'border-color:rgba(100,210,255,.4);background:rgba(100,210,255,.04);':'')+'" id="file-card-'+esc(f.id)+'">' +
+        '<div style="flex-shrink:0;display:flex;align-items:center;padding-right:8px">' +
+          '<input type="checkbox" '+(checked?'checked':'')+' onchange="toggleTrack(\''+esc(f.id)+'\')" style="width:20px;height:20px;cursor:pointer;accent-color:#64D2FF">' +
+        '</div>' +
+        '<div class="profile-avatar" style="border-radius:12px;background:rgba(100,210,255,.1);border-color:rgba(100,210,255,.25);overflow:hidden">' + cover + '</div>' +
+        '<div class="profile-info">' +
+          '<div class="profile-name" style="font-size:15px">'+esc(f.title||'Untitled')+'</div>' +
+          '<div class="profile-bio" style="font-size:12px">'+esc(f.artist||'-')+' · '+esc(f.category||'-')+' · '+durStr+'</div>' +
+          '<div style="margin-top:8px;display:flex;gap:14px;font-size:12px;font-family:var(--fm);flex-wrap:wrap">' +
+            '<span style="color:var(--mint)">⚡ '+Number(f.file_tl||0)+' TL/초</span>' +
+            '<span style="color:var(--rose)">🔥 Pulse '+Number(f.pulse||0).toLocaleString()+'</span>' +
+            '<span style="color:var(--amber)">▶ 재생 '+Number(f.play_count||0)+'회</span>' +
+            '<span style="color:var(--green)">💰 수익 '+Number(f.total_revenue||0).toLocaleString()+' TL</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
 
   g('filesContent').innerHTML = html;
+}
+
+/* ══════════════════════════════════════
+   📁 파일 선택 + 방송 세트 저장
+══════════════════════════════════════ */
+function toggleTrack(id){
+  id = String(id);
+  var idx = _selectedTrackIds.indexOf(id);
+  if(idx >= 0){
+    _selectedTrackIds.splice(idx, 1);
+  } else {
+    _selectedTrackIds.push(id);
+  }
+  var card = g('file-card-'+id);
+  if(card){
+    var checked = _selectedTrackIds.includes(id);
+    card.style.borderColor = checked ? 'rgba(100,210,255,.4)' : '';
+    card.style.background = checked ? 'rgba(100,210,255,.04)' : '';
+  }
+  var el = g('selectedCount');
+  if(el) el.textContent = _selectedTrackIds.length;
+}
+
+function selectAllFiles(){
+  _selectedTrackIds = _allMyFiles.map(function(f){ return String(f.id); });
+  renderFiles(_allMyFiles);
+}
+
+function clearAllFiles(){
+  _selectedTrackIds = [];
+  renderFiles(_allMyFiles);
+}
+
+async function saveBroadcastSet(){
+  if(_selectedTrackIds.length === 0){
+    toast('곡을 최소 1개 이상 선택하세요','e');
+    return;
+  }
+  var name = prompt('방송 세트 이름을 입력하세요:', '나의 방송 세트');
+  if(!name) return;
+  var desc = prompt('세트 설명 (선택):', '') || '';
+  try {
+    var r = await fetch(API+'/api/dj-cafe/broadcast-set', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
+      body: JSON.stringify({
+        name: name,
+        description: desc,
+        mood: [],
+        tracks: _selectedTrackIds
+      })
+    });
+    var d = await r.json();
+    if(!r.ok) throw new Error(d.error || '저장 실패');
+    toast('✅ 방송 세트 저장 완료 ('+_selectedTrackIds.length+'곡)','s');
+  } catch(e) {
+    toast('저장 실패: '+e.message,'e');
+  }
 }
 async function loadContracts(){
   if(!_profile){
