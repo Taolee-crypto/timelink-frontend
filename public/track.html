@@ -667,8 +667,13 @@ function playTrack(){
   _tlAudio = new Audio();
   _tlAudio.preload = 'auto';
   _tlAudio.onerror = function(){
-    if(_tlAudio && _tlAudio.src && (_tlAudio.src.startsWith('blob:') || _tlAudio.src.includes('.tl3'))) return;
-    alert('재생 실패. 파일을 확인해주세요'); stopPlay();
+    var src = _tlAudio && _tlAudio.src || '';
+    // 조용히 로그만 (실제 재생은 계속 시도)
+    console.warn('[audio error]', src.slice(0, 100), _tlAudio && _tlAudio.error);
+    // blob/tl3/stream URL은 무시
+    if(src.startsWith('blob:') || src.includes('.tl3') || src.includes('/api/stream/') || src.includes('agent.timelink.digital')) return;
+    // 실제 재생 불가 (src 없음) → 중단
+    if(!src){ stopPlay(); }
   };
   _tlAudio.onended = function(){ stopPlay(); };
 
