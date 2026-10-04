@@ -108,9 +108,18 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .sort-tab.active{background:var(--purple-dim);color:#fff}
 .sort-tab:hover:not(.active){color:var(--t2)}
 .sort-count{font-size:12px;color:var(--t3);font-family:var(--fm)}
-.page-content{padding:24px 28px;padding-bottom:160px;display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start}
+.page-content{padding:24px 28px;padding-bottom:160px;display:grid;grid-template-columns:70% 30%;gap:20px;align-items:start;box-sizing:border-box}
+.page-content > *{min-width:0}
 .page-main{min-width:0}
-.page-ads{position:sticky;top:80px;display:flex;flex-direction:column;gap:12px}
+.page-ads{position:sticky;top:80px;display:flex;flex-direction:column;gap:4px;width:100%}
+.sidebar-ad{display:block;background:var(--bg-card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;text-decoration:none;transition:all .2s;width:100%;aspect-ratio:220/120}
+.sidebar-ad:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.sidebar-ad-thumb{width:100%;height:100%;background:linear-gradient(135deg,rgba(0,113,227,.15),rgba(191,90,242,.08));display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.sidebar-ad-thumb img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.sidebar-ad-info{position:absolute;bottom:0;left:0;right:0;padding:8px 10px;background:linear-gradient(to top,rgba(0,0,0,.9),transparent)}
+.sidebar-ad-biz{font-size:9px;color:rgba(255,255,255,.6);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
+.sidebar-ad-title{font-size:12px;font-weight:600;color:#fff;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-ad-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;aspect-ratio:220/120;background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.1);border-radius:12px;color:rgba(255,255,255,.2);font-size:11px;text-align:center}
 .sidebar-ad{display:block;background:var(--bg-card);border:1px solid var(--bd);border-radius:14px;overflow:hidden;text-decoration:none;transition:all .2s}
 .sidebar-ad:hover{border-color:var(--purple);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
 .sidebar-ad-thumb{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,rgba(0,113,227,.15),rgba(191,90,242,.08));display:flex;align-items:center;justify-content:center;overflow:hidden}
@@ -1085,10 +1094,34 @@ loadShares();
 
 
 
-// ⭐ 사이드바 광고 로드
+// ⭐ 사이드바 광고 로드 (다중 배너 지원)
 (async function loadSidebarAds(){
   var adsBox = document.getElementById('adsSidebar');
   if(!adsBox) return;
+
+  // 광고 없을 때 placeholder (플랫폼 자체 광고)
+  function renderEmpty(){
+    adsBox.innerHTML = 
+      '<a href="advertiser.html" class="sidebar-ad" style="aspect-ratio:220/120">'+
+        '<div class="sidebar-ad-thumb" style="background:linear-gradient(135deg,rgba(0,113,227,.2),rgba(191,90,242,.15))">'+
+          '<div style="text-align:center;padding:16px">'+
+            '<div style="font-size:32px;margin-bottom:6px">📢</div>'+
+            '<div style="font-size:12px;font-weight:700;color:#fff">광고주 센터</div>'+
+            '<div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:3px">TimeLink 광고 시작하기</div>'+
+          '</div>'+
+        '</div>'+
+      '</a>'+
+      '<div class="sidebar-ad-empty">'+
+        '<div style="font-size:24px;margin-bottom:8px;opacity:.4">📌</div>'+
+        '<div>배너 광고 자리</div>'+
+        '<div style="font-size:10px;margin-top:4px;opacity:.6">220×120px · 7일 50,000 TL</div>'+
+      '</div>'+
+      '<div class="sidebar-ad-empty">'+
+        '<div style="font-size:24px;margin-bottom:8px;opacity:.4">⭐</div>'+
+        '<div>프리미엄 광고</div>'+
+        '<div style="font-size:10px;margin-top:4px;opacity:.6">문의: support@timelink.digital</div>'+
+      '</div>';
+  }
 
   try{
     var token = localStorage.getItem('tl_token') || '';
@@ -1099,26 +1132,48 @@ loadShares();
     var ads = d.ads || (d.ad ? [d.ad] : []);
 
     if(!ads.length){
-      adsBox.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.2);font-size:11px">광고 없음</div>';
+      renderEmpty();
       return;
     }
 
+    // 최대 4개
     adsBox.innerHTML = ads.slice(0, 4).map(function(ad){
       var img = ad.thumbnail_url
-        ? '<img src="'+escH(ad.thumbnail_url)+'" style="width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.style.display=\'none\'">'
-        : '<div style="font-size:40px;opacity:.3">📢</div>';
+        ? '<img src="'+escH(ad.thumbnail_url)+'" onerror="this.remove()">'
+        : '';
       var clickUrl = ad.target_url || '#';
+      var biz = ad.business_name || '광고';
+      var title = ad.title || '';
+      var bizHtml = biz ? '<div class="sidebar-ad-biz">'+escH(biz)+'</div>' : '';
+      var titleHtml = title ? '<div class="sidebar-ad-title">'+escH(title)+'</div>' : '';
+      var infoHtml = (bizHtml || titleHtml) 
+        ? '<div class="sidebar-ad-info">'+bizHtml+titleHtml+'</div>'
+        : '';
+      var fallback = !ad.thumbnail_url 
+        ? '<div style="font-size:32px;opacity:.3;position:absolute;inset:0;display:flex;align-items:center;justify-content:center">📢</div>'
+        : '';
       return '<a href="'+escH(clickUrl)+'" target="_blank" class="sidebar-ad" onclick="trackAdClick(\''+escH(ad.id||'')+'\')">'+
-        '<div class="sidebar-ad-thumb">'+img+'</div>'+
-        '<div class="sidebar-ad-info">'+
-          '<div class="sidebar-ad-biz">'+escH(ad.business_name||'광고')+'</div>'+
-          '<div class="sidebar-ad-title">'+escH(ad.title||'')+'</div>'+
-        '</div>'+
+        '<div class="sidebar-ad-thumb">'+img+fallback+'</div>'+
+        infoHtml+
       '</a>';
     }).join('');
+
+    // 광고가 4개 미만이면 placeholder 추가
+    var remaining = 4 - ads.length;
+    if(remaining > 0){
+      var placeholder = '';
+      for(var i=0; i<remaining; i++){
+        placeholder += '<div class="sidebar-ad-empty">'+
+          '<div style="font-size:24px;margin-bottom:8px;opacity:.4">📌</div>'+
+          '<div>배너 광고 자리</div>'+
+          '<div style="font-size:10px;margin-top:4px;opacity:.6">광고주 센터에서 등록</div>'+
+        '</div>';
+      }
+      adsBox.innerHTML += placeholder;
+    }
   }catch(e){
     console.warn('[sidebar ads]', e);
-    adsBox.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.2);font-size:11px">광고 로드 실패</div>';
+    renderEmpty();
   }
 })();
 
