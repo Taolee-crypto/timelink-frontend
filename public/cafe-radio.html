@@ -230,6 +230,9 @@ var _playing = null;        // 현재 재생 중인 DJ
 var _preview = false;       // 미리듣기 여부
 var _chargeTimer = null;
 var _chargeStartedAt = 0;
+var _audio = null;          // 오디오 객체
+var _playingTrackId = null; // 현재 재생 중인 곡 ID
+var _trackPolling = null;   // 곡 폴링 타이머
 
 // ── 인증 ──
 try {
@@ -362,26 +365,44 @@ function renderDjs(){
 async function previewDj(djId){
   var dj = _liveDjs.find(function(d){ return Number(d.id) === Number(djId); });
   if(!dj) return;
-  _preview = true;
-  _playing = dj;
-  var sec = 30;
-  toast('▶ 미리듣기 30초 (무료)', 'i');
-  g('playerBar').classList.add('show');
-  g('pbTitle').textContent = dj.dj_name + ' 방송';
-  g('pbSub').textContent = '미리듣기 ' + sec + '초 남음';
-  g('pbTL').textContent = '무료';
-  // 30초 카운트다운
-  var t = setInterval(function(){
-    sec--;
-    if(sec <= 0){
-      clearInterval(t);
-      stopPlay();
-      toast('미리듣기 종료. 청취하려면 🎧 청취 버튼을 누르세요', 'i');
-    } else {
-      g('pbSub').textContent = '미리듣기 ' + sec + '초 남음';
+
+  try {
+    var r = await fetch(API+'/api/dj-cafe/live/'+djId+'/now');
+    var d = await r.json();
+    if(!d.ok || !d.current_track || !d.current_track.stream_url){
+      toast('방송 준비 중입니다', 'i');
+      return;
     }
-  }, 1000);
-  // 실제 오디오 재생은 서버에서 스트리밍 URL 받아야 함 (TODO)
+
+    _preview = true;
+    _playing = dj;
+    _playingTrackId = d.current_track.id;
+
+    playAudio(d.current_track.stream_url, true, d.current_track.elapsed_ms);
+
+    g('playerBar').classList.add('show');
+    g('pbTitle').textContent = d.current_track.title || dj.dj_name + ' 방송';
+    g('pbSub').textContent = '미리듣기 30초 (무료)';
+    g('pbTL').textContent = '무료';
+    toast('▶ 미리듣기 30초 (무료)', 'i');
+
+    var sec = 30;
+    var t = setInterval(function(){
+      sec--;
+      if(sec <= 0 || !_preview){
+        clearInterval(t);
+        if(_preview){
+          stopPlay();
+          toast('미리듣기 종료. 🎧 청취 버튼으로 계속 들으세요', 'i');
+        }
+      } else {
+        g('pbSub').textContent = '미리듣기 ' + sec + '초 남음';
+      }
+    }, 1000);
+
+  } catch(e) {
+    toast('미리듣기 실패: '+e.message, 'e');
+  }
 }
 
 // ── 청취 (개인, ×1.0) ──
@@ -389,15 +410,79 @@ async function listenDj(djId){
   if(!_user){ toast('로그인이 필요합니다', 'e'); return; }
   var dj = _liveDjs.find(function(d){ return Number(d.id) === Number(djId); });
   if(!dj) return;
+
   stopPlay();
   _preview = false;
   _playing = dj;
+
+  // 계약 여부로 role 결정
+  var isContracted = _myContracts.some(function(c){ return Number(c.dj_id) === Number(djId); });
+  var role = (_isCafeOwner && isContracted) ? 'cafe' : 'normal';
+  var mult = role === 'cafe' ? _rates.cafe : _rates.normal;
+
+  // 현재 곡 재생
+  await playDjTrack(djId, false, role);
+
+  // UI
   g('playerBar').classList.add('show');
   g('pbTitle').textContent = dj.dj_name + ' 방송';
-  g('pbSub').textContent = '청취 중 (×1.0)';
-  g('pbTL').textContent = '-- TL';
-  toast('🎧 ' + dj.dj_name + ' 청취 시작', 's');
-  startCharging(dj.id, 'normal');
+  g('pbSub').textContent = '청취 중 (×' + mult.toFixed(1) + ')';
+  g('pbTL').textContent = '-- TL/초';
+  toast('🎧 ' + dj.dj_name + ' 청취 시작 (×' + mult.toFixed(1) + ')', 's');
+
+  // 과금 시작
+  startCharging(djId, role);
+
+  // 5초마다 곡 폴링 (곡 바뀌면 새로 재생)
+  if(_trackPolling) clearInterval(_trackPolling);
+  _trackPolling = setInterval(function(){
+    if(_playing && !_preview) playDjTrack(djId, true, role);
+  }, 5000);
+}
+
+// ── DJ의 현재 곡 재생 ──
+async function playDjTrack(djId, skipIfSame, role){
+  try {
+    var r = await fetch(API+'/api/dj-cafe/live/'+djId+'/now');
+    var d = await r.json();
+    if(!d.ok || !d.current_track || !d.current_track.stream_url){
+      return;
+    }
+    var track = d.current_track;
+    if(skipIfSame && _playingTrackId === track.id) return;
+
+    _playingTrackId = track.id;
+    playAudio(track.stream_url, false, track.elapsed_ms);
+
+    // UI 업데이트
+    g('pbTitle').textContent = track.title || 'Unknown';
+    g('pbSub').textContent = (track.artist || '') + ' · ' + (track.category || '');
+  } catch(e) {
+    console.warn('[cafe-radio] track 오류:', e);
+  }
+}
+
+// ── 오디오 재생 ──
+function playAudio(url, isPreview, startMs){
+  stopAudio();
+  _audio = new Audio(url);
+  _audio.crossOrigin = 'anonymous';
+  if(startMs && startMs > 0 && startMs < 120000){
+    try { _audio.currentTime = startMs / 1000; } catch(e) {}
+  }
+  _audio.play().then(function(){
+    console.log('[cafe-radio] 재생:', url.slice(-20));
+  }).catch(function(e){
+    console.warn('[cafe-radio] 재생 실패:', e.message);
+    toast('재생 실패: 브라우저 오디오 허용 필요', 'e');
+  });
+}
+
+function stopAudio(){
+  if(_audio){ 
+    try { _audio.pause(); } catch(e) {}
+    _audio = null; 
+  }
 }
 
 // ── 계약 (카페 주인, ×0.5) ──
@@ -480,8 +565,11 @@ function stopCharging(){
 
 function stopPlay(){
   stopCharging();
+  stopAudio();
+  if(_trackPolling){ clearInterval(_trackPolling); _trackPolling = null; }
   _playing = null;
   _preview = false;
+  _playingTrackId = null;
   g('playerBar').classList.remove('show');
   renderDjs();
 }
