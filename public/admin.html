@@ -175,6 +175,8 @@ tr:hover td{background:rgba(255,255,255,.015)}
   <div class="sb-item" onclick="go('realtime',this)"><span class="ico">🔴</span>실시간 현황</div>
   <div class="sb-item" onclick="go('payout',this)"><span class="ico">💸</span>크리에이터 정산 <span class="sb-badge" id="sb-payout-cnt">0</span></div>
   <div class="sb-item" onclick="go('tl-flow',this)"><span class="ico">♻</span>TL 이코노미</div>
+  <div class="sb-section">DJ 관리</div>
+  <div class="sb-item" onclick="go('dj-manage',this)"><span class="ico">🎧</span>DJ 관리 <span class="sb-badge" id="sb-dj-cnt">0</span></div>
   <div class="sb-section">P2 분석</div>
   <div class="sb-item" onclick="go('music-analytics',this)"><span class="ico">🎵</span>음악 분석</div>
   <div class="sb-item" onclick="go('cafe-mgmt',this)"><span class="ico">☕</span>카페방송 관리 <span class="sb-badge g" id="sb-cafe-cnt">0</span></div>
@@ -930,6 +932,92 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════ -->
+<!-- 🎧 DJ 관리 패널 -->
+<!-- ═══════════════════════════════════════ -->
+<div class="panel" id="panel-dj-manage">
+  <!-- KPI -->
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px">
+    <div class="stat" style="--ac:#0071E3">
+      <div class="stat-val" id="dj-total">—</div>
+      <div class="stat-lbl">전체 DJ</div>
+    </div>
+    <div class="stat" style="--ac:#10B981">
+      <div class="stat-val" id="dj-active">—</div>
+      <div class="stat-lbl">활동 중</div>
+    </div>
+    <div class="stat" style="--ac:#FF4D6A">
+      <div class="stat-val" id="dj-banned">—</div>
+      <div class="stat-lbl">정지됨</div>
+    </div>
+    <div class="stat" style="--ac:#F59E0B">
+      <div class="stat-val" id="dj-pending">—</div>
+      <div class="stat-lbl">지원 대기</div>
+    </div>
+    <div class="stat" style="--ac:#64D2FF">
+      <div class="stat-val" id="dj-contracts">—</div>
+      <div class="stat-lbl">활성 계약</div>
+    </div>
+  </div>
+
+  <!-- DJ 목록 -->
+  <div class="tbox" style="margin-bottom:20px">
+    <div class="tbox-top">
+      <div class="tbox-title">🎧 DJ 목록</div>
+      <button class="btn btn-g btn-xs" onclick="loadDJManage()">↻ 새로고침</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>DJ명</th>
+            <th>이메일</th>
+            <th>장르</th>
+            <th>방송수</th>
+            <th>청취자</th>
+            <th>평점</th>
+            <th>상태</th>
+            <th>계약</th>
+            <th>관리</th>
+          </tr>
+        </thead>
+        <tbody id="dj-manage-tbody">
+          <tr><td colspan="10"><div class="empty">로딩 중...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 매칭 목록 -->
+  <div class="tbox">
+    <div class="tbox-top">
+      <div class="tbox-title">🎙️ DJ ↔ 카페 매칭 목록</div>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>DJ</th>
+            <th>카페</th>
+            <th>상태</th>
+            <th>메시지</th>
+            <th>DJ 요율</th>
+            <th>카페 요율</th>
+            <th>수익배분(DJ/카페/플랫폼)</th>
+            <th>신청일</th>
+            <th>관리</th>
+          </tr>
+        </thead>
+        <tbody id="dj-links-tbody">
+          <tr><td colspan="10"><div class="empty">로딩 중...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <div id="toast-root"></div>
 
 <script>
@@ -1080,7 +1168,7 @@ async function createTestAd(){
   await execSQL("INSERT INTO tl_ads (id,business_name,title,description,ad_type,status,budget_tl,spent_tl,tl_reward,views,created_at) VALUES ('"+id+"','"+biz+"','"+title+"','"+desc+"','"+type+"','active',"+budget+",0,"+reward+",0,datetime('now'))");
   toast('광고 생성됨!','g'); loadAdvertisers();
 }
-var TITLES={dashboard:'대시보드',revenue:'재무 현황',shares:'공유 파일 관리',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리',realtime:'🔴 실시간 현황',payout:'💸 크리에이터 정산','tl-flow':'♻ TL 이코노미 흐름','music-analytics':'🎵 음악 콘텐츠 분석','cafe-mgmt':'☕ 카페방송 채널 관리',infra:'🖥 인프라/비용 추적','dj-stats':'🤖 AI DJ 통계',security:'🔒 보안/접근 로그','auto-payout':'🔄 자동 정산 워크플로우'};
+var TITLES={dashboard:'대시보드',revenue:'재무 현황',shares:'공유 파일 관리',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리',realtime:'🔴 실시간 현황',payout:'💸 크리에이터 정산','tl-flow':'♻ TL 이코노미 흐름','music-analytics':'🎵 음악 콘텐츠 분석','cafe-mgmt':'☕ 카페방송 채널 관리',infra:'🖥 인프라/비용 추적','dj-stats':'🤖 AI DJ 통계','dj-manage':'🎧 DJ 관리',security:'🔒 보안/접근 로그','auto-payout':'🔄 자동 정산 워크플로우'};
 function go(id,el){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
   document.querySelectorAll('.sb-item').forEach(function(i){i.classList.remove('on');});
@@ -1101,6 +1189,7 @@ function go(id,el){
   if(id==='infra') loadInfra();
   if(id==='advertiser') loadAdvertisers();
   if(id==='dj-stats') loadDJStats();
+  if(id==='dj-manage') loadDJManage();
   if(id==='security') loadSecurity();
   if(id==='auto-payout') loadAutoPayout();
 }
@@ -2485,25 +2574,137 @@ async function runAutoPayout(){
   await approveAllPayout();
 }
 
+
+/* ══════════════════════════════════════
+   🎧 DJ 관리 (Admin)
+══════════════════════════════════════ */
+async function loadDJManage(){
+  try{
+    // 통계
+    var statsRes = await api('/api/admin/dj/stats');
+    if(statsRes && statsRes.ok){
+      var s = statsRes.stats || {};
+      g('dj-total').textContent = Number(s.total_djs || 0);
+      g('dj-active').textContent = Number(s.active_djs || 0);
+      g('dj-banned').textContent = Number(s.banned_djs || 0);
+      g('dj-pending').textContent = Number(s.pending_applications || 0);
+      g('dj-contracts').textContent = Number(s.active_links || 0);
+      var badge = g('sb-dj-cnt');
+      if(badge) badge.textContent = Number(s.pending_applications || 0);
+    }
+
+    // DJ 목록
+    var djRes = await api('/api/admin/dj/list');
+    var djs = (djRes && djRes.djs) || [];
+    var tbody = g('dj-manage-tbody');
+    if(!djs.length){
+      tbody.innerHTML = '<tr><td colspan="10"><div class="empty">등록된 DJ가 없습니다</div></td></tr>';
+    } else {
+      tbody.innerHTML = djs.map(function(d){
+        var genres = [];
+        try { genres = JSON.parse(d.genres || '[]'); } catch(e) {}
+        var statusColor = d.status === 'active' ? 'var(--g)' : d.status === 'banned' ? 'var(--rose)' : 'var(--t3)';
+        var statusLabel = d.status === 'active' ? '● 활동' : d.status === 'banned' ? '● 정지' : d.status;
+        return '<tr>'+
+          '<td style="font-family:var(--mono);color:var(--t3)">'+d.id+'</td>'+
+          '<td style="font-weight:700">'+esc(d.dj_name)+'</td>'+
+          '<td style="font-size:11px;color:var(--t3)">'+esc(d.email||'-')+'</td>'+
+          '<td style="font-size:11px">'+(genres.slice(0,3).join(', ')||'-')+'</td>'+
+          '<td style="font-family:var(--mono)">'+Number(d.total_broadcasts||0)+'</td>'+
+          '<td style="font-family:var(--mono);color:var(--mint)">'+Number(d.total_listeners||0).toLocaleString()+'</td>'+
+          '<td style="font-family:var(--mono);color:var(--amber)">'+Number(d.rating||0).toFixed(1)+'</td>'+
+          '<td style="color:'+statusColor+';font-weight:700">'+statusLabel+'</td>'+
+          '<td style="font-size:11px">'+
+            '<span style="color:var(--g)">'+Number(d.active_contracts||0)+'</span> / '+
+            '<span style="color:var(--amber)">'+Number(d.pending_apps||0)+'</span>'+
+          '</td>'+
+          '<td>'+
+            (d.status === 'active' 
+              ? '<button class="btn btn-xs" style="background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.3);color:var(--rose)" onclick="banDJ('+d.id+')">🚫 정지</button>'
+              : '<button class="btn btn-xs btn-g" onclick="unbanDJ('+d.id+')">✅ 해제</button>'
+            )+
+          '</td>'+
+        '</tr>';
+      }).join('');
+    }
+
+    // 매칭 목록
+    var linkRes = await api('/api/admin/dj-links');
+    var links = (linkRes && linkRes.links) || [];
+    var ltbody = g('dj-links-tbody');
+    if(!links.length){
+      ltbody.innerHTML = '<tr><td colspan="10"><div class="empty">매칭 내역이 없습니다</div></td></tr>';
+    } else {
+      ltbody.innerHTML = links.map(function(l){
+        var statusColor = l.status==='pending'?'var(--amber)':l.status==='active'?'var(--g)':l.status==='rejected'?'var(--rose)':'var(--t3)';
+        var statusLabel = l.status==='pending'?'⏳ 대기':l.status==='active'?'✅ 활동':l.status==='rejected'?'❌ 거절':'🚪 종료';
+        var createdDate = l.created_at ? new Date(l.created_at).toLocaleDateString('ko-KR') : '-';
+        return '<tr>'+
+          '<td style="font-family:var(--mono);color:var(--t3)">'+l.id+'</td>'+
+          '<td style="font-weight:700;color:var(--mint)">'+esc(l.dj_name||'-')+'</td>'+
+          '<td style="font-weight:700">'+esc(l.cafe_name||l.cafe_channel_id||'-')+'</td>'+
+          '<td style="color:'+statusColor+';font-weight:700">'+statusLabel+'</td>'+
+          '<td style="font-size:11px;color:var(--t3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(l.message||'')+'">'+esc((l.message||'-').slice(0,40))+'</td>'+
+          '<td style="font-family:var(--mono);color:var(--mint)">'+Number(l.dj_rate||0.3).toFixed(2)+' TL/s</td>'+
+          '<td style="font-family:var(--mono);color:var(--amber)">'+Number(l.cafe_rate||0.5).toFixed(2)+' TL/s</td>'+
+          '<td style="font-family:var(--mono);font-size:11px">'+
+            Math.round((l.revenue_share_dj||0.5)*100)+'% / '+
+            Math.round((l.revenue_share_cafe||0.3)*100)+'% / '+
+            Math.round((l.revenue_share_platform||0.2)*100)+'%'+
+          '</td>'+
+          '<td style="font-size:11px;color:var(--t3)">'+createdDate+'</td>'+
+          '<td>'+
+            (l.status !== 'ended' 
+              ? '<button class="btn btn-xs" style="background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.3);color:var(--rose)" onclick="forceEndLink('+l.id+')">🚪 강제종료</button>'
+              : '-' )+
+          '</td>'+
+        '</tr>';
+      }).join('');
+    }
+  } catch(e){
+    toast('DJ 관리 로드 실패: '+e.message, 'r');
+    console.error('[loadDJManage]', e);
+  }
+}
+
+async function banDJ(id){
+  if(!confirm('이 DJ를 정지시키겠습니까?')) return;
+  try{
+    var tk = localStorage.getItem('tl_token');
+    var r = await fetch('https://api.timelink.digital/api/admin/dj/'+id+'/ban', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+tk}
+    });
+    if(r.ok){ toast('✅ DJ 정지 완료', 'g'); loadDJManage(); }
+    else toast('실패', 'r');
+  } catch(e){ toast('오류: '+e.message, 'r'); }
+}
+
+async function unbanDJ(id){
+  if(!confirm('이 DJ를 해제하시겠습니까?')) return;
+  try{
+    var tk = localStorage.getItem('tl_token');
+    var r = await fetch('https://api.timelink.digital/api/admin/dj/'+id+'/unban', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+tk}
+    });
+    if(r.ok){ toast('✅ DJ 해제 완료', 'g'); loadDJManage(); }
+    else toast('실패', 'r');
+  } catch(e){ toast('오류: '+e.message, 'r'); }
+}
+
+async function forceEndLink(id){
+  if(!confirm('이 매칭을 강제 종료하시겠습니까?')) return;
+  try{
+    var tk = localStorage.getItem('tl_token');
+    var r = await fetch('https://api.timelink.digital/api/admin/dj-links/'+id+'/force-end', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+tk}
+    });
+    if(r.ok){ toast('✅ 강제 종료 완료', 'g'); loadDJManage(); }
+    else toast('실패', 'r');
+  } catch(e){ toast('오류: '+e.message, 'r'); }
+}
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
