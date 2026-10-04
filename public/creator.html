@@ -861,6 +861,30 @@ async function uploadOne(p, applyLp, idx, total){
   var mp3Buf = await p.file.arrayBuffer();
   var origHash = await sha256Hex(mp3Buf);
 
+  // ⭐ ID3 커버 서버 업로드
+  var _finalCoverUrl = '';
+  if(p.coverUrl){
+    try{
+      setProg(15, '커버 이미지 업로드 중... ('+idx+'/'+total+')');
+      var coverBlob = await fetch(p.coverUrl).then(function(r){ return r.blob(); });
+      var coverFile = new File([coverBlob], 'cover_' + Date.now() + '.jpg', {type: coverBlob.type || 'image/jpeg'});
+      var cfd = new FormData();
+      cfd.append('file', coverFile);
+      cfd.append('trackId', 'cover_' + Date.now() + '_' + Math.random().toString(36).slice(2,7));
+      var cr = await fetch(API + '/api/upload', {
+        method: 'POST',
+        headers: {'Authorization': 'Bearer ' + _token},
+        body: cfd
+      });
+      var cd = await cr.json().catch(function(){ return {}; });
+      if(cd.ok && cd.url){
+        _finalCoverUrl = cd.url;
+      }
+    }catch(e){
+      console.warn('[cover upload]', e);
+    }
+  }
+
   var localAgent = 'http://127.0.0.1:8787';
   var ar = await fetch(localAgent+'/health',{cache:'no-store'});
   var ad = await ar.json().catch(function(){ return {}; });
@@ -934,7 +958,7 @@ async function uploadOne(p, applyLp, idx, total){
     weight: fileTL ? Number(g('weightInput').value||1) : 0,
     file_tl: fileTL,
     stream_url: localData.stream_url || '',
-    cover_url: p.coverUrl || '',
+    cover_url: _finalCoverUrl,
     file_type: contentType,
     category_type: 'audio',
     duration: 0,

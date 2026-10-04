@@ -205,6 +205,71 @@ let _myFileTL = 0;  // 이 곡에 충전한 TL (tl_user_files DB에서 가져옴
 let _chargeAmount = 10000;
 
 function getTok(){ return localStorage.getItem('tl_token')||''; }
+
+// ⭐ 현재 로그인 사용자 ID
+var _currentUserId = (function(){
+  try{
+    var u = JSON.parse(localStorage.getItem('tl_user')||'null');
+    return u ? u.id : null;
+  }catch(e){ return null; }
+})();
+
+// ⭐ 커버 이미지 변경
+async function openCoverEdit(){
+  if(!_share || !_share.id){ alert('곡 정보가 없습니다'); return; }
+  if(String(_currentUserId) !== String(_share.user_id)){
+    alert('본인의 곡만 커버를 변경할 수 있습니다');
+    return;
+  }
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = async function(){
+    var f = input.files[0];
+    if(!f) return;
+    if(f.size > 5 * 1024 * 1024){ alert('이미지는 5MB 이하만 가능합니다'); return; }
+
+    try{
+      // 1) 서버 업로드
+      var fd = new FormData();
+      fd.append('file', f);
+      fd.append('trackId', 'cover_' + _share.id + '_' + Date.now());
+      var r = await fetch(API + '/api/upload', {
+        method: 'POST',
+        headers: {'Authorization': 'Bearer ' + getTok()},
+        body: fd
+      });
+      var d = await r.json();
+      if(!d.ok) throw new Error(d.error || '업로드 실패');
+
+      // 2) DB 업데이트
+      var pr = await fetch(API + '/api/shares/' + _share.id, {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer ' + getTok()},
+        body: JSON.stringify({cover_url: d.url})
+      });
+      var pd = await pr.json().catch(function(){ return {}; });
+      if(!pr.ok) throw new Error(pd.error || 'DB 업데이트 실패');
+
+      // 3) 화면 갱신
+      _share.cover_url = d.url;
+      var wrap = document.getElementById('coverWrap');
+      if(wrap){
+        var img = wrap.querySelector('img');
+        var ph = wrap.querySelector('.cover-placeholder');
+        if(img){ img.src = d.url; img.style.display = ''; }
+        else {
+          if(ph) ph.remove();
+          wrap.insertAdjacentHTML('afterbegin', '<img src="'+d.url+'">');
+        }
+      }
+      alert('✅ 커버 이미지가 변경되었습니다');
+    }catch(e){
+      alert('❌ 커버 변경 실패: ' + (e.message || e));
+    }
+  };
+  input.click();
+}
 function escH(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtTime(s){ const m=Math.floor((s||0)/60),sec=Math.floor((s||0)%60); return m+':'+(sec<10?'0':'')+sec; }
 function typeEmoji(t){ return t==='audio'?'🎵':t==='video'?'🎬':t==='image'?'🖼️':'📄'; }
@@ -266,6 +331,7 @@ function renderPage(s, stats, myFileTL, requiredTL){
       <div class="cover-wrap" id="coverWrap">
         ${s.cover_url ? '<img src="'+escH(s.cover_url)+'" onerror="this.style.display=\'none\'">' : '<div class="cover-placeholder">'+typeEmoji(ftype)+'</div>'}
         <div class="play-overlay"><button class="play-overlay-btn" id="coverPlayBtn">▶</button></div>
+        ${(_currentUserId && String(_currentUserId) === String(s.user_id)) ? '<button class="cover-edit-btn" id="coverEditBtn" title="커버 이미지 변경" onclick="event.stopPropagation();openCoverEdit()">🖼️</button>' : ''}
       </div>
 
       <div class="track-meta">
