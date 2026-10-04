@@ -290,6 +290,8 @@ tr:hover td{background:rgba(255,255,255,.015)}
               style="background:var(--bg2);border:1px solid var(--bd);color:var(--t1);padding:8px 12px;border-radius:6px;font-size:13px;font-family:var(--mono);width:200px;outline:none">
           </div>
           <div style="margin-bottom:20px">
+            <label style="font-size:11px;color:var(--t2);display:block;margin-bottom:10px;font-weight:700">🎨 팝업 양식 선택</label>
+            <div id="noticeStylePicker" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:20px"></div>
             <label style="font-size:11px;color:var(--t2);display:block;margin-bottom:6px">공지 메시지 (팝업에 표시)</label>
             <textarea id="freeNoticeMsg" rows="3"
               style="width:100%;background:var(--bg2);border:1px solid var(--bd);color:var(--t1);padding:10px 12px;border-radius:6px;font-size:12px;font-family:var(--fn);resize:none;outline:none"
@@ -313,6 +315,22 @@ tr:hover td{background:rgba(255,255,255,.015)}
 POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
           </div>
 
+          <div style="margin:20px 0">
+  <label style="font-size:11px;color:var(--t2);display:block;margin-bottom:10px;font-weight:700">📍 공지 노출 설정</label>
+  <div style="display:flex;gap:10px">
+    <div onclick="setNoticeMode('on')" id="noticeModeOn" style="flex:1;cursor:pointer;padding:16px;border-radius:10px;border:2px solid rgba(255,255,255,.1);background:transparent;text-align:center;transition:all .2s">
+      <div style="font-size:24px;margin-bottom:4px">📢</div>
+      <div style="font-size:13px;font-weight:700;color:rgba(240,240,255,.6)">전체 공지 ON</div>
+      <div style="font-size:10px;color:rgba(240,240,255,.4);margin-top:2px">모든 페이지 팝업</div>
+    </div>
+    <div onclick="setNoticeMode('off')" id="noticeModeOff" style="flex:1;cursor:pointer;padding:16px;border-radius:10px;border:2px solid #FF4D6A;background:rgba(255,77,106,.08);text-align:center;transition:all .2s">
+      <div style="font-size:24px;margin-bottom:4px">🚫</div>
+      <div style="font-size:13px;font-weight:700;color:#FF4D6A">공지 OFF</div>
+      <div style="font-size:10px;color:rgba(240,240,255,.4);margin-top:2px">팝업 표시 안 함</div>
+    </div>
+  </div>
+</div>
+
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <button onclick="saveFreeUpload()" style="background:var(--g);border:none;color:#000;font-size:12px;font-weight:700;padding:9px 22px;border-radius:6px;cursor:pointer;font-family:var(--fn)">✅ 저장 및 즉시 적용</button>
             <button onclick="clearFreeUpload()" style="background:transparent;border:1px solid rgba(255,100,100,.3);color:rgba(255,100,100,.7);font-size:12px;padding:9px 18px;border-radius:6px;cursor:pointer;font-family:var(--fn)">🗑 무료기간 해제</button>
@@ -328,8 +346,8 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
         <!-- 팝업 공지 미리보기 -->
         <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:20px">
           <div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:12px">📋 팝업 미리보기</div>
-          <div style="background:rgba(100,210,255,.06);border:1px solid rgba(100,210,255,.25);border-radius:10px;padding:16px">
-            <div id="noticePreview" style="font-size:12px;color:var(--t1);white-space:pre-line;line-height:1.6"></div>
+          <div style="background:rgba(0,0,0,.4);border:1px solid var(--bd);border-radius:12px;padding:30px;min-height:300px;display:flex;align-items:center;justify-content:center">
+            <div id="noticePreviewWrap" style="width:100%;max-width:420px"></div>
           </div>
           <div style="margin-top:10px;font-size:10px;color:var(--t3)">* 유저가 SharePlace / Creator에 접속 시 하루 1번 팝업으로 표시됩니다</div>
         </div>
@@ -1527,10 +1545,117 @@ function startClock(){
      실제로는 admin이 설정 후 Cloudflare KV / D1에 저장하는 방식으로 확장 가능
      현재: admin SQL을 통해 KV 대신 D1 settings 테이블에 저장
 ══════════════════════════════════════ */
+
+/* ══════════════════════════════════════
+   팝업 양식 (Notice Styles)
+══════════════════════════════════════ */
+var NOTICE_STYLES = {
+  default: {
+    name: '기본', icon: '📢',
+    preview: function(msg, until){
+      return '<div style="background:#0D0D1C;border:1px solid rgba(0,255,148,.3);border-radius:14px;padding:24px;color:#F0F0FF;font-family:inherit">'+
+        '<div style="font-size:16px;font-weight:700;margin-bottom:12px;color:#00FF94">📢 공지사항</div>'+
+        '<div style="font-size:13px;line-height:1.8;white-space:pre-line;color:rgba(240,240,255,.85)">'+esc(msg)+'</div>'+
+        (until ? '<div style="margin-top:14px;font-size:11px;color:rgba(240,240,255,.5)">📅 '+until+'까지</div>' : '')+
+        '<button style="margin-top:20px;width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#00FF94,#00CC78);color:#07070F;font-size:13px;font-weight:700;cursor:pointer">확인</button>'+
+      '</div>';
+    }
+  },
+  celebration: {
+    name: '축하', icon: '🎉',
+    preview: function(msg, until){
+      return '<div style="background:linear-gradient(135deg,#0D1F18,#0D1C2C);border:2px solid #00FF94;border-radius:16px;padding:28px;color:#F0F0FF;position:relative;overflow:hidden">'+
+        '<div style="position:absolute;top:-20px;right:-20px;font-size:80px;opacity:.15">🎉</div>'+
+        '<div style="font-size:22px;font-weight:900;margin-bottom:8px;background:linear-gradient(135deg,#00FF94,#38BFFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent">🎉 축하합니다!</div>'+
+        '<div style="font-size:13px;line-height:1.8;white-space:pre-line;color:rgba(240,240,255,.9)">'+esc(msg)+'</div>'+
+        (until ? '<div style="margin-top:14px;font-size:11px;color:#00FF94">📅 '+until+'까지</div>' : '')+
+        '<button style="margin-top:20px;width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,#00FF94,#38BFFF);color:#07070F;font-size:14px;font-weight:900;cursor:pointer">🎊 확인</button>'+
+      '</div>';
+    }
+  },
+  warning: {
+    name: '경고', icon: '⚠️',
+    preview: function(msg, until){
+      return '<div style="background:#1F0D10;border:2px solid #FF4D6A;border-radius:14px;padding:24px;color:#F0F0FF">'+
+        '<div style="font-size:18px;font-weight:700;margin-bottom:12px;color:#FF4D6A">⚠️ 주의 안내</div>'+
+        '<div style="font-size:13px;line-height:1.8;white-space:pre-line;color:rgba(240,240,255,.85)">'+esc(msg)+'</div>'+
+        (until ? '<div style="margin-top:14px;font-size:11px;color:#FF4D6A">📅 '+until+'까지</div>' : '')+
+        '<button style="margin-top:20px;width:100%;padding:12px;border-radius:10px;border:none;background:#FF4D6A;color:#fff;font-size:13px;font-weight:700;cursor:pointer">확인했습니다</button>'+
+      '</div>';
+    }
+  },
+  promo: {
+    name: '프로모션', icon: '🎁',
+    preview: function(msg, until){
+      return '<div style="background:linear-gradient(135deg,#1A0D2C,#0D1C2C);border:2px solid #7C5CFF;border-radius:16px;padding:28px;color:#F0F0FF">'+
+        '<div style="font-size:20px;font-weight:900;margin-bottom:10px;background:linear-gradient(135deg,#7C5CFF,#38BFFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent">🎁 특별 혜택</div>'+
+        '<div style="font-size:13px;line-height:1.8;white-space:pre-line;color:rgba(240,240,255,.9)">'+esc(msg)+'</div>'+
+        (until ? '<div style="margin-top:14px;font-size:11px;color:#7C5CFF;font-weight:700">⏰ '+until+'까지</div>' : '')+
+        '<button style="margin-top:20px;width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,#7C5CFF,#38BFFF);color:#fff;font-size:14px;font-weight:800;cursor:pointer">지금 확인하기 →</button>'+
+      '</div>';
+    }
+  },
+  urgent: {
+    name: '긴급', icon: '🚨',
+    preview: function(msg, until){
+      return '<div style="background:#1F1700;border:2px solid #FFBE3D;border-radius:14px;padding:24px;color:#F0F0FF">'+
+        '<div style="font-size:18px;font-weight:700;margin-bottom:12px;color:#FFBE3D">🚨 긴급 공지</div>'+
+        '<div style="font-size:13px;line-height:1.8;white-space:pre-line;color:rgba(240,240,255,.9)">'+esc(msg)+'</div>'+
+        (until ? '<div style="margin-top:14px;font-size:11px;color:#FFBE3D;font-weight:700">📅 '+until+'까지</div>' : '')+
+        '<button style="margin-top:20px;width:100%;padding:12px;border-radius:10px;border:2px solid #FFBE3D;background:transparent;color:#FFBE3D;font-size:13px;font-weight:700;cursor:pointer">확인</button>'+
+      '</div>';
+    }
+  }
+};
+var _selectedNoticeStyle = 'default';
+var _noticeMode = 'off';
+
+function setNoticeMode(mode){
+  _noticeMode = mode;
+  var onEl = g('noticeModeOn');
+  var offEl = g('noticeModeOff');
+  if(!onEl || !offEl) return;
+  
+  if(mode === 'on'){
+    onEl.style.border = '2px solid #00FF94';
+    onEl.style.background = 'rgba(0,255,148,.08)';
+    onEl.children[1].style.color = '#00FF94';
+    
+    offEl.style.border = '2px solid rgba(255,255,255,.1)';
+    offEl.style.background = 'transparent';
+    offEl.children[1].style.color = 'rgba(240,240,255,.6)';
+  } else {
+    offEl.style.border = '2px solid #FF4D6A';
+    offEl.style.background = 'rgba(255,77,106,.08)';
+    offEl.children[1].style.color = '#FF4D6A';
+    
+    onEl.style.border = '2px solid rgba(255,255,255,.1)';
+    onEl.style.background = 'transparent';
+    onEl.children[1].style.color = 'rgba(240,240,255,.6)';
+  }
+}
+
+function renderNoticeStylePicker(){
+  var el = g('noticeStylePicker');
+  if(!el) return;
+  el.innerHTML = Object.entries(NOTICE_STYLES).map(function(e){
+    var key = e[0], s = e[1];
+    var active = key === _selectedNoticeStyle;
+    return '<div onclick="selectNoticeStyle(\''+key+'\')" style="cursor:pointer;padding:10px;border-radius:8px;border:2px solid '+(active?'#00FF94':'rgba(255,255,255,.1)')+';background:'+(active?'rgba(0,255,148,.1)':'transparent')+';text-align:center;transition:all .2s">'+
+      '<div style="font-size:22px;margin-bottom:4px">'+s.icon+'</div>'+
+      '<div style="font-size:11px;font-weight:700;color:'+(active?'#00FF94':'rgba(240,240,255,.6)')+'">'+s.name+'</div>'+
+    '</div>';
+  }).join('');
+}
+function selectNoticeStyle(key){
+  _selectedNoticeStyle = key;
+  renderNoticeStylePicker();
+  updateNoticePreview();
+}
 async function initNoticePanel(){
-  // 현재 설정 로드
   await loadNoticeState();
-  // 미리보기 업데이트
+  renderNoticeStylePicker();
+  setNoticeMode(_noticeMode);
   updateNoticePreview();
   g('freeNoticeMsg').addEventListener('input', updateNoticePreview);
 }
@@ -1538,10 +1663,10 @@ async function initNoticePanel(){
 function updateNoticePreview(){
   var msg = g('freeNoticeMsg') ? g('freeNoticeMsg').value : '';
   var until = g('freeUntilDate') ? g('freeUntilDate').value : '';
-  var preview = g('noticePreview');
-  if(preview){
-    preview.textContent = msg + (until ? '\n\n📅 기간: ' + until + '까지' : '');
-  }
+  var wrap = g('noticePreviewWrap');
+  if(!wrap) return;
+  var style = NOTICE_STYLES[_selectedNoticeStyle] || NOTICE_STYLES.default;
+  wrap.innerHTML = style.preview(msg, until);
 }
 
 async function loadNoticeState(){
@@ -1557,6 +1682,9 @@ async function loadNoticeState(){
         el.textContent = '✅ 활성: ' + setting.until + '까지 / ' + (setting.message||'').slice(0,40);
         if(g('freeUntilDate') && setting.until) g('freeUntilDate').value = setting.until;
         if(g('freeNoticeMsg') && setting.message) g('freeNoticeMsg').value = setting.message;
+        if(setting.style && NOTICE_STYLES[setting.style]) _selectedNoticeStyle = setting.style;
+        if(setting.mode) _noticeMode = setting.mode;
+        renderNoticeStylePicker();
         updateNoticePreview();
         return;
       }
@@ -1586,7 +1714,7 @@ async function saveFreeUpload(){
   if(!until){ toast('종료일을 선택하세요','r'); return; }
   if(!message){ toast('공지 메시지를 입력하세요','r'); return; }
 
-  var setting = { until: until, message: message, set_at: new Date().toISOString() };
+  var setting = { until: until, message: message, style: _selectedNoticeStyle, mode: _noticeMode, set_at: new Date().toISOString() };
   var jsonStr = JSON.stringify(setting).replace(/'/g, "''");
 
   // 1) D1 저장 (tl_settings 테이블 자동 생성)
