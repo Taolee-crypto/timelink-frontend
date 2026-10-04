@@ -1,4 +1,4 @@
-﻿const http = require('http');
+const http = require('http');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
@@ -16,7 +16,7 @@ const DATA_DIR = path.join(
 
 const files = new Map();
 let tunnel = null;
-let publicBaseUrl = process.env.TIMELINK_PUBLIC_BASE_URL || '';
+let publicBaseUrl = process.env.TIMELINK_PUBLIC_BASE_URL || 'https://agent.timelink.digital';
 
 function json(res, status, body) {
   const data = Buffer.from(JSON.stringify(body));
@@ -47,20 +47,17 @@ function safeName(name, kind) {
 }
 
 function startTunnel() {
-  if (publicBaseUrl || tunnel) return;
+  if (tunnel) return;
   const bin = process.env.CLOUDFLARED_BIN || 'cloudflared';
-  tunnel = spawn(bin, ['tunnel', '--url', `http://${HOST}:${PORT}`, '--no-autoupdate'], {
+  // Named Tunnel 모드: 고정 도메인 사용 (agent.timelink.digital)
+  tunnel = spawn(bin, ['tunnel', '--config', 'C:\\Users\\win11\\.cloudflared\\config.yml', 'run', 'timelink-agent'], {
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe']
   });
 
   const inspect = chunk => {
     const text = chunk.toString();
-    const m = text.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/i);
-    if (m && !publicBaseUrl) {
-      publicBaseUrl = m[0].replace(/\/$/, '');
-      console.log('TimeLink public URL:', publicBaseUrl);
-    }
+    console.log('[cloudflared]', text.trim());
   };
   tunnel.stdout.on('data', inspect);
   tunnel.stderr.on('data', inspect);
@@ -71,7 +68,6 @@ function startTunnel() {
   tunnel.on('exit', code => {
     console.log('cloudflared exited:', code);
     tunnel = null;
-    if (!process.env.TIMELINK_PUBLIC_BASE_URL) publicBaseUrl = '';
   });
 }
 
