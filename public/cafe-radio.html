@@ -237,6 +237,27 @@ function toast(msg, t){
 }
 
 // ── 카페 주인 확인 ──
+// ⭐ 팝업(DJ 플레이어)에서 오는 잔액 변동 반영
+window.addEventListener('message', function(e){
+  if(!e.data || e.data.type !== 'tl-charged') return;
+  var nt = Number(e.data.new_tl);
+  if(!isFinite(nt)) return;
+  if(_user){
+    _user.tl_p = Math.max(0, (_user.tl_p||0) - Number(e.data.charged||0));
+    _user.tl = (_user.tl_p||0) + (_user.tl_a||0) + (_user.tl_b||0);
+    localStorage.setItem('tl_user', JSON.stringify(_user));
+  }
+  // cafe-radio에 TL 표시 엘리먼트 있으면 갱신
+  ['sp-tl-bal','tbTL','sbTL','sbTLBal','tb-tl-val'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el && _user){
+      var tot = (_user.tl_p||0)+(_user.tl_a||0)+(_user.tl_b||0);
+      el.textContent = tot.toLocaleString() + ' TL';
+    }
+  });
+  console.log('[cafe-radio] 팝업 잔액 반영:', e.data.new_tl);
+});
+
 async function checkCafeOwner(){
   if(!_user || !_token) return false;
   try {
