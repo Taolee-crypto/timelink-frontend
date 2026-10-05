@@ -181,6 +181,7 @@ async function playTrack(t){
 
     _audio.src = playable;
     _audio.load();
+    _audio.muted = true;   // ⭐ DJ 콘솔은 무음 재생 (청취자 팝업과 소리 겹침 방지)
 
     _audio.onended = function(){
       console.log('[DJ] onended', t.id);
