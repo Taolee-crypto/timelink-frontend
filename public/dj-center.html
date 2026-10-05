@@ -791,14 +791,18 @@ function startLiveHeartbeat(){
   _liveHeartbeat = setInterval(async function(){
     if(!_isLive) return;
     try {
-      await fetch(API+'/api/dj-cafe/broadcast/next', {
-        method:'POST',
+      var r = await fetch(API+'/api/dj-cafe/broadcast/status', {
         headers:{'Authorization':'Bearer '+_token}
       });
-      // 다음 곡 재생
-      playCurrentTrack();
+      var d = await r.json();
+      if(!d.live || d.live.is_live !== 1){
+        console.log('[DJ] 서버 방송 종료 감지');
+        _isLive = false;
+        if(_liveHeartbeat){ clearInterval(_liveHeartbeat); _liveHeartbeat = null; }
+        stopDjAudio();
+      }
     } catch(e){}
-  }, 30000);
+  }, 5000);
 }
 
 // 페이지 진입 시 라이브 상태면 heartbeat 재개
