@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DJ 콘솔 — TimeLink</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070709;--bg2:#0C0C12;--bg3:#111118;
+  --purple:#0071E3;--mint:#64D2FF;--cyan:#00E5FF;
+  --amber:#F5A623;--green:#2ECC71;--red:#FF4757;
+  --bd:rgba(255,255,255,.07);--bd2:rgba(255,255,255,.13);
+  --t1:#fff;--t2:rgba(255,255,255,.6);--t3:rgba(255,255,255,.3);
+  --fn:'Noto Sans KR',sans-serif;--fm:'JetBrains Mono',monospace;--fb:'Bebas Neue',cursive;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--fn);background:var(--bg);color:var(--t1);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse 60% 40% at 80% 10%,rgba(255,71,87,.06),transparent 60%),
+             radial-gradient(ellipse 50% 50% at 10% 80%,rgba(100,210,255,.05),transparent 60%);
+  pointer-events:none;z-index:0}
+
+.topbar{display:flex;align-items:center;gap:14px;padding:18px 32px;border-bottom:1px solid var(--bd);
+  background:rgba(7,7,9,.85);backdrop-filter:blur(20px);position:sticky;top:0;z-index:100;flex-wrap:wrap}
+.tb-title{font-family:var(--fb);font-size:22px;letter-spacing:.06em;color:var(--red)}
+.tb-live{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;
+  background:rgba(255,71,87,.15);border:1px solid rgba(255,71,87,.3);font-size:11px;
+  font-family:var(--fm);color:var(--red);font-weight:700;letter-spacing:.1em}
+.tb-live.off{background:rgba(255,255,255,.05);border-color:var(--bd);color:var(--t3)}
+.tb-live-dot{width:7px;height:7px;border-radius:50%;background:var(--red);animation:pulse 1.2s infinite}
+.tb-live.off .tb-live-dot{background:var(--t3);animation:none}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.tb-user{margin-left:auto;font-size:12px;color:var(--t3);font-family:var(--fm)}
+.tb-back{padding:6px 14px;border-radius:8px;border:1px solid var(--bd);color:var(--t3);
+  font-size:12px;text-decoration:none;transition:all .2s;cursor:pointer;background:none}
+.tb-back:hover{color:var(--t1);border-color:var(--bd2)}
+
+.main{position:relative;z-index:1;padding:32px;max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+
+.now-card{background:linear-gradient(135deg,rgba(255,71,87,.08),rgba(100,210,255,.04));
+  border:1px solid var(--bd);border-radius:16px;padding:24px}
+.now-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;font-size:12px;
+  color:var(--t3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase}
+.now-idx{background:rgba(255,255,255,.06);padding:3px 10px;border-radius:12px}
+.now-title{font-size:24px;font-weight:800;margin-bottom:6px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.now-artist{font-size:14px;color:var(--t2);margin-bottom:16px}
+.now-status{font-size:12px;color:var(--t3);font-family:var(--fm);
+  padding:8px 12px;background:rgba(0,0,0,.3);border-radius:8px;border:1px solid var(--bd)}
+.now-progress{height:6px;background:rgba(255,255,255,.05);border-radius:3px;
+  overflow:hidden;margin-top:16px}
+.now-progress-fill{height:100%;background:linear-gradient(90deg,var(--red),var(--cyan));
+  width:0%;transition:width .5s}
+
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{padding:12px 20px;border-radius:10px;border:1px solid var(--bd2);background:rgba(255,255,255,.03);
+  color:var(--t1);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;
+  font-family:var(--fn);display:flex;align-items:center;gap:6px}
+.btn:hover{background:rgba(255,255,255,.08);border-color:var(--t3)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.btn-start{background:rgba(46,204,113,.15);border-color:rgba(46,204,113,.4);color:var(--green)}
+.btn.btn-start:hover{background:rgba(46,204,113,.25)}
+.btn.btn-next{background:rgba(100,210,255,.15);border-color:rgba(100,210,255,.4);color:var(--mint)}
+.btn.btn-next:hover{background:rgba(100,210,255,.25)}
+.btn.btn-stop{background:rgba(255,71,87,.15);border-color:rgba(255,71,87,.4);color:var(--red)}
+.btn.btn-stop:hover{background:rgba(255,71,87,.25)}
+.toggle-wrap{margin-left:auto;display:flex;align-items:center;gap:8px;
+  padding:10px 16px;background:rgba(255,255,255,.03);border:1px solid var(--bd);
+  border-radius:10px;font-size:12px;cursor:pointer;user-select:none}
+.toggle-wrap input{cursor:pointer;width:16px;height:16px;accent-color:var(--green)}
+.toggle-wrap.on{border-color:rgba(46,204,113,.4);background:rgba(46,204,113,.08);color:var(--green)}
+
+.set-section{background:var(--bg3);border:1px solid var(--bd);border-radius:16px;overflow:hidden}
+.set-head{padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;
+  justify-content:space-between;align-items:center}
+.set-title{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--t2);font-family:var(--fm)}
+.set-count{font-size:11px;color:var(--t3);font-family:var(--fm)}
+.set-list{max-height:400px;overflow-y:auto}
+.set-item{display:flex;align-items:center;gap:14px;padding:12px 20px;
+  border-bottom:1px solid var(--bd);cursor:pointer;transition:all .15s}
+.set-item:last-child{border-bottom:none}
+.set-item:hover{background:rgba(255,255,255,.03)}
+.set-item.current{background:rgba(255,71,87,.08)}
+.set-item.current .set-num{color:var(--red);font-weight:700}
+.set-num{font-family:var(--fm);font-size:12px;color:var(--t3);width:32px;flex-shrink:0}
+.set-info{flex:1;min-width:0}
+.set-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.set-artist{font-size:11px;color:var(--t3);margin-top:2px}
+.set-badge{font-size:10px;padding:2px 8px;border-radius:10px;
+  background:rgba(255,71,87,.2);color:var(--red);font-family:var(--fm);font-weight:700}
+.set-badge.playing{background:rgba(46,204,113,.2);color:var(--green);animation:pulse 1.5s infinite}
+
+.toast{position:fixed;bottom:24px;right:24px;background:rgba(0,0,0,.9);color:#fff;
+  padding:12px 20px;border-radius:10px;font-size:13px;border:1px solid var(--bd2);
+  z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.toast.s{border-color:rgba(46,204,113,.4)}
+.toast.e{border-color:rgba(255,71,87,.4)}
+
+.login-warn{padding:60px 20px;text-align:center;color:var(--t3);font-size:14px}
+.login-warn a{color:var(--mint);text-decoration:none}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="tb-title">DJ 콘솔</span>
+  <span class="tb-live off" id="liveBadge"><span class="tb-live-dot"></span><span id="liveText">OFFLINE</span></span>
+  <span class="tb-user" id="userInfo">-</span>
+  <a class="tb-back" href="/cafe-radio">← 카페 라디오</a>
+</div>
+
+<div class="main" id="main" style="display:none">
+  <div class="now-card">
+    <div class="now-head">
+      <span class="now-idx" id="trackIdx">0/0</span>
+      <span>NOW PLAYING</span>
+    </div>
+    <div class="now-title" id="trackTitle">방송 대기 중</div>
+    <div class="now-artist" id="trackArtist">-</div>
+    <div class="now-status" id="status">대기 중</div>
+    <div class="now-progress"><div class="now-progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-start" id="btnStart" onclick="startBroadcast()">▶ 방송 시작</button>
+    <button class="btn btn-next" id="btnNext" onclick="nextTrack()">⏭ 다음 곡</button>
+    <button class="btn btn-stop" id="btnStop" onclick="stopBroadcast()">⏹ 방송 종료</button>
+    <label class="toggle-wrap" id="autoWrap">
+      <input type="checkbox" id="autoAdvance" onchange="onAutoToggle()">
+      <span>🔁 자동 진행</span>
+    </label>
+  </div>
+
+  <div class="set-section">
+    <div class="set-head">
+      <span class="set-title">방송 세트</span>
+      <span class="set-count" id="setCount">-</span>
+    </div>
+    <div class="set-list" id="setList"></div>
+  </div>
+</div>
+
+<div class="login-warn" id="loginWarn" style="display:none">
+  로그인이 필요합니다. <a href="/login">로그인 →</a>
+</div>
+
+<audio id="djAudio" style="display:none"></audio>
+<div class="toast" id="toast"></div>
+
+<script src="/tl3.js"></script>
+<script src="/dj-console.js"></script>
+</body>
+</html>
