@@ -265,8 +265,23 @@ async function nextTrack(){
   _advancing = true;
   try {
     var d = await api('/api/dj-cafe/broadcast/next', { method:'POST' });
-    if(d.ok){ toast('다음 곡: ' + (d.track_id || ''), 's'); }
-    else toast('실패: ' + (d.error || ''), 'e');
+    if(d.ok){
+      toast('다음 곡', 's');
+      // ⭐ 즉시 다음 곡 재생 (폴링 대기 X, 백그라운드 탭 대응)
+      if(_djId){
+        var now = await api('/api/dj-cafe/live/' + _djId + '/now');
+        if(now.ok && now.current_track && now.current_track.id !== _currentTrackId){
+          _currentTrackId = now.current_track.id;
+          g('trackTitle').textContent = now.current_track.title || 'Unknown';
+          g('trackArtist').textContent = (now.current_track.artist || '') + (now.current_track.category ? ' · ' + now.current_track.category : '');
+          _currentIdx = (_currentIdx + 1) % (_setLength || 1);
+          renderSetList();
+          playTrack(now.current_track);
+        }
+      }
+    } else {
+      toast('실패: ' + (d.error || ''), 'e');
+    }
   } finally {
     setTimeout(function(){ _advancing = false; }, 1000);
   }
