@@ -60,7 +60,8 @@ audio{display:none}
 var API = 'https://api.timelink.digital';
 var _token = localStorage.getItem('tl_token') || '';
 var _dj = null, _role = 'normal', _playing = false, _trackId = null;
-var _pollTimer = null, _chargeTimer = null;
+var _pollTimer = null, _chargeTimer = null, _loadingTrackId = null;
+var _audioEl = null;
 
 // ⭐ 방법 C: URL 파라미터 우선, 없으면 sessionStorage 폴백
 var qs = new URLSearchParams(location.search);
@@ -77,6 +78,7 @@ if(!djId){
 function g(id){ return document.getElementById(id); }
 
 async function init(){
+  _audioEl = document.getElementById('audio');
   if(!djId){ g('status').textContent = '\u274c DJ 정보 없음'; return; }
   try {
     var r = await fetch(API + '/api/dj-cafe/live/' + djId + '/now');
@@ -100,26 +102,31 @@ async function init(){
   _playing = true;
   g('playBtn').textContent = '\u23f8';
 
-  _pollTimer = setInterval(loadAndPlay, 2000);
+  _pollTimer = setInterval(loadAndPlay, 5000);
   startCharging();
 
   g('status').textContent = '\u2705 재생 중 \u00b7 이 창을 닫으면 정지됩니다';
 }
 
 async function loadAndPlay(){
+  // 🔒 재생 중이면 폴링이 절대 손대지 않음
+  if(_playing && _audioEl && !_audioEl.paused) return;
+  // 🔒 로딩 중이면 스킵
+  if(_loadingTrackId) return;
+
   try {
     var r = await fetch(API + '/api/dj-cafe/live/' + djId + '/now');
     var d = await r.json();
     if(!d.ok || !d.current_track) return;
     var t = d.current_track;
 
-    var audio = g('audio');
-    // 같은 곡이고 실제 재생 중이면 스킵
-    if(_trackId === t.id && !audio.paused && audio.currentTime > 0) return;
+    if(_trackId === t.id && _playing) return;
 
+    _loadingTrackId = t.id;
     _trackId = t.id;
+
     g('title').textContent = t.title || 'Unknown';
-    g('artist').textContent = (t.artist || '') + (t.category ? ' \u00b7 ' + t.category : '');
+    g('artist').textContent = (t.artist || '') + (t.category ? ' · ' + t.category : '');
 
     var auth = _token ? {'Authorization':'Bearer '+_token} : {};
     if(/trycloudflare\.com|127\.0\.0\.1|localhost|agent\.timelink\.digital/i.test(t.stream_url)) auth = {};
@@ -128,39 +135,53 @@ async function loadAndPlay(){
       ? await TL3.resolveUrl(t.stream_url, {fetchOptions:{headers:auth}, fallbackDirect:false})
       : t.stream_url;
 
-    audio.src = playable;
-    audio.load();
+    // ⭐ src 세팅 전 정리
+    _audioEl.pause();
+    _audioEl.removeAttribute('src');
+    _audioEl.load();
+
+    _audioEl.src = playable;
+    _audioEl.load();
     if(t.elapsed_ms && t.elapsed_ms > 0 && t.elapsed_ms < 120000){
-      try { audio.currentTime = t.elapsed_ms / 1000; } catch(e){}
+      try { _audioEl.currentTime = t.elapsed_ms / 1000; } catch(e){}
     }
 
-    // 곡 끝나면 즉시 다음 곡 로드
-    audio.onended = function(){
-      console.log('[player] 곡 종료 → 다음 곡 요청');
+    // 곡 종료 시 다음 곡
+    _audioEl.onended = function(){
+      console.log('[player] 곡 종료 → 다음 곡');
+      _playing = false;
       _trackId = null;
+      _loadingTrackId = null;
       loadAndPlay();
     };
 
-    try {
-      await audio.play();
-      _playing = true;
-      g('playBtn').textContent = '\u23f8';
-      g('status').textContent = '\u2705 재생 중';
-    } catch(e) {
-      console.warn('[player] play 실패:', e.name, e.message);
-      _playing = false;
-      _trackId = null;   // 다음 폴링에서 재시도
-      g('playBtn').textContent = '\u25b6';
-      g('status').textContent = '\u26a0\ufe0f \u25b6 버튼을 눌러 재생하세요';
+    // ⭐ play() Promise catch (Google 문서 패턴)
+    var playPromise = _audioEl.play();
+    if(playPromise !== undefined){
+      playPromise.then(function(){
+        _playing = true;
+        _loadingTrackId = null;
+        g('playBtn').textContent = '⏸';
+        g('status').textContent = '✅ 재생 중';
+      }).catch(function(e){
+        console.warn('[player] play 실패:', e.name, e.message);
+        _loadingTrackId = null;
+        if(e.name === 'AbortError') return;   // 폴링 간섭 → 재시도 유지
+        _playing = false;
+        _trackId = null;
+        g('playBtn').textContent = '▶';
+        g('status').textContent = '⚠️ ▶ 버튼을 눌러 재생하세요';
+      });
     }
   } catch(e){
+    _loadingTrackId = null;
     console.warn('[player] load 실패:', e);
   }
 }
 function startCharging(){
   if(_chargeTimer) clearInterval(_chargeTimer);
   _chargeTimer = setInterval(async function(){
-    if(!_playing) return;
+    if(!_playing || !_trackId) return;   // 곡 로드 전엔 charge 스킵
     try {
       var r = await fetch(API + '/api/dj-cafe/charge', {
         method: 'POST',
