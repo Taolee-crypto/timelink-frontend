@@ -1,606 +1,3159 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TL 라이브 라디오 — TimeLink</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>TL방송국 — 24시간 AI 라디오</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#070709;--bg2:#0C0C12;--bg3:#111118;
-  --purple:#0071E3;--mint:#64D2FF;--cyan:#00E5FF;
-  --amber:#F5A623;--green:#2ECC71;--red:#FF4757;
-  --bd:rgba(255,255,255,.07);--bd2:rgba(255,255,255,.13);
+  --amber:#F5A623;--amber2:#FFD166;--amber3:rgba(245,166,35,.15);
+  --cyan:#00E5FF;--cyan2:rgba(0,229,255,.12);
+  --red:#FF4757;--green:#2ECC71;
+  --bd:rgba(255,255,255,.07);--bd2:rgba(255,255,255,.12);
   --t1:#fff;--t2:rgba(255,255,255,.6);--t3:rgba(255,255,255,.3);
   --fn:'Noto Sans KR',sans-serif;--fm:'JetBrains Mono',monospace;--fb:'Bebas Neue',cursive;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--fn);background:var(--bg);color:var(--t1);min-height:100vh}
-body::before{content:'';position:fixed;inset:0;
-  background:radial-gradient(ellipse 60% 40% at 80% 10%,rgba(255,71,87,.06),transparent 60%),
-             radial-gradient(ellipse 50% 50% at 10% 80%,rgba(100,210,255,.05),transparent 60%);
-  pointer-events:none;z-index:0}
+html{height:100%}
+body{min-height:100vh;font-family:var(--fn);background:var(--bg);color:var(--t1);display:flex;flex-direction:column}
 
-.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh;position:relative;z-index:1}
-.sidebar{background:#090D12;border-right:1px solid var(--bd);position:sticky;top:0;height:100vh;
-  overflow-y:auto;display:flex;flex-direction:column;flex-shrink:0}
-.sb-logo{padding:20px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;text-decoration:none}
-.sb-logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--red),#C41E3A);
-  border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff}
-.sb-logo-text{font-family:var(--fb);font-size:16px;letter-spacing:.08em;color:var(--t1)}
-.sb-nav{padding:10px 0;flex:1}
-.sb-section{padding:12px 16px 4px;font-size:9px;font-weight:700;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--t3);font-family:var(--fm)}
-.sb-link{display:flex;align-items:center;gap:9px;padding:9px 16px;text-decoration:none;color:var(--t2);
-  font-size:12px;font-weight:500;transition:all .2s;cursor:pointer}
-.sb-link:hover{color:var(--t1);background:rgba(255,255,255,.03)}
-.sb-link.active{color:var(--red);background:rgba(255,71,87,.08)}
+/* scanline overlay */
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);pointer-events:none;z-index:9998}
 
-.main{overflow-y:auto;padding:0}
-.topbar{display:flex;align-items:center;gap:14px;padding:18px 32px;border-bottom:1px solid var(--bd);
-  background:rgba(7,7,9,.85);backdrop-filter:blur(20px);position:sticky;top:0;z-index:100;flex-wrap:wrap}
-.tb-title{font-family:var(--fb);font-size:22px;letter-spacing:.06em;color:var(--red)}
-.tb-live{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;
-  background:rgba(255,71,87,.15);border:1px solid rgba(255,71,87,.3);font-size:11px;
-  font-family:var(--fm);color:var(--red);font-weight:700;letter-spacing:.1em}
-.tb-live-dot{width:7px;height:7px;border-radius:50%;background:var(--red);animation:pulse 1.2s infinite}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
-.tb-user{margin-left:auto;font-size:12px;color:var(--t3);font-family:var(--fm)}
-.tb-back{padding:6px 14px;border-radius:8px;border:1px solid var(--bd);color:var(--t3);
-  font-size:12px;text-decoration:none;transition:all .2s;cursor:pointer}
-.tb-back:hover{color:var(--t1);border-color:var(--bd2)}
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;gap:10px;padding:0 16px 0 20px;height:60px;border-bottom:1px solid var(--bd);background:rgba(7,7,9,.95);backdrop-filter:blur(20px);flex-shrink:0;z-index:100}
+.tb-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.tb-logo-icon{width:32px;height:32px;background:var(--amber);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#000;font-weight:900}
+.tb-logo-text{font-family:var(--fb);font-size:20px;letter-spacing:.1em;color:var(--amber)}
+.tb-live{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;background:rgba(255,71,87,.15);border:1px solid rgba(255,71,87,.3);font-size:11px;font-family:var(--fm);color:var(--red);font-weight:700;letter-spacing:.1em}
+.tb-live-dot{width:7px;height:7px;border-radius:50%;background:var(--red);animation:pulse-dot 1.2s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.tb-time{font-family:var(--fm);font-size:13px;color:var(--amber);margin-left:auto}
+.tb-nav{display:flex;gap:3px;margin-left:8px}
+.tb-nav-btn{padding:5px 10px;border-radius:7px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:11px;font-family:var(--fn);cursor:pointer;transition:all .2s;text-decoration:none;display:flex;align-items:center;gap:4px}
+.tb-nav-btn:hover,.tb-nav-btn.active{background:var(--amber3);border-color:rgba(245,166,35,.3);color:var(--amber)}
+.tb-user{font-size:12px;color:var(--t3);font-family:var(--fm)}
 
-.content{padding:32px;max-width:1200px;margin:0 auto}
+/* ── LAYOUT ── */
+.layout{display:flex;flex:1;min-height:0;overflow:hidden}
 
-/* 헤더 */
-.hero{text-align:center;margin-bottom:32px;padding:20px}
-.hero-title{font-family:var(--fb);font-size:42px;letter-spacing:.06em;margin-bottom:8px;
-  background:linear-gradient(135deg,#fff 30%,var(--red));-webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;background-clip:text}
-.hero-sub{font-size:14px;color:var(--t2);line-height:1.6}
+/* ── SIDEBAR ── */
+.sidebar{width:280px;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sb-section{padding:16px;border-bottom:1px solid var(--bd)}
+.sb-label{font-size:10px;font-family:var(--fm);color:var(--t3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px}
 
-/* DJ 카드 그리드 */
-.dj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:24px}
-.dj-card{background:rgba(255,255,255,.025);border:1px solid var(--bd);border-radius:16px;
-  padding:20px;transition:all .3s;position:relative;overflow:hidden}
-.dj-card:hover{border-color:rgba(255,71,87,.3);transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.4)}
-.dj-card.live{border-color:rgba(255,71,87,.4);background:rgba(255,71,87,.03)}
-.dj-card.contract{border-color:rgba(46,204,113,.4);background:rgba(46,204,113,.03)}
+/* Mode selector */
+.mode-cards{display:flex;flex-direction:column;gap:8px}
+.mode-card{padding:12px 14px;border-radius:10px;border:1px solid var(--bd);cursor:pointer;transition:all .25s;display:flex;align-items:center;gap:12px}
+.mode-card:hover{border-color:rgba(245,166,35,.3);background:var(--amber3)}
+.mode-card.active{border-color:var(--amber);background:var(--amber3)}
+.mode-card-icon{font-size:20px;width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mode-card-info{flex:1}
+.mode-card-name{font-size:13px;font-weight:700;color:var(--t1)}
+.mode-card-desc{font-size:11px;color:var(--t3);margin-top:2px}
+.mode-card-poc{font-size:10px;font-family:var(--fm);color:var(--amber);margin-top:3px}
 
-.dj-top{display:flex;align-items:center;gap:14px;margin-bottom:14px}
-.dj-avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--mint));
-  display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;overflow:hidden;position:relative;border:2px solid var(--bd2)}
-.dj-avatar img{width:100%;height:100%;object-fit:cover}
-.dj-avatar.live::after{content:'';position:absolute;top:-2px;right:-2px;width:14px;height:14px;
-  border-radius:50%;background:var(--red);border:2px solid var(--bg);animation:pulse 1.2s infinite}
-.dj-info{flex:1;min-width:0}
-.dj-name{font-size:16px;font-weight:800;margin-bottom:3px}
-.dj-bio{font-size:12px;color:var(--t3);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dj-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
-.dj-tag{padding:2px 8px;border-radius:10px;background:rgba(100,210,255,.1);border:1px solid rgba(100,210,255,.2);
-  font-size:10px;color:var(--mint);font-family:var(--fm)}
+/* Channel list */
+.channel-list{min-height:60px;max-height:180px;overflow-y:auto;padding:8px}
+.channel-item{padding:10px 12px;border-radius:8px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.channel-item:hover{background:rgba(255,255,255,.04)}
+.channel-item.active{background:var(--amber3);border-left:2px solid var(--amber)}
+.ch-avatar{width:36px;height:36px;border-radius:8px;object-fit:cover;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.ch-info{flex:1;min-width:0}
+.ch-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-listeners{font-size:10px;color:var(--t3);font-family:var(--fm)}
+.ch-live-badge{font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(255,71,87,.2);color:var(--red);font-weight:700;flex-shrink:0}
 
-.dj-now{background:rgba(0,0,0,.3);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:14px}
-.dj-now-label{font-size:9px;color:var(--red);font-family:var(--fm);letter-spacing:.1em;margin-bottom:4px}
-.dj-now-title{font-size:14px;font-weight:700;margin-bottom:2px}
-.dj-now-artist{font-size:12px;color:var(--t3)}
-.dj-wave{display:flex;align-items:center;gap:2px;height:16px;margin-top:8px}
-.dj-wave span{width:3px;border-radius:2px;background:var(--red);opacity:.6;animation:wave 1.2s infinite}
-.dj-wave span:nth-child(1){height:6px;animation-delay:0s}
-.dj-wave span:nth-child(2){height:12px;animation-delay:.1s}
-.dj-wave span:nth-child(3){height:16px;animation-delay:.2s}
-.dj-wave span:nth-child(4){height:10px;animation-delay:.15s}
-.dj-wave span:nth-child(5){height:14px;animation-delay:.05s}
-@keyframes wave{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+/* ── MAIN PLAYER ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 
-.dj-stats{display:flex;gap:14px;margin-bottom:14px;font-size:11px;font-family:var(--fm);color:var(--t3)}
-.dj-stats strong{color:var(--t1)}
+/* Visualizer */
+.visualizer-wrap{position:relative;height:140px;overflow:hidden;flex-shrink:0;background:linear-gradient(180deg,#0A0A10 0%,var(--bg) 100%)}
+canvas#viz{width:100%;height:100%}
+.viz-overlay{position:absolute;inset:0;background:linear-gradient(180deg,transparent 60%,var(--bg) 100%);pointer-events:none}
 
-.dj-actions{display:flex;gap:8px;flex-wrap:wrap}
-.dj-btn{flex:1;padding:10px 14px;border-radius:10px;border:none;font-size:12px;font-weight:700;
-  cursor:pointer;transition:all .2s;font-family:var(--fn);display:flex;align-items:center;justify-content:center;gap:5px}
-.dj-btn-preview{background:rgba(255,255,255,.05);border:1px solid var(--bd2);color:var(--t2)}
-.dj-btn-preview:hover{background:rgba(255,255,255,.08);color:var(--t1)}
-.dj-btn-listen{background:linear-gradient(135deg,var(--purple),var(--mint));color:#fff}
-.dj-btn-listen:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,113,227,.4)}
-.dj-btn-contract{background:linear-gradient(135deg,var(--green),#27AE60);color:#fff}
-.dj-btn-contract:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(46,204,113,.4)}
-.dj-btn-contract.on{background:linear-gradient(135deg,var(--red),#C41E3A)}
-.dj-btn-contract.on:hover{box-shadow:0 4px 16px rgba(255,71,87,.4)}
+/* Now Playing */
+.now-playing{padding:20px 28px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:20px;flex-shrink:0}
+.np-cover{width:72px;height:72px;border-radius:10px;background:linear-gradient(135deg,#1a1a2e,#16213e);flex-shrink:0;position:relative;overflow:hidden;border:1px solid var(--bd2)}
+.np-cover img{width:100%;height:100%;object-fit:cover}
+.np-cover-default{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:28px}
+.np-spin{animation:spin-cover 8s linear infinite}
+@keyframes spin-cover{to{transform:rotate(360deg)}}
+.np-info{flex:1;min-width:0}
+.np-mode{font-size:10px;font-family:var(--fm);color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.np-title{font-size:18px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.np-artist{font-size:13px;color:var(--t2);margin-top:3px}
+.np-dj{font-size:11px;color:var(--t3);margin-top:6px;display:flex;align-items:center;gap:6px}
+.dj-badge{padding:2px 8px;border-radius:10px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.2);color:var(--cyan);font-family:var(--fm);font-size:10px}
+.np-stats{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.np-poc{font-family:var(--fm);font-size:11px;color:var(--green);background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.2);padding:4px 10px;border-radius:8px}
+.np-tl{font-family:var(--fm);font-size:11px;color:var(--amber)}
 
-/* 재생 바 */
-.player-bar{position:fixed;bottom:0;left:220px;right:0;z-index:200;background:rgba(7,7,9,.98);
-  border-top:1px solid var(--bd2);backdrop-filter:blur(20px);padding:14px 24px;
-  display:none;align-items:center;gap:16px}
-.player-bar.show{display:flex}
-.pb-cover{width:48px;height:48px;border-radius:8px;background:rgba(255,255,255,.06);
-  display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;overflow:hidden}
-.pb-info{flex:1;min-width:0}
-.pb-title{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pb-sub{font-size:11px;color:var(--t3);margin-top:2px;font-family:var(--fm)}
-.pb-tl{font-size:12px;font-family:var(--fm);color:var(--mint);flex-shrink:0}
-.pb-btn{width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;flex-shrink:0;
-  background:var(--red);color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center;
-  transition:all .2s}
-.pb-btn:hover{transform:scale(1.1)}
+/* Controls */
+.controls{padding:16px 28px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:16px;flex-shrink:0}
+.progress-wrap{flex:1;display:flex;flex-direction:column;gap:6px}
+.progress-bar{width:100%;height:3px;background:rgba(255,255,255,.1);border-radius:2px;cursor:pointer;position:relative}
+.progress-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--amber),var(--amber2));transition:width .5s linear;width:0%}
+.progress-times{display:flex;justify-content:space-between;font-size:10px;font-family:var(--fm);color:var(--t3)}
+.ctrl-btn{width:40px;height:40px;border-radius:50%;border:1px solid var(--bd2);background:transparent;color:var(--t1);font-size:16px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ctrl-btn:hover{background:var(--amber3);border-color:var(--amber);color:var(--amber)}
+.ctrl-btn.play{width:50px;height:50px;font-size:20px;background:var(--amber);border-color:var(--amber);color:#000}
+.ctrl-btn.play:hover{background:var(--amber2);transform:scale(1.05)}
+.vol-wrap{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.vol-icon{font-size:14px;color:var(--t3)}
+.vol-slider{width:80px;-webkit-appearance:none;height:3px;border-radius:2px;background:rgba(255,255,255,.1);outline:none;cursor:pointer}
+.vol-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--amber);cursor:pointer}
 
-/* 빈 상태 */
-.empty{text-align:center;padding:80px 20px;color:var(--t3)}
-.empty-icon{font-size:48px;margin-bottom:16px;opacity:.3}
-.empty-title{font-size:16px;font-weight:700;color:var(--t2);margin-bottom:8px}
-.empty-desc{font-size:13px;line-height:1.7;max-width:400px;margin:0 auto}
+/* Queue / Content tabs */
+.content-tabs{display:flex;border-bottom:1px solid var(--bd);flex-shrink:0}
+.ctab{padding:10px 20px;font-size:12px;font-weight:700;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:var(--fm)}
+.ctab.active{color:var(--amber);border-bottom-color:var(--amber)}
+.content-body{flex:1;overflow-y:auto;padding:16px 20px}
 
-/* 로딩 */
-.loading{text-align:center;padding:40px;color:var(--t3);font-family:var(--fm);font-size:13px}
-.spinner{display:inline-block;width:20px;height:20px;border:2px solid rgba(255,255,255,.1);
-  border-top-color:var(--mint);border-radius:50%;animation:sp .7s linear infinite;margin-right:8px;vertical-align:middle}
-@keyframes sp{to{transform:rotate(360deg)}}
+/* Queue */
+.queue-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;margin-bottom:6px;transition:all .2s;cursor:pointer}
+.queue-item:hover{background:rgba(255,255,255,.04)}
+.queue-item.playing{background:var(--amber3);border-left:2px solid var(--amber)}
+.qi-num{font-family:var(--fm);font-size:11px;color:var(--t3);width:20px;text-align:center;flex-shrink:0}
+.qi-cover{width:40px;height:40px;border-radius:6px;background:rgba(255,255,255,.08);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden}
+.qi-cover img{width:100%;height:100%;object-fit:cover}
+.qi-info{flex:1;min-width:0}
+.qi-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qi-artist{font-size:11px;color:var(--t3)}
+.qi-tl{font-family:var(--fm);font-size:11px;color:var(--amber);flex-shrink:0}
+.qi-dur{font-family:var(--fm);font-size:11px;color:var(--t3);flex-shrink:0;margin-left:8px}
 
-/* 토스트 */
-#toast-box{position:fixed;bottom:100px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
-.t{padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;backdrop-filter:blur(20px);
-  border:1px solid var(--bd2);color:var(--t1);animation:tin .25s ease;max-width:320px;background:rgba(15,15,25,.95)}
-.t.s{background:rgba(46,204,113,.15);color:var(--green);border-color:rgba(46,204,113,.35)}
-.t.e{background:rgba(255,71,87,.15);color:var(--red);border-color:rgba(255,71,87,.35)}
-.t.i{background:rgba(100,210,255,.12);color:var(--mint);border-color:rgba(100,210,255,.3)}
-@keyframes tin{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+/* Request form */
+.request-form{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px}
+.req-title{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.req-input{width:100%;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid var(--bd2);border-radius:8px;color:var(--t1);font-size:13px;font-family:var(--fn);outline:none;margin-bottom:8px;resize:none}
+.req-input:focus{border-color:rgba(245,166,35,.4)}
+.req-input::placeholder{color:var(--t3)}
+.req-send{padding:9px 20px;border-radius:8px;border:none;background:var(--amber);color:#000;font-size:13px;font-weight:700;font-family:var(--fn);cursor:pointer;transition:all .2s}
+.req-send:hover{background:var(--amber2)}
 
+/* Request list */
+.request-item{padding:12px 14px;border-radius:8px;border:1px solid var(--bd);margin-bottom:8px;transition:all .2s}
+.request-item:hover{border-color:var(--bd2)}
+.ri-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.ri-user{font-size:12px;font-weight:700;color:var(--amber)}
+.ri-time{font-size:10px;color:var(--t3);font-family:var(--fm);margin-left:auto}
+.ri-song{font-size:13px;color:var(--t1)}
+.ri-story{font-size:12px;color:var(--t2);margin-top:4px;line-height:1.5}
+.ri-status{font-size:10px;font-family:var(--fm);padding:2px 8px;border-radius:8px;margin-top:6px;display:inline-block}
+.ri-status.pending{background:rgba(245,166,35,.1);color:var(--amber)}
+.ri-status.playing{background:rgba(46,204,113,.1);color:var(--green)}
+
+/* ══════════════════════════════
+   AI DJ TiLo — Spotify-Style Full Redesign
+══════════════════════════════ */
+.dj-screen{display:flex;flex-direction:column;height:100%;overflow:hidden;background:transparent}
+
+/* ─ 히어로: 큰 원 + Listening ─ */
+.dj-hero{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:28px 20px 20px;text-align:center;flex-shrink:0;
+  background:radial-gradient(ellipse 100% 80% at 50% 0%,rgba(0,180,255,.1) 0%,transparent 70%)}
+
+/* 큰 orb — Spotify 녹색 링 스타일 */
+.dj-orb-wrap{position:relative;width:120px;height:120px;margin-bottom:16px}
+.dj-orb-bg{
+  position:absolute;inset:0;border-radius:50%;
+  background:rgba(0,180,255,.06);border:2px solid rgba(0,180,255,.15);
+  transition:all .4s}
+.dj-orb-ring-outer{
+  position:absolute;inset:-8px;border-radius:50%;
+  border:2.5px solid transparent;
+  background:conic-gradient(from var(--rot,0deg),rgba(0,180,255,.9) 0%,rgba(0,113,227,.7) 35%,rgba(100,210,255,.6) 65%,rgba(0,180,255,.9) 100%) border-box;
+  -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:destination-out;mask-composite:exclude;
+  opacity:0;transition:opacity .4s}
+.dj-orb-ring-pulse{
+  position:absolute;inset:0;border-radius:50%;
+  border:1.5px solid rgba(0,180,255,.3);
+  animation:none;opacity:0;transition:opacity .4s}
+
+/* listening 상태 */
+.dj-orb-wrap.listening .dj-orb-bg{
+  background:rgba(0,180,255,.1);border-color:rgba(0,180,255,.3);
+  box-shadow:0 0 40px rgba(0,180,255,.15)}
+.dj-orb-wrap.listening .dj-orb-ring-outer{opacity:1;animation:orbRotate 2.5s linear infinite}
+.dj-orb-wrap.listening .dj-orb-ring-pulse{opacity:1;animation:pulseExpand 1.8s ease-out infinite}
+@keyframes orbRotate{to{--rot:360deg}}
+@property --rot{syntax:'<angle>';initial-value:0deg;inherits:false}
+@keyframes pulseExpand{
+  0%{transform:scale(1);opacity:.5}
+  60%{transform:scale(1.25);opacity:0}
+  100%{transform:scale(1.25);opacity:0}}
+
+/* typing 상태 */
+.dj-orb-wrap.typing .dj-orb-bg{background:rgba(0,113,227,.1);border-color:rgba(0,113,227,.3)}
+.dj-orb-wrap.typing .dj-orb-ring-outer{opacity:.7;animation:orbRotate 1.2s linear infinite}
+
+/* orb 내부 아이콘 */
+.dj-orb-inner{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:38px;z-index:2}
+
+/* Listening 텍스트 + 웨이브 */
+.dj-listen-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;min-height:22px}
+.dj-listen-label{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.12em;
+  color:var(--cyan);opacity:0;transition:opacity .3s}
+.dj-orb-wrap.listening~.dj-listen-row .dj-listen-label,
+.dj-orb-wrap.typing~.dj-listen-row .dj-listen-label{opacity:1}
+.dj-listen-wave{display:flex;align-items:flex-end;gap:2.5px;height:16px}
+.dj-listen-wave span{
+  width:2.5px;border-radius:2px;background:var(--cyan);opacity:0;
+  transition:opacity .3s}
+.dj-orb-wrap.listening~.dj-listen-row .dj-listen-wave span{
+  opacity:1;animation:waveJump .9s ease-in-out infinite}
+.dj-listen-wave span:nth-child(1){height:5px;animation-delay:0s}
+.dj-listen-wave span:nth-child(2){height:12px;animation-delay:.1s}
+.dj-listen-wave span:nth-child(3){height:8px;animation-delay:.2s}
+.dj-listen-wave span:nth-child(4){height:16px;animation-delay:.15s}
+.dj-listen-wave span:nth-child(5){height:6px;animation-delay:.05s}
+.dj-listen-wave span:nth-child(6){height:14px;animation-delay:.25s}
+.dj-listen-wave span:nth-child(7){height:4px;animation-delay:.12s}
+@keyframes waveJump{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+
+.dj-name2{font-size:15px;font-weight:700;color:var(--t1);margin-bottom:3px}
+.dj-state-text{font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;min-height:16px;transition:color .3s}
+.dj-orb-wrap.listening~.dj-name2+.dj-state-text,
+.dj-orb-wrap.listening~* .dj-state-text{color:var(--cyan)}
+
+/* ─ DJ 버블 멘트 ─ */
+.dj-bubble{
+  margin:0 14px 0;padding:13px 16px;
+  background:rgba(0,180,255,.05);border:1px solid rgba(0,180,255,.13);
+  border-radius:0 14px 14px 14px;
+  font-size:13px;color:var(--t2);line-height:1.7;
+  min-height:52px;transition:all .3s;position:relative;flex-shrink:0}
+.dj-bubble-tag{
+  position:absolute;top:-9px;left:0;
+  font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:.1em;
+  color:var(--cyan);background:var(--bg2);padding:0 6px;border-radius:3px}
+.dj-bubble .typing-dot{
+  display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:var(--cyan);animation:dotBlink .8s ease infinite;margin-right:3px}
+.dj-bubble .typing-dot:nth-child(2){animation-delay:.25s}
+.dj-bubble .typing-dot:nth-child(3){animation-delay:.5s}
+@keyframes dotBlink{0%,100%{opacity:.15}50%{opacity:1}}
+
+/* ─ 무드 태그 칩 ─ */
+.dj-tags{display:flex;flex-wrap:wrap;gap:5px;padding:10px 14px 4px;flex-shrink:0}
+.dj-tag{
+  padding:4px 11px;border-radius:20px;
+  background:rgba(0,180,255,.07);border:1px solid rgba(0,180,255,.16);
+  font-size:10px;color:var(--cyan);font-family:'JetBrains Mono',monospace;
+  cursor:pointer;transition:all .2s;user-select:none}
+.dj-tag:hover{background:rgba(0,180,255,.15);border-color:rgba(0,180,255,.35)}
+
+/* ─ 대화 히스토리 ─ */
+.dj-history{
+  flex:1;overflow-y:auto;padding:8px 14px;
+  display:flex;flex-direction:column;gap:8px;min-height:0}
+.dj-history::-webkit-scrollbar{width:3px}
+.dj-history::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+.dj-hist-item{display:flex;align-items:flex-end;gap:8px}
+.dj-hist-item.user{flex-direction:row-reverse}
+.dj-hist-avatar{width:22px;height:22px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:11px}
+.dj-hist-item.ai .dj-hist-avatar{background:rgba(0,180,255,.15);border:1px solid rgba(0,180,255,.25)}
+.dj-hist-item.user .dj-hist-avatar{background:rgba(0,113,227,.15);border:1px solid rgba(0,113,227,.25)}
+.dj-hist-bubble{
+  max-width:78%;padding:8px 12px;border-radius:12px;
+  font-size:12px;line-height:1.6}
+.dj-hist-item.ai .dj-hist-bubble{
+  background:rgba(0,180,255,.06);border:1px solid rgba(0,180,255,.13);
+  color:var(--t2);border-radius:3px 12px 12px 12px}
+.dj-hist-item.user .dj-hist-bubble{
+  background:rgba(0,113,227,.1);border:1px solid rgba(0,113,227,.18);
+  color:var(--t1);border-radius:12px 3px 12px 12px}
+
+/* ─ 빠른 요청 칩 ─ */
+.dj-quick-chips{display:flex;gap:6px;padding:8px 14px 0;flex-wrap:wrap;flex-shrink:0}
+.dj-chip{
+  padding:5px 12px;border-radius:20px;
+  border:1px solid var(--bd2);background:rgba(255,255,255,.04);
+  font-size:11px;color:var(--t2);cursor:pointer;
+  transition:all .2s;white-space:nowrap}
+.dj-chip:hover{background:rgba(255,255,255,.09);border-color:var(--bd3);color:var(--t1)}
+
+/* ─ 입력창 ─ */
+.dj-talk-area{
+  padding:8px 14px 14px;display:flex;gap:8px;align-items:center;flex-shrink:0;
+  border-top:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.15)}
+.dj-talk-input{
+  flex:1;padding:10px 14px;
+  background:rgba(255,255,255,.05);border:1px solid var(--bd2);
+  border-radius:22px;color:var(--t1);font-size:13px;font-family:'Noto Sans KR',sans-serif;
+  outline:none;resize:none;line-height:1.5;max-height:72px;
+  transition:border-color .2s}
+.dj-talk-input:focus{border-color:rgba(0,180,255,.45);background:rgba(0,180,255,.04)}
+.dj-talk-input::placeholder{color:var(--t3)}
+.dj-talk-btn{
+  width:40px;height:40px;border-radius:50%;border:none;flex-shrink:0;
+  background:linear-gradient(135deg,#00B4FF 0%,#0071E3 100%);
+  color:#fff;font-size:15px;cursor:pointer;transition:all .25s;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 16px rgba(0,180,255,.3)}
+.dj-talk-btn:hover{transform:scale(1.1);box-shadow:0 6px 20px rgba(0,180,255,.45)}
+.dj-talk-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* ─ 선곡 기준 ─ */
+.dj-criteria-wrap{padding:10px 14px;border-top:1px solid var(--bd);flex-shrink:0}
+.dj-criteria-title{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--t3);letter-spacing:.12em;margin-bottom:7px;text-transform:uppercase}
+.dj-crit-row{display:flex;align-items:center;justify-content:space-between;
+  padding:5px 10px;border-radius:7px;background:rgba(255,255,255,.025);margin-bottom:4px}
+.dj-crit-label{font-size:10px;color:var(--t3)}
+.dj-crit-val{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--t1)}
+
+/* In-car mode */
+.incar-setup{padding:24px;display:flex;flex-direction:column;gap:16px}
+.incar-card{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:12px;padding:20px}
+.incar-card-title{font-size:13px;font-weight:700;margin-bottom:12px;color:var(--amber);display:flex;align-items:center;gap:8px}
+.incar-input{width:100%;padding:12px 16px;background:rgba(255,255,255,.04);border:1px solid var(--bd2);border-radius:8px;color:var(--t1);font-size:14px;font-family:var(--fm);outline:none;letter-spacing:.1em;text-transform:uppercase}
+.incar-input:focus{border-color:var(--amber)}
+.incar-input::placeholder{color:var(--t3);text-transform:none;letter-spacing:0}
+.poc-meter{display:flex;align-items:center;gap:12px;padding:14px;background:rgba(46,204,113,.05);border:1px solid rgba(46,204,113,.15);border-radius:10px}
+.poc-icon{font-size:24px}
+.poc-info{flex:1}
+.poc-label{font-size:11px;color:var(--t3);font-family:var(--fm)}
+.poc-val{font-size:20px;font-weight:900;color:var(--green);font-family:var(--fm)}
+.poc-mult{font-size:12px;color:var(--amber);margin-top:2px}
+.speed-indicator{display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid var(--bd)}
+.speed-bar-wrap{flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px}
+.speed-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--green),var(--amber));transition:width 1s ease;width:0%}
+.speed-val{font-family:var(--fm);font-size:13px;color:var(--amber);flex-shrink:0;min-width:60px;text-align:right}
+
+/* Weather bar */
+.weather-bar{display:flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--bd);font-size:12px;color:var(--t3);font-family:var(--fm);flex-shrink:0}
+.weather-item{display:flex;align-items:center;gap:5px}
+.weather-sep{color:var(--bd2)}
+
+/* Toast */
+#toast-box{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.t{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;backdrop-filter:blur(20px);border:1px solid var(--bd);max-width:300px}
+.t.s{background:rgba(46,204,113,.12);color:var(--green);border-color:rgba(46,204,113,.3)}
+.t.e{background:rgba(255,71,87,.12);color:var(--red);border-color:rgba(255,71,87,.3)}
+.t.i{background:rgba(245,166,35,.12);color:var(--amber);border-color:rgba(245,166,35,.3)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+
+/* Mobile hint */
 @media(max-width:768px){
-  .app{grid-template-columns:1fr}
   .sidebar{display:none}
-  .content{padding:20px}
-  .player-bar{left:0}
-  .dj-grid{grid-template-columns:1fr}
+  .visualizer-wrap{height:80px}
+}
+
+/* ── 사이드바 TL방송국 드롭다운 ── */
+.sb-dropdown{position:relative}
+.sb-dropdown-toggle{display:flex;align-items:center;gap:9px;padding:8px 16px;color:var(--t2);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;user-select:none}
+.sb-dropdown-toggle:hover{color:var(--t1);background:rgba(255,255,255,.03)}
+.sb-dropdown.active-section .sb-dropdown-toggle{color:var(--t1);background:rgba(0,229,255,.08)}
+.sb-dropdown-arrow{margin-left:auto;font-size:9px;transition:transform .25s;color:var(--t3);flex-shrink:0}
+.sb-dropdown.open .sb-dropdown-arrow{transform:rotate(180deg)}
+.sb-sub-menu{display:none;background:rgba(0,0,0,.15)}
+.sb-dropdown.open .sb-sub-menu{display:block}
+.sb-sub-link{display:flex;align-items:center;gap:8px;padding:7px 16px 7px 36px;text-decoration:none;color:var(--t3);font-size:11px;transition:all .2s}
+.sb-sub-link:hover{color:var(--t1);background:rgba(255,255,255,.04)}
+.sb-sub-link.active{color:var(--cyan)}
+
+
+/* ── 언어 switcher: topbar 아래로 ── */
+#tl-lang-switcher{
+  top:64px!important;
+  right:12px!important;
+}
+
+/* ══════════════════════════════
+   TL 결제 모달
+══════════════════════════════ */
+.pay-overlay{
+  display:none;position:fixed;inset:0;z-index:9000;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(12px);
+  align-items:center;justify-content:center;padding:20px}
+.pay-overlay.open{display:flex}
+.pay-modal{
+  width:100%;max-width:480px;
+  background:#0D0D1A;border:1px solid rgba(255,255,255,.12);
+  border-radius:24px;overflow:hidden;position:relative;
+  box-shadow:0 32px 80px rgba(0,0,0,.6);
+  max-height:90vh;overflow-y:auto}
+.pay-header{
+  padding:28px 28px 0;
+  background:linear-gradient(180deg,rgba(0,113,227,.1) 0%,transparent 100%);
+  position:sticky;top:0;z-index:1;background-color:#0D0D1A}
+.pay-close{
+  position:absolute;top:16px;right:16px;
+  width:32px;height:32px;border-radius:50%;
+  background:rgba(255,255,255,.06);border:none;
+  color:rgba(255,255,255,.5);font-size:16px;
+  cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center}
+.pay-close:hover{background:rgba(255,255,255,.12);color:#fff}
+.pay-title{font-size:20px;font-weight:700;margin-bottom:4px}
+.pay-subtitle{font-size:12px;color:rgba(255,255,255,.4);margin-bottom:20px;font-family:'JetBrains Mono',monospace}
+.pay-balance-row{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;padding:10px 14px;margin-bottom:0}
+.pay-balance-label{font-size:11px;color:rgba(255,255,255,.4);font-family:'JetBrains Mono',monospace}
+.pay-balance-val{font-size:15px;font-weight:700;color:#0071E3;font-family:'JetBrains Mono',monospace;margin-left:auto}
+.pay-body{padding:20px 28px 28px}
+.pay-method-tabs{display:flex;gap:6px;margin-bottom:20px}
+.pay-method-tab{
+  flex:1;padding:10px 8px;border-radius:10px;
+  border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);
+  color:rgba(255,255,255,.45);font-size:12px;font-weight:600;
+  cursor:pointer;transition:all .2s;text-align:center;font-family:'Noto Sans KR',sans-serif}
+.pay-method-tab.active{border-color:rgba(0,113,227,.5);background:rgba(0,113,227,.12);color:#fff}
+.pay-method-tab:hover:not(.active){background:rgba(255,255,255,.06)}
+.pay-pg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px}
+.pay-pg-btn{
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  padding:12px 4px;border-radius:10px;
+  border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);
+  cursor:pointer;transition:all .2s}
+.pay-pg-btn:hover{border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.06)}
+.pay-pg-btn.active{border-color:rgba(0,113,227,.5);background:rgba(0,113,227,.1)}
+.pay-pg-icon{font-size:20px}
+.pay-pg-label{font-size:10px;color:rgba(255,255,255,.5);font-family:'JetBrains Mono',monospace}
+.pay-amount-section{margin-bottom:16px}
+.pay-amount-label{font-size:10px;color:rgba(255,255,255,.35);letter-spacing:.1em;
+  font-family:'JetBrains Mono',monospace;margin-bottom:8px;text-transform:uppercase}
+.pay-amount-input-wrap{position:relative}
+.pay-amount-input{
+  width:100%;padding:16px 56px 16px 18px;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;color:#fff;font-size:26px;font-weight:700;
+  font-family:'JetBrains Mono',monospace;outline:none;transition:all .2s}
+.pay-amount-input:focus{border-color:rgba(0,113,227,.5);background:rgba(0,113,227,.04)}
+.pay-amount-unit{
+  position:absolute;right:18px;top:50%;transform:translateY(-50%);
+  font-size:13px;color:rgba(255,255,255,.35);font-family:'JetBrains Mono',monospace}
+.pay-amount-eq{font-size:12px;color:rgba(100,210,255,.7);margin-top:7px;
+  font-family:'JetBrains Mono',monospace;padding-left:2px}
+.pay-quick-amounts{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.pay-quick{
+  padding:6px 13px;border-radius:8px;border:1px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);
+  font-size:12px;cursor:pointer;transition:all .2s;font-family:'JetBrains Mono',monospace}
+.pay-quick:hover{background:rgba(255,255,255,.09);color:#fff;border-color:rgba(255,255,255,.2)}
+.pay-stripe-panel{display:none}
+.pay-stripe-panel.active{display:block}
+.pay-card-wrap{
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;padding:16px 18px;margin-bottom:16px;min-height:52px}
+.pay-card-mock{
+  font-size:13px;color:rgba(255,255,255,.35);font-family:'JetBrains Mono',monospace;
+  display:flex;align-items:center;gap:8px}
+.pay-stripe-note{font-size:11px;color:rgba(255,255,255,.3);line-height:1.6;margin-bottom:16px}
+.pay-summary{
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+  border-radius:12px;padding:14px 16px;margin-bottom:18px}
+.pay-sum-row{display:flex;justify-content:space-between;align-items:center;
+  font-size:13px;color:rgba(255,255,255,.5);margin-bottom:7px}
+.pay-sum-row:last-child{
+  margin-bottom:0;border-top:1px solid rgba(255,255,255,.07);
+  padding-top:10px;margin-top:4px;font-size:15px;font-weight:700;color:#fff}
+.pay-sum-val{font-family:'JetBrains Mono',monospace;color:#fff}
+.pay-sum-tl{color:#64D2FF;font-family:'JetBrains Mono',monospace}
+.pay-submit-btn{
+  width:100%;padding:16px;border-radius:14px;border:none;
+  background:linear-gradient(135deg,#0071E3 0%,#64D2FF 100%);
+  color:#fff;font-size:16px;font-weight:700;font-family:'Noto Sans KR',sans-serif;
+  cursor:pointer;transition:all .3s}
+.pay-submit-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,113,227,.4)}
+.pay-submit-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.pay-submit-btn .pspin{
+  width:16px;height:16px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;
+  animation:psp .7s linear infinite;display:inline-block;
+  vertical-align:middle;margin-right:6px}
+@keyframes psp{to{transform:rotate(360deg)}}
+.pay-notice{font-size:11px;color:rgba(255,255,255,.25);text-align:center;margin-top:12px;line-height:1.6}
+.pay-success{display:none;text-align:center;padding:44px 28px}
+.pay-success.show{display:block}
+.pay-success-icon{font-size:56px;margin-bottom:16px}
+.pay-success-title{font-size:22px;font-weight:700;margin-bottom:8px}
+.pay-success-sub{font-size:13px;color:rgba(255,255,255,.5);margin-bottom:20px;line-height:1.65}
+.pay-success-tl{
+  font-family:'JetBrains Mono',monospace;font-size:36px;font-weight:700;
+  background:linear-gradient(135deg,#0071E3,#64D2FF);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;margin-bottom:28px}
+.pay-success-btn{
+  display:inline-block;padding:12px 32px;border-radius:12px;border:none;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+  color:#fff;font-size:14px;font-weight:600;cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;transition:all .2s}
+.pay-success-btn:hover{background:rgba(255,255,255,.14)}
+/* 결제 내역 탭 */
+.pay-history-list{display:flex;flex-direction:column;gap:8px}
+.pay-hist-item{
+  display:flex;align-items:center;gap:12px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+  border-radius:10px;padding:12px 14px}
+.pay-hist-method{font-size:18px}
+.pay-hist-info{flex:1}
+.pay-hist-tl{font-size:14px;font-weight:700;color:#64D2FF;font-family:'JetBrains Mono',monospace}
+.pay-hist-meta{font-size:11px;color:rgba(255,255,255,.35);font-family:'JetBrains Mono',monospace;margin-top:2px}
+.pay-hist-amount{font-size:13px;color:rgba(255,255,255,.55);font-family:'JetBrains Mono',monospace}
+
+
+/* ── 사이드바 TL방송국 드롭다운 ── */
+.sb-dropdown{position:relative}
+.sb-dropdown-toggle{
+  display:flex;align-items:center;gap:9px;padding:8px 16px;
+  color:var(--t2);font-size:12px;font-weight:500;cursor:pointer;
+  transition:all .2s;user-select:none;list-style:none}
+.sb-dropdown-toggle:hover{color:var(--t1);background:rgba(255,255,255,.03)}
+.sb-dropdown.active-section .sb-dropdown-toggle{
+  color:var(--t1);background:rgba(129,140,248,.08)}
+.sb-dropdown.active-section .sb-dropdown-toggle::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;
+  width:2px;background:var(--purple);border-radius:0 2px 2px 0}
+.sb-dropdown-arrow{margin-left:auto;font-size:9px;transition:transform .25s;color:var(--t3);flex-shrink:0}
+.sb-dropdown.open .sb-dropdown-arrow{transform:rotate(180deg)}
+.sb-sub-menu{display:none;background:rgba(0,0,0,.15)}
+.sb-dropdown.open .sb-sub-menu{display:block}
+.sb-sub-link{display:flex;align-items:center;gap:8px;padding:7px 16px 7px 36px;
+  text-decoration:none;color:var(--t3);font-size:11px;transition:all .2s}
+.sb-sub-link:hover{color:var(--t1);background:rgba(255,255,255,.04)}
+.sb-sub-link.active{color:var(--purple)}
+
+
+/* ── 사이드바 배너 ── */
+.sb-ad-slot{padding:12px 14px;border-top:1px solid var(--bd);margin-top:auto}
+.sb-ad-box{width:100%;min-height:110px;border-radius:10px;overflow:hidden;
+  background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.08);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;position:relative;transition:border-color .2s}
+.sb-ad-box:hover{border-color:rgba(0,113,227,.3)}
+.sb-ad-label{font-size:9px;color:var(--t3);text-align:center;margin-top:4px;font-family:var(--fm)}
+
+
+/* ── cafe-radio 푸터 고정 ── */
+#tl-dynamic-footer{flex-shrink:0;width:100%;position:relative;z-index:1}
+
+/* ── 콘텐츠 보호 CSS ── */
+/* 스크린샷 방해용 오버레이 (재생 중에만 활성) */
+.tl-playing-overlay{
+  position:fixed;inset:0;z-index:99990;pointer-events:none;
+  background:transparent;
+  -webkit-user-select:none;user-select:none;
+}
+/* 이미지/문서 뷰어 보호 */
+.tl-protected-content{
+  -webkit-user-select:none !important;
+  user-select:none !important;
+  -webkit-touch-callout:none !important;
+  pointer-events:none;
+}
+.tl-protected-wrap{
+  position:relative;
+  -webkit-user-select:none;user-select:none;
+}
+/* 인쇄 시 전체 콘텐츠 숨김 */
+@media print{
+  body > *{ display:none !important; }
+  body::after{
+    display:block !important;
+    content:'⛔ TimeLink 콘텐츠는 인쇄할 수 없습니다. 저작권법에 의해 보호됩니다.';
+    font-size:24px;text-align:center;margin-top:200px;color:#333;
+  }
+}
+
+@keyframes bonusPop{
+  0%{opacity:0;transform:translateX(-50%) scale(.8) translateY(-20px)}
+  50%{transform:translateX(-50%) scale(1.05) translateY(0)}
+  100%{opacity:1;transform:translateX(-50%) scale(1) translateY(0)}
 }
 </style>
+<script>
+
+// TLi18n 로드 실패 시 fallback
+if(typeof TLi18n === 'undefined'){
+  window.TLi18n = { t: function(k){ 
+    var fallbacks = {
+      'msg.no.file':'파일이 없습니다.', 'msg.play.fail':'재생 실패: ',
+      'msg.autoplay.block':'재생 버튼을 클릭하세요.', 'msg.login.required':'로그인이 필요합니다.',
+      'toast.tl.empty.total':'TL이 소진됐습니다. 충전이 필요합니다.',
+      'sp.btn.preview':'미리듣기', 'sp.btn.no.preview':'미리듣기 없음',
+      'sp.btn.charge':'TL 충전', 'sp.uncharged':'미충전',
+      'cr.no.files':'업로드한 파일이 없습니다.', 'cr.delete':'삭제',
+      'cr.share.view':'SharePlace에서 보기',
+      'toast.cr.upload.success':'업로드 완료!', 'toast.cr.delete.confirm':'을 삭제하시겠습니까?',
+      'toast.cr.upload.fail':'업로드 실패',
+      'cr.notice.confirm':'확인', 'nav.dashboard':'대시보드',
+    };
+    return fallbacks[k] || k;
+  }, lang:'ko' };
+}
+
+</script>
+<script src="https://cdn.iamport.kr/v1/iamport.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <link rel="stylesheet" href="/apple-theme.css">
 </head>
 <body>
+
+<!-- ══ TL 결제 모달 ══ -->
+<div class="pay-overlay" id="payOverlay" onclick="if(event.target===this)closePayModal()">
+  <div class="pay-modal" id="payModal">
+
+    <!-- 성공 화면 -->
+    <div class="pay-success" id="paySuccess">
+      <div class="pay-success-icon">⚡</div>
+      <div class="pay-success-title">TL 충전 완료!</div>
+      <div class="pay-success-sub" id="paySuccessSub">결제가 성공적으로 처리되었습니다.</div>
+      <div class="pay-success-tl" id="paySuccessTL">+10,000 TL</div>
+      <button class="pay-success-btn" onclick="closePayModal()"><span data-i18n="common.confirm">확인</span></button>
+    </div>
+
+    <!-- 결제 폼 -->
+    <div id="payForm">
+      <!-- 헤더 -->
+      <div class="pay-header">
+        <button class="pay-close" onclick="closePayModal()">✕</button>
+        <div class="pay-title">⚡ TL 충전</div>
+        <div class="pay-subtitle">1 TL = 1원 · 충전 즉시 사용 가능</div>
+        <div class="pay-balance-row">
+          <span>💰</span>
+          <span class="pay-balance-label">현재 잔액</span>
+          <span class="pay-balance-val" id="payBalanceVal">0 TL</span>
+        </div>
+      </div>
+
+      <div class="pay-body">
+        <!-- 결제 방식 탭 -->
+        <div class="pay-method-tabs">
+          <button class="pay-method-tab active" onclick="switchPayMethod('portone',this)">🇰🇷 국내 결제</button>
+          <button class="pay-method-tab" onclick="switchPayMethod('stripe',this)">🌍 해외 카드</button>
+          <button class="pay-method-tab" onclick="switchPayMethod('history',this)">📋 내역</button>
+        </div>
+
+        <!-- ── 포트원 패널 ── -->
+        <div id="payPortonePanel">
+          <!-- PG사 선택 -->
+          <div class="pay-pg-grid" id="payPgGrid">
+            <div class="pay-pg-btn active" onclick="selectPg(this,'html5_inicis')" data-pg="html5_inicis">
+              <span class="pay-pg-icon">💳</span>
+              <span class="pay-pg-label">신용카드</span>
+            </div>
+            <div class="pay-pg-btn" onclick="selectPg(this,'kakaopay')" data-pg="kakaopay">
+              <span class="pay-pg-icon">💛</span>
+              <span class="pay-pg-label">카카오페이</span>
+            </div>
+            <div class="pay-pg-btn" onclick="selectPg(this,'tosspay')" data-pg="tosspay">
+              <span class="pay-pg-icon">🔵</span>
+              <span class="pay-pg-label">토스페이</span>
+            </div>
+            <div class="pay-pg-btn" onclick="selectPg(this,'bank')" data-pg="bank">
+              <span class="pay-pg-icon">🏦</span>
+              <span class="pay-pg-label">계좌이체</span>
+            </div>
+          </div>
+
+          <!-- 금액 입력 -->
+          <div class="pay-amount-section">
+            <div class="pay-amount-label">충전 금액</div>
+            <div class="pay-amount-input-wrap">
+              <input type="number" class="pay-amount-input" id="payAmountInput"
+                placeholder="0" min="100" step="100"
+                oninput="onPayAmountChange(this.value)">
+              <span class="pay-amount-unit">원</span>
+            </div>
+            <div class="pay-amount-eq" id="payAmountEq">= 0 TL 지급</div>
+            <div class="pay-quick-amounts">
+              <span class="pay-quick" onclick="setPayAmount(1000)">₩1,000</span>
+              <span class="pay-quick" onclick="setPayAmount(3000)">₩3,000</span>
+              <span class="pay-quick" onclick="setPayAmount(5000)">₩5,000</span>
+              <span class="pay-quick" onclick="setPayAmount(10000)">₩10,000</span>
+              <span class="pay-quick" onclick="setPayAmount(30000)">₩30,000</span>
+              <span class="pay-quick" onclick="setPayAmount(50000)">₩50,000</span>
+            </div>
+          </div>
+
+          <!-- 요약 -->
+          <div class="pay-summary">
+            <div class="pay-sum-row">
+              <span>결제 수단</span>
+              <span class="pay-sum-val" id="payMethodLabel">신용카드</span>
+            </div>
+            <div class="pay-sum-row">
+              <span>지급 TL</span>
+              <span class="pay-sum-tl" id="paySumTL">0 TL</span>
+            </div>
+            <div class="pay-sum-row">
+              <span>결제 금액</span>
+              <span class="pay-sum-val" id="paySumKRW">₩0</span>
+            </div>
+          </div>
+
+          <button class="pay-submit-btn" id="payPortoneBtn" onclick="doPortonePay()" disabled>
+            결제하기
+          </button>
+          <div class="pay-notice">테스트 모드 · 실제 결제되지 않습니다 · 포트원 SDK 연동 전</div>
+        </div>
+
+        <!-- ── Stripe 패널 ── -->
+        <div id="payStripePanel" style="display:none">
+          <div class="pay-amount-section">
+            <div class="pay-amount-label">충전 금액 (KRW)</div>
+            <div class="pay-amount-input-wrap">
+              <input type="number" class="pay-amount-input" id="payStripeAmountInput"
+                placeholder="0" min="100" step="100"
+                oninput="onStripeAmountChange(this.value)">
+              <span class="pay-amount-unit">원</span>
+            </div>
+            <div class="pay-amount-eq" id="payStripeEq">= 0 TL 지급</div>
+            <div class="pay-quick-amounts">
+              <span class="pay-quick" onclick="setStripeAmount(1000)">₩1,000</span>
+              <span class="pay-quick" onclick="setStripeAmount(5000)">₩5,000</span>
+              <span class="pay-quick" onclick="setStripeAmount(10000)">₩10,000</span>
+              <span class="pay-quick" onclick="setStripeAmount(50000)">₩50,000</span>
+            </div>
+          </div>
+
+          <div class="pay-card-wrap">
+            <div class="pay-card-mock">
+              💳 <span id="stripeCardStatus">Stripe Elements — 키 설정 후 활성화됩니다</span>
+            </div>
+          </div>
+          <div class="pay-stripe-note">해외 Visa / Mastercard / AMEX 지원 · Stripe 보안 처리</div>
+
+          <div class="pay-summary">
+            <div class="pay-sum-row">
+              <span>결제 수단</span>
+              <span class="pay-sum-val">해외 카드 (Stripe)</span>
+            </div>
+            <div class="pay-sum-row">
+              <span>지급 TL</span>
+              <span class="pay-sum-tl" id="stripeSumTL">0 TL</span>
+            </div>
+            <div class="pay-sum-row">
+              <span>결제 금액</span>
+              <span class="pay-sum-val" id="stripeSumKRW">₩0</span>
+            </div>
+          </div>
+
+          <button class="pay-submit-btn" id="payStripeBtn" onclick="doStripePay()" disabled>
+            카드 결제
+          </button>
+          <div class="pay-notice">테스트 모드 · Stripe 키 설정 전 mock 결제</div>
+        </div>
+
+        <!-- ── 내역 패널 ── -->
+        <div id="payHistoryPanel" style="display:none">
+          <div class="pay-history-list" id="payHistoryList">
+            <div style="text-align:center;padding:40px;color:rgba(255,255,255,.3);font-size:13px">
+              로딩 중...
+            </div>
+          </div>
+        </div>
+
+      </div><!-- pay-body -->
+    </div><!-- payForm -->
+  </div>
+</div>
+
+<!-- TL 소진 알림 오버레이 -->
+<div id="tlChargeNotice" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.85);backdrop-filter:blur(12px);align-items:center;justify-content:center">
+  <div style="background:#0D0D1A;border:1px solid rgba(245,166,35,.3);border-radius:18px;padding:32px 28px;max-width:360px;width:90%;text-align:center">
+    <div style="font-size:32px;margin-bottom:12px">⚡</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:8px">TL이 소진되었습니다</div>
+    <div style="font-size:13px;color:rgba(255,255,255,.5);line-height:1.6;margin-bottom:24px">
+      라디오 방송을 계속 청취하려면<br>TL을 충전해주세요.
+      <span style="color:rgba(245,166,35,.8);font-size:11px;font-family:'JetBrains Mono',monospace;margin-top:8px;display:block">현재 잔액: <span id="noticeBalVal">0</span> TL</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button onclick="goCharge()" style="padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#F5A623,#FFD166);color:#000;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif">⚡ 지금 충전하기</button>
+      <button onclick="watchAd()" style="padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:rgba(255,255,255,.7);font-size:13px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">📺 광고 보고 300 TL 받기</button>
+      <button onclick="closeTLNotice()" style="padding:10px;border-radius:10px;border:none;background:transparent;color:rgba(255,255,255,.3);font-size:12px;cursor:pointer">나중에</button>
+    </div>
+  </div>
+</div>
 <div id="toast-box"></div>
 
-<div class="app">
-  <!-- ══ 사이드바 ══ -->
-
-  <!-- ══ 메인 ══ -->
-  <main class="main">
-    <div class="topbar">
-      <div class="tb-title">🔴 TL LIVE RADIO</div>
-      <div class="tb-live" id="liveIndicator">
-        <div class="tb-live-dot"></div>
-        <span id="liveCount">LIVE 0</span>
-      </div>
-      <a href="radio.html" class="tb-back">← 방송국</a>
-      <div class="tb-user" id="tbUser">--</div>
-    </div>
-
-    <div class="content">
-      <!-- 히어로 -->
-      <div class="hero">
-        <div class="hero-title">🔴 LIVE RADIO</div>
-        <div class="hero-sub">지금 방송 중인 DJ를 만나보세요<br>미리듣기 무료 · 청취 시 TL 차감</div>
-      </div>
-
-      <!-- DJ 목록 -->
-      <div id="djGrid">
-        <div class="loading"><span class="spinner"></span>라이브 DJ 로딩 중...</div>
-      </div>
-    </div>
-  </main>
-</div>
-
-<!-- 재생 바 -->
-<div class="player-bar" id="playerBar">
-  <div class="pb-cover" id="pbCover">🎵</div>
-  <div class="pb-info">
-    <div class="pb-title" id="pbTitle">--</div>
-    <div class="pb-sub" id="pbSub">--</div>
+<!-- TOPBAR -->
+<div class="topbar">
+  <a href="radio.html" class="tb-logo">
+    <div class="tb-logo-icon">📻</div>
+    <span class="tb-logo-text">TL방송국</span>
+  </a>
+  <div class="tb-live"><div class="tb-live-dot"></div>ON AIR</div>
+  <div id="weatherBar" class="weather-item" style="font-size:12px;color:var(--t2);margin-left:8px"></div>
+  <div class="tb-time" id="tbTime">00:00:00</div>
+  <div class="tb-nav">
+    <a href="shareplace.html" class="tb-nav-btn" title="홈">🏠</a>
+    <a href="radio.html" class="tb-nav-btn" title="TL방송국">📻</a>
+    <a href="cafe-radio.html" class="tb-nav-btn active" title="카페방송">☕ 카페방송</a>
+    <a href="incar.html" class="tb-nav-btn" style="color:var(--mint);border-color:rgba(100,210,255,.2)" title="인카방송">🚗</a>
+    <a href="cafe-channel.html" class="tb-nav-btn" style="color:var(--amber);border-color:rgba(245,166,35,.3);background:rgba(245,166,35,.08)" title="채널 개설">+ 채널</a>
   </div>
-  <div class="pb-tl" id="pbTL">-- TL</div>
-  <button class="pb-btn" onclick="stopPlay()">⏹</button>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:10px;color:rgba(255,255,255,.3);font-family:var(--fm)">⚡ TL</span>
+        <span id="tbTL" style="font-size:13px;font-weight:700;font-family:var(--fm);color:var(--amber)">0</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:9px;color:rgba(255,255,255,.25);font-family:var(--fm)">차감</span>
+        <span id="tbDeduct" style="font-size:10px;font-weight:700;font-family:var(--fm);color:#64D2FF">1.000 TL/s</span>
+      </div>
+    </div>
+    <div class="tb-user" id="tbUser"></div>
+  </div>
+
+
 </div>
 
-<audio id="liveAudio" crossorigin="anonymous"></audio>
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <!-- Mode -->
+    <div class="sb-section">
+      <div class="sb-label" data-i18n="radio.mode">방송 모드</div>
+      <div class="mode-cards">
+        <div class="mode-card active" id="mode-cafe" onclick="setMode('cafe')">
+          <div class="mode-card-icon">☕</div>
+          <div class="mode-card-info">
+            <div class="mode-card-name" data-i18n="radio.cafe" data-i18n="radio.cafe">카페방송</div>
+            <div class="mode-card-desc" data-i18n="radio.cafe.incar.ai">분위기별 AI 큐레이션</div>
+            <div class="mode-card-poc">+1.0x POC 기여</div>
+          </div>
+        </div>
+        <div class="mode-card" id="mode-incar" onclick="location.href='incar.html'">
+          <div class="mode-card-icon">🚗</div>
+          <div class="mode-card-info">
+            <div class="mode-card-name" data-i18n="radio.incar" data-i18n="radio.incar">인카방송</div>
+            <div class="mode-card-desc" data-i18n="radio.incar.ai.desc">주행 연동 AI 라디오</div>
+            <div class="mode-card-poc">+2.5x POC 기여 🔥</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI DJ 채널 타입 선택 -->
+    <div class="sb-section" style="padding:12px 16px 8px">
+      <div class="sb-label" style="margin-bottom:8px">🎛️ 채널 유형</div>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button id="btnDirectCh" onclick="setCafeChannelType('direct')"
+          style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid var(--amber);background:var(--amber3);color:var(--amber);font-size:11px;font-weight:700;cursor:pointer">
+          📋 직접 채널
+        </button>
+        <button id="btnAIDJCh" onclick="setCafeChannelType('aidj')"
+          style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid var(--bd2);background:transparent;color:var(--t3);font-size:11px;font-weight:700;cursor:pointer">
+          🤖 AI DJ 채널
+        </button>
+      </div>
+      <div id="aiDJSettings" style="display:none;background:rgba(0,113,227,.05);border:1px solid rgba(0,113,227,.15);border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="font-size:11px;color:var(--t3);margin-bottom:8px;font-family:var(--fm)">🌟 분위기 설정</div>
+        <div id="vibeButtons" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+          <button onclick="setVibe(this,'조용한 카페')" class="vibe-btn" data-active="1" style="padding:4px 10px;border-radius:12px;border:1px solid var(--purple);background:var(--purple2);color:var(--purple);font-size:10px;cursor:pointer">☕ 조용한 카페</button>
+          <button onclick="setVibe(this,'활기찬 브런치')" class="vibe-btn" style="padding:4px 10px;border-radius:12px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:10px;cursor:pointer">🥐 활기찬 브런치</button>
+          <button onclick="setVibe(this,'감성 저녁')" class="vibe-btn" style="padding:4px 10px;border-radius:12px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:10px;cursor:pointer">🌙 감성 저녁</button>
+          <button onclick="setVibe(this,'재즈 바')" class="vibe-btn" style="padding:4px 10px;border-radius:12px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:10px;cursor:pointer">🎷 재즈 바</button>
+          <button onclick="setVibe(this,'공부 카페')" class="vibe-btn" style="padding:4px 10px;border-radius:12px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:10px;cursor:pointer">📚 공부 카페</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
+          <span style="font-size:10px;color:var(--t3)">📰 뉴스 읽기</span>
+          <button id="newsToggleBtn" onclick="toggleNews()" style="padding:3px 10px;border-radius:8px;border:1px solid rgba(0,229,255,.3);background:rgba(0,229,255,.08);color:var(--cyan);font-size:10px;cursor:pointer">ON</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Channel List -->
+    <div class="sb-section" style="padding-bottom:8px">
+      <div class="sb-label" data-i18n="radio.live.ch">라이브 채널</div>
+    </div>
+    <div class="channel-list" id="channelList">
+      <!-- filled by JS -->
+    </div>
+
+    <!-- TL 잔액 섹션 -->
+    <div class="sb-section" style="border-top:1px solid var(--bd)">
+      <div class="sb-label">⚡ TL 잔액</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div>
+          <span style="font-size:18px;font-weight:900;color:var(--amber);font-family:var(--fm)" id="sbTLBal">0</span>
+          <span style="font-size:10px;color:var(--t3);margin-left:4px">TL</span>
+        </div>
+        <button onclick="openPayModal()" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(245,166,35,.35);background:rgba(245,166,35,.08);color:var(--amber);font-size:10px;cursor:pointer;font-family:var(--fn)">+ 충전</button>
+      </div>
+      <div style="display:flex;gap:6px;font-size:10px;color:var(--t3);font-family:var(--fm)">
+        <span>구매 <span id="sbTLp">0</span></span>
+        <span style="opacity:.4">|</span>
+        <span>광고 <span id="sbTLa">0</span></span>
+        <span style="opacity:.4">|</span>
+        <span>보너스 <span id="sbTLb">0</span></span>
+      </div>
+      <div style="margin-top:6px;font-size:10px;color:var(--t3);font-family:var(--fm)">
+        차감율: <span id="sbDeductRate" style="color:var(--green)">1.000</span> TL/s
+        &nbsp;·&nbsp; POC: <span id="sbPocIdx" style="color:var(--cyan)">1.00</span>
+      </div>
+    </div>
+
+    <!-- POC Summary -->
+    <div class="sb-section" style="border-top:1px solid var(--bd);border-bottom:none">
+      <div class="sb-label" data-i18n="radio.today.poc">오늘 기여</div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:20px;font-weight:900;color:var(--green);font-family:var(--fm)" id="todayPoc">0</div>
+          <div style="font-size:10px;color:var(--t3)" data-i18n="radio.poc" data-i18n="radio.poc">POC 점수</div>
+        </div>
+        <div>
+          <div style="font-size:20px;font-weight:900;color:var(--amber);font-family:var(--fm)" id="todayMin">0</div>
+          <div style="font-size:10px;color:var(--t3)">청취 분</div>
+        </div>
+        <div>
+          <div style="font-size:20px;font-weight:900;color:var(--cyan);font-family:var(--fm)" id="todaySongs">0</div>
+          <div style="font-size:10px;color:var(--t3)">곡 수</div>
+        </div>
+      </div>
+    </div>
+  
+    <!-- 사이드바 광고 배너 -->
+    <div class="sb-ad-slot">
+      <div class="sb-ad-box" id="sbAdBox">
+        <div id="sbAdPh" style="text-align:center;padding:12px">
+          <div style="font-size:22px;opacity:.15">📢</div>
+          <div style="font-size:9px;color:var(--t3);font-family:var(--fm);letter-spacing:.06em;margin-top:3px">AD</div>
+        </div>
+      </div>
+      <div class="sb-ad-label" id="sbAdLbl"></div>
+    </div>
+</div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- Visualizer -->
+    <div class="visualizer-wrap">
+      <canvas id="viz"></canvas>
+      <div class="viz-overlay"></div>
+    </div>
+
+    <!-- Now Playing -->
+    <div class="now-playing">
+      <div class="np-cover" id="npCover">
+        <div class="np-cover-default" id="npCoverDefault">🎵</div>
+        <img id="npCoverImg" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0" src="">
+      </div>
+      <div class="np-info">
+        <div class="np-mode" id="npMode">☕ 카페방송</div>
+        <div class="np-title" id="npTitle" data-i18n="radio.ready">방송 준비 중...</div>
+        <div class="np-artist" id="npArtist">TL방송국</div>
+        <div class="np-dj">
+        </div>
+      </div>
+      <div class="np-stats">
+        <div class="np-poc" id="npPoc">+0 POC</div>
+        <div class="np-tl" id="npTl">0 TL/곡</div>
+        <div style="font-size:10px;color:var(--t3);font-family:var(--fm)" id="npListeners">👥 0 청취 중</div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button class="ctrl-btn" onclick="prevTrack()" title="이전">⏮</button>
+      <button class="ctrl-btn play" id="playBtn" onclick="togglePlay()">▶</button>
+      <button class="ctrl-btn" onclick="nextTrack()" title="다음">⏭</button>
+      <div class="progress-wrap">
+        <div class="progress-bar" onclick="seekTrack(event)" id="progressBar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-times">
+          <span id="timeCur">0:00</span>
+          <span id="timeTot">0:00</span>
+        </div>
+      </div>
+      <div class="vol-wrap">
+        <span class="vol-icon">🔊</span>
+        <input type="range" class="vol-slider" id="volSlider" min="0" max="100" value="70" oninput="setVol(this.value)">
+      </div>
+      <button class="ctrl-btn" id="shuffleBtn" onclick="toggleShuffle()" title="셔플" style="font-size:13px">🔀</button>
+      <button class="ctrl-btn" id="crossBtn" onclick="toggleCrossfade()" title="크로스페이드" style="font-size:11px;font-family:var(--fm)">X♫</button>
+    </div>
+
+    <!-- Content Tabs -->
+    <div class="content-tabs">
+      <div class="ctab active" onclick="switchTab('queue',this)">📋 큐 (<span id="queueCnt">0</span>)</div>
+      <div class="ctab" onclick="switchTab('request',this)">🎤 신청곡</div>
+      <div class="ctab" id="incarTab" onclick="switchTab('incar',this)" style="display:none">🚗 인카 설정</div>
+    </div>
+
+    <!-- Content Body -->
+    <div class="content-body" id="contentBody">
+      <!-- Queue tab (default) -->
+      <div id="tab-queue">
+        <div id="queueList"></div>
+      </div>
+      <div id="tab-request" style="display:none">
+        <div class="request-form">
+          <div class="req-title">🎤 신청곡 & 사연</div>
+          <input class="req-input" id="reqSong" placeholder="신청할 곡명 / 아티스트" style="height:40px">
+          <textarea class="req-input" id="reqStory" placeholder="사연을 남겨주세요 (선택)" rows="3" style="margin-top:0"></textarea>
+          <button class="req-send" onclick="sendRequest()" data-i18n="radio.request">신청하기</button>
+        </div>
+        <div id="requestList"></div>
+      </div>
+      <div id="tab-incar" style="display:none">
+        <div class="incar-setup">
+          <div class="incar-card">
+            <div class="incar-card-title">🚗 차량 등록</div>
+            <input class="incar-input" id="carPlate" placeholder="차량 번호판 (예: 123가 4567)" maxlength="12">
+            <div style="font-size:11px;color:var(--t3);margin-top:6px">주행 감지 시 POC 2.5x 자동 적용</div>
+          </div>
+          <div class="poc-meter">
+            <div class="poc-icon">⚡</div>
+            <div class="poc-info">
+              <div class="poc-label" data-i18n="radio.poc.label">현재 POC 배율</div>
+              <div class="poc-val" id="pocMult">1.0x</div>
+              <div class="poc-mult" id="pocMultDesc" data-i18n="radio.cafe.mode">카페방송 기본</div>
+            </div>
+          </div>
+          <div class="incar-card">
+            <div class="incar-card-title">📍 주행 상태</div>
+            <div class="speed-indicator">
+              <span style="font-size:12px;color:var(--t3)">속도</span>
+              <div class="speed-bar-wrap"><div class="speed-bar" id="speedBar"></div></div>
+              <div class="speed-val" id="speedVal">0 km/h</div>
+            </div>
+            <div style="margin-top:10px;font-size:11px;color:var(--t3)">* GPS/가속도계 연동 (Phase 2)</div>
+          </div>
+          <div class="incar-card">
+            <div class="incar-card-title">🎵 나만의 플레이리스트</div>
+            <div style="font-size:12px;color:var(--t3);margin-bottom:10px">SharePlace에서 즐겨찾기한 곡이 자동 추가됩니다</div>
+            <button onclick="loadMyPlaylist()" style="padding:8px 16px;border-radius:8px;border:1px solid var(--bd2);background:transparent;color:var(--amber);font-size:12px;cursor:pointer">플레이리스트 불러오기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<audio id="audioA" crossorigin="anonymous"></audio>
+<audio id="audioB" crossorigin="anonymous"></audio>
 
 <script src="/tl3.js"></script>
+<script src="/tl3-config.js"></script>
 <script>
 var API = 'https://api.timelink.digital';
 var _user = null, _token = null;
-var _rates = { normal: 1.0, cafe: 0.5, preview: 0, dj_self: 0 };
-var _liveDjs = [];
-var _myContracts = [];      // 카페 주인 계약 목록
-var _isCafeOwner = false;   // 카페 주인 여부
-var _playing = null;        // 현재 재생 중인 DJ
-var _preview = false;       // 미리듣기 여부
-var _chargeTimer = null;
-var _chargeStartedAt = 0;
-var _audio = null;          // 오디오 객체
-var _playingTrackId = null; // 현재 재생 중인 곡 ID
-var _trackPolling = null;   // 곡 폴링 타이머
+var _tlDeductRate = 1.0; // TL 차감률 (기여지수에 따라 결정)
+var _tlAccum = 0; // 누적 차감량 (소수점 처리)
+var _shares = [], _queue = [], _curIdx = 0;
+var _mode = 'cafe', _playing = false, _shuffle = false, _crossfade = true;
+var _curAudio = 'A', _audioA, _audioB;
+var _pocTotal = 0, _minTotal = 0, _songCount = 0;
+var _pocInterval = null, _progressInterval = null;
+var _fadeTimeout = null;
+var _requests = [];
+var _myFileTL = {};        // 곡별 충전 TL 캐시 { share_id: tl_balance }
+var _curShareId = null;    // 현재 재생 중인 share_id
+var _curTlMode = 'file';   // 'file': 곡별 TL차감, 'total': 총량 차감
 
-// ── 인증 ──
-try {
-  _user = JSON.parse(localStorage.getItem('tl_user') || 'null');
-  _token = localStorage.getItem('tl_token') || '';
-} catch(e) {}
-document.getElementById('tbUser').textContent = (_user && (_user.username || _user.email)) || '비로그인';
+// Auth
+(function(){
+  try{
+    _user = JSON.parse(localStorage.getItem('tl_user')||'null');
+    _token = localStorage.getItem('tl_token');
+  }catch(e){}
+  if(!_user){ location.href='login.html'; return; }
+  document.getElementById('tbUser').textContent = _user.username || _user.email;
+  if(document.getElementById('tbTL')) document.getElementById('tbTL').textContent = getTotalTL().toLocaleString();
+  calcDeductRate();
+  loadMyFileTL(); // 곡별 TL 캐시 로드
+})();
 
-// ── 유틸 ──
+// 곡별 충전 TL 로드
+async function loadMyFileTL(){
+  if(!_user) return;
+  try{
+    var r = await fetch(API+'/api/user/file-tl?user_id='+_user.id, {
+      headers:{'Authorization':'Bearer '+(_token||'')}
+    });
+    if(!r.ok) return;
+    var d = await r.json();
+    (d.files||[]).forEach(function(f){
+      _myFileTL[String(f.share_id)] = f.tl_balance;
+    });
+  }catch(e){ console.warn('[Radio] 파일TL 로드 실패', e); }
+}
+
+function calcDeductRate(){
+  var pocIdx = parseFloat(_user.poc_index || 1.0);
+  if(pocIdx < 1) pocIdx = 1.0;
+  // 차감률 = 1 / poc_index, 최소 0.01
+  _tlDeductRate = Math.max(0.01, Math.min(1.0, 1.0 / pocIdx));
+  var rateStr = _tlDeductRate.toFixed(3) + ' TL/s';
+  if(g('tbDeduct')) g('tbDeduct').textContent = rateStr;
+  if(g('sbDeductRate')) g('sbDeductRate').textContent = rateStr;
+  if(g('sbPocIdx')) g('sbPocIdx').textContent = pocIdx.toFixed(2);
+  if(g('tbTL')) g('tbTL').textContent = getTotalTL().toLocaleString();
+  updateBroadcastTime();
+}
+
+function updateBroadcastTime(){
+  var tl = getTotalTL();
+  if(g('sbTLBal')) g('sbTLBal').textContent = getTotalTL().toLocaleString();
+  if(g('sbTLp')) g('sbTLp').textContent = getPurchaseTL().toLocaleString();
+  if(g('sbTLa')) g('sbTLa').textContent = ((_user&&_user.tl_a)||0).toLocaleString();
+  if(g('sbTLb')) g('sbTLb').textContent = ((_user&&_user.tl_b)||0).toLocaleString();
+  if(g('sbTLp')) g('sbTLp').textContent = getPurchaseTL().toLocaleString();
+  if(g('sbTLa')) g('sbTLa').textContent = ((_user&&_user.tl_a)||0).toLocaleString();
+  if(g('sbTLb')) g('sbTLb').textContent = ((_user&&_user.tl_b)||0).toLocaleString();
+  if(_tlDeductRate > 0){
+    var seconds = tl / _tlDeductRate;
+    var mins = Math.floor(seconds / 60);
+    var hours = Math.floor(mins / 60);
+    var remMins = mins % 60;
+    var timeStr = hours > 0 ? hours+'시간 '+remMins+'분' : mins+'분';
+    if(g('sbBroadcastTime')) g('sbBroadcastTime').textContent = timeStr;
+  }
+  if(g('tbTL')) g('tbTL').textContent = getTotalTL().toLocaleString();
+}
+
+function toast(msg,t){ t=t||'i'; var el=document.createElement('div'); el.className='t '+t; el.textContent=msg; document.getElementById('toast-box').prepend(el); setTimeout(function(){el.remove();},3000); }
+
+
+// ── TL 3분류 순차 차감 (tl_a → tl_b → tl_p 순) ──
+function deductTL(amount){
+  if(!_user || amount <= 0) return 0;
+
+  // 레거시 호환: tl_p 미설정 유저는 tl → tl_p로 초기화
+  if(_user.tl_p === undefined || _user.tl_p === null){
+    _user.tl_p = _user.tl || 0;
+    _user.tl_a = _user.tl_a || 0;
+    _user.tl_b = _user.tl_b || 0;
+  }
+
+  var remain = amount;
+  var deducted = 0;
+
+  // 1순위: tl_a (광고 TL)
+  if(_user.tl_a > 0 && remain > 0){
+    var d = Math.min(_user.tl_a, remain);
+    _user.tl_a = Math.max(0, _user.tl_a - d);
+    remain -= d; deducted += d;
+  }
+  // 2순위: tl_b (보너스 TL)
+  if(_user.tl_b > 0 && remain > 0){
+    var d = Math.min(_user.tl_b, remain);
+    _user.tl_b = Math.max(0, _user.tl_b - d);
+    remain -= d; deducted += d;
+  }
+  // 3순위: tl_p (구매 TL)
+  if(_user.tl_p > 0 && remain > 0){
+    var d = Math.min(_user.tl_p, remain);
+    _user.tl_p = Math.max(0, _user.tl_p - d);
+    _user.tl = _user.tl_p;  // 레거시 동기화
+    remain -= d; deducted += d;
+  }
+  localStorage.setItem('tl_user', JSON.stringify(_user));
+  return deducted;
+}
+
+function getTotalTL(){
+  if(!_user) return 0;
+  // tl_p 미설정 레거시 유저는 tl을 tl_p로 간주
+  var p = (_user.tl_p !== undefined && _user.tl_p !== null) ? _user.tl_p : (_user.tl||0);
+  var a = _user.tl_a || 0;
+  var b = _user.tl_b || 0;
+  return p + a + b;
+}
+function getPurchaseTL(){
+  if(!_user) return 0;
+  return (_user.tl_p !== undefined && _user.tl_p !== null) ? _user.tl_p : (_user.tl||0);
+}
+
 function g(id){ return document.getElementById(id); }
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function toast(msg, t){
-  t = t||'i';
-  var el = document.createElement('div');
-  el.className = 't '+t; el.textContent = msg;
-  g('toast-box').prepend(el);
-  setTimeout(function(){ el.remove(); }, 3200);
-}
+function fmtTime(s){ s=Math.floor(s||0); return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60); }
 
-// ── 카페 주인 확인 ──
-// ⭐ 팝업(DJ 플레이어)에서 오는 잔액 변동 반영
-window.addEventListener('message', function(e){
-  if(!e.data || e.data.type !== 'tl-charged') return;
-  var nt = Number(e.data.new_tl);
-  if(!isFinite(nt)) return;
-  if(_user){
-    _user.tl_p = Math.max(0, (_user.tl_p||0) - Number(e.data.charged||0));
-    _user.tl = (_user.tl_p||0) + (_user.tl_a||0) + (_user.tl_b||0);
-    localStorage.setItem('tl_user', JSON.stringify(_user));
-  }
-  // cafe-radio에 TL 표시 엘리먼트 있으면 갱신
-  ['sp-tl-bal','tbTL','sbTL','sbTLBal','tb-tl-val'].forEach(function(id){
-    var el=document.getElementById(id);
-    if(el && _user){
-      var tot = (_user.tl_p||0)+(_user.tl_a||0)+(_user.tl_b||0);
-      el.textContent = tot.toLocaleString() + ' TL';
-    }
-  });
-  console.log('[cafe-radio] 팝업 잔액 반영:', e.data.new_tl);
-});
-
-async function checkCafeOwner(){
-  if(!_user || !_token) return false;
-  try {
-    var r = await fetch(API+'/api/cafe/channels?owner_id=' + _user.id, {
-      headers:{'Authorization':'Bearer '+_token}
-    });
-    var d = await r.json();
-    var channels = d.channels || [];
-    // 내가 소유한 카페 채널이 있으면 카페 주인
-    _isCafeOwner = channels.some(function(ch){
-      return Number(ch.owner_id) === Number(_user.id);
-    });
-    return _isCafeOwner;
-  } catch(e) { return false; }
-}
-
-// ── 계약 목록 로드 (카페 주인) ──
-async function loadMyContracts(){
-  if(!_isCafeOwner) return;
-  try {
-    var r = await fetch(API+'/api/dj-cafe/my-contracts', {
-      headers:{'Authorization':'Bearer '+_token}
-    });
-    var d = await r.json();
-    _myContracts = (d.contracts || []).filter(function(c){ return c.status === 'active'; });
-  } catch(e) { _myContracts = []; }
-}
-
-// ── 요율 로드 ──
-async function loadRates(){
-  try {
-    var r = await fetch(API+'/api/dj-cafe/rates');
-    var d = await r.json();
-    if(d.ok) _rates = d.rates;
-  } catch(e) {}
-}
-
-// ── 라이브 DJ 목록 ──
-async function loadLiveDjs(){
-  try {
-    var r = await fetch(API+'/api/dj-cafe/live-djs');
-    var d = await r.json();
-    _liveDjs = d.djs || [];
-    renderDjs();
-    var cnt = _liveDjs.length;
-    g('liveCount').textContent = 'LIVE ' + cnt;
-  } catch(e) {
-    g('djGrid').innerHTML = '<div class="empty"><div class="empty-title">로드 실패</div></div>';
-  }
-}
-
-// ── DJ 렌더 ──
-function renderDjs(){
-  if(!_liveDjs.length){
-    g('djGrid').innerHTML =
-      '<div class="empty">' +
-        '<div class="empty-icon">📻</div>' +
-        '<div class="empty-title">지금 라이브 중인 DJ가 없습니다</div>' +
-        '<div class="empty-desc">DJ 센터에서 방송을 시작하면 여기에 표시됩니다.</div>' +
-      '</div>';
-    return;
-  }
-
-  g('djGrid').innerHTML = _liveDjs.map(function(dj){
-    var isContract = _myContracts.some(function(c){ return Number(c.dj_id) === Number(dj.id); });
-    var isPlaying = _playing && Number(_playing.id) === Number(dj.id);
-    var cover = dj.avatar_url
-      ? '<img src="'+esc(dj.avatar_url)+'" onerror="this.style.display=\'none\'">'
-      : '🎧';
-    var genres = [];
-    try { genres = JSON.parse(dj.genres || '[]'); } catch(e) {}
-    var tagsHtml = genres.slice(0,3).map(function(g){ return '<span class="dj-tag">'+esc(g)+'</span>'; }).join('');
-
-    return '<div class="dj-card '+(isContract?'contract':'live')+'" id="dj-card-'+dj.id+'">' +
-      '<div class="dj-top">' +
-        '<div class="dj-avatar '+(dj.is_live?'live':'')+'">'+cover+'</div>' +
-        '<div class="dj-info">' +
-          '<div class="dj-name">'+esc(dj.dj_name||'DJ')+'</div>' +
-          '<div class="dj-bio">'+esc(dj.bio||'소개 없음')+'</div>' +
-          (tagsHtml?'<div class="dj-tags">'+tagsHtml+'</div>':'') +
-        '</div>' +
-      '</div>' +
-      '<div class="dj-now">' +
-        '<div class="dj-now-label">🎵 NOW PLAYING</div>' +
-        '<div class="dj-now-title">'+esc(dj.current_track_id ? '재생 중' : '방송 준비 중')+'</div>' +
-        '<div class="dj-now-artist">'+esc(dj.dj_name||'')+' 방송</div>' +
-        '<div class="dj-wave"><span></span><span></span><span></span><span></span><span></span></div>' +
-      '</div>' +
-      '<div class="dj-stats">' +
-        '👥 <strong>'+Number(dj.live_listener_count||0)+'</strong> 청취 · ' +
-        '⭐ <strong>'+Number(dj.rating||0).toFixed(1)+'</strong>' +
-      '</div>' +
-      '<div class="dj-actions">' +
-        '<button class="dj-btn dj-btn-preview" onclick="previewDj('+dj.id+')">▶ 미리듣기</button>' +
-        (_user
-          ? '<button class="dj-btn dj-btn-listen" onclick="listenDj('+dj.id+')">🎧 청취</button>'
-          : '') +
-        (_isCafeOwner
-          ? (isContract
-              ? '<button class="dj-btn dj-btn-contract on" onclick="cancelContract('+dj.id+')">🚪 계약 해지</button>'
-              : '<button class="dj-btn dj-btn-contract" onclick="contractDj('+dj.id+')">🤝 계약 (×0.5)</button>'
-            )
-          : '') +
-      '</div>' +
-    '</div>';
-  }).join('');
-}
-
-// ── 미리듣기 (30초 무료) ──
-async function previewDj(djId){
-  var dj = _liveDjs.find(function(d){ return Number(d.id) === Number(djId); });
-  if(!dj) return;
-
-  try {
-    var r = await fetch(API+'/api/dj-cafe/live/'+djId+'/now');
-    var d = await r.json();
-    if(!d.ok || !d.current_track || !d.current_track.stream_url){
-      toast('방송 준비 중입니다', 'i');
-      return;
-    }
-
-    _preview = true;
-    _playing = dj;
-    _playingTrackId = d.current_track.id;
-
-    playAudio(d.current_track.stream_url, true, d.current_track.elapsed_ms);
-
-    g('playerBar').classList.add('show');
-    g('pbTitle').textContent = d.current_track.title || dj.dj_name + ' 방송';
-    g('pbSub').textContent = '미리듣기 30초 (무료)';
-    g('pbTL').textContent = '무료';
-    toast('▶ 미리듣기 30초 (무료)', 'i');
-
-    var sec = 30;
-    var t = setInterval(function(){
-      sec--;
-      if(sec <= 0 || !_preview){
-        clearInterval(t);
-        if(_preview){
-          stopPlay();
-          toast('미리듣기 종료. 🎧 청취 버튼으로 계속 들으세요', 'i');
-        }
-      } else {
-        g('pbSub').textContent = '미리듣기 ' + sec + '초 남음';
-      }
-    }, 1000);
-
-  } catch(e) {
-    toast('미리듣기 실패: '+e.message, 'e');
-  }
-}
-
-// ── 청취 (개인, ×1.0) ──
-// ── 청취 (팝업 플레이어) ──
-function listenDj(djId){
-  if(!_user){ toast('로그인이 필요합니다', 'e'); return; }
-  var dj = _liveDjs.find(function(d){ return Number(d.id) === Number(djId); });
-  if(!dj) return;
-
-  var isContracted = _myContracts.some(function(c){ return Number(c.dj_id) === Number(djId); });
-  var role = isContracted ? 'cafe' : 'normal';
-
-  sessionStorage.setItem('tl_player_args', JSON.stringify({dj_id: djId, role: role, ts: Date.now()}));
-  var url = '/player-host.html?dj_id=' + djId + '&role=' + role;
-  var w = window.open(url, 'tl_live_player',
-    'width=380,height=660,menubar=no,toolbar=no,location=no,status=no,resizable=yes');
-  if(!w){ toast('팝업이 차단되었습니다. 브라우저 설정을 확인하세요.', 'e'); return; }
-  w.focus();
-
-  toast('🎧 팝업 플레이어에서 재생 중', 's');
-}
-async function playDjTrack(djId, skipIfSame, role){
-  try {
-    var r = await fetch(API+'/api/dj-cafe/live/'+djId+'/now');
-    var d = await r.json();
-    if(!d.ok || !d.current_track || !d.current_track.stream_url){
-      return;
-    }
-    var track = d.current_track;
-    if(skipIfSame && _playingTrackId === track.id) return;
-
-    _playingTrackId = track.id;
-    playAudio(track.stream_url, false, track.elapsed_ms);
-
-    // UI 업데이트
-    g('pbTitle').textContent = track.title || 'Unknown';
-    g('pbSub').textContent = (track.artist || '') + ' · ' + (track.category || '');
-  } catch(e) {
-    console.warn('[cafe-radio] track 오류:', e);
-  }
-}
-
-// ── 오디오 재생 ──
-// ── 오디오 재생 (TL3 aware) ──
-function playAudio(url, isPreview, startMs){
-  stopAudio();
-  _audio = new Audio();
-  _audio.crossOrigin = 'anonymous';
-
-  var _expectedUrl = url;
-
-  var _attach = function(playableUrl){
-    if(_expectedUrl !== url) { console.log('[skip] 곡 전환됨'); return; }
-    _audio.src = playableUrl;
-    _audio.load();
-    if(startMs && startMs > 0 && startMs < 120000){
-      try { _audio.currentTime = startMs / 1000; } catch(e) {}
-    }
-    return _audio.play();
-  };
-
-  var authHeaders = _token ? {'Authorization':'Bearer '+_token} : {};
-  if(/trycloudflare\.com|127\.0\.0\.1|localhost|agent\.timelink\.digital/i.test(url)) authHeaders = {};
-
-  if(window.TL3 && TL3.resolveUrl){
-    TL3.resolveUrl(url, {fetchOptions:{headers:authHeaders}, fallbackDirect:false})
-      .then(_attach)
-      .then(function(){
-        console.log('[cafe-radio] 재생(TL3):', url.slice(-30));
-      })
-      .catch(function(e){
-        console.warn('[cafe-radio] TL3 재생 실패:', e && e.message);
-        toast('재생 실패: ' + (e && e.message ? e.message : e), 'e');
-      });
-  } else {
-    _attach(url).then(function(){
-      console.log('[cafe-radio] 재생(plain):', url.slice(-20));
-    }).catch(function(e){
-      console.warn('[cafe-radio] 재생 실패:', e.message);
-      toast('재생 실패: 브라우저 오디오 허용 필요', 'e');
-    });
-  }
-}
-function stopAudio(){
-  if(_audio){ 
-    try { _audio.pause(); } catch(e) {}
-    _audio = null; 
-  }
-}
-
-// ── 계약 (카페 주인, ×0.5) ──
-async function contractDj(djId){
-  if(!_isCafeOwner){ toast('카페 주인만 계약 가능합니다', 'e'); return; }
-  if(!confirm('이 DJ와 계약하시겠습니까?\n\n카페 요율(×0.5)로 초당 차감됩니다.')) return;
-  try {
-    var myCafeId = _myContracts[0] ? _myContracts[0].cafe_channel_id : '';
-    var r = await fetch(API+'/api/dj-cafe/apply', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
-      body: JSON.stringify({
-        cafe_channel_id: myCafeId,
-        dj_id: djId,
-        message: '즉시 계약'
-      })
-    });
-    var d = await r.json();
-    if(!r.ok) throw new Error(d.error || '계약 실패');
-    toast('✅ 계약 완료! 방송을 청취합니다', 's');
-    await loadMyContracts();
-    renderDjs();
-    // 자동 재생 시작
-    listenDj(djId);
-  } catch(e) {
-    toast('계약 실패: '+e.message, 'e');
-  }
-}
-
-async function cancelContract(djId){
-  if(!confirm('계약을 해지하시겠습니까?')) return;
-  try {
-    var c = _myContracts.find(function(x){ return Number(x.dj_id) === Number(djId); });
-    if(c){
-      await fetch(API+'/api/dj-cafe/contracts/'+c.id+'/end', {
-        method:'POST',
-        headers:{'Authorization':'Bearer '+_token}
-      });
-    }
-    toast('계약 해지됨', 'i');
-    stopPlay();
-    await loadMyContracts();
-    renderDjs();
-  } catch(e) {
-    toast('해지 실패: '+e.message, 'e');
-  }
-}
-
-// ── 차감 시작 ──
-function startCharging(djId, role){
-  stopCharging();
-  _chargeStartedAt = Date.now();
-  _chargeTimer = setInterval(async function(){
-    if(!_playing) return;
-    try {
-      var r = await fetch(API+'/api/dj-cafe/charge', {
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
-        body: JSON.stringify({
-          dj_id: djId,
-          share_id: 'stream',
-          seconds: 1,
-          role: role
-        })
-      });
-      var d = await r.json();
-      if(d.ok){
-        g('pbTL').textContent = Number(d.charged).toFixed(1) + ' TL/초';
-      } else if(r.status === 402){
-        toast('⚠️ TL 부족: ' + d.current + ' / ' + d.required, 'e');
-        stopPlay();
-      }
-    } catch(e) {}
+// Clock
+function startClock(){
+  setInterval(function(){
+    var now = new Date();
+    g('tbTime').textContent = now.toLocaleTimeString('ko-KR');
   }, 1000);
 }
 
-function stopCharging(){
-  if(_chargeTimer){ clearInterval(_chargeTimer); _chargeTimer = null; }
+// Weather / Time
+function getTimeSlot(){
+  var h = new Date().getHours();
+  if(h>=5&&h<9) return {slot:'morning', label:'🌅 이른 아침', mood:'상쾌하고 밝은', poc:'1.0x'};
+  if(h>=9&&h<12) return {slot:'forenoon', label:'☀️ 오전', mood:'활기차고 리드미컬한', poc:'1.0x'};
+  if(h>=12&&h<14) return {slot:'lunch', label:'🍱 점심', mood:'편안하고 재즈풍', poc:'1.2x'};
+  if(h>=14&&h<17) return {slot:'afternoon', label:'☕ 오후', mood:'카페 감성', poc:'1.0x'};
+  if(h>=17&&h<20) return {slot:'evening', label:'🌆 저녁', mood:'감성적이고 서정적인', poc:'1.5x'};
+  if(h>=20&&h<23) return {slot:'night', label:'🌙 밤', mood:'차분하고 몽환적인', poc:'1.2x'};
+  return {slot:'latenight', label:'🌃 심야', mood:'재즈, 로파이, 어쿠스틱', poc:'2.0x 🌙'};
 }
 
-function stopPlay(){
-  stopCharging();
-  stopAudio();
-  if(_trackPolling){ clearInterval(_trackPolling); _trackPolling = null; }
-  _playing = null;
-  _preview = false;
-  _playingTrackId = null;
-  g('playerBar').classList.remove('show');
-  renderDjs();
+// ── 전역 상태 ──
+var _weather = { desc:'맑음', temp:20, code:0, icon:'☀️', loaded:false };
+var _cafeVibe = '조용한 카페';
+var _cafeChannelType = 'direct'; // 'direct' | 'aidj'
+var _newsEnabled = true;
+var _newsHeadlines = [];
+
+async function fetchWeather(){
+  try{
+    var pos = await new Promise(function(res,rej){
+      navigator.geolocation.getCurrentPosition(res,rej,{timeout:5000});
+    });
+    var lat = pos.coords.latitude.toFixed(4);
+    var lon = pos.coords.longitude.toFixed(4);
+    var r = await fetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current=temperature_2m,weather_code&timezone=auto');
+    var d = await r.json();
+    var code = d.current.weather_code||0;
+    var temp = Math.round(d.current.temperature_2m||20);
+    var desc = code===0?'맑음':code<=3?'구름':code<=48?'안개':code<=67?'비':code<=77?'눈':code<=82?'소나기':'뇌우';
+    var icon = code===0?'☀️':code<=3?'⛅':code<=48?'🌫️':code<=67?'🌧️':code<=77?'❄️':code<=82?'🌦️':'⛈️';
+    _weather = {desc:desc,temp:temp,code:code,icon:icon,loaded:true};
+    if(g('weatherBar')) g('weatherBar').textContent = icon+' '+temp+'°C '+desc+' • '+getTimeSlot().label;
+  }catch(e){
+    if(g('weatherBar')) g('weatherBar').textContent = getTimeSlot().label+' • AI DJ 선곡 중';
+  }
 }
 
-// ── 초기화 ──
-async function init(){
-  await loadRates();
-  await checkCafeOwner();
-  await loadMyContracts();
-  await loadLiveDjs();
-  // 30초마다 DJ 목록 갱신
-  setInterval(loadLiveDjs, 30000);
-  // 60초마다 계약 갱신
-  if(_isCafeOwner) setInterval(loadMyContracts, 60000);
+async function fetchNews(){
+  try{
+    // 공개 뉴스 RSS → CORS 프록시
+    var r = await fetch('https://api.timelink.digital/api/news/headlines');
+    var d = await r.json();
+    _newsHeadlines = d.headlines || [];
+  }catch(e){ _newsHeadlines=[]; }
 }
 
-init();
+function setCafeChannelType(type){
+  _cafeChannelType = type;
+  var direct = g('btnDirectCh'), aidj = g('btnAIDJCh');
+  var settings = g('aiDJSettings');
+  if(type==='aidj'){
+    direct.style.borderColor='var(--bd2)'; direct.style.background='transparent'; direct.style.color='var(--t3)';
+    aidj.style.borderColor='var(--purple)'; aidj.style.background='var(--purple2)'; aidj.style.color='var(--purple)';
+    settings.style.display='block';
+    toast('🤖 AI DJ 채널 모드','s');
+    aiBuildQueue();
+  } else {
+    aidj.style.borderColor='var(--bd2)'; aidj.style.background='transparent'; aidj.style.color='var(--t3)';
+    direct.style.borderColor='var(--amber)'; direct.style.background='var(--amber3)'; direct.style.color='var(--amber)';
+    settings.style.display='none';
+    toast('📋 직접 채널 모드','i');
+    fallbackBuildQueue();
+  }
+}
+
+function setVibe(btn, vibe){
+  _cafeVibe = vibe;
+  document.querySelectorAll('.vibe-btn').forEach(function(b){
+    b.style.borderColor='var(--bd)'; b.style.background='transparent'; b.style.color='var(--t3)';
+  });
+  btn.style.borderColor='var(--purple)'; btn.style.background='var(--purple2)'; btn.style.color='var(--purple)';
+  toast('분위기: '+vibe,'i');
+  if(_cafeChannelType==='aidj') aiBuildQueue();
+}
+
+function toggleNews(){
+  _newsEnabled = !_newsEnabled;
+  var btn = g('newsToggleBtn');
+  if(btn){ btn.textContent=_newsEnabled?'ON':'OFF'; btn.style.color=_newsEnabled?'var(--cyan)':'var(--t3)'; }
+  toast(_newsEnabled?'📰 뉴스 ON':'📰 뉴스 OFF','i');
+}
+
+function initWeather(){
+  var ts = getTimeSlot();
+  if(g('weatherBar')) g('weatherBar').textContent = ts.label+' • 날씨 확인 중...';
+  if(g('djMood')) g('djMood').textContent = ts.label;
+  if(g('djReason')) g('djReason').textContent = ts.mood+' 음악 선곡';
+  fetchWeather();
+  if(_newsEnabled) fetchNews();
+  updateDJPanel();
+}
+
+/* ══════════════════════════════
+   AI DJ TiLo — Claude API 연동
+══════════════════════════════ */
+/* ══════════════════════════════════════
+   🎧 DJ 세션 + 보너스
+══════════════════════════════════════ */
+async function checkDJProfile(){
+  if(!_user || !_user.id) return false;
+  try {
+    var r = await fetch(API+'/api/dj-cafe/profile', {
+      headers: {'Authorization': 'Bearer '+(_token||'')}
+    });
+    var d = await r.json();
+    if(d.ok && d.profile){
+      _isDJ = true;
+      return true;
+    }
+  } catch(e){}
+  return false;
+}
+
+async function startDJSession(){
+  if(!_user || !_user.id) return;
+  if(_currentSessionId) return;
+  if(!_isDJ){
+    var ok = await checkDJProfile();
+    if(!ok) return;
+  }
+  try {
+    var r = await fetch(API+'/api/dj-cafe/session/start', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
+      body: JSON.stringify({ cafe_channel_id: _activeChannel || 'ai-main' })
+    });
+    var d = await r.json();
+    if(d.ok && d.session_id){
+      _currentSessionId = d.session_id;
+      console.log('[DJ Session] 시작:', d.session_id);
+      if(d.granted_bonus){
+        showBonusToast(d.granted_bonus);
+      }
+      startSessionHeartbeat();
+    }
+  } catch(e){ console.warn('[DJ Session] 시작 실패:', e); }
+}
+
+function startSessionHeartbeat(){
+  if(_sessionHeartbeatTimer) clearInterval(_sessionHeartbeatTimer);
+  _sessionHeartbeatTimer = setInterval(async function(){
+    if(!_currentSessionId) return;
+    var listeners = 5 + Math.floor(Math.random()*45);
+    try {
+      var r = await fetch(API+'/api/dj-cafe/session/heartbeat', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
+        body: JSON.stringify({
+          session_id: _currentSessionId,
+          listeners: listeners,
+          seconds: 30
+        })
+      });
+      var d = await r.json();
+      if(d.granted_bonuses && d.granted_bonuses.length > 0){
+        d.granted_bonuses.forEach(function(b){ showBonusToast(b); });
+      }
+    } catch(e){}
+  }, 30000);
+}
+
+async function endDJSession(){
+  if(!_currentSessionId) return;
+  var sid = _currentSessionId;
+  _currentSessionId = null;
+  if(_sessionHeartbeatTimer){ clearInterval(_sessionHeartbeatTimer); _sessionHeartbeatTimer=null; }
+  try {
+    await fetch(API+'/api/dj-cafe/session/end', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
+      body: JSON.stringify({ session_id: sid })
+    });
+  } catch(e){}
+}
+
+function showBonusToast(bonus){
+  var labels = {
+    first_broadcast: '🎉 첫 방송 보너스',
+    hour_1: '⏰ 1시간 방송 달성',
+    hour_3: '🔥 3시간 방송 달성',
+    listener_10: '👥 청취자 10명',
+    listener_50: '👥 청취자 50명',
+    listener_100: '🏆 청취자 100명',
+    daily_3: '📅 하루 3회 방송',
+    weekly_10: '📆 주간 10회 방송',
+    monthly_30: '📅 월간 30회 방송'
+  };
+  var label = labels[bonus.type] || '🎁 보너스';
+  var text = label + ' +' + Number(bonus.amount).toLocaleString() + ' TL_B';
+
+  // 1) 토스트
+  toast(text, 's');
+
+  // 2) 중앙 강조 팝업
+  var el = document.createElement('div');
+  el.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;'+
+    'padding:18px 32px;border-radius:16px;'+
+    'background:linear-gradient(135deg,rgba(46,204,113,.95),rgba(100,210,255,.95));'+
+    'color:#fff;font-size:16px;font-weight:900;'+
+    'box-shadow:0 12px 40px rgba(46,204,113,.5);'+
+    'font-family:var(--fn);text-align:center;animation:bonusPop .5s ease';
+  el.innerHTML = '<div style="font-size:24px;margin-bottom:6px">🎁</div><div>'+text+'</div>';
+  document.body.appendChild(el);
+  setTimeout(function(){ el.remove(); }, 5000);
+
+  // 3) TL 잔액 새로고침
+  if(_user){
+    var newTlb = (Number(_user.tl_b)||0) + Number(bonus.amount);
+    _user.tl_b = newTlb;
+    _user.tl = (Number(_user.tl_p)||0) + (Number(_user.tl_a)||0) + newTlb;
+    localStorage.setItem('tl_user', JSON.stringify(_user));
+    if(typeof updateTLDisplay === 'function') updateTLDisplay();
+  }
+}
+
+// ── 페이지 종료 시 세션 종료 ──
+window.addEventListener('beforeunload', function(){
+  if(_currentSessionId){
+    try {
+      navigator.sendBeacon(API+'/api/dj-cafe/session/end',
+        new Blob([JSON.stringify({session_id:_currentSessionId})], {type:'application/json'}));
+    } catch(e){}
+  }
+});
+
+/* ── 기존 AI DJ ── */
+var _djHistory = [];
+var _djListening = false;
+var _djTyping = false;
+
+function getDJContext(){
+  var ts = getTimeSlot();
+  var now = new Date();
+  var tracks = _queue.slice(0,5).map(function(t){ return t.title+' - '+t.artist; }).join(', ');
+  var reqs = _requests.slice(0,3).map(function(r){ return r.song+(r.story?' ('+r.story+')':''); }).join(' / ');
+  return {
+    time: ts.label, slot: ts.slot, mood: ts.mood,
+    mode: _mode==='cafe'?'카페방송':'인카방송',
+    channelType: _cafeChannelType,
+    vibe: _cafeVibe,
+    weather: _weather.loaded?(_weather.icon+' '+_weather.temp+'°C '+_weather.desc):'정보없음',
+    news: _newsEnabled&&_newsHeadlines.length?_newsHeadlines.slice(0,3).join(' / '):'없음',
+    currentTrack: _queue[_curIdx]?(_queue[_curIdx].title+' by '+_queue[_curIdx].artist):'없음',
+    queueTracks: tracks||'없음',
+    pendingRequests: reqs||'없음',
+    pocMult: ts.poc, hour: now.getHours()
+  };
+}
+
+async function updateDJPanel(){
+  var ts = getTimeSlot();
+  renderDJCriteria(ts);
+  renderDJTags(ts);
+  if(_djHistory.length === 0){
+    // 즉시 TTS 인사
+    tiloTTS('안녕하세요! 저는 TiLo입니다. 오늘도 최고의 음악으로 함께할게요!');
+    await djSpeak(null, true);
+  }
+}
+
+async function djSpeak(userMsg, isAuto){
+  var ctx = getDJContext();
+  var newsLine = ctx.news!=='없음' ? '\n- 오늘 뉴스: '+ctx.news : '';
+  var vibeLine = '\n- 카페 분위기 설정: '+ctx.vibe;
+  var weatherLine = '\n- 날씨: '+ctx.weather;
+  var reqLine = ctx.pendingRequests!=='없음' ? '\n- 신청곡 대기: '+ctx.pendingRequests : '';
+  var systemPrompt = [
+    'You are TiLo, AI DJ for TimeLink — Korean digital music economy platform.',
+    'You speak warmly and naturally in Korean. You are a real radio DJ, not an assistant.',
+    'Current context: time='+ctx.time+', slot='+ctx.slot+weatherLine+vibeLine+newsLine+reqLine,
+    'Now playing: '+ctx.currentTrack,
+    'Rules:',
+    '- Respond in Korean only. 2-3 sentences max.',
+    '- Mention weather/time/vibe naturally when relevant.',
+    '- If news is available and newsEnabled, read one headline naturally.',
+    '- If there are pending song requests, acknowledge them warmly.',
+    '- Never break character. Never say you are AI.',
+    '- Add music emoji occasionally. Be warm and engaging.'
+  ].join('\n');
+
+  var messages = _djHistory.slice(-6).map(function(h){
+    return { role: h.role, content: h.content };
+  });
+  if(userMsg){
+    messages.push({ role:'user', content: userMsg });
+  } else {
+    // 자동 인사
+    messages.push({ role:'user', content: '방금 방송을 시작했어. 인사해줘.' });
+  }
+
+  // UI: 리스닝/타이핑 상태
+  setDJState('typing');
+
+  try{
+    var res = await fetch(API+'/api/dj/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||localStorage.getItem('tl_token')||'')},
+      body: JSON.stringify({
+        system: systemPrompt,
+        messages: messages,
+        max_tokens: 200
+      })
+    });
+    var data = await res.json();
+    var reply = data.reply || '좋은 음악을 선곡하고 있어요! 🎵';
+
+    // 히스토리 저장
+    if(userMsg) _djHistory.push({role:'user', content:userMsg});
+    _djHistory.push({role:'assistant', content:reply});
+
+    setDJState('playing');
+    showDJBubble(reply);
+    tiloTTS(reply);
+    if(userMsg) addDJHistoryItem(userMsg, reply);
+
+  } catch(e){
+    // API 실패 시 로컬 fallback
+    var fallbacks = {
+      morning:'좋은 아침! ☀️ 하루를 상쾌하게 열어줄 어쿠스틱 팝을 틀게요.',
+      forenoon:'오전의 리듬을 타볼 시간이에요 🎶 에너지 넘치는 트랙으로 채워드릴게요!',
+      lunch:'점심 시간엔 역시 재즈죠 ☕ 여유롭게 즐겨보세요.',
+      afternoon:'카페 감성 가득한 인디팝 타임 🌿 기분 좋은 오후 되세요.',
+      evening:'하루를 마무리하는 감성적인 곡들로 채워드릴게요 🌅',
+      night:'밤의 감성을 깨우는 드림팝 🌙 조용히 빠져들어봐요.',
+      latenight:'심야 로파이 타임입니다 🌃 편안하게 즐기세요.'
+    };
+    var ts2 = getTimeSlot();
+    var msg = fallbacks[ts2.slot] || '최고의 음악을 선곡하고 있어요! 🎵';
+    if(userMsg) _djHistory.push({role:'user', content:userMsg});
+    _djHistory.push({role:'assistant', content:msg});
+    setDJState('playing');
+    showDJBubble(msg);
+    tiloTTS(msg);
+    if(userMsg) addDJHistoryItem(userMsg, msg);
+  }
+}
+
+function setDJState(state){
+  var wrap = g('djOrbWrap');
+  var stateText = g('djStateText');
+  var bubble = g('djBubble');
+  var btn = g('djTalkBtn');
+  var listenLabel = g('djListenLabel');
+
+  // 클래스 초기화
+  wrap.classList.remove('listening','typing');
+
+  if(state === 'listening'){
+    wrap.classList.add('listening');
+    stateText.textContent = 'Listening...';
+    stateText.style.color = 'var(--cyan)';
+    if(listenLabel) listenLabel.textContent = 'Listening...';
+    _djListening = true;
+    _djTyping = false;
+  } else if(state === 'typing'){
+    wrap.classList.add('typing');
+    stateText.textContent = '선곡 중...';
+    stateText.style.color = 'var(--purple)';
+    if(listenLabel) listenLabel.textContent = '선곡 중...';
+    bubble.innerHTML = '<div class="dj-bubble-tag">TiLo</div><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+    if(btn) btn.disabled = true;
+    _djTyping = true;
+    _djListening = false;
+  } else { // playing
+    stateText.textContent = '방송 중 • ' + new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    stateText.style.color = '';
+    if(listenLabel) listenLabel.textContent = 'Listening...';
+    if(btn) btn.disabled = false;
+    _djTyping = false;
+    _djListening = false;
+  }
+}
+
+function showDJBubble(text){
+  var bubble = g('djBubble');
+  bubble.innerHTML = '<div class="dj-bubble-tag">TiLo</div>';
+  var span = document.createElement('span');
+  bubble.appendChild(span);
+  var i = 0;
+  var timer = setInterval(function(){
+    if(i < text.length){
+      span.textContent += text[i++];
+    } else {
+      clearInterval(timer);
+    }
+  }, 16);
+}
+
+function addDJHistoryItem(userMsg, aiReply){
+  var hist = g('djHistory');
+  if(!hist) return;
+  var userDiv = '<div class="dj-hist-item user"><div class="dj-hist-avatar">👤</div><div class="dj-hist-bubble">'+esc(userMsg)+'</div></div>';
+  var aiDiv = '<div class="dj-hist-item ai"><div class="dj-hist-avatar">🎧</div><div class="dj-hist-bubble">'+esc(aiReply)+'</div></div>';
+  var _tmp=document.createElement('div');
+  _tmp.innerHTML=userDiv+aiDiv;
+  while(_tmp.firstChild) hist.appendChild(_tmp.firstChild);
+  hist.scrollTop=hist.scrollHeight;
+}
+
+function quickRequest(msg){
+  var inp = g('djTalkInput');
+  inp.value = msg;
+  talkToDJ();
+}
+
+async function autoAnnounceTrack(s){
+  if(!_playing) return;
+  var token = _token||localStorage.getItem('tl_token')||'';
+  var ctx = getDJContext();
+  var prompt = '"'+s.title+'" by '+(s.artist||'Unknown')+' 재생. 1-2문장으로 자연스럽게 소개. 날씨('+ctx.weather+')나 분위기('+ctx.vibe+') 언급 가능.';
+  try{
+    var res = await fetch(API+'/api/dj/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({system:'You are TiLo, AI DJ. Korean only. 1-2 sentences. Be natural.', messages:[{role:'user',content:prompt}], max_tokens:100})
+    });
+    var data = await res.json();
+    if(data.reply&&!data.fallback){ showDJBubble(data.reply); tiloTTS(data.reply); setDJState('playing'); }
+  }catch(e){}
+}
+
+async function talkToDJ(){
+  var inp = g('djTalkInput');
+  var msg = inp.value.trim();
+  if(!msg || _djTyping) return;
+  inp.value = '';
+  inp.style.height = '';
+
+  // 리스닝 → 타이핑 상태
+  setDJState('listening');
+  setTimeout(function(){
+    djSpeak(msg, false);
+  }, 800);
+}
+
+function renderDJTags(ts){
+  var tags = {
+    morning: ['#어쿠스틱','#인디팝','#상쾌함','#아침루틴'],
+    forenoon: ['#팝','#리듬감','#집중력','#에너지'],
+    lunch: ['#재즈','#보사노바','#점심감성','#여유'],
+    afternoon: ['#카페뮤직','#인디','#어쿠스틱','#감성'],
+    evening: ['#발라드','#R&B','#저녁감성','#서정적'],
+    night: ['#인디','#드림팝','#밤감성','#몽환'],
+    latenight: ['#로파이','#재즈','#심야감성','#ASMR']
+  };
+  var el = g('djTags');
+  if(!el) return;
+  var arr = tags[ts.slot] || tags.afternoon;
+  el.innerHTML = arr.map(function(t){
+    return '<div class="dj-tag" onclick="quickRequest(\''+t+' 분위기 음악 틀어줘\')">'+t+'</div>';
+  }).join('');
+}
+
+function renderDJCriteria(ts){
+  var criteria = [
+    {label:'시간대', val: ts.label, icon:'🕐'},
+    {label:'방송 모드', val: _mode==='cafe'?'카페방송':'인카방송', icon:'📻'},
+    {label:'POC 배율', val: ts.poc, icon:'⚡'},
+    {label:'크로스페이드', val: _crossfade?'4초':'OFF', icon:'🔀'},
+  ];
+  var el = g('djCriteria');
+  if(!el) return;
+  el.innerHTML = criteria.map(function(c){
+    return '<div class="dj-crit-row">'+
+      '<span class="dj-crit-label">'+c.icon+' '+c.label+'</span>'+
+      '<span class="dj-crit-val">'+c.val+'</span></div>';
+  }).join('');
+}
+
+// Channels
+var _aiChannels = [
+  {id:'ai-main', name:'TL AI 메인', icon:'🤖', listeners:0, live:true, type:'ai'},
+  {id:'ai-cafe', name:'카페 감성', icon:'☕', listeners:0, live:true, type:'ai'},
+  {id:'ai-night', name:'심야 방송', icon:'🌙', listeners:0, live:true, type:'ai'},
+  {id:'ai-drive', name:'드라이브', icon:'🚗', listeners:0, live:true, type:'ai'},
+];
+var _cafeChannels = [];
+var _channels = _aiChannels.slice();
+var _activeChannel = 'ai-main';
+
+async function loadCafeChannels(){
+  try{
+    var r = await fetch(API+'/api/cafe/channels');
+    var d = await r.json();
+    _cafeChannels = (d.channels||[]).map(function(ch){
+      return {
+        id: ch.channel_id,
+        name: ch.name,
+        icon: '☕',
+        listeners: Math.floor(Math.random()*30+5),
+        live: true,
+        type: 'cafe',
+        addr: ch.addr,
+        desc: ch.description,
+        owner_id: ch.owner_id,
+        playlist: JSON.parse(ch.playlist||'[]'),
+        expires_at: ch.expires_at
+      };
+    });
+    _channels = _aiChannels.concat(_cafeChannels);
+    g('sb-users-cnt') && (g('sb-users-cnt').textContent = _channels.length);
+    renderChannels();
+  }catch(e){ console.warn('카페 채널 로드 실패:', e); }
+}
+
+function renderChannels(){
+  var html = '';
+  // AI 채널 구분선
+  if(_cafeChannels.length){
+    html += '<div style="font-size:10px;font-family:var(--fm);color:var(--t3);letter-spacing:.1em;padding:8px 12px 4px;text-transform:uppercase">AI 채널</div>';
+  }
+  _aiChannels.forEach(function(ch){
+    var active = ch.id === _activeChannel ? 'active' : '';
+    ch.listeners = Math.floor(Math.random()*80+5);
+    html += '<div class="channel-item '+active+'" data-chid="'+ch.id+'" onclick="selectChannel(this.dataset.chid)">' +
+      '<div class="ch-avatar">'+ch.icon+'</div>' +
+      '<div class="ch-info"><div class="ch-name">'+esc(ch.name)+'</div><div class="ch-listeners">👥 '+ch.listeners+'</div></div>' +
+      '<div class="ch-live-badge">LIVE</div>' +
+      '</div>';
+  });
+  // 카페 채널
+  if(_cafeChannels.length){
+    html += '<div style="font-size:10px;font-family:var(--fm);color:var(--amber);letter-spacing:.1em;padding:12px 12px 4px;text-transform:uppercase">카페 채널</div>';
+    _cafeChannels.forEach(function(ch){
+      var active = ch.id === _activeChannel ? 'active' : '';
+      html += '<div class="channel-item '+active+'" data-chid="'+ch.id+'" onclick="selectChannel(this.dataset.chid)">' +
+        '<div class="ch-avatar" style="background:var(--amber3);border:1px solid rgba(245,166,35,.2)">☕</div>' +
+        '<div class="ch-info"><div class="ch-name">'+esc(ch.name)+'</div><div class="ch-listeners">👥 '+ch.listeners+' • '+esc(ch.addr||'')+'</div></div>' +
+        '<div class="ch-live-badge">LIVE</div>' +
+        '</div>';
+    });
+  }
+  // 채널 없을 때
+  if(!_cafeChannels.length){
+    html += '<div style="padding:12px;text-align:center;font-size:11px;color:var(--t3)">'+
+      '<a href="cafe-channel.html" style="color:var(--amber);text-decoration:none">☕ 카페 채널 개설하기</a></div>';
+  }
+  g('channelList').innerHTML = html;
+}
+
+function selectChannel(id){
+  _activeChannel = id;
+  renderChannels();
+  var ch = _channels.find(function(c){ return c.id===id; });
+  if(!ch) return;
+  var modeLabel = ch.type==='cafe' ? '📡 채널 방송 (곡별 TL 차감)' : '🌐 중앙 방송 (총 TL 차감)';
+  toast(ch.name+' — '+modeLabel, 'i');
+  // 카페 채널이면 해당 플레이리스트로 큐 구성
+  if(ch.type==='cafe' && ch.playlist && ch.playlist.length){
+    _queue = _shares.filter(function(s){ return ch.playlist.includes(s.id); });
+    if(!_queue.length) buildQueue();
+    else{ g('queueCnt').textContent=_queue.length; renderQueue(); loadTrack(0); }
+  } else {
+    buildQueue();
+  }
+}
+
+// Load shares
+async function loadShares(){
+  try{
+    var r = await fetch(API+'/api/shares');
+    var d = await r.json();
+    _shares = (Array.isArray(d)?d:(d.shares||[])).filter(function(s){ return (s.stream_url||s.preview_url); });
+  }catch(e){ _shares=[]; }
+  buildQueue();
+  renderChannels();
+}
+
+// Build queue based on time/mode
+// ── TiLo TTS ──
+var _tiloTTSEnabled = true;
+function tiloTTS(text){
+  if(!_tiloTTSEnabled || !window.speechSynthesis) return;
+  var clean = text.replace(/[\u{1F300}-\u{1FFFF}\u{2600}-\u{27BF}]/gu,'').trim();
+  if(!clean) return;
+  window.speechSynthesis.cancel();
+  var utt = new SpeechSynthesisUtterance(clean);
+  utt.lang='ko-KR'; utt.rate=0.93; utt.pitch=1.05; utt.volume=0.9;
+  function speak(){
+    var voices = window.speechSynthesis.getVoices();
+    var v = voices.find(function(v){ return v.lang.startsWith('ko')&&/female|heami|yuna/i.test(v.name); })
+         || voices.find(function(v){ return v.lang.startsWith('ko'); });
+    if(v) utt.voice=v;
+    window.speechSynthesis.speak(utt);
+  }
+  window.speechSynthesis.getVoices().length>0 ? speak() : (window.speechSynthesis.onvoiceschanged=function(){ window.speechSynthesis.onvoiceschanged=null; speak(); });
+}
+function toggleTiloTTS(){
+  _tiloTTSEnabled=!_tiloTTSEnabled;
+  var btn=g('tiloTTSBtn');
+  if(btn){ btn.textContent=_tiloTTSEnabled?'🔊 TiLo 목소리 ON':'🔇 TiLo 목소리 OFF'; btn.style.color=_tiloTTSEnabled?'var(--cyan)':'var(--t3)'; }
+  if(!_tiloTTSEnabled) window.speechSynthesis.cancel();
+  toast(_tiloTTSEnabled?'🔊 TiLo 목소리 켜짐':'🔇 TiLo 목소리 꺼짐','i');
+}
+
+// ── 곡 전환 자동 멘트 ──
+var _lastAnnouncedId=null, _announceCount=0;
+
+// ── AI 선곡 ──
+function buildQueue(){
+  if(!_shares.length) return;
+  // AI DJ TiLo 비활성화 (초기 버전) — 항상 fallback 사용
+  // if(_cafeChannelType==='aidj'){ aiBuildQueue().catch(...); }
+  fallbackBuildQueue();
+}
+
+function fallbackBuildQueue(){
+  if(!_shares.length) return;
+  
+  // 장르별로 그룹화
+  var byCat = {};
+  _shares.forEach(function(s){
+    var cat = String(s.category||'기타').trim() || '기타';
+    if(!byCat[cat]) byCat[cat] = [];
+    byCat[cat].push(s);
+  });
+  
+  // 각 장르 내부 셔플
+  var cats = Object.keys(byCat);
+  cats.forEach(function(cat){
+    byCat[cat].sort(function(){ return Math.random()-.5; });
+  });
+  
+  // 장르를 번갈아가며 뽑기 (라운드 로빈)
+  var pool = [];
+  var maxLen = 0;
+  cats.forEach(function(cat){ if(byCat[cat].length > maxLen) maxLen = byCat[cat].length; });
+  for(var i = 0; i < maxLen; i++){
+    cats.forEach(function(cat){
+      if(byCat[cat][i]) pool.push(byCat[cat][i]);
+    });
+  }
+  
+  // 셔플 옵션이 켜져 있으면 완전 랜덤
+  if(_shuffle) pool.sort(function(){ return Math.random()-.5; });
+  
+  _queue = pool.slice(0,50);
+  g('queueCnt').textContent = _queue.length;
+  renderQueue();
+  if(_queue.length){
+    loadTrack(0);
+    _playing = true;
+    g('playBtn').textContent = '⏸';
+    startPoc();
+    startViz();
+  }
+}
+
+async function aiBuildQueue(){
+  if(!_shares.length) return;
+  var ts = getTimeSlot();
+  var token = _token||localStorage.getItem('tl_token')||'';
+  // 신청곡 매칭
+  var reqMatches = [];
+  _requests.forEach(function(req){
+    var match = _shares.find(function(s){
+      return (s.title||'').toLowerCase().includes(req.song.toLowerCase()) ||
+             (s.artist||'').toLowerCase().includes(req.song.toLowerCase());
+    });
+    if(match) reqMatches.push({share:match, story:req.story, user:req.user});
+  });
+  // 곡 목록 (최대 30곡)
+  // BPM 범위 (분위기별)
+  var bpmRange = {
+    '조용한 카페':{min:60,max:100}, '활기찬 브런치':{min:100,max:135},
+    '감성 저녁':{min:65,max:95}, '재즈 바':{min:70,max:120}, '공부 카페':{min:60,max:90}
+  }[_cafeVibe]||{min:60,max:140};
+
+  var songList = _shares.slice(0,30).map(function(s){
+    return {id:s.id, title:s.title, artist:s.artist||'', category:s.category||'', pulse:s.pulse||0, bpm:s.bpm||0};
+  });
+  var newsCtx = _newsEnabled&&_newsHeadlines.length ? '뉴스: '+_newsHeadlines.slice(0,2).join(' / ') : '';
+  var systemPrompt = [
+    'You are TiLo, AI DJ. Return ONLY a JSON array of share IDs in play order.',
+    'No explanation. Just: ["id1","id2","id3"]',
+    'Context: time='+ts.label+', weather='+(_weather.loaded?_weather.icon+_weather.desc:'?')+', vibe='+_cafeVibe+(newsCtx?', '+newsCtx:''),
+    'BPM preference for '+_cafeVibe+': '+bpmRange.min+'~'+bpmRange.max+' BPM (songs with bpm=0 can be included)',
+    'Requests: '+(_requests.length?_requests.map(function(r){return r.song;}).join(', '):'없음'),
+    'Rules: prefer songs in BPM range, put requested songs first, match vibe/weather, vary genres, max 20 IDs'
+  ].join('\n');
+  try{
+    var res = await fetch(API+'/api/dj/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({system:systemPrompt, messages:[{role:'user',content:'Songs: '+JSON.stringify(songList)}], max_tokens:300})
+    });
+    var data = await res.json();
+    var match2 = (data.reply||'').match(/\[.*?\]/s);
+    if(!match2) throw new Error('no array');
+    var ids = JSON.parse(match2[0]);
+    if(!Array.isArray(ids)||!ids.length) throw new Error('empty');
+    var ordered=[];
+    ids.forEach(function(id){ var s=_shares.find(function(x){return x.id===id;}); if(s) ordered.push(s); });
+    _shares.forEach(function(s){ if(!ordered.includes(s)) ordered.push(s); });
+    reqMatches.forEach(function(req){ var idx=ordered.indexOf(req.share); if(idx>0){ordered.splice(idx,1);ordered.unshift(req.share);} });
+    _queue = ordered.slice(0,50);
+    g('queueCnt').textContent = _queue.length;
+    renderQueue();
+    // DJ 멘트
+    var weatherStr = _weather.loaded?_weather.icon+' '+_weather.temp+'°C '+_weather.desc+', ':'';
+    var msg = weatherStr+_cafeVibe+' 분위기로 '+_queue.length+'곡 선곡했어요';
+    if(reqMatches.length) msg = '"'+reqMatches[0].share.title+'" 신청곡 포함! '+msg;
+    if(_newsEnabled&&_newsHeadlines.length) msg += '. 오늘 뉴스: '+_newsHeadlines[0];
+    // 큐 구성 완료 → 무조건 첫 곡 재생 시작
+    if(_queue.length){
+      loadTrack(0);
+      _playing = true;
+      g('playBtn').textContent = '⏸';
+      startPoc();
+      startViz();
+    }
+    // DJ 멘트는 재생 시작 후 1.5초 뒤에 (곡 먼저 나오게)
+    setTimeout(function(){ djSpeak(msg, false); }, 1500);
+  }catch(e){
+    console.warn('[AI DJ] fallback:', e.message);
+    fallbackBuildQueue();
+  }
+}
+
+function renderQueue(){
+  var html = '';
+  _queue.slice(0,30).forEach(function(s,i){
+    var active = i===_curIdx ? 'playing' : '';
+    var cover = s.cover_url ? '<img src="'+s.cover_url+'" style="width:100%;height:100%;object-fit:cover">' : '🎵';
+    var sid = String(s.id||'');
+    var myTL = _myFileTL[sid]||0;
+    var walletTL = _user?getTotalTL():0;
+    var hasTL = myTL>0 || walletTL>0;
+    var tlColor = myTL>0 ? '#64D2FF' : walletTL>0 ? 'var(--amber)' : '#FF4757';
+    var tlLabel = myTL>0 ? myTL.toLocaleString()+' TL' : walletTL>0 ? '지갑' : '충전필요';
+    var playIcon = i===_curIdx&&_playing ? '⏸' : hasTL ? '▶' : '💳';
+    html += '<div class="queue-item '+active+'" onclick="safeJumpTo('+i+')">' +
+      '<div class="qi-num">'+(i===_curIdx?'♪':(i+1))+'</div>' +
+      '<div class="qi-cover">'+cover+'</div>' +
+      '<div class="qi-info"><div class="qi-title">'+esc(s.title||'Untitled')+'</div><div class="qi-artist">'+esc(s.artist||s.username||'Unknown')+'</div></div>' +
+      '<div class="qi-tl" style="color:'+tlColor+';font-size:10px">'+tlLabel+'</div>' +
+      '<div class="qi-dur" style="font-size:11px">'+playIcon+'</div>' +
+      '</div>';
+  });
+  g('queueList').innerHTML = html || '<div style="color:var(--t3);font-size:13px;text-align:center;padding:40px">곡을 불러오는 중...</div>';
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// R2 direct URL → Worker 프록시로 변환 (CORS 우회)
+
+/* ── TL 파일 보호 스트리밍 ──
+   원본 R2 URL 대신 /api/stream/:shareId 사용
+   → Worker가 TL 확인 후 R2 직접 스트리밍
+   → TL 없으면 402 반환 → 재생 차단
+*/
+var API_STREAM = 'https://api.timelink.digital/api/stream/';
+var _tickInterval = null;
+var _currentShareId = null;
+
+/* ── DJ 세션 (보너스) ── */
+var _currentSessionId = null;
+var _sessionHeartbeatTimer = null;
+var _isDJ = false;
+
+function getTLStreamUrl(shareId){
+  // TL 보호 스트리밍 URL - 토큰 쿼리 파라미터로 전달
+  var token = _token || localStorage.getItem('tl_token') || '';
+  return API_STREAM + shareId + '?tk=' + encodeURIComponent(token);
+}
+
+function getStreamUrl(share){
+  if(!share) return '';
+  var kind = String(share.content_kind||'').toLowerCase();
+  var mode = String(share.release_mode||'').toLowerCase();
+  // MP3 (무료) -> Local Agent URL 직접 사용
+  if(kind==='mp3' || mode.indexOf('free_mp3')===0){
+    return share.stream_url || share.preview_url || '';
+  }
+  // TL3 -> TL 보호 스트리밍
+  if(share.id){
+    return getTLStreamUrl(share.id);
+  }
+  return proxyUrl(share && (share.stream_url || share.preview_url) || '');
+}
+
+async function checkTLBalance(shareId){
+  try{
+    var token = _token || localStorage.getItem('tl_token') || '';
+    var r = await fetch(API_STREAM + shareId + '/info', {
+      headers: {'Authorization': 'Bearer ' + token}
+    });
+    return await r.json();
+  }catch(e){ return {can_play: true}; }
+}
+
+function startTick(shareId, deductRate){
+  stopTick();
+  _currentShareId = shareId;
+  var token = _token || localStorage.getItem('tl_token') || '';
+  _tickInterval = setInterval(async function(){
+    if(!_currentShareId) return;
+    try{
+      var r = await fetch(API_STREAM + _currentShareId + '/tick', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body: JSON.stringify({seconds:1, deduct_rate: deductRate||1.0})
+      });
+      var d = await r.json();
+      if(d.code === 'TL_EMPTY'){
+        stopTick();
+        // TL 소진 → 재생 중단
+        if(typeof stopPlayback === 'function') stopPlayback('TL_EMPTY');
+        else if(typeof openTLNotice === 'function') openTLNotice();
+      } else if(d.ok && typeof updateTLDisplay === 'function'){
+        // TL 잔액 UI 업데이트
+        if(_user){
+          _user.tl_p = d.tl_p; _user.tl_a = d.tl_a; _user.tl_b = d.tl_b;
+          _user.tl = d.tl_balance;
+          localStorage.setItem('tl_user', JSON.stringify(_user));
+        }
+        updateTLDisplay();
+      }
+    }catch(e){}
+  }, 1000);
+}
+
+function stopTick(){
+  if(_tickInterval){ clearInterval(_tickInterval); _tickInterval = null; }
+  _currentShareId = null;
+}
+
+function proxyUrl(url){
+  if(!url || typeof url !== 'string') return '';
+  url = url.trim();
+  // R2 direct URL → Worker 프록시 (CORS 우회)
+  if(url.includes('r2.dev') || url.includes('pub-c8d04f') || url.includes('cloudflare')){
+    var filename = url.split('/').pop().split('?')[0];
+    return 'https://api.timelink.digital/api/audio/' + filename;
+  }
+  // 이미 프록시 URL이면 그대로
+  if(url.includes('api.timelink.digital')) return url;
+  // 파일명만 있으면 프록시로
+  if(!url.startsWith('http')){
+    return 'https://api.timelink.digital/api/audio/' + url;
+  }
+  return url;
+}
+
+// Audio
+var _audA, _audB, _useA = true;
+var _crossfading = false;
+
+function initAudio(){
+  _audA = g('audioA');
+  _audB = g('audioB');
+  _audA.volume = 0.7;
+  _audB.volume = 0;
+  _audA.addEventListener('timeupdate', onTimeUpdate);
+  _audB.addEventListener('timeupdate', onTimeUpdate);
+  _audA.addEventListener('ended', onEnded);
+  _audB.addEventListener('ended', onEnded);
+}
+
+function getActiveAud(){ return _useA ? _audA : _audB; }
+function getNextAud(){ return _useA ? _audB : _audA; }
+
+function loadTrack(idx){
+  if(!_queue[idx]) return;
+  _curIdx = idx;
+  var s = _queue[idx];
+  var url = getStreamUrl(s);
+  if(!url) return;
+  var aud = getActiveAud();
+  // 기존 canplay 리스너 정리
+  if(aud._tlCanplayHandler){ aud.removeEventListener('canplay', aud._tlCanplayHandler); aud._tlCanplayHandler = null; }
+  if(aud._tlSafetyTimer){ clearTimeout(aud._tlSafetyTimer); aud._tlSafetyTimer = null; }
+  aud.src = url;
+  aud.preload = 'auto';
+  aud.load();
+  if(_playing){
+    var _onReady = function(){
+      aud.removeEventListener('canplay', _onReady);
+      aud._tlCanplayHandler = null;
+      if(aud._tlSafetyTimer){ clearTimeout(aud._tlSafetyTimer); aud._tlSafetyTimer = null; }
+      aud.play().catch(function(e){ console.warn('[Radio] play failed:', e); });
+    };
+    aud._tlCanplayHandler = _onReady;
+    aud.addEventListener('canplay', _onReady, {once:true});
+    // 안전장치: 4초 내 canplay 없으면 강제 재생 시도
+    aud._tlSafetyTimer = setTimeout(function(){
+      aud.removeEventListener('canplay', _onReady);
+      aud._tlCanplayHandler = null;
+      aud._tlSafetyTimer = null;
+      if(_playing && aud.paused) aud.play().catch(function(e){ console.warn('[Radio] safety play:', e); });
+    }, 4000);
+  }
+  // 다음 곡 백그라운드 preload
+  var nextIdx = (idx + 1) % _queue.length;
+  if(_queue[nextIdx]){
+    var ns = _queue[nextIdx];
+    var nUrl = getStreamUrl(ns);
+    var preAud = getNextAud();
+    if(nUrl && preAud.src !== nUrl && !_crossfading){
+      preAud.src = nUrl; preAud.preload = 'auto'; preAud.load();
+    }
+  }
+
+  // 곡 전환 시 TL 모드 결정
+  _curShareId = String(s.id||'');
+  var _k = String(s.content_kind||'').toLowerCase();
+  var _m = String(s.release_mode||'').toLowerCase();
+  var _isMp3 = (_k==='mp3' || _m.indexOf('free_mp3')===0);
+  if(_isMp3){
+    _curTlMode = 'none';
+  } else {
+    // 채널 타입으로 모드 결정: AI(중앙방송)=총량, cafe(채널방송)=곡별
+    var activeCh = _channels.find(function(c){ return c.id===_activeChannel; });
+    var isChannelBroadcast = activeCh && activeCh.type === 'cafe';
+    if(isChannelBroadcast){
+      var fileTL = _myFileTL[_curShareId];
+      _curTlMode = (fileTL !== undefined && fileTL > 0) ? 'file' : 'total';
+    } else {
+      _curTlMode = 'total';
+    }
+  }
+
+  updateNowPlaying(s);
+  renderQueue();
+  _songCount++;
+  g('todaySongs').textContent = _songCount;
+
+  // Schedule crossfade
+  if(_crossfade) scheduleCrossfade();
+}
+
+function updateNowPlaying(s){
+  g('npTitle').textContent = s.title || 'Untitled';
+  g('npArtist').textContent = s.artist || s.username || 'Unknown';
+  // 곡 전환 시 AI DJ 자동 멘트 (매 3곡마다)
+  if(s.id && s.id!==_lastAnnouncedId){
+    _lastAnnouncedId=s.id; _announceCount++;
+    if(_announceCount===1 || _announceCount%3===0){
+      setTimeout(function(){
+        if(_playing) autoAnnounceTrack(s);
+      }, 1500);
+    }
+  }
+  var activeCh = _channels.find(function(c){ return c.id===_activeChannel; });
+  var isChBroadcast = activeCh && activeCh.type==='cafe';
+  var fileTL = _myFileTL[String(s.id||'')] || 0;
+  var tlDisplay;
+  if(isChBroadcast){
+    tlDisplay = fileTL > 0
+      ? '⚡ '+fileTL.toLocaleString()+' TL (곡별 차감)'
+      : '💸 '+getTotalTL().toLocaleString()+' TL (총량)';
+  } else {
+    tlDisplay = '🌐 총 TL: '+getTotalTL().toLocaleString();
+  }
+  g('npTl').textContent = tlDisplay;
+  g('npListeners').textContent = '👥 '+(_activeChannel?Math.floor(Math.random()*60+10):0)+' 청취 중';
+
+  var ts = getTimeSlot();
+  g('npMode').textContent = (_mode==='cafe'?'☕ 카페방송':'🚗 인카방송');
+  g('djMood').textContent = ts.label;
+
+  var img = g('npCoverImg');
+  var def = g('npCoverDefault');
+  if(s.cover_url){ img.src=s.cover_url; img.style.display='block'; def.style.display='none'; }
+  else { img.style.display='none'; def.style.display='flex'; }
+}
+
+function updateNowPlayingTL(){
+  if(!_curShareId||!_user||!g('npTl')) return;
+  if(_curTlMode==='none'){
+    g('npTl').textContent = '🎵 무료 MP3';
+    return;
+  }
+  var activeCh = _channels.find(function(c){ return c.id===_activeChannel; });
+  var isChBroadcast = activeCh && activeCh.type==='cafe';
+  var fileTL = _myFileTL[_curShareId] || 0;
+  if(isChBroadcast){
+    g('npTl').textContent = (_curTlMode==='file' && fileTL > 0)
+      ? '⚡ '+fileTL.toLocaleString()+' TL (곡별)'
+      : '💸 '+getTotalTL().toLocaleString()+' TL (총량)';
+  } else {
+    g('npTl').textContent = '🌐 총 TL: '+getTotalTL().toLocaleString();
+  }
+}
+
+function scheduleCrossfade(){
+  if(_fadeTimeout) clearTimeout(_fadeTimeout);
+  var aud = getActiveAud();
+  function doSchedule(){
+    var dur = aud.duration;
+    if(!dur || isNaN(dur) || dur === Infinity || dur < 5){
+      // duration 아직 모름 → 500ms 후 재시도
+      _fadeTimeout = setTimeout(doSchedule, 500);
+      return;
+    }
+    var fadeAt = Math.max(0, dur - 4);
+    _fadeTimeout = setTimeout(function(){ startCrossfade(); }, fadeAt*1000);
+  }
+  if(aud.duration && !isNaN(aud.duration) && aud.duration > 5){
+    doSchedule();
+  } else {
+    aud.addEventListener('durationchange', function onDurChange(){
+      aud.removeEventListener('durationchange', onDurChange);
+      doSchedule();
+    }, {once:true});
+  }
+}
+
+function startCrossfade(){
+  if(_crossfading || _queue.length<2) return;
+  _crossfading = true;
+  var nextIdx = (_curIdx+1) % _queue.length;
+  var nextS = _queue[nextIdx];
+  var nextUrl = getStreamUrl(nextS);  // Fix: proxyUrl → getStreamUrl (TL 인증 포함)
+  if(!nextUrl){ _crossfading = false; return; }  // Fix: stuck 방지
+
+  var fadeOut = getActiveAud();
+  var fadeIn = getNextAud();
+  fadeIn.volume = 0;
+  if(fadeIn.src !== nextUrl){ fadeIn.src = nextUrl; fadeIn.preload='auto'; fadeIn.load(); }
+
+  // crossfade 시작 전 fadeIn 버퍼 확인
+  function doFade(){
+    if(!_playing){ _crossfading = false; return; }
+    var steps = 40, step = 0;
+    // 안전장치: 8초 내 완료 안 되면 강제 전환
+    var safetyTimer = setTimeout(function(){
+      clearInterval(iv);
+      fadeOut.pause(); fadeOut.src='';
+      fadeIn.volume = 0.7;
+      _useA = !_useA; _crossfading = false; _curIdx = nextIdx;
+      updateNowPlaying(nextS); renderQueue();
+      _songCount++; if(g('todaySongs')) g('todaySongs').textContent = _songCount;
+      scheduleCrossfade();
+    }, 8000);
+    var iv = setInterval(function(){
+      step++;
+      fadeOut.volume = Math.max(0, 0.7*(1-step/steps));
+      fadeIn.volume = Math.min(0.7, 0.7*(step/steps));
+      if(step >= steps){
+        clearTimeout(safetyTimer);
+        clearInterval(iv);
+        fadeOut.pause(); fadeOut.src='';
+        _useA = !_useA; _crossfading = false; _curIdx = nextIdx;
+        updateNowPlaying(nextS); renderQueue();
+        _songCount++; if(g('todaySongs')) g('todaySongs').textContent = _songCount;
+        scheduleCrossfade();
+      }
+    }, 100);
+  }
+
+  if(_playing){
+    if(fadeIn.readyState >= 2){
+      fadeIn.play().catch(function(){});
+      doFade();
+    } else {
+      var _cfPlay = function(){
+        fadeIn.removeEventListener('canplay', _cfPlay);
+        clearTimeout(_cfSafetyT);
+        if(!_playing){ _crossfading = false; return; }
+        fadeIn.play().catch(function(){});
+        doFade();
+      };
+      fadeIn.addEventListener('canplay', _cfPlay, {once:true});
+      // fadeIn canplay 안 오면 4초 후 강제 진행
+      var _cfSafetyT = setTimeout(function(){
+        fadeIn.removeEventListener('canplay', _cfPlay);
+        if(!_playing){ _crossfading = false; return; }
+        fadeIn.play().catch(function(){});
+        doFade();
+      }, 4000);
+    }
+  } else {
+    _crossfading = false;
+  }
+}
+
+  function togglePlay(){
+    if(!_queue[_curIdx]) return;
+    var aud = getActiveAud();
+    if(_playing){
+      aud.pause();
+      _playing=false;
+      g('playBtn').textContent='▶';
+      stopPoc();
+      endDJSession();
+    } else {
+      if(!aud.src) loadTrack(_curIdx);
+      aud.play().then(function(){
+        _playing=true;
+        g('playBtn').textContent='⏸';
+        startPoc();
+        startViz();
+        startDJSession();
+      }).catch(function(e){
+        toast((TLi18n&&TLi18n.t?TLi18n.t('sp.play.fail'):'fail')+': '+e.message,'e');
+      });
+    }
+  }
+
+function prevTrack(){ if(_curIdx>0) loadTrack(_curIdx-1); }
+function nextTrack(){ loadTrack((_curIdx+1)%_queue.length); }
+
+// ── 안전 점프: TL 체크 → 자동충전 → 재생 ──
+async function safeJumpTo(idx){
+  var s = _queue[idx];
+  if(!s){ jumpTo(idx); return; }
+  if(getTotalTL() <= 0){
+    toast('⚠️ TL이 없습니다. 충전 후 재생할 수 있습니다.','e');
+    openPayModal();
+    return;
+  }
+  jumpTo(idx);
+}
+
+function jumpTo(i){ _playing=true; loadTrack(i); g('playBtn').textContent='⏸'; startPoc(); startViz(); }
+
+function onTimeUpdate(){
+  var aud = getActiveAud();
+  if(!aud.duration) return;
+  var pct = (aud.currentTime/aud.duration)*100;
+  g('progressFill').style.width = pct+'%';
+  g('timeCur').textContent = fmtTime(aud.currentTime);
+  g('timeTot').textContent = fmtTime(aud.duration);
+}
+
+function onEnded(){
+  if(_crossfading) return;
+  if(_fadeTimeout) clearTimeout(_fadeTimeout);
+  _crossfading = false;
+  nextTrack();
+}
+
+function seekTrack(e){
+  var aud = getActiveAud();
+  if(!aud.duration) return;
+  var rect = g('progressBar').getBoundingClientRect();
+  aud.currentTime = ((e.clientX-rect.left)/rect.width)*aud.duration;
+}
+
+function setVol(v){ _audA.volume=v/100; _audB.volume=_crossfading?(v/100):0; }
+function toggleShuffle(){ _shuffle=!_shuffle; g('shuffleBtn').style.color=_shuffle?'var(--amber)':''; toast(_shuffle?(TLi18n&&TLi18n.t?TLi18n.t('toast.shuffle.on'):'on'):(TLi18n&&TLi18n.t?TLi18n.t('toast.shuffle.off'):'off'),'i'); buildQueue(); }
+function toggleCrossfade(){ _crossfade=!_crossfade; g('crossBtn').style.color=_crossfade?'var(--amber)':''; toast(_crossfade?(TLi18n&&TLi18n.t?TLi18n.t('toast.crossfade.on'):'on'):(TLi18n&&TLi18n.t?TLi18n.t('toast.crossfade.off'):'off'),'i'); }
+
+// POC
+var _pocMult = 1.0;
+function startPoc(){
+  if(_pocInterval) clearInterval(_pocInterval);
+  var ts = getTimeSlot();
+  _pocMult = _mode==='incar' ? 2.5 : parseFloat(ts.poc||'1.0');
+  _pocReportSec  = 0;
+  _pocReportTL   = 0;
+
+  _pocInterval = setInterval(function(){
+    // POC 누적
+    _pocTotal += _pocMult*(1/60);
+    _minTotal += 1/60;
+    _pocReportSec++;
+    if(g('todayPoc')) g('todayPoc').textContent = _pocTotal.toFixed(1);
+    if(g('todayMin')) g('todayMin').textContent = Math.floor(_minTotal);
+    if(g('npPoc'))    g('npPoc').textContent    = '+'+_pocTotal.toFixed(1)+' POC';
+
+    // TL 차감 (소수점 누적 방식)
+    if(!_user) return;
+    if(!_user._tlFrac) _user._tlFrac = 0;
+    _user._tlFrac += _tlDeductRate;
+
+    if(_user._tlFrac >= 1.0){
+      var whole = Math.floor(_user._tlFrac);
+      _user._tlFrac -= whole;
+      _pocReportTL  += whole;
+
+      var activeCh = _channels.find(function(c){ return c.id===_activeChannel; });
+      var isCafe   = activeCh && activeCh.type==='cafe';
+
+      if(isCafe && _curShareId){
+        // ── 채널 방송: 곡별 충전 TL 차감 ──
+        var fileBal = (_myFileTL[_curShareId]||0) - whole;
+        if(fileBal < 0) fileBal = 0;
+        _myFileTL[_curShareId] = fileBal;
+        if(fileBal <= 0){
+          // 곡별 TL 소진 → 총량(3분류 순차)으로 이어서 차감
+          deductTL(whole);
+          toast((TLi18n&&TLi18n.t?TLi18n.t('toast.tl.empty.track'):'track'),'w');
+        }
+        updateNowPlayingTL();
+      } else {
+        // ── 중앙 방송 또는 fallback: 총량 차감 (3분류 순서) ──
+        deductTL(whole);
+        if(getTotalTL() <= 0){
+          toast((TLi18n&&TLi18n.t?TLi18n.t('toast.tl.empty.total'):'total'),'w');
+          reportToServer();
+          stopPoc();
+          togglePlay();
+          openTLNotice();  // TL 소진 알림 (충전/광고 선택)
+          return;
+        }
+      }
+      // 상단 TL 잔액 즉시 갱신
+      if(g('tbTL'))    g('tbTL').textContent    = getTotalTL().toLocaleString();
+      if(g('sbTLBal')) g('sbTLBal').textContent = getTotalTL().toLocaleString();
+  if(g('sbTLp')) g('sbTLp').textContent = getPurchaseTL().toLocaleString();
+  if(g('sbTLa')) g('sbTLa').textContent = ((_user&&_user.tl_a)||0).toLocaleString();
+  if(g('sbTLb')) g('sbTLb').textContent = ((_user&&_user.tl_b)||0).toLocaleString();
+    }
+
+    // 30초마다 서버 보고
+    if(_pocReportSec >= 30){
+      reportToServer();
+      _pocReportSec = 0;
+      _pocReportTL  = 0;
+    }
+  }, 1000);
+}
+
+function stopPoc(){
+  if(_pocInterval){
+    reportToServer();
+    clearInterval(_pocInterval);
+    _pocInterval = null;
+  }
+}
+
+// ── 서버 보고: TL 소비 + POC ──
+function reportToServer(){
+  if(!_user||!_user.id||_pocReportSec<=0) return;
+  var pocGained = _pocMult * (_pocReportSec/60);
+  var activeCh  = _channels.find(function(c){ return c.id===_activeChannel; });
+  var chType    = activeCh ? activeCh.type : 'ai';
+
+  fetch(API+'/api/user/activity',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      user_id:      _user.id,
+      mode:         _mode||'cafe',
+      seconds:      _pocReportSec,
+      tl_spent:     _pocReportTL,
+      poc_gained:   pocGained,
+      poc_mult:     _pocMult,
+      poc_total:    _pocTotal,
+      share_id:     _curShareId||null,
+      tl_mode:      (chType==='cafe'&&_curShareId) ? 'file' : 'total',
+      channel_id:   _activeChannel||null,
+      channel_type: chType
+    })
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.poc_index){
+      _user.poc_index    = d.poc_index;
+      _user.total_tl_spent = d.total_tl_spent||_user.total_tl_spent;
+      localStorage.setItem('tl_user',JSON.stringify(_user));
+      _tlDeductRate = Math.max(0.01,Math.min(1.0,1.0/d.poc_index));
+      if(g('tbDeduct'))    g('tbDeduct').textContent    = _tlDeductRate.toFixed(3)+' TL/s';
+      if(g('sbDeductRate')) g('sbDeductRate').textContent = _tlDeductRate.toFixed(3)+' TL/s';
+      if(g('sbPocIdx'))    g('sbPocIdx').textContent    = d.poc_index.toFixed(2);
+    }
+    if(d.file_tl!==undefined&&_curShareId){
+      _myFileTL[_curShareId]=d.file_tl;
+      updateNowPlayingTL();
+    }
+  }).catch(function(e){ console.warn('[radio] 보고 실패',e); });
+
+  // ── 신 POC 알고리즘 보고 (eco/activity 병렬 호출) ──
+  fetch(API+'/api/eco/activity',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||localStorage.getItem('tl_token')||'')},
+    body: JSON.stringify({
+      seconds:       _pocReportSec,
+      tl_p_spent:    getPurchaseTL() < getTotalTL() ? 0 : _pocReportTL,
+      tl_a_spent:    0,
+      mode:          'listen',
+      share_id:      _curShareId||null,
+      listen_minutes:_pocReportSec/60
+    })
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.poc_index){
+      _user.poc_index = d.poc_index;
+      localStorage.setItem('tl_user',JSON.stringify(_user));
+      if(g('sbPocIdx')) g('sbPocIdx').textContent = d.poc_index.toFixed(2);
+      _tlDeductRate = Math.max(0.01,Math.min(1.0,1.0/d.poc_index));
+    }
+  }).catch(function(){});
+}
+
+// 전역 보고 누적 변수 (startPoc 클로저 밖에서 관리)
+var _pocReportSec = 0, _pocReportTL = 0;
+
+// Visualizer
+var _vizCtx, _vizACtx, _vizSrc, _vizAnal;
+function startViz(){
+  if(_vizCtx) return;
+  try{
+    var ctx = new (window.AudioContext||window.webkitAudioContext)();
+    _vizACtx = ctx;
+    _vizAnal = ctx.createAnalyser();
+    _vizAnal.fftSize = 256;
+    var src = ctx.createMediaElementSource(_audA);
+    src.connect(_vizAnal); _vizAnal.connect(ctx.destination);
+    _vizSrc = src;
+    var canvas = g('viz');
+    _vizCtx = canvas.getContext('2d');
+    // 캔버스 크기 초기화
+    _vizW=canvas.offsetWidth; _vizH=canvas.offsetHeight;
+    canvas.width=_vizW; canvas.height=_vizH;
+    // ResizeObserver로 리사이즈 시에만 재측정
+    if(window.ResizeObserver){
+      new ResizeObserver(function(){ _resizeViz(); }).observe(canvas);
+    }
+    drawViz();
+  }catch(e){ console.warn('Viz:',e); }
+}
+
+/* ── Visualizer (최적화) ──
+   - canvas 크기: 리사이즈 시에만 갱신 (ResizeObserver)
+   - Uint8Array: 재사용 (GC 방지)
+   - 바 수: 48개로 제한 (빠름)
+   - 정지 시: rAF 중단
+*/
+var _vizW=0, _vizH=0, _vizBuf=null, _vizRaf=null, _vizBars=48;
+
+function _resizeViz(){
+  var canvas=g('viz'); if(!canvas) return;
+  var cw=canvas.offsetWidth, ch=canvas.offsetHeight;
+  if(cw!==_vizW||ch!==_vizH){
+    canvas.width=cw; canvas.height=ch;
+    _vizW=cw; _vizH=ch;
+  }
+}
+
+function drawViz(){
+  _vizRaf = requestAnimationFrame(drawViz);
+  var canvas=g('viz'); if(!canvas||!_vizCtx) return;
+  var ctx=_vizCtx;
+  _resizeViz();
+  ctx.clearRect(0,0,_vizW,_vizH);
+
+  if(!_vizAnal){ drawFakeViz(ctx); return; }
+
+  // Uint8Array 재사용
+  if(!_vizBuf||_vizBuf.length!==_vizAnal.frequencyBinCount){
+    _vizBuf=new Uint8Array(_vizAnal.frequencyBinCount);
+  }
+  _vizAnal.getByteFrequencyData(_vizBuf);
+
+  // 48바만 사용 (전체 1024개 중 저주파 영역)
+  var step=Math.floor(_vizBuf.length/_vizBars);
+  var w=_vizW/_vizBars;
+
+  // 그라디언트 미리 생성 (매 프레임 재생성 방지)
+  var grad=ctx.createLinearGradient(0,_vizH,0,0);
+  grad.addColorStop(0,'rgba(245,158,11,.9)');
+  grad.addColorStop(0.5,'rgba(0,113,227,.8)');
+  grad.addColorStop(1,'rgba(100,210,255,.7)');
+  ctx.fillStyle=grad;
+
+  for(var i=0;i<_vizBars;i++){
+    var v=_vizBuf[i*step]||0;
+    var h=Math.max(2,(v/255)*_vizH);
+    ctx.fillRect(i*w+1, _vizH-h, w-2, h);
+  }
+}
+
+function stopViz(){
+  if(_vizRaf){ cancelAnimationFrame(_vizRaf); _vizRaf=null; }
+}
+
+var _fakePhase=0;
+function drawFakeViz(ctx){
+  _fakePhase+=0.03;
+  var w=_vizW/_vizBars;
+  var grad=ctx.createLinearGradient(0,_vizH,0,0);
+  grad.addColorStop(0,'rgba(245,158,11,.5)');
+  grad.addColorStop(1,'rgba(0,113,227,.4)');
+  ctx.fillStyle=grad;
+  for(var i=0;i<_vizBars;i++){
+    var h=_playing?(Math.sin(_fakePhase+i*0.4)*0.35+0.5)*_vizH*0.6:2;
+    ctx.fillRect(i*w+1,_vizH-h,w-2,Math.max(2,h));
+  }
+}
+
+// Tab switch
+function switchTab(name, el){
+  ['queue','request','incar'].forEach(function(t){ var e=g('tab-'+t); if(e) e.style.display='none'; });
+  document.querySelectorAll('.ctab').forEach(function(e){ e.classList.remove('active'); });
+  var tab = g('tab-'+name);
+  if(tab) tab.style.display='';
+  if(el) el.classList.add('active');
+}
+
+// Mode switch
+function setMode(m){
+  _mode = m;
+  g('mode-cafe').classList.toggle('active', m==='cafe');
+  g('mode-incar').classList.toggle('active', m==='incar');
+  g('incarTab').style.display = m==='incar'?'':'none';
+  g('npMode').textContent = (m==='cafe'?'☕ 카페방송':'🚗 인카방송');
+  var poc = m==='incar'?'2.5x':'1.0x';
+  var desc = m==='incar'?'인카 주행 보너스':'카페방송 기본';
+  g('pocMult').textContent=poc; g('pocMultDesc').textContent=desc;
+  if(_pocInterval){ stopPoc(); startPoc(); }
+  toast(m==='cafe'?(TLi18n&&TLi18n.t?TLi18n.t('toast.mode.cafe'):'cafe'):(TLi18n&&TLi18n.t?TLi18n.t('toast.mode.incar'):'incar'),m==='incar'?'s':'i');
+  buildQueue();
+}
+
+// Requests
+function renderRequests(){
+  var html = _requests.length ? '' : '<div style="color:var(--t3);font-size:13px;text-align:center;padding:40px">아직 신청곡이 없습니다</div>';
+  _requests.forEach(function(r){
+    html += '<div class="request-item">'+
+      '<div class="ri-header"><span class="ri-user">'+esc(r.user)+'</span><span class="ri-time">'+r.time+'</span></div>'+
+      '<div class="ri-song">🎵 '+esc(r.song)+'</div>'+
+      (r.story?'<div class="ri-story">'+esc(r.story)+'</div>':'')+
+      '<span class="ri-status pending">대기 중</span></div>';
+  });
+  g('requestList').innerHTML = html;
+}
+
+function sendRequest(){
+  var song = g('reqSong').value.trim();
+  var story = (g('reqStory')&&g('reqStory').value||'').trim();
+  if(!song){ toast('신청할 곡명을 입력하세요','e'); return; }
+  _requests.unshift({user:(_user&&_user.username)||'익명', song:song, story:story, time:new Date().toLocaleTimeString('ko-KR')});
+  g('reqSong').value=''; if(g('reqStory')) g('reqStory').value='';
+  renderRequests();
+  toast('🎤 TiLo가 신청곡을 받았습니다!','s');
+  // AI DJ 재선곡
+  if(_cafeChannelType==='aidj') aiBuildQueue().catch(function(){ fallbackBuildQueue(); });
+}
+
+function loadMyPlaylist(){
+  if(!_shares.length){ toast((TLi18n&&TLi18n.t?TLi18n.t('toast.loading'):'loading'),'i'); return; }
+  toast((TLi18n&&TLi18n.t?TLi18n.t('toast.playlist.applied'):'applied'),'s');
+}
+
+// Init
+window.addEventListener('load', function(){
+  initAudio();
+  startClock();
+  initWeather();
+  loadShares();
+  loadCafeChannels();
+  renderRequests();
+  setInterval(function(){ loadCafeChannels(); }, 30000);
+  drawViz();
+});
+
+
+// ── TL 소진 알림 함수들 ──
+function goCharge(){
+  closeTLNotice();
+  openPayModal();
+}
+function watchAd(){
+  closeTLNotice();
+  // 광고 시청 페이지로 이동 (새 탭)
+  window.open('ads.html', '_blank');
+}
+function closeTLNotice(){
+  var el = document.getElementById('tlChargeNotice');
+  if(el) el.style.display = 'none';
+}
+function openTLNotice(){
+  var el = document.getElementById('tlChargeNotice');
+  if(!el) return;
+  var balEl = document.getElementById('noticeBalVal');
+  if(balEl) balEl.textContent = getTotalTL().toLocaleString();
+  el.style.display = 'flex';
+}
+
+// ── 사이드바 드롭다운 ──
+function toggleSbDropdown(id){document.getElementById(id).classList.toggle('open');}
+
+
+
+
+
+
+
+
+/* ════════════════════════════════════════
+   TL 결제 모달 — 포트원 + Stripe 통합
+════════════════════════════════════════ */
+var _payPg = 'html5_inicis';
+var _payMethod = 'portone';
+var _payAmount = 0;
+var _stripeAmount = 0;
+
+// ── 결제 모달 열기 (pendingTrack: 결제 후 재생할 트랙, 선택적) ──
+function openPayModal(pendingTrack){
+  if(!_user){ alert(typeof TLi18n!=='undefined'?TLi18n.t('msg.login.required'):'로그인이 필요합니다'); return; }
+  if(typeof pendingTrack !== 'undefined') window._payPendingTrack = pendingTrack;
+  var el = document.getElementById('payOverlay');
+  var form = document.getElementById('payForm');
+  var succ = document.getElementById('paySuccess');
+  el.classList.add('open');
+  form.style.display = '';
+  succ.classList.remove('show');
+  document.getElementById('payBalanceVal').textContent = getTotalTL().toLocaleString() + ' TL';
+  switchPayMethod('portone', document.querySelector('.pay-method-tab'));
+  document.getElementById('payAmountInput').value = '';
+  document.getElementById('payStripeAmountInput').value = '';
+  onPayAmountChange(0);
+  onStripeAmountChange(0);
+}
+
+function closePayModal(){
+  document.getElementById('payOverlay').classList.remove('open');
+}
+
+// ── 결제 방식 탭 전환 ──
+function switchPayMethod(method, btn){
+  _payMethod = method;
+  document.querySelectorAll('.pay-method-tab').forEach(function(t){ t.classList.remove('active'); });
+  if(btn) btn.classList.add('active');
+  document.getElementById('payPortonePanel').style.display  = method==='portone'  ? '' : 'none';
+  document.getElementById('payStripePanel').style.display   = method==='stripe'   ? '' : 'none';
+  document.getElementById('payHistoryPanel').style.display  = method==='history'  ? '' : 'none';
+  if(method==='history') loadPayHistory();
+}
+
+// ── PG사 선택 ──
+function selectPg(el, pg){
+  _payPg = pg;
+  document.querySelectorAll('.pay-pg-btn').forEach(function(b){ b.classList.remove('active'); });
+  el.classList.add('active');
+  var labels = {
+    html5_inicis: '신용카드',
+    kakaopay: '카카오페이',
+    tosspay: '토스페이',
+    bank: '계좌이체'
+  };
+  document.getElementById('payMethodLabel').textContent = labels[pg] || pg;
+}
+
+// ── 포트원 금액 변경 ──
+function onPayAmountChange(v){
+  _payAmount = parseInt(v) || 0;
+  var fmt = _payAmount > 0 ? _payAmount.toLocaleString() : '0';
+  document.getElementById('payAmountEq').textContent = '= ' + fmt + ' TL 지급';
+  document.getElementById('paySumTL').textContent = fmt + ' TL';
+  document.getElementById('paySumKRW').textContent = '₩' + fmt;
+  document.getElementById('payPortoneBtn').disabled = _payAmount < 100;
+}
+
+function setPayAmount(v){
+  document.getElementById('payAmountInput').value = v;
+  onPayAmountChange(v);
+}
+
+// ── Stripe 금액 변경 ──
+function onStripeAmountChange(v){
+  _stripeAmount = parseInt(v) || 0;
+  var fmt = _stripeAmount > 0 ? _stripeAmount.toLocaleString() : '0';
+  document.getElementById('payStripeEq').textContent = '= ' + fmt + ' TL 지급';
+  document.getElementById('stripeSumTL').textContent = fmt + ' TL';
+  document.getElementById('stripeSumKRW').textContent = '₩' + fmt;
+  document.getElementById('payStripeBtn').disabled = _stripeAmount < 100;
+}
+
+function setStripeAmount(v){
+  document.getElementById('payStripeAmountInput').value = v;
+  onStripeAmountChange(v);
+}
+
+// ── 포트원 결제 실행 ──
+async function doPortonePay(){
+  if(!_user || _payAmount < 100) return;
+  var btn = document.getElementById('payPortoneBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="pspin"></span>결제 처리 중...';
+
+  // 포트원 SDK 로드 확인
+  if(typeof IMP === 'undefined'){
+    // SDK 없음 → 테스트 mock 결제
+    await mockPortonePay();
+    btn.disabled = false;
+    btn.innerHTML = '결제하기';
+    return;
+  }
+
+  var merchantUid = 'tl_' + Date.now() + '_' + (_user.id||'u');
+  IMP.init('imp00000000'); // ← 실제 가맹점 코드로 교체
+
+  IMP.request_pay({
+    pg: _payPg,
+    pay_method: _payPg === 'bank' ? 'trans' : 'card',
+    merchant_uid: merchantUid,
+    name: 'TimeLink TL 충전 ' + _payAmount.toLocaleString() + 'TL',
+    amount: _payAmount,
+    buyer_email: _user.email || '',
+    buyer_name: _user.username || '',
+  }, async function(rsp){
+    if(rsp.success){
+      try{
+        var r = await fetch(API + '/api/payment/portone/verify', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(_token||'') },
+          body: JSON.stringify({
+            imp_uid: rsp.imp_uid,
+            merchant_uid: merchantUid,
+            amount: _payAmount
+          })
+        });
+        var d = await r.json();
+        if(!r.ok) throw new Error(d.error || '검증 실패');
+        onPaySuccess(d.tl_granted, d.tl_balance);
+      } catch(e){
+        alert('결제 검증 실패: ' + e.message);
+      }
+    } else {
+      alert('결제 취소: ' + (rsp.error_msg || ''));
+    }
+    btn.disabled = false;
+    btn.innerHTML = '결제하기';
+  });
+}
+
+// ── 테스트 mock 결제 (SDK 없을 때) ──
+async function mockPortonePay(){
+  try{
+    var r = await fetch(API + '/api/payment/portone/verify', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(_token||'') },
+      body: JSON.stringify({
+        imp_uid: 'imp_test_' + Date.now(),
+        merchant_uid: 'tl_mock_' + Date.now(),
+        amount: _payAmount
+      })
+    });
+    var d = await r.json();
+    if(!r.ok) throw new Error(d.error || '실패');
+    onPaySuccess(d.tl_granted, d.tl_balance);
+  } catch(e){
+    alert('[테스트 모드] 결제 처리: ' + e.message);
+  }
+}
+
+// ── Stripe 결제 실행 ──
+async function doStripePay(){
+  if(!_user || _stripeAmount < 100) return;
+  var btn = document.getElementById('payStripeBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="pspin"></span>처리 중...';
+
+  try{
+    // 1) PaymentIntent 생성
+    var r1 = await fetch(API + '/api/payment/stripe/intent', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(_token||'') },
+      body: JSON.stringify({ amount_krw: _stripeAmount })
+    });
+    var intent = await r1.json();
+    if(!r1.ok) throw new Error(intent.error || 'Intent 생성 실패');
+
+    // Stripe.js 없거나 테스트 mock인 경우
+    if(intent.test_mode || typeof Stripe === 'undefined'){
+      // mock confirm
+      var r2 = await fetch(API + '/api/payment/stripe/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(_token||'') },
+        body: JSON.stringify({
+          payment_intent_id: intent.payment_intent_id,
+          amount_krw: _stripeAmount
+        })
+      });
+      var d2 = await r2.json();
+      if(!r2.ok) throw new Error(d2.error || '확인 실패');
+      onPaySuccess(d2.tl_granted, d2.tl_balance);
+    } else {
+      // TODO: Stripe.js Elements로 실제 카드 결제
+      // const stripe = Stripe('pk_test_...');
+      // const { error } = await stripe.confirmCardPayment(intent.client_secret, { ... });
+      alert('Stripe 공개키(pk_test_...)를 설정하면 실제 카드 결제가 활성화됩니다.');
+    }
+  } catch(e){
+    alert('Stripe 결제 오류: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '카드 결제';
+}
+
+// ── 결제 성공 공통 처리 ──
+function onPaySuccess(tlGranted, newBalance){
+  // 유저 TL 잔액 업데이트
+  _user.tl = newBalance;
+  localStorage.setItem('tl_user', JSON.stringify(_user));
+  var balEl = document.getElementById('sp-tl-bal');
+  if(balEl) balEl.textContent = Number(newBalance).toLocaleString() + ' TL';
+
+  // 성공 화면 표시
+  document.getElementById('payForm').style.display = 'none';
+  document.getElementById('paySuccess').classList.add('show');
+  document.getElementById('paySuccessTL').textContent = '+' + Number(tlGranted).toLocaleString() + ' TL';
+  document.getElementById('paySuccessSub').textContent =
+    '잔액: ' + Number(newBalance).toLocaleString() + ' TL · 바로 SharePlace에서 사용하세요!';
+
+  // 카드 렌더 갱신
+  if(typeof renderShares==='function') renderShares(typeof _getFilteredList==='function'?_getFilteredList():[]);
+  // 결제 후 대기 트랙 재생
+  if(window._payPendingTrack){
+    var t=window._payPendingTrack; window._payPendingTrack=null;
+    setTimeout(function(){
+      if(typeof onTrackClick==='function') onTrackClick(t);
+      else if(typeof playTrack==='function') playTrack(t);
+    },300);
+  }
+}
+
+// ── 결제 내역 로드 ──
+async function loadPayHistory(){
+  var el = document.getElementById('payHistoryList');
+  el.innerHTML = '<div style="text-align:center;padding:30px;color:rgba(255,255,255,.3);font-size:13px"><span data-i18n="common.loading">로딩 중...</span></div>';
+  try{
+    var r = await fetch(API + '/api/payment/history', {
+      headers: { 'Authorization':'Bearer '+(_token||'') }
+    });
+    var d = await r.json();
+    var list = d.payments || [];
+    if(!list.length){
+      el.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,.25);font-size:13px">결제 내역이 없습니다</div>';
+      return;
+    }
+    var methodIcon = { portone:'💳', stripe:'🌍' };
+    el.innerHTML = list.map(function(p){
+      var icon = methodIcon[p.method] || '💰';
+      var date = p.created_at ? p.created_at.slice(0,10) : '';
+      var statusColor = p.status==='success' ? '#64D2FF' : '#FB7185';
+      return '<div class="pay-hist-item">' +
+        '<div class="pay-hist-method">' + icon + '</div>' +
+        '<div class="pay-hist-info">' +
+          '<div class="pay-hist-tl">+' + Number(p.tl_granted).toLocaleString() + ' TL</div>' +
+          '<div class="pay-hist-meta">' + date + ' · <span style="color:' + statusColor + '">' + p.status + '</span></div>' +
+        '</div>' +
+        '<div class="pay-hist-amount">₩' + Number(p.amount_krw).toLocaleString() + '</div>' +
+      '</div>';
+    }).join('');
+  } catch(e){
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:#FB7185;font-size:13px">불러오기 실패</div>';
+  }
+}
+
 </script>
-<script src="/sidebar.js"></script>
+
+
+<!-- ══ 동적 푸터 ══ -->
+<footer id="tl-dynamic-footer" style="border-top:1px solid rgba(255,255,255,.07);padding:40px 24px 32px;margin-top:auto;background:rgba(3,5,8,.8)">
+  <div style="text-align:center;color:rgba(255,255,255,.2);font-size:12px;padding:20px"><span data-i18n="common.loading">로딩 중...</span></div>
+</footer>
+<script>
+/* Dynamic Footer v2 */
+(function(){
+  var D={company:"씨엠피 주식회사",ceo:"이문웅",bizno:"491-86-02547",
+    email:"support@timelink.digital",
+    addr:"서울특별시 영등포구 국제금융로8길 27-8, 4층",
+    desc:"디지털 파일 이코노미 플랫폼 · 1 TL = 1원",
+    copy:"ⓒ 2026 씨엠피 주식회사. All rights reserved.",links:""};
+  var API="https://api.timelink.digital";
+  function al(href,text){var a=document.createElement("a");a.href=href;a.className="tl-fl";a.textContent=text;return a;}
+  function col(title,links){
+    var d=document.createElement("div");
+    var h=document.createElement("div");h.style.cssText="font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px";h.textContent=title;d.appendChild(h);
+    var inner=document.createElement("div");inner.style.cssText="display:flex;flex-direction:column;gap:8px";
+    links.forEach(function(l){inner.appendChild(al(l[0],l[1]));});d.appendChild(inner);return d;
+  }
+  function render(s){
+    var ft=document.getElementById("tl-dynamic-footer");if(!ft)return;
+    if(!document.getElementById("tl-ft-css")){var st=document.createElement("style");st.id="tl-ft-css";st.textContent=".tl-fl{font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px;transition:color .2s}.tl-fl:hover{color:#fff}";document.head.appendChild(st);}
+    ft.innerHTML="";
+    var wrap=document.createElement("div");wrap.style.cssText="max-width:1200px;margin:0 auto";
+    var grid=document.createElement("div");grid.style.cssText="display:flex;flex-wrap:wrap;gap:40px;justify-content:space-between;margin-bottom:32px";
+    var brand=document.createElement("div");
+    var logoRow=document.createElement("div");logoRow.style.cssText="display:flex;align-items:center;gap:8px;margin-bottom:12px";
+    var icon=document.createElement("div");icon.style.cssText="width:28px;height:28px;background:linear-gradient(135deg,#0071E3,#64D2FF);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff";icon.textContent="TL";
+    var ltxt=document.createElement("span");ltxt.style.cssText="font-size:13px;font-weight:700;letter-spacing:.08em";ltxt.textContent="TIMELINK";
+    logoRow.appendChild(icon);logoRow.appendChild(ltxt);
+    var dp=document.createElement("p");dp.style.cssText="font-size:11px;color:rgba(255,255,255,.3);line-height:1.7;max-width:200px";dp.textContent=s.desc||D.desc;
+    brand.appendChild(logoRow);brand.appendChild(dp);grid.appendChild(brand);
+    grid.appendChild(col("서비스",[["shareplace.html","SharePlace"],["chart.html","TL CHART"],["radio.html","TL방송국"],["ads.html","광고 센터"]]));
+    grid.appendChild(col("크리에이터",[["creator.html","크리에이터 센터"],["creator-policy.html","크리에이터 정책"],["dj-guide.html","DJ 가이드"],["advertiser.html","광고주 센터"]]));
+    var ll=[["terms.html","이용약관"],["privacy.html","개인정보처리방침"],["creator-policy.html","크리에이터 정책"]];
+    if(s.links){s.links.split("\n").forEach(function(l){var p=l.trim().split("|");if(p.length===2)ll.push([p[1].trim(),p[0].trim()]);});}
+    grid.appendChild(col("법적 정보",ll));
+    wrap.appendChild(grid);
+    var bot=document.createElement("div");bot.style.cssText="padding-top:20px;border-top:1px solid rgba(255,255,255,.06)";
+    var biz=document.createElement("div");biz.style.cssText="font-size:11px;color:rgba(255,255,255,.25);line-height:1.8;margin-bottom:4px";biz.textContent=(s.company||D.company)+" · 대표이사 "+(s.ceo||D.ceo)+" · 사업자등록번호 "+(s.bizno||D.bizno);
+    var ad=document.createElement("div");ad.style.cssText="font-size:11px;color:rgba(255,255,255,.2);margin-bottom:4px";ad.textContent=s.addr||D.addr;
+    var cp=document.createElement("div");cp.style.cssText="font-size:11px;color:rgba(255,255,255,.2)";cp.textContent=s.copy||D.copy;
+    bot.appendChild(biz);bot.appendChild(ad);bot.appendChild(cp);wrap.appendChild(bot);ft.appendChild(wrap);
+  }
+  async function load(){
+    var s={};
+    try{var cached=JSON.parse(localStorage.getItem("tl_footer_settings")||"null");if(cached&&cached.company){Object.assign(s,cached);render(s);}}catch(e){}
+    try{var r=await fetch(API+"/api/admin/sql",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sql:"SELECT value FROM tl_settings WHERE key='footer_settings' LIMIT 1"})});var d=await r.json();if(d.results&&d.results.length){var fresh=JSON.parse(d.results[0].value||"null");if(fresh&&fresh.company){Object.assign(s,fresh);localStorage.setItem("tl_footer_settings",JSON.stringify(fresh));}}}catch(e){}
+    render(s);
+  }
+  document.readyState==="loading"?document.addEventListener("DOMContentLoaded",load):load();
+})();
+</script>
+<script>
+/* ── 사이드바 배너 로드 ── */
+(function(){
+  var API_AD = 'https://api.timelink.digital';
+  function esc2(s){return String(s||'').replace(/[<>"]/g,function(c){return({'<':'&lt;','>':'&gt;','"':'&quot;'}[c]);});}
+  function render(ad){
+    var box=document.getElementById('sbAdBox');
+    var lbl=document.getElementById('sbAdLbl');
+    var ph=document.getElementById('sbAdPh');
+    if(!box) return;
+    if(ph) ph.style.display='none';
+    box.onclick=function(){
+      fetch(API_AD+'/api/ads/'+ad.id+'/click',{method:'POST'}).catch(function(){});
+      if(ad.target_url) window.open(ad.target_url,'_blank');
+    };
+    if(ad.thumbnail_url){
+      var img=document.createElement('img');
+      img.src=ad.thumbnail_url;
+      img.style.cssText='width:100%;height:100%;object-fit:cover;display:block';
+      img.onerror=function(){fallback(box,ad);};
+      box.innerHTML=''; box.appendChild(img);
+    } else { fallback(box,ad); }
+    if(lbl) lbl.textContent='광고 · '+(ad.business_name||'');
+  }
+  function fallback(box,ad){
+    box.style.cssText+=';background:linear-gradient(135deg,rgba(0,113,227,.12),rgba(100,210,255,.06));border:1px solid rgba(0,113,227,.2)';
+    box.innerHTML='<div style="text-align:center;padding:14px 10px"><div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:5px">'+esc2(ad.title)+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">'+esc2(ad.business_name)+'</div></div>';
+  }
+  async function load(){
+    var tk=localStorage.getItem('tl_token')||'';
+    try{
+      var r=await fetch(API_AD+'/api/ads/sidebar',{headers:{'Authorization':'Bearer '+tk}});
+      if(r.ok){var d=await r.json();if(d.ad) render(d.ad);}
+    }catch(e){}
+  }
+  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',load):load();
+})();
+</script>
+
+<script>
+
+/* ══════════════════════════════════════════════════════
+   TL 콘텐츠 보호 시스템
+   - 우클릭 차단
+   - 키보드 캡처 차단 (PrintScreen, Ctrl+P, Ctrl+S 등)
+   - CSS 선택 차단
+   - 개발자도구 감지
+   - 인쇄 차단
+   - 드래그 차단
+══════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  // ── 1. 키보드 단축키 차단 ──
+  document.addEventListener('keydown', function(e){
+    var k = e.key || '';
+    var ctrl = e.ctrlKey || e.metaKey;
+
+    // PrintScreen 차단
+    if(k === 'PrintScreen' || k === 'Print'){
+      e.preventDefault();
+      _tlWarnCapture();
+      return false;
+    }
+    // Ctrl+P (인쇄)
+    if(ctrl && k === 'p'){ e.preventDefault(); _tlWarnPrint(); return false; }
+    // Ctrl+S (저장)
+    if(ctrl && k === 's'){ e.preventDefault(); return false; }
+    // Ctrl+Shift+I/J/C: 개발자도구 (허용)
+    // F12: 개발자도구 (허용)
+    // Ctrl+U: 소스보기 (허용)
+  }, true);
+
+  // ── 2. 우클릭 차단 (재생 중인 미디어에만) ──
+  document.addEventListener('contextmenu', function(e){
+    var t = e.target;
+    // 오디오/비디오/이미지/캔버스 우클릭 차단
+    if(t.tagName === 'AUDIO' || t.tagName === 'VIDEO' ||
+       t.tagName === 'IMG'   || t.tagName === 'CANVAS' ||
+       t.closest('.tl-protected-wrap') || t.closest('.file-card') ||
+       t.closest('.np-area') || t.closest('.now-playing')){
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // ── 3. 드래그 차단 ──
+  document.addEventListener('dragstart', function(e){
+    if(e.target.tagName==='IMG'||e.target.tagName==='VIDEO'||e.target.tagName==='AUDIO'){
+      e.preventDefault(); return false;
+    }
+  });
+
+  // ── 4. 인쇄 이벤트 차단 ──
+  window.addEventListener('beforeprint', function(e){
+    e.preventDefault ? e.preventDefault() : (e.returnValue = false);
+    _tlWarnPrint();
+    // 동적으로 print() 호출 시도 차단
+    setTimeout(function(){ document.title = document.title; }, 100);
+  });
+
+  // 원본 print 함수 교체
+  var _origPrint = window.print;
+  window.print = function(){
+    _tlWarnPrint();
+    return false;
+  };
+
+  // ── 5. 스크린샷 감지 (VisibilityChange + 포커스 손실) ──
+  var _tlPlayingMedia = false; // 재생 중일 때만 강화 보호
+
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden && _tlPlayingMedia){
+      // 재생 중 탭이 숨겨지면 → 스크린샷 앱 가능성
+      _tlDimOverlay(true);
+    } else {
+      _tlDimOverlay(false);
+    }
+  });
+
+  // ── 6. 화면 보호 오버레이 (재생 중) ──
+  var _overlay = null;
+  function _tlDimOverlay(show){
+    if(!_overlay){
+      _overlay = document.createElement('div');
+      _overlay.className = 'tl-playing-overlay';
+      _overlay.setAttribute('aria-hidden','true');
+      document.body.appendChild(_overlay);
+    }
+    // 재생 중 포커스 손실 시 반투명 오버레이 (스크린샷 방해)
+    _overlay.style.background = show ? 'rgba(0,0,0,0.85)' : 'transparent';
+  }
+
+  // ── 7. 알림 함수 ──
+  function _tlWarnCapture(){
+    console.warn('[TimeLink] 화면 캡처는 허용되지 않습니다.');
+    // 캡처 감지 시 오버레이 잠깐 활성
+    _tlDimOverlay(true);
+    setTimeout(function(){ _tlDimOverlay(false); }, 1500);
+  }
+
+  function _tlWarnPrint(){
+    var msg = document.getElementById('_tlPrintWarn');
+    if(!msg){
+      msg = document.createElement('div');
+      msg.id = '_tlPrintWarn';
+      msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);'
+        +'z-index:999999;background:#0D0D1A;border:2px solid #F87171;border-radius:16px;'
+        +'padding:32px 40px;text-align:center;color:#fff;font-size:15px;font-family:sans-serif;'
+        +'box-shadow:0 20px 60px rgba(0,0,0,.8);max-width:360px;width:90%';
+      msg.innerHTML = '<div style="font-size:28px;margin-bottom:12px">⛔</div>'
+        +'<div style="font-weight:700;margin-bottom:8px;color:#F87171">인쇄 불가</div>'
+        +'<div style="font-size:13px;color:rgba(255,255,255,.6);line-height:1.6">'
+        +'TimeLink 콘텐츠는 저작권법에 의해<br>인쇄 및 캡처가 금지됩니다.</div>'
+        +'<button onclick="this.parentNode.remove()" style="margin-top:16px;padding:8px 24px;'
+        +'border-radius:8px;border:none;background:#F87171;color:#fff;cursor:pointer;font-size:13px"><span data-i18n="common.confirm">확인</span></button>';
+      document.body.appendChild(msg);
+      setTimeout(function(){ if(msg.parentNode) msg.remove(); }, 4000);
+    }
+  }
+
+  // ── 8. 전역에 재생 상태 알림 함수 노출 ──
+  window._tlSetPlaying = function(v){ _tlPlayingMedia = !!v; };
+
+})();
+
+</script>
+<script src="/notice-popup.js"></script>
 </body>
 </html>
+
