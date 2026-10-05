@@ -198,7 +198,27 @@
     return fetch(url, opts.fetchOptions || {})
       .then(function (res) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.arrayBuffer();
+        // ⭐ onProgress 콜백이 있으면 스트리밍으로 진행률 보고
+        if (!opts.onProgress || !res.body || !res.body.getReader) return res.arrayBuffer();
+        var total = Number(res.headers.get('content-length')) || 0;
+        if (!total) return res.arrayBuffer();
+        var reader = res.body.getReader();
+        var chunks = [];
+        var received = 0;
+        return (function pump() {
+          return reader.read().then(function (r) {
+            if (r.done) {
+              var out = new Uint8Array(received);
+              var off = 0;
+              for (var i = 0; i < chunks.length; i++) { out.set(chunks[i], off); off += chunks[i].length; }
+              return out.buffer;
+            }
+            chunks.push(r.value);
+            received += r.value.length;
+            try { opts.onProgress(received, total); } catch (e) {}
+            return pump();
+          });
+        })();
       })
       .then(function (buf) {
         var bytes = new Uint8Array(buf);

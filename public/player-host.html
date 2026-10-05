@@ -126,7 +126,16 @@ async function loadAndPlay(){
 
     var t0 = Date.now();
     var playable = (window.TL3 && TL3.resolveUrl)
-      ? await TL3.resolveUrl(t.stream_url, {fetchOptions:{headers:auth}, fallbackDirect:false})
+      ? await TL3.resolveUrl(t.stream_url, {
+          fetchOptions:{headers:auth},
+          fallbackDirect:false,
+          onProgress: function(recv, total){
+            var pct = total ? Math.round(recv/total*100) : 0;
+            var mb = (recv/1048576).toFixed(1);
+            var totalMb = total ? (total/1048576).toFixed(1) : '?';
+            g('status').textContent = '\u23f3 ' + pct + '% (' + mb + '/' + totalMb + 'MB)';
+          }
+        })
       : t.stream_url;
     var dt = ((Date.now() - t0)/1000).toFixed(1);
 
@@ -134,6 +143,12 @@ async function loadAndPlay(){
 
     audio.src = playable;
     audio.load();
+    audio.onended = function(){
+      console.log('[player] 곡 종료');
+      g('status').textContent = '\u23ed 곡 종료 \u00b7 다음 곡 대기 중...';
+      _playing = false;
+      g('playBtn').textContent = '\u25b6';
+    };
     if(t.elapsed_ms && t.elapsed_ms > 0 && t.elapsed_ms < 120000){
       try { audio.currentTime = t.elapsed_ms / 1000; } catch(e){}
     }

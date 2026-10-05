@@ -141,16 +141,27 @@ async function serveFile(req, res, token) {
   catch { return json(res, 404, { ok: false, error: '?먮낯 ?뚯씪??議댁옱?섏? ?딆뒿?덈떎.' }); }
 
   const range = req.headers.range;
+  const etag = '"' + token + '"';
+
+  if (req.headers['if-none-match'] === etag) {
+    res.writeHead(304, { 'ETag': etag, 'Cache-Control': 'public, max-age=31536000, immutable' });
+    return res.end();
+  }
+
   const common = {
     'Content-Type': item.name.toLowerCase().endsWith('.tl3') ? 'application/octet-stream' : 'audio/mpeg',
     'Accept-Ranges': 'bytes',
     'Access-Control-Allow-Origin': '*',
-    'Cache-Control': 'no-store',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Range',
+    'Access-Control-Expose-Headers': 'Content-Length, Content-Range, ETag',
+    'Cache-Control': 'public, max-age=31536000, immutable',
+    'ETag': etag,
     'Content-Disposition': 'inline; filename="' + item.name.replace(/"/g, '') + '"'
   };
 
   if (!range) {
     res.writeHead(200, { ...common, 'Content-Length': stat.size });
+    if (req.method === 'HEAD') return res.end();
     return fs.createReadStream(item.path).pipe(res);
   }
 
@@ -238,7 +249,7 @@ const server = http.createServer(async (req, res) => {
       return handleUpload(req, res, url);
     }
 
-    if (req.method === 'GET' && url.pathname.startsWith('/local/')) {
+    if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname.startsWith('/local/')) {
       const token = url.pathname.split('/')[2] || '';
       return serveFile(req, res, token);
     }
