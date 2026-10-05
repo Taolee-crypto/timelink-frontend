@@ -1080,6 +1080,99 @@ async function endContract(id){
 }
 
 loadProfile();
+
+/* ═══════════════════════════════════════════════
+   🎙️ ON AIR — Live DJ 시스템 (cafe-radio 이식)
+   ═══════════════════════════════════════════════ */
+var _liveDjs = [];
+var _onAirView = 'card';
+
+async function loadLiveDjs(){
+  try {
+    var r = await fetch(API+'/api/dj-cafe/live-djs');
+    var d = await r.json();
+    _liveDjs = d.djs || [];
+    renderOnAir();
+    var cnt = _liveDjs.length;
+    var liveCountEl = g('onairLiveCount');
+    if(liveCountEl) liveCountEl.textContent = cnt;
+    var led = g('onairLed');
+    if(led) led.classList.toggle('on', cnt > 0);
+  } catch(e) {
+    console.warn('[OnAir] 로드 실패:', e.message);
+    var c = g('onairContent');
+    if(c) c.innerHTML = '<div class="onair-empty"><div class="onair-empty-icon">⚠️</div><div class="onair-empty-title">로드 실패</div><div class="onair-empty-desc">'+esc(e.message)+'</div></div>';
+  }
+}
+
+function listenDj(djId){
+  if(!_user){ toast('로그인이 필요합니다', 'e'); return; }
+  var dj = _liveDjs.find(function(d){ return Number(d.id) === Number(djId); });
+  if(!dj) return;
+  sessionStorage.setItem('tl_player_args', JSON.stringify({dj_id: djId, role: 'normal', ts: Date.now()}));
+  var url = '/player-host.html?dj_id=' + djId + '&role=normal';
+  var w = window.open(url, 'tl_live_player',
+    'width=380,height=660,menubar=no,toolbar=no,location=no,status=no,resizable=yes');
+  if(!w){ toast('팝업이 차단되었습니다', 'e'); return; }
+  w.focus();
+  toast('🎧 팝업 플레이어에서 재생 중', 's');
+}
+
+function setOnAirView(mode){
+  _onAirView = mode;
+  document.querySelectorAll('.view-btn').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-view') === mode);
+  });
+  var c = g('onairContent');
+  if(c) c.className = 'onair-content view-' + mode;
+  renderOnAir();
+}
+
+function renderOnAir(){
+  var c = g('onairContent');
+  if(!c) return;
+  if(!_liveDjs.length){
+    c.innerHTML = '<div class="onair-empty"><div class="onair-empty-icon">📻</div><div class="onair-empty-title">지금 라이브 중인 DJ가 없습니다</div><div class="onair-empty-desc">DJ 센터에서 방송을 시작하면 여기에 표시됩니다.</div></div>';
+    return;
+  }
+  var html = '<div class="onair-grid">' + _liveDjs.map(function(dj){
+    var isLive = dj.is_live || dj.current_track_id;
+    var cover = dj.avatar_url
+      ? '<img src="'+esc(dj.avatar_url)+'" onerror="this.style.display=\'none\'">'
+      : '🎧';
+    var genres = [];
+    try { genres = JSON.parse(dj.genres || '[]'); } catch(e) {}
+    var tagsHtml = genres.slice(0,3).map(function(g){ return '<span class="dj-tag">'+esc(g)+'</span>'; }).join('');
+    var trackTitle = dj.current_track_id ? '재생 중' : '방송 준비 중';
+    var trackArtist = dj.dj_name || 'DJ';
+    var vuHtml = '<div class="vu">';
+    for(var i=0;i<12;i++){
+      var cls = i<6 ? 'g' : (i<9 ? 'y' : 'r');
+      vuHtml += '<div class="vu-bar '+cls+'"></div>';
+    }
+    vuHtml += '</div>';
+    return '<div class="dj-card '+(isLive?'live':'')+'" id="dj-card-'+dj.id+'">' +
+      '<div class="dj-top">' +
+        '<div class="dj-avatar '+(isLive?'live':'')+'">'+cover+'</div>' +
+        '<div class="dj-info">' +
+          '<div class="dj-name">'+esc(dj.dj_name||'DJ')+'</div>' +
+          '<div class="dj-bio">'+esc(dj.bio||'소개 없음')+'</div>' +
+          (tagsHtml?'<div class="dj-tags">'+tagsHtml+'</div>':'') +
+        '</div>' +
+      '</div>' +
+      '<div class="dj-now">' +
+        '<div class="dj-now-label">🎵 NOW PLAYING</div>' +
+        '<div class="dj-now-title">'+esc(trackTitle)+'</div>' +
+        '<div class="dj-now-artist">'+esc(trackArtist)+' 방송</div>' +
+        vuHtml +
+      '</div>' +
+      '<div class="dj-actions">' +
+        '<button class="dj-btn dj-btn-listen" onclick="listenDj('+dj.id+')">🎧 청취</button>' +
+      '</div>' +
+    '</div>';
+  }).join('') + '</div>';
+  c.innerHTML = html;
+}
 </script>
 
 <!-- ══ 동적 푸터 (dj-guide 호환) ══ -->
