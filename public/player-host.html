@@ -100,7 +100,7 @@ async function init(){
   _playing = true;
   g('playBtn').textContent = '\u23f8';
 
-  _pollTimer = setInterval(loadAndPlay, 5000);
+  _pollTimer = setInterval(loadAndPlay, 2000);
   startCharging();
 
   g('status').textContent = '\u2705 재생 중 \u00b7 이 창을 닫으면 정지됩니다';
@@ -112,63 +112,51 @@ async function loadAndPlay(){
     var d = await r.json();
     if(!d.ok || !d.current_track) return;
     var t = d.current_track;
-    if(_trackId === t.id) return;
+
+    var audio = g('audio');
+    // 같은 곡이고 실제 재생 중이면 스킵
+    if(_trackId === t.id && !audio.paused && audio.currentTime > 0) return;
 
     _trackId = t.id;
     g('title').textContent = t.title || 'Unknown';
     g('artist').textContent = (t.artist || '') + (t.category ? ' \u00b7 ' + t.category : '');
 
-    var audio = g('audio');
     var auth = _token ? {'Authorization':'Bearer '+_token} : {};
     if(/trycloudflare\.com|127\.0\.0\.1|localhost|agent\.timelink\.digital/i.test(t.stream_url)) auth = {};
 
-    g('status').textContent = '\u23f3 파일 준비 중...';
-
-    var t0 = Date.now();
     var playable = (window.TL3 && TL3.resolveUrl)
-      ? await TL3.resolveUrl(t.stream_url, {
-          fetchOptions:{headers:auth},
-          fallbackDirect:false,
-          onProgress: function(recv, total){
-            var pct = total ? Math.round(recv/total*100) : 0;
-            var mb = (recv/1048576).toFixed(1);
-            var totalMb = total ? (total/1048576).toFixed(1) : '?';
-            g('status').textContent = '\u23f3 ' + pct + '% (' + mb + '/' + totalMb + 'MB)';
-          }
-        })
+      ? await TL3.resolveUrl(t.stream_url, {fetchOptions:{headers:auth}, fallbackDirect:false})
       : t.stream_url;
-    var dt = ((Date.now() - t0)/1000).toFixed(1);
-
-    g('status').textContent = '\u{1f513} 복호화 완료 (' + dt + 's) \u00b7 재생 준비';
 
     audio.src = playable;
     audio.load();
-    audio.onended = function(){
-      console.log('[player] 곡 종료');
-      g('status').textContent = '\u23ed 곡 종료 \u00b7 다음 곡 대기 중...';
-      _playing = false;
-      g('playBtn').textContent = '\u25b6';
-    };
     if(t.elapsed_ms && t.elapsed_ms > 0 && t.elapsed_ms < 120000){
       try { audio.currentTime = t.elapsed_ms / 1000; } catch(e){}
     }
+
+    // 곡 끝나면 즉시 다음 곡 로드
+    audio.onended = function(){
+      console.log('[player] 곡 종료 → 다음 곡 요청');
+      _trackId = null;
+      loadAndPlay();
+    };
+
     try {
       await audio.play();
       _playing = true;
-      g('playBtn').textContent = '⏸';
-      g('status').textContent = '\u2705 재생 중 (' + dt + 's 로드)';
+      g('playBtn').textContent = '\u23f8';
+      g('status').textContent = '\u2705 재생 중';
     } catch(e) {
       console.warn('[player] play 실패:', e.name, e.message);
       _playing = false;
-      g('playBtn').textContent = '▶';
-      g('status').textContent = '⚠️ ▶ 버튼을 눌러 재생하세요';
+      _trackId = null;   // 다음 폴링에서 재시도
+      g('playBtn').textContent = '\u25b6';
+      g('status').textContent = '\u26a0\ufe0f \u25b6 버튼을 눌러 재생하세요';
     }
   } catch(e){
     console.warn('[player] load 실패:', e);
-    g('status').textContent = '⚠️ 로드 실패: ' + (e.message || '');
   }
 }
-
 function startCharging(){
   if(_chargeTimer) clearInterval(_chargeTimer);
   _chargeTimer = setInterval(async function(){
