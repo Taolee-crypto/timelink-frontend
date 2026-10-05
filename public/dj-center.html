@@ -672,6 +672,9 @@ function renderFiles(files){
             '<span style="color:var(--green)">💰 수익 '+Number(f.total_revenue||0).toLocaleString()+' TL</span>' +
           '</div>' +
         '</div>' +
+        '<div style="flex-shrink:0;padding-left:8px;display:flex;align-items:center">' +
+          '<button class="btn btn-primary" style="padding:8px 14px;font-size:12px;white-space:nowrap" onclick="broadcastFile(\''+esc(f.id)+'\')">📡 방송</button>' +
+        '</div>' +
       '</div>';
     }).join('');
 
@@ -1172,6 +1175,29 @@ function renderOnAir(){
     '</div>';
   }).join('') + '</div>';
   c.innerHTML = html;
+}
+
+/* ─── 📡 개별 파일 즉시 방송 ─── */
+async function broadcastFile(fileId){
+  if(!confirm('이 곡을 방송 세트로 설정하고 바로 재생하시겠습니까?')) return;
+  _selectedTrackIds = [String(fileId)];
+  renderFiles(_allMyFiles);
+  try {
+    var r = await fetch(API+'/api/dj-cafe/broadcast-set', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
+      body: JSON.stringify({ tracks: [String(fileId)], name: '즉시 방송', description: '' })
+    });
+    if(!r.ok) throw new Error('세트 저장 실패');
+    toast('📡 방송 세트 설정 완료', 's');
+    if(!_isLive){
+      await startBroadcast();
+    } else {
+      await nextTrack();
+    }
+  } catch(e) {
+    toast('방송 실패: '+e.message, 'e');
+  }
 }
 </script>
 
