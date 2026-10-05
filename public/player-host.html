@@ -87,6 +87,15 @@ async function init(){
     if(_dj.avatar_url) g('cover').innerHTML = '<img src="'+_dj.avatar_url+'"><div class="badge"><span class="dot"></span>LIVE</div>';
   } catch(e){ g('status').textContent = '\u274c 로드 실패'; return; }
 
+  // ⭐ 워밍업: 터널/파일서버 미리 데우기 (HEAD)
+  try {
+    if(d.current_track && d.current_track.stream_url){
+      var wAuth = _token ? {'Authorization':'Bearer '+_token} : {};
+      if(/trycloudflare\.com|127\.0\.0\.1|localhost|agent\.timelink\.digital/i.test(d.current_track.stream_url)) wAuth = {};
+      fetch(d.current_track.stream_url, { method:'HEAD', headers: wAuth, mode:'cors' }).catch(function(){});
+    }
+  } catch(e){}
+
   await loadAndPlay();
   _playing = true;
   g('playBtn').textContent = '\u23f8';
@@ -113,9 +122,15 @@ async function loadAndPlay(){
     var auth = _token ? {'Authorization':'Bearer '+_token} : {};
     if(/trycloudflare\.com|127\.0\.0\.1|localhost|agent\.timelink\.digital/i.test(t.stream_url)) auth = {};
 
+    g('status').textContent = '\u23f3 파일 준비 중...';
+
+    var t0 = Date.now();
     var playable = (window.TL3 && TL3.resolveUrl)
       ? await TL3.resolveUrl(t.stream_url, {fetchOptions:{headers:auth}, fallbackDirect:false})
       : t.stream_url;
+    var dt = ((Date.now() - t0)/1000).toFixed(1);
+
+    g('status').textContent = '\u{1f513} 복호화 완료 (' + dt + 's) \u00b7 재생 준비';
 
     audio.src = playable;
     audio.load();
@@ -126,7 +141,7 @@ async function loadAndPlay(){
       await audio.play();
       _playing = true;
       g('playBtn').textContent = '⏸';
-      g('status').textContent = '✅ 재생 중';
+      g('status').textContent = '\u2705 재생 중 (' + dt + 's 로드)';
     } catch(e) {
       console.warn('[player] play 실패:', e.name, e.message);
       _playing = false;
@@ -135,6 +150,7 @@ async function loadAndPlay(){
     }
   } catch(e){
     console.warn('[player] load 실패:', e);
+    g('status').textContent = '⚠️ 로드 실패: ' + (e.message || '');
   }
 }
 
