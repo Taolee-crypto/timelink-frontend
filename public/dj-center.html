@@ -687,10 +687,17 @@ async function playCurrentTrack(){
     if(!td.ok || !td.current_track || !td.current_track.stream_url) return;
     
     var track = td.current_track;
-    
-    // 오디오 정지 (기존)
-    if(_djAudio){ _djAudio.pause(); _djAudio = null; }
-    
+
+    // ★ 중복 방지: 같은 곡이 이미 재생 중이면 스킵
+    if(String(track.id) === String(_currentTrackId) && _djAudio && !_djAudio.paused){
+      console.log('[DJ] 같은 곡 스킵:', track.title);
+      return;
+    }
+    _currentTrackId = track.id;
+
+    // 오디오 정지 (기존 onended 해제 후)
+    if(_djAudio){ _djAudio.pause(); _djAudio.onended = null; _djAudio = null; }
+
     // 새 오디오 재생
     _djAudio = new Audio(track.stream_url);
     _djAudio.crossOrigin = 'anonymous';
@@ -698,6 +705,11 @@ async function playCurrentTrack(){
     if(track.elapsed_ms > 0 && track.elapsed_ms < 60000){
       _djAudio.currentTime = track.elapsed_ms / 1000;
     }
+    // ★ onended 훅: 곡 종료 시 자동 진행 판단
+    _djAudio.onended = function(){
+      console.log('[DJ] onended:', track.title);
+      onTrackEnded();
+    };
     _djAudio.play().then(function(){
       console.log('[DJ] 재생:', track.title);
     }).catch(function(e){
