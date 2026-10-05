@@ -727,6 +727,48 @@ function stopDjAudio(){
   }
 }
 
+/* ─── 자동 진행 + 다음 곡 (편집3) ─── */
+async function nextTrack(){
+  if(_advancing) return;
+  _advancing = true;
+  try {
+    var r = await fetch(API+'/api/dj-cafe/broadcast/next', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+_token}
+    });
+    var d = await r.json();
+    if(r.ok){
+      toast('⏭ 다음 곡', 's');
+      await playCurrentTrack();
+    } else {
+      toast('다음 곡 실패: '+(d.error||''), 'e');
+    }
+  } catch(e) {
+    toast('다음 곡 오류: '+e.message, 'e');
+  } finally {
+    setTimeout(function(){ _advancing = false; }, 1000);
+  }
+}
+
+function onTrackEnded(){
+  if(!_isLive) return;
+  if(_autoAdvance){
+    console.log('[DJ] 자동 진행 ON → next');
+    nextTrack();
+  } else {
+    console.log('[DJ] 자동 진행 OFF → 정지');
+    stopDjAudio();
+    toast('곡 종료 (자동 진행 OFF)', 'i');
+  }
+}
+
+function onAutoToggle(){
+  var el = g('autoAdvance');
+  _autoAdvance = el ? el.checked : false;
+  localStorage.setItem('dj_auto_advance', _autoAdvance ? '1' : '0');
+  console.log('[DJ] 자동 진행:', _autoAdvance ? 'ON' : 'OFF');
+}
+
 async function stopBroadcast(){
   if(!confirm('방송을 종료하시겠습니까?')) return;
   try {
