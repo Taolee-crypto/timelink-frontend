@@ -411,13 +411,29 @@ body{overflow-x:hidden}
       <div class="quick-bar">
         <a href="creator.html" class="qb-btn">📤 새 파일 업로드</a>
       </div>
-      <div class="sec">
-        <div class="sec-head"><div class="sec-title">📁 내 파일</div></div>
-        <div class="file-list" id="myFileList">
-          <div class="empty">
-            <div class="empty-icon">📭</div>
-            <div class="empty-text">아직 업로드한 파일이 없습니다.</div>
-            <button class="empty-btn" onclick="location.href='creator.html'">파일 업로드하기</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+        <div class="sec">
+          <div class="sec-head">
+            <div class="sec-title">🔒 TL3 (보호 스트리밍)</div>
+            <div style="font-size:11px;color:var(--t3)" id="cntTl3">0개</div>
+          </div>
+          <div class="file-list" id="myTl3List">
+            <div class="empty">
+              <div class="empty-icon">🔒</div>
+              <div class="empty-text">TL3 파일이 없습니다.</div>
+            </div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec-head">
+            <div class="sec-title">🎵 MP3 (무료 재생)</div>
+            <div style="font-size:11px;color:var(--t3)" id="cntMp3">0개</div>
+          </div>
+          <div class="file-list" id="myMp3List">
+            <div class="empty">
+              <div class="empty-icon">🎵</div>
+              <div class="empty-text">MP3 파일이 없습니다.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -583,32 +599,47 @@ async function loadShares(){
     g('cntEarned').textContent = fmt(myFiles.reduce(function(acc, s){ return acc + Math.floor((s.pulse||0)*10); }, 0));
     g('cntPlays').textContent = fmt(myFiles.reduce(function(acc, s){ return acc + (s.pulse||0)*3; }, 0));
 
-    if(myFiles.length){
-      g('myFileList').innerHTML = myFiles.slice(0, 20).map(function(s){
-        var kind = String(s.content_kind||'mp3').toLowerCase();
-        var isMp3 = kind === 'mp3';
-        var badge = isMp3 ? 'FREE' : 'TL3';
-        var badgeClass = isMp3 ? 'music' : 'video';
-        return '<div class="file-item">' +
-          '<div class="file-icon">🎵</div>' +
-          '<div class="file-info">' +
-            '<div class="file-name">' + esc(s.title||'Untitled') + '</div>' +
-            '<div class="file-meta">' + esc(s.artist||'') + ' · ' + new Date(s.created_at||0).toLocaleDateString('ko-KR') + '</div>' +
+    var tl3Files = myFiles.filter(function(s){ return String(s.content_kind||'').toLowerCase() === 'tl3'; });
+    var mp3Files = myFiles.filter(function(s){ return String(s.content_kind||'mp3').toLowerCase() !== 'tl3'; });
+
+    g('cntTl3').textContent = tl3Files.length + '개';
+    g('cntMp3').textContent = mp3Files.length + '개';
+
+    function renderFileItem(s, isTl3){
+      var badge = isTl3 ? 'TL3' : 'FREE';
+      var badgeClass = isTl3 ? 'video' : 'music';
+      var icon = isTl3 ? '🔒' : '🎵';
+      return '<div class="file-item">' +
+        '<div class="file-icon">' + icon + '</div>' +
+        '<div class="file-info">' +
+          '<div class="file-name">' + esc(s.title||'Untitled') + '</div>' +
+          '<div class="file-meta">' + esc(s.artist||'') + ' · ' + new Date(s.created_at||0).toLocaleDateString('ko-KR') + '</div>' +
+        '</div>' +
+        '<div class="file-stats">' +
+          '<div class="file-stat">' +
+            '<div class="file-stat-val" style="color:var(--orange)">' + (isTl3 ? fmt(Math.floor(s.file_tl||0)) + ' TL' : '무료') + '</div>' +
+            '<div class="file-stat-label">가격</div>' +
           '</div>' +
-          '<div class="file-stats">' +
-            '<div class="file-stat">' +
-              '<div class="file-stat-val" style="color:var(--orange)">' + (isMp3 ? '무료' : fmt(Math.floor(s.file_tl||0)) + ' TL') + '</div>' +
-              '<div class="file-stat-label">가격</div>' +
-            '</div>' +
-            '<div class="file-stat">' +
-              '<div class="file-stat-val" style="color:var(--teal)">' + (s.pulse||0) + '</div>' +
-              '<div class="file-stat-label">Pulse</div>' +
-            '</div>' +
+          '<div class="file-stat">' +
+            '<div class="file-stat-val" style="color:var(--teal)">' + (s.pulse||0) + '</div>' +
+            '<div class="file-stat-label">Pulse</div>' +
           '</div>' +
-          '<div class="file-type-badge ' + badgeClass + '">' + badge + '</div>' +
-          '<button class="file-delete-btn" onclick="deleteMyFile(\'' + s.id + '\', \'' + esc(s.title||'Untitled').replace(/'/g, '') + '\')" title="삭제">🗑️</button>' +
-        '</div>';
-      }).join('');
+        '</div>' +
+        '<div class="file-type-badge ' + badgeClass + '">' + badge + '</div>' +
+        '<button class="file-delete-btn" onclick="deleteMyFile(\'' + s.id + '\', \'' + esc(s.title||'Untitled').replace(/'/g, '') + '\')" title="삭제">🗑️</button>' +
+      '</div>';
+    }
+
+    if(tl3Files.length){
+      g('myTl3List').innerHTML = tl3Files.map(function(s){ return renderFileItem(s, true); }).join('');
+    } else {
+      g('myTl3List').innerHTML = '<div class="empty"><div class="empty-icon">🔒</div><div class="empty-text">TL3 파일이 없습니다.</div></div>';
+    }
+
+    if(mp3Files.length){
+      g('myMp3List').innerHTML = mp3Files.map(function(s){ return renderFileItem(s, false); }).join('');
+    } else {
+      g('myMp3List').innerHTML = '<div class="empty"><div class="empty-icon">🎵</div><div class="empty-text">MP3 파일이 없습니다.</div></div>';
     }
   }catch(e){
     console.warn('shares 로드 실패:', e);
