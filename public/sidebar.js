@@ -4,14 +4,12 @@
   
   var _MENU = [
     {group:'방송', items:[
-      {href:'/radio', icon:'📻', label:'TL방송국'},
-      {href:'/cafe-radio', icon:'☕', label:'카페방송'},
-      {href:'/incar', icon:'🚗', label:'인카방송'}
+      {href:'/radio', icon:'📻', label:'TL방송국'}
     ]},
     {group:'내 방송', items:[
       {href:'/dj-center', icon:'🎧', label:'DJ 센터'},
       {href:'/cafe-channel', icon:'+', label:'채널 개설'},
-      {href:'/cafe-owner', icon:'☕', label:'카페 주인 센터'},
+      {href:'/cafe-owner', icon:'☕', label:'마이카페'},
       {href:'/creator', icon:'🎨', label:'크리에이터 센터'}
     ]},
     {group:'플랫폼', items:[
