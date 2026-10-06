@@ -237,7 +237,7 @@ textarea.form-input{resize:vertical;min-height:80px}
       <div class="tabs">
         <button class="tab active" onclick="switchTab('profile',this)">👤 내 프로필</button>
         <button class="tab" onclick="switchTab('cafes',this)">☕ 카페 찾기</button>
-        <button class="tab" onclick="switchTab('files',this)">📁 내 파일</button>
+        <button class="tab" onclick="switchTab('files',this)">📁 선택 파일</button>
         <button class="tab" onclick="switchTab('broadcast-set',this)">🎵 방송 세트</button>
         <button class="tab" onclick="switchTab('applications',this)">📩 지원 현황</button>
         <button class="tab" onclick="switchTab('contracts',this)">🎙️ 내 방송 계약</button>
@@ -261,7 +261,7 @@ textarea.form-input{resize:vertical;min-height:80px}
 
       <div class="tab-panel" id="tab-files">
         <div class="section">
-          <div class="section-title">📁 내 TL3 파일 <span class="badge" id="fileCount">-</span></div>
+          <div class="section-title">📁 방송용 파일 (TL3) <span class="badge" id="fileCount">-</span></div>
           <div id="filesContent">
             <div class="loading"><span class="spinner"></span>파일 로딩 중...</div>
           </div>
@@ -608,7 +608,7 @@ async function loadApplications(){
 
 
 /* ══════════════════════════════════════
-   📁 내 파일 (TL3)
+   📁 선택 파일 (TL3)
 ══════════════════════════════════════ */
 var _selectedTrackIds = [];  // 선택된 곡 ID 목록
 var _allMyFiles = [];        // 전체 파일 목록
@@ -767,7 +767,7 @@ async function loadBroadcastSet(){
         '<div class="empty">' +
           '<div class="empty-icon">🎵</div>' +
           '<div class="empty-title">아직 방송 세트가 없습니다</div>' +
-          '<div class="empty-desc">📁 내 파일 탭에서 곡을 선택하고 "🎵 방송 세트 저장"을 눌러주세요.</div>' +
+          '<div class="empty-desc">📁 선택 파일 탭에서 곡을 선택하고 "🎵 방송 세트 저장"을 눌러주세요.</div>' +
         '</div>';
       return;
     }
@@ -827,7 +827,20 @@ async function playCurrentTrack(){
     if(_djAudio){ _djAudio.pause(); _djAudio.onended = null; _djAudio = null; }
 
     // 새 오디오 재생
-    _djAudio = new Audio(track.stream_url);
+    // ★ TL3 디코딩 (팝업과 동일)
+    var _playable = track.stream_url;
+    if(window.TL3 && TL3.resolveUrl && String(track.content_kind||'').toLowerCase() === 'tl3'){
+      try {
+        var _authHeaders = {};
+        if(/trycloudflare\.com|127\.0\.0\.1|localhost|agent\.timelink\.digital/i.test(track.stream_url)) _authHeaders = {};
+        else if(_token) _authHeaders = {Authorization:'Bearer '+_token};
+        _playable = await TL3.resolveUrl(track.stream_url, {fetchOptions:{headers:_authHeaders}, fallbackDirect:false});
+        console.log('[DJ] TL3 디코딩 완료:', String(_playable).slice(0,40));
+      } catch(e) {
+        console.warn('[DJ] TL3 디코딩 실패:', e.message);
+      }
+    }
+    _djAudio = new Audio(_playable);
     _djAudio.crossOrigin = 'anonymous';
     // 시간 동기화
     if(track.elapsed_ms > 0 && track.elapsed_ms < 60000){
@@ -1243,5 +1256,6 @@ async function broadcastFile(fileId){
   </div>
 </footer>
 <script src="/sidebar.js"></script>
+<script src="/tl3.js"></script>
 </body>
 </html>
