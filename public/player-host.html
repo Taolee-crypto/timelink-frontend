@@ -59,7 +59,7 @@ audio{display:none}
 <script>
 var API = 'https://api.timelink.digital';
 var _token = localStorage.getItem('tl_token') || '';
-var _dj = null, _role = 'normal', _playing = false, _trackId = null;
+var _dj = null, _role = 'normal', _playing = false, _trackId = null, _endedTrackId = null;
 var _pollTimer = null, _chargeTimer = null, _loadingTrackId = null;
 var _audioEl = null;
 
@@ -118,7 +118,12 @@ async function loadAndPlay(){
     if(!d.ok || !d.current_track) return;
     var t = d.current_track;
 
-    if(_trackId === t.id) return;   // 같은 곡이면 스킵
+    if(_trackId === t.id){
+      if(_endedTrackId === t.id){
+        console.log('[player] 서버 아직 같은 곡 대기:', t.title);
+      }
+      return;
+    }
 
     _loadingTrackId = t.id;
     _trackId = t.id;
@@ -146,11 +151,13 @@ async function loadAndPlay(){
 
     // 곡 종료 시 다음 곡
     _audioEl.onended = function(){
-      console.log('[player] 곡 종료 → 다음 곡 대기');
+      console.log('[player] 곡 종료 → 500ms 후 다음 곡 조회');
       _playing = false;
       _loadingTrackId = null;
+      _endedTrackId = _trackId;
       g('playBtn').textContent = '\u23f8';
       g('status').textContent = '\u23f8 다음 곡 대기 중...';
+      setTimeout(function(){ loadAndPlay(); }, 500);
     };
 
     // ⭐ play() Promise catch (Google 문서 패턴)
