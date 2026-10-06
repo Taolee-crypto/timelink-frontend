@@ -416,6 +416,7 @@ body{overflow-x:hidden}
           <div class="sec-head">
             <div class="sec-title">🔒 TL3 (보호 스트리밍)</div>
             <button onclick="selectAllType('tl3')" style="padding:4px 10px;font-size:11px;background:rgba(100,210,255,.1);border:1px solid rgba(100,210,255,.3);border-radius:6px;color:var(--teal);cursor:pointer;font-family:inherit;margin-left:8px">전체 선택</button>
+            <button onclick="sendToDj('tl3')" style="padding:4px 10px;font-size:11px;background:rgba(0,113,227,.15);border:1px solid rgba(0,113,227,.4);border-radius:6px;color:var(--accent);cursor:pointer;font-family:inherit;margin-left:4px">📡 DJ로 보내기</button>
             <div style="font-size:11px;color:var(--t3)" id="cntTl3">0개</div>
           </div>
           <div class="file-list" id="myTl3List">
@@ -429,6 +430,7 @@ body{overflow-x:hidden}
           <div class="sec-head">
             <div class="sec-title">🎵 MP3 (무료 재생)</div>
             <button onclick="selectAllType('mp3')" style="padding:4px 10px;font-size:11px;background:rgba(48,209,88,.1);border:1px solid rgba(48,209,88,.3);border-radius:6px;color:var(--green);cursor:pointer;font-family:inherit;margin-left:8px">전체 선택</button>
+            <button onclick="sendToDj('mp3')" style="padding:4px 10px;font-size:11px;background:rgba(0,113,227,.15);border:1px solid rgba(0,113,227,.4);border-radius:6px;color:var(--accent);cursor:pointer;font-family:inherit;margin-left:4px">📡 DJ로 보내기</button>
             <div style="font-size:11px;color:var(--t3)" id="cntMp3">0개</div>
           </div>
           <div class="file-list" id="myMp3List">
@@ -1003,12 +1005,19 @@ function selectAllType(kind){
   var list = document.getElementById(listId);
   if(!list) return;
   var cbs = list.querySelectorAll('.file-broadcast-cb');
+  var added = 0;
   cbs.forEach(function(cb){
     if(!cb.checked){
       cb.checked = true;
-      toggleContentTrack(cb);
+      var id = cb.dataset.id;
+      if(_contentSelectedIds.indexOf(id) === -1){
+        _contentSelectedIds.push(id);
+        added++;
+      }
     }
   });
+  updateContentBroadcastBar();
+  console.log('[selectAllType]', kind, '추가:', added, '총:', _contentSelectedIds.length);
 }
 
 function clearType(kind){
@@ -1022,6 +1031,29 @@ function clearType(kind){
       toggleContentTrack(cb);
     }
   });
+}
+
+/* ═══ DJ 센터로 보내기 ═══ */
+async function sendToDj(kind){
+  var listId = kind === 'tl3' ? 'myTl3List' : 'myMp3List';
+  var list = document.getElementById(listId);
+  if(!list) return;
+  var cbs = list.querySelectorAll('.file-broadcast-cb:checked');
+  if(!cbs.length){ toast('먼저 곡을 선택하세요', 'error'); return; }
+  var ids = [];
+  cbs.forEach(function(cb){ ids.push(cb.dataset.id); });
+  try {
+    var r = await fetch(API + '/api/dj-cafe/select-files', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'Authorization':'Bearer '+_token},
+      body: JSON.stringify({ file_ids: ids })
+    });
+    var d = await r.json().catch(function(){ return {}; });
+    if(!r.ok) throw new Error(d.error || '서버 저장 실패');
+    toast('📡 ' + ids.length + '곡을 DJ 센터로 보냈습니다', 'success');
+  } catch(e) {
+    toast('실패: ' + e.message, 'error');
+  }
 }
 </script>
 <script src="/notice-popup.js"></script>
