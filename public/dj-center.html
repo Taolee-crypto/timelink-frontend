@@ -816,6 +816,12 @@ async function playCurrentTrack(){
     
     var track = td.current_track;
 
+    // mp3는 방송 재생 안 함 (tl3만)
+    if(String(track.content_kind||'').toLowerCase() === 'mp3'){
+      console.log('[DJ] mp3 스킵 (방송 tl3만):', track.title);
+      return;
+    }
+
     // ★ 중복 방지: 같은 곡이 이미 재생 중이면 스킵
     if(String(track.id) === String(_currentTrackId) && _djAudio && !_djAudio.paused){
       console.log('[DJ] 같은 곡 스킵:', track.title);
@@ -843,7 +849,7 @@ async function playCurrentTrack(){
     _djAudio = new Audio(_playable);
     _djAudio.crossOrigin = 'anonymous';
     // 시간 동기화
-    if(track.elapsed_ms > 0 && track.elapsed_ms < 60000){
+    if(track.elapsed_ms > 0){
       _djAudio.currentTime = track.elapsed_ms / 1000;
     }
     // ★ onended 훅: 곡 종료 시 자동 진행 판단
