@@ -437,6 +437,11 @@ body{overflow-x:hidden}
           </div>
         </div>
       </div>
+      <div id="contentBroadcastBar" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:999;padding:14px 24px;background:rgba(10,10,20,.95);border:1px solid rgba(0,113,227,.4);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.5);align-items:center;gap:16px;backdrop-filter:blur(20px)">
+        <span id="contentSelCount" style="font-size:14px;color:var(--accent);font-weight:700">0곡 선택</span>
+        <button onclick="startContentBroadcast()" style="padding:10px 24px;background:linear-gradient(135deg,var(--accent),var(--teal));border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📡 방송 시작</button>
+        <button onclick="clearContentSelection()" style="padding:8px 14px;background:transparent;border:1px solid var(--bd);border-radius:8px;color:var(--t3);font-size:12px;cursor:pointer;font-family:inherit">취소</button>
+      </div>
     </div>
 
     <!-- 미션 -->
@@ -626,7 +631,7 @@ async function loadShares(){
           '</div>' +
         '</div>' +
         '<div class="file-type-badge ' + badgeClass + '">' + badge + '</div>' +
-        '<button class="file-broadcast-btn" onclick="broadcastFile(\'' + s.id + '\', \'' + esc(s.title||'Untitled').replace(/'/g, '') + '\')" title="방송" style="padding:3px 6px;background:rgba(0,113,227,.15);border:1px solid rgba(0,113,227,.4);border-radius:6px;color:var(--accent);cursor:pointer;font-size:10px;transition:all .2s;font-family:inherit">📡</button>' +
+        '<input type="checkbox" class="file-broadcast-cb" data-id="' + s.id + '" onchange="toggleContentTrack(this)" title="방송 대기" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);flex-shrink:0">' +
         '<button class="file-delete-btn" onclick="deleteMyFile(\'' + s.id + '\', \'' + esc(s.title||'Untitled').replace(/'/g, '') + '\')" title="삭제">🗑️</button>' +
       '</div>';
     }
@@ -647,28 +652,6 @@ async function loadShares(){
   }
 }
 
-async function broadcastFile(fileId, title){
-  if(!confirm('"' + (title||'이 곡') + '"으로 방송을 시작하시겠습니까?')) return;
-  try {
-    var r = await fetch(API+'/api/dj-cafe/broadcast-set', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
-      body: JSON.stringify({ tracks: [String(fileId)], name: '즉시 방송', description: '' })
-    });
-    if(!r.ok) throw new Error('세트 저장 실패');
-    var r2 = await fetch(API+'/api/dj-cafe/broadcast/start', {
-      method:'POST',
-      headers:{'Authorization':'Bearer '+_token}
-    });
-    if(!r2.ok){
-      var e2 = await r2.json().catch(function(){ return {}; });
-      if(e2.error && e2.error.indexOf('이미') === -1) throw new Error(e2.error || '방송 시작 실패');
-    }
-    toast('📡 방송 시작!', 'success');
-  } catch(e) {
-    toast('방송 실패: '+e.message, 'error');
-  }
-}
 async function deleteMyFile(id, title){
   if(!confirm('"' + title + '"을 삭제하시겠습니까?')) return;
   try{
@@ -951,6 +934,65 @@ document.addEventListener('DOMContentLoaded', function(){
   if(!initAuth()) return;
   loadShares();
   loadMissions('daily');
+
+/* ═══ 내 콘텐츠 → 방송 대기/시작 ═══ */
+var _contentSelectedIds = [];
+
+function toggleContentTrack(cb){
+  var id = cb.dataset.id;
+  if(cb.checked){
+    if(_contentSelectedIds.indexOf(id) === -1) _contentSelectedIds.push(id);
+  } else {
+    var i = _contentSelectedIds.indexOf(id);
+    if(i >= 0) _contentSelectedIds.splice(i, 1);
+  }
+  updateContentBroadcastBar();
+}
+
+function updateContentBroadcastBar(){
+  var bar = g('contentBroadcastBar');
+  var cnt = g('contentSelCount');
+  if(!bar || !cnt) return;
+  if(_contentSelectedIds.length > 0){
+    bar.style.display = 'flex';
+    cnt.textContent = _contentSelectedIds.length + '곡 선택';
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function clearContentSelection(){
+  _contentSelectedIds = [];
+  document.querySelectorAll('.file-broadcast-cb').forEach(function(cb){ cb.checked = false; });
+  updateContentBroadcastBar();
+}
+
+async function startContentBroadcast(){
+  if(!_contentSelectedIds.length){
+    toast('곡을 선택하세요', 'error');
+    return;
+  }
+  try {
+    var r = await fetch(API+'/api/dj-cafe/broadcast-set', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
+      body: JSON.stringify({ tracks: _contentSelectedIds, name: '선택 방송', description: '' })
+    });
+    if(!r.ok) throw new Error('세트 저장 실패');
+    var r2 = await fetch(API+'/api/dj-cafe/broadcast/start', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+_token}
+    });
+    if(!r2.ok){
+      var e2 = await r2.json().catch(function(){ return {}; });
+      if(e2.error && e2.error.indexOf('이미') === -1) throw new Error(e2.error || '방송 시작 실패');
+    }
+    toast('📡 ' + _contentSelectedIds.length + '곡 방송 시작!', 'success');
+    clearContentSelection();
+  } catch(e) {
+    toast('방송 실패: ' + e.message, 'error');
+  }
+}
 });
 </script>
 <script src="/notice-popup.js"></script>
