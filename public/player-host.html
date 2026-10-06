@@ -99,7 +99,6 @@ async function init(){
   } catch(e){}
 
   await loadAndPlay();
-  _playing = true;
   g('playBtn').textContent = '\u23f8';
 
   _pollTimer = setInterval(loadAndPlay, 5000);
@@ -147,10 +146,11 @@ async function loadAndPlay(){
 
     // 곡 종료 시 다음 곡
     _audioEl.onended = function(){
-      console.log('[player] 곡 종료 → 즉시 다음 곡');
+      console.log('[player] 곡 종료 → 다음 곡 대기');
       _playing = false;
       _loadingTrackId = null;
-      loadAndPlay();
+      g('playBtn').textContent = '\u23f8';
+      g('status').textContent = '\u23f8 다음 곡 대기 중...';
     };
 
     // ⭐ play() Promise catch (Google 문서 패턴)
@@ -221,10 +221,19 @@ function togglePlay(){
     g('playBtn').textContent = '\u25b6';
     g('status').textContent = '\u23f8 일시정지 (과금 중단됨)';
   } else {
-    audio.play().catch(function(){});
-    _playing = true;
-    g('playBtn').textContent = '\u23f8';
-    g('status').textContent = '\u2705 재생 중';
+    var p = audio.play();
+    if(p !== undefined){
+      p.then(function(){
+        _playing = true;
+        g('playBtn').textContent = '\u23f8';
+        g('status').textContent = '\u2705 재생 중';
+      }).catch(function(e){
+        console.warn('[player] togglePlay 실패:', e.name, e.message);
+        _playing = false;
+        g('playBtn').textContent = '\u25b6';
+        g('status').textContent = '\u26a0\ufe0f 재생 실패: ' + e.name;
+      });
+    }
   }
 }
 
