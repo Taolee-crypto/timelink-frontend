@@ -957,6 +957,29 @@ async function uploadOne(p, applyLp, idx, total){
     body: JSON.stringify(body)
   });
   if(!shareRes.ok) throw new Error('DB 등록 실패');
+  var shareData = await shareRes.json().catch(function(){ return {}; });
+  if(_mode === 'tl3' && shareData.id){
+    try {
+      var tl3Res = await fetch(API+'/api/v1/tl3/releases', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+_token},
+        body: JSON.stringify({
+          share_id: shareData.id,
+          title: p.title,
+          artist: p.artist || _user.username || _user.email,
+          price_tl: 0
+        })
+      });
+      if(!tl3Res.ok){
+        var tl3Err = await tl3Res.json().catch(function(){ return {}; });
+        throw new Error(tl3Err.error || ('TL3 release HTTP ' + tl3Res.status));
+      }
+    } catch(tl3e){
+      console.error('[TL3 v3] release failed:', tl3e);
+      throw new Error('TL3 v3 변환 실패: ' + tl3e.message);
+    }
+  }
+
 
   _existingSongs = null;
 }
