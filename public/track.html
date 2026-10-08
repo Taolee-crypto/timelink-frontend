@@ -759,27 +759,27 @@ function playTrack(){
     };
     _tlAudio.src = fileUrl;
     _tlAudio.load();
+  } else if(window.TL3 && TL3.play) {
+    // v3 TL3: 서버에서 세그먼트 순차 수신 + 재생 + confirm
+    _tlAudio.load && _tlAudio.load();
+    window._tl3Session = TL3.play(_tlAudio, {
+      API: API,
+      token: getTok(),
+      shareId: SHARE_ID,
+      kind: 'mp3'
+    }).then(function(sess){
+      _tlPlaying = true;
+      startTLTimer();
+      if(window._hidePlayLoading) window._hidePlayLoading(true);
+      return sess;
+    }).catch(function(e){
+      if(window._hidePlayLoading) window._hidePlayLoading(false);
+      alert('TL3 재생 실패: ' + (e && e.message ? e.message : e));
+      stopPlay();
+    });
   } else {
-    // v3 TL3: 서버가 AES-GCM 복호화한 mp3 평문을 반환
-    var _fullUrl = API + '/api/v1/tl3/full/' + SHARE_ID;
-    fetch(_fullUrl, { headers: getTok() ? {'Authorization':'Bearer '+getTok()} : {} })
-      .then(function(r){ if(!r.ok) throw new Error('full HTTP ' + r.status); return r.blob(); })
-      .then(function(blob){
-        var u = URL.createObjectURL(blob);
-        _tlAudio.src = u;
-        _tlAudio.load();
-        return _tlAudio.play();
-      })
-      .then(function(){
-        _tlPlaying = true;
-        startTLTimer();
-        if(window._hidePlayLoading) window._hidePlayLoading(true);
-      })
-      .catch(function(e){
-        if(window._hidePlayLoading) window._hidePlayLoading(false);
-        alert('TL3 재생 실패: ' + (e && e.message ? e.message : e));
-        stopPlay();
-      });
+    alert('TL3 모듈 로드 실패');
+    stopPlay();
 }
 }
 

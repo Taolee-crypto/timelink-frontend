@@ -1,243 +1,244 @@
 /*!
- * TimeLink TL3 client library
+ * TimeLink TL3 v3 client library
  * ----------------------------------------------------------------------------
- * Decodes .tl3 (TLNK v2) containers and plays them inside the browser.
+ * TL3 v3 = mp3 + LP (PCM16) + 시간 + 저작권 + AES-256-GCM + 타임토큰 체인
  *
- *   <script src="/tl3.js"></script>
- *   <script>
- *     const audio = TL3.createPlayer(document.getElementById('player'));
- *     await TL3.play(audio, '/api/stream/tl3_123_ab');   // decodes + plays
- *   </script>
+ * 서버 계약:
+ *   POST /api/v1/tl3/create           { share_id, mp3_pcm_b64, lp_pcm_b64, ... }
+ *   GET  /api/v1/tl3/segment/:id      ?n=1&kind=mp3&session_id=...
+ *        → 206, octet-stream, X-TL3-Token, X-TL3-Next
+ *   POST /api/v1/tl3/confirm/:id      { session_id, played_seconds, segment_n, kind }
  *
- * TL3 layout (matches server/server.js and public/creator.html):
- *   0  4  magic "TLNK"
- *   4  1  version (2)
- *   5  2  metadata length (big-endian uint16)
- *   7  N  metadata JSON (UTF-8)
- *   7+N M XOR-encrypted audio payload
+ * 클라이언트 역할:
+ *   1. mp3 → PCM (Int16) 추출 (decodeAudioData)
+ *   2. LP 변환 (WAV PCM) → PCM
+ *   3. 서버로 전송 (base64)
+ *   4. 재생: 서버 세그먼트를 순차로 받아 mp3 평문으로 Blob 재생
  */
 (function (global) {
   'use strict';
 
-  var XOR_KEY = 'TIMELINK_XOR_KEY_2026_SECURE';
-  var MAGIC = [0x54, 0x4c, 0x4e, 0x4b]; // "TLNK"
-
-  var keyBytes = (function () {
-    var b = new Uint8Array(XOR_KEY.length);
-    for (var i = 0; i < XOR_KEY.length; i++) b[i] = XOR_KEY.charCodeAt(i) & 0xff;
-    return b;
-  })();
-
-  function xorTransform(bytes) {
-    var out = new Uint8Array(bytes.length);
-    var kl = keyBytes.length;
-    for (var i = 0; i < bytes.length; i++) out[i] = bytes[i] ^ keyBytes[i % kl];
-    return out;
+  var DEBUG = false;
+  function log() {
+    if (!DEBUG) return;
+    try { console.log.apply(console, ['[TL3]'].concat([].slice.call(arguments))); } catch (e) {}
   }
 
-  /** Parse an ArrayBuffer (or Uint8Array) holding a TL3 file. */
-  function parse(buffer) {
-    var bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-    if (bytes.length < 7) throw new Error('TL3 too small');
-    for (var i = 0; i < 4; i++) {
-      if (bytes[i] !== MAGIC[i]) throw new Error('Not a TL3 file (bad magic)');
+  // ───────────────────────────────────────
+  // 유틸: PCM ↔ base64
+  // ───────────────────────────────────────
+  function int16ToBase64(pcm) {
+    var u8 = new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength);
+    var s = '';
+    var chunk = 0x8000;
+    for (var i = 0; i < u8.length; i += chunk) {
+      s += String.fromCharCode.apply(null, u8.subarray(i, i + chunk));
     }
-    var version = bytes[4];
-    var mlen = (bytes[5] << 8) | bytes[6];
-    if (7 + mlen > bytes.length) throw new Error('TL3 metadata length out of range');
-    var metaText = '';
-    // decode UTF-8 metadata
+    return btoa(s);
+  }
+
+  // ───────────────────────────────────────
+  // 오디오 디코딩 → PCM
+  // ───────────────────────────────────────
+  async function decodeToPcm(blob) {
+    var ctx = new (global.AudioContext || global.webkitAudioContext)();
     try {
-      metaText = decodeURIComponent(
-        Array.prototype.map
-          .call(bytes.subarray(7, 7 + mlen), function (b) {
-            return '%' + ('00' + b.toString(16)).slice(-2);
-          })
-          .join('')
-      );
-    } catch (e) {
-      metaText = new TextDecoder('utf-8').decode(bytes.subarray(7, 7 + mlen));
+      var buf = await blob.arrayBuffer();
+      var ab = await ctx.decodeAudioData(buf);
+      var ch = Math.min(2, ab.numberOfChannels);
+      var len = ab.length;
+      var out = new Int16Array(len * 2);
+      var L = ab.getChannelData(0);
+      var R = ch > 1 ? ab.getChannelData(1) : L;
+      for (var i = 0; i < len; i++) {
+        out[i * 2] = Math.max(-32768, Math.min(32767, Math.round(L[i] * 32767)));
+        out[i * 2 + 1] = Math.max(-32768, Math.min(32767, Math.round(R[i] * 32767)));
+      }
+      return { pcm: out, fs: ab.sampleRate, ch: 2 };
+    } finally {
+      try { ctx.close(); } catch (e) {}
     }
-    var meta = JSON.parse(metaText);
-    var encrypted = bytes.subarray(7 + mlen);
-    var audio = xorTransform(encrypted);
-    return { version: version, meta: meta, audio: audio };
   }
 
-  /** Build a TL3 container from metadata + raw audio bytes (encoder). */
-  function build(meta, audioBytes) {
-    var metaBytes = new TextEncoder().encode(JSON.stringify(meta));
-    var enc = xorTransform(audioBytes instanceof Uint8Array ? audioBytes : new Uint8Array(audioBytes));
-    var out = new Uint8Array(7 + metaBytes.length + enc.length);
-    out[0] = MAGIC[0]; out[1] = MAGIC[1]; out[2] = MAGIC[2]; out[3] = MAGIC[3];
-    out[4] = 0x02;
-    out[5] = (metaBytes.length >> 8) & 0xff;
-    out[6] = metaBytes.length & 0xff;
-    out.set(metaBytes, 7);
-    out.set(enc, 7 + metaBytes.length);
-    return out;
-  }
+  // ───────────────────────────────────────
+  // TL3.create — 서버에 mp3 PCM + LP PCM 전송 → TL3 파일 생성
+  // opts: { API, token, shareId, title, artist, cid, name, genre, bpm, creator_id, lpPcm? }
+  // ───────────────────────────────────────
+  async function create(mp3Blob, opts) {
+    opts = opts || {};
+    if (!opts.API) throw new Error('API base 필요');
+    if (!opts.token) throw new Error('로그인 토큰 필요');
+    if (!opts.shareId) throw new Error('shareId 필요');
 
-  /** Decode a TL3 Blob/File into a playable mp3 Blob. */
-  function toMp3Blob(tl3Blob) {
-    return tl3Blob.arrayBuffer().then(function (buf) {
-      var parsed = parse(buf);
-      return { blob: new Blob([parsed.audio], { type: 'audio/mpeg' }), meta: parsed.meta };
+    log('decoding mp3 → PCM');
+    var mp3 = await decodeToPcm(mp3Blob);
+
+    // LP PCM이 없으면 그냥 mp3 PCM과 동일 (LP 효과는 별도 페이지에서 미리 계산해서 전달)
+    var lpPcm = opts.lpPcm || mp3.pcm;
+
+    var body = {
+      share_id: opts.shareId,
+      title: opts.title || 'Untitled',
+      artist: opts.artist || 'Unknown',
+      cid: opts.cid || '',
+      name: opts.name || 'User',
+      genre: opts.genre || '',
+      bpm: opts.bpm || 0,
+      creator_id: opts.creator_id || 0,
+      fs: mp3.fs,
+      ch: mp3.ch,
+      mp3_pcm_b64: int16ToBase64(mp3.pcm),
+      lp_pcm_b64: int16ToBase64(lpPcm)
+    };
+
+    log('sending to /api/v1/tl3/create, size=', mp3.pcm.length * 2, 'bytes each');
+    var res = await fetch(opts.API + '/api/v1/tl3/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + opts.token
+      },
+      body: JSON.stringify(body)
     });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok || !data.ok) throw new Error(data.error || ('create HTTP ' + res.status));
+    return data;
   }
 
-  /**
-   * Ensure the given audio element starts playing. Uses the object URL created
-   * for the decoded mp3 and revokes the previous one to avoid leaks.
-   */
-  function createPlayer(audioEl) {
-    if (!audioEl) audioEl = new Audio();
-    audioEl._tl3ObjectUrl = null;
-    return audioEl;
-  }
-
-  function _setSrc(audioEl, objectUrl) {
-    if (audioEl._tl3ObjectUrl) {
-      try { URL.revokeObjectURL(audioEl._tl3ObjectUrl); } catch (e) {}
-    }
-    audioEl._tl3ObjectUrl = objectUrl;
-    audioEl.src = objectUrl;
-  }
-
-  /**
-   * Fetch a TL3 stream URL, decode it, and (optionally) play.
-   * @returns Promise<{meta, blob}>
-   */
-  function play(audioEl, url, opts) {
+  // ───────────────────────────────────────
+  // TL3.play — 서버 세그먼트 순차 수신 → 재생 → confirm
+  // opts: { API, token, shareId, sessionId?, kind?, onSegment?, onError?, autoplay? }
+  // ───────────────────────────────────────
+  async function play(audioEl, opts) {
     opts = opts || {};
-    var player = createPlayer(audioEl);
-    return fetch(url, opts.fetchOptions || {})
-      .then(function (res) {
-        if (!res.ok) throw new Error('stream HTTP ' + res.status);
-        return res.arrayBuffer();
-      })
-      .then(function (buf) {
-        var parsed = parse(buf);
-        var blob = new Blob([parsed.audio], { type: 'audio/mpeg' });
-        var objectUrl = URL.createObjectURL(blob);
-        _setSrc(player, objectUrl);
-        if (opts.autoplay !== false) {
-          var p = player.play();
-          if (p && p.catch) p.catch(function (e) { if (opts.onError) opts.onError(e); });
-        }
-        return { meta: parsed.meta, blob: blob, objectUrl: objectUrl };
-      });
-  }
+    if (!opts.API) throw new Error('API base 필요');
+    if (!opts.token) throw new Error('로그인 토큰 필요');
+    if (!opts.shareId) throw new Error('shareId 필요');
 
-  /**
-   * Attach a stream URL to an audio element, transparently decoding TL3.
-   * Fetches the URL, checks for the TLNK magic, and if the response is a TL3
-   * container it XOR-decodes the payload into an mp3 Blob URL before assigning
-   * it. Plain mp3 / http(s) URLs are assigned directly.
-   *
-   * @returns Promise<{decoded:boolean, meta?:object}>
-   */
-  function attach(audioEl, url, opts) {
-    opts = opts || {};
-    var player = createPlayer(audioEl);
+    var sessionId = opts.sessionId || ('sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10));
+    var kind = opts.kind || 'mp3';
 
-    // Non-fetchable or cross-origin blob/data URLs → assign directly.
-    function direct() {
-      _setSrc(player, url);
-      return { decoded: false };
+    var chunks = [];
+    var n = 1;
+    var stopped = false;
+    var stopFn = function () { stopped = true; };
+
+    // 재생 시작 (부분 로드부터)
+    var firstUrl = null;
+    var player = audioEl;
+
+    function tryPlayFirst() {
+      if (player && player.play) {
+        var p = player.play();
+        if (p && p.catch) p.catch(function () {});
+      }
     }
 
-    return fetch(url, opts.fetchOptions || {})
-      .then(function (res) {
-        if (!res.ok) throw new Error('stream HTTP ' + res.status);
-        return res.arrayBuffer();
-      })
-      .then(function (buf) {
-        var bytes = new Uint8Array(buf);
-        var isTl3 =
-          bytes.length >= 7 &&
-          bytes[0] === MAGIC[0] && bytes[1] === MAGIC[1] &&
-          bytes[2] === MAGIC[2] && bytes[3] === MAGIC[3];
-        if (!isTl3) {
-          // Plain audio served over HTTP — hand the raw URL to the element.
-          _setSrc(player, url);
-          return { decoded: false };
-        }
-        var parsed = parse(buf);
-        var blob = new Blob([parsed.audio], { type: 'audio/mpeg' });
-        _setSrc(player, URL.createObjectURL(blob));
-        return { decoded: true, meta: parsed.meta };
-      })
-      .catch(function (e) {
-        if (opts.fallbackDirect !== false) return direct();
-        throw e;
-      });
-  }
+    // 순차 다운로드 → Blob → 첫 세그먼트 도착 시 재생 시작
+    async function loop() {
+      while (!stopped) {
+        var url = opts.API + '/api/v1/tl3/segment/' + encodeURIComponent(opts.shareId) +
+          '?n=' + n + '&kind=' + kind + '&session_id=' + encodeURIComponent(sessionId);
 
-  /**
-   * Resolve any audio URL to something an <audio> element can play.
-   * If the URL points at a TL3 container it is fetched, decoded, and a fresh
-   * Blob URL to the inner mp3 is returned. Otherwise the URL is returned as-is.
-   *
-   * This is the side-effect-free primitive used to retrofit existing players:
-   *
-   *   TL3.resolveUrl(url).then(function(playable){
-   *     audio.src = playable; audio.load(); audio.play();
-   *   });
-   *
-   * @param {string} url
-   * @param {object} [opts] { fetchOptions, force }
-   * @returns Promise<string> playable URL
-   */
-  function resolveUrl(url, opts) {
-    opts = opts || {};
-    if (!url || typeof url !== 'string') return Promise.resolve(url);
-    // Already a local blob/data URL — nothing to decode.
-    if (/^(blob:|data:)/i.test(url)) return Promise.resolve(url);
-    // Same-origin relative stream endpoint or explicit tl3 marker → decode.
-    return fetch(url, opts.fetchOptions || {})
-      .then(function (res) {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        // ⭐ onProgress 콜백이 있으면 스트리밍으로 진행률 보고
-        if (!opts.onProgress || !res.body || !res.body.getReader) return res.arrayBuffer();
-        var total = Number(res.headers.get('content-length')) || 0;
-        if (!total) return res.arrayBuffer();
-        var reader = res.body.getReader();
-        var chunks = [];
-        var received = 0;
-        return (function pump() {
-          return reader.read().then(function (r) {
-            if (r.done) {
-              var out = new Uint8Array(received);
-              var off = 0;
-              for (var i = 0; i < chunks.length; i++) { out.set(chunks[i], off); off += chunks[i].length; }
-              return out.buffer;
-            }
-            chunks.push(r.value);
-            received += r.value.length;
-            try { opts.onProgress(received, total); } catch (e) {}
-            return pump();
+        var res = await fetch(url, {
+          headers: { 'Authorization': 'Bearer ' + opts.token }
+        });
+
+        if (res.status === 416) {
+          log('EOF at n=', n);
+          break;
+        }
+        if (res.status === 402) {
+          var e402 = await res.json().catch(function () { return {}; });
+          var err = new Error(e402.error || 'TL 없음');
+          err.code = 402;
+          if (opts.onError) opts.onError(err);
+          break;
+        }
+        if (res.status === 409) {
+          log('토큰 불일치/변조 감지 n=', n);
+          var e409 = await res.json().catch(function () { return {}; });
+          var err2 = new Error(e409.error || '변조 감지');
+          err2.code = 409;
+          if (opts.onError) opts.onError(err2);
+          break;
+        }
+        if (!res.ok) {
+          log('segment HTTP', res.status, 'n=', n);
+          break;
+        }
+
+        var buf = await res.arrayBuffer();
+        chunks.push(new Uint8Array(buf));
+
+        // 첫 세그먼트 도착 → 재생 시작
+        if (n === 1 && player) {
+          var blob = new Blob(chunks, { type: 'audio/mpeg' });
+          var url1 = URL.createObjectURL(blob);
+          firstUrl = url1;
+          if (player._tl3ObjectUrl) {
+            try { URL.revokeObjectURL(player._tl3ObjectUrl); } catch (e) {}
+          }
+          player._tl3ObjectUrl = url1;
+          player.src = url1;
+          if (opts.autoplay !== false) tryPlayFirst();
+        }
+
+        if (opts.onSegment) {
+          try {
+            opts.onSegment({
+              n: n,
+              token: res.headers.get('X-TL3-Token'),
+              next: Number(res.headers.get('X-TL3-Next') || (n + 1)),
+              kind: kind
+            });
+          } catch (e) {}
+        }
+
+        // confirm (초 단위)
+        try {
+          await fetch(opts.API + '/api/v1/tl3/confirm/' + encodeURIComponent(opts.shareId), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + opts.token
+            },
+            body: JSON.stringify({
+              session_id: sessionId,
+              segment_n: n,
+              kind: kind,
+              played_seconds: 1
+            })
           });
-        })();
-      })
-      .then(function (buf) {
-        var bytes = new Uint8Array(buf);
-        var isTl3 =
-          bytes.length >= 7 &&
-          bytes[0] === MAGIC[0] && bytes[1] === MAGIC[1] &&
-          bytes[2] === MAGIC[2] && bytes[3] === MAGIC[3];
-        if (!isTl3) return url; // plain audio
-        var parsed = parse(buf);
-        return URL.createObjectURL(new Blob([parsed.audio], { type: 'audio/mpeg' }));
-      })
-      .catch(function () {
-        // On any failure, fall back to the original URL (the browser will
-        // surface its own error if it truly cannot play).
-        return url;
-      });
+        } catch (e) {
+          log('confirm 실패 n=', n, e.message);
+        }
+
+        n++;
+
+        // 다음 세그먼트 앞서 로드 (1초 = 1세그먼트, 즉시 다음 요청)
+        await new Promise(function (r) { setTimeout(r, 50); });
+      }
+
+      log('loop 끝, 총 세그먼트:', chunks.length);
+    }
+
+    // 백그라운드 다운로드 시작
+    loop().catch(function (e) {
+      log('loop error', e.message);
+      if (opts.onError) opts.onError(e);
+    });
+
+    return {
+      sessionId: sessionId,
+      kind: kind,
+      stop: stopFn
+    };
   }
 
-  /** Stop playback and release the object URL. */
+  // ───────────────────────────────────────
+  // TL3.stop — 정지
+  // ───────────────────────────────────────
   function stop(audioEl) {
     if (!audioEl) return;
     try { audioEl.pause(); } catch (e) {}
@@ -247,113 +248,11 @@
     }
   }
 
-
-  // Stream TL3 in bounded authenticated ranges through MediaSource.
-  // The browser never receives the complete TL3 container in one response.
-  function streamSegmented(audioEl, baseUrl, opts) {
-    opts = opts || {};
-    var player = createPlayer(audioEl);
-    var fetchOptions = opts.fetchOptions || {};
-    if (!global.MediaSource || !MediaSource.isTypeSupported('audio/mpeg')) {
-      return Promise.reject(new Error('이 브라우저는 TL3 시간 세그먼트 재생을 지원하지 않습니다.'));
-    }
-    if (!opts.sessionId) return Promise.reject(new Error('TL3 재생 세션이 필요합니다.'));
-    var ms = new MediaSource();
-    var objectUrl = URL.createObjectURL(ms);
-    _setSrc(player, objectUrl);
-    var stopped = false, segmentIndex = 0;
-    var confirmedDuration = 0, pendingDuration = 0, confirmBusy = false;
-    var openedResolve, openedReject;
-    var opened = new Promise(function(resolve,reject){ openedResolve=resolve; openedReject=reject; });
-
-    function confirmPending(force) {
-      if (confirmBusy || pendingDuration <= 0 || stopped) return Promise.resolve();
-      var played = Math.max(0, Math.min(pendingDuration, player.currentTime - confirmedDuration));
-      if (!force && played < Math.min(0.25, pendingDuration)) return Promise.resolve();
-      confirmBusy = true;
-      var url=baseUrl.replace('/segment/','/segment/confirm/')+(baseUrl.indexOf('?')>=0?'&':'?');
-      return fetch(url,{
-        method:'POST',
-        headers:Object.assign({'Content-Type':'application/json'},fetchOptions.headers||{}),
-        body:JSON.stringify({session_id:opts.sessionId,played_seconds:Number(played.toFixed(3))})
-      }).then(function(r){return r.json().then(function(d){if(!r.ok||!d.ok) throw new Error(d.error||('confirm HTTP '+r.status));return d;});})
-      .then(function(d){
-        confirmedDuration += Number(d.played_seconds||0);
-        pendingDuration = 0;
-        if(opts.onSegment) opts.onSegment({
-          seconds:Number(d.played_seconds||0),
-          durationMs:Number(d.played_seconds||0)*1000,
-          remaining:Number(d.remaining_tl||0),
-          segment:Number(d.segment||0),
-          refunded:Number(d.refund||0)
-        });
-      }).finally(function(){confirmBusy=false;});
-    }
-
-    ms.addEventListener('sourceopen', function onOpen() {
-      ms.removeEventListener('sourceopen', onOpen);
-      var sb;
-      try { sb=ms.addSourceBuffer('audio/mpeg'); sb.mode='sequence'; }
-      catch(e) { openedReject(e); return; }
-
-      function appendSegment() {
-        if (stopped || (segmentIndex > 0 && player.paused)) return;
-        var url=baseUrl+(baseUrl.indexOf('?')>=0?'&':'?')+
-          'segment='+segmentIndex+'&session_id='+encodeURIComponent(opts.sessionId);
-        fetch(url,fetchOptions).then(function(res){
-          if(res.status===416){try{if(ms.readyState==='open')ms.endOfStream();}catch(e){}return null;}
-          if(!res.ok) throw new Error('segment HTTP '+res.status);
-          var durationMs=Number(res.headers.get('X-TL3-Segment-Duration-Ms')||5000);
-          var rawOffset=Number(res.headers.get('X-TL3-Payload-Offset')||0);
-          var remaining=Number(res.headers.get('X-TL3-Remaining-TL')||0);
-          return res.arrayBuffer().then(function(buf){return {buf:buf,durationMs:durationMs,rawOffset:rawOffset,remaining:remaining};});
-        }).then(function(item){
-          if(!item||stopped)return;
-          var enc=new Uint8Array(item.buf),out=new Uint8Array(enc.length);
-          for(var i=0;i<enc.length;i++)out[i]=enc[i]^keyBytes[(item.rawOffset+i)%keyBytes.length];
-          pendingDuration=item.durationMs/1000;
-          var thisSegment=segmentIndex++;
-          if(opts.onBuffer)opts.onBuffer({durationMs:item.durationMs,remaining:item.remaining,segment:thisSegment});
-          function onEnd(){
-            sb.removeEventListener('updateend',onEnd);
-            if(thisSegment===0)openedResolve({decoded:true,segmented:true,objectUrl:objectUrl});
-            if(stopped)return;
-            setTimeout(function(){
-              confirmPending(false).then(function(){
-                if(!stopped&&!player.paused) appendSegment();
-              }).catch(function(e){if(!stopped)openedReject(e);});
-            },Math.max(4200,item.durationMs-500));
-          }
-          sb.addEventListener('updateend',onEnd);
-          sb.appendBuffer(out);
-        }).catch(function(err){if(!stopped)openedReject(err);});
-      }
-      appendSegment();
-      player._tl3ResumeSegments=function(){
-        if(stopped)return;
-        confirmPending(false).then(function(){if(!stopped&&!player.paused)appendSegment();});
-      };
-      player._tl3Confirm=function(){return confirmPending(true);};
-    });
-    player.addEventListener('pause',function(){confirmPending(true).catch(function(){});});
-    player.addEventListener('ended',function(){confirmPending(true).catch(function(){});});
-    player._tl3SegmentStop=function(){
-      stopped=true;
-      try{if(ms.readyState==='open')ms.endOfStream();}catch(e){}
-      try{URL.revokeObjectURL(objectUrl);}catch(e){}
-    };
-    return opened;
-  }
   global.TL3 = {
-    XOR_KEY: XOR_KEY,
-    parse: parse,
-    build: build,
-    toMp3Blob: toMp3Blob,
-    createPlayer: createPlayer,
+    create: create,
     play: play,
-    attach: attach,
-    streamSegmented: streamSegmented,
-    resolveUrl: resolveUrl,
-    stop: stop
+    stop: stop,
+    decodeToPcm: decodeToPcm,
+    int16ToBase64: int16ToBase64
   };
 })(typeof window !== 'undefined' ? window : this);
