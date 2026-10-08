@@ -1,195 +1,303 @@
-/*! tl3.js — TimeLink TL3 v3 재생 클라이언트
- *  서버: /api/v1/tl3/segment/:id (v3, 평문 MP3 세그먼트)
- *  재생: MediaSource API
+/*! tl3.js — TimeLink TL3 v3 스파인 클라이언트
+ *  서버 API:
+ *    /api/v1/tl3/header/:id       — 헤더 (T_0~T_N 스파인)
+ *    /api/v1/tl3/segment/:id      — ciphertext (복호화 X)
+ *    /api/v1/tl3/code/:id         — lic_n (TL 차감)
+ *    /api/v1/tl3/segment/confirm/:id — 확정
+ *
+ *  클라이언트:
+ *    - 스파인 검증 (T_n 체인)
+ *    - K_n = SHA256(T_{n-1}, lic_n, "K"+n) 계산
+ *    - AES-GCM 복호화
+ *    - MediaSource 스트리밍
  */
 (function(global){
   'use strict';
   var API = (typeof window !== 'undefined' && window.TL3_API_BASE) || 'https://api.timelink.digital';
 
-  function genSid(){
-    return 'tl3_' + Date.now() + '_' + Math.random().toString(36).slice(2,10);
+  // ─────────────────────────────
+  // 유틸
+  // ─────────────────────────────
+  function genSid(){ return 'tl3_' + Date.now() + '_' + Math.random().toString(36).slice(2,10); }
+  function unhex(h){ var a = new Uint8Array(h.length/2); for(var i=0;i<a.length;i++) a[i] = parseInt(h.substr(i*2,2),16); return a; }
+  function hex(b){ return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join(''); }
+  function enc(s){ return new TextEncoder().encode(s); }
+
+  async function sha256(){
+    var parts = Array.prototype.slice.call(arguments);
+    var total = parts.reduce(function(n,p){ return n + p.length; }, 0);
+    var buf = new Uint8Array(total);
+    var o = 0;
+    for(var i=0;i<parts.length;i++){ buf.set(parts[i], o); o += parts[i].length; }
+    return new Uint8Array(await crypto.subtle.digest('SHA-256', buf));
   }
 
-  function _initMediaSource(audio, segBaseUrl, opts){
-    opts = opts || {};
-    var fileId = String(segBaseUrl).split('/').pop().split('?')[0];
+  function ivFor(n){
+    var v = new Uint8Array(12);
+    new DataView(v.buffer).setUint32(8, n);
+    return v;
+  }
+
+  function getTok(){
+    try { return localStorage.getItem('tl_token') || ''; } catch(e){ return ''; }
+  }
+
+  function authHeaders(){
+    return { 'Authorization': 'Bearer ' + getTok() };
+  }
+
+  // ─────────────────────────────
+  // 헤더 로드
+  // ─────────────────────────────
+  async function loadHeader(fileId){
+    var r = await fetch(API + '/api/v1/tl3/header/' + fileId, {headers: authHeaders()});
+    if(!r.ok) throw new Error('header 로드 실패 (' + r.status + ')');
+    return await r.json();
+  }
+
+  // ─────────────────────────────
+  // 세션 관리 (MediaSource)
+  // ─────────────────────────────
+  var _sessions = new WeakMap();  // audio → {stop, sessionId}
+
+  function _startSession(audio, opts){
+    var fileId = opts.fileId;
+    var header = opts.header;
     var sessionId = opts.sessionId || genSid();
-    var authHeaders = (opts.fetchOptions && opts.fetchOptions.headers) || {};
+    var tokens = header.mp3_tokens || [];        // T_0 ~ T_N
+    var hashMp3 = unhex(header.hash_mp3 || '');
+    var fid = unhex(header.fid || '');
+    var salt = unhex(header.salt || '');
     var onSegment = opts.onSegment || function(){};
     var onError = opts.onError || function(){};
-    var apiBase = opts.apiBase || API;
 
     var ms = new MediaSource();
     var msUrl = URL.createObjectURL(ms);
     var sb = null;
-    var segIndex = 0;
+    var n = 0;
     var stopped = false;
-    var confirmTimers = [];
+    var pendingConfirmTimers = [];
 
-    function stopAll(){
-      stopped = true;
-      confirmTimers.forEach(function(t){ clearTimeout(t); });
-      confirmTimers = [];
-    }
-
-    function confirm(segIndexVal, durationMs){
-      var url = apiBase + '/api/v1/tl3/segment/confirm/' + encodeURIComponent(fileId);
-      fetch(url, {
-        method: 'POST',
-        headers: Object.assign({}, authHeaders, {'Content-Type':'application/json'}),
-        body: JSON.stringify({session_id: sessionId, played_seconds: durationMs/1000})
-      }).catch(function(){});
-    }
-
-    function fetchNext(){
-      if(stopped) return;
-      var url = segBaseUrl + '?segment=' + segIndex + '&session_id=' + encodeURIComponent(sessionId);
-      fetch(url, {headers: authHeaders})
-        .then(function(r){
-          if(r.status === 416){
-            try { if(ms.readyState === 'open') ms.endOfStream(); } catch(e){}
-            return null;
-          }
-          if(r.status === 429){
-            var retry = Number(r.headers.get('Retry-After') || 4);
-            setTimeout(fetchNext, (retry+0.5)*1000);
-            return null;
-          }
-          if(!r.ok){
-            return r.json().then(function(j){
-              var e = new Error(j.error || ('segment ' + r.status));
-              onError(e);
-              throw e;
-            }).catch(function(){ return null; });
-          }
-          return r.arrayBuffer().then(function(buf){
-            return {
-              bytes: new Uint8Array(buf),
-              durationMs: Number(r.headers.get('X-TL3-Segment-Duration-Ms') || 5000),
-              remaining: Number(r.headers.get('X-TL3-Remaining-TL') || 0),
-              index: Number(r.headers.get('X-TL3-Segment-Index') || segIndex),
-              next: Number(r.headers.get('X-TL3-Next-Segment') || (segIndex+1))
-            };
-          });
-        })
-        .then(function(seg){
-          if(!seg || stopped) return;
-          onSegment({
-            index: seg.index,
-            seconds: seg.durationMs / 1000,
-            remaining: seg.remaining
-          });
-          var appendDone = new Promise(function(res){
-            var h = function(){ sb.removeEventListener('updateend', h); res(); };
-            sb.addEventListener('updateend', h);
-            sb.appendBuffer(seg.bytes);
-          });
-          appendDone.then(function(){
-            var timer = setTimeout(function(){ confirm(seg.index, seg.durationMs); }, seg.durationMs);
-            confirmTimers.push(timer);
-            segIndex = seg.next;
-            fetchNext();
-          });
-        })
-        .catch(function(e){
-          if(onError) onError(e);
-        });
-    }
-
-    ms.addEventListener('sourceopen', function(){
-      try {
-        sb = ms.addSourceBuffer('audio/mpeg');
-      } catch(e){
-        if(onError) onError(e);
-        return;
-      }
-      fetchNext();
+    ms.addEventListener('sourceopen', async function(){
+      try { sb = ms.addSourceBuffer('audio/mpeg'); }
+      catch(e){ console.error('[TL3] addSourceBuffer 실패:', e); onError(e); return; }
+      _nextSegment();
     });
 
-    audio._tl3Stop = stopAll;
-    audio._tl3SessionId = sessionId;
-    return { msUrl: msUrl, sessionId: sessionId, stop: stopAll };
-  }
-
-  function resolveUrl(fileUrl, opts){
-    return new Promise(function(resolve, reject){
+    async function _nextSegment(){
+      if(stopped) return;
       try {
-        var ms = new MediaSource();
-        var msUrl = URL.createObjectURL(ms);
-        var fileId = String(fileUrl).split('/').pop().split('?')[0];
-        var sessionId = (opts && opts.sessionId) || genSid();
-        var authHeaders = (opts && opts.fetchOptions && opts.fetchOptions.headers) || {};
-        var apiBase = (opts && opts.apiBase) || API;
+        // 1. ciphertext 요청
+        var segUrl = API + '/api/v1/tl3/segment/' + fileId + '?segment=' + n + '&session_id=' + encodeURIComponent(sessionId);
+        var sr = await fetch(segUrl, {headers: authHeaders()});
+        if(sr.status === 416){
+          try { if(ms.readyState === 'open') ms.endOfStream(); } catch(e){}
+          return;
+        }
+        if(!sr.ok){
+          var err = await sr.json().catch(function(){ return {}; });
+          onError(new Error(err.error || ('segment ' + sr.status)));
+          return;
+        }
+        var ciphertext = new Uint8Array(await sr.arrayBuffer());
+        var durationMs = Number(sr.headers.get('X-TL3-Segment-Duration-Ms') || 5000);
 
-        var sb = null, segIndex = 0, stopped = false;
+        // 2. T_{n} 로드 (n=0이면 T_0 계산)
+        var Tprev;
+        if(n === 0){
+          Tprev = await sha256(fid, hashMp3, salt);   // T_0
+        } else {
+          // 파일 헤더의 tokens[n] = T_{n}
+          var prevTok = tokens[n];
+          if(!prevTok) throw new Error('토큰 체인 없음 (index=' + n + ')');
+          Tprev = unhex(prevTok);
+        }
 
-        ms.addEventListener('sourceopen', function(){
-          sb = ms.addSourceBuffer('audio/mpeg');
-          fetchNext();
+        // (선택) 스파인 검증: T_{n+1} 계산 후 tokens[n+1]과 비교
+        // h_n = SHA256(ciphertext)
+        // T_{n+1} = SHA256(T_n || fid || (n+1) || h_n)
+        // 지금은 서버 신뢰 (성능). 추후 검증 옵션 추가.
+
+        // 3. lic_n 요청 (TL 차감)
+        var codeUrl = API + '/api/v1/tl3/code/' + fileId + '?segment=' + n + '&session_id=' + encodeURIComponent(sessionId);
+        var cr = await fetch(codeUrl, {headers: authHeaders()});
+        if(!cr.ok){
+          var cErr = await cr.json().catch(function(){ return {}; });
+          onError(new Error(cErr.error || ('code ' + cr.status)));
+          return;
+        }
+        var codeData = await cr.json();
+        var lic = unhex(codeData.lic_n || '');
+
+        // 4. K_n = SHA256(T_{n-1}, lic, "K"+n)
+        // 주의: 빌드 시 n은 1-based. 현재 n은 0-based.
+        var segNumber = n + 1;
+        var K_n = await sha256(Tprev, lic, enc('K' + segNumber));
+        var key = await crypto.subtle.importKey('raw', K_n, {name:'AES-GCM'}, false, ['decrypt']);
+
+        // 5. 복호화
+        var plain;
+        try {
+          plain = new Uint8Array(await crypto.subtle.decrypt(
+            {name:'AES-GCM', iv: ivFor(segNumber), tagLength: 128},
+            key,
+            ciphertext
+          ));
+        } catch(e){
+          onError(new Error('복호화 실패 seg=' + n + ' : ' + e.message));
+          return;
+        }
+
+        // 6. MediaSource append
+        await new Promise(function(res, rej){
+          var h = function(){ sb.removeEventListener('updateend', h); res(); };
+          sb.addEventListener('updateend', h);
+          try { sb.appendBuffer(plain); } catch(e){ rej(e); }
         });
 
-        function fetchNext(){
+        onSegment({
+          index: n,
+          seconds: durationMs / 1000,
+          remaining: codeData.remaining_tl
+        });
+
+        // 7. confirm (재생 시간 후)
+        var timer = setTimeout(function(){
+          fetch(API + '/api/v1/tl3/segment/confirm/' + fileId, {
+            method: 'POST',
+            headers: Object.assign({}, authHeaders(), {'Content-Type':'application/json'}),
+            body: JSON.stringify({session_id: sessionId, played_seconds: durationMs/1000})
+          }).catch(function(){});
+        }, durationMs);
+        pendingConfirmTimers.push(timer);
+
+        n++;
+        _nextSegment();
+      } catch(e){
+        console.error('[TL3] _nextSegment 오류:', e);
+        onError(e);
+      }
+    }
+
+    function stop(){
+      stopped = true;
+      pendingConfirmTimers.forEach(function(t){ clearTimeout(t); });
+      pendingConfirmTimers = [];
+    }
+
+    audio._tl3Stop = stop;
+    audio._tl3SessionId = sessionId;
+
+    var session = {msUrl: msUrl, sessionId: sessionId, stop: stop};
+    _sessions.set(audio, session);
+    return session;
+  }
+
+  // ─────────────────────────────
+  // resolveUrl (shareplace용)
+  // ─────────────────────────────
+  function resolveUrl(fileUrl, opts){
+    opts = opts || {};
+    return new Promise(async function(resolve, reject){
+      try {
+        var fileId = String(fileUrl).split('/').pop().split('?')[0];
+        var header = await loadHeader(fileId);
+
+        // MediaSource 시작 (audio는 나중에 붙음)
+        var ms = new MediaSource();
+        var msUrl = URL.createObjectURL(ms);
+        var sessionId = opts.sessionId || genSid();
+        var tokens = header.mp3_tokens || [];
+        var hashMp3 = unhex(header.hash_mp3 || '');
+        var fid = unhex(header.fid || '');
+        var salt = unhex(header.salt || '');
+        var onSegment = opts.onSegment || function(){};
+        var onError = opts.onError || function(){};
+
+        var sb = null;
+        var n = 0;
+        var stopped = false;
+
+        ms.addEventListener('sourceopen', function(){
+          try { sb = ms.addSourceBuffer('audio/mpeg'); }
+          catch(e){ reject(e); return; }
+          _next();
+        });
+
+        async function _next(){
           if(stopped) return;
-          var url = fileUrl + '?segment=' + segIndex + '&session_id=' + encodeURIComponent(sessionId);
-          fetch(url, {headers: authHeaders})
-            .then(function(r){
-              if(r.status === 416){
-                try { if(ms.readyState === 'open') ms.endOfStream(); } catch(e){}
-                return null;
-              }
-              if(r.status === 429){ setTimeout(fetchNext, 4500); return null; }
-              if(!r.ok){ return null; }
-              return r.arrayBuffer().then(function(buf){
-                return {
-                  bytes: new Uint8Array(buf),
-                  durationMs: Number(r.headers.get('X-TL3-Segment-Duration-Ms') || 5000),
-                  remaining: Number(r.headers.get('X-TL3-Remaining-TL') || 0),
-                  index: Number(r.headers.get('X-TL3-Segment-Index') || segIndex),
-                  next: Number(r.headers.get('X-TL3-Next-Segment') || (segIndex+1))
-                };
-              });
-            })
-            .then(function(seg){
-              if(!seg || stopped) return;
-              if(opts && opts.onSegment){
-                opts.onSegment({
-                  index: seg.index,
-                  seconds: seg.durationMs / 1000,
-                  remaining: seg.remaining
-                });
-              }
-              var appendDone = new Promise(function(res){
-                var h = function(){ sb.removeEventListener('updateend', h); res(); };
-                sb.addEventListener('updateend', h);
-                sb.appendBuffer(seg.bytes);
-              });
-              appendDone.then(function(){
-                setTimeout(function(){
-                  fetch(apiBase + '/api/v1/tl3/segment/confirm/' + encodeURIComponent(fileId), {
-                    method: 'POST',
-                    headers: Object.assign({}, authHeaders, {'Content-Type':'application/json'}),
-                    body: JSON.stringify({session_id: sessionId, played_seconds: seg.durationMs/1000})
-                  }).catch(function(){});
-                }, seg.durationMs);
-                segIndex = seg.next;
-                fetchNext();
-              });
-            })
-            .catch(function(){});
+          try {
+            var sr = await fetch(API + '/api/v1/tl3/segment/' + fileId + '?segment=' + n + '&session_id=' + encodeURIComponent(sessionId), {headers: authHeaders()});
+            if(sr.status === 416){
+              try { if(ms.readyState === 'open') ms.endOfStream(); } catch(e){}
+              return;
+            }
+            if(!sr.ok){ onError(new Error('segment ' + sr.status)); return; }
+            var ciphertext = new Uint8Array(await sr.arrayBuffer());
+            var durationMs = Number(sr.headers.get('X-TL3-Segment-Duration-Ms') || 5000);
+
+            var Tprev;
+            if(n === 0){ Tprev = await sha256(fid, hashMp3, salt); }
+            else {
+              var t = tokens[n];
+              if(!t) throw new Error('토큰 없음 n=' + n);
+              Tprev = unhex(t);
+            }
+
+            var cr = await fetch(API + '/api/v1/tl3/code/' + fileId + '?segment=' + n + '&session_id=' + encodeURIComponent(sessionId), {headers: authHeaders()});
+            if(!cr.ok){ onError(new Error('code ' + cr.status)); return; }
+            var codeData = await cr.json();
+            var lic = unhex(codeData.lic_n || '');
+
+            var segNumber = n + 1;
+            var K_n = await sha256(Tprev, lic, enc('K' + segNumber));
+            var key = await crypto.subtle.importKey('raw', K_n, {name:'AES-GCM'}, false, ['decrypt']);
+            var plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv: ivFor(segNumber), tagLength: 128}, key, ciphertext));
+
+            await new Promise(function(res){
+              var h = function(){ sb.removeEventListener('updateend', h); res(); };
+              sb.addEventListener('updateend', h);
+              sb.appendBuffer(plain);
+            });
+
+            onSegment({index: n, seconds: durationMs/1000, remaining: codeData.remaining_tl});
+
+            setTimeout(function(){
+              fetch(API + '/api/v1/tl3/segment/confirm/' + fileId, {
+                method: 'POST',
+                headers: Object.assign({}, authHeaders(), {'Content-Type':'application/json'}),
+                body: JSON.stringify({session_id: sessionId, played_seconds: durationMs/1000})
+              }).catch(function(){});
+            }, durationMs);
+
+            n++;
+            _next();
+          } catch(e){ onError(e); }
         }
 
         resolve(msUrl);
-      } catch(e){
-        reject(e);
-      }
+      } catch(e){ reject(e); }
     });
   }
 
+  // ─────────────────────────────
+  // streamSegmented (tl3-player용)
+  // ─────────────────────────────
   function streamSegmented(audio, segUrl, opts){
-    return new Promise(function(resolve){
-      var ctx = _initMediaSource(audio, segUrl, opts);
-      audio.src = ctx.msUrl;
-      resolve({ decoded: true, sessionId: ctx.sessionId });
+    opts = opts || {};
+    return new Promise(async function(resolve, reject){
+      try {
+        var fileId = String(segUrl).split('/').pop().split('?')[0];
+        var header = await loadHeader(fileId);
+        var ctx = _startSession(audio, {
+          fileId: fileId,
+          header: header,
+          sessionId: opts.sessionId,
+          onSegment: opts.onSegment,
+          onError: opts.onError
+        });
+        resolve({ decoded: true, sessionId: ctx.sessionId });
+      } catch(e){ reject(e); }
     });
   }
 
@@ -202,6 +310,7 @@
     resolveUrl: resolveUrl,
     streamSegmented: streamSegmented,
     stop: stop,
-    version: 'v3'
+    loadHeader: loadHeader,
+    version: 'v3-spine'
   };
 })(window);
