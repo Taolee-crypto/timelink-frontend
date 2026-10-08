@@ -102,21 +102,30 @@
         var ciphertext = new Uint8Array(await sr.arrayBuffer());
         var durationMs = Number(sr.headers.get('X-TL3-Segment-Duration-Ms') || 5000);
 
-        // 2. T_{n} 로드 (n=0이면 T_0 계산)
+        // 2. 스파인 검증: T_n 로드 + T_{n+1} 재계산
         var Tprev;
         if(n === 0){
-          Tprev = await sha256(fid, hashMp3, salt);   // T_0
+          var T0_calc = await sha256(fid, hashMp3, salt);
+          var T0_file = tokens[0] ? unhex(tokens[0]) : null;
+          if(T0_file && hex(T0_calc) !== hex(T0_file)){
+            onError(new Error('[스파인] T_0 검증 실패'));
+            return;
+          }
+          Tprev = T0_calc;
         } else {
-          // 파일 헤더의 tokens[n] = T_{n}
           var prevTok = tokens[n];
-          if(!prevTok) throw new Error('토큰 체인 없음 (index=' + n + ')');
+          if(!prevTok) throw new Error('[스파인] 토큰 체인 없음 (index=' + n + ')');
           Tprev = unhex(prevTok);
         }
 
-        // (선택) 스파인 검증: T_{n+1} 계산 후 tokens[n+1]과 비교
-        // h_n = SHA256(ciphertext)
-        // T_{n+1} = SHA256(T_n || fid || (n+1) || h_n)
-        // 지금은 서버 신뢰 (성능). 추후 검증 옵션 추가.
+        // 2-b. T_{n+1} 재계산 + 파일과 비교
+        var h_n = await sha256(ciphertext);
+        var Tnext_calc = await sha256(Tprev, fid, enc(String(n + 1)), h_n);
+        var Tnext_file = tokens[n + 1] ? unhex(tokens[n + 1]) : null;
+        if(Tnext_file && hex(Tnext_calc) !== hex(Tnext_file)){
+          onError(new Error('[스파인] T_' + (n+1) + ' 검증 실패 (변조 의심)'));
+          return;
+        }
 
         // 3. lic_n 요청 (TL 차감)
         var codeUrl = API + '/api/v1/tl3/code/' + fileId + '?segment=' + n + '&session_id=' + encodeURIComponent(sessionId);
@@ -237,12 +246,20 @@
             var durationMs = Number(sr.headers.get('X-TL3-Segment-Duration-Ms') || 5000);
 
             var Tprev;
-            if(n === 0){ Tprev = await sha256(fid, hashMp3, salt); }
-            else {
+            if(n === 0){
+              var T0c = await sha256(fid, hashMp3, salt);
+              var T0f = tokens[0] ? unhex(tokens[0]) : null;
+              if(T0f && hex(T0c) !== hex(T0f)){ onError(new Error('[스파인] T_0 검증 실패')); return; }
+              Tprev = T0c;
+            } else {
               var t = tokens[n];
-              if(!t) throw new Error('토큰 없음 n=' + n);
+              if(!t) throw new Error('[스파인] 토큰 없음 n=' + n);
               Tprev = unhex(t);
             }
+            var h_n = await sha256(ciphertext);
+            var Tnc = await sha256(Tprev, fid, enc(String(n + 1)), h_n);
+            var Tnf = tokens[n + 1] ? unhex(tokens[n + 1]) : null;
+            if(Tnf && hex(Tnc) !== hex(Tnf)){ onError(new Error('[스파인] T_' + (n+1) + ' 검증 실패')); return; }
 
             var cr = await fetch(API + '/api/v1/tl3/code/' + fileId + '?segment=' + n + '&session_id=' + encodeURIComponent(sessionId), {headers: authHeaders()});
             if(!cr.ok){ onError(new Error('code ' + cr.status)); return; }
