@@ -759,29 +759,20 @@ function playTrack(){
     };
     _tlAudio.src = fileUrl;
     _tlAudio.load();
-  } else if(window.TL3 && TL3.streamBlob){
-    var _tlSessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2,10);
-    var _segmentBase = API + '/api/v1/tl3/segment/' + SHARE_ID;
-    TL3.streamBlob(_tlAudio, _segmentBase, {
-      sessionId: _tlSessionId,
+  } else if(window.TL3 && TL3.resolveUrl){
+    TL3.resolveUrl(fileUrl, {
       fetchOptions: { headers: getTok() ? {'Authorization':'Bearer '+getTok()} : {} },
-      onSegment: function(info){
-        if(info && info.durationMs && !_tlFree){
-          _tlCurrentTL = Math.max(0, _tlCurrentTL - Math.round(info.durationMs/1000));
-          var el = document.getElementById('playerTLVal');
-          if(el) el.textContent = _tlCurrentTL.toLocaleString() + ' TL';
-        }
-      }
-    }).then(function(){
-      if(window._hidePlayLoading) window._hidePlayLoading(true);
+      fallbackDirect: false
+    }).then(function(u){
+      _tlAudio.src = u;
+      _tlAudio.load();
       return _tlAudio.play();
     }).then(function(){
       _tlPlaying = true;
-      document.getElementById('playerPlayBtn').textContent = '⏸';
       startTLTimer();
+      if(window._hidePlayLoading) window._hidePlayLoading(true);
     }).catch(function(e){
       if(window._hidePlayLoading) window._hidePlayLoading(false);
-      console.warn('[TL3] play failed:', e);
       alert('TL3 재생 실패: ' + (e && e.message ? e.message : e));
       stopPlay();
     });
@@ -796,13 +787,24 @@ function startTLTimer(){
   _tlInterval = setInterval(async ()=>{
     if(!_tlPlaying) return;
     _tlElapsed++;
-    // 클라이언트 차감 X — 서버 confirm 이 tl_ledger 에 기록
+    if(!_tlFree) _tlCurrentTL = Math.max(0, _tlCurrentTL - 1);
     document.getElementById('playerTime').textContent = fmtTime(_tlElapsed);
     document.getElementById('playerTLVal').textContent = _tlFree ? 'FREE' : _tlCurrentTL.toLocaleString() + ' TL';
     const pct = _tlMaxTL > 0 ? (_tlCurrentTL / _tlMaxTL * 100) : 0;
     document.getElementById('playerTLBar').style.width = pct + '%';
     
-    // 서버 confirm 은 TL3.streamBlob 내부에서 자동 처리됨 (tl_ledger 기록)
+    // 5초마다 서버에 TL 소비 기록
+    if(!_tlFree && _tlElapsed % 5 === 0){
+      try{
+        await fetch(API+'/api/shares/'+SHARE_ID+'/consume',{
+          method:'POST',
+          headers:{'Authorization':'Bearer '+getTok(),'Content-Type':'application/json'},
+          body:JSON.stringify({seconds:5, user_id: localStorage.getItem('tl_user') ? JSON.parse(localStorage.getItem('tl_user')).id : 0})
+        });
+        // 서버에서 최신 TL 정보 다시 가져오기
+        await updateMyTLFromServer();
+      } catch(e){}
+    }
     
     if(!_tlFree && _tlCurrentTL <= 0){ stopPlay(); alert('TL이 소진됐습니다. 충전 후 다시 재생하세요'); }
   }, 1000);
