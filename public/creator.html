@@ -861,28 +861,9 @@ async function uploadOne(p, applyLp, idx, total){
     }catch(e){ console.warn('[cover upload]', e); }
   }
 
-  // LP WAV 생성 (applyLp일 때)
-  var lpBlob = null;
-  if(applyLp){
-    setProg(20, 'LP 음질 변환 중... ('+idx+'/'+total+')');
-    var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    try{
-      var mp3ArrBuf = await p.file.arrayBuffer();
-      var audioBuf = await audioCtx.decodeAudioData(mp3ArrBuf.slice(0));
-      var n = audioBuf.length;
-      var L = audioBuf.getChannelData(0).slice(0, n);
-      var R = (audioBuf.numberOfChannels > 1 ? audioBuf.getChannelData(1) : audioBuf.getChannelData(0)).slice(0, n);
-      var analysis = lpAnalyze(L, R, audioBuf.sampleRate);
-      var gParams = lpCalcG(analysis, 7);
-      var out = lpRender(L, R, audioBuf.sampleRate, gParams, 7);
-      var wavBuf = wavFromBuffers(out.L, out.R, out.fs);
-      lpBlob = new Blob([wavBuf], { type: 'audio/wav' });
-    }catch(e){
-      console.warn('[lp render]', e);
-    } finally {
-      try{ audioCtx.close(); }catch(e){}
-    }
-  }
+  // ─ LP 렌더링 제거됨 ─
+  // LP는 별도 솔루션(lp.js)이 재생 시 실시간 처리합니다.
+  // TL3 업로드 경로에서는 LP를 만들지 않습니다.
 
   // ⭐ TL3.create — 서버에서 v3 생성 + 로컬 저장 + DB 등록
   setProg(50, 'TL3 v3 생성 중... ('+idx+'/'+total+')');
