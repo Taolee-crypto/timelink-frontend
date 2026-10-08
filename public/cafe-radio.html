@@ -440,7 +440,8 @@ async function playDjTrack(djId, skipIfSame, role){
     if(skipIfSame && _playingTrackId === track.id) return;
 
     _playingTrackId = track.id;
-    playAudio(track.stream_url, false, track.elapsed_ms);
+    var _src = String(track.content_kind||'').toLowerCase()==='tl3' ? track.id : track.stream_url;
+    playAudio(_src, false, track.elapsed_ms);
 
     // UI 업데이트
     g('pbTitle').textContent = track.title || 'Unknown';
@@ -472,7 +473,8 @@ function playAudio(url, isPreview, startMs){
   var authHeaders = _token ? {'Authorization':'Bearer '+_token} : {};
   if(/trycloudflare\.com|127\.0\.0\.1|localhost|agent\.timelink\.digital/i.test(url)) authHeaders = {};
 
-  if(window.TL3 && TL3.resolveUrl){
+  var _isTl3Id = /^(sh_|tl3_)/.test(String(url||''));
+  if(window.TL3 && TL3.resolveUrl && _isTl3Id){
     TL3.resolveUrl(url, {fetchOptions:{headers:authHeaders}, fallbackDirect:false})
       .then(_attach)
       .then(function(){
