@@ -64,20 +64,23 @@
   // TL3.create — 서버에 mp3 PCM + LP PCM 전송 → TL3 파일 생성
   // opts: { API, token, shareId, title, artist, cid, name, genre, bpm, creator_id, lpPcm? }
   // ───────────────────────────────────────
-  async function create(mp3Blob, opts) {
+  async function create(mp3Blob, lpBlob, opts) {
     opts = opts || {};
     if (!opts.API) throw new Error('API base 필요');
     if (!opts.token) throw new Error('로그인 토큰 필요');
-    if (!opts.shareId) throw new Error('shareId 필요');
 
     log('decoding mp3 → PCM');
     var mp3 = await decodeToPcm(mp3Blob);
 
-    // LP PCM이 없으면 그냥 mp3 PCM과 동일 (LP 효과는 별도 페이지에서 미리 계산해서 전달)
-    var lpPcm = opts.lpPcm || mp3.pcm;
+    log('decoding LP → PCM');
+    var lp = lpBlob ? await decodeToPcm(lpBlob) : mp3;
+
+    // mp3와 LP PCM 길이 맞추기 (짧은 쪽에 맞춤)
+    var len = Math.min(mp3.pcm.length, lp.pcm.length);
+    var mp3Pcm = mp3.pcm.subarray(0, len);
+    var lpPcm = lp.pcm.subarray(0, len);
 
     var body = {
-      share_id: opts.shareId,
       title: opts.title || 'Untitled',
       artist: opts.artist || 'Unknown',
       cid: opts.cid || '',
@@ -87,7 +90,7 @@
       creator_id: opts.creator_id || 0,
       fs: mp3.fs,
       ch: mp3.ch,
-      mp3_pcm_b64: int16ToBase64(mp3.pcm),
+      mp3_pcm_b64: int16ToBase64(mp3Pcm),
       lp_pcm_b64: int16ToBase64(lpPcm)
     };
 

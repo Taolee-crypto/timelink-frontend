@@ -835,14 +835,17 @@ async function doUpload(){
 }
 
 async function uploadOne(p, applyLp, idx, total){
-  var mp3Buf = await p.file.arrayBuffer();
-  var origHash = await sha256Hex(mp3Buf);
+  var origHash = '';
+  try{
+    var mp3Arr = await p.file.arrayBuffer();
+    origHash = await sha256Hex(mp3Arr);
+  }catch(e){}
 
-  // ⭐ ID3 커버 서버 업로드
+  // ⭐ ID3 커버 서버 업로드 (그대로)
   var _finalCoverUrl = '';
   if(p.coverUrl){
     try{
-      setProg(15, '커버 이미지 업로드 중... ('+idx+'/'+total+')');
+      setProg(10, '커버 이미지 업로드 중... ('+idx+'/'+total+')');
       var coverBlob = await fetch(p.coverUrl).then(function(r){ return r.blob(); });
       var coverFile = new File([coverBlob], 'cover_' + Date.now() + '.jpg', {type: coverBlob.type || 'image/jpeg'});
       var cfd = new FormData();
@@ -854,132 +857,53 @@ async function uploadOne(p, applyLp, idx, total){
         body: cfd
       });
       var cd = await cr.json().catch(function(){ return {}; });
-      if(cd.ok && cd.url){
-        _finalCoverUrl = cd.url;
-      }
-    }catch(e){
-      console.warn('[cover upload]', e);
-    }
+      if(cd.ok && cd.url) _finalCoverUrl = cd.url;
+    }catch(e){ console.warn('[cover upload]', e); }
   }
 
-  var localAgent = 'http://127.0.0.1:8787';
-  var ar = await fetch(localAgent+'/health',{cache:'no-store'});
-  var ad = await ar.json().catch(function(){ return {}; });
-  if(!ar.ok || !ad.ok) throw new Error('TimeLink Local이 실행되지 않았습니다');
-
-  var fileTL = 0, releaseMode = 'free_mp3_local', contentType = 'audio/mp3', contentKind = 'mp3';
-
-  // LP 적용
+  // LP WAV 생성 (applyLp일 때)
+  var lpBlob = null;
   if(applyLp){
     setProg(20, 'LP 음질 변환 중... ('+idx+'/'+total+')');
     var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    var audioBuf = await audioCtx.decodeAudioData(mp3Buf.slice(0));
-    var n = audioBuf.length;
-    var L = audioBuf.getChannelData(0).slice(0, n);
-    var R = (audioBuf.numberOfChannels > 1 ? audioBuf.getChannelData(1) : audioBuf.getChannelData(0)).slice(0, n);
-    var analysis = lpAnalyze(L, R, audioBuf.sampleRate);
-    var gParams = lpCalcG(analysis, 7);
-    var out = lpRender(L, R, audioBuf.sampleRate, gParams, 7);
-
-    // WAV로 변환
-    var wavBuf = wavFromBuffers(out.L, out.R, out.fs);
-    mp3Buf = wavBuf;
-    contentType = 'audio/wav';
-    audioCtx.close();
-  }
-
-  // TL3 변환
-  if(_mode === 'tl3'){
-    setProg(50, 'TL3 암호화 중... ('+idx+'/'+total+')');
-    var dur = 0;
     try{
-      var audioCtx2 = new (window.AudioContext || window.webkitAudioContext)();
-      var ab = await audioCtx2.decodeAudioData(mp3Buf.slice(0));
-      dur = Math.round(ab.duration);
-      audioCtx2.close();
-    }catch(e){}
-    var meta = {
-      v:2, fmt: applyLp ? 'lp-wav' : 'mp3', dur: dur,
-      bpm: 120, genre: g('fAudioCat').value,
-      title: p.title, cid: String(_user.id),
-      name: p.artist||_user.username||_user.email,
-      plan: g('planSelect').value, ts: new Date().toISOString(),
-      hash: origHash, enc: 'xor', key_id: 'k_2026_01', lp: applyLp
-    };
-    var encrypted = xorEncrypt(new Uint8Array(mp3Buf), getXorKey());
-    mp3Buf = buildTL3(meta, encrypted);
-    contentType = 'application/octet-stream';
-    contentKind = 'tl3';
-    releaseMode = 'tl3';
-    fileTL = Math.max(1, Math.round(dur * Number(g('weightInput').value||1)));
-  }
-
-  // Local Agent 업로드
-  setProg(80, '내 PC에 저장 중... ('+idx+'/'+total+')');
-  var uploadName = (p.title||p.file.name).replace(/[\\/:*?"<>|]/g,'_') + (contentKind==='tl3' ? '.tl3' : (applyLp ? '.wav' : '.mp3'));
-  var localUpload = await fetch(localAgent+'/upload?kind='+(contentKind==='tl3'?'tl3':'mp3')+'&name='+encodeURIComponent(uploadName), {
-    method: 'POST',
-    headers: {'Content-Type': contentType},
-    body: new Blob([mp3Buf])
-  });
-  var localData = await localUpload.json().catch(function(){ return {}; });
-  if(!localUpload.ok || !localData.ok) throw new Error(localData.error || '내 PC 저장 실패');
-
-  // DB 등록
-  setProg(92, 'DB 등록 중... ('+idx+'/'+total+')');
-  var body = {
-    title: p.title, artist: p.artist, album: p.album,
-    category: g('fAudioCat').value,
-    description: g('fDesc').value.trim(),
-    plan: _mode === 'tl3' ? g('planSelect').value : 'FREE',
-    weight: fileTL ? Number(g('weightInput').value||1) : 0,
-    file_tl: fileTL,
-    stream_url: localData.stream_url || '',
-    cover_url: _finalCoverUrl,
-    file_type: contentType,
-    category_type: 'audio',
-    duration: 0,
-    user_id: _user.id,
-    email: _user.email,
-    username: _user.username || _user.email,
-    bpm: 0,
-    origin_hash: origHash,
-    storage_mode: 'creator_pc',
-    release_mode: releaseMode,
-    reward_mode: _mode === 'tl3' ? 'tl_usage_poc' : 'poc_tlc',
-    content_kind: contentKind,
-    lp_applied: applyLp ? 1 : 0,
-    rights_confirmed: true
-  };
-  var shareRes = await fetch(API+'/api/shares', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json','Authorization':'Bearer '+_token},
-    body: JSON.stringify(body)
-  });
-  if(!shareRes.ok) throw new Error('DB 등록 실패');
-  var shareData = await shareRes.json().catch(function(){ return {}; });
-  if(_mode === 'tl3' && shareData.id){
-    try {
-      var tl3Res = await fetch(API+'/api/v1/tl3/releases', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json','Authorization':'Bearer '+_token},
-        body: JSON.stringify({
-          share_id: shareData.id,
-          title: p.title,
-          artist: p.artist || _user.username || _user.email,
-          price_tl: 0
-        })
-      });
-      if(!tl3Res.ok){
-        var tl3Err = await tl3Res.json().catch(function(){ return {}; });
-        throw new Error(tl3Err.error || ('TL3 release HTTP ' + tl3Res.status));
-      }
-    } catch(tl3e){
-      console.error('[TL3 v3] release failed:', tl3e);
-      throw new Error('TL3 v3 변환 실패: ' + tl3e.message);
+      var mp3ArrBuf = await p.file.arrayBuffer();
+      var audioBuf = await audioCtx.decodeAudioData(mp3ArrBuf.slice(0));
+      var n = audioBuf.length;
+      var L = audioBuf.getChannelData(0).slice(0, n);
+      var R = (audioBuf.numberOfChannels > 1 ? audioBuf.getChannelData(1) : audioBuf.getChannelData(0)).slice(0, n);
+      var analysis = lpAnalyze(L, R, audioBuf.sampleRate);
+      var gParams = lpCalcG(analysis, 7);
+      var out = lpRender(L, R, audioBuf.sampleRate, gParams, 7);
+      var wavBuf = wavFromBuffers(out.L, out.R, out.fs);
+      lpBlob = new Blob([wavBuf], { type: 'audio/wav' });
+    }catch(e){
+      console.warn('[lp render]', e);
+    } finally {
+      try{ audioCtx.close(); }catch(e){}
     }
   }
 
+  // ⭐ TL3.create — 서버에서 v3 생성 + 로컬 저장 + DB 등록
+  setProg(50, 'TL3 v3 생성 중... ('+idx+'/'+total+')');
+  var createRes = await TL3.create(p.file, lpBlob, {
+    API: API,
+    token: _token,
+    title: p.title,
+    artist: p.artist || _user.username || _user.email,
+    cid: String(_user.id),
+    name: _user.username || _user.email,
+    genre: g('fAudioCat').value,
+    bpm: 0,
+    creator_id: _user.id
+  });
+
+  if(!createRes || !createRes.ok){
+    throw new Error((createRes && createRes.error) || 'TL3 생성 실패');
+  }
+
+  setProg(90, '완료 ('+idx+'/'+total+')');
+  console.log('[TL3.create]', createRes);
 
   _existingSongs = null;
 }
