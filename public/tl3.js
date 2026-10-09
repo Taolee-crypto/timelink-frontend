@@ -261,9 +261,14 @@
             var Tnf = tokens[n + 1] ? unhex(tokens[n + 1]) : null;
             if(Tnf && hex(Tnc) !== hex(Tnf)){ onError(new Error('[스파인] T_' + (n+1) + ' 검증 실패')); return; }
 
-            var cr = await fetch(API + '/api/v1/tl3/code/' + fileId + '?segment=' + n + '&session_id=' + encodeURIComponent(sessionId), {headers: authHeaders()});
-            if(!cr.ok){ onError(new Error('code ' + cr.status)); return; }
-            var codeData = await cr.json();
+            var codeData = null;
+            for(var _try = 0; _try < 6; _try++){
+              var cr = await fetch(API + '/api/v1/tl3/code/' + fileId + '?segment=' + n + '&session_id=' + encodeURIComponent(sessionId), {headers: authHeaders()});
+              if(cr.ok){ codeData = await cr.json(); break; }
+              if(cr.status === 409){ await new Promise(function(ok){ setTimeout(ok, 500); }); continue; }
+              onError(new Error('code ' + cr.status)); return;
+            }
+            if(!codeData){ onError(new Error('code 재시도 실패')); return; }
             var lic = unhex(codeData.lic_n || '');
 
             var segNumber = n + 1;
@@ -279,17 +284,16 @@
 
             onSegment({index: n, seconds: durationMs/1000, remaining: codeData.remaining_tl});
 
-            setTimeout(async function(){
-              try {
-                await fetch(API + '/api/v1/tl3/segment/confirm/' + fileId, {
-                  method: 'POST',
-                  headers: Object.assign({}, authHeaders(), {'Content-Type':'application/json'}),
-                  body: JSON.stringify({session_id: sessionId, played_seconds: durationMs/1000})
-                });
-              } catch(e){}
-              n++;
-              _next();
-            }, Math.max(500, durationMs * 0.5));
+            setTimeout(function(){
+              fetch(API + '/api/v1/tl3/segment/confirm/' + fileId, {
+                method: 'POST',
+                headers: Object.assign({}, authHeaders(), {'Content-Type':'application/json'}),
+                body: JSON.stringify({session_id: sessionId, played_seconds: durationMs/1000})
+              }).catch(function(){});
+            }, durationMs);
+
+            n++;
+            _next();
           } catch(e){ onError(e); }
         }
 
