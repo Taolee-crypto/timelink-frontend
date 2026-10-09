@@ -392,6 +392,7 @@ function renderPage(s, stats, myFileTL, requiredTL){
           <button class="btn-icon" id="shareBtn">🔗</button>
         </div>
         ${hasUrl && !isFree ? '<button class="btn-dl" id="dlBtn">⬇ .tl3 다운로드</button>' : ''}
+        <button class="btn-dl" id="openTl3Btn" style="background:linear-gradient(135deg,#7C3AED,#A855F7);margin-left:6px">📂 .tl3 열기</button>
       </div>
 
       <div class="stats">
@@ -871,6 +872,67 @@ function renderCopyright(s){
 
 loadTrack();
 </script>
-<script src="/notice-popup.js"></script>
+<script src="/notice-popup.js">
+// ═══════════════════════════════════════════
+// TL3 파일 열기 (오프라인 재생)
+// OPEN_TL3_INJECTED
+// ═══════════════════════════════════════════
+function openTl3File(){
+  if(!window.TL3 || !TL3.playFile){ alert('TL3 모듈이 없습니다'); return; }
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.tl3,application/octet-stream';
+  input.onchange = async function(e){
+    var file = e.target.files && e.target.files[0];
+    if(!file) return;
+    // _tlAudio 없으면 새로 생성 (오프라인 전용 진입)
+    if(!_tlAudio){
+      _tlAudio = new Audio();
+      _tlAudio.onended = function(){ if(typeof stopPlay==='function') stopPlay(); };
+      _tlAudio.ontimeupdate = function(){
+        if(!_tlAudio) return;
+        var dur = _tlAudio.duration || 0;
+        var cur = _tlAudio.currentTime || 0;
+        var tEl = document.getElementById('playerTime');
+        var dEl = document.getElementById('playerDur');
+        if(tEl) tEl.textContent = (typeof fmtTime==='function') ? fmtTime(Math.floor(cur)) : Math.floor(cur)+'s';
+        if(dEl && dur) dEl.textContent = (typeof fmtTime==='function') ? fmtTime(Math.floor(dur)) : Math.floor(dur)+'s';
+      };
+      var bar = document.getElementById('tlPlayerBar');
+      if(bar) bar.style.display = 'block';
+      // 제목/아티스트는 파일명으로
+      var titleEl = document.getElementById('playerTitle');
+      var artistEl = document.getElementById('playerArtist');
+      var fname = (file.name || 'offline.tl3').replace(/\.tl3$/i, '');
+      if(titleEl) titleEl.textContent = fname;
+      if(artistEl) artistEl.textContent = '오프라인 재생';
+    }
+    try {
+      var res = await TL3.playFile(file, _tlAudio, {
+        onSegment: function(info){ console.log('[TL3.playFile] seg', info); },
+        onError:   function(err){ console.error('[TL3.playFile] err', err); }
+      });
+      _tlAudio.src = res.msUrl;
+      _tlAudio.load();
+      await _tlAudio.play();
+      _tlPlaying = true;
+      if(typeof startTLTimer === 'function') startTLTimer();
+      if(window._hidePlayLoading) window._hidePlayLoading(true);
+    } catch(err){
+      alert('오프라인 재생 실패: ' + (err && err.message ? err.message : err));
+    }
+  };
+  input.click();
+}
+
+// 이벤트 바인딩 (동적 렌더 후)
+document.addEventListener('click', function(e){
+  if(e.target && e.target.id === 'openTl3Btn'){
+    e.preventDefault();
+    openTl3File();
+  }
+}, true);
+
+</script>
 </body>
 </html>

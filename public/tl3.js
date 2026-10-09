@@ -202,6 +202,153 @@
     return session;
   }
 
+
+  // ─────────────────────────────
+  // playFile — .tl3 파일 직접 재생 (오프라인)
+  // TL3_PLAYFILE_INJECTED
+  // ─────────────────────────────
+  async function playFile(file, audio, opts){
+    opts = opts || {};
+    var buf = file instanceof ArrayBuffer ? new Uint8Array(file)
+            : new Uint8Array(await file.arrayBuffer());
+
+    // 1. 매직/버전
+    if(buf[0]!==0x54||buf[1]!==0x4C||buf[2]!==0x4E||buf[3]!==0x4B) throw new Error('Not TL3 (magic)');
+    if(buf[4]!==0x03) throw new Error('Not TL3 v3 (version)');
+
+    // 2. headerLen (uint32 BE)
+    var hlen = ((buf[5]<<24)|(buf[6]<<16)|(buf[7]<<8)|buf[8])>>>0;
+    var headerStart = 9;
+    var headerEnd = 9 + hlen;
+    if(headerEnd > buf.length) throw new Error('Header length OOB');
+
+    var headerJson = new TextDecoder().decode(buf.subarray(headerStart, headerEnd));
+    var header = JSON.parse(headerJson);
+
+    // 3. 필수 필드
+    if(!header.lic) throw new Error('header.lic 없음 (재빌드 필요)');
+    var fid = unhex(header.fid);
+    var salt = unhex(header.salt);
+    var hashMp3 = unhex(header.hash_mp3);
+    var lic = unhex(header.lic);
+    var tokens = header.mp3_tokens || [];
+    var mp3Info = header.mp3 || {};
+    var N = Number(mp3Info.N || 0);
+    var firstOffset = Number(mp3Info.first_offset || 0);
+    var segBytes = Number(mp3Info.seg_bytes || 0);
+    var lastBytes = Number(mp3Info.last_bytes || 0);
+
+    var onSegment = opts.onSegment || function(){};
+    var onError = opts.onError || function(){};
+
+    // 4. 세그먼트 위치 계산 (mp3 프레임 그대로 저장된 경우 segBytes=0)
+    //  buildTL3V3FromMp3: seg_bytes=0, last_bytes=마지막세그먼트 ctLen, first_offset만 있음
+    //  → 각 세그먼트 ctLen은? mp3_tokens와 무관. 실제로는 segments 배열이 필요.
+    //  대안: 파일 뒤쪽을 세그먼트 개수로 균등 분할할 수 없으므로,
+    //       mp3Info에 seg_bytes가 없으면 last_bytes로 역산 불가.
+    //  → 헤더에 mp3_seg_lens 배열이 있으면 사용.
+
+    var segLens = header.mp3_seg_lens || null;
+
+    // 5. MediaSource
+    var ms = new MediaSource();
+    var msUrl = URL.createObjectURL(ms);
+    var sb = null;
+    var n = 1;   // 1-based
+    var stopped = false;
+    var off = firstOffset;
+
+    function stop(){ stopped = true; }
+    audio._tl3Stop = stop;
+
+    ms.addEventListener('sourceopen', async function(){
+      try { sb = ms.addSourceBuffer('audio/mpeg'); }
+      catch(e){ onError(e); return; }
+      _next();
+    });
+
+    async function _next(){
+      if(stopped) return;
+      if(n > N){
+        try { if(ms.readyState === 'open') ms.endOfStream(); } catch(e){}
+        return;
+      }
+      try {
+        // ctLen 결정
+        var ctLen;
+        if(segLens && segLens.length >= n){
+          ctLen = Number(segLens[n-1]);
+        } else {
+          // fallback: seg_bytes + tag, 마지막은 last_bytes
+          if(segBytes > 0){
+            ctLen = (n < N) ? (segBytes + 16) : (lastBytes || (segBytes + 16));
+          } else {
+            // 정보 없음 → 에러
+            onError(new Error('segment length 정보 없음 (mp3_seg_lens 필요)'));
+            return;
+          }
+        }
+        var ct = buf.subarray(off, off + ctLen);
+        off += ctLen;
+
+        // Tprev
+        var Tprev;
+        if(n === 1){
+          var T0c = await sha256(fid, hashMp3, salt);
+          var T0f = tokens[0] ? unhex(tokens[0]) : null;
+          if(T0f && hex(T0c) !== hex(T0f)){ onError(new Error('[스파인] T_0 검증 실패')); return; }
+          Tprev = T0c;
+        } else {
+          var tp = tokens[n-1];
+          if(!tp){ onError(new Error('[스파인] 토큰 없음 n='+n)); return; }
+          Tprev = unhex(tp);
+        }
+
+        // T_n 검증
+        var hct = await sha256(ct);
+        var Tnc = await sha256(Tprev, fid, enc(String(n)), hct);
+        var Tnf = tokens[n] ? unhex(tokens[n]) : null;
+        if(Tnf && hex(Tnc) !== hex(Tnf)){
+          onError(new Error('[스파인] T_'+n+' 검증 실패'));
+          return;
+        }
+
+        // K_n 유도
+        var K_n = await sha256(Tprev, lic, enc('K' + n));
+        var key = await crypto.subtle.importKey('raw', K_n, {name:'AES-GCM'}, false, ['decrypt']);
+
+        // 복호화
+        var plain;
+        try {
+          plain = new Uint8Array(await crypto.subtle.decrypt(
+            {name:'AES-GCM', iv: ivFor(n), tagLength: 128},
+            key,
+            ct
+          ));
+        } catch(e){
+          onError(new Error('복호화 실패 n='+n+' : '+e.message));
+          return;
+        }
+
+        // append
+        await new Promise(function(res, rej){
+          var h = function(){ sb.removeEventListener('updateend', h); res(); };
+          sb.addEventListener('updateend', h);
+          try { sb.appendBuffer(plain); } catch(e){ rej(e); }
+        });
+
+        onSegment({ index: n-1, total: N });
+
+        n++;
+        _next();
+      } catch(e){
+        onError(e);
+      }
+    }
+
+    return { msUrl: msUrl, sessionId: 'offline_'+Date.now(), stop: stop, header: header };
+  }
+
   // ─────────────────────────────
   // resolveUrl (shareplace용)
   // ─────────────────────────────
@@ -330,6 +477,7 @@
 
   global.TL3 = {
     resolveUrl: resolveUrl,
+    playFile: playFile,
     streamSegmented: streamSegmented,
     stop: stop,
     loadHeader: loadHeader,
