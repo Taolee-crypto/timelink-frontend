@@ -146,7 +146,7 @@ select.form-input{cursor:pointer}
     <div class="content">
       <!-- 안내 -->
       <div style="padding:14px 18px;background:var(--accent-soft);border:1px solid rgba(0,113,227,.25);border-radius:12px;margin-bottom:20px;font-size:13px;color:var(--t2);line-height:1.7">
-        🎵 <strong style="color:var(--t1)">MP3</strong>는 무료 재생 · <strong style="color:var(--t1)">TL3</strong>는 TL 기반 유료 재생 ·
+        ⚡ <strong style="color:var(--t1)">TL3</strong>는 TL 기반 유료 재생 ·
         <strong style="color:var(--purple)">LP 음질 특허 기술</strong> 선택 가능
       </div>
 
@@ -227,19 +227,13 @@ select.form-input{cursor:pointer}
       <!-- ③ 공개 방식 -->
       <div class="form-section">
         <div class="fsec-title">③ 공개 방식</div>
-        <div class="mode-grid">
-          <div class="mode-card active" id="modeFree" onclick="selectMode('free')">
-            <div class="mode-title">🆓 무료 MP3 공개</div>
-            <div class="mode-desc">원본 MP3 공개. 이용자 무료 재생. 창작자는 POC → TLC 보상.</div>
-          </div>
-          <div class="mode-card" id="modeTL3" onclick="selectMode('tl3')">
-            <div class="mode-title">⚡ TL3 유료 공유</div>
-            <div class="mode-desc">MP3 → TL3 변환. TL 사용 기반 재생·정산. 크리에이터 70% 수익.</div>
-          </div>
+                <div style="padding:14px 16px;border-radius:12px;background:rgba(100,210,255,.08);border:1px solid rgba(100,210,255,.25)">
+          <div style="font-size:13px;font-weight:700;color:var(--teal);margin-bottom:6px">⚡ TL3 유료 공유</div>
+          <div style="font-size:12px;color:var(--t3);line-height:1.6">MP3 → TL3 변환. TL 사용 기반 재생·정산. 크리에이터 70% 수익.</div>
         </div>
 
         <!-- TL3 옵션 -->
-        <div id="tl3Options" style="display:none;margin-top:16px">
+        <div id="tl3Options" style="display:block;margin-top:16px">
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">⚡ 초당 차감 TL</label>
@@ -309,7 +303,7 @@ select.form-input{cursor:pointer}
 
       <!-- 업로드 버튼 -->
       <button class="upload-btn green" id="uploadBtn" onclick="doUpload()" disabled>
-        🆓 MP3 무료 공개
+        ⚡ TL3 업로드
       </button>
     </div>
   </main>
@@ -322,7 +316,7 @@ select.form-input{cursor:pointer}
 var API = 'https://api.timelink.digital';
 var _user = null, _token = null;
 var _pendingFiles = [];
-var _mode = 'free';           // 'free' | 'tl3'
+var _mode = 'tl3';            // TL3 강제
 var _lpMode = 'none';         // 'none' | 'ad' | 'pay'
 var _existingSongs = null;
 
@@ -496,27 +490,17 @@ async function readMP3Tags(file){
 // 모드 선택
 // ═══════════════════════════════════════════
 function selectMode(mode){
-  _mode = mode;
-  g('modeFree').classList.toggle('active', mode==='free');
-  g('modeTL3').classList.toggle('active', mode==='tl3');
-  g('tl3Options').style.display = mode==='tl3' ? 'block' : 'none';
+  // TL3 고정 (MP3 무료 공개 제거)
+  _mode = 'tl3';
+  g('tl3Options').style.display = 'block';
 
-  // TL3는 LP 무료
-  if(mode==='tl3'){
-    g('lpNote').innerHTML = '💡 TL3는 LP 음질이 <b style="color:var(--teal)">무료로 포함</b>됩니다.';
-    g('lpOptAd').style.display = 'none';
-    g('lpOptPay').style.display = 'none';
-    // TL3는 자동으로 LP 적용 (특허 취지)
-    selectLp('tl3free');
-  } else {
-    g('lpNote').innerHTML = '💡 MP3 무료 공개 시 LP는 광고 시청 또는 TL 결제로 이용 가능합니다.';
-    g('lpOptAd').style.display = 'flex';
-    g('lpOptPay').style.display = 'flex';
-    selectLp('none');
-  }
+  g('lpNote').innerHTML = '💡 TL3는 LP 음질이 <b style="color:var(--teal)">무료로 포함</b>됩니다.';
+  g('lpOptAd').style.display = 'none';
+  g('lpOptPay').style.display = 'none';
+  selectLp('tl3free');
+
   updateUploadState();
 }
-
 function selectLp(lp){
   _lpMode = lp;
   g('lpOptNone').classList.toggle('active', lp==='none');
@@ -528,16 +512,9 @@ function updateUploadState(){
   var btn = g('uploadBtn');
   var ready = _pendingFiles.length > 0 && g('rightsConfirm').checked;
   btn.disabled = !ready;
-  if(_mode === 'free'){
-    btn.className = 'upload-btn green';
-    var lpText = _lpMode==='none' ? '' : ' (LP)';
-    btn.textContent = '🆓 MP3 무료 공개' + lpText + (_pendingFiles.length>1 ? ' · '+_pendingFiles.length+'개' : '');
-  } else {
-    btn.className = 'upload-btn purple';
-    btn.textContent = '⚡ TL3 유료 공개' + (_pendingFiles.length>1 ? ' · '+_pendingFiles.length+'개' : '');
-  }
+  btn.className = 'upload-btn purple';
+  btn.textContent = '⚡ TL3 업로드' + (_pendingFiles.length>1 ? ' · '+_pendingFiles.length+'개' : '');
 }
-
 // ═══════════════════════════════════════════
 // LP 변환 (tl3_lp_test.html 코드 이식)
 // ═══════════════════════════════════════════
@@ -868,7 +845,7 @@ async function uploadOne(p, applyLp, idx, total){
   var ad = await ar.json().catch(function(){ return {}; });
   if(!ar.ok || !ad.ok) throw new Error('TimeLink Local이 실행되지 않았습니다');
 
-  var fileTL = 0, releaseMode = 'free_mp3_local', contentType = 'audio/mp3', contentKind = 'mp3';
+   var fileTL = 0, releaseMode = 'tl3', contentType = 'audio/mp3', contentKind = 'tl3';
 
   // LP 적용
   if(applyLp){
@@ -890,25 +867,22 @@ async function uploadOne(p, applyLp, idx, total){
   }
 
   // TL3 v3 — 서버에서 빌드 (여기선 duration만 계산)
-  if(_mode === 'tl3'){
-    setProg(50, 'TL3 준비 중... ('+idx+'/'+total+')');
-    var dur = 0;
-    try{
-      var audioCtx2 = new (window.AudioContext || window.webkitAudioContext)();
-      var ab = await audioCtx2.decodeAudioData(mp3Buf.slice(0));
-      dur = Math.round(ab.duration);
-      audioCtx2.close();
-    }catch(e){}
-    contentKind = 'tl3';
-    releaseMode = 'tl3';
-    fileTL = Math.max(1, Math.round(dur * Number(g('weightInput').value||1)));
-  }
+   setProg(50, 'TL3 준비 중... ('+idx+'/'+total+')');
+  var dur = 0;
+  try{
+    var audioCtx2 = new (window.AudioContext || window.webkitAudioContext)();
+    var ab = await audioCtx2.decodeAudioData(mp3Buf.slice(0));
+    dur = Math.round(ab.duration);
+    audioCtx2.close();
+  }catch(e){}
+  fileTL = Math.max(1, Math.round(dur * Number(g('weightInput').value||1)));
 
   // Local Agent 업로드
   setProg(80, '내 PC에 저장 중... ('+idx+'/'+total+')');
   var uploadExt = applyLp ? '.wav' : '.mp3';
   var uploadName = (p.title||p.file.name).replace(/[\\/:*?"<>|]/g,'_') + uploadExt;
-  var localUpload = await fetch(localAgent+'/upload?kind=mp3&name='+encodeURIComponent(uploadName), {
+ console.log('[DEBUG upload]', {title: p.title, fileName: p.file && p.file.name, uploadName: uploadName, uploadExt: uploadExt, url: localAgent+'/upload?kind=mp3&name='+encodeURIComponent(uploadName)}); 
+var localUpload = await fetch(localAgent+'/upload?kind=mp3&name='+encodeURIComponent(uploadName), {
     method: 'POST',
     headers: {'Content-Type': applyLp ? 'audio/wav' : 'audio/mpeg'},
     body: new Blob([mp3Buf])
@@ -922,7 +896,7 @@ async function uploadOne(p, applyLp, idx, total){
     title: p.title, artist: p.artist, album: p.album,
     category: g('fAudioCat').value,
     description: g('fDesc').value.trim(),
-    plan: _mode === 'tl3' ? g('planSelect').value : 'FREE',
+    plan: g('planSelect').value,
     weight: fileTL ? Number(g('weightInput').value||1) : 0,
     file_tl: fileTL,
     stream_url: localData.stream_url || '',
@@ -937,7 +911,7 @@ async function uploadOne(p, applyLp, idx, total){
     origin_hash: origHash,
     storage_mode: 'creator_pc',
     release_mode: releaseMode,
-    reward_mode: _mode === 'tl3' ? 'tl_usage_poc' : 'poc_tlc',
+    reward_mode: 'tl_usage_poc',
     content_kind: contentKind,
     lp_applied: applyLp ? 1 : 0,
     rights_confirmed: true

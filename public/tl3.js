@@ -34,7 +34,7 @@
 
   function ivFor(n){
     var v = new Uint8Array(12);
-    new DataView(v.buffer).setUint32(8, n);
+    new DataView(v.buffer).setBigUint64(4, BigInt(n), false);
     return v;
   }
 
@@ -279,16 +279,17 @@
 
             onSegment({index: n, seconds: durationMs/1000, remaining: codeData.remaining_tl});
 
-            setTimeout(function(){
-              fetch(API + '/api/v1/tl3/segment/confirm/' + fileId, {
-                method: 'POST',
-                headers: Object.assign({}, authHeaders(), {'Content-Type':'application/json'}),
-                body: JSON.stringify({session_id: sessionId, played_seconds: durationMs/1000})
-              }).catch(function(){});
+            setTimeout(async function(){
+              try {
+                await fetch(API + '/api/v1/tl3/segment/confirm/' + fileId, {
+                  method: 'POST',
+                  headers: Object.assign({}, authHeaders(), {'Content-Type':'application/json'}),
+                  body: JSON.stringify({session_id: sessionId, played_seconds: durationMs/1000})
+                });
+              } catch(e){}
+              n++;
+              _next();
             }, durationMs);
-
-            n++;
-            _next();
           } catch(e){ onError(e); }
         }
 

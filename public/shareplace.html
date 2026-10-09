@@ -375,14 +375,16 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 
 <footer id="tl-dynamic-footer" style="border-top:1px solid rgba(255,255,255,.07);padding:40px 24px 32px;margin-top:auto;background:rgba(3,5,8,.8)"></footer>
 
-<script src="/tl3.js"></script>
+<script src="/offline-store.js"></script>
+  <script src="/offline-fetcher.js"></script>
+  <script src="/tl3.js"></script>
 <script src="/tl3-config.js"></script>
 <script>
 // ==================== CONFIG ====================
 var API_BASE = 'https://api.timelink.digital';
 var _user = null, _token = null;
 var _allShares = [], _filter = 'all', _tab = 'tl', _search = '', _view = 'grid', _genre = 'all';
-var _curPage = 1, _perPage = 40, _kind = 'all';
+var _curPage = 1, _perPage = 50, _kind = 'all';
 var _myFileTL = {};
 
 // ==================== AUTH ====================
@@ -560,7 +562,7 @@ function renderGridView(list,g){
     var kind=contentKind(s), isMp3=kind==='mp3', isTl3=kind==='tl3';
     var myTL=_myFileTL[String(s.id)]||0;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
-    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':isMp3||myTL>0?'playable':'need-charge');
+    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':isMp3?'disabled':myTL>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     var dur=s.duration?(Math.floor(s.duration/60)+':'+String(s.duration%60).padStart(2,'0')):'--:--';
     return '<div class="file-card" id="card-'+s.id+'" onclick="location.href=\'track.html?id='+s.id+'\'" style="cursor:pointer">'+
@@ -589,7 +591,7 @@ function renderListView(list,g){
     var kind=contentKind(s), isMp3=kind==='mp3', isTl3=kind==='tl3';
     var myTL=_myFileTL[String(s.id)]||0;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
-    var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':isMp3||myTL>0?'playable':'need-charge');
+    var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':isMp3?'disabled':myTL>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     return '<div class="fl-item" id="card-'+s.id+'" onclick="location.href=\'track.html?id='+s.id+'\'" style="cursor:pointer">'+
       '<button class="'+btnClass+'" data-sid="'+s.id+'" onclick="tlPlayCard(this);event.stopPropagation()" style="flex-shrink:0">'+
@@ -637,15 +639,18 @@ function tlPlayCard(el){
   }
   var fileUrl=getStreamUrl(s);
   if(!fileUrl){ alert('⚠️ "'+s.title+'"\n\n파일이 없습니다.'); return; }
-  var isFree=isFreeMp3(s);
+  // ⭐ MP3는 업로드 전용 (재생 불가)
+  if(isFreeMp3(s)){ alert('이 곡은 업로드 전용입니다.\n재생은 TL3 파일만 가능합니다.'); return; }
   var myTL=_myFileTL[String(s.id)]||0;
   var tlForPlay=myTL>0?myTL:(s.file_tl||0);
-  if(!isFree && tlForPlay<=0){ if(confirm('"'+s.title+'"\n\nTL이 필요합니다.\n지금 충전하시겠습니까?')) chargeTL(String(s.id),s.title); return; }
+  if(tlForPlay<=0){ if(confirm('"'+s.title+'"\n\nTL이 필요합니다.\n지금 충전하시겠습니까?')) chargeTL(String(s.id),s.title); return; }
   tlPlay(s.id,s.title,s.artist||'',s.cover_url||'',fileUrl,tlForPlay,s.duration||0,s);
 }
 function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
+  // ⭐ MP3 방어 (이중 안전장치)
+  if(isFreeMp3(shareObj)){ alert('이 곡은 업로드 전용입니다.'); return; }
   tlStop(true);
-  var isFree=isFreeMp3(shareObj);
+  var isFree=false;
   _tlShareId=shareId; _tlMaxTL=isFree?0:fileTL; _tlCurrentTL=isFree?0:fileTL; _tlElapsed=0; _tlDuration=duration||0;
   document.getElementById('tlTitle').textContent=title;
   document.getElementById('tlArtist').textContent=artist||'';
