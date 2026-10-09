@@ -289,7 +289,7 @@
               } catch(e){}
               n++;
               _next();
-            }, durationMs);
+            }, Math.max(500, durationMs * 0.5));
           } catch(e){ onError(e); }
         }
 
