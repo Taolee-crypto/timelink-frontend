@@ -837,23 +837,19 @@ function stopPlay(){
 }
 
 async function downloadTL(){
-  const btn=document.getElementById('dlBtn');
-  if(btn){btn.textContent='⏳...';btn.disabled=true;}
+  // ⭐ 네이티브 다운로드 (fetch/blob 우회)
   try{
-    // ⭐ 무조건 서버 D1 .tl3 파일에서 (로컬 에이전트/stream_url 무시)
-    var r = await fetch(API+'/api/v1/tl3/file/'+SHARE_ID,{headers:{'Authorization':'Bearer '+getTok()}});
-    if(!r.ok){
-      r = await fetch(API+'/api/download/'+SHARE_ID,{headers:{'Authorization':'Bearer '+getTok()}});
-    }
-    if(!r.ok){
-      const d=await r.json().catch(()=>({}));
-      throw new Error(d.error||('다운로드 실패 [HTTP '+r.status+']'));
-    }
-    const blob=await r.blob();
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(_share?.title||'track')+'.tl3';a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),3000);
-  }catch(e){alert('오류: '+e.message);}
-  finally{if(btn){btn.textContent='⬇ .tl3 다운로드';btn.disabled=false;}}
+    var url = API + '/api/v1/tl3/file/' + SHARE_ID;
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = ((_share && _share.title) || 'track') + '.tl3';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){
+      try { document.body.removeChild(a); } catch(e){}
+    }, 200);
+  }catch(e){ alert('다운로드 오류: ' + e.message); }
 }
 
 function renderCopyright(s){
