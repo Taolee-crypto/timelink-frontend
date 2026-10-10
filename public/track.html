@@ -852,14 +852,161 @@ async function downloadTL(){
   }catch(e){ alert('다운로드 오류: ' + e.message); }
 }
 
-function renderCopyright(s){
+// CERT_UI_TRACK_V1: 증명서 상태 UI (인증/미인증)
+async function renderCopyright(s){
   const items=[{label:'곡명',value:s.title},{label:'아티스트',value:s.artist},{label:'앨범',value:s.album},{label:'장르',value:s.category},{label:'작곡',value:s.composer},{label:'작사',value:s.lyricist}].filter(i=>i.value);
-  if(!items.length && !s.lyrics) return;
   const section=document.getElementById('copyrightSection');
   const grid=document.getElementById('copyrightGrid');
-  if(section) section.style.display='block';
   if(grid) grid.innerHTML=items.map(i=>'<div class="copyright-item"><div class="copyright-label">'+i.label+'</div><div class="copyright-value">'+escH(i.value)+'</div></div>').join('');
   if(s.lyrics){ const lw=document.getElementById('lyricsWrap'); const lb=document.getElementById('lyricsBox'); if(lw) lw.style.display='block'; if(lb) lb.textContent=s.lyrics; }
+  if(section) section.style.display='block';
+
+  // ★ 증명서 상태 조회
+  try {
+    var fileId = s.file_id || s.id;
+    // s.id가 share_id 형식(sh_xxx)이면 file_id로 변환 필요
+    if(String(fileId).startsWith('sh_')){
+      // file-meta가 share_id를 지원 안하면 스킵
+      fileId = null;
+    }
+    if(!fileId && s.file_id) fileId = s.file_id;
+    if(!fileId){
+      // share_id → file_id 변환 시도 (track 페이지에 file_id 없을 수 있음)
+      return;
+    }
+
+    var metaRes = await fetch(API + '/api/v1/tl3/file-meta/' + fileId, {
+      headers: {'Authorization': 'Bearer ' + getTok()}
+    });
+    var meta = await metaRes.json();
+    if(!meta || !meta.ok) return;
+
+    // 증명서 상태 UI를 copyrightSection 뒤에 삽입
+    var certDiv = document.getElementById('certStatusDiv');
+    if(!certDiv){
+      certDiv = document.createElement('div');
+      certDiv.id = 'certStatusDiv';
+      section.parentNode.insertBefore(certDiv, section.nextSibling);
+    }
+
+    if(meta.certified){
+      // 🏅 인증됨 → 멋진 증명서 카드
+      certDiv.innerHTML = buildCertCard(meta);
+    } else {
+      // ⚠️ 미인증 → 공지 + 신청 유도
+      certDiv.innerHTML = buildUncertifiedNotice(meta, s);
+    }
+  } catch(e){
+    console.warn('[CERT_UI] 조회 실패:', e.message);
+  }
+}
+
+// 🏅 인증된 증명서 카드
+function buildCertCard(meta){
+  var issueDate = meta.cert_issued_at ? new Date(meta.cert_issued_at).toLocaleDateString('ko-KR') : '—';
+  var hashShort = meta.cert_hash ? meta.cert_hash.slice(0, 16) + '...' : '—';
+  return '<div style="margin:24px 0;padding:24px;background:linear-gradient(135deg,rgba(255,215,0,.08),rgba(255,159,10,.04));border:2px solid rgba(255,215,0,.35);border-radius:20px;position:relative;overflow:hidden">'
+    + '<div style="position:absolute;top:-50px;right:-50px;width:200px;height:200px;background:radial-gradient(circle,rgba(255,215,0,.15),transparent);border-radius:50%"></div>'
+    + '<div style="position:relative;z-index:1">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">'
+    + '<div style="font-size:32px">🏅</div>'
+    + '<div>'
+    + '<div style="font-size:11px;font-weight:700;color:#FFD700;letter-spacing:1.5px">TIMELINK DIGITAL ASSET</div>'
+    + '<div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:2px">창작권 증명서</div>'
+    + '</div>'
+    + '<div style="margin-left:auto;padding:6px 14px;background:rgba(48,209,88,.15);border:1px solid rgba(48,209,88,.4);border-radius:20px;font-size:11px;font-weight:700;color:#30D158">✓ VERIFIED</div>'
+    + '</div>'
+
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px;background:rgba(0,0,0,.25);border-radius:12px;margin-bottom:14px">'
+    + '<div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">증명서 번호</div><div style="font-size:13px;font-weight:700;color:#FFD700;font-family:monospace">' + escH(meta.cert_no || '') + '</div></div>'
+    + '<div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">자산 ID</div><div style="font-size:13px;font-weight:700;font-family:monospace">' + escH(meta.asset_id || '') + '</div></div>'
+    + '<div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">발행일</div><div style="font-size:13px">' + issueDate + '</div></div>'
+    + '<div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">장르</div><div style="font-size:13px">' + escH(meta.asset_genre || '—') + '</div></div>'
+    + (meta.asset_composer ? '<div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">작곡</div><div style="font-size:13px">' + escH(meta.asset_composer) + '</div></div>' : '')
+    + (meta.asset_lyricist ? '<div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">작사</div><div style="font-size:13px">' + escH(meta.asset_lyricist) + '</div></div>' : '')
+    + '</div>'
+
+    + '<div style="padding:10px 12px;background:rgba(0,0,0,.2);border-radius:8px;font-size:10px;color:rgba(255,255,255,.5);font-family:monospace;margin-bottom:14px">'
+    + '🔐 ' + hashShort
+    + '</div>'
+
+    + '<div style="display:flex;gap:8px">'
+    + '<button onclick="downloadCert(\'' + meta.cert_no + '\')" style="flex:1;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:700;font-size:13px;cursor:pointer">📥 다운로드 (1,000 TL)</button>'
+    + '<button onclick="shareCert(\'' + meta.cert_no + '\')" style="padding:12px 16px;border-radius:10px;border:1px solid rgba(255,215,0,.4);background:transparent;color:#FFD700;font-weight:700;cursor:pointer">🔗</button>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
+}
+
+// ⚠️ 미인증 공지
+function buildUncertifiedNotice(meta, s){
+  var canCertify = meta.can_certify;
+  var isOwner = meta.is_owner;
+  return '<div style="margin:24px 0;padding:24px;background:linear-gradient(135deg,rgba(255,69,58,.06),rgba(255,159,10,.03));border:2px solid rgba(255,159,10,.35);border-radius:20px">'
+    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">'
+    + '<div style="font-size:36px">⚠️</div>'
+    + '<div>'
+    + '<div style="font-size:15px;font-weight:700;color:#FF9F0A">창작권 증명서가 없습니다</div>'
+    + '<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:3px">이 곡은 디지털 자산으로 등록되지 않았습니다</div>'
+    + '</div>'
+    + '</div>'
+
+    + '<div style="padding:16px;background:rgba(0,0,0,.25);border-radius:12px;margin-bottom:16px">'
+    + '<div style="font-size:12px;font-weight:700;color:#FF9F0A;margin-bottom:10px">📋 증명서를 발행해야 다음이 가능합니다:</div>'
+    + '<div style="display:grid;gap:8px;font-size:12px;color:rgba(255,255,255,.8)">'
+    + '<div>✅ 정상적인 TL 수익 분배</div>'
+    + '<div>✅ TLC 채굴 (POC 기여 반영)</div>'
+    + '<div>✅ Shareplace 🏅 인증 마크</div>'
+    + '<div>✅ 자산 담보 대출 (예정)</div>'
+    + '</div>'
+    + '</div>'
+
+    + (canCertify
+        ? '<button onclick="goCertify()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:700;font-size:14px;cursor:pointer">🏅 증명서 신청하기 (5,000 TL)</button>'
+        : (isOwner
+            ? '<div style="padding:12px;background:rgba(255,215,0,.1);border-radius:10px;font-size:12px;color:rgba(255,255,255,.7);text-align:center">이미 자산이 등록되어 있습니다</div>'
+            : '<div style="padding:12px;background:rgba(255,255,255,.03);border-radius:10px;font-size:12px;color:rgba(255,255,255,.5);text-align:center">창작자만 증명서를 신청할 수 있습니다</div>'
+          )
+      )
+    + '</div>';
+}
+
+// 증명서 신청 (creator로 이동)
+function goCertify(){
+  if(!getTok()){ alert('로그인이 필요합니다'); location.href = '/login.html'; return; }
+  if(confirm('창작권 증명서를 신청하시겠습니까?\n\n수수료: 5,000 TL\n본인 곡만 신청 가능합니다.')){
+    location.href = '/creator.html';
+  }
+}
+
+// 증명서 다운로드
+async function downloadCert(certNo){
+  if(!getTok()){ alert('로그인이 필요합니다'); return; }
+  if(!confirm('증명서를 다운로드하시겠습니까?\n\n수수료: 1,000 TL\n365일 유효')) return;
+  try {
+    var r = await fetch(API + '/api/v1/certs/' + certNo + '/download', {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer ' + getTok()}
+    });
+    var d = await r.json();
+    if(!d.ok){
+      if(d.code === 'TL_INSUFFICIENT'){ alert('TL 부족\n필요: ' + d.required + ' TL\n보유: ' + d.balance + ' TL'); }
+      else { alert('다운로드 실패: ' + (d.error||'')); }
+      return;
+    }
+    // 성공 → 파일 열기
+    var fileUrl = API + '/api/v1/certs/' + certNo + '/file?token=' + d.download_token;
+    window.open(fileUrl, '_blank');
+    if(d.already){ alert('이미 다운로드 권한이 있습니다. (만료: ' + new Date(d.expires_at).toLocaleDateString('ko') + ')'); }
+    else { alert('✅ 다운로드 완료\n수수료: ' + d.fee_paid + ' TL'); }
+  } catch(e){ alert('오류: ' + e.message); }
+}
+
+// 증명서 공유
+function shareCert(certNo){
+  var url = 'https://timelink.digital/cert/' + certNo;
+  if(navigator.share){ navigator.share({title:'창작권 증명서', url:url}).catch(function(){}); }
+  else { navigator.clipboard.writeText(url); alert('링크 복사됨:\n' + url); }
 }
 
 loadTrack();
