@@ -845,25 +845,23 @@ async function uploadOne(p, applyLp, idx, total){
   var ad = await ar.json().catch(function(){ return {}; });
   if(!ar.ok || !ad.ok) throw new Error('TimeLink Local이 실행되지 않았습니다');
 
-   var fileTL = 0, releaseMode = 'tl3', contentType = 'audio/mp3', contentKind = 'tl3';
+   var fileTL = 0, releaseMode = 'tl3', contentType = 'audio/mpeg', contentKind = 'tl3';
 
-  // LP 적용
+  // LP 파라미터만 계산 (파일에는 굽지 않음 — 플레이어에서 실시간 적용)
+  var lpParams = null;
   if(applyLp){
-    setProg(20, 'LP 음질 변환 중... ('+idx+'/'+total+')');
-    var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    var audioBuf = await audioCtx.decodeAudioData(mp3Buf.slice(0));
-    var n = audioBuf.length;
-    var L = audioBuf.getChannelData(0).slice(0, n);
-    var R = (audioBuf.numberOfChannels > 1 ? audioBuf.getChannelData(1) : audioBuf.getChannelData(0)).slice(0, n);
-    var analysis = TL3_LP.analyze(L, R, audioBuf.sampleRate);
-    var gParams = TL3_LP.calcG(analysis, 7);
-    var out = TL3_LP.render(L, R, audioBuf.sampleRate, gParams, 7);
-
-    // WAV로 변환
-    var wavBuf = TL3_LP.wavFromBuffers(out.L, out.R, out.fs);
-    mp3Buf = wavBuf;
-    contentType = 'audio/wav';
-    audioCtx.close();
+    try {
+      setProg(20, 'LP 분석 중... ('+idx+'/'+total+')');
+      var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var audioBuf = await audioCtx.decodeAudioData(mp3Buf.slice(0));
+      var n = audioBuf.length;
+      var L = audioBuf.getChannelData(0).slice(0, n);
+      var R = (audioBuf.numberOfChannels > 1 ? audioBuf.getChannelData(1) : audioBuf.getChannelData(0)).slice(0, n);
+      var analysis = TL3_LP.analyze(L, R, audioBuf.sampleRate);
+      var gParams = TL3_LP.calcG(analysis, 7);
+      lpParams = { g: gParams, strength: 7, sr: audioBuf.sampleRate };
+      audioCtx.close();
+    } catch(e){ console.warn('[LP] 분석 실패:', e); }
   }
 
   // TL3 v3 — 서버에서 빌드 (여기선 duration만 계산)
@@ -879,12 +877,12 @@ async function uploadOne(p, applyLp, idx, total){
 
   // Local Agent 업로드
   setProg(80, '내 PC에 저장 중... ('+idx+'/'+total+')');
-  var uploadExt = applyLp ? '.wav' : '.mp3';
+  var uploadExt = '.mp3';
   var uploadName = (p.title||p.file.name).replace(/[\\/:*?"<>|]/g,'_') + uploadExt;
  console.log('[DEBUG upload]', {title: p.title, fileName: p.file && p.file.name, uploadName: uploadName, uploadExt: uploadExt, url: localAgent+'/upload?kind=mp3&name='+encodeURIComponent(uploadName)}); 
 var localUpload = await fetch(localAgent+'/upload?kind=mp3&name='+encodeURIComponent(uploadName), {
     method: 'POST',
-    headers: {'Content-Type': applyLp ? 'audio/wav' : 'audio/mpeg'},
+    headers: {'Content-Type': 'audio/mpeg'},
     body: new Blob([mp3Buf])
   });
   var localData = await localUpload.json().catch(function(){ return {}; });
