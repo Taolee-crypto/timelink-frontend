@@ -50,7 +50,9 @@
   // 헤더 로드
   // ─────────────────────────────
   async function loadHeader(fileId){
+    console.log('[TL3_DIAG] loadHeader:', fileId);
     var r = await fetch(API + '/api/v1/tl3/header/' + fileId, {headers: authHeaders()});
+    console.log('[TL3_DIAG] loadHeader status:', r.status);
     if(!r.ok) throw new Error('header 로드 실패 (' + r.status + ')');
     return await r.json();
   }
@@ -353,6 +355,7 @@
   // resolveUrl (shareplace용)
   // ─────────────────────────────
   function resolveUrl(fileUrl, opts){
+    console.log('[TL3_DIAG] resolveUrl called:', fileUrl);
     opts = opts || {};
     return new Promise(async function(resolve, reject){
       try {
@@ -445,7 +448,7 @@
         }
 
         resolve(msUrl);
-      } catch(e){ reject(e); }
+      } catch(e){ console.error('[TL3_DIAG] resolveUrl error:', e); reject(e); }
     });
   }
 
