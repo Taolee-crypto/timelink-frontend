@@ -582,6 +582,20 @@ function renderGridView(list,g){
     '</div>';
   }).join('');
 }
+// CERT_MARK_UI_V1: 증명서 뷰어 이동
+function viewCert(ev, el){
+  if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+  var cert = el && el.getAttribute ? el.getAttribute('data-cert') : '';
+  if(!cert){
+    // 백업: 상위에서 data-cert 찾기
+    var p = el;
+    while(p && !cert){ cert = p.getAttribute && p.getAttribute('data-cert'); p = p.parentElement; }
+  }
+  if(!cert){ alert('증명서 정보를 찾을 수 없습니다'); return; }
+  // track.html?cert=xxx 로 이동
+  window.location.href = 'track.html?cert=' + encodeURIComponent(cert);
+}
+
 function renderListView(list,g){
   g.className='file-list-view';
   g.innerHTML=list.slice(0,30).map(function(s){
@@ -597,7 +611,8 @@ function renderListView(list,g){
       '<button class="'+btnClass+'" data-sid="'+s.id+'" onclick="tlPlayCard(this);event.stopPropagation()" style="flex-shrink:0">'+
       (s.cover_url?'<img src="'+escH(s.cover_url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.remove()">':'')+
       '<span style="position:relative;z-index:1">'+btnIcon+'</span></button>'+
-      '<div class="fl-info"><div class="fl-title">'+escH(s.title||'Untitled')+'</div>'+
+      '<div class="fl-info"><div class="fl-title">'+escH(s.title||'Untitled')+
+      (s.cert_no?' <span onclick="viewCert(event,this)" data-cert="'+escH(s.cert_no)+'" style="display:inline-block;margin-left:6px;padding:2px 8px;background:linear-gradient(135deg,rgba(255,215,0,.2),rgba(255,159,10,.15));border:1px solid rgba(255,215,0,.4);border-radius:12px;font-size:10px;color:#FFD700;font-weight:700;cursor:pointer;vertical-align:middle" title="창작권 증명서: '+escH(s.cert_no)+'">🏅 CERT</span>':'')+'</div>'+
       '<div class="fl-meta"><span>'+escH(s.artist||s.username||'Unknown')+'</span>'+
       '<span>'+new Date(s.created_at||0).toLocaleDateString('ko-KR')+'</span></div></div>'+
       '<div class="fl-type-badge '+tc+'">'+(isMp3?'무료 MP3':isTl3?'TL3':typeLabel(ftype))+'</div>'+
