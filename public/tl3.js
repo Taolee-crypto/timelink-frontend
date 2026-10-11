@@ -576,11 +576,18 @@
             var key = await crypto.subtle.importKey('raw', K_n, {name:'AES-GCM'}, false, ['decrypt']);
             var plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv: ivFor(segNumber), tagLength: 128}, key, ciphertext));
 
+            console.log('[TL3.playStream] appendBuffer 직전, plain.length=', plain.length, 'sb=', !!sb, 'sb.updating=', sb && sb.updating, 'ms.readyState=', ms.readyState);
             await new Promise(function(res, rej){
-              var h = function(){ sb.removeEventListener('updateend', h); res(); };
+              var timedOut = false;
+              var to = setTimeout(function(){
+                timedOut = true;
+                console.log('[TL3.playStream] ⏰ updateend 타임아웃 (5초)');
+                rej(new Error('updateend 타임아웃'));
+              }, 5000);
+              var h = function(){ clearTimeout(to); sb.removeEventListener('updateend', h); console.log('[TL3.playStream] updateend 이벤트 발생'); res(); };
               sb.addEventListener('updateend', h);
-              try { sb.appendBuffer(plain); }
-              catch(e){ sb.removeEventListener('updateend', h); rej(e); }
+              try { sb.appendBuffer(plain); console.log('[TL3.playStream] appendBuffer 호출됨'); }
+              catch(e){ clearTimeout(to); sb.removeEventListener('updateend', h); console.log('[TL3.playStream] ❌ appendBuffer 예외:', e.message); rej(e); }
             });
 
             console.log('[TL3.playStream] ✅ appended segment', n);
@@ -596,7 +603,7 @@
 
             n++;
             _next();
-          } catch(e){ onError(e); }
+          } catch(e){ console.log('[TL3.playStream] ❌ _next catch:', e.name, e.message); onError(e); }
         }
 
         resolve({ ms: ms, msUrl: msUrl, sessionId: sessionId });
