@@ -512,22 +512,25 @@
           _next();
         });
 
-        // ⭐ 중요: audio.src를 sourceopen 리스너 밖에서 설정해야 sourceopen이 뜸
+        // ⭐ audio.src 먼저 설정 → sourceopen 이벤트가 뜸
         console.log('[TL3.playStream] audio.src = msUrl (리스너 밖)');
         audioEl.src = msUrl;
         audioEl.load();
-        try {
-          await audioEl.play();
-          console.log('[TL3.playStream] ✅ audio.play() 성공');
-        } catch(playErr) {
-          console.log('[TL3.playStream] ❌ play 실패:', playErr.name, playErr.message);
-          try {
-            audioEl.muted = true;
-            await audioEl.play();
-            audioEl.muted = false;
-          } catch(e2) {
-            onError(e2); reject(e2); return;
-          }
+
+        // ⭐ canplay 이벤트까지 기다렸다가 play (no supported sources 에러 방지)
+        var playOnce = function(){
+          console.log('[TL3.playStream] canplay 도착, play 시작');
+          audioEl.play()
+            .then(function(){ console.log('[TL3.playStream] ✅ audio.play() 성공'); })
+            .catch(function(playErr){
+              console.log('[TL3.playStream] ❌ play 실패:', playErr.name, playErr.message);
+              onError(playErr);
+            });
+        };
+        if (audioEl.readyState >= 3) {
+          playOnce();
+        } else {
+          audioEl.addEventListener('canplay', playOnce, { once: true });
         }
 
         async function _next(){
