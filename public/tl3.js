@@ -453,6 +453,137 @@
   }
 
   // ─────────────────────────────
+  // playStream (온라인 MediaSource 재생, GC 방지 포함)
+  //   TL3.playStream(fileId, audioEl, opts) → Promise
+  //   opts: { onReady, onSegment, onError, sessionId }
+  // ─────────────────────────────
+  function playStream(fileId, audioEl, opts){
+    opts = opts || {};
+    var onSegment = opts.onSegment || function(){};
+    var onError   = opts.onError   || function(){};
+    var onReady   = opts.onReady   || function(){};
+
+    // 이전 MediaSource 정리
+    if (window._tlMsRefs && window._tlMsRefs.length) {
+      window._tlMsRefs.forEach(function(r){
+        try { if (r.ms && r.ms.readyState === 'open') r.ms.endOfStream(); } catch(e){}
+      });
+      window._tlMsRefs = [];
+    }
+
+    return new Promise(async function(resolve, reject){
+      try {
+        var fileUrlStr = String(fileId);
+        var fidStr = fileUrlStr.split('/').pop().split('?')[0];
+        var header = await loadHeader(fidStr);
+
+        var ms = new MediaSource();
+        var msUrl = URL.createObjectURL(ms);
+        window._tlMsRefs = window._tlMsRefs || [];
+        window._tlMsRefs.push({ ms: ms, url: msUrl, el: audioEl });
+
+        var sessionId = opts.sessionId || genSid();
+        var tokens = header.mp3_tokens || [];
+        var hashMp3 = unhex(header.hash_mp3 || '');
+        var fid = unhex(header.fid || '');
+        var salt = unhex(header.salt || '');
+
+        var sb = null, n = 0, stopped = false;
+
+        ms.addEventListener('sourceopen', async function(){
+          try {
+            sb = ms.addSourceBuffer('audio/mpeg');
+          } catch(e) {
+            onError(e); reject(e); return;
+          }
+
+          audioEl.src = msUrl;
+          audioEl.load();
+          try {
+            await audioEl.play();
+          } catch(playErr) {
+            try {
+              audioEl.muted = true;
+              await audioEl.play();
+              audioEl.muted = false;
+            } catch(e2) {
+              onError(e2); reject(e2); return;
+            }
+          }
+          onReady({ ms: ms, msUrl: msUrl, sessionId: sessionId });
+          _next();
+        });
+
+        async function _next(){
+          if(stopped) return;
+          try {
+            var sr = await fetch(API + '/api/v1/tl3/segment/' + fidStr + '?segment=' + n + '&session_id=' + encodeURIComponent(sessionId), {headers: authHeaders()});
+            if(sr.status === 416){
+              try { if(ms.readyState === 'open') ms.endOfStream(); } catch(e){}
+              return;
+            }
+            if(!sr.ok){ onError(new Error('segment ' + sr.status)); return; }
+            var ciphertext = new Uint8Array(await sr.arrayBuffer());
+            var durationMs = Number(sr.headers.get('X-TL3-Segment-Duration-Ms') || 5000);
+
+            var Tprev;
+            if(n === 0){
+              var T0c = await sha256(fid, hashMp3, salt);
+              var T0f = tokens[0] ? unhex(tokens[0]) : null;
+              if(T0f && hex(T0c) !== hex(T0f)){ onError(new Error('T_0 검증 실패')); return; }
+              Tprev = T0c;
+            } else {
+              var t = tokens[n]; if(!t) throw new Error('토큰 없음 n=' + n);
+              Tprev = unhex(t);
+            }
+            var h_n = await sha256(ciphertext);
+            var Tnc = await sha256(Tprev, fid, enc(String(n + 1)), h_n);
+            var Tnf = tokens[n + 1] ? unhex(tokens[n + 1]) : null;
+            if(Tnf && hex(Tnc) !== hex(Tnf)){ onError(new Error('T_' + (n+1) + ' 검증 실패')); return; }
+
+            var codeData = null;
+            for(var _try = 0; _try < 6; _try++){
+              var cr = await fetch(API + '/api/v1/tl3/code/' + fidStr + '?segment=' + n + '&session_id=' + encodeURIComponent(sessionId), {headers: authHeaders()});
+              if(cr.ok){ codeData = await cr.json(); break; }
+              if(cr.status === 409){ await new Promise(function(ok){ setTimeout(ok, 500); }); continue; }
+              onError(new Error('code ' + cr.status)); return;
+            }
+            if(!codeData){ onError(new Error('code 재시도 실패')); return; }
+            var lic = unhex(codeData.lic_n || '');
+            var segNumber = n + 1;
+            var K_n = await sha256(Tprev, lic, enc('K' + segNumber));
+            var key = await crypto.subtle.importKey('raw', K_n, {name:'AES-GCM'}, false, ['decrypt']);
+            var plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv: ivFor(segNumber), tagLength: 128}, key, ciphertext));
+
+            await new Promise(function(res, rej){
+              var h = function(){ sb.removeEventListener('updateend', h); res(); };
+              sb.addEventListener('updateend', h);
+              try { sb.appendBuffer(plain); }
+              catch(e){ sb.removeEventListener('updateend', h); rej(e); }
+            });
+
+            onSegment({index: n, seconds: durationMs/1000, remaining: codeData.remaining_tl});
+
+            setTimeout(function(){
+              fetch(API + '/api/v1/tl3/segment/confirm/' + fidStr, {
+                method: 'POST',
+                headers: Object.assign({}, authHeaders(), {'Content-Type':'application/json'}),
+                body: JSON.stringify({session_id: sessionId, played_seconds: durationMs/1000})
+              }).catch(function(){});
+            }, durationMs);
+
+            n++;
+            _next();
+          } catch(e){ onError(e); }
+        }
+
+        resolve({ ms: ms, msUrl: msUrl, sessionId: sessionId });
+      } catch(e){ reject(e); }
+    });
+  }
+
+
+  // ─────────────────────────────
   // streamSegmented (tl3-player용)
   // ─────────────────────────────
   function streamSegmented(audio, segUrl, opts){
@@ -480,6 +611,8 @@
 
   global.TL3 = {
     resolveUrl: resolveUrl,
+
+    playStream: playStream,
     playFile: playFile,
     streamSegmented: streamSegmented,
     stop: stop,
