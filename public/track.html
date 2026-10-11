@@ -1,6 +1,61 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+
+<script>
+/* ==== TL_PLAY_LOCK_V1 (auto-inserted) ==== */
+(function(){
+  window._tlPlaying = window._tlPlaying || false;
+  window._tlSuppressPause = false;
+  window._tlPlayBusy = false;
+
+  if (!HTMLMediaElement.prototype.__tlPatched) {
+    var _origPlay  = HTMLMediaElement.prototype.play;
+    var _origPause = HTMLMediaElement.prototype.pause;
+
+    HTMLMediaElement.prototype.play = function(){
+      var self = this;
+      if (self !== window._tlAudio) return _origPlay.apply(self, arguments);
+      if (window._tlPlayBusy) { console.log('[PLAY] busy, skip'); return Promise.resolve(); }
+      window._tlPlayBusy = true;
+      window._tlPlaying = true;
+      var args = arguments;
+      var pr = _origPlay.apply(self, args);
+      if (pr && pr.catch) {
+        pr = pr.catch(function(e){
+          if (e && e.name === 'AbortError') {
+            console.log('[PLAY] AbortError -> retry 180ms');
+            return new Promise(function(r){ setTimeout(r, 180); })
+              .then(function(){ return _origPlay.apply(self, args); });
+          }
+          throw e;
+        });
+      }
+      return pr.finally ? pr.finally(function(){ setTimeout(function(){ window._tlPlayBusy=false; }, 250); })
+                        : pr;
+    };
+
+    HTMLMediaElement.prototype.pause = function(){
+      if (this === window._tlAudio && window._tlPlaying && !window._tlSuppressPause) {
+        console.log('[PAUSE] blocked by playlock');
+        return;
+      }
+      return _origPause.apply(this, arguments);
+    };
+
+    HTMLMediaElement.prototype.__tlPatched = true;
+  }
+
+  window.tlRealStop = function(){
+    window._tlSuppressPause = true;
+    window._tlPlaying = false;
+    try { if (window._tlAudio) window._tlAudio.pause(); }
+    finally { setTimeout(function(){ window._tlSuppressPause = false; }, 50); }
+  };
+  console.log('[TL_PLAY_LOCK_V1] installed');
+})();
+</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script><!-- CERT_TL3_DL_V1 -->
@@ -850,6 +905,7 @@ function playTrack(){
 
   if(_tlAudio){ _tlAudio.pause(); _tlAudio = null; }
   _tlAudio = new Audio();
+  window._tlAudio = _tlAudio;  // ← PLAY LOCK 호환
   _tlAudio.preload = 'auto';
   _tlAudio.onerror = function(){
     var src = _tlAudio && _tlAudio.src || '';
@@ -878,8 +934,17 @@ function playTrack(){
     }).then(function(u){
       console.log('[PLAY] resolveUrl 성공:', String(u).slice(0,60));
       _tlAudio.src = u;
-      _tlAudio.load();
-      return _tlAudio.play();
+      // load() 제거 (AbortError 원인)
+      function tryPlay(){
+        return _tlAudio.play().catch(function(e){
+          if(e && e.name === 'AbortError'){
+            console.log('[PLAY] AbortError → 200ms 후 재시도');
+            return new Promise(function(r){ setTimeout(r, 200); }).then(function(){ return _tlAudio.play(); });
+          }
+          throw e;
+        });
+      }
+      return tryPlay();
     }).then(function(){
       console.log('[PLAY] 재생 시작됨!');
       _tlPlaying = true;
@@ -944,6 +1009,7 @@ function togglePlay(){
 function stopPlay(){
   console.log('[PLAY] stopPlay 호출됨!');
   if(_tlAudio){ _tlAudio.pause(); _tlAudio = null; }
+  window._tlAudio = null;
   if(_tlInterval){ clearInterval(_tlInterval); _tlInterval = null; }
   _tlPlaying = false;
   document.getElementById('tlPlayerBar').style.display = 'none';
@@ -1310,13 +1376,13 @@ function openTl3File(){
       if(artistEl) artistEl.textContent = '오프라인 재생';
     }
     try {
-      var res = await TL3.playFile(file, _tlAudio, {
+      console.log('[V3PLAY] before TL3.playFile'); var res = await TL3.playFile(file, _tlAudio, {
         onSegment: function(info){ console.log('[TL3.playFile] seg', info); },
         onError:   function(err){ console.error('[TL3.playFile] err', err); }
       });
       _tlAudio.src = res.msUrl;
       _tlAudio.load();
-      await _tlAudio.play();
+      console.log('[V3PLAY] before _tlAudio.play'); await _tlAudio.play();
       _tlPlaying = true;
       if(typeof startTLTimer === 'function') startTLTimer();
       if(window._hidePlayLoading) window._hidePlayLoading(true);
