@@ -260,7 +260,7 @@
     var sb = null;
     var n = 1;   // 1-based
     var stopped = false;
-    var off = firstOffset;
+    var off = 9 + hlen;   // first_offset 대신 실제 payload 시작
 
     function stop(){ stopped = true; }
     audio._tl3Stop = stop;
