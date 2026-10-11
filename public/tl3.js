@@ -471,12 +471,13 @@
     var onError   = opts.onError   || function(){};
     var onReady   = opts.onReady   || function(){};
 
-    // 이전 MediaSource 정리
+    // 이전 MediaSource 정리 (⭐ 지금 넘어온 audioEl과 다른 것만)
     if (window._tlMsRefs && window._tlMsRefs.length) {
-      window._tlMsRefs.forEach(function(r){
+      window._tlMsRefs = window._tlMsRefs.filter(function(r){
+        if (r.el === audioEl) return true; // 이 오디오의 것은 유지
         try { if (r.ms && r.ms.readyState === 'open') r.ms.endOfStream(); } catch(e){}
+        return false;
       });
-      window._tlMsRefs = [];
     }
 
     return new Promise(async function(resolve, reject){
