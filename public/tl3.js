@@ -508,26 +508,27 @@
           } catch(e) {
             onError(e); reject(e); return;
           }
-
-          console.log('[TL3.playStream] audio.src = msUrl');
-          audioEl.src = msUrl;
-          audioEl.load();
-          try {
-            await audioEl.play();
-            console.log('[TL3.playStream] ✅ audio.play() 성공');
-          } catch(playErr) {
-            console.log('[TL3.playStream] ❌ play 실패:', playErr.name, playErr.message);
-            try {
-              audioEl.muted = true;
-              await audioEl.play();
-              audioEl.muted = false;
-            } catch(e2) {
-              onError(e2); reject(e2); return;
-            }
-          }
           onReady({ ms: ms, msUrl: msUrl, sessionId: sessionId });
           _next();
         });
+
+        // ⭐ 중요: audio.src를 sourceopen 리스너 밖에서 설정해야 sourceopen이 뜸
+        console.log('[TL3.playStream] audio.src = msUrl (리스너 밖)');
+        audioEl.src = msUrl;
+        audioEl.load();
+        try {
+          await audioEl.play();
+          console.log('[TL3.playStream] ✅ audio.play() 성공');
+        } catch(playErr) {
+          console.log('[TL3.playStream] ❌ play 실패:', playErr.name, playErr.message);
+          try {
+            audioEl.muted = true;
+            await audioEl.play();
+            audioEl.muted = false;
+          } catch(e2) {
+            onError(e2); reject(e2); return;
+          }
+        }
 
         async function _next(){
           if(stopped) return;
