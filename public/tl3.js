@@ -80,7 +80,9 @@
     var stopped = false;
     var pendingConfirmTimers = [];
 
-    ms.addEventListener('sourceopen', async function(){
+    console.log('[TL3.playStream] sourceopen listener 등록');
+        ms.addEventListener('sourceopen', async function(){
+          console.log('[TL3.playStream] ✅ sourceopen 발생! msState=', ms.readyState);
       try { sb = ms.addSourceBuffer('audio/mpeg'); }
       catch(e){ console.error('[TL3] addSourceBuffer 실패:', e); onError(e); return; }
       _nextSegment();
@@ -263,7 +265,9 @@
     function stop(){ stopped = true; }
     audio._tl3Stop = stop;
 
-    ms.addEventListener('sourceopen', async function(){
+    console.log('[TL3.playStream] sourceopen listener 등록');
+        ms.addEventListener('sourceopen', async function(){
+          console.log('[TL3.playStream] ✅ sourceopen 발생! msState=', ms.readyState);
       try { sb = ms.addSourceBuffer('audio/mpeg'); }
       catch(e){ onError(e); return; }
       _next();
@@ -385,12 +389,14 @@
 
         async function _next(){
           if(stopped) return;
+          console.log('[TL3.playStream] _next n=', n);
           try {
             var sr = await fetch(API + '/api/v1/tl3/segment/' + fileId + '?segment=' + n + '&session_id=' + encodeURIComponent(sessionId), {headers: authHeaders()});
             if(sr.status === 416){
               try { if(ms.readyState === 'open') ms.endOfStream(); } catch(e){}
               return;
             }
+            console.log('[TL3.playStream] segment', n, 'status', sr.status);
             if(!sr.ok){ onError(new Error('segment ' + sr.status)); return; }
             var ciphertext = new Uint8Array(await sr.arrayBuffer());
             var durationMs = Number(sr.headers.get('X-TL3-Segment-Duration-Ms') || 5000);
@@ -432,6 +438,7 @@
               sb.appendBuffer(plain);
             });
 
+            console.log('[TL3.playStream] ✅ appended segment', n);
             onSegment({index: n, seconds: durationMs/1000, remaining: codeData.remaining_tl});
 
             setTimeout(function(){
@@ -458,6 +465,7 @@
   //   opts: { onReady, onSegment, onError, sessionId }
   // ─────────────────────────────
   function playStream(fileId, audioEl, opts){
+    console.log('[TL3.playStream] START fileId=', fileId);
     opts = opts || {};
     var onSegment = opts.onSegment || function(){};
     var onError   = opts.onError   || function(){};
@@ -490,18 +498,24 @@
 
         var sb = null, n = 0, stopped = false;
 
+        console.log('[TL3.playStream] sourceopen listener 등록');
         ms.addEventListener('sourceopen', async function(){
+          console.log('[TL3.playStream] ✅ sourceopen 발생! msState=', ms.readyState);
           try {
             sb = ms.addSourceBuffer('audio/mpeg');
+            console.log('[TL3.playStream] ✅ SourceBuffer 생성');
           } catch(e) {
             onError(e); reject(e); return;
           }
 
+          console.log('[TL3.playStream] audio.src = msUrl');
           audioEl.src = msUrl;
           audioEl.load();
           try {
             await audioEl.play();
+            console.log('[TL3.playStream] ✅ audio.play() 성공');
           } catch(playErr) {
+            console.log('[TL3.playStream] ❌ play 실패:', playErr.name, playErr.message);
             try {
               audioEl.muted = true;
               await audioEl.play();
@@ -516,12 +530,14 @@
 
         async function _next(){
           if(stopped) return;
+          console.log('[TL3.playStream] _next n=', n);
           try {
             var sr = await fetch(API + '/api/v1/tl3/segment/' + fidStr + '?segment=' + n + '&session_id=' + encodeURIComponent(sessionId), {headers: authHeaders()});
             if(sr.status === 416){
               try { if(ms.readyState === 'open') ms.endOfStream(); } catch(e){}
               return;
             }
+            console.log('[TL3.playStream] segment', n, 'status', sr.status);
             if(!sr.ok){ onError(new Error('segment ' + sr.status)); return; }
             var ciphertext = new Uint8Array(await sr.arrayBuffer());
             var durationMs = Number(sr.headers.get('X-TL3-Segment-Duration-Ms') || 5000);
@@ -562,6 +578,7 @@
               catch(e){ sb.removeEventListener('updateend', h); rej(e); }
             });
 
+            console.log('[TL3.playStream] ✅ appended segment', n);
             onSegment({index: n, seconds: durationMs/1000, remaining: codeData.remaining_tl});
 
             setTimeout(function(){
