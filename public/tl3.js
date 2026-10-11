@@ -572,9 +572,16 @@
             if(!codeData){ onError(new Error('code 재시도 실패')); return; }
             var lic = unhex(codeData.lic_n || '');
             var segNumber = n + 1;
+            console.log('[TL3.playStream] pre-decrypt: n=', n, 'segNumber=', segNumber, 'ctLen=', ciphertext.length, 'Tprev.len=', Tprev.length, 'lic.len=', lic.length);
             var K_n = await sha256(Tprev, lic, enc('K' + segNumber));
             var key = await crypto.subtle.importKey('raw', K_n, {name:'AES-GCM'}, false, ['decrypt']);
-            var plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv: ivFor(segNumber), tagLength: 128}, key, ciphertext));
+            var plain;
+            try {
+              plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv: ivFor(segNumber), tagLength: 128}, key, ciphertext));
+            } catch(decErr) {
+              console.log('[TL3.playStream] DECRYPT FAILED:', decErr.name, decErr.message, 'ctLen=', ciphertext.length);
+              throw decErr;
+            }
 
             console.log('[TL3.playStream] appendBuffer 직전, plain.length=', plain.length, 'sb=', !!sb, 'sb.updating=', sb && sb.updating, 'ms.readyState=', ms.readyState);
             await new Promise(function(res, rej){
@@ -603,7 +610,12 @@
 
             n++;
             _next();
-          } catch(e){ console.log('[TL3.playStream] ❌ _next catch:', e.name, e.message); onError(e); }
+          } catch(e){
+            console.log('[TL3.playStream] ❌ _next catch:', e.name, '|', e.message);
+            console.log('[TL3.playStream] ❌ stack:', e.stack);
+            console.log('[TL3.playStream] ❌ n=', n, 'sb=', !!sb, 'sb.updating=', sb && sb.updating, 'ms.readyState=', ms.readyState);
+            onError(e);
+          }
         }
 
         resolve({ ms: ms, msUrl: msUrl, sessionId: sessionId });
