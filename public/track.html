@@ -61,6 +61,9 @@
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script><!-- CERT_TL3_DL_V1 -->
 <script src="https://cdn.jsdelivr.net/npm/lucide@1.55.0/dist/umd/lucide.min.js"></script><!-- LUCIDE_ICONS_V1 -->
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script><!-- VEXFLOW_SCORE_V1 -->
+<script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.9/build/opensheetmusicdisplay.min.js"></script><!-- OSMD_SCORE_V1 -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script><!-- JSPDF_PDF_V1 -->
+<script src="https://cdn.jsdelivr.net/npm/svg2pdf.js@2.2.3/dist/svg2pdf.umd.min.js"></script><!-- SVG2PDF_V1 -->
 <title>TimeLink - 트랙 상세</title>
 <link rel="stylesheet" href="/_track_new.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
@@ -588,101 +591,314 @@ function closeScoreModal(){
 }
 
 // VexFlow로 악보 SVG 렌더링
-function renderScoreVexFlow(scoreData, transpose){
+// ═══════════════════════════════════════════════════════════════
+// ★ OSMD 기반 악보 렌더링 (A4 자동 맞춤, 조옮김, 페이지 넘김)
+// ═══════════════════════════════════════════════════════════════
+
+let _osmdInstance = null;   // OSMD 재사용
+
+// ScoreData → MusicXML 문자열 변환
+function scoreDataToMusicXml(scoreData, transpose, shareInfo){
+  if(!scoreData || !scoreData.melody || !scoreData.melody.length){
+    return null;
+  }
+
+  transpose = transpose || 0;
+  shareInfo = shareInfo || {};
+
+  // ── 메타 정보 ──
+  const title = escapeXml(shareInfo.title || "Untitled");
+  const artist = escapeXml(shareInfo.artist || "");
+  const composer = escapeXml(shareInfo.composer || "");
+  const lyricist = escapeXml(shareInfo.lyricist || "");
+  const genre = escapeXml(shareInfo.genre || "");
+  const copyrightYear = shareInfo.copyright_year || new Date().getFullYear();
+  const country = escapeXml(shareInfo.country || "KR");
+  const isrc = escapeXml(shareInfo.isrc || "");
+  const creatorName = escapeXml(shareInfo.creator_name || shareInfo.username || "");
+
+  // ── 조성 ──
+  const keyData = scoreData.key || { tonic: "C", mode: "major" };
+  const tonic = keyData.tonic || "C";
+  const mode = keyData.mode || "major";
+  const fifths = keyToFifths(tonic, mode);
+
+  // ── 박자 ──
+  const timeSig = scoreData.time_signature || "4/4";
+  const [beats, beatType] = timeSig.split("/").map(Number);
+
+  // ── 템포 ──
+  const bpm = Math.round(scoreData.bpm || 120);
+
+  // ── divisions: 4분음표당 tick (MusicXML 표준: 1 = 4분음표)
+  const DIVISIONS = 4;   // 16분음표 = 1 tick
+
+  // ── 음표 변환 ──
+  const melody = scoreData.melody.slice();
+
+  // 마디로 그룹화 (4/4 기준 4박씩)
+  const measures = [];
+  let currentMeasure = [];
+  let currentBeat = 0;
+
+  for(let i = 0; i < melody.length; i++){
+    const ev = melody[i];
+    const midi = ev.m + transpose;
+    const durationBeats = (ev.d || 0.5) * (bpm / 60);   // 초 → 박
+    const durationTicks = Math.round(durationBeats * DIVISIONS);
+
+    // 쉼표 (이전 음표와의 간격)
+    if(i > 0){
+      const prevEnd = melody[i-1].s + melody[i-1].d;
+      const gap = ev.s - prevEnd;
+      if(gap > 0.05){
+        const gapTicks = Math.round(gap * (bpm / 60) * DIVISIONS);
+        if(gapTicks > 0){
+          currentMeasure.push({
+            type: "rest",
+            duration: gapTicks,
+            chord: false
+          });
+          currentBeat += gapTicks / DIVISIONS;
+        }
+      }
+    }
+
+    // 마디 넘김 처리
+    if(currentBeat + durationTicks / DIVISIONS > beats){
+      // 마디 마감
+      measures.push(currentMeasure);
+      currentMeasure = [];
+      currentBeat = 0;
+    }
+
+    // 코드 심볼 (마디 첫 음표에)
+    let chordSym = null;
+    if(scoreData.chords && scoreData.chords.length){
+      const t = ev.s;
+      for(const cd of scoreData.chords){
+        if(t >= cd.s && t < cd.e){
+          if(!currentMeasure.some(n => n.chordSym)){
+            chordSym = cd.sym;
+          }
+          break;
+        }
+      }
+    }
+
+    // 음표 추가
+    currentMeasure.push({
+      type: "note",
+      midi: midi,
+      duration: durationTicks,
+      chordSym: chordSym
+    });
+    currentBeat += durationTicks / DIVISIONS;
+  }
+
+  // 마지막 마디
+  if(currentMeasure.length > 0){
+    measures.push(currentMeasure);
+  }
+
+  // ── MusicXML 생성 ──
+  const xml = [];
+  xml.push('<?xml version="1.0" encoding="UTF-8"?>');
+  xml.push('<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">');
+  xml.push('<score-partwise version="4.0">');
+
+  // work-title
+  xml.push('  <work><work-title>' + title + '</work-title></work>');
+
+  // identification
+  xml.push('  <identification>');
+  if(composer) xml.push('    <creator type="composer">' + composer + '</creator>');
+  if(lyricist) xml.push('    <creator type="lyricist">' + lyricist + '</creator>');
+  if(artist) xml.push('    <creator type="artist">' + artist + '</creator>');
+  if(creatorName) xml.push('    <creator type="creator">' + creatorName + '</creator>');
+  xml.push('    <rights>© ' + copyrightYear + ' ' + country + (isrc ? ' | ISRC ' + isrc : '') + '</rights>');
+  xml.push('    <encoding><software>TimeLink Score v1</software><encoding-date>' + new Date().toISOString().slice(0,10) + '</encoding-date></encoding>');
+  xml.push('  </identification>');
+
+  // part-list
+  xml.push('  <part-list>');
+  xml.push('    <score-part id="P1"><part-name>Melody</part-name></score-part>');
+  xml.push('  </part-list>');
+
+  // part
+  xml.push('  <part id="P1">');
+
+  for(let mIdx = 0; mIdx < measures.length; mIdx++){
+    const measure = measures[mIdx];
+    xml.push('    <measure number="' + (mIdx + 1) + '">');
+
+    // 첫 마디: attributes
+    if(mIdx === 0){
+      xml.push('      <attributes>');
+      xml.push('        <divisions>' + DIVISIONS + '</divisions>');
+      xml.push('        <key><fifths>' + fifths + '</fifths><mode>' + mode + '</mode></key>');
+      xml.push('        <time><beats>' + beats + '</beats><beat-type>' + beatType + '</beat-type></time>');
+      xml.push('        <clef><sign>G</sign><line>2</line></clef>');
+      xml.push('      </attributes>');
+      xml.push('      <direction placement="above">');
+      xml.push('        <direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>' + bpm + '</per-minute></metronome></direction-type>');
+      xml.push('        <sound tempo="' + bpm + '"/>');
+      xml.push('      </direction>');
+    }
+
+    // 마디 내 요소
+    for(const item of measure){
+      if(item.type === "rest"){
+        xml.push('      <note>');
+        xml.push('        <rest/>');
+        xml.push('        <duration>' + item.duration + '</duration>');
+        xml.push('        <type>' + ticksToType(item.duration, DIVISIONS) + '</type>');
+        xml.push('      </note>');
+      } else if(item.type === "note"){
+        // 코드 심볼 (harmony)
+        if(item.chordSym){
+          xml.push('      <harmony>');
+          xml.push('        <root><root-step>' + chordRoot(item.chordSym) + '</root-step>' + chordAlter(item.chordSym) + '</root>');
+          xml.push('        <kind>' + chordKind(item.chordSym) + '</kind>');
+          xml.push('      </harmony>');
+        }
+
+        // 음표
+        const [step, alter, octave] = midiToStepAlterOctave(item.midi);
+        xml.push('      <note>');
+        xml.push('        <pitch>');
+        xml.push('          <step>' + step + '</step>');
+        if(alter !== 0) xml.push('          <alter>' + alter + '</alter>');
+        xml.push('          <octave>' + octave + '</octave>');
+        xml.push('        </pitch>');
+        xml.push('        <duration>' + item.duration + '</duration>');
+        xml.push('        <type>' + ticksToType(item.duration, DIVISIONS) + '</type>');
+        xml.push('      </note>');
+      }
+    }
+
+    xml.push('    </measure>');
+  }
+
+  xml.push('  </part>');
+  xml.push('</score-partwise>');
+
+  return xml.join("\\n");
+}
+
+// ── 헬퍼들 ──
+function escapeXml(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function keyToFifths(tonic, mode){
+  const majorMap = { "C":0,"G":1,"D":2,"A":3,"E":4,"B":5,"F#":6,"C#":7,"F":-1,"Bb":-2,"Eb":-3,"Ab":-4,"Db":-5,"Gb":-6,"Cb":-7 };
+  const minorMap = { "A":0,"E":1,"B":2,"F#":3,"C#":4,"G#":5,"D#":6,"A#":7,"D":-1,"G":-2,"C":-3,"F":-4,"Bb":-5,"Eb":-6,"Ab":-7 };
+  const map = mode === "minor" ? minorMap : majorMap;
+  return map[tonic] !== undefined ? map[tonic] : 0;
+}
+
+function midiToStepAlterOctave(midi){
+  const names = [["C",0],["C",1],["D",0],["D",1],["E",0],["F",0],["F",1],["G",0],["G",1],["A",0],["A",1],["B",0]];
+  const octave = Math.floor(midi / 12) - 1;
+  const [step, alter] = names[midi % 12];
+  return [step, alter, octave];
+}
+
+function ticksToType(ticks, divisions){
+  const q = ticks / divisions;   // 4분음표 단위
+  if(q >= 4) return "whole";
+  if(q >= 3) return "half";       // 점2분은 별도
+  if(q >= 2) return "half";
+  if(q >= 1.5) return "quarter";  // 점4분
+  if(q >= 1) return "quarter";
+  if(q >= 0.75) return "eighth";
+  if(q >= 0.5) return "eighth";
+  if(q >= 0.25) return "16th";
+  return "16th";
+}
+
+function chordRoot(sym){
+  const m = sym.match(/^([A-G][#b]?)/);
+  return m ? m[1][0] : "C";
+}
+
+function chordAlter(sym){
+  const m = sym.match(/^([A-G])([#b]?)/);
+  if(!m || !m[2]) return "";
+  const alter = m[2] === "#" ? 1 : -1;
+  return "<root-alter>" + alter + "</root-alter>";
+}
+
+function chordKind(sym){
+  if(/m7b5|ø/.test(sym)) return "half-diminished";
+  if(/maj7|M7|Δ/.test(sym)) return "major-seventh";
+  if(/m7|min7/.test(sym)) return "minor-seventh";
+  if(/dim7|°7/.test(sym)) return "diminished-seventh";
+  if(/dim|°/.test(sym)) return "diminished";
+  if(/aug|\+/.test(sym)) return "augmented";
+  if(/sus4/.test(sym)) return "suspended-fourth";
+  if(/sus2/.test(sym)) return "suspended-second";
+  if(/^[A-G][#b]?m(?!aj)/.test(sym)) return "minor";
+  if(/7/.test(sym)) return "dominant";
+  return "major";
+}
+
+// ── OSMD 렌더링 (A4 자동) ──
+async function renderScoreOSMD(scoreData, transpose){
   const container = document.getElementById("scoreContainer");
   if(!container) return;
   container.innerHTML = "";
 
-  if(!scoreData || !scoreData.melody || !scoreData.melody.length){
-    container.innerHTML = '<div style="padding:40px;text-align:center;color:#999">악보 데이터가 비어있습니다</div>';
+  // 1. ScoreData → MusicXML
+  const shareInfo = {
+    title: _share?.title || "",
+    artist: _share?.artist || "",
+    composer: _share?.composer || "",
+    lyricist: _share?.lyricist || "",
+    genre: _share?.category || "",
+    copyright_year: new Date().getFullYear(),
+    country: "KR",
+    isrc: _share?.isrc || "",
+    creator_name: _share?.username || "",
+  };
+
+  const musicXml = scoreDataToMusicXml(scoreData, transpose, shareInfo);
+  if(!musicXml){
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:#999">악보 변환 실패</div>';
     return;
   }
 
-  if(!window.Vex || !Vex.Flow){
-    container.innerHTML = '<div style="padding:40px;text-align:center;color:#e55">VexFlow 로드 실패</div>';
-    return;
-  }
-
-  const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental } = Vex.Flow;
-
-  // 오선지 개수 계산 (음표 16개당 한 줄)
-  const melody = scoreData.melody;
-  const notesPerLine = 16;
-  const lines = Math.ceil(melody.length / notesPerLine);
-
-  const lineHeight = 180;
-  const svgWidth = 900;
-  const svgHeight = lines * lineHeight + 40;
-
-  const renderer = new Renderer(container, Renderer.Backends.SVG);
-  renderer.resize(svgWidth, svgHeight);
-  const context = renderer.getContext();
-  context.setFont("Arial", 10, "").setBackgroundFillStyle("#fefefe");
-
-  // 조성 (조표)
-  let keySpec = "C";
-  if(scoreData.key){
-    const tonic = scoreData.key.tonic || "C";
-    const mode = scoreData.key.mode || "major";
-    const keyMap = {
-      "C major": "C", "G major": "G", "D major": "D", "A major": "A", "E major": "E",
-      "F major": "F", "Bb major": "Bb", "Eb major": "Eb", "Ab major": "Ab",
-      "A minor": "Am", "E minor": "Em", "D minor": "Dm", "G minor": "Gm", "C minor": "Cm",
-      "B minor": "Bm", "F# minor": "F#m"
-    };
-    keySpec = keyMap[tonic + " " + mode] || "C";
-  }
-
-  const timeSig = scoreData.time_signature || "4/4";
-
-  for(let lineIdx = 0; lineIdx < lines; lineIdx++){
-    const startIdx = lineIdx * notesPerLine;
-    const endIdx = Math.min(startIdx + notesPerLine, melody.length);
-    const lineNotes = melody.slice(startIdx, endIdx);
-
-    const stave = new Stave(10, 40 + lineIdx * lineHeight, svgWidth - 30);
-
-    if(lineIdx === 0){
-      stave.addClef("treble").addKeySignature(keySpec).addTimeSignature(timeSig);
+  // 2. OSMD 초기화 (A4 자동)
+  try {
+    if(_osmdInstance && _osmdInstance.container === container){
+      // 재사용
+    } else {
+      _osmdInstance = new opensheetmusicdisplay.OpenSheetMusicDisplay(container, {
+        autoResize: true,
+        backend: "svg",
+        drawingParameters: "default",
+        pageFormat: "A4_P",
+        drawTitle: true,
+        drawComposer: true,
+        drawLyricist: true,
+        drawCredits: true,
+        drawingParameters: "compacttight",
+      });
     }
-    stave.setContext(context).draw();
 
-    // 음표 생성
-    const vexNotes = lineNotes.map(ev => {
-      const midi = ev.m + transpose;
-      const noteName = midiToVexName(midi);
-      const dur = midiToVexDuration(ev.d || 0.5);
-      return new StaveNote({ keys: [noteName], duration: dur });
-    });
-
-    if(vexNotes.length === 0) continue;
-
-    // Voice & Format
-    try {
-      const voice = new Voice({ num_beats: 4, beat_value: 4 });
-      voice.setStrict(false);
-      voice.addTickables(vexNotes);
-      new Formatter().joinVoices([voice]).format([voice], svgWidth - 100);
-      voice.draw(context, stave);
-    } catch(e){
-      console.warn("[VexFlow] 렌더 오류:", e);
-    }
+    await _osmdInstance.load(musicXml);
+    _osmdInstance.Zoom = 1.0;
+    _osmdInstance.render();
+  } catch(e){
+    console.error("[OSMD] 렌더 오류:", e);
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:#e55">악보 렌더 실패: ' + e.message + '</div>';
   }
 }
 
-// MIDI → VexFlow 이름 (예: 60 → "c/4")
-function midiToVexName(midi){
-  const names = ["c","c#","d","d#","e","f","f#","g","g#","a","a#","b"];
-  const octave = Math.floor(midi / 12) - 1;
-  return names[midi % 12] + "/" + octave;
-}
-
-// 초 → VexFlow duration
-function midiToVexDuration(sec){
-  if(sec >= 1.5) return "h";       // 2박
-  if(sec >= 0.75) return "q";      // 1박
-  if(sec >= 0.375) return "8";     // 반박
-  return "16";
+// 기존 함수명 유지 (호환) — 내부만 OSMD로
+function renderScoreVexFlow(scoreData, transpose){
+  renderScoreOSMD(scoreData, transpose);
 }
 
 // 조옮김
@@ -698,7 +914,7 @@ function transposeScore(semitones){
   if(valEl){
     valEl.textContent = _scoreTranspose > 0 ? "+" + _scoreTranspose : String(_scoreTranspose);
   }
-  renderScoreVexFlow(_scoreData, _scoreTranspose);
+  renderScoreOSMD(_scoreData, _scoreTranspose);
 }
 
 // 악보 사용 (1,000 TL)
@@ -734,15 +950,43 @@ async function useScore(){
       alert("✅ 악보 사용 완료!\\n\\n차감: " + d.tl_paid + " TL\\n창작자 기여: " + (d.creator_share ? d.creator_share.tl_p : 0) + " TL");
     }
 
-    // TLD 다운로드
-    const tldUrl = API + "/api/v1/scores/" + SHARE_ID + "/file.tld?token=" + encodeURIComponent(getTok());
-    const a = document.createElement("a");
-    a.href = tldUrl;
-    a.download = (_share.title || "score") + ".tld";
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { try { document.body.removeChild(a); } catch(e){} }, 200);
+
+    // ★ 임시 클라이언트 PDF (정식 TLD는 서버 예정)
+    try {
+      const svgEl = document.querySelector("#scoreContainer svg");
+      if(!svgEl){
+        alert("악보를 찾을 수 없습니다");
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+        compress: true
+      });
+
+      // 헤더 (임시 표시)
+      pdf.setFontSize(8);
+      pdf.setTextColor(150);
+      pdf.text("TimeLink Score (Preview) — 정식 TLD는 준비 중", 10, 6);
+
+      // SVG → PDF (A4 자동 맞춤)
+      await pdf.svg(svgEl, {
+        x: 10,
+        y: 10,
+        width: 190,
+        height: 0
+      });
+
+      // 파일명 (preview 표시)
+      const safeTitle = (_share.title || "score").replace(/[^a-zA-Z0-9가-힣_-]/g, "_");
+      pdf.save(safeTitle + "_preview.pdf");
+    } catch(pdfErr){
+      console.error("[PDF] 생성 오류:", pdfErr);
+      alert("PDF 생성 오류: " + pdfErr.message);
+    }
   } catch(e){
     alert("오류: " + e.message);
   } finally {
