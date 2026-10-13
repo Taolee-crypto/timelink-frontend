@@ -5,6 +5,12 @@
 - 목적: 사용자가 `agent.timelink.digital`에 Cloudflare Access를 이미 적용했다는 정보를 반영해, 기존 Local Agent 및 SharePlace 스트리밍 경로와의 경계를 구분한다.
 - 확인 방식: GitHub 소스 정적 분석. Cloudflare Zero Trust 정책, tunnel ingress, Worker secrets, PC 프로세스는 직접 조회하지 않았다.
 
+## 0. 제품 정책 — 사용자 확정 원칙
+
+TimeLink에서 공유·유통되는 것은 보호된 TL 자산(TL3/TL4/TLD/TLJ)뿐이다. 일반 MP3/MP4/PDF/이미지 파일은 Creator에서 TL 자산을 만들기 위한 비공개 입력 재료이며 공개 스트리밍 대상이 아니다. 무료 콘텐츠와 무료 재생은 없다. TL 자산은 TL 시간 기반 이용 권한·사용량 정산을 거치고 창작자 보상은 승인된 TL 보상토큰 정산 규칙에 따른다.
+
+따라서 Agent 원본 MP3 URL을 Worker API로 프록시하는 것은 최종 배포 가능한 설계가 아니다. Local Agent와 외부 저장소는 비공개 원본 재료의 수집 및 보호된 TL 컨테이너 저장을 지원해야 한다. 공개 플레이어는 TL 컨테이너와 해당 자산군 전용 권한·뷰어 경로만 사용해야 한다. 기존 원본 파일 URL 및 MP3 공유 레코드는 감사·이관 대상이며 공개 경로로 유지하지 않는다.
+
 ## 1. 결론
 
 Cloudflare Access 설정은 공개 도메인 `agent.timelink.digital`을 보호하는 중요한 방어선이다. 다만 Creator의 현재 업로드 경로는 공개 도메인이 아니라 PC 내부 주소 `http://127.0.0.1:8787`를 직접 호출한다. 이 로컬 요청은 Cloudflare Tunnel과 Access를 통과하지 않는다.
@@ -165,7 +171,7 @@ PC가 켜져야 하는 단계에서 아래 항목만 한 번에 확인하면 된
 
 ### Frontend
 
-아래 일반 MP3 플레이어는 Agent URL 및 과거 localhost URL을 TimeLink API `/api/stream/:shareId`로 전환하도록 수정했다.
+아래 레거시 소스 파일 플레이어의 Agent URL을 API `/api/stream/:shareId`로 전환한 코드는 기존 동작을 분석하기 위한 임시 조사 변경이다. 원본 MP3를 공개 프록시하는 것은 TL-only 정책에 맞지 않으며 최종 배포 대상이 아니다. 이를 비공개 Creator 재료 경로 및 보호된 TL 컨테이너 재생 경로로 대체해야 한다.
 
 - `public/shareplace.html`
 - `public/track.html`
@@ -200,7 +206,7 @@ TL3는 기존 `/api/v1/tl3/header`, `segment`, `code`, `segment/confirm` 라이�
 
 | 시나리오 | 기대 결과 |
 |---|---|
-| SharePlace 무료 MP3 (Agent 저장) | 브라우저는 `api.timelink.digital/api/stream/:id`만 호출하고 정상 재생 |
+| SharePlace 무료 MP3 (Agent 저장) | 브라우저는 `api.timelink.digital/api/stream/:id`만 호출하고 원본 파일 비공개 유지 및 보호된 TL 자산으로만 재생 |
 | Track 무료 MP3 (Agent 저장) | API 프록시로 재생, 기존 UI/진행률 유지 |
 | Radio MP3 (Agent 저장) | API 프록시로 재생, 기존 TL 차감 UI/타이머 유지 |
 | InCar MP3 (Agent 저장) | API 프록시로 재생, 기존 파일별 TL 및 tick 분기 유지 |
