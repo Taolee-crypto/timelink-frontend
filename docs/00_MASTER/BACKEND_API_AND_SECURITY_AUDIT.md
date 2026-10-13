@@ -244,3 +244,16 @@
 - `disputes.ts`: `7104de5a3e81c5a77004fe8dc0d176c202bcd085`
 
 **검증 한계:** 위 변경은 소스 코드에 반영된 상태다. TypeScript workflow는 현재 실행 중이며, D1 테스트·관리자/일반 사용자 권한 테스트·중복 요청 테스트는 아직 완료되지 않았다. 운영 배포는 하지 않았다.
+
+
+### 9.8 GitHub Actions 검증 결과 — 2026-10-14
+
+대상 커밋: `7104de5a3e81c5a77004fe8dc0d176c202bcd085`
+
+- `Backend validation / worker-bundle`: **성공**. Worker 번들 생성 검증이 완료되었다.
+- `Backend TypeScript validation / Strict TypeScript check`: **실패**. 현재 전체 저장소 기준 strict typecheck가 통과하지 않는다.
+- 로그에서 확인된 오류는 Resend 타입 의존성(React/Buffer), Env 타입의 누락된 binding(R2, Unsplash, TL3 secret 등), Hono request/body 타입 사용, 기존 auth/index/middleware 및 cafe/DJ 라우터의 타입 오류 등 여러 파일에 걸쳐 있다.
+- 새로 수정한 `src/routes/files.ts` 및 `src/routes/disputes.ts`에서 별도 오류가 출력되지는 않았다. 다만 전체 strict check 실패 상태이므로 이 사실만으로 두 라우트의 완전한 타입 안전성이 입증된 것은 아니다.
+- npm 설치 단계에서 4개 취약점(1 low, 3 high) 경고도 출력되었다. 의존성 강제 업그레이드는 호환성 검토 없이 수행하지 않는다.
+
+**판정:** Worker 번들 검증은 성공했으나 strict TypeScript 검증은 실패했다. PR 병합 및 운영 배포의 승인 조건을 충족하지 않는다. 먼저 기준 브랜치에도 존재하는 오류와 이번 개발 브랜치에서 새로 발생한 오류를 분리하고, Worker 타입·Env binding·라이브러리 타입을 정리해야 한다.
