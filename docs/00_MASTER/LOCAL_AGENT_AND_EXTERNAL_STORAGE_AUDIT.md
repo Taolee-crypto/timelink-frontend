@@ -95,6 +95,19 @@ README에는 MVP 공개 URL이 에이전트/터널 재시작 시 변경된다고
 6. Google Drive/OneDrive를 Creator의 저장소 선택 UI와 업로드/finalize/register/stream 흐름에 통합.
 7. MP3/TL3 및 향후 TL4/TLD/TLJ의 공통 저장 인터페이스로 정리하되, 기존 Local Agent 저장 데이터를 마이그레이션 없이 삭제하지 않는다.
 
-## 7. 작업 경계
+## 7. Cloudflare Access 관련 후속 확인
+
+사용자는 `agent.timelink.digital`에 Cloudflare Access를 이미 설정했다고 확인했다. 따라서 앞서 적은 “Access 적용 여부 확인”은 완료된 것으로 보고, 남은 확인 대상은 Access의 정확한 hostname/path 범위와 policy 구성이다.
+
+중요한 네트워크 경계는 다음과 같다.
+
+- Creator의 `127.0.0.1:8787` 호출은 Cloudflare Access를 거치지 않는다.
+- 브라우저가 `agent.timelink.digital/local/:token`에 직접 접속하는 경로는 Access 정책의 영향을 받는다.
+- 현재 SharePlace, Track, Radio, InCar, Cafe Radio, DJ Center의 일반 MP3 경로 중 일부가 Agent URL을 직접 재생하고 있었다.
+- 이를 TimeLink API 스트림 프록시로 통일하고, Worker만 Access Service Token을 사용하도록 하는 변경을 설계 브랜치에 반영했다.
+
+세부 정책과 코드 변경 내역은 [Cloudflare Access / Local Agent 호환성 문서](CLOUDFLARE_ACCESS_LOCAL_AGENT_COMPATIBILITY.md)를 기준으로 한다.
+
+## 8. 작업 경계
 
 이 감사에서 Local Agent, OAuth, 외부 저장소 코드의 수정은 수행하지 않았다. 위 위험은 코드상 확인된 접근 구조이며, 공개 터널에서 실제로 외부 접근 가능한지 여부는 Cloudflare Tunnel 설정과 실측 테스트가 필요하다. 보안 검증 전까지 운영 tunnel 설정이나 사용자 PC의 파일/프로세스를 변경하지 않는다.
