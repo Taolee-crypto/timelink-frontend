@@ -64,6 +64,17 @@ Never create a public SharePlace entry or playback URL that points directly to t
 
 A rights certificate, proof card, thumbnail, poster or generated cover is a related artifact. It is not automatically a TLJ image asset. Similarly, a PDF score attachment is not automatically a full TLD document asset. Keep the distinction explicit in database relationships, UI labels and download behavior.
 
+### 2.4 Current-source mismatch requiring migration
+
+The inspected implementation does not yet satisfy the policy above:
+
+- `public/creator.html` uploads the MP3 to Local Agent, creates a `/api/shares` record with the raw Agent `stream_url`, and only afterward calls the TL3 release endpoint.
+- `public/creator-studio.html` has a distinct “무료 음원으로 공개” step that syncs the raw upload with `shared_to_shareplace:true`; TL3 release happens later and is optional in that flow.
+- Backend `GET /api/shares` includes verified/shared `tl_files` rows and maps ordinary audio files to `content_kind:mp3`.
+- Backend TL3 release creates a protected TL3 object, but also updates the source `tl_files` row to `shared=1, shared_to_shareplace=1`. The public listing projection must be audited so it lists the protected TL3 release, not the source URL.
+
+These are confirmed source-level policy mismatches, not evidence that production runtime is currently exposing every row. Do not treat the current Creator pages or SharePlace query as compliant. The corrected flow must keep source material private, build the TL container, verify the protected object, then publish a typed TL-asset record whose playback resolves through the family-specific protected viewer. The free button/branch must be removed from the target flow.
+
 ## 3. Unified creation journey
 
 The user-facing wizard should follow the same high-level sequence for every family:
