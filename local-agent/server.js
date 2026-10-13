@@ -18,6 +18,13 @@ const files = new Map();
 let tunnel = null;
 let publicBaseUrl = process.env.TIMELINK_PUBLIC_BASE_URL || 'https://agent.timelink.digital';
 
+// ★ 분석 결과 저장 위치
+const ANALYSIS_DIR = path.join(
+  process.env.USERPROFILE || 'C:\\Users\\win11',
+  'TimeLink',
+  'analysis'
+);
+
 function json(res, status, body) {
   const data = Buffer.from(JSON.stringify(body));
   res.writeHead(status, {
@@ -71,6 +78,58 @@ function startTunnel() {
   });
 }
 
+async function analyzeInBackground(mp3Path, token, originalName) {
+  await fsp.mkdir(ANALYSIS_DIR, { recursive: true });
+  const outPath = path.join(ANALYSIS_DIR, token + '.score.json');
+  const metaPath = path.join(ANALYSIS_DIR, token + '.meta.json');
+
+  console.log('[analyze] 시작: ' + token + ' (' + originalName + ')');
+
+  const PYTHON_BIN = 'C:\\\\Users\\\\win11\\\\Desktop\\\\timelink-score\\\\venv\\\\Scripts\\\\python.exe';
+  const python = spawn(PYTHON_BIN, [
+    '-m', 'timelink_score.cli', 'analyze',
+    mp3Path,
+    '--out', outPath,
+    '--method', 'yin',
+    '--max-duration', '30',
+  ], {
+    cwd: 'C:\\Users\\win11\\Desktop\\timelink-score',
+    env: {
+      ...process.env,
+      PYTHONPATH: 'C:\\Users\\win11\\Desktop\\timelink-score\\src',
+    },
+    windowsHide: true,
+  });
+
+  let stderr = '';
+  python.stderr.on('data', (d) => { stderr += d.toString(); });
+  python.stdout.on('data', (d) => { console.log('[analyze]', d.toString().trim()); });
+
+  return new Promise((resolve) => {
+    python.on('close', async (code) => {
+      if (code === 0 && fs.existsSync(outPath)) {
+        console.log('[analyze] 완료: ' + token);
+        await fsp.writeFile(metaPath, JSON.stringify({
+          token,
+          score_status: 'ready',
+          score_path: outPath,
+          completed_at: new Date().toISOString(),
+        }, null, 2));
+        resolve({ ok: true, score_path: outPath });
+      } else {
+        console.error('[analyze] 실패: ' + token + ' (code=' + code + ')');
+        await fsp.writeFile(metaPath, JSON.stringify({
+          token,
+          score_status: 'failed',
+          error: stderr.slice(0, 500),
+          completed_at: new Date().toISOString(),
+        }, null, 2));
+        resolve({ ok: false, error: stderr });
+      }
+    });
+  });
+}
+
 async function handleUpload(req, res, url) {
   const kind = String(url.searchParams.get('kind') || 'mp3').toLowerCase() === 'tl3' ? 'tl3' : 'mp3';
   const name = safeName(url.searchParams.get('name'), kind);
@@ -110,6 +169,11 @@ async function handleUpload(req, res, url) {
     }
     if (!publicBaseUrl) { /* PC ??μ? ?깃났?쇰줈 ?좎??섍퀬 怨듦컻 URL留?鍮꾩썙 ?붾떎. */ }
 
+    // ★ 백그라운드 분석 시작 (응답 안 기다림)
+    analyzeInBackground(filePath, token, name).catch(err => {
+      console.error('[analyze] 예외:', err.message);
+    });
+
     json(res, 200, {
       ok: true,
       token,
@@ -120,7 +184,8 @@ async function handleUpload(req, res, url) {
       local_url: 'http://' + HOST + ':' + PORT + '/local/' + token,
       public_available: !!publicBaseUrl,
       kind,
-      storage_mode: 'creator_pc'
+      storage_mode: 'creator_pc',
+      score_status: kind === 'mp3' ? 'analyzing' : null
     });
   } catch (e) {
     out.destroy();
@@ -254,6 +319,45 @@ const server = http.createServer(async (req, res) => {
       return serveFile(req, res, token);
     }
 
+    // STREAM_ROUTE: 구 /stream?name=xxx.mp3 지원 (C:\Users\win11\TimeLink 폴더)
+    if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname === '/stream') {
+      const name = String(url.searchParams.get('name') || '');
+      const safe = path.basename(decodeURIComponent(name));
+      const legacyRoot = path.join(process.env.USERPROFILE || 'C:\\Users\\win11', 'TimeLink');
+      const target = path.join(legacyRoot, safe);
+      if (!fs.existsSync(target)) {
+        return json(res, 404, { ok: false, error: 'legacy file not found' });
+      }
+      const stat = await fsp.stat(target);
+      const range = req.headers.range;
+      const ct = safe.toLowerCase().endsWith('.mp3') ? 'audio/mpeg' : 'application/octet-stream';
+      const common = {
+        'Content-Type': ct,
+        'Accept-Ranges': 'bytes',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Range',
+        'Access-Control-Expose-Headers': 'Content-Length, Content-Range',
+        'Cache-Control': 'public, max-age=31536000, immutable'
+      };
+      if (!range) {
+        res.writeHead(200, { ...common, 'Content-Length': stat.size });
+        if (req.method === 'HEAD') return res.end();
+        return fs.createReadStream(target).pipe(res);
+      }
+      const m = /^bytes=(\d*)-(\d*)$/.exec(range);
+      if (!m) { res.writeHead(416, { 'Content-Range': 'bytes */' + stat.size }); return res.end(); }
+      let start = m[1] ? Number(m[1]) : 0;
+      let end = m[2] ? Number(m[2]) : stat.size - 1;
+      start = Math.max(0, start);
+      end = Math.min(stat.size - 1, end);
+      if (start > end || start >= stat.size) {
+        res.writeHead(416, { 'Content-Range': 'bytes */' + stat.size });
+        return res.end();
+      }
+      res.writeHead(206, { ...common, 'Content-Length': end - start + 1, 'Content-Range': `bytes ${start}-${end}/${stat.size}` });
+      return fs.createReadStream(target, { start, end }).pipe(res);
+    }
+
     if (req.method === 'GET' && url.pathname === '/files') {
       return json(res, 200, {
         ok: true,
@@ -261,6 +365,27 @@ const server = http.createServer(async (req, res) => {
           token, name: x.name, size: x.size, public_url: publicBaseUrl ? publicBaseUrl + '/local/' + token : null
         }))
       });
+    }
+
+    // ★ 분석 결과 조회
+    if (req.method === 'GET' && url.pathname.startsWith('/analysis/')) {
+      const token = url.pathname.split('/')[2] || '';
+      const scorePath = path.join(ANALYSIS_DIR, token + '.score.json');
+      const metaPath = path.join(ANALYSIS_DIR, token + '.meta.json');
+
+      if (fs.existsSync(scorePath)) {
+        const scoreData = JSON.parse(await fsp.readFile(scorePath, 'utf-8'));
+        return json(res, 200, {
+          ok: true,
+          score_status: 'ready',
+          score: scoreData,
+        });
+      }
+      if (fs.existsSync(metaPath)) {
+        const meta = JSON.parse(await fsp.readFile(metaPath, 'utf-8'));
+        return json(res, 200, { ok: true, ...meta });
+      }
+      return json(res, 200, { ok: true, score_status: 'analyzing' });
     }
 
     return json(res, 404, { ok: false, error: 'Not found' });
