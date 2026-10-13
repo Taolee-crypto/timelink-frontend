@@ -1,0 +1,133 @@
+# Cloudflare Access와 Local Agent / 스트리밍 호환성 검토
+
+- 기준일: 2026-10-14
+- 작업 브랜치: `docs/master-architecture-audit-20261014`
+- 목적: 사용자가 `agent.timelink.digital`에 Cloudflare Access를 이미 적용했다는 정보를 반영해, 기존 Local Agent 및 SharePlace 스트리밍 경로와의 경계를 구분한다.
+- 확인 방식: GitHub 소스 정적 분석. Cloudflare Zero Trust 정책, tunnel ingress, Worker secrets, PC 프로세스는 직접 조회하지 않았다.
+
+## 1. 결론
+
+Cloudflare Access 설정은 공개 도메인 `agent.timelink.digital`을 보호하는 중요한 방어선이다. 다만 Creator의 현재 업로드 경로는 공개 도메인이 아니라 PC 내부 주소 `http://127.0.0.1:8787`를 직접 호출한다. 이 로컬 요청은 Cloudflare Tunnel과 Access를 통과하지 않는다.
+
+반대로 업로드 응답에 기록되는 공개 `stream_url`은 `https://agent.timelink.digital/local/:token` 형식이며, 백엔드 `GET /api/stream/:shareId`는 이 URL을 Worker에서 서버-서버 fetch 한다. 이 요청에는 현재 Cloudflare Access Service Token 헤더가 추가되지 않는다.
+
+따라서 Access가 해당 호스트의 모든 경로를 로그인/인증 대상으로 보호하고 있다면, 백엔드의 서버-서버 fetch도 Access 차단/로그인 응답을 받을 수 있다. 이 경우 Worker가 로그인 HTML을 음원 스트림으로 전달하거나 외부 스트림 오류가 발생할 수 있다. 실제 영향은 현재 Access application의 경로별 정책과 예외 규칙을 확인해야 확정할 수 있다.
+
+## 2. 실제 호출 흐름
+
+### 업로드: 브라우저 → PC 로컬 Agent
+
+Creator `public/creator.html`은 아래를 직접 호출한다.
+
+- `GET http://127.0.0.1:8787/health`
+- `POST http://127.0.0.1:8787/upload?kind=mp3&name=...`
+
+Local Agent는 업로드 후 `public_url`과 `stream_url`을 다음 형식으로 반환한다.
+
+- `https://agent.timelink.digital/local/<random-token>`
+
+이 업로드 단계에서 Cloudflare Access는 인증 경로에 포함되지 않는다. 로컬 Agent 자체 인증/Origin 검사와 사용자 PC에서만 접근 가능한 네트워크 경계가 별도로 필요하다.
+
+### 재생: 브라우저 → TimeLink Worker → Local Agent 터널
+
+백엔드 `src/index.ts`의 `GET /api/stream/:shareId`는 DB의 Share `stream_url`을 조회하고, 외부 HTTP(S) URL이면 `fetch(_su0)`로 가져온다. 현재 소스에서 해당 fetch는 Range 헤더만 전달하며 Cloudflare Access Service Token 헤더는 전달하지 않는다.
+
+따라서 `agent.timelink.digital`에 Access가 적용된 경우, Worker → Agent 터널의 서버-서버 호출이 Access 정책을 통과하는 방식이 필요하다.
+
+## 3. Access 설정에 따라 달라지는 결과
+
+| Access 정책 | 예상 결과 | 평가 |
+|---|---|---|
+| 전체 호스트에 사용자 로그인 요구 | Worker의 서버-서버 fetch가 로그인 HTML/302 또는 403을 받을 수 있음 | 스트리밍 호환성 위험 |
+| `/local/*`만 Bypass, 나머지 경로는 인증 | Worker fetch는 동작할 수 있으나 개별 파일 난수 토큰이 직접 접근 권한이 됨 | 간단하지만 토큰 유출 관리 필요 |
+| 전체 호스트 보호 + Service Auth 정책 허용 | Worker가 Access Service Token 헤더를 보내면 보호된 경로 접근 가능 | 권장 |
+| 사용자 로그인 정책과 Service Auth 정책 병행 | 사람의 브라우저와 Worker 서버-서버 요청을 각각 허용 가능 | 가장 유연한 방식 |
+
+실제 Cloudflare Access application이 경로별로 분리되어 있는지, `/local/*`에 별도 Bypass가 있는지, Service Auth 정책이 존재하는지는 아직 확인하지 않았다.
+
+## 4. 권장 구조
+
+### 4.1 Access는 유지한다
+
+사용자가 이미 설정한 Access를 끄거나 제거하지 않는다. Local Agent의 공개 도메인 보호는 유지한다.
+
+### 4.2 Worker에 Service Token을 연결한다
+
+Cloudflare Access에서 전용 Service Token을 만들고, 해당 토큰만 허용하는 Service Auth 정책을 구성한다.
+
+Backend Worker에 다음 secret을 등록한다.
+
+- `CF_ACCESS_CLIENT_ID`
+- `CF_ACCESS_CLIENT_SECRET`
+
+그 후 Worker의 외부 스트림 fetch에서 두 헤더를 추가한다.
+
+- `CF-Access-Client-Id`
+- `CF-Access-Client-Secret`
+
+토큰 값은 소스 코드, GitHub, 프런트엔드 JavaScript, D1에 저장하지 않는다. Worker secret으로만 관리한다. Service Token은 사용자 로그인과 별개로 폐기/회전할 수 있게 운영한다.
+
+### 4.3 Agent 경로별 최소 권한
+
+- `/local/:token`: Worker 스트리밍 경로만 필요한 범위에서 허용한다.
+- `/upload`: 공개 터널에서 불필요하다면 Access 인증을 유지하고, Creator의 로컬 업로드는 loopback만 사용한다.
+- `/files`: UI 호출자가 현재 저장소에서 확인되지 않았다. 외부 접근을 허용할 이유가 없다면 차단한다.
+- `/stream?name=`: 레거시 폴더 파일 직접 노출 경로다. 실제 호출자를 확인한 뒤 폐쇄 또는 별도 인증한다.
+- `/analysis/:token`: 현재 공개 API 사용자가 확인되지 않았다. 분석 결과를 실제로 사용하는 UI와 호출 경로를 확인한 후 제한한다.
+- `/health`: 상태 확인에 필요한 최소 정보만 반환하고 파일 수/내부 경로 등은 공개 응답에서 제외하는 방향을 권장한다.
+
+### 4.4 Local Agent 자체 방어
+
+Cloudflare Access는 공개 터널 앞단의 방어이며, `127.0.0.1:8787`로 직접 들어오는 브라우저 요청의 인증을 대신하지 않는다.
+
+향후 Local Agent와 Creator 사이에 페어링 기반 단기 토큰을 도입한다. 단, 기존 Creator는 현재 Authorization 없이 `/upload`를 호출하므로, 새 인증을 먼저 Agent에 적용하면 현재 업로드가 깨진다. Agent와 Creator를 같은 배포 묶음으로 변경하고, 구버전 호환/복구 경로를 마련한 뒤 적용해야 한다.
+
+CORS Origin allowlist는 보조 방어로 사용한다. Origin 검사는 인증을 대체하지 않으며, 비브라우저 클라이언트의 요청을 막는 보안 경계로 간주해서는 안 된다.
+
+## 5. 기존 코드에서 확인한 구체적 사실
+
+### Local Agent
+
+- 서버는 `127.0.0.1:8787`에 바인딩한다.
+- `/health`, `/upload`, `/local/:token`, `/stream?name=`, `/files`, `/analysis/:token`을 처리한다.
+- 전역 CORS는 `Access-Control-Allow-Origin: *` 및 `Access-Control-Allow-Private-Network: true`를 설정한다.
+- `/files`는 메모리에 로드된 파일의 token/name/size/public_url을 반환한다.
+- `/stream?name=`은 사용자 TimeLink 폴더의 파일을 basename으로 읽는다.
+- `/upload`는 최대 500 MiB 파일을 수신하며 별도 사용자 인증 검사는 확인되지 않았다.
+- `publicBaseUrl`은 기본값이 고정 도메인으로 미리 설정되므로, 현재 `public_available`은 터널 외부 연결 검증 성공을 뜻하지 않는다.
+
+### Frontend
+
+- Creator 업로드는 `127.0.0.1:8787`을 직접 호출한다.
+- SharePlace는 레거시 localhost 주소를 발견하면 `api.timelink.digital/api/stream/:shareId`로 전환한다.
+- `/files`를 호출하는 운영 UI 경로는 현재 저장소 검색에서 확인되지 않았다.
+- `/analysis/:token`을 호출하는 운영 UI 경로도 현재 저장소 검색에서 확인되지 않았다.
+
+### Backend
+
+- `/api/stream/:shareId`는 외부 HTTP(S) stream URL을 Worker에서 가져온다.
+- 해당 외부 fetch에 Access Service Token 헤더는 현재 확인되지 않았다.
+- Backend `Env` 타입에도 Access Service Token secret 필드는 아직 정의되어 있지 않다.
+
+## 6. PC가 켜졌을 때 확인할 최소 항목
+
+PC가 켜져야 하는 단계에서 아래 항목만 한 번에 확인하면 된다. 지금은 수행할 필요가 없다.
+
+1. Cloudflare Zero Trust → Access → Applications에서 `agent.timelink.digital` 앱의 hostname/path 확인.
+2. Policies에서 전체 로그인 정책, Bypass 경로, Service Auth 정책 확인.
+3. Cloudflare Tunnel `timelink-agent`의 ingress가 `agent.timelink.digital`을 `http://127.0.0.1:8787`로 전달하는지 확인.
+4. Worker가 Access Service Token을 사용하도록 secret을 등록할 수 있는지 확인.
+5. 외부에서 `/local/<token>` 스트림을 요청했을 때 206 Range 응답이 오는지 확인. 실제 파일 URL은 비공개로 유지하고, 테스트용 파일만 사용한다.
+
+## 7. 다음 구현 순서
+
+1. Cloudflare Access 정책 경로를 확인한다. 사용자가 PC에 접근할 수 있을 때만 수행한다.
+2. 테스트용 Worker secret과 테스트 파일로 서버-서버 Access 통과를 확인한다.
+3. Backend Worker에 Access Service Token 헤더 전달을 추가한다. 기존 공개 URL의 응답 형식과 Range 프록시 동작은 유지한다.
+4. Local Agent의 `/files`, `/stream?name=`, `/analysis` 실제 호출자를 다시 확인하고 외부 노출 범위를 축소한다.
+5. Agent/Creator 페어링 인증을 한 묶음으로 구현한다.
+6. 업로드 → Share 등록 → TL3 sync/release → SharePlace playback을 MP3와 TL3 각각 격리 테스트한다.
+
+## 8. 변경하지 않은 것
+
+이 문서는 조사 및 설계 기록이다. Local Agent 코드, Cloudflare Access 정책, Tunnel 설정, Worker secret, 실제 사용자 파일, TL 잔액은 변경하지 않았다. 운영 기능을 유지하면서 Access와 기존 서버-서버 스트리밍의 호환성을 검증하기 위한 기준 문서로 사용한다.
