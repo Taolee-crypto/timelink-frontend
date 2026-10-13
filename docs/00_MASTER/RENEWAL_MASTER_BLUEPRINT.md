@@ -207,3 +207,167 @@ The cafe channel setup currently contains a 90-day trial path, and the cafe radi
 ### 10.5 Implementation boundary
 
 This section is an architecture requirement only. It does not authorize changes to production code, live prices, active contracts, user balances, POC/TLC balances or existing settlements. Implement first in the design branch after the source/API/data audit; keep production unchanged until the owner explicitly approves the implementation and rollout.
+
+
+## 11. Profitability protection and operating-rule engine — owner direction (2026-10-14)
+
+The primary commercial objective is to prevent TimeLink from becoming structurally unprofitable. Admin controls must therefore enforce profitability rules, not merely expose editable prices or display financial statistics. The existing frontend administrator page is `public/admin.html`; extend this page and its existing navigation/panel architecture. Do not create a second admin application or replace the existing admin file.
+
+### 11.1 Non-negotiable operating principles
+
+1. **No loss-making new commitment by default.** Before a new product price, cafe contract, DJ arrangement, promotional campaign or reward rule becomes active, the server must calculate its expected economics. If the calculation is incomplete, uses stale cost data, or breaches the configured minimum contribution margin, activation is blocked pending an authorized exception.
+2. **Protect existing customer and creator rights.** A new policy applies prospectively at its effective time. It must not retroactively change paid access, accrued creator earnings, accepted contracts, completed listening sessions or historical settlements.
+3. **Separate economic ledgers.** Cash revenue/cost, TL balances and obligations, POC contribution, TLC issuance/treasury exposure, and creator/cafe/DJ payable amounts must be reported separately. Do not label token issuance, internal TL movement or gross TL consumption as cash profit.
+4. **Measure platform-retained revenue.** Every service must show gross receipts, contractual distributions, creator/DJ/cafe payouts, payment/refund costs, infrastructure and delivery costs, reward liabilities, platform-retained revenue and contribution margin as distinct values.
+5. **No client-side economic authority.** The backend calculates and enforces prices, discounts, eligible POC multipliers, reward amounts, revenue shares, reservations and settlements. Admin UI inputs are proposals only.
+6. **Fail closed for new economic risk.** If the profitability engine cannot verify the required data, it must not activate a new price/reward/contract that can create an unbounded liability. It must preserve existing valid user rights and already-active policy.
+7. **Owner-approved exception only.** Any deliberate below-floor campaign or strategic loss leader must have an explicit owner approval, budget cap, start/end time, maximum exposure and automatic expiry. It must never become an accidental permanent policy.
+
+### 11.2 Profitability calculation model
+
+For each product, channel, contract and campaign, calculate at least:
+
+- Gross recognized revenue, separated by cash and TL-denominated receipts.
+- Refunds, chargebacks, payment-processing fees and applicable taxes where known.
+- Contractual allocations to creators, DJs, cafe partners and other rights holders.
+- Creator reward accruals and other payable liabilities.
+- Variable delivery costs: storage, bandwidth, streaming, Workers/API requests, external service charges and support costs where measurable.
+- Fixed/allocated operating costs, shown separately from marginal costs.
+- Net platform-retained revenue and contribution margin.
+- Outstanding TL/TLC obligations and redemption/withdrawal exposure, separately from cash expenses.
+- Data coverage and confidence: actual, estimated, missing or stale.
+
+Use a consistent calculation vocabulary:
+- `gross_revenue`: recognized gross revenue for the selected accounting basis.
+- `direct_costs`: costs directly caused by the transaction or service.
+- `contractual_payouts`: amounts owed to creators, DJs, cafe partners and other contractual recipients.
+- `platform_contribution`: gross revenue minus refunds, direct costs and contractual payouts, with each component visible.
+- `contribution_margin`: platform contribution divided by the applicable revenue base; show “not calculable” rather than inventing a value when the denominator or required cost data is missing.
+- `fixed_cost_allocation`: separately allocated overhead used for full-cost profitability, not silently mixed into transaction-level direct costs.
+
+The system must not assume that TL, TLC and KRW are interchangeable. The accounting basis and conversion rate used for any report must be explicit, timestamped and versioned. TLC mining/issuance is a token-economy exposure metric; it is not automatically cash revenue or cash expense. Any expected redemption, reserve or treasury exposure must be displayed as its own risk measure.
+
+### 11.3 Hard guardrails before activation
+
+The policy engine must evaluate these conditions on the server before a policy can become active:
+
+- Required price, cost, allocation and settlement inputs exist and are current.
+- All revenue-share percentages are valid and sum to exactly 100% for the applicable distributable base.
+- The distributable base is explicitly defined by the contract; fees, refunds and taxes cannot be silently deducted or double-counted.
+- The proposed policy meets the configured platform contribution floor and any applicable full-cost floor.
+- Creator, DJ, cafe and reward liabilities are fully represented in the forecast.
+- Per-user, per-contract, per-day and total campaign exposure caps are within approved limits.
+- POC/TLC reward issuance and any redemption exposure remain within configured budgets and reserve constraints.
+- The effective date, expiry (where applicable), policy version and rollback path are present.
+- Existing contracts and in-flight sessions can continue under their recorded policy snapshot.
+
+If any hard guardrail fails, the backend rejects activation and returns a human-readable reason plus the failed calculation. A warning alone is insufficient for a hard-floor breach.
+
+### 11.4 Automatic protective actions
+
+Use graduated responses so the platform can protect margin without breaking already-paid rights:
+
+1. **Observe:** show actual-versus-forecast variance and data-quality warnings.
+2. **Warn:** notify administrators when margin approaches its floor, costs spike, payouts exceed forecast or reward issuance accelerates.
+3. **Require approval:** pause activation of proposed price reductions, higher rewards, new partner exceptions or campaigns until an authorized approver reviews the simulation.
+4. **Cap exposure:** enforce approved per-user, per-contract, daily and campaign-wide limits.
+5. **Throttle new commitments:** where a live policy is creating a verified loss, stop or limit new sign-ups, new campaign enrolments or new contract activations, subject to contract and legal review.
+6. **Preserve existing rights:** do not abruptly terminate a paid session, confiscate balances, reduce already-accrued creator earnings or rewrite an accepted contract as an automatic response.
+7. **Emergency freeze:** an authorized owner can freeze new economic policy activations while leaving read-only monitoring and valid existing service rights intact.
+
+All automated actions must produce an audit event with trigger, measured values, policy version, action, timestamp and responsible system identity.
+
+### 11.5 Scenario simulation required before policy changes
+
+Every draft must show a side-by-side comparison of current active policy and proposed policy, including:
+
+- Expected revenue and platform contribution per transaction/session.
+- Creator/DJ/cafe distributions and TimeLink-retained amount.
+- POC/TLC issuance or exposure, separately.
+- Break-even utilization or listening volume.
+- Low/base/high demand scenarios.
+- Cost stress scenarios (for example, increased bandwidth, storage or API usage).
+- Maximum liability under the proposed caps.
+- Monthly and contract-term projections.
+- Sensitivity to lower usage, higher usage and higher variable cost.
+
+Scenario multipliers are simulation inputs, not claims about actual future demand. Missing cost inputs must be visibly marked and must prevent a policy from passing a hard profitability gate.
+
+### 11.6 Existing Admin page integration — `public/admin.html`
+
+Retain the existing admin shell, login flow, visual identity and current panels. Add a first-class navigation group named **수익성 통제** with these panels:
+
+1. **수익성 대시보드**
+   - Cash revenue, refunds/fees, direct costs, contractual payouts, platform contribution and margin.
+   - TL circulation/consumption and outstanding obligations as separate indicators.
+   - POC contribution and TLC issuance/treasury exposure as separate indicators.
+   - Current alerts, data freshness and products/channels below the configured floor.
+2. **상품·채널 손익**
+   - TL3, TL4, TLD, TLJ, cafe broadcasting, in-car broadcasting, DJ programs and advertising.
+   - Per-item price, cost basis, payout basis, platform-retained amount, margin and break-even point.
+3. **상업정책 설정**
+   - Cafe subscription fee/period and cafe listening multiplier.
+   - DJ/cafe/TimeLink revenue split and contract overrides.
+   - In-car standard/verified vehicle POC multiplier and eligibility.
+   - POC/TLC reward budgets and approved activation incentives.
+   - These controls edit a draft policy only; they do not write directly into live calculations.
+4. **정책 시뮬레이터**
+   - Current-versus-proposed policy comparison, low/base/high demand and cost stress.
+   - Estimated contribution, payout, token exposure and maximum liability.
+   - Explicit pass/fail result against configured guardrails.
+5. **승인·예약·이력**
+   - Draft, submitted, approved, scheduled, active, rejected and rolled-back states.
+   - Approver, reason, effective time, expiry, previous/new values and immutable version history.
+6. **정산 대사**
+   - Expected versus actual DJ/cafe/platform distribution.
+   - Creator payable accrual versus paid amount.
+   - TL debit/credit consistency and duplicate/missing settlement detection.
+   - POC eligibility versus server-calculated contribution.
+   - TLC issuance versus recorded mining/treasury data.
+7. **비용·한도 관리**
+   - Storage, bandwidth, Workers/API, payment fees and external service costs.
+   - Cost budgets, alert thresholds, exposure caps and data freshness.
+   - Actual, estimated and missing cost data must never be visually conflated.
+
+Existing panels remain in place:
+- `revenue` remains the financial reporting view.
+- `tl-flow` remains the TL movement/economy view.
+- `payout` and `auto-payout` remain settlement operations.
+- `cafe-mgmt` remains cafe channel operations.
+- `infra` remains infrastructure usage/cost observation.
+The new profitability layer consumes/reconciles these sources; it must not duplicate or silently redefine their accounting.
+
+### 11.7 Roles, approvals and audit controls
+
+- Separate read-only finance/operator access, policy editor, approver and owner-level emergency authority.
+- A person who drafts a material economic change should not be the sole approver of that change.
+- Require reason, affected products/contracts, simulation result and effective time for every proposal.
+- Require step-up confirmation for changes to prices, payout splits, reward budgets, POC multipliers, TLC issuance parameters or withdrawal settings.
+- Store immutable policy versions and per-transaction policy snapshots.
+- Keep an append-only audit trail for proposal, approval, rejection, activation, freeze and rollback.
+- Do not expose unrestricted SQL as the mechanism for normal commercial-policy editing. Existing SQL tools must remain separately permissioned and must not bypass policy validation.
+
+### 11.8 Source audit issues to resolve before enabling live controls
+
+The current `public/admin.html` already has financial, TL-flow, payout, cafe-management and infrastructure panels, but these are mainly reporting/operational panels and do not yet constitute a unified profitability gate.
+
+The current admin page also contains legacy client-side credential comparison and browser-local session restoration patterns. Before relying on it for high-impact financial policy changes, verify and strengthen server-side administrator authentication, role checks, session expiry/revocation and endpoint authorization. Never treat hidden UI controls, local storage flags or client-side role checks as security boundaries.
+
+Existing source-level findings still require reconciliation:
+- Cafe subscription baseline is 50,000 TL per 30 days; confirm actual collection and renewal behavior.
+- The stored DJ/cafe/platform allocation baseline is 50/30/20, while the observed charge path appeared to credit DJ 50% and platform 50%. Do not activate editable allocation controls until the actual settlement path is corrected and reconciled.
+- In-car UI displays 2.5x POC for registered vehicles, but trusted server-side vehicle verification and multiplier enforcement have not been established.
+- Existing trial/preview paths conflict with the owner-confirmed TL-only distribution and no-free-playback principles; do not expose them as free-tier policy switches.
+
+### 11.9 Implementation sequence and safety boundary
+
+1. Map every existing Admin panel to its API, backend route, database source and accounting meaning.
+2. Establish a read-only profitability report using verified data; label estimates and gaps.
+3. Reconcile cafe/DJ settlement, creator liabilities, in-car POC and infrastructure costs.
+4. Define the policy schema, version snapshots, guardrail evaluation and simulation API.
+5. Add the new panels to the existing `public/admin.html` shell.
+6. Implement server-side enforcement and audit records only after tests prove the calculations.
+7. Run simulations and test fixtures without touching real balances, live contracts or production settlements.
+8. Enable live policy activation only after explicit owner approval and a rollback-tested release.
+
+This design does not authorize production deployment, changes to current commercial values, live user balance changes, creator/DJ/cafe payout changes, POC/TLC issuance changes or automatic suspension of existing services.
