@@ -46,6 +46,17 @@ Local Agent는 업로드 후 `public_url`과 `stream_url`을 다음 형식으로
 
 **필수 설계 변경:** Agent 도메인의 파일 URL을 사용하는 모든 브라우저 플레이어를 TimeLink API의 Share 스트림 프록시로 통일한다. API Worker만 Access Service Token으로 Agent 원본을 가져오게 한다. 기존 TL 과금·세그먼트 라이선스·InCar tick 로직은 이 URL 라우팅 변경과 분리해 보존한다. TL3는 반드시 기존 TL3 라이선스/confirm 경로를 유지하며 일반 `/api/stream`으로 우회시키지 않는다.
 
+### 추가로 확인한 재생 화면
+
+- `public/track.html`: MP3 무료 재생 시 `_share.stream_url`을 그대로 `Audio.src`에 지정한다. TL3는 별도 TL3 resolver를 사용한다.
+- `public/radio.html`: `playTrack()`이 R2 주소 변환만 수행하며 Agent 도메인은 그대로 재생 URL로 사용한다.
+- `public/incar.html`: 파일별 TL 잔액이 있을 때는 API 스트림을 사용하지만, 직접 재생 분기에서는 Agent URL이 그대로 남는다.
+- `public/cafe-radio.html`: TL3는 TL3 resolver를 사용하지만 MP3 방송은 `track.stream_url`을 직접 사용한다.
+- `public/dj-center.html`: TL3는 TL3 resolver를 사용하지만 비-TL3 방송은 `track.stream_url`을 직접 사용한다.
+- `public/player-host.html`과 `public/dj-console.js`는 TL3 전용 resolver 경로가 중심이므로, TL3 라이선스 API와 구분해 유지한다.
+
+따라서 URL 라우팅 수정 범위는 SharePlace 한 화면이 아니라 **일반 MP3를 직접 재생하는 모든 활성 플레이어**다. 각 화면에서 Agent 도메인 URL만 API `/api/stream/:shareId`로 바꾸고, R2 및 외부 URL은 기존 동작을 유지해야 한다. TL3 파일은 세그먼트 라이선스/confirm 경로를 우회하지 않도록 별도 유지한다.
+
 ## 3. Access 설정에 따라 달라지는 결과
 
 | Access 정책 | 예상 결과 | 평가 |
