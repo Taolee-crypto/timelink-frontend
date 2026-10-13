@@ -93,3 +93,37 @@
 3. My Music와 TimeLink Label의 음원·권리·발매 이력 모델 연결
 4. Track Page 좋아요·팔로우·플레이리스트를 실제 DB 기능으로 구현
 5. 원본 파일 접근 권한을 기존 재생·TL3 흐름을 깨지 않고 단계적으로 강화
+
+
+## 2026-10-14 — My Music 및 Track Page 소셜 기능 연결 착수
+
+### 프런트엔드
+- 신규 `public/renewal/music.html`, `music.css`, `music.js`
+- `GET /api/shares/my`를 통해 본인 소유의 SharePlace 음원만 조회
+- TL3와 MP3 유형 필터, 곡/아티스트 검색, 곡별 Track Page 이동, 홍보 링크 복사
+- 구형 `tl_files` 음원은 별도 영역으로 분리하고 Track Page 연결을 확인해야 한다고 표시
+- 홈 및 My Files에서 My Music로 이동하도록 연결
+
+### 백엔드
+- 브랜치: `Taolee-crypto/timelink-backend:feature/renewal-private-library-api`
+- `src/index.ts`의 고정 응답 소셜/플레이리스트 스텁을 실제 DB 기반 코드로 교체
+- 좋아요: 사용자별 중복 방지 및 곡별 집계
+- 팔로우: 사용자 간 관계 저장, 자기 자신 팔로우 차단
+- 댓글: 곡 존재 확인 후 등록, 기존 목록 응답 유지
+- 댓글 신고: 신고자별 중복 방지 기록
+- 플레이리스트: 사용자 소유 목록 생성, 곡 추가 및 목록 조회
+- 조회수는 기존 데이터에서 신뢰 가능한 이벤트 모델을 확인하지 못했으므로 임의 수치를 만들지 않고 미집계 상태로 둔다.
+
+### 검증 및 제한
+- Renewal 홈, My Files, My Music JavaScript는 V8 Function 파싱 검사를 통과했다.
+- 백엔드 소셜 경로의 고정 응답 스텁이 제거되고 DB 기반 핸들러가 존재하는 것을 소스에서 확인했다.
+- TypeScript strict 빌드와 D1 통합 테스트는 아직 실행하지 못했다. 백엔드 package.json에는 test/build 스크립트가 선언되어 있지 않다.
+- 브라우저 렌더링, 실제 사용자 A/B 교차 권한, 댓글 신고 운영 흐름은 미검증이다.
+- 백엔드와 프런트엔드 모두 별도 개발 브랜치이며 운영에 배포하지 않았다.
+
+### 다음 개발 단위
+1. 백엔드 TypeScript strict 검사 환경 및 D1 스테이징 테스트 구성
+2. 신규 My Files/My Music 페이지 브라우저 검증
+3. 소셜 API 중복 요청·자기 팔로우·타 사용자 플레이리스트 접근 차단 테스트
+4. 원본 파일 공개 접근 및 인증 없는 업로드 경로의 호환성 포함 보안 보강
+5. My Music에서 기존 TL3 발행 레코드와 Creator 음원 원본의 관계를 연결
