@@ -10,12 +10,14 @@
 
 ### 1.1 TL3 중복 소비 차단 — frontend
 
-파일: `public/shareplace.html`, `public/tl3.js`
+파일: `public/shareplace.html`, `public/track.html`, `public/tl3.js`
 
 - SharePlace 타이머에서 세그먼트 라이선스/confirm 경로를 사용하는 TL3 오디오를 전용 판별 함수 `isSegmentBilledTL3()`로 구분한다.
 - TL3에는 레거시 `POST /api/shares/:id/consume`을 호출하지 않는다.
 - TL3 잔액을 타이머가 초당 임의 차감하지 않는다.
 - TL3 잔액 표시는 세그먼트 라이선스 응답과 confirm 응답의 `remaining_tl`을 반영한다.
+- `track.html`에도 동일한 중복 소비 위험이 확인되어, TL3일 때 1초 로컬 잔액 차감과 5초 레거시 `/api/shares/:id/consume` 호출을 건너뛰도록 수정했다.
+- Track TL3 플레이어는 `onSegment` 콜백으로 서버 잔액을 표시한다.
 - MP3/레거시 파일에 대한 기존 타이머 소비 분기는 보존했다.
 - TL3 서버 측 `code → confirm` 정산 로직은 수정하지 않았다.
 
@@ -61,8 +63,9 @@
 
 | 저장소 | 파일 | 최신 Blob SHA |
 |---|---|---|
-| frontend | `public/shareplace.html` | `e98a97ea08a88ae56959728771847334114aa702` |
+| frontend | `public/shareplace.html` | `84e6e78c4e5bae4677f213b718e012306dde111d` |
 | frontend | `public/tl3.js` | `e9857d176e8c62c0628d13322fd9f3f0f8921714` |
+| frontend | `public/track.html` | `de8a13021f65a68312d52325548daa21e900b68d` |
 | frontend | `public/creator.html` | `f1bac29c073a3243eb5596b789d0db07d79888ac` |
 | frontend | `public/dashboard.html` | `9c4c266130a4b379296e0bc117b1e6b336fd4d84` |
 | backend | `src/index.ts` | `8d5e5e5a6c8431c73055d37d4e9e834c02fa04de` |
