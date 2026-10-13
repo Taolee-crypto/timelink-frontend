@@ -386,7 +386,7 @@ async function previewDj(djId){
     _playing = dj;
     _playingTrackId = d.current_track.id;
 
-    playAudio(getCafeTrackSource(d.current_track), true, d.current_track.elapsed_ms);
+    playAudio(d.current_track.stream_url, true, d.current_track.elapsed_ms);
 
     g('playerBar').classList.add('show');
     g('pbTitle').textContent = d.current_track.title || dj.dj_name + ' 방송';
@@ -443,7 +443,7 @@ async function playDjTrack(djId, skipIfSame, role){
     if(skipIfSame && _playingTrackId === track.id) return;
 
     _playingTrackId = track.id;
-    var _src = getCafeTrackSource(track);
+    var _src = String(track.content_kind||'').toLowerCase()==='tl3' ? track.id : track.stream_url;
     playAudio(_src, false, track.elapsed_ms);
 
     // UI 업데이트
@@ -454,15 +454,6 @@ async function playDjTrack(djId, skipIfSame, role){
   }
 }
 
-function getCafeTrackSource(track){
-  if(!track) return '';
-  var url=String(track.stream_url||'');
-  if(String(track.content_kind||'').toLowerCase()==='tl3') return track.id;
-  if((/^https?:\/\/agent\.timelink\.digital\/local\//i.test(url) || /^(https?:\/\/)?(127\.0\.0\.1|localhost)(:\d+)?\//i.test(url)) && track.id){
-    return API + '/api/stream/' + encodeURIComponent(String(track.id));
-  }
-  return url;
-}
 
 // ── 오디오 재생 ──
 // ── 오디오 재생 (TL3 aware) ──
