@@ -141,3 +141,16 @@ A security PR is not ready to merge until all are true:
 - No D1 staging database, two-account test, browser E2E, or staging Worker test has yet been run.
 - The GitHub Actions workflow file for strict TypeScript validation exists on the development branch, but no workflow run was returned for the inspected commit. TypeScript validation therefore remains unverified.
 - No merge, production database migration, or production deployment has been performed.
+
+
+## 8. Additional source findings from SharePlace and stream-route review
+
+A second pass through `src/routes/shareplace.ts` and the legacy stream handlers identified additional high-priority issues:
+
+1. **SharePlace list response returns `s.*` for modern `tl_shares` records.** This includes `stream_url` and other internal fields. The modern list query also does not apply a publication/visibility predicate. The public response must be replaced with an explicit allowlist DTO (public metadata only), with visibility and dispute checks.
+2. **`GET /api/stream/:shareId` returns source bytes without a playback authorization check.** The handler resolves the SharePlace record and streams an external URL, external storage object, or D1 object. It does not require an authenticated playback session or verify a server-issued grant before returning bytes.
+3. **`GET /api/stream/:shareId/info` reports `can_play` based on a simplified balance check and treats anonymous visitors as playable.** This is informational only and is not an authorization boundary; the stream handler must enforce the actual decision.
+4. **`POST /api/stream/:shareId/tick` accepts client-provided `seconds` and `deduct_rate`.** The server must derive the tariff and billable segment from trusted asset metadata and session state. Client values cannot determine price.
+5. **The modern SharePlace POST route records POC activity and accepts creator-supplied release metadata.** The future rights workflow must persist uploader attestation, evidence references, review state, and dispute status as separate auditable records; creator-supplied `release_check` alone must never be treated as an independently verified result.
+
+These findings reinforce the required delivery model: SharePlace exposes approved metadata; a dedicated playback authorization layer grants only the exact protected segment or promotional stream permitted by policy. A Track Page URL is not a bearer token for the original file.
