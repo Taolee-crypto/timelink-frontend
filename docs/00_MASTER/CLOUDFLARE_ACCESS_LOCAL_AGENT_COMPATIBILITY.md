@@ -196,6 +196,21 @@ TL3는 기존 `/api/v1/tl3/header`, `segment`, `code`, `segment/confirm` 라이�
 - 실제 Agent 터널, Access 정책, Worker 배포, 브라우저 Range 재생 테스트는 하지 않았다.
 - 따라서 이 변경은 **코드 준비 완료, 운영 적용 전** 상태다. Access가 `/local/*`를 Bypass하지 않고 전체 로그인을 요구한다면 Worker secret 등록 전까지 프록시 재생은 실패할 수 있다.
 
+### 필수 재생 회귀 테스트
+
+| 시나리오 | 기대 결과 |
+|---|---|
+| SharePlace 무료 MP3 (Agent 저장) | 브라우저는 `api.timelink.digital/api/stream/:id`만 호출하고 정상 재생 |
+| Track 무료 MP3 (Agent 저장) | API 프록시로 재생, 기존 UI/진행률 유지 |
+| Radio MP3 (Agent 저장) | API 프록시로 재생, 기존 TL 차감 UI/타이머 유지 |
+| InCar MP3 (Agent 저장) | API 프록시로 재생, 기존 파일별 TL 및 tick 분기 유지 |
+| Cafe Radio MP3 방송 | API 프록시로 재생, 방송 elapsed_ms 동기화 유지 |
+| DJ Center MP3 방송 | API 프록시로 재생, 곡 전환/자동 진행 유지 |
+| TL3 SharePlace/DJ/Cafe Radio | TL3 header/segment/code/confirm만 사용, 일반 stream 프록시로 우회하지 않음 |
+| API 프록시 Range 요청 | 원본이 206을 반환하면 클라이언트에도 206과 Content-Range 전달 |
+| Access Service Token 누락/오류 | 로그인 HTML이 오디오 데이터로 전달되지 않고 명확한 502 반환 |
+| 비-Agent 외부 URL | 기존 외부 URL 처리 유지, Access Service Token 헤더 미전송 |
+
 ### 다음 PC 필요 단계
 
 1. Cloudflare Zero Trust에서 `agent.timelink.digital` Access application의 hostname/path와 policy 순서를 확인한다.
