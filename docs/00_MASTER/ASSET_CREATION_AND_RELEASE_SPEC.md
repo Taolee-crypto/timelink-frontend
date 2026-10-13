@@ -13,8 +13,8 @@ This specification defines one coherent asset-registration journey for all four 
 1. TL3, TL4, TLD and TLJ are equal asset families. None is the default family or a secondary attachment type.
 2. A single member account can create, own, publish, consume and manage all four families.
 3. The common workflow is shared; metadata, validation, preview and viewer behavior are family-specific.
-4. Asset family is independent of release/access policy. A TL3 can be free or paid; the same principle applies to each supported family, subject to product rules and implementation readiness.
-5. Existing TL3 upload, protected-file, playback, per-second consumption, creator settlement and legacy free-MP3 paths must remain readable and operational until a tested migration/replacement is explicitly approved.
+4. **Only protected TL assets may be published or shared. There is no free-content or free-playback mode.** Ordinary source files (MP3, MP4, PDF, JPEG/PNG, etc.) are Creator inputs only and must remain private source material; the protected TL container is the distributable asset.
+5. Existing protected TL3 upload, playback, usage metering and creator settlement behavior must be preserved. Legacy MP3/source-file sharing records and free-playback routes are historical compatibility data only; they are not target product behavior and must not be newly exposed or extended. Preserve records for audit and migrate/restrict them only through a tested, approved plan.
 6. Existing POC contribution and TLC participation/mining behavior must be preserved. Do not recalculate, rename, reset or replace their accounting as part of asset UI work.
 7. Storage-provider choice must preserve the currently supported user-owned Google Drive, OneDrive and Local Agent paths, as well as any verified existing backend storage.
 8. Never rename, rewrite, bulk-convert or invalidate existing files merely to make their extensions match a proposed canonical naming scheme.
@@ -39,13 +39,26 @@ The identifiers above are the target domain vocabulary. They must not be treated
 The target asset record should distinguish at least:
 
 - `asset_family`: `tl3 | tl4 | tld | tlj`
-- `release_mode`: a publication/distribution choice, such as free, paid or private/unlisted, only where the mode is implemented.
+- `release_mode`: a TL-asset publication state such as published or private/unlisted. A free-content mode is not permitted.
 - `access_policy`: the actual authorization and charging rule applied at use time.
 - `lifecycle_status`: draft, validating, uploading, protecting, ready_for_review, published, private, failed or archived, subject to the authoritative server state.
 - `storage_provider`: the selected and confirmed storage provider.
 - `container_format` and `container_version`: the actual file/container identity, not inferred from a filename alone.
 
 Do not overload a legacy `content_kind` field that currently appears to distinguish only MP3 and TL3. A compatibility adapter must preserve legacy values while the canonical model is introduced and verified.
+
+### 2.3A Source material versus distributable TL asset
+
+The source file selected in Creator is not itself a TimeLink asset listing. The lifecycle is:
+
+1. Select/import source material (e.g. MP3, MP4, PDF, JPEG/PNG) into the Creator workspace.
+2. Validate source rights, format and metadata; keep the source private to the creator/workflow.
+3. Generate and verify the protected family-specific TL container (TL3/TL4/TLD/TLJ).
+4. Store and register the protected TL object as the canonical asset.
+5. Publish/share only that TL asset through SharePlace and other TimeLink applications.
+6. Meter authorized use in TL units and settle the creator's approved TL reward-token compensation.
+
+Never create a public SharePlace entry or playback URL that points directly to the original source file. A preview, if required, must itself be an authorized protected derivative and must not expose the raw source.
 
 ### 2.3 Rights artifact is not an asset family
 
@@ -355,7 +368,7 @@ On successful publication:
 - Create or update one authoritative SharePlace record for the asset.
 - Display family, title, creator, preview, publication state and supported access policy.
 - Ensure filters use canonical family identity, not extension heuristics.
-- Keep free MP3 legacy entries discoverable through the compatibility adapter.
+- Keep legacy source-file records identifiable for audit/migration, but exclude them from public discovery and playback in the target product.
 - Avoid duplicate cards when a retry or synchronization event is replayed.
 - Preserve existing likes, follows, playlists, shares, playback history and deep links where the existing asset record supports them.
 
@@ -414,7 +427,7 @@ A family-specific wizard is ready for controlled implementation only when:
 - [ ] Legacy file formats remain readable through compatibility handling.
 - [ ] Release policy is separated from asset family.
 - [ ] Billing unit and settlement rules are approved per family.
-- [ ] TL3 legacy free MP3 and protected playback flows pass regression tests.
+- [ ] Protected TL3 playback and settlement pass regression tests; legacy source-file records are not publicly exposed.
 - [ ] Existing POC/TLC behavior passes regression tests without accounting changes.
 - [ ] Duplicate registration and duplicate SharePlace creation are prevented.
 - [ ] Failed uploads and interrupted registrations can be recovered safely.
