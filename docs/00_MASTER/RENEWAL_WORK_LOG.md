@@ -50,3 +50,46 @@
 5. Track Page 소셜 백엔드 기능 설계
 6. Creator/TimeLink Label 발행 흐름의 기존 API 계약 검증
 7. 첫 신규 페이지(My Dashboard)를 별도 경로에서 실제 데이터 연결
+
+
+## 2026-10-14 — 백엔드 API 실사 및 My Files 1차 구현
+
+### 백엔드 실사 결과 저장
+- `docs/00_MASTER/BACKEND_API_AND_SECURITY_AUDIT.md`
+- 확인한 백엔드 기준 커밋: `d13350d8c1b64c927c3cd3c4d189240eb2c7c756`
+- 데이터 모델이 `tl_files`, `tl_shares`, `storage_objects`, TL3 release 테이블로 나뉘어 있음을 확인했다.
+- 지갑도 `tl_balance`, `tl`, `tl_p`, `tl_a`, `tl_b`, `tlc_balance` 등 복수 필드가 사용된다. 통합 원장/API 확정 전에는 프런트엔드에서 임의 합산하지 않는다.
+- Track Page 좋아요·팔로우·플레이리스트는 현재 스텁이고 댓글 읽기/쓰기는 DB 경로가 있음을 확인했다.
+- 원본 파일 접근, 인증 없는 업로드, 파일 동기화 사용자 귀속, 관리자 승인 권한 관련 P0/P1 검토 항목을 별도 기록했다.
+
+### 백엔드 개발 브랜치
+- 저장소: `Taolee-crypto/timelink-backend`
+- 브랜치: `feature/renewal-private-library-api`
+- 변경: `src/index.ts`
+- 신규 `GET /api/shares/my`: 인증된 사용자의 `tl_shares`와 구형 `tl_files`를 읽기 전용으로 조회한다. 원본/스트림 주소 및 증빙 경로는 반환하지 않는다.
+- 신규 `GET /api/storage/objects`: 인증된 사용자의 외부 저장소 객체 메타데이터만 반환한다. OAuth 토큰과 제공자 다운로드 URL은 반환하지 않는다.
+- 두 API 모두 개발 브랜치에만 존재하며 운영 배포되지 않았다.
+
+### 프런트엔드 개발 브랜치
+- 저장소: `Taolee-crypto/timelink-frontend`
+- 브랜치: `feature/renewal-shell-20261014`
+- 신규 `public/renewal/files.html`, `files.css`, `files.js`
+- 내 TL 공유 자산, 기존 Creator 파일, 개인 클라우드 원본을 한 화면에서 구분한다.
+- Google Drive/OneDrive 연결 상태와 OAuth 연결 진입을 연결했다.
+- 로그인 세션은 `GET /api/v1/auth/me`로 확인한다.
+- 홈 화면도 단순 localStorage 존재 여부가 아니라 서버 세션 검증 후 회원 화면을 보여주도록 변경했다.
+- 홈 메뉴의 내 파일 링크를 신규 My Files 화면으로 연결했다.
+
+### 검증
+- 신규 프런트엔드 JS 2개 파일은 V8 Function 파싱으로 문법 검사를 통과했다.
+- CSS 중괄호 균형을 확인했다.
+- 백엔드 신규 API 경로와 사용자 ID 조건 SQL이 저장된 것을 재조회했다.
+- TypeScript strict 빌드, 브라우저 렌더링, D1 소유자 교차 접근 테스트, OAuth 실제 연결은 아직 미실행이다.
+- 운영 배포, DB migration, 기존 운영 페이지 수정은 하지 않았다.
+
+### 다음 개발 단위
+1. 신규 API의 TypeScript strict 검사와 D1 스테이징 권한 테스트
+2. My Files 페이지의 실제 브라우저 통합 테스트
+3. My Music와 TimeLink Label의 음원·권리·발매 이력 모델 연결
+4. Track Page 좋아요·팔로우·플레이리스트를 실제 DB 기능으로 구현
+5. 원본 파일 접근 권한을 기존 재생·TL3 흐름을 깨지 않고 단계적으로 강화
