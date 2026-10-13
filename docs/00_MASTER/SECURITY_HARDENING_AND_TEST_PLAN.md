@@ -154,3 +154,26 @@ A second pass through `src/routes/shareplace.ts` and the legacy stream handlers 
 5. **The modern SharePlace POST route records POC activity and accepts creator-supplied release metadata.** The future rights workflow must persist uploader attestation, evidence references, review state, and dispute status as separate auditable records; creator-supplied `release_check` alone must never be treated as an independently verified result.
 
 These findings reinforce the required delivery model: SharePlace exposes approved metadata; a dedicated playback authorization layer grants only the exact protected segment or promotional stream permitted by policy. A Track Page URL is not a bearer token for the original file.
+
+
+## 9. Third-pass upload and metadata exposure findings
+
+A focused review of the legacy upload handlers in `src/index.ts` on the same development branch found additional paths that must be included in the release gate:
+
+1. **`POST /api/upload/tl` has no verified-user check.** It accepts a multipart file, creates a TLNK v1-style container, and stores it in D1. Its key derivation falls back to the literal `timelink_default_secret_2026` when `TL_SECRET` is absent. This path must not be used for new releases. Before retiring it, trace all frontend callers and distinguish it from authenticated `/api/upload/tl3`.
+2. **`POST /api/upload` is also unauthenticated.** It accepts caller-provided `trackId`, writes an object under a predictable `tracks/{id}` key, and returns a public storage URL. It must be replaced by the owner-bound upload-session flow.
+3. **The multipart upload family has no demonstrated session ownership binding.** The init, part, complete and one-shot upload handlers accept client-selected identifiers/keys without a verified user and persisted owner relationship. Every operation must resolve to a server-created, expiring session.
+4. **`GET /api/shares/:id` returns `SELECT *` from `tl_shares`.** This can expose internal fields such as `stream_url`, storage references and rights workflow fields. Replace it with an explicit public metadata DTO; keep private details behind owner-scoped APIs.
+5. **The legacy `/api/upload/tl` path is not equivalent to the authenticated TL3 v2/v3 release workflow.** Do not infer that a TLNK magic header alone proves valid ownership, secure encryption, or an authorized release.
+
+### Additional release-blocking tests
+
+| Test | Expected result |
+|---|---|
+| Anonymous `POST /api/upload/tl` | 401; no object written |
+| Anonymous `POST /api/upload` | 401; no object written |
+| Authenticated user writes another user's `trackId` | Rejected; no overwrite |
+| `GET /api/shares/:id` as public visitor | Only approved public metadata; no raw stream URL, storage ID, rights evidence path or private state |
+| Legacy upload path called without `TL_SECRET` | Disabled/rejected; never uses a hard-coded fallback key |
+
+**Implementation decision:** do not patch these legacy routes by adding a token check alone. First identify all callers and their expected response shapes, then route them through the same upload-session and authorization service. This avoids a partial fix that leaves arbitrary-key writes or old clients broken.
