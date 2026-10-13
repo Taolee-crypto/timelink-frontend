@@ -234,3 +234,23 @@
 ### 현재 상태
 - 위 내용은 개발 브랜치 소스 검토 결과이며 운영 취약점 재현이나 운영 서버 변경을 의미하지 않는다.
 - 문서만 갱신한다. 코드 병합, DB 변경, 운영 배포는 하지 않는다.
+
+
+## 2026-10-14 — 프런트엔드 업로드 호출자 호환성 확인
+
+### 현재 Creator 호출 계약
+- `public/creator.html`은 `POST /api/files/sync` 요청에 `user_email`, `username`을 보내지만 Authorization 헤더를 보내지 않는다. 백엔드가 인증을 강제하기 전에 프런트엔드 수정이 선행되어야 한다.
+- `public/creator-studio.html`은 `/api/files/sync` 호출 시 `auth()` 헤더를 보낸다.
+- `src/components/suno/SunoConverter.tsx`도 토큰이 있을 때 Authorization 헤더를 포함한다.
+- `public/creator.html`, `public/creator-studio.html`, `public/track.html`은 커버 이미지 업로드에 `POST /api/upload`을 사용하며 Bearer 토큰을 보내고, `trackId`에 cover 접두어를 사용한다. 현재 백엔드 해당 핸들러는 토큰을 검증하지 않는다.
+- 따라서 `/api/upload`는 음악 원본 업로드와 별개로 커버/갤러리 미디어 전용 API로 분리할 필요가 있다. 공개 표시용 파생 이미지와 비공개 원본 파일을 같은 권한 정책으로 처리하지 않는다.
+
+### 수정 선후 관계
+1. 신규 Creator 작업 브랜치에서 `creator.html`의 실제 세션 토큰을 확인하고 `/api/files/sync`에 Authorization을 추가한다.
+2. `/api/upload` 호출자를 커버·갤러리 미디어 업로드로 분류하고, 허용 MIME·크기·소유자별 서버 key 생성 계약을 정의한다.
+3. 백엔드에서 `/api/files/sync`는 검증 JWT의 subject만 소유자 ID로 사용한다. 클라이언트 `user_email`/ `username`은 프로필 표시 데이터일 뿐 권한 근거로 사용하지 않는다.
+4. Creator → Share 등록 → `tl_files` 동기화 → TL3 발행 → Track Page 렌더링을 회귀 테스트한다.
+
+### 확인 한계
+- 위 호출자 확인은 프런트엔드 기본 브랜치 소스 검색 결과를 기준으로 한다. 브라우저 네트워크 트래픽이나 실제 사용자 계정 테스트를 수행한 것은 아니다.
+- `/api/upload`의 모든 호출 지점과 오래된 백업 파일은 현재 사용 여부가 다를 수 있으므로, 신규 코드 수정 전 활성 페이지의 호출 목록을 추가 대조한다.
