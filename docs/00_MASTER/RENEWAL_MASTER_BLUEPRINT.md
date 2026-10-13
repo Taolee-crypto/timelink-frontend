@@ -25,11 +25,22 @@ Observed current entry points and responsibilities:
 ## 3. Important existing inconsistencies — do not silently resolve during design
 1. `docs/IA.md` (2026-10-05) proposes a menu structure different from current `sidebar.js`. Treat both as historical evidence; neither should be replaced until the owner approves a consolidated navigation.
 2. The landing page links to `shareplace.html` with the label “음악” and still contains “무료로 듣기”; current product direction is TL-file based. Keep the route, redesign its wording only after content policy is confirmed.
-3. SharePlace still displays “무료 MP3” as a type filter. Current direction says no free content and TL-file only. This is a product-policy mismatch, not a reason to delete records or code before migration planning.
+3. SharePlace still displays “무료 MP3” as a type filter. The “무료 MP3” filter is prohibited by the owner-confirmed policy. Remove it from the target UX; retain historical records only for controlled migration.
 4. The dashboard has its own embedded navigation and wallet/mining/content tabs, while `wallet.html` is a separate page. Decide which is the canonical wallet experience after comparing actual data and working actions.
 5. `sidebar.js` injects a sidebar and replaces an existing `aside.sidebar`; pages with their own sidebar/footer can therefore show different navigation behavior. A visual shell must not be applied globally until page-by-page compatibility is tested.
 6. Creator upload is a multi-stage workflow using the local agent and several API calls. Keep the current upload implementation available while the renewed interface is tested.
 7. Radio, DJ broadcasting, cafe channels and in-car channels are connected product areas. Do not reduce TL방송국 to a simple music-list page.
+
+## 3A. Binding content and distribution policy — owner-confirmed
+
+This section supersedes any conflicting legacy assumptions elsewhere in this audit or design branch.
+
+1. **Only protected TL assets are distributable/shareable on TimeLink.** The four peer families are TL3 Audio, TL4 Video, TLD Document and TLJ Image/Visual.
+2. MP3, MP4, PDF, JPEG/PNG and other ordinary source files are creator-side input materials only. They may be uploaded or selected inside Creator to produce a TL asset; they are not public SharePlace items and must not be offered as free downloadable/streamable content.
+3. There is no free-content or free-playback product tier. Remove “무료 듣기”, “무료 MP3”, free filters, free release modes and free playback branches from the target product UX and new asset flows.
+4. TL assets are consumed under the platform's TL time/usage authorization and accounting rules. Creator compensation is represented by the approved TL reward-token/settlement mechanism. Do not invent an alternative free-content reward path.
+5. Legacy MP3/share rows and routes are historical compatibility data, not the target product model. Preserve their records for audit and migration, but do not treat them as permission to publish source files. Any legacy conversion, retirement or access restriction requires a controlled migration plan; never bulk-delete or silently rewrite records.
+6. A creator's source file and the resulting TL asset are distinct objects. The source is private creator material; the generated protected TL container is the distributable asset. Source URLs must never be used as public player URLs.
 
 ## 4. Primary architecture: common platform + four equal content families
 TimeLink is not a music-first platform. TL3, TL4, TLD and TLJ are peer digital-content families using one shared platform.
