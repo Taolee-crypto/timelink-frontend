@@ -151,6 +151,47 @@ PC가 켜져야 하는 단계에서 아래 항목만 한 번에 확인하면 된
 5. Agent/Creator 페어링 인증을 한 묶음으로 구현한다.
 6. 업로드 → Share 등록 → TL3 sync/release → SharePlace playback을 MP3와 TL3 각각 격리 테스트한다.
 
-## 8. 변경하지 않은 것
+## 8. 설계 브랜치에 반영한 코드 변경
+
+다음 변경은 설계 브랜치에 저장하고 GitHub에서 다시 조회해 확인했다. 운영 브랜치에는 반영하지 않았다.
+
+### Backend
+
+- `src/types.ts`에 선택적 Worker secret `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET` 타입을 추가했다.
+- `src/index.ts`의 외부 스트림 프록시는 원본 호스트가 정확히 `agent.timelink.digital`일 때만 두 Access Service Token 헤더를 추가한다.
+- Range 헤더 전달과 원본 Content-Type/Content-Range/Content-Length 전달을 유지한다.
+- Access 로그인 HTML, 302, 401, 403을 정상 음원으로 전달하지 않고 502 인증 오류로 처리한다.
+- Service Token 값이 프런트엔드로 노출되지 않도록 Worker에서만 읽는다.
+
+### Frontend
+
+아래 일반 MP3 플레이어는 Agent URL 및 과거 localhost URL을 TimeLink API `/api/stream/:shareId`로 전환하도록 수정했다.
+
+- `public/shareplace.html`
+- `public/track.html`
+- `public/radio.html`
+- `public/incar.html`
+- `public/cafe-radio.html`
+- `public/dj-center.html`
+
+TL3는 기존 `/api/v1/tl3/header`, `segment`, `code`, `segment/confirm` 라이선스 경로를 그대로 유지하며 일반 파일 프록시로 우회시키지 않았다. InCar의 기존 TL 보호 스트림 및 tick 과금 경로도 유지했다.
+
+### 현재 검증 수준
+
+- GitHub 설계 브랜치에서 변경 파일을 재조회하고 핵심 문자열이 반영된 것을 확인했다.
+- Cloudflare Access Service Token은 아직 발급/Worker secret 등록하지 않았다.
+- 실제 Agent 터널, Access 정책, Worker 배포, 브라우저 Range 재생 테스트는 하지 않았다.
+- 따라서 이 변경은 **코드 준비 완료, 운영 적용 전** 상태다. Access가 `/local/*`를 Bypass하지 않고 전체 로그인을 요구한다면 Worker secret 등록 전까지 프록시 재생은 실패할 수 있다.
+
+### 다음 PC 필요 단계
+
+1. Cloudflare Zero Trust에서 `agent.timelink.digital` Access application의 hostname/path와 policy 순서를 확인한다.
+2. Service Auth policy가 Agent 경로에 허용되는지 확인한다.
+3. Service Token을 발급한다.
+4. Backend Worker에 `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`을 secret으로 등록한다.
+5. 테스트 Share 하나로 API 프록시의 HTTP 200/206, Range, content-type, 재생을 확인한다.
+6. 그 후에만 운영 배포를 검토한다.
+
+## 9. 변경하지 않은 것
 
 이 문서는 조사 및 설계 기록이다. Local Agent 코드, Cloudflare Access 정책, Tunnel 설정, Worker secret, 실제 사용자 파일, TL 잔액은 변경하지 않았다. 운영 기능을 유지하면서 Access와 기존 서버-서버 스트리밍의 호환성을 검증하기 위한 기준 문서로 사용한다.
