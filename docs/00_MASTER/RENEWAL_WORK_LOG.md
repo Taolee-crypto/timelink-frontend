@@ -127,3 +127,9 @@
 3. 소셜 API 중복 요청·자기 팔로우·타 사용자 플레이리스트 접근 차단 테스트
 4. 원본 파일 공개 접근 및 인증 없는 업로드 경로의 호환성 포함 보안 보강
 5. My Music에서 기존 TL3 발행 레코드와 Creator 음원 원본의 관계를 연결
+
+
+### 검토용 Draft PR
+- Backend: https://github.com/Taolee-crypto/timelink-backend/pull/7
+- Frontend: https://github.com/Taolee-crypto/timelink-frontend/pull/13
+- 두 PR은 Draft 상태다. 병합 또는 운영 배포는 하지 않았다.
