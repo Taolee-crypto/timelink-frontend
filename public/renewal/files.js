@@ -9,6 +9,7 @@
   function dateLabel(v){if(!v)return '날짜 정보 없음';var d=new Date(typeof v==='number'&&v<1e12?v*1000:v);return isNaN(d.getTime())?'날짜 정보 없음':d.toLocaleDateString('ko-KR',{year:'numeric',month:'short',day:'numeric'});}
   function isAudio(a){return /audio|mp3|tl3|music/i.test(String(a.file_type||a.category||a.content_kind||''));}
   function statusTag(a){
+    if(a.kind==='cloud')return '<span class="asset-tag">개인 원본 · 비공개</span>';
     var s=String(a.auth_status||'').toLowerCase();
     if(s==='verified')return '<span class="asset-tag verified">권리 확인</span>';
     if(s==='pending'||s==='reviewing')return '<span class="asset-tag pending">확인 대기</span>';
@@ -20,13 +21,14 @@
     var rows=allAssets.filter(function(a){
       if(currentFilter==='share'&&a.kind!=='share')return false;
       if(currentFilter==='legacy'&&a.kind!=='legacy')return false;
+      if(currentFilter==='cloud'&&a.kind!=='cloud')return false;
       if(currentFilter==='audio'&&!isAudio(a))return false;
       var hay=(a.title+' '+(a.artist||'')).toLowerCase();
       return !q||hay.includes(q);
     });
     $('assetList').innerHTML=rows.map(function(a){
       var symbol=isAudio(a)?'♫':(/video|tl4/i.test(a.file_type||'')?'▣':(/image|tlj/i.test(a.file_type||'')?'▧':'▤'));
-      var source=a.kind==='share'?'TL 공유 자산':'기존 Creator 파일';
+      var source=a.kind==='share'?'TL 공유 자산':(a.kind==='cloud'?'개인 클라우드 원본':'기존 Creator 파일');
       var type=String(a.file_type||a.category||'디지털 파일').toUpperCase();
       return '<article class="asset-row"><div class="asset-art">'+symbol+'</div><div class="asset-main"><div class="asset-title">'+esc(a.title||'이름 없는 파일')+'</div><div class="asset-subtitle">'+esc(a.artist||a.genre||'아티스트 정보 없음')+' · '+esc(source)+'</div><div class="asset-tags"><span class="asset-tag">'+esc(type)+'</span>'+statusTag(a)+'</div></div><div class="asset-date">'+esc(dateLabel(a.created_at))+'</div></article>';
     }).join('');
@@ -82,7 +84,11 @@
   async function loadCloudObjects(){
     var r=await fetch(API+'/api/storage/objects?limit=200',{headers:authHeaders()});
     if(!r.ok){$('cloudCount').textContent='—';return;}
-    var d=await r.json();$('cloudCount').textContent=String((d.objects||[]).length);
+    var d=await r.json(),objects=d.objects||[];
+    $('cloudCount').textContent=String(objects.length);
+    var cloud=objects.map(function(x){return {kind:'cloud',id:'cloud_'+x.id,title:x.name,artist:x.provider==='google_drive'?'Google Drive':'OneDrive',file_type:x.mime_type,created_at:x.created_at,provider:x.provider,size:x.size};});
+    allAssets=allAssets.filter(function(x){return x.kind!=='cloud';}).concat(cloud);
+    render();
   }
   async function start(){
     if(!token){window.location.replace('/login.html');return;}
@@ -93,7 +99,8 @@
       var name=String(user.username||user.email||'TimeLink 회원');
       var initial=name.trim().charAt(0).toUpperCase()||'T';
       $('sideName').textContent=name;$('sideAvatar').textContent=initial;$('topAvatar').textContent=initial;
-      await Promise.all([loadAssets(),loadCloudObjects(),loadProviders()]);
+      await loadAssets();
+      await Promise.all([loadCloudObjects(),loadProviders()]);
     }catch(err){
       if(/세션이 만료/.test(err.message)){localStorage.removeItem('tl_token');localStorage.removeItem('tl_user');window.location.replace('/login.html');return;}
       $('assetList').innerHTML='<div class="loading-state">'+esc(err.message||'데이터를 불러오지 못했습니다.')+'</div>';
