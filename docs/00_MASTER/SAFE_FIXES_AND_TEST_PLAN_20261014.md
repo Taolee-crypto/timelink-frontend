@@ -12,7 +12,7 @@
 
 파일: `public/shareplace.html`, `public/tl3.js`
 
-- SharePlace 타이머에서 현재 Share의 콘텐츠 유형을 `isTL3()`로 구분한다.
+- SharePlace 타이머에서 세그먼트 라이선스/confirm 경로를 사용하는 TL3 오디오를 전용 판별 함수 `isSegmentBilledTL3()`로 구분한다.
 - TL3에는 레거시 `POST /api/shares/:id/consume`을 호출하지 않는다.
 - TL3 잔액을 타이머가 초당 임의 차감하지 않는다.
 - TL3 잔액 표시는 세그먼트 라이선스 응답과 confirm 응답의 `remaining_tl`을 반영한다.
@@ -61,7 +61,7 @@
 
 | 저장소 | 파일 | 최신 Blob SHA |
 |---|---|---|
-| frontend | `public/shareplace.html` | `386636a38f3f714dd5c3fa73bf97f6a599ac3d91` |
+| frontend | `public/shareplace.html` | `e98a97ea08a88ae56959728771847334114aa702` |
 | frontend | `public/tl3.js` | `e9857d176e8c62c0628d13322fd9f3f0f8921714` |
 | frontend | `public/creator.html` | `f1bac29c073a3243eb5596b789d0db07d79888ac` |
 | frontend | `public/dashboard.html` | `9c4c266130a4b379296e0bc117b1e6b336fd4d84` |
