@@ -49,13 +49,17 @@
 - 화면: `public/creator.html`
 - 현재 파일 내 기본 업로드 모드는 `tl3`로 고정하는 코드가 확인됨.
 - TL3 옵션과 LP 처리 로직이 포함되어 있음.
-- 파일 등록 후 SharePlace metadata 및 저장 API로 연결되는 세부 흐름은 전체 함수 추적이 필요하다.
+- 확인된 업로드 흐름: MP3 파일 선택/메타데이터 읽기 → 창작자 PC Local Agent의 `/upload?kind=mp3`로 원본 저장 → `/api/shares`에 SharePlace 메타데이터 등록 → `/api/files/sync` → `/api/v1/tl3/releases` TL3 v3 릴리스 요청 → 자산 등록·인증 API 순서로 이어진다.
+- 이 흐름은 원본 MP3를 Local Agent에 저장한 뒤 서버가 TL3 컨테이너/릴리스를 만드는 구조로 보인다. 실제 성공 여부와 예외·재시도는 배포 환경에서 별도 확인한다.
 - 화면 내 과거 무료 MP3 문구·분기와 대표자 최신 방향이 충돌할 수 있으므로 정책 결정 전 UI 변경 금지.
 
 ### SharePlace
 - 화면: `public/shareplace.html`
 - 콘텐츠 목록은 `/api/shares`를 우선 호출하고, 실패 시 `/api/v1/shareplace` 경로를 시도한다.
 - TL3/MP3 및 기타 콘텐츠 종류를 판별하는 분기가 존재한다.
+- 화면에는 무료 MP3 탭·FREE 표시·무료 재생 안내가 남아 있다.
+- 동시에 플레이어 함수는 MP3를 업로드 전용으로 막고, TL3만 재생하도록 차단 메시지를 표시한다. 목록 노출 정책과 재생 정책이 일치하지 않는 상태다.
+- TL3 재생 중 프런트엔드는 5초마다 `/api/shares/:id/consume`을 호출하는 구형 공유 단위 소비 경로도 포함한다. 별도의 `tl3.js` v3 Spine 경로와 과금 API가 실제로 어떻게 병행되는지 확인이 필요하다.
 - TL 충전/내 TL/장르·정렬·목록 표시 기능이 포함되어 있다.
 - IA 문서의 메뉴 구성과 실제 현재 화면의 차이를 대조해야 한다.
 
@@ -75,10 +79,11 @@
 파일: `public/tl3.js`
 
 관찰된 역할:
-- 온라인 TL3 header 요청
-- 암호문 segment 요청
-- code/lic 관련 요청
-- segment confirm 요청
+- 온라인 TL3 header 요청 (`/api/v1/tl3/header/:id`)
+- 암호문 segment 요청 (`/api/v1/tl3/segment/:id`)
+- code/lic 관련 요청 (`/api/v1/tl3/code/:id`)
+- segment confirm 요청 (`/api/v1/tl3/segment/confirm/:id`)
+- 재생 클라이언트가 응답의 세그먼트 시간 헤더 기본값을 5000ms로 취급하는 코드가 있어, v3 소스의 1초 상수 설명과 실제 MP3 프레임 단위 처리의 차이를 명시적으로 검증해야 한다.
 - Web Audio/MediaSource를 통한 재생
 - 로컬 .tl3 파일 파싱 및 오프라인 재생
 - `localStorage.tl_token` 기반 Authorization 헤더
