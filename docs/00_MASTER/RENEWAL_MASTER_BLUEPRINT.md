@@ -135,3 +135,75 @@ Target direction: contemporary, premium digital creator platform; dark navy/char
 
 ## 9. Immediate next deliverable
 Produce a page-by-page screen inventory with current URL, page shell type, shared scripts, key user actions, API dependencies, and renewal priority. Then create the first visual prototype separately from the live pages. Do not modify `sidebar.js`, `index.html`, `shareplace.html`, `creator.html`, or backend business logic until that inventory and prototype are reviewed.
+
+
+## 10. Admin-controlled commercial policy — owner direction (2026-10-14)
+
+The cafe-radio and in-car commercial rules already exist in the product history and source code. Do not ask the owner to choose these values again and do not replace them with newly invented pricing. The renewal must make approved policy values configurable through the Admin Control System while preserving the existing rules as the initial baseline.
+
+### 10.1 Policy groups to expose to authorized administrators
+
+**Cafe broadcasting**
+- Cafe channel subscription / activation fee (existing baseline observed: 50,000 TL per 30-day period).
+- Cafe contract listening rate multiplier (existing baseline observed: 0.5 relative to the standard rate).
+- DJ / cafe / TimeLink revenue allocation (existing baseline: 50% / 30% / 20%).
+- Preview eligibility and preview duration, only if preview remains permitted by the owner-approved TL-only policy. Do not reintroduce free public content or free playback.
+- Contract-specific overrides, with clear precedence over global defaults.
+
+**In-car broadcasting**
+- Standard POC contribution multiplier (existing baseline observed: 1.0).
+- Verified-vehicle POC contribution multiplier (existing baseline observed in the UI: 2.5).
+- Vehicle verification requirements and re-verification interval.
+- Driving/vehicle-session eligibility conditions for the additional multiplier.
+- Activity reporting and anti-abuse thresholds.
+- Any owner-approved activation incentive, kept separate from the usage-based POC multiplier.
+
+The values above are recorded as observed historical baselines, not as proof that every value is currently enforced correctly by the backend. Before enabling administration, reconcile the frontend display, API request, server-side calculation, database writes and settlement records. In particular, do not treat a client-supplied vehicle multiplier or locally stored plate number as authoritative verification.
+
+### 10.2 Admin configuration principles
+
+1. **Central configuration:** commercial rules must be read from server-side configuration, not hard-coded independently in each page or route.
+2. **Role protection:** only explicitly authorized administrator roles may view or change commercial policy. Ordinary users, DJs and cafe operators cannot change global rates.
+3. **Validation:** enforce numeric bounds, currency/unit consistency, allowed multipliers, and a revenue-allocation total of exactly 100%. Reject invalid changes rather than silently normalizing them.
+4. **Preview before activation:** show the current value, proposed value, affected services, and an example calculation before the administrator confirms a change.
+5. **Effective time:** every change must have an explicit effective timestamp. New sessions/transactions use the policy version effective at their start or the clearly specified settlement boundary.
+6. **Immutable history:** never rewrite historical charges, POC activity, contracts or creator settlements when a setting changes. Store the policy version and applied values with each relevant transaction or settlement.
+7. **Audit trail:** record who changed what, old and new values, reason, timestamp, approval context and activation status. Support rollback by creating a new policy version; do not erase history.
+8. **Safe rollout:** allow draft, preview, scheduled activation and rollback. A failed configuration update must leave the previous active version intact.
+9. **Consistent enforcement:** the backend is authoritative. Frontend screens may display policy values but must not determine payable amounts, POC multipliers or revenue allocation.
+10. **No silent economic changes:** changes to TL charges, POC contribution, TLC participation, creator rewards or revenue splits require explicit owner-approved policy and must not be bundled into visual redesign work.
+
+### 10.3 Suggested Admin Control System sections
+
+- Cafe Commercial Policy
+  - Channel subscription fee and billing period
+  - Cafe listening multiplier
+  - DJ / cafe / platform allocation
+  - Contract defaults and per-contract exceptions
+- In-car Policy
+  - Standard and verified-vehicle POC multipliers
+  - Vehicle verification and eligibility rules
+  - Driving-session validation and anti-abuse controls
+  - Activation incentives, if approved
+- Policy Versions & Audit
+  - Current active version
+  - Draft changes and calculation preview
+  - Scheduled effective date
+  - Change history and rollback
+- Reconciliation Monitor
+  - Frontend-displayed values versus server policy
+  - Charge and settlement allocation checks
+  - Vehicle verification versus awarded POC multiplier
+  - Failed, duplicated or anomalous settlement events
+
+### 10.4 Required reconciliation findings before implementation
+
+The current audit found that the cafe contract data stores a 50/30/20 allocation, while the charge route appears to credit DJ 50% and platform 50%, with no corresponding cafe 30% credit in that charge path. This must be resolved before the Admin UI exposes the split as an active editable setting.
+
+The in-car page displays 2.5x for a plate-registered vehicle and 1.0x otherwise, but the active activity-report path does not establish a trusted server-side vehicle verification and multiplier enforcement flow. The server must independently verify eligibility and calculate the POC contribution. A client-provided multiplier is never authoritative.
+
+The cafe channel setup currently contains a 90-day trial path, and the cafe radio player contains a preview path. These must be reviewed against the owner-confirmed no-free-content/no-free-playback policy before being exposed as configurable options. Admin configurability must not be used to silently reintroduce a prohibited free tier.
+
+### 10.5 Implementation boundary
+
+This section is an architecture requirement only. It does not authorize changes to production code, live prices, active contracts, user balances, POC/TLC balances or existing settlements. Implement first in the design branch after the source/API/data audit; keep production unchanged until the owner explicitly approves the implementation and rollout.
