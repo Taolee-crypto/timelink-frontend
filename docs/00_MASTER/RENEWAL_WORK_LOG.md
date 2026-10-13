@@ -163,3 +163,11 @@
 - 운영 브랜치·운영 DB·Cloudflare 배포는 변경하지 않았다.
 - 권한 정책이 정의되지 않은 스트림 경로를 임의로 잠그지 않았다. 공개 MP3, 유료 TL3, 비공개 원본의 권한 규칙을 먼저 정리한 뒤 회귀 테스트와 함께 수정한다.
 - 다음 구현은 인증된 업로드 세션과 원본 접근권한 경계를 먼저 확립하는 것으로 한다.
+
+
+### 검증 자동화 준비
+- Backend 개발 브랜치에 `.github/workflows/typecheck.yml` 추가
+- Pull Request 및 해당 feature branch push 시 Node.js 22 환경에서 strict TypeScript 검사 실행
+- workflow는 `npm ci` 후 검증 전용 TypeScript 및 Cloudflare Workers 타입을 설치하고 `tsc --noEmit`을 수행한다.
+- 배포 단계나 Cloudflare 배포 자격증명은 포함하지 않는다.
+- workflow 파일은 커밋되어 있으나, 현재 확인 시점에는 해당 커밋에 연결된 workflow 실행 결과가 아직 반환되지 않았다. 따라서 타입 검사 통과로 기록하지 않는다.
