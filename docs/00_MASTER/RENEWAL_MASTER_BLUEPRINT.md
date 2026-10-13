@@ -625,3 +625,82 @@ Extend the existing `public/admin.html` and central server-side commercial polic
 - No owner-side vehicle setup fee is changed by implication; it must be decided separately.
 - Admin reports show zero in-car listener TL charges and separately expose campaign/rights/creator/POC costs.
 
+
+
+## 14. Music score generation and protected score distribution — existing timelink-score project (2026-10-14)
+
+The owner identified downloadable sheet music as a missing music-sector revenue model and confirmed that an existing repository, `Taolee-crypto/timelink-score`, contains the earlier implementation work. This is an existing product capability to recover and integrate, not a greenfield feature.
+
+### 14.1 Product role within TimeLink
+
+- Music scores are a distinct creator product and revenue stream within the TL3 music ecosystem. They are not merely an attachment or a free extra supplied with an audio track.
+- The platform should support both manually supplied score material and AI-assisted score generation, subject to rights and quality review.
+- The score workflow belongs in Creator Studio / music creation tools; published and purchasable score assets must be discoverable in SharePlace and the creator's asset/earnings views.
+- Score products must retain their own title, composer, arranger, lyricist, publisher/rights holders, version, instrumentation, difficulty/key metadata, preview policy and creator-defined commercial terms where applicable.
+- The score catalog should connect a score to its related TL3 audio work when the rights and relationship are confirmed, without making the score dependent on purchasing or listening to that audio.
+
+### 14.2 Existing timelink-score repository — observed baseline
+
+Repository: https://github.com/Taolee-crypto/timelink-score (default branch: `main`; observed project version: `0.1.0`).
+
+The README and architecture documents describe a Python extension that accepts a TL3 audio asset and aims to produce MusicXML and PDF notation. The repository contains modules for:
+- TL3/TLNK header parsing and sequential segment retrieval;
+- PCM assembly and Demucs vocal separation;
+- melody/pitch extraction and MIDI conversion;
+- chord and key analysis;
+- MusicXML score construction and MuseScore PDF rendering;
+- rights attribution and score-data embedding/packing;
+- command-line scripts, examples and a limited set of tests.
+
+The documented pipeline is TL3 header → sequential audio segments → temporary PCM processing → optional vocal separation → pitch/MIDI and chord/key analysis → score generation → rights attribution → PDF rendering. Its documentation states that audio segments are processed in memory and discarded, with sequential segment requests and TL accounting.
+
+The repository's README still marks most roadmap steps as incomplete. The existence of modules and tests is not proof that the complete pipeline, current backend API integration, score accuracy, PDF rendering or production download flow works. Resume with a source audit and controlled test plan; do not represent the project as production-ready until verified.
+
+### 14.3 Protected score asset and download lifecycle
+
+The target lifecycle must follow TimeLink's binding TL-only distribution policy:
+1. A creator imports or selects authorized source audio/material inside Creator. Ordinary source files remain private creator-side inputs and are never published as public SharePlace assets.
+2. The score-generation service processes an authorized input. If it consumes a TL3 asset, it must use the approved TL authorization/accounting path and disclose any TL consumption before the operation starts. If a private creator-side source-input path is supported, it must remain private and must not become a public raw-file endpoint.
+3. Generated MusicXML, MIDI, PDF and intermediate analysis files are working/output materials inside the controlled creator workflow. They are not automatically public downloadable files.
+4. After creator review and rights confirmation, the approved score is packaged and registered as a protected TLD document asset using the common TimeLink content identity, protection, authorization and accounting core.
+5. SharePlace publishes only the protected TLD score asset. A user purchases/authorizes access under the score's explicit commercial terms and receives the authorized protected-TL delivery/viewing experience. Never expose a public raw PDF, MusicXML or MIDI URL as the product download.
+6. The creator's score sales/usage and reward-token settlement appear separately and clearly in EARN, while the score appears in My Assets and the user's authorized/owned collection.
+
+A protected score download is therefore a TLD distribution transaction, not an exception to the TL-only rule. The human-facing product may be called “악보 다운로드”, but the distributed object remains a protected TL asset. The exact post-download usage model (time-limited access, repeated viewing, offline entitlement, printing/export permission and any re-download rules) must be specified explicitly; do not silently equate possession of a file with unlimited usage rights.
+
+### 14.4 Score-generation quality and rights safeguards
+
+- Treat AI-generated notation as a draft requiring creator review. Pitch extraction from a mixed recording can be imperfect; accompaniment, polyphony, expressive timing, tuning, percussion and vocal ornaments can produce errors.
+- Support separate outputs/editions where feasible: melody line, chord chart/lead sheet, vocal melody with lyrics, piano arrangement and full score. Do not promise full multi-instrument transcription accuracy until measured.
+- Preserve source-work identity and version lineage. Revisions must create traceable score versions rather than overwrite previously sold editions without an explicit update policy.
+- Carry composer, arranger, lyricist, publisher, co-creator and other rights metadata into the protected TLD header/manifest and visible score attribution as applicable. An ISRC identifies a sound recording; it must not be treated as a substitute for score/work identifiers or complete composition rights metadata.
+- Require the uploader to attest to authority to create, adapt, publish and sell the score. Flag third-party recordings and disputed/unclear rights for review; possession of an audio file alone does not establish score rights.
+- Keep temporary PCM and other source-derived working data within the approved processing boundary. Reconcile the repository's documented temporary-output behavior with the current creator-storage, privacy and TL-consumption rules before enabling the service.
+
+### 14.5 Commercial model and Admin controls
+
+- Score creators should be able to set or select the approved commercial terms for each score edition, subject to platform rules. The score detail page must clearly show the price/authorization terms before confirmation.
+- Record gross score transactions, platform fee, creator/rightsholder allocation, refunds/reversals, taxes where applicable and reward-token settlement as separate ledger facts. Never infer a score payout from the audio-track payout.
+- Keep score pricing, platform fee, rightsholder splits, preview permissions, printing/export permissions, refund rules and campaign discounts as versioned Admin-controlled policies.
+- No exact score price, fee percentage, revenue split, preview duration or offline/printing permission is approved by this section. These values require a separate owner decision and profitability review; do not invent defaults or alter existing audio/cafe/DJ economics.
+- Admin reporting must distinguish TL3 audio revenue from TLD score revenue, show generation/processing costs, rights liabilities, refunds and creator settlement, and flag transactions that cannot be reconciled.
+
+### 14.6 Integration and recovery sequence
+
+1. Audit the full `timelink-score` source, commit history, tests, dependency versions, model downloads, CLI behavior, TL3 segment API assumptions and all temporary-file paths.
+2. Verify the current TL3 container and segment API contract against the live backend source. The repository's integration document describes a specific API and AES-GCM segment layout; treat these as project assumptions until matched to the current authoritative implementation.
+3. Run tests with synthetic/non-commercial fixtures first. Do not consume real user TL, publish assets, write production records or trigger creator payouts during recovery testing.
+4. Establish a reproducible local pipeline and measure score quality on a curated set of creator-authorized recordings. Record failure modes and human correction time.
+5. Define the Creator Studio workflow: source selection → rights declaration → generation consent/TL estimate → processing progress → score editor/review → edition metadata/pricing → protected TLD packaging → publication.
+6. Define TLD score viewing/download authorization, versioning, re-download, printing/export and settlement APIs with the common Time Core. Keep the score-generation engine modular and separate from SharePlace distribution.
+7. Add SharePlace score discovery, score detail, authorized download/access history, My Assets and EARN reporting only after the TLD lifecycle and economics are approved.
+8. Keep the existing repository intact while auditing and recovering it. No production code, database migration, economic setting, repository rewrite, merge or deployment is authorized by this design entry.
+
+Acceptance criteria:
+- A creator can generate or upload a score draft without exposing source audio or raw score files publicly.
+- Rights and attribution are visible, complete enough for the declared work, and bound to the protected score asset.
+- Only protected TLD assets are listed and distributed through TimeLink.
+- The score's commercial terms and any generation TL consumption are disclosed before confirmation.
+- A user without valid score entitlement cannot obtain the protected score payload through a raw public URL.
+- Creator sales, platform fees, rights allocations, refunds and reward-token settlements reconcile independently from TL3 audio transactions.
+- The restored pipeline passes automated tests and measured human quality review before production activation.
