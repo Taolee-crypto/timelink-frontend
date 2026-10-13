@@ -17,6 +17,10 @@ The shared core is responsible for identity, creator/owner authorization, time-b
 
 A family must not be treated as a sub-feature of TL3. Broadcast, DJ, cafe radio, and in-car radio are applications that may use supported assets; they do not define the platform as a whole.
 
+## 1A. Binding publication and reward policy — owner-confirmed
+
+Only protected TL assets are published, shared and consumed on TimeLink: TL3, TL4, TLD and TLJ. Ordinary MP3/MP4/PDF/JPEG/PNG files are Creator input materials only, not public content. There is no free-content or free-playback mode. Creator source material must be transformed into a protected TL-family container before it can be registered as a distributable asset. Usage is governed by TL time-based authorization/accounting, and creator compensation follows the approved TL reward-token settlement rules. Legacy source-file/free-MP3 routes are historical compatibility paths, not target product capabilities; preserve their records for audit but do not expose them in the target public UX.
+
 ## 2. Evidence labels
 
 | Label | Meaning |
@@ -92,7 +96,7 @@ The inspected `contentKind` implementation returns only MP3 or TL3, and its exte
 **Required architecture correction:** replace the overloaded two-value concept with two independent, explicit fields:
 
 1. `asset_family`: `tl3 | tl4 | tld | tlj`
-2. `release_mode` / `access_policy`: e.g. free, time-metered, fixed-price, subscription, or other approved policy.
+2. `release_mode` / `access_policy`: published/private state plus the approved TL time-metered usage and settlement policy. Free publication/playback is not permitted.
 
 Do not infer family identity from a filename extension alone. Use validated server-side metadata and container header identity. Preserve legacy rows with a migration/read-compatibility adapter rather than silently reclassifying them.
 
@@ -108,7 +112,7 @@ Each family must implement the same lifecycle contract, with family-specific det
 6. **Settle:** record immutable usage events and calculate creator revenue through the common settlement interface.
 7. **Present:** route to the correct player/viewer and preserve family-specific interactions.
 8. **Manage:** expose the asset in My Assets with status, rights, usage, earnings, and version history.
-9. **Contribute:** connect eligible creation, curation, sharing, and other approved activity to POC/TLC rules without allowing free MP3 uploads to spend TL or create unintended TL bonuses.
+9. **Contribute:** connect eligible TL-asset creation, curation, sharing and other approved activity to POC/TLC and TL reward-token rules. Importing a raw source file is not itself a distributable asset or an automatic reward event.
 
 ## 8. Family-specific product behavior to design
 
