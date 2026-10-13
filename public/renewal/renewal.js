@@ -37,9 +37,10 @@
   if(!token)return;
   try{storedUser=JSON.parse(localStorage.getItem('tl_user')||'null');}catch(e){storedUser=null;}
 
+  var invalidSession=false;
   fetch(API+'/api/v1/auth/me',{headers:{'Authorization':'Bearer '+token}})
     .then(async function(response){
-      if(!response.ok)throw new Error('세션 확인 실패');
+      if(!response.ok){invalidSession=response.status===401||response.status===403;throw new Error('세션 확인 실패');}
       var data=await response.json();
       var user=data.user||data||storedUser||{};
       if(!user.id&&storedUser&&storedUser.id)user.id=storedUser.id;
@@ -48,8 +49,7 @@
       showMember(user);
     })
     .catch(function(){
-      localStorage.removeItem('tl_token');
-      localStorage.removeItem('tl_user');
+      if(invalidSession){localStorage.removeItem('tl_token');localStorage.removeItem('tl_user');}
       guest.hidden=false;
       member.hidden=true;
     });
