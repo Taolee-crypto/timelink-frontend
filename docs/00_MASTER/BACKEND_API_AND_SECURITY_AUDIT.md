@@ -227,3 +227,20 @@
 - 이 차이는 `/api/files/sync`에 인증을 강제할 때 구형 Creator의 TL3 발행 흐름이 실패할 수 있음을 의미한다.
 
 **수정 순서:** 먼저 `creator.html`이 로그인 토큰을 Authorization 헤더로 보내도록 호환 수정하고, 그 다음 백엔드에서 토큰 사용자 ID만 신뢰하도록 변경한다. `user_email`, `username`, `user_id` 등 클라이언트 제공 식별자는 소유권 판정에 사용하지 않는다. 변경 전후에 Creator → tl_files 등록 → TL3 v3 발행 → Track Page 재생을 회귀 테스트한다.
+
+
+### 9.7 관리자 승인 및 분쟁 종결 권한 재검증 — 2026-10-14
+
+개발 브랜치 `feature/renewal-private-library-api`의 추가 검토에서 다음을 확인하고 수정했다.
+
+- `src/routes/files.ts`: 파일 승인 핸들러에 관리자 역할 확인이 존재하는지 확인했다. 승인 값의 boolean 검증을 추가하고, 이미 `verified`인 파일을 재승인해도 POC +0.3이 반복 지급되지 않도록 했다.
+- `src/routes/disputes.ts`: 분쟁 종결 핸들러에는 기존에 관리자 역할 확인이 없었다. 로그인 사용자 중 관리자만 종결할 수 있도록 역할 확인을 추가했다.
+- 분쟁 종결 요청의 `upheld` 값이 boolean이 아니면 거부한다.
+- 이미 종결된 분쟁을 다시 처리하지 않도록 `status='pending'`인 경우에만 종결한다.
+- 이미 분쟁 중인 파일에 중복 분쟁을 접수하지 않도록 차단한다.
+
+변경 커밋:
+- `files.ts`: `8846f3cde5191cd08401c858ab57097d7c178ae2`
+- `disputes.ts`: `7104de5a3e81c5a77004fe8dc0d176c202bcd085`
+
+**검증 한계:** 위 변경은 소스 코드에 반영된 상태다. TypeScript workflow는 현재 실행 중이며, D1 테스트·관리자/일반 사용자 권한 테스트·중복 요청 테스트는 아직 완료되지 않았다. 운영 배포는 하지 않았다.
