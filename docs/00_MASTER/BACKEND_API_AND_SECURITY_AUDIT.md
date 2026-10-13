@@ -215,3 +215,15 @@
 7. TypeScript strict 검사, D1 스테이징 테스트, 교차 사용자 접근 테스트를 실행한다.
 
 **중요:** 위 항목은 개발 브랜치의 다음 수정 대상으로 기록한다. 운영 배포, 기존 공개 URL 차단, D1 데이터 변경은 수행하지 않았다.
+
+
+### 9.6 프런트엔드 레거시 호출 의존성 추가 확인
+
+프런트엔드 main 소스에서 `/api/files/sync` 호출 지점을 확인했다.
+
+- `public/creator.html`: SharePlace 등록은 Bearer 토큰을 보내지만, 이어지는 `/api/files/sync` 요청에는 Authorization 헤더를 보내지 않는다. TL3 v3 발행 전에 이 응답의 `d1_id`를 사용한다.
+- `public/creator-studio.html`: `auth()` 헤더를 포함해 `/api/files/sync`를 호출한다.
+- `src/components/suno/SunoConverter.tsx`: 토큰이 존재할 때 Authorization 헤더를 포함하도록 작성되어 있다.
+- 이 차이는 `/api/files/sync`에 인증을 강제할 때 구형 Creator의 TL3 발행 흐름이 실패할 수 있음을 의미한다.
+
+**수정 순서:** 먼저 `creator.html`이 로그인 토큰을 Authorization 헤더로 보내도록 호환 수정하고, 그 다음 백엔드에서 토큰 사용자 ID만 신뢰하도록 변경한다. `user_email`, `username`, `user_id` 등 클라이언트 제공 식별자는 소유권 판정에 사용하지 않는다. 변경 전후에 Creator → tl_files 등록 → TL3 v3 발행 → Track Page 재생을 회귀 테스트한다.
