@@ -11,6 +11,10 @@ TimeLink에서 공유·유통되는 것은 보호된 TL 자산(TL3/TL4/TLD/TLJ)�
 
 따라서 Agent 원본 MP3 URL을 Worker API로 프록시하는 것은 최종 배포 가능한 설계가 아니다. Local Agent와 외부 저장소는 비공개 원본 재료의 수집 및 보호된 TL 컨테이너 저장을 지원해야 한다. 공개 플레이어는 TL 컨테이너와 해당 자산군 전용 권한·뷰어 경로만 사용해야 한다. 기존 원본 파일 URL 및 MP3 공유 레코드는 감사·이관 대상이며 공개 경로로 유지하지 않는다.
 
+### 정책에 따른 접근 경계
+
+Local Agent의 일반 원본 업로드 경로는 Creator 입력 재료 수집용이다. Cloudflare Access Service Token을 Worker에 설정하더라도 원본 MP3를 SharePlace/일반 플레이어에 프록시해서는 안 된다. Worker의 Agent 서버-서버 접근은 보호된 TL 컨테이너의 저장·전달 작업으로 한정하고, public player는 TL 자산군별 권한 검증과 viewer/player 경로를 거쳐야 한다.
+
 ## 1. 결론
 
 Cloudflare Access 설정은 공개 도메인 `agent.timelink.digital`을 보호하는 중요한 방어선이다. 다만 Creator의 현재 업로드 경로는 공개 도메인이 아니라 PC 내부 주소 `http://127.0.0.1:8787`를 직접 호출한다. 이 로컬 요청은 Cloudflare Tunnel과 Access를 통과하지 않는다.
