@@ -176,6 +176,19 @@ PC가 켜져야 하는 단계에서 아래 항목만 한 번에 확인하면 된
 
 TL3는 기존 `/api/v1/tl3/header`, `segment`, `code`, `segment/confirm` 라이선스 경로를 그대로 유지하며 일반 파일 프록시로 우회시키지 않았다. InCar의 기존 TL 보호 스트림 및 tick 과금 경로도 유지했다.
 
+### 수정 파일의 최신 소스 식별값
+
+| 저장소 | 파일 | 최신 Blob SHA |
+|---|---|---|
+| backend | `src/index.ts` | `40a97489f65fe7469de2f5bfc3846c698a18f95e` |
+| backend | `src/types.ts` | `735e406f55899b69de2ecdacdf7c602aa8128109` |
+| frontend | `public/shareplace.html` | `84e6e78c4e5bae4677f213b718e012306dde111d` |
+| frontend | `public/track.html` | `6371af81567d00fbf6cb56059529f91b3db0af62` |
+| frontend | `public/radio.html` | `fbe83160b1ae6f7bdbf74396be9d491653e438c3` |
+| frontend | `public/incar.html` | `06518f2ba5ad78b046a987249695a3203147bf8d` |
+| frontend | `public/cafe-radio.html` | `ea299ab72171369f731a7d968982a380991c5443` |
+| frontend | `public/dj-center.html` | `40a96fc1c10b86c66276a2e5c42201f370b94589` |
+
 ### 현재 검증 수준
 
 - GitHub 설계 브랜치에서 변경 파일을 재조회하고 핵심 문자열이 반영된 것을 확인했다.
