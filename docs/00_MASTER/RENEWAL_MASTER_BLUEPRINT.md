@@ -42,6 +42,10 @@ This section supersedes any conflicting legacy assumptions elsewhere in this aud
 5. Legacy MP3/share rows and routes are historical compatibility data, not the target product model. Preserve their records for audit and migration, but do not treat them as permission to publish source files. Any legacy conversion, retirement or access restriction requires a controlled migration plan; never bulk-delete or silently rewrite records.
 6. A creator's source file and the resulting TL asset are distinct objects. The source is private creator material; the generated protected TL container is the distributable asset. Source URLs must never be used as public player URLs.
 
+### Current implementation gap — Creator must publish TL output, not source input
+
+The current source audit found that `creator.html` creates a Share record containing the original Agent MP3 URL before TL3 release, while `creator-studio.html` explicitly offers a free MP3 publication branch. The backend SharePlace listing also includes verified/shared `tl_files` rows as MP3. These are legacy implementation paths and contradict the binding TL-only product policy. The renewal must change the lifecycle to private source import → protected TL container build → TL asset registration → TL-only publication. Raw source records remain private and are not SharePlace listings. This is a required architecture correction, not a cosmetic copy change.
+
 ## 4. Primary architecture: common platform + four equal content families
 TimeLink is not a music-first platform. TL3, TL4, TLD and TLJ are peer digital-content families using one shared platform.
 
