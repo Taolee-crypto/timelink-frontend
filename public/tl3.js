@@ -441,12 +441,18 @@
             console.log('[TL3.playStream] ✅ appended segment', n);
             onSegment({index: n, seconds: durationMs/1000, remaining: codeData.remaining_tl});
 
+            var confirmedIndex = n;
             setTimeout(function(){
               fetch(API + '/api/v1/tl3/segment/confirm/' + fileId, {
                 method: 'POST',
                 headers: Object.assign({}, authHeaders(), {'Content-Type':'application/json'}),
                 body: JSON.stringify({session_id: sessionId, played_seconds: durationMs/1000})
-              }).catch(function(){});
+              }).then(function(r){ return r.json(); }).then(function(d){
+                // confirm 응답의 최종 잔액(미사용 예약액 환급 반영)을 SharePlace UI에 전달한다.
+                if(d && d.ok && d.remaining_tl !== undefined){
+                  onSegment({index: confirmedIndex, seconds: durationMs/1000, remaining: d.remaining_tl, settled: true});
+                }
+              }).catch(function(e){ console.warn('[TL3] segment confirm failed', e); });
             }, durationMs);
 
             n++;
