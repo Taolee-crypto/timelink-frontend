@@ -276,3 +276,13 @@
 2. D1 테스트에서 관리자/일반 사용자 권한, 중복 승인·중복 분쟁 요청 확인
 3. 외부 저장소 스트림이 SharePlace 연결 사실만으로 원본을 전달하는 문제를 공개 MP3·보호 TL3·비공개 원본의 정책에 맞게 해결
 4. 인증 없는 업로드 경로와 `/api/files/sync` 사용자 귀속을 기존 Creator/TL3 호출 계약과 함께 보강
+
+
+### CI 결과 추가 — Backend commit `7104de5a3e81c5a77004fe8dc0d176c202bcd085`
+- Worker bundle 검증: 성공.
+- Strict TypeScript 검사: 실패. Resend 타입 의존성, 누락 Env binding, Hono 타입 사용, 기존 auth/index/middleware 및 Cafe/DJ 라우터 등 저장소 전반에서 오류가 확인됐다.
+- 수정한 `files.ts`와 `disputes.ts`는 로그에 직접 오류가 표시되지는 않았으나, 전체 strict check 실패 상태이므로 통과로 간주하지 않는다.
+- npm install 단계에서 4개 취약점 경고(1 low, 3 high)가 확인됐다. 강제 패키지 업데이트는 하지 않았다.
+- 판정: 번들 단계는 통과했지만 strict typecheck는 실패했다. PR은 Draft 상태로 유지한다.
+
+**정정 및 정확한 변경 범위:** 파일 승인 API의 관리자 역할 검사는 현재 feature branch에 이미 존재했다. 이번 수정은 승인 입력 boolean 검증 및 재승인 시 POC 중복 지급 방지다. 분쟁 종결 API에는 관리자 역할 검사가 없어 이번에 새로 추가했다. 이 차이를 기준으로 변경 이력을 해석한다.
