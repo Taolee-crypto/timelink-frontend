@@ -371,3 +371,200 @@ Existing source-level findings still require reconciliation:
 8. Enable live policy activation only after explicit owner approval and a rollback-tested release.
 
 This design does not authorize production deployment, changes to current commercial values, live user balance changes, creator/DJ/cafe payout changes, POC/TLC issuance changes or automatic suspension of existing services.
+
+## 12. Commercial broadcasting identity, ownership and access-control design — owner decision (2026-10-14)
+
+Owner decisions incorporated:
+- Cafe commercial account owner: the verified cafe/business owner (the natural person who controls the business account).
+- Cafe employee accounts: permitted. Every employee uses their own personal TimeLink account and receives access only after the owner invites and approves them.
+- In-car vehicle owner: the verified legal/authorized vehicle owner controls vehicle registration and grants/revokes driver access. A vehicle registration number is an identifier, never a login credential.
+
+This section defines the target design. It does not authorize production code changes, database migrations, live verification, billing changes or deployment.
+
+### 12.1 Identity model: one person account, multiple business/vehicle relationships
+
+TimeLink must keep these concepts separate:
+
+1. **Person account** — one natural person, authenticated with their own TimeLink credentials (currently email + password). A person may be a cafe owner, cafe employee, vehicle owner, authorized driver, DJ, creator and ordinary listener without creating separate accounts for each role.
+2. **Business identity** — a registered business identified by country and business registration number, with legal name and verification status. The registration number identifies the business; it is not a username or password.
+3. **Cafe location/channel** — a physical commercial premises and its authorized TL broadcasting endpoint. One business may own multiple locations/channels.
+4. **Cafe membership** — an explicit relationship between a person and a business/location, with role, status, inviter and effective dates.
+5. **Vehicle identity** — a vehicle record owned by a verified person, identified internally by a TimeLink vehicle ID and externally by a registration plate. The plate is not an account identifier or authenticator.
+6. **Vehicle driver authorization** — an owner-approved relationship between a person and a vehicle, with status and validity dates.
+7. **Broadcast entitlement** — a server-calculated permission to receive a commercial broadcast, derived from authenticated person + active membership/ownership + active contract/subscription + authorized device/session. Merely knowing a business number, channel ID or plate never grants access.
+
+### 12.2 Existing implementation facts and gaps found in source
+
+The following are source observations, not runtime or production verification:
+
+- `public/login.html` authenticates with email and password through `POST /api/auth/login`. `public/signup.html` registers email, username and password through the existing email verification flow. This is the right common-account starting point; do not create separate cafe or vehicle login systems.
+- `src/routes/auth.ts` returns a signed access token and a limited user object on login. `GET /api/auth/me` verifies the token and returns the person record. The current login response omits the user's role; renewed role-aware screens must obtain authoritative roles from the server, not infer them from local storage.
+- `src/routes/cafe.ts` stores `owner_id` on `cafe_channels`, and channel creation sets it from the authenticated token's user ID. This is a useful ownership anchor to preserve.
+- The cafe setup page asks for a business registration number and representative name. Current backend validation checks the number's format/checksum; the inspected verifier returns `verified: false` and contains a TODO for an external registry integration. A checksum-valid number must not be described as proof that the business is active or that the logged-in person is its owner.
+- Cafe channel creation currently accepts a client-supplied `trial` flag and `trial_days`, and the page sends a 90-day trial. This is a legacy path that conflicts with the owner-confirmed no-free-content/no-free-playback commercial direction. Preserve records and existing contractual rights, but do not carry this client-controlled trial path into the renewed commercial signup flow. Any treatment of existing trial accounts requires a separately approved migration/transition plan.
+- The existing `cafe-owner.html` screen has a local-storage-only login guard and illustrative hard-coded dashboard figures. It is a visual starting point, not a secure owner portal or a verified live account dashboard.
+- `public/incar-channel.html` currently sends `owner_id` and `car_plate` from the browser, makes a separate SQL-based TL deduction request, then calls `/api/incar/channel`. The browser-provided owner ID must never establish ownership. The inspected frontend does not prove that the vehicle owner or plate is verified by the server. The exact current backend implementation of `/api/incar/channel` was not located in the inspected backend paths; it must be located and audited before implementation.
+- `public/admin.html` is the existing Admin Console and already has user, cafe channel, DJ, security, revenue and infrastructure panels. Keep and extend this page. Its login script contains a browser-side hard-coded credential gate before calling the normal login API; remove that pattern in the admin renewal. The backend admin route already checks the authenticated user's database role for protected admin SQL. Every admin endpoint must independently enforce the role; hiding a menu is not authorization.
+
+### 12.3 Cafe commercial registration and login journey
+
+**A. First-time owner onboarding**
+1. The person creates or uses their normal TimeLink account and signs in with email/password (or a supported stronger authenticator). Do not ask the person to use the business registration number as their login ID.
+2. From TL Broadcasting Station, the person chooses **Cafe Broadcasting → Register a business / store**.
+3. The person enters business country, business registration number, legal business name, representative name, store name, store address and contact details. Collect only fields required for verification, contract and service.
+4. The server normalizes and securely stores the business identifier. It performs real registry verification through an approved provider/API or a documented manual review. Until that succeeds, status is `pending_verification`; checksum/format success alone is `format_valid`, not `verified`.
+5. The system verifies that the logged-in person is the business owner or an explicitly authorized representative. For an individual proprietor this may require identity-to-business matching; for a corporation it may require representative authority evidence. Record the evidence type, verifier, time and outcome, and retain only what is necessary.
+6. On successful verification, create/confirm the business owner membership and register one physical cafe location. Each location receives its own channel identity and device authorization.
+7. The owner reviews and accepts the commercial channel agreement and pays the active Admin-configured subscription fee. Initial observed baseline remains 50,000 TL / 30 days; this is not changed by this design.
+8. The backend activates the location's broadcast entitlement only after owner verification, agreement, successful billing and channel status checks all pass.
+
+**B. Returning owner login**
+1. The owner signs in through the same `login.html` / `/api/auth/login` personal account flow.
+2. The server returns the person's active memberships and role claims through an authenticated profile/permissions endpoint.
+3. The owner opens **My Commercial Services → Cafe Broadcasting** and selects a business/location. No second password or business-number login is required.
+4. Owner-only operations (contract, billing, store details, employee invitations, transfer/closure) require server-side owner permission and recent re-authentication for high-risk changes.
+
+**C. Employee invitation and use**
+1. The owner enters an employee's email address and selects the store(s) and allowed operational permissions.
+2. The server creates a time-limited, single-use invitation bound to that business/location and the intended email. The employee accepts while signed in to their own TimeLink account; if they have no account, they complete ordinary signup first.
+3. The owner can revoke access immediately. Employee removal must invalidate active cafe sessions/device authorizations for that membership.
+4. An employee signs in normally, chooses the assigned store, and can operate the authorized broadcast receiver. The employee cannot change the owner, business identity, contract, subscription, payment method, revenue policy or add other employees by default.
+5. Employees do not share the owner's login. A staff account is a person account with a scoped permission grant, not a sub-password under the owner.
+
+### 12.4 Cafe roles and permission matrix
+
+| Action | Business/location owner | Invited employee | TimeLink admin |
+|---|---:|---:|---:|
+| View assigned store and current broadcast | Yes | Yes | Support/audit |
+| Start, stop and control authorized receiver | Yes | Yes | Support only |
+| View basic operational status | Yes | Yes | Yes |
+| Invite/remove employees | Yes | No by default | Exceptional support |
+| Register another location | Yes, after business checks | No | Review/support |
+| Accept/renew/cancel commercial agreement | Yes | No | Admin policy only |
+| Manage billing and TL payment | Yes | No | Controlled support |
+| Transfer business ownership / close channel | Yes, verified workflow | No | Reviewed workflow |
+| Change global pricing, POC, TLC or revenue split | No | No | Explicitly authorized admin only |
+
+Permission model:
+- Roles: `cafe_owner`, `cafe_staff`; keep the global platform role `admin` separate.
+- Fine-grained permission keys: `cafe.broadcast.view`, `cafe.broadcast.control`, `cafe.members.manage`, `cafe.location.manage`, `cafe.contract.manage`, `cafe.billing.manage`.
+- Staff defaults are view + broadcast control only. Any future delegated manager role must be a separately approved policy, not silently inferred.
+- The owner must always retain an ownership recovery/transfer path; an employee must never be able to promote themselves or another person to owner.
+
+### 12.5 Cafe receiver/device authorization
+
+Commercial broadcast access must be bound to a registered physical location, not merely to the owner's ability to log in.
+
+1. The owner registers a receiver/device from the selected cafe location.
+2. The service issues a short-lived pairing code. The receiver completes pairing after an owner or authorized staff member confirms the location.
+3. The backend stores a device record linked to the location, its status, last-seen time and revocation state. Use a device-bound secret/key where supported; do not trust a browser-supplied `location_id` alone.
+4. At playback start and during the session, the server checks: authenticated person, active location membership, active channel contract/subscription, approved device, permitted content, and valid TL authorization/accounting.
+5. Owner revocation, employee removal, contract expiry or device revocation blocks new sessions and terminates/rejects subsequent heartbeats. Do not silently erase completed usage or settled records.
+6. Do not rely on IP address or GPS as the sole proof of a cafe location. They may be risk signals, not the ownership credential.
+
+### 12.6 In-car vehicle owner registration and driver access
+
+**A. Vehicle owner onboarding**
+1. The person signs in through their ordinary TimeLink account.
+2. They open **TL Broadcasting Station → In-car Broadcasting → Register my vehicle**.
+3. They enter the vehicle plate, vehicle category and required ownership/authorization evidence. Plate normalization is server-side.
+4. The backend verifies the registrant's ownership or lawful control through an approved vehicle verification provider or documented manual review. A plate format check or possession of the plate number is not ownership proof.
+5. On approval, create an internal `vehicle_id` and bind it to the verified `owner_user_id`. The plate is a protected lookup attribute, not the account ID.
+6. The owner can register multiple vehicles under the same TimeLink account, subject to the platform's verification and risk limits.
+
+**B. Authorized driver**
+1. The owner may invite another TimeLink user as an authorized driver by account/email.
+2. The invited driver accepts the vehicle-specific permission. The owner can revoke it at any time.
+3. A driver signs in with their own personal account, selects the authorized vehicle and starts in-car listening through the phone/Bluetooth flow.
+4. The driver receives only the permissions explicitly granted. They cannot transfer ownership, change vehicle verification, add other drivers or manage the owner's commercial account.
+5. Rental/company/family vehicles require an authorization path appropriate to the actual lawful user; do not assume the registered owner is always the driver.
+
+**C. POC eligibility**
+- Keep the observed 1.0x standard and 2.5x verified-vehicle POC multipliers as historical policy baselines only. This design does not change them.
+- The 2.5x is a POC contribution multiplier, not a TL credit, TL discount, cash payment or automatic vehicle registration reward.
+- The server, not the browser, determines whether the vehicle is verified and whether a listening session qualifies for the additional multiplier.
+- A qualifying session must bind authenticated driver + verified vehicle + active driver authorization + valid TL listening session + plausible activity/heartbeat evidence. Reject client-supplied `owner_id`, `poc_mult` or local-storage plate as authority.
+- GPS/speed data can be spoofed. Apply reasonable plausibility checks, rate limits, replay protection and anomaly review; do not describe GPS alone as tamper-proof vehicle verification.
+- Owner-approved activation incentives, if any, must be accounted for separately from usage-based POC multipliers.
+
+### 12.7 Suggested data model (additive migration; preserve legacy records)
+
+Use stable internal IDs and foreign keys. Names below are logical design names; reconcile against the actual D1 schema before writing migrations.
+
+- `businesses`: `id`, `country`, normalized/encrypted registration number or keyed lookup hash, `legal_name`, `verification_status`, `verified_at`, `verification_provider`, `created_at`.
+- `business_members`: `business_id`, `user_id`, `role`, `status`, `invited_by`, `accepted_at`, `created_at`. Enforce one active owner per business unless a reviewed ownership-transfer workflow explicitly permits a transition.
+- `cafe_locations`: `id`, `business_id`, `name`, `address`, `status`, `created_at`.
+- `cafe_location_channels` or additive columns on `cafe_channels`: map existing `channel_id` to a location while retaining existing `owner_id` and identifiers for compatibility.
+- `cafe_location_members`: `location_id`, `user_id`, `role`, `permissions`, `status`, `invited_by`, `valid_from`, `valid_until`.
+- `cafe_device_authorizations`: `id`, `location_id`, `device_id`, `device_key_hash`, `status`, `paired_by`, `paired_at`, `last_seen_at`, `revoked_at`.
+- `vehicle_registrations`: `id`, `vehicle_id`, `owner_user_id`, protected plate fields, `verification_status`, `verification_method`, `verified_at`, `status`, timestamps.
+- `vehicle_driver_authorizations`: `vehicle_id`, `driver_user_id`, `granted_by`, `status`, `valid_from`, `valid_until`, `revoked_at`.
+- `commercial_invitations`: opaque token hash, intended email, target business/location/vehicle, role/permission set, expiry, accepted/revoked timestamps.
+- `commercial_audit_events`: actor, action, target, before/after metadata, reason, timestamp and request/session reference. Avoid storing raw identity documents or full plate/business identifiers in general-purpose logs.
+
+Migration principles:
+- Existing `cafe_channels.owner_id` remains the legacy owner link and is backfilled into owner membership only after verifying that the referenced user is valid.
+- Existing `biz_reg_num` values are not automatically marked verified. Re-run real verification or leave pending/manual-review status.
+- Do not infer staff or vehicle-owner relationships from localStorage, browser payloads, channel IDs or plate values.
+- Preserve old channel, contract, transaction, POC and settlement records. New relationships are additive and auditable.
+
+### 12.8 Admin Control System extension — keep `public/admin.html`
+
+Extend the existing Admin Console panels and navigation; do not create a parallel admin app.
+
+Add these panels under the existing business/operations area:
+1. **Business verification** — pending/verified/rejected business claims, masked registration number, verification source, representative evidence status, reviewer and timestamps.
+2. **Cafe locations & channels** — business-to-location-to-channel mapping, owner, subscription status, expiry, receiver devices and operational status.
+3. **Cafe members & invitations** — owners and staff, invitation state, location scope, granted permissions, expiry and immediate revocation.
+4. **Vehicle registry** — masked plate, internal vehicle ID, owner, verification method/status, driver authorizations, risk flags and revocation.
+5. **Commercial access audit** — owner/staff/driver login and permission changes, pairing events, denied playback attempts, session termination and administrative overrides.
+6. **Entitlement diagnostics** — explain which condition granted or denied a cafe/in-car session: identity, membership, verification, contract, device, TL balance/authorization and policy version.
+7. **Commercial policy** — reuse the already specified admin-controlled fee, POC multiplier and revenue-share policy panels; global policy editing remains separate from business/member administration.
+
+Admin security requirements:
+- Remove browser hard-coded email/password comparisons from `admin.html`. Authenticate through the existing account API and require the server-confirmed `users.role='admin'` (or a narrowly scoped authorized admin permission).
+- Add an authenticated `/api/auth/me` or dedicated admin-session response that returns authoritative role/permission claims. Do not trust `tl_user`, `tl_adm`, `tl_adm_token` or any localStorage role flag.
+- Every admin API route independently validates token, current account status and admin permission. Frontend route hiding is convenience only.
+- Commercial verification review, ownership transfer, manual overrides and policy changes require distinct permissions and audit records.
+- Replace free-form SQL for normal business operations with typed, narrowly scoped endpoints. Keep any emergency SQL facility separately restricted, audited and unavailable to business owners/staff.
+- Admin account recovery, session expiry/revocation, recent re-authentication for sensitive operations and audit-log review are required before opening the new admin controls.
+
+### 12.9 API boundaries and server-authoritative checks
+
+Proposed API surface (names illustrative until reconciled with current route contracts):
+- `GET /api/me/permissions` — current person, platform roles and active commercial memberships.
+- `POST /api/businesses` / `POST /api/businesses/:id/verification` — claim and verify business.
+- `POST /api/businesses/:id/locations` — create a cafe location.
+- `POST /api/cafe/locations/:id/invitations` — owner invites staff.
+- `POST /api/cafe/invitations/:token/accept` — invited employee accepts.
+- `GET /api/cafe/locations/:id/members` / `DELETE /api/cafe/locations/:id/members/:userId` — owner manages membership.
+- `POST /api/cafe/locations/:id/devices/pair` and `POST /api/cafe/devices/:id/revoke` — location receiver pairing/revocation.
+- `POST /api/vehicles` / `POST /api/vehicles/:id/verification` — owner vehicle registration/verification.
+- `POST /api/vehicles/:id/drivers/invitations` / `POST /api/vehicles/:id/drivers/:userId/revoke` — driver authorization.
+- `GET /api/admin/commercial/*` and `POST /api/admin/commercial/*` — authorized admin review, diagnostics and policy controls.
+
+For every request, the backend derives the acting user from the verified token and checks the target relationship from the database. Never accept a client-supplied `owner_id`, `role`, `verified`, `poc_mult`, fee, revenue split or entitlement as authoritative. Billing and channel creation must be one server-controlled operation with validated amount, idempotency key, balance check, ledger entry and resource activation; do not issue a separate browser-generated SQL debit.
+
+### 12.10 Delivery sequence and acceptance criteria
+
+1. **Inventory and threat review:** locate the live `/api/incar/channel` implementation, inspect every cafe/in-car/admin endpoint, schema, auth helper and deployment branch. No code changes.
+2. **Common account/permission foundation:** role-aware `/me` response, server-side permission helpers, session invalidation/re-authentication plan. Existing email/password login remains the common entry point.
+3. **Cafe business verification:** business claim, owner verification, location mapping and additive migration/backfill. Existing channel IDs and owner links remain compatible.
+4. **Cafe employee access:** invitation/acceptance, location-scoped staff permissions, revocation and receiver pairing.
+5. **Vehicle ownership:** vehicle registration and verification, owner binding, driver invitations and revocation.
+6. **In-car entitlement and POC audit:** server-derived owner/driver/vehicle/session eligibility, authoritative POC multiplier and anti-replay/risk controls.
+7. **Admin extension:** add the business, cafe-member, vehicle, audit and entitlement panels to the existing `admin.html`; harden admin authentication and replace operational SQL calls with typed endpoints.
+8. **Staged rollout:** test with synthetic accounts and non-monetary fixtures; do not debit real TL, mint/award real POC/TLC or change existing subscriptions during tests. Run migration in dry-run first, compare counts and preserve rollback.
+9. **Release gate:** owner review, security review, end-to-end tests, data reconciliation and explicit deployment approval.
+
+Acceptance criteria:
+- A business number or vehicle plate alone can never log a user in or authorize playback.
+- One personal TimeLink account can own/manage multiple businesses/locations and vehicles without duplicate logins.
+- A cafe owner can invite and revoke employees; employees use their own accounts and cannot access unassigned stores or owner-only actions.
+- Only the verified vehicle owner can grant/revoke driver access; drivers use their own accounts.
+- Cafe broadcast is denied if owner/business verification, membership, active contract, device authorization or TL entitlement is invalid.
+- In-car access and any 2.5x POC contribution are computed by the server from verified relationships and eligible sessions, never from client-supplied IDs or localStorage.
+- Admin pages and APIs enforce server-side role permissions; no hard-coded frontend credentials or client-side admin sessions remain.
+- Existing records, contracts, balances, POC/TLC history and settlements are preserved; all changes are prospective, versioned and auditable.
+- No production changes, real-balance tests, policy edits, PR merge or deployment occur without the owner's explicit approval.
+
