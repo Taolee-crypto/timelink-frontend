@@ -171,3 +171,12 @@
 - workflow는 `npm ci` 후 검증 전용 TypeScript 및 Cloudflare Workers 타입을 설치하고 `tsc --noEmit`을 수행한다.
 - 배포 단계나 Cloudflare 배포 자격증명은 포함하지 않는다.
 - workflow 파일은 커밋되어 있으나, 현재 확인 시점에는 해당 커밋에 연결된 workflow 실행 결과가 아직 반환되지 않았다. 따라서 타입 검사 통과로 기록하지 않는다.
+
+
+### 프런트엔드 PR 미리보기 배포 상태 재확인
+- Frontend PR #13은 여전히 Draft / open이며 merge되지 않았다.
+- Cloudflare Pages가 PR 브랜치의 Preview 배포 성공 이벤트를 남겼다.
+- Branch Preview: https://feature-renewal-shell-202610.timelink-frontend.pages.dev
+- 개별 Preview: https://fc7ac1a6.timelink-frontend.pages.dev
+- 이는 PR 브랜치 미리보기 배포이며 운영 main 배포가 아니다. 브라우저에서 실제 페이지 렌더링 및 로그인/API 연동이 정상인지 확인했다는 의미도 아니다.
+- Backend PR #7은 Draft / open 상태이며 merge되지 않았다.
