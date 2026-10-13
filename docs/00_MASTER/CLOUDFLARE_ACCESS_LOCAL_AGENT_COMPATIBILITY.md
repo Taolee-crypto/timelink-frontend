@@ -34,6 +34,18 @@ Local Agent는 업로드 후 `public_url`과 `stream_url`을 다음 형식으로
 
 따라서 `agent.timelink.digital`에 Access가 적용된 경우, Worker → Agent 터널의 서버-서버 호출이 Access 정책을 통과하는 방식이 필요하다.
 
+### 현재 플레이어의 공개 URL 처리
+
+추가로 프런트엔드 재생 진입점을 확인한 결과, 공개 Agent URL을 공통 API 프록시로 통일하지 않고 있다.
+
+- `public/shareplace.html`의 `getStreamUrl()`은 `127.0.0.1` 또는 `localhost` 주소만 API `/api/stream/:shareId`로 바꾼다. `https://agent.timelink.digital/local/:token`은 그대로 브라우저에 반환한다.
+- `public/track.html`은 `_share.stream_url` 또는 `file_url`을 직접 사용한다.
+- `public/incar.html`은 TL 잔액이 있는 경우에만 API `/api/stream/:shareId?tk=...`를 사용하고, 그 외에는 `proxyUrl()`이 Agent 도메인 URL을 그대로 반환한다.
+
+따라서 Access가 Agent 호스트 전체를 보호한다면 일반 이용자의 SharePlace, Track, InCar 무료/직접 스트리밍 경로가 Access 로그인 화면 또는 차단 응답에 걸릴 수 있다. 앞서 설명한 Worker 서버-서버 fetch 경로만 점검해서는 충분하지 않다.
+
+**필수 설계 변경:** Agent 도메인의 파일 URL을 사용하는 모든 브라우저 플레이어를 TimeLink API의 Share 스트림 프록시로 통일한다. API Worker만 Access Service Token으로 Agent 원본을 가져오게 한다. 기존 TL 과금·세그먼트 라이선스·InCar tick 로직은 이 URL 라우팅 변경과 분리해 보존한다. TL3는 반드시 기존 TL3 라이선스/confirm 경로를 유지하며 일반 `/api/stream`으로 우회시키지 않는다.
+
 ## 3. Access 설정에 따라 달라지는 결과
 
 | Access 정책 | 예상 결과 | 평가 |
