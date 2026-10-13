@@ -38,7 +38,7 @@
   }
   function providerCard(id,name,icon,connected,configured,email){
     var status=connected?'연결됨':(configured?'연결 가능':'설정 필요');
-    var action=connected?'연결 관리':(configured?'연결하기':'준비 중');
+    var action=connected?'연결됨':(configured?'연결하기':'준비 중');
     return '<article class="provider-card"><div class="provider-top"><div class="provider-icon">'+icon+'</div><div><div class="provider-name">'+name+'</div><div class="provider-status">'+status+(email?' · '+esc(email):'')+'</div></div></div><button class="provider-action" data-provider="'+id+'" '+(!configured||connected?'disabled':'')+'>'+action+'</button></article>';
   }
   async function loadProviders(){
@@ -55,7 +55,7 @@
     $('providerGrid').innerHTML=
       providerCard('google_drive','Google Drive','G',!!map.google_drive,!!google.configured,map.google_drive&&map.google_drive.provider_email)+
       providerCard('onedrive','Microsoft OneDrive','O',!!map.onedrive,!!one.configured,map.onedrive&&map.onedrive.provider_email)+
-      providerCard('local_agent','내 PC · Local Agent','PC',false,true,'별도 연결 단계');
+      providerCard('local_agent','내 PC · Local Agent','PC',false,false,'다음 개발 단계에서 연결');
     $('providerGrid').querySelectorAll('[data-provider]').forEach(function(btn){
       btn.addEventListener('click',connectProvider);
     });
