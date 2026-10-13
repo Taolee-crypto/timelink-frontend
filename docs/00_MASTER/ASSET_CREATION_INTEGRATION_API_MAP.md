@@ -348,3 +348,18 @@ This map does not authorize:
 - merge, deployment or default-route switching.
 
 The current work remains documentation and prototype work on the design branch until the owner explicitly approves a separately scoped implementation.
+
+
+## 13. Source-level clarification added after direct player inspection
+
+A deeper inspection of the current frontend source established that `public/tl3.js` online playback calls the per-segment path:
+- `GET /api/v1/tl3/header/:id`
+- `GET /api/v1/tl3/segment/:id`
+- `GET /api/v1/tl3/code/:id` (license request with TL reservation/debit)
+- `POST /api/v1/tl3/segment/confirm/:id` (played-time confirmation, unused reservation refund and creator settlement)
+
+The separate `POST /api/v1/playback/tl3/consume` route exists in `src/routes/playback.ts`, but its active frontend caller was not found in the inspected `public/tl3.js` snippets. Do not add this route to the renewed TL3 player until its caller and intended role are established.
+
+The legacy `/api/shares/:id/charge` and `/api/shares/:id/consume` routes are also separate. Identify their page-specific callers before enabling any paid playback UI.
+
+See `TL3_ACTIVE_PATH_SOURCE_AUDIT.md` for the exact source revisions, creation sequence, license reservation and confirmation behavior, and regression requirements. This clarification supersedes any assumption that all TL3 consumption is performed through the general `/api/v1/playback/tl3/consume` endpoint.
