@@ -201,3 +201,17 @@
 - 보안 정책 문서만 추가했으며 런타임 코드, 운영 DB, 운영 설정은 변경하지 않았다.
 - backend strict TypeScript workflow는 존재하지만 해당 커밋의 실행 결과는 아직 확인되지 않았다.
 - 원본 파일·재생 권한을 일괄 차단하면 기존 서비스가 중단될 수 있으므로, 공통 권한 계층과 호환 테스트를 먼저 구현한다.
+
+
+### SharePlace 및 스트림 전달 경로 2차 점검
+- `src/routes/shareplace.ts`의 현대형 SharePlace 목록 API가 `tl_shares`의 `s.*` 전체를 반환하고, 그 결과에 내부 `stream_url`이 포함되는 것을 확인했다.
+- 현대형 SharePlace 목록 쿼리에 명시적인 공개 상태 필터가 없음을 확인했다.
+- `GET /api/stream/:shareId`가 별도 재생 권한을 확인하지 않고 외부 URL, 외부 저장소 객체 또는 D1 객체의 바이트를 반환하는 구조를 확인했다.
+- `/api/stream/:shareId/info`의 `can_play`는 실제 전달 권한을 보장하지 않으며, 익명 방문자에 대해 재생 가능으로 응답하는 분기가 있다.
+- `/api/stream/:shareId/tick`은 요청 본문의 `seconds`, `deduct_rate`를 과금 계산에 사용한다. 요금과 과금 단위는 서버가 결정해야 한다.
+- 이 추가 발견을 `SECURITY_HARDENING_AND_TEST_PLAN.md` 8절에 기록했다.
+
+### 후속 조치
+- SharePlace 응답은 공개 메타데이터 allowlist DTO로 전환하고 내부 스트림 주소를 노출하지 않아야 한다.
+- 재생은 별도 세션 및 서버 발급 grant로 권한을 확인한 뒤 허용된 구간만 전달해야 한다.
+- 기존 MP3/TL3 호환성을 유지하는 단계적 마이그레이션 전에는 스트림 경로를 단순 차단하지 않는다.
