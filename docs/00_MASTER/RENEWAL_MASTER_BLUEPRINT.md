@@ -31,69 +31,57 @@ Observed current entry points and responsibilities:
 6. Creator upload is a multi-stage workflow using the local agent and several API calls. Keep the current upload implementation available while the renewed interface is tested.
 7. Radio, DJ broadcasting, cafe channels and in-car channels are connected product areas. Do not reduce TL방송국 to a simple music-list page.
 
-## 4. Proposed product-level navigation for owner review
-This is a consolidation proposal, not an instruction to change `sidebar.js` now.
+## 4. Primary architecture: common platform + four equal content families
+TimeLink is not a music-first platform. TL3, TL4, TLD and TLJ are peer digital-content families using one shared platform.
 
-### Home
-- TimeLink home / landing
-- For signed-in members, a personalized overview entry
+### 4.1 COMMON TIME CORE
+All four families share:
+- Time Authorization: identity, access rights, permitted usage, duration and session authorization.
+- Usage Accounting: usage measurement, time balance reservation/consumption and transaction records.
+- Content Protection: protected container, integrity verification and authorized delivery/viewing.
+- Content Identity: identifiers, metadata, creator/rights-holder identity and version references.
+- Creator Settlement: usage-based revenue allocation and settlement.
+- Shared economy: TL balance, charging, transaction history, POC contribution and TLC participation/mining.
 
-### SharePlace
-- Explore content
-- Music / TL3
-- Video / TL4 (when enabled)
-- Documents / TLD (when enabled)
-- Popular, latest, genre/category filters
-- Track/content detail
-- Likes, follows, playlists, listening/use history
+The common core provides shared rules and services. It does not force every media type to use the same payload, codec, player or interaction model.
 
-### TL Broadcasting Station
-- Radio home
-- Cafe broadcasts
-- In-car broadcasts
-- Live DJs
-- Broadcast schedules / channels
+### 4.2 Four peer content families
+- TL3 — AUDIO: music, spoken audio and other audio works; audio-specific payload and player.
+- TL4 — VIDEO: films, clips, programs and moving-image works; video-specific payload, playback and usage model.
+- TLD — DOCUMENT: books, reports, articles and other documents; page/section/document viewer and applicable usage model.
+- TLJ — IMAGE / VISUAL: image and visual works; image-specific presentation, viewing and rights metadata.
 
-### Creator Studio
-- Creator overview
-- Upload content
-- My content / releases
-- Content metadata and rights/certification
-- Broadcast-ready content
-- Creator earnings and settlement
+Each family has its own registration, metadata, protected payload, viewer/player, discovery filters and creator workflow, while sharing identity, authorization, accounting, protection and settlement.
 
-### My Channels
-- Cafe discovery / my cafe / create cafe
-- In-car discovery / my vehicle / register vehicle
-- DJ Center / agency and contracts
-- Show conditional links only when the member has the relevant channel or DJ role; do not hide existing access paths before role data is verified.
+Terminology note: the 2026-10-13 product proposal explicitly listed TLJ as an image asset. The repository also contains `tlj-viewer.html` for TLJ rights-certificate verification. Preserve both observed concepts and define their exact relationship in the detailed specification; do not silently reduce TLJ to the certificate viewer.
 
-### TL Economy
-- TL balance and charge
-- Transaction history
-- Content-specific TL balance where applicable
-- Creator earnings / settlement
-- POC contribution
-- TLC mining and holdings
-- Exchange/withdrawal only where actually enabled
+### 4.3 Common platform navigation
+- Home / Overview
+- Explore Digital Assets: All, TL3 Audio, TL4 Video, TLD Documents, TLJ Images
+- Create / Register Assets: type-specific creation and registration
+- My Assets: created, owned, authorized and saved assets, grouped by type
+- SharePlace: shared discovery and distribution with all four types as first-class categories
+- EARN: creator earnings and settlement across all asset families
+- CONSUME: usage and listening/viewing/reading history
+- MINING: POC/TLC participation and mining
+- Wallet: TL balance, charging and transaction history
+- Broadcast / Channels: TL Broadcasting Station, cafe and in-car radio, DJ and channel tools
+- My TimeLink: profile, settings, notifications and help
+- Business / Advertiser / Admin: separate role-based workspaces where applicable
 
-### Advertiser
-- Advertiser overview
-- Campaign creation and management
-- Statistics and reports
-- Billing/settlement
+### 4.4 Cross-family user journey
+One account can discover, create, own, authorize, consume and earn from any supported family. A member can listen to TL3, view TL4, read TLD, view TLJ, and create or hold rights across any combination. Separate platform identities are not required for different roles.
 
-### My TimeLink
-- Profile
-- Account/settings
-- Notifications/help
-- App/download and support links
+### 4.5 Existing product areas
+TL Broadcasting Station, cafe radio, in-car radio, DJ Center and channels remain connected platform applications. They may use TL3 audio and other supported media, but do not define the whole platform or replace the four-family architecture.
 
 ## 5. Screen renewal design language
 Target direction: contemporary, premium digital creator platform; dark navy/charcoal foundation, restrained blue-violet accents, clear typography, generous spacing, high-contrast action states. Preserve existing TimeLink identity and logo treatment. Use one consistent system for:
 - Desktop: fixed/compact left navigation, top utility bar, content canvas.
 - Mobile: compact top bar and bottom or drawer navigation; never force desktop sidebar onto narrow screens.
-- Content cards: strong cover image, title, creator, type, TL rate/price, status.
+- Content cards: type-aware presentation for TL3, TL4, TLD and TLJ, showing title, creator, type, TL rate/price, rights/status and suitable preview.
+- Explore and SharePlace: all four content families are first-class categories, never secondary tabs under music.
+- My Assets, EARN and CONSUME: cross-family views with type filters and a consistent asset identity.
 - Creator forms: step-by-step progress, autosave where safe, explicit completion and retry states.
 - Player: persistent, unobtrusive player with visible remaining TL and playback time.
 - Wallet: distinguish TL, TLC, and POC visually and semantically; never present them as interchangeable.
@@ -112,12 +100,13 @@ Target direction: contemporary, premium digital creator platform; dark navy/char
 1. Navigation and page inventory: confirm all actual files, routes, role-specific entry points and duplicated shells.
 2. Design system: establish colors, typography, spacing, responsive breakpoints and reusable card/form/player patterns.
 3. First renewed shell: signed-in member shell and mobile navigation, built separately.
-4. Renewed SharePlace: preserve list/filter/detail/play/charge API calls; no business-rule changes.
-5. Renewed Creator Studio: preserve Local Agent and current upload sequence; improve progress, error recovery and status display.
-6. Renewed Dashboard/Economy: unify presentation while retaining existing wallet, POC and mining functions.
-7. Renewed TL Broadcasting Station and DJ Center.
-8. Advertiser, cafe, in-car and expansion modules.
-9. End-to-end regression, staged route switch, rollback.
+4. Renewed Explore / SharePlace with TL3, TL4, TLD and TLJ as equal asset families.
+5. Type-specific asset detail and viewer/player experiences using the shared time core.
+6. Cross-family My Assets, EARN, CONSUME, Wallet and MINING presentation.
+7. Creator Studio with separate registration workflows for each family; retain the existing TL3 upload path.
+8. TL Broadcasting Station, DJ, cafe and in-car experiences.
+9. Advertiser, B2B, admin and supporting modules.
+10. End-to-end regression, staged route switch, rollback.
 
 ## 8. Acceptance criteria for every renewed screen
 - Existing route and legacy page remain available during testing.
