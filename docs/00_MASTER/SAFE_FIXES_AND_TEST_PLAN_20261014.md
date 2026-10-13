@@ -106,6 +106,15 @@ TimeLink에서 공유·유통되는 것은 보호된 TL 자산(TL3/TL4/TLD/TLJ)�
 5. `GET /api/eco/mining-history`가 로그인 사용자 자신의 최근 기록만 반환하는지 확인한다.
 6. 연속 클릭, 동시 요청, 일일 한도 경계, 소비 실적 0인 계정을 테스트한다.
 
+### TL-only publication mismatch (confirmed source-level)
+
+- `creator.html` creates a public Share record with the Local Agent raw MP3 URL before TL3 release.
+- `creator-studio.html` exposes an explicit free-MP3 publication branch and syncs source file metadata as shared.
+- `GET /api/shares` unions verified/shared `tl_files` and classifies ordinary audio rows as MP3.
+- TL3 release creates a protected object but also marks the source `tl_files` row shared. The public listing must instead derive the published object from the TL release record and must never expose the source `stream_url`.
+
+The six frontend changes that proxied raw Agent MP3 URLs through `/api/stream/:id` have been reverted in this branch because they would make source-file distribution easier and conflict with the TL-only policy. The optional backend Access Service Token binding remains infrastructure only; it must not be used to proxy public raw source material. It may be used later for Worker-to-Agent retrieval of protected TL containers after route-level authorization is designed and tested.
+
 ## 4. 아직 수정하지 않은 위험
 
 - TL3 confirm의 여러 D1 쓰기는 하나의 원자적 트랜잭션으로 묶이지 않은 것으로 관찰됐다.
