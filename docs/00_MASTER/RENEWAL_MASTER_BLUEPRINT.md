@@ -568,3 +568,60 @@ Acceptance criteria:
 - Existing records, contracts, balances, POC/TLC history and settlements are preserved; all changes are prospective, versioned and auditable.
 - No production changes, real-balance tests, policy edits, PR merge or deployment occur without the owner's explicit approval.
 
+## 13. Owner policy update — cafe location-gated broadcast and promotional in-car service (2026-10-14)
+
+This section records the owner's latest business decisions and takes precedence over any conflicting in-car charging assumptions in earlier sections. It supplements Section 12; it does not authorize production implementation or deployment.
+
+### 13.1 Cafe: verify registered store location at login and gate broadcast playback
+
+Owner decision: cafe access must be checked against the registered physical store address/location when a user logs in.
+
+Target behavior:
+- The cafe business and its physical store address are registered and verified before commercial broadcasting is activated.
+- When an owner or invited employee signs in and selects a cafe location, the service checks whether the login/device location is consistent with that store's registered location.
+- Broadcast-control and playback entitlement is granted only when the user has an active membership for that exact store, the store's commercial channel is active, the receiver/device is authorized, and the location check passes.
+- An employee assigned to Store A must not receive Store B's broadcast entitlement merely because both stores belong to the same business.
+- The owner may manage account-level business information, staff invitations and contracts remotely if authenticated and authorized. However, starting or receiving the commercial cafe broadcast is location-gated to the registered premises. This distinction avoids locking an owner out of legitimate remote administration while enforcing the owner's location policy on actual commercial playback.
+- Location checks should use an appropriately permissioned device location signal and a configurable geofence around the registered address. Store coordinates, geofence radius, accuracy threshold, check time and result should be recorded as minimal audit metadata. Do not expose precise location histories unnecessarily.
+- GPS is not cryptographic proof and can be spoofed. Use it as a location gate/risk signal with device/session binding, freshness and accuracy checks, anomaly detection and, where practical, an approved fixed receiver/device at the premises. Do not claim GPS alone guarantees physical presence.
+- If location permission is denied, location is stale/inaccurate, or the device appears outside the permitted area, deny commercial broadcast playback/control and show a clear recovery instruction (enable location, move to the registered premises, or contact the owner/admin to correct the registered address). Do not silently bypass the check.
+- A registered address change requires owner authentication and an auditable verification/update workflow. The backend, not browser-supplied coordinates or a client-side distance calculation alone, makes the final entitlement decision.
+- Admin controls may configure geofence radius and accuracy thresholds within approved bounds. Changes are versioned, audited and prospective.
+
+### 13.2 In-car: promotional service with no user TL charge
+
+Owner decision: in-car broadcasting is a promotional/acquisition service and must not charge the listener for use.
+
+Consequences:
+- Remove/disable any in-car listener TL-per-second deduction, listening fee, subscription charge or automatic balance debit from the target in-car user journey.
+- Do not require TL balance or a TL recharge merely to listen to in-car broadcasts.
+- Do not run a client-side SQL debit or any equivalent billing operation for in-car listening.
+- Keep personal TimeLink login and vehicle-owner registration/verification as identity, safety and eligibility mechanisms, not as billing prerequisites.
+- In-car promotional listening still uses protected TL assets and the common content-protection/time-authorization infrastructure. Promotional pricing means the listener charge is zero; it does not mean that ordinary unprotected source files become public or that the TL-only distribution rule is removed.
+- Treat in-car as a promotional distribution channel whose campaign costs, content rights and creator/platform compensation must be explicitly funded and accounted for separately. Zero listener charge must not silently create unbounded creator liabilities or unpaid third-party rights.
+- The previously observed vehicle channel setup amount of 20,000 TL and any other in-car channel/registration fees must be reviewed separately. The owner's decision explicitly removes charges for in-car use/listening; do not assume that every possible owner-side setup fee is automatically waived without confirmation. Do not charge listeners.
+- The earlier 2.5x vehicle POC multiplier was a contribution multiplier, not a TL charge. This no-charge decision does not by itself cancel or alter that POC rule. Keep it unchanged as a separate policy pending any explicit owner change; if retained, calculate eligibility server-side and account for promotional campaign exposure.
+- Admin must be able to view promotional listening volume, TL charges (expected zero), content/rights cost, creator compensation, POC issuance and campaign exposure. Add a hard guardrail that blocks any in-car listener debit in the promotional mode.
+
+### 13.3 Admin and implementation updates
+
+Extend the existing `public/admin.html` and central server-side commercial policy configuration:
+- Cafe location policy: verified address, geofence coordinates/radius, location accuracy/freshness thresholds, permitted receiver devices, per-store status and location-check audit.
+- Cafe exception handling: address correction, temporary location outage, device replacement and reviewed manual override. Any override is time-limited, permission-gated and audited; it must not become a permanent hidden bypass.
+- In-car promotional mode: listener price fixed at zero, no listener TL debit, campaign budget/exposure limits, creator/rights funding visibility and POC accounting.
+- Separate listener pricing from owner-side channel setup or other business fees. Any owner-side in-car fee change requires a separate explicit owner decision.
+- Keep the existing cafe 50,000 TL / 30-day subscription baseline and DJ/cafe/platform revenue-share policy unchanged unless separately approved. Cafe location gating does not itself change these amounts or shares.
+
+### 13.4 Updated acceptance tests
+
+- A cafe owner/staff member with a valid account but outside the registered store geofence cannot start or receive that store's commercial broadcast.
+- The same user inside the registered location, with valid store membership, active contract and approved device, can receive the broadcast.
+- A staff member assigned to one store cannot access another store without a separate membership and location check.
+- Remote owner administration may remain available, but remote cafe broadcast playback is denied by default.
+- Location denial, stale location and poor accuracy fail closed for commercial playback and produce a useful user-facing explanation.
+- In-car listener playback creates no TL debit, no subscription charge and no balance requirement.
+- In-car still distributes only protected TL assets; promotional zero-price access does not expose source files or create free public MP3/MP4/PDF/JPEG distribution.
+- The POC multiplier remains a separate accounting rule unless the owner explicitly changes it.
+- No owner-side vehicle setup fee is changed by implication; it must be decided separately.
+- Admin reports show zero in-car listener TL charges and separately expose campaign/rights/creator/POC costs.
+
