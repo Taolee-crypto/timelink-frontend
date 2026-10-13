@@ -133,3 +133,33 @@
 - Backend: https://github.com/Taolee-crypto/timelink-backend/pull/7
 - Frontend: https://github.com/Taolee-crypto/timelink-frontend/pull/13
 - 두 PR은 Draft 상태다. 병합 또는 운영 배포는 하지 않았다.
+
+
+## 2026-10-14 — 개발 브랜치 보안 재점검
+
+### 재점검 대상
+- Backend branch: `feature/renewal-private-library-api`
+- Commit: `e8e345a6999eb0c7ba437cfd1c20bd2f68f5835f`
+- 대상: 외부 저장소 스트림, D1 업로드/다운로드, 레거시 파일 동기화, Track Page 소셜/플레이리스트
+
+### 새로 확인한 차단 이슈
+1. `/api/storage/object/:id/stream`은 객체가 `tl_shares`에 연결된 경우 요청자 권한을 확인하지 않는 분기가 있다. 공유 연결은 재생 권한과 동일하지 않으므로 P0 보안 수정이 필요하다.
+2. `/api/upload/init`, `/api/upload/part`, `/api/upload/complete`, `/api/upload`은 사용자 인증 및 업로드 세션 소유권 검증이 부족한 코드 경로가 확인된다.
+3. `/api/storage/:key`는 인증 없이 저장 객체를 읽을 수 있는 구조다. 기존 재생과 다운로드 호환성 확인 없이 일괄 차단하지 않는다.
+4. `/api/files/sync`는 인증 없이 호출 가능하며 사용자 ID 1 기본값을 사용한다.
+5. Local Agent 공급자 응답은 실제 연결 검증 없이 `configured:true`를 반환한다.
+6. OAuth 콜백의 `postMessage` 대상 origin은 `*`이다. 허용 origin 및 프런트엔드 수신 측 검증이 필요하다.
+7. Social / Playlist는 DB 기반으로 바뀌었으나 반복 DDL, 댓글 초과 길이 처리, 공개 플레이리스트 조회 정책, 비활성 사용자 확인을 보완해야 한다.
+
+상세 내용과 수정 우선순위는 `BACKEND_API_AND_SECURITY_AUDIT.md`의 9~10절에 기록했다.
+
+### 빌드/테스트 상태
+- 개발 커밋에 연결된 GitHub Actions workflow run은 확인되지 않았다.
+- `package.json`에는 `dev`, `deploy`만 있고 test/build script가 없다.
+- `tsconfig.json`은 strict 검사를 켜고 있으나, 이 브랜치에서 strict typecheck가 실제 수행된 증거는 없다.
+- D1 staging, 브라우저 E2E, 사용자 A/B 격리, OAuth 실제 연결 검증은 미수행이다.
+
+### 조치 원칙
+- 운영 브랜치·운영 DB·Cloudflare 배포는 변경하지 않았다.
+- 권한 정책이 정의되지 않은 스트림 경로를 임의로 잠그지 않았다. 공개 MP3, 유료 TL3, 비공개 원본의 권한 규칙을 먼저 정리한 뒤 회귀 테스트와 함께 수정한다.
+- 다음 구현은 인증된 업로드 세션과 원본 접근권한 경계를 먼저 확립하는 것으로 한다.
