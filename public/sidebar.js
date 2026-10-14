@@ -54,7 +54,7 @@
   document.body.classList.add('tl-has-global-nav');
   var app=document.querySelector('.app');
   var existing=document.querySelector('.sidebar:not(.tl-sidebar)');
-  if(existing){existing.outerHTML=html;if(!app)document.body.classList.add('tl-global-has-sidebar');}
+  if(existing){existing.outerHTML=html;}
   else if(app){app.insertAdjacentHTML('afterbegin',html);}
   else{
     document.body.insertAdjacentHTML('afterbegin',html);
