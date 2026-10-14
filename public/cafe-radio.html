@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -158,6 +158,16 @@ body::before{content:'';position:fixed;inset:0;
 <link rel="stylesheet" href="/dropdown-fix.css"><!-- SELECT_FIX_V1 -->
 
 <link rel="stylesheet" href="/apple-theme.css?v=global-20261014" data-tl-global-theme="2026.10">
+<style id="timelink-global-cafe-radio">
+:root{--bg:#09090d;--bg2:#0f0e15;--card:#14131b;--card2:#1b1924;--bd:rgba(255,255,255,.09);--bd2:rgba(255,255,255,.15);--purple:#9b7bff;--gold:#f5b84b;--mint:#f5b84b;--text:#f5f4fa;--muted:#a4a2b2;--dim:#777586;--fn:'DM Sans','Pretendard',sans-serif;--display:'Manrope','Pretendard',sans-serif}
+body{background:var(--bg);color:var(--text);font-family:var(--fn);letter-spacing:-.02em}
+h1,h2,h3,.title,.channel-title{font-family:var(--display);letter-spacing:-.035em}
+.card,.panel,.channel-card,.player-card{background:linear-gradient(155deg,#17151f,#121118);border-color:var(--bd);border-radius:16px}
+button,.btn{font-family:var(--fn)}
+.btn-primary,.btn-play,.play-btn{background:linear-gradient(120deg,#c1aaff,#9270f4);color:#100d19}
+.badge-live{background:rgba(245,184,75,.12);color:var(--gold);border-color:rgba(245,184,75,.22)}
+@media(max-width:760px){.main,.page-content{padding-left:14px;padding-right:14px}.player-card{padding:16px}}
+</style>
 </head>
 <body>
 <div id="toast-box"></div>
@@ -181,7 +191,7 @@ body::before{content:'';position:fixed;inset:0;
       <!-- 히어로 -->
       <div class="hero">
         <div class="hero-title">🔴 LIVE RADIO</div>
-        <div class="hero-sub">지금 방송 중인 DJ를 만나보세요<br>미리듣기 무료 · 청취 시 TL 차감</div>
+        <div class="hero-sub">지금 On Air인 DJ를 만나보세요<br>미리듣기 무료 · 청취 시 TL 차감</div>
       </div>
 
       <!-- DJ 목록 -->
@@ -215,12 +225,12 @@ var _rates = { normal: 1.0, cafe: 0.5, preview: 0, dj_self: 0 };
 var _liveDjs = [];
 var _myContracts = [];      // 카페 주인 계약 목록
 var _isCafeOwner = false;   // 카페 주인 여부
-var _playing = null;        // 현재 재생 중인 DJ
+var _playing = null;        // 현재 Playing인 DJ
 var _preview = false;       // 미리듣기 여부
 var _chargeTimer = null;
 var _chargeStartedAt = 0;
 var _audio = null;          // 오디오 객체
-var _playingTrackId = null; // 현재 재생 중인 곡 ID
+var _playingTrackId = null; // 현재 Playing인 곡 ID
 var _trackPolling = null;   // 곡 폴링 타이머
 
 // ── 인증 ──
@@ -241,7 +251,7 @@ function toast(msg, t){
   setTimeout(function(){ el.remove(); }, 3200);
 }
 
-// ── 카페 주인 확인 ──
+// ── 카페 주인 OK ──
 // ⭐ 팝업(DJ 플레이어)에서 오는 잔액 변동 반영
 window.addEventListener('message', function(e){
   if(!e.data || e.data.type !== 'tl-charged') return;
@@ -347,7 +357,7 @@ function renderDjs(){
       '</div>' +
       '<div class="dj-now">' +
         '<div class="dj-now-label">🎵 NOW PLAYING</div>' +
-        '<div class="dj-now-title">'+esc(dj.current_track_id ? '재생 중' : '방송 준비 중')+'</div>' +
+        '<div class="dj-now-title">'+esc(dj.current_track_id ? 'Playing' : '방송 준비 중')+'</div>' +
         '<div class="dj-now-artist">'+esc(dj.dj_name||'')+' 방송</div>' +
         '<div class="dj-wave"><span></span><span></span><span></span><span></span><span></span></div>' +
       '</div>' +
@@ -418,7 +428,7 @@ async function previewDj(djId){
 // ── 청취 (개인, ×1.0) ──
 // ── 청취 (팝업 플레이어) ──
 function listenDj(djId){
-  if(!_user){ toast('로그인이 필요합니다', 'e'); return; }
+  if(!_user){ toast('Please sign in first.', 'e'); return; }
   var dj = _liveDjs.find(function(d){ return Number(d.id) === Number(djId); });
   if(!dj) return;
 
@@ -429,10 +439,10 @@ function listenDj(djId){
   var url = '/player-host.html?dj_id=' + djId + '&role=' + role;
   var w = window.open(url, 'tl_live_player',
     'width=380,height=660,menubar=no,toolbar=no,location=no,status=no,resizable=yes');
-  if(!w){ toast('팝업이 차단되었습니다. 브라우저 설정을 확인하세요.', 'e'); return; }
+  if(!w){ toast('팝업이 차단되었습니다. 브라우저 설정을 OK하세요.', 'e'); return; }
   w.focus();
 
-  toast('🎧 팝업 플레이어에서 재생 중', 's');
+  toast('🎧 팝업 플레이어에서 Playing', 's');
 }
 async function playDjTrack(djId, skipIfSame, role){
   try {
@@ -488,14 +498,14 @@ function playAudio(url, isPreview, startMs){
       })
       .catch(function(e){
         console.warn('[cafe-radio] TL3 재생 실패:', e && e.message);
-        toast('재생 실패: ' + (e && e.message ? e.message : e), 'e');
+        toast('Playback failed: ' + (e && e.message ? e.message : e), 'e');
       });
   } else {
     _attach(url).then(function(){
       console.log('[cafe-radio] 재생(plain):', url.slice(-20));
     }).catch(function(e){
       console.warn('[cafe-radio] 재생 실패:', e.message);
-      toast('재생 실패: 브라우저 오디오 허용 필요', 'e');
+      toast('Playback failed: 브라우저 오디오 허용 필요', 'e');
     });
   }
 }
