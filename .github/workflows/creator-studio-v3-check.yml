@@ -1,0 +1,55 @@
+name: Creator Studio V3 HTML validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "public/creator-studio.html"
+      - "public/creator-studio-v3.html"
+      - ".github/workflows/creator-studio-v3-check.yml"
+
+jobs:
+  inline-script-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate inline JavaScript in Creator Studio pages
+        run: |
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import subprocess, tempfile
+
+          class Scripts(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.inline = []
+                  self.active = False
+                  self.parts = []
+              def handle_starttag(self, tag, attrs):
+                  if tag == "script" and not any(k.lower() == "src" for k, _ in attrs):
+                      self.active = True
+                      self.parts = []
+              def handle_data(self, data):
+                  if self.active:
+                      self.parts.append(data)
+              def handle_endtag(self, tag):
+                  if tag == "script" and self.active:
+                      self.inline.append("".join(self.parts))
+                      self.active = False
+
+          for page in ("public/creator-studio.html", "public/creator-studio-v3.html"):
+              parser = Scripts()
+              parser.feed(Path(page).read_text(encoding="utf-8"))
+              for index, source in enumerate(parser.inline):
+                  if not source.strip():
+                      continue
+                  with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8") as f:
+                      f.write(source)
+                      f.flush()
+                      subprocess.run(["node", "--check", f.name], check=True)
+              print(f"Validated inline scripts: {page}")
+          PY
