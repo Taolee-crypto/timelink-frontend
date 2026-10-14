@@ -25,10 +25,13 @@
     section[1].forEach(function(item){html+='<a class="tl-global-link'+(isActive(item[0])?' is-active':'')+'" href="'+esc(item[0])+'"'+(isActive(item[0])?' aria-current="page"':'')+'><span class="tl-global-icon">'+esc(item[1])+'</span><span>'+esc(item[2])+'</span></a>';});
   });
   html+='</nav><div class="tl-global-balance"><small>MY TL BALANCE</small><strong id="tlGlobalBalance">— TL</strong><a href="/wallet.html#charge">＋ Charge TL</a></div></aside>';
-  var old=document.querySelector('.app > .sidebar, .app > .tl-sidebar');
+  var old=document.querySelector('.app > .sidebar, .app > .tl-sidebar, .layout > .sidebar');
   if(old) old.remove();
   var app=document.querySelector('.app');
   if(app){app.style.gridTemplateColumns='minmax(0,1fr)';app.style.minWidth='0';}
+  // Pages using the legacy .layout grid had a second fixed sidebar and a 220px main offset.
+  var legacyLayout=document.querySelector('.layout');
+  if(legacyLayout){var legacyMain=legacyLayout.querySelector('.main');if(legacyMain)legacyMain.style.marginLeft='0';}
   document.body.insertAdjacentHTML('afterbegin',html);
   document.body.classList.add('tl-global-shell');
   var user={};try{user=JSON.parse(localStorage.getItem('tl_user')||'{}');}catch(e){}
