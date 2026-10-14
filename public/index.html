@@ -502,19 +502,17 @@ body.tl-global-shell .g-nav{padding:0 24px}
   async function loadFeatured(){
     var root=document.getElementById('featuredAssets');
     var musicRoot=document.getElementById('musicGrid');
-    function showBoth(markup){
-      if(root)root.innerHTML=markup;
-      if(musicRoot)musicRoot.innerHTML=markup;
+    function isAudio(item){
+      var type=String(item.file_type||'').toLowerCase();
+      var url=String(item.stream_url||item.preview_url||'').toLowerCase();
+      var category=String(item.category||'').toLowerCase();
+      return type.indexOf('audio/')===0 || /\\.(mp3|wav|flac|aac|ogg|m4a|tl3)(\\?|$)/.test(url) ||
+        ['k-pop','kpop','pop','ballad','hip-hop','indie','jazz','electronic','rock','classical','lo-fi','lofi','acoustic','dance'].some(function(g){return category.indexOf(g)>=0;});
     }
-    try{
-      var response=await fetch(API+'/api/shares',{headers:{'Accept':'application/json'}});
-      if(!response.ok)throw new Error('Request failed');
-      var payload=await response.json();
-      var items=Array.isArray(payload)?payload:(Array.isArray(payload.shares)?payload.shares:[]);
-      items.sort(function(a,b){return Number(b.pulse||0)-Number(a.pulse||0);});
-      var featured=items.slice(0,5);
-      if(!featured.length){showBoth('<div class="g-track-empty">공유된 디지털 자산이 여기에 표시됩니다.</div>');return;}
-      var cards=featured.map(function(item){
+    function renderCards(target,list,emptyMessage){
+      if(!target)return;
+      if(!list.length){target.innerHTML='<div class="g-track-empty">'+emptyMessage+'</div>';return;}
+      target.innerHTML=list.map(function(item){
         var id=encodeURIComponent(String(item.id||''));
         var title=escapeHTML(item.title||'Untitled');
         var artist=escapeHTML(item.artist||item.username||'Creator');
@@ -522,9 +520,19 @@ body.tl-global-shell .g-nav{padding:0 24px}
         var cover=image?'<img src="'+escapeHTML(image)+'" alt="" loading="lazy">':'<span aria-hidden="true">♫</span>';
         return '<a class="g-track" href="track.html?id='+id+'"><div class="g-cover">'+cover+'</div><div class="g-track-title">'+title+'</div><div class="g-track-artist">'+artist+'</div></a>';
       }).join('');
-      showBoth(cards);
+    }
+    try{
+      var response=await fetch(API+'/api/shares',{headers:{'Accept':'application/json'}});
+      if(!response.ok)throw new Error('Request failed');
+      var payload=await response.json();
+      var items=Array.isArray(payload)?payload:(Array.isArray(payload.shares)?payload.shares:[]);
+      items.sort(function(a,b){return Number(b.pulse||0)-Number(a.pulse||0);});
+      renderCards(root,items.slice(0,5),'공유된 디지털 자산이 여기에 표시됩니다.');
+      renderCards(musicRoot,items.filter(isAudio).slice(0,5),'공유된 음악 자산이 여기에 표시됩니다.');
     }catch(error){
-      showBoth('<div class="g-track-empty">공유 자산을 일시적으로 불러올 수 없습니다.</div>');
+      var message='<div class="g-track-empty">공유 자산을 일시적으로 불러올 수 없습니다.</div>';
+      if(root)root.innerHTML=message;
+      if(musicRoot)musicRoot.innerHTML=message;
       console.warn('TimeLink featured assets:',error);
     }
   }
