@@ -22,7 +22,7 @@ main{max-width:900px;margin:48px auto;padding:0 20px 90px}.eyebrow{font:700 10px
 <div class="eyebrow">TIME-LINK / CREATOR STUDIO / V3 PREVIEW</div>
 <h1>내 음악을<br>내 저장소에서 시작한다.</h1>
 <p>이 화면은 V3 음악 등록 흐름의 시험 버전이다. 선택한 MP3는 창작자 PC의 TimeLink Local Agent로 전송되며, TimeLink D1에는 파일 자체가 아닌 메타데이터와 파일 참조만 등록된다.</p>
-<div class="step"><span class="active">01 · 음원 정보</span><span>02 · PC 업로드</span><span>03 · 권리 확인</span><span>04 · 심사 요청</span></div>
+<div class="step"><span class="active">01 · 음원 정보</span><span>02 · PC 업로드</span><span>03 · 권리 확인</span><span>04 · TL3 발매</span></div>
 <section class="panel">
 <h2>음원 정보</h2>
 <div class="grid">
@@ -37,18 +37,18 @@ main{max-width:900px;margin:48px auto;padding:0 20px 90px}.eyebrow{font:700 10px
 </section>
 <section class="panel" id="rightsPanel" hidden>
 <h2>창작자 권리 확인</h2>
-<p>권리 선언은 자동으로 검증 완료 처리되지 않는다. TimeLink의 별도 심사와 확인을 거쳐야 공개 발매가 가능하다.</p>
+<p>권리 선언은 창작자의 권리 관계를 기록하는 단계다. MP3는 비공개 원본 Asset이며 독립적인 무료 발매 상품이 아니다. 실제 발매와 기여도 산정은 TL3 변환이 완료된 뒤 별도 절차로 진행된다.</p>
 <div class="grid">
  <div class="field"><label for="role">내 권리 관계</label><select id="role"><option value="composer">작곡자</option><option value="author">저작자</option><option value="lyricist">작사가</option><option value="performer">실연자</option><option value="producer">제작자</option><option value="label">음반사</option><option value="other">기타</option></select></div>
  <div class="field"><label for="terms">권리 확인 문구 버전</label><input id="terms" value="creator-attestation-v1" readonly></div>
 </div>
 <label class="check"><input id="attest" type="checkbox"> 본 음원에 관하여 선택한 권리 관계를 보유하거나 적법한 권한을 위임받았으며, 제3자의 권리를 침해하지 않는다는 사실을 확인한다.</label>
-<div class="row"><button class="btn" id="rightsSubmit">권리 선언 및 MP3 심사 요청</button></div>
+<div class="row"><button class="btn" id="rightsSubmit">권리 선언 저장</button></div>
 <div id="rightsStatus" class="status"></div>
 </section>
 <section class="panel" id="resultPanel" hidden>
 <h2>등록 처리 결과</h2><div id="result" class="result"></div>
-<p class="small">현재는 심사 요청 단계다. 자동으로 SharePlace에 공개되거나 TL/TLC가 지급되지 않는다.</p>
+<p class="small">Track과 원본 Asset의 등록 단계다. MP3 원본은 공개 발매되지 않으며, TL3 변환이 성공적으로 완료되기 전에는 POC 기여도도 발생하지 않는다. TL/TLC는 이 단계에서 발행되지 않는다.</p>
 </section>
 </main>
 <script>
@@ -56,7 +56,7 @@ main{max-width:900px;margin:48px auto;padding:0 20px 90px}.eyebrow{font:700 10px
  const API='https://api.timelink.digital';
  const token=localStorage.getItem('tl_token')||'';
  const $=id=>document.getElementById(id);
- let trackId='',assetId='',releaseId='',agentResult=null;
+ let trackId='',assetId='',agentResult=null;
  function show(id,msg,type){const e=$(id);e.className='status '+type;e.textContent=msg;}
  function headers(){return {'Authorization':'Bearer '+token,'Content-Type':'application/json'};}
  async function api(path,options){const r=await fetch(API+path,options);let d={};try{d=await r.json()}catch{}if(!r.ok||d.ok===false)throw new Error(d.error||d.message||('API 오류 '+r.status));return d;}
@@ -106,12 +106,9 @@ main{max-width:900px;margin:48px auto;padding:0 20px 90px}.eyebrow{font:700 10px
   const b=$('rightsSubmit');b.disabled=true;
   try{
    const claim=await api('/api/v3/music/tracks/'+encodeURIComponent(trackId)+'/rights',{method:'POST',headers:headers(),body:JSON.stringify({rights_role:$('role').value,terms_version:$('terms').value,attest:true})});
-   const release=await api('/api/v3/music/tracks/'+encodeURIComponent(trackId)+'/releases',{method:'POST',headers:headers(),body:JSON.stringify({release_type:'MP3',price_tl:0,asset_id:assetId})});
-   releaseId=release.release_id;
-   const submitted=await api('/api/v3/music/tracks/'+encodeURIComponent(trackId)+'/releases/'+encodeURIComponent(releaseId)+'/submit',{method:'POST',headers:headers(),body:JSON.stringify({})});
    $('resultPanel').hidden=false;
-   $('result').textContent=JSON.stringify({track_id:trackId,asset_id:assetId,rights_id:claim.rights_id,release_id:releaseId,release_status:submitted.status,agent_url:agentResult.public_url},null,2);
-   show('rightsStatus','심사 요청이 접수되었습니다. 권리 검증과 관리자 승인이 완료되기 전에는 공개되지 않습니다.','ok');
+   $('result').textContent=JSON.stringify({track_id:trackId,source_asset_id:assetId,rights_id:claim.rights_id,track_status:'draft',source_asset_visibility:'private',next_step:'Complete MP3 to TL3 conversion before release review or POC contribution'},null,2);
+   show('rightsStatus','권리 선언이 저장되었습니다. MP3는 비공개 원본 Asset으로만 유지됩니다. TL3 변환이 완료된 뒤 발매 심사를 요청할 수 있습니다.','ok');
    $('resultPanel').scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){show('rightsStatus','처리 실패: '+e.message,'error');}
   finally{b.disabled=false;}
