@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TimeLink TLJ Viewer - 창작권 증명서</title>
+<title>TLJ Viewer — Creator-rights Certificate · TimeLink</title>
 <link rel="stylesheet" href="/dropdown-fix.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -73,12 +73,26 @@ body{background:var(--bg);color:var(--t1);font-family:var(--fn);min-height:100vh
 </style>
 
 <link rel="stylesheet" href="/apple-theme.css?v=global-20261014" data-tl-global-theme="2026.10">
+<style id="timelink-global-tlj">
+:root{--bg:#09090d;--bg2:#14131b;--bg3:#1b1924;--gold:#f5b84b;--purple:#9b7bff;--mint:#f5b84b;--t1:#f5f4fa;--t2:#a4a2b2;--t3:#777586;--bd:rgba(255,255,255,.09);--fn:'DM Sans','Pretendard',sans-serif}
+body{background:radial-gradient(900px 560px at 15% 0%,rgba(139,108,240,.14),transparent 62%),var(--bg);color:var(--t1);font-family:var(--fn);letter-spacing:-.02em}
+.hdr{background:rgba(9,9,13,.92);border-bottom-color:var(--bd)}
+.hdr-logo{background:linear-gradient(135deg,#c1aaff,#9270f4 65%,#f5b84b);-webkit-background-clip:text}
+.dropzone{background:linear-gradient(135deg,rgba(155,123,255,.06),rgba(245,184,75,.025));border-color:rgba(155,123,255,.35)}
+.dropzone:hover,.dropzone.drag{border-color:var(--purple);background:rgba(155,123,255,.08)}
+.pick-btn,.btn-primary{background:linear-gradient(120deg,#c1aaff,#9270f4);color:#100d19}
+.meta-card{background:linear-gradient(145deg,rgba(155,123,255,.07),rgba(245,184,75,.035));border-color:rgba(155,123,255,.25)}
+.meta-hdr-text,.meta-val.mono{color:#cbbaff}
+.btn-outline{color:#cbbaff;border-color:rgba(155,123,255,.35)}
+.song-info,.img-panel{background:var(--bg2);border-color:var(--bd)}
+@media(max-width:600px){.wrap{padding:24px 14px}.dropzone{margin:34px auto;padding:38px 20px}.meta-card{padding:20px}.actions{flex-direction:column}}
+</style>
 </head>
 <body>
 
 <header class="hdr">
   <div class="hdr-logo">🏅 TimeLink</div>
-  <div class="hdr-title">TLJ Viewer · 창작권 증명서 뷰어</div>
+  <div class="hdr-title">TLJ Viewer · Creator-rights Certificate</div>
 </header>
 
 <main class="wrap">
@@ -86,9 +100,9 @@ body{background:var(--bg);color:var(--t1);font-family:var(--fn);min-height:100vh
   <!-- 파일 선택 화면 -->
   <div id="dropZone" class="dropzone">
     <div class="dropzone-icon">📄</div>
-    <div class="dropzone-title">TLJ 파일을 열어주세요</div>
-    <div class="dropzone-sub">.tlj 파일을 드래그하거나 아래 버튼을 클릭하세요</div>
-    <button class="pick-btn" onclick="document.getElementById('fileInput').click()">📂 파일 선택</button>
+    <div class="dropzone-title">Open a TLJ file</div>
+    <div class="dropzone-sub">Drag a .tlj file here or choose one below</div>
+    <button class="pick-btn" onclick="document.getElementById('fileInput').click()">📂 Choose file</button>
     <input type="file" id="fileInput" class="hidden-input" accept=".tlj,application/octet-stream">
   </div>
 
@@ -109,16 +123,16 @@ body{background:var(--bg);color:var(--t1);font-family:var(--fn);min-height:100vh
 // ═══════════════════════════════════════════
 function parseTLJ(data) {
   const MAGIC = [0x54, 0x4C, 0x4E, 0x4B]; // "TLNK"
-  if (data.length < 9) throw new Error('파일이 너무 작습니다');
+  if (data.length < 9) throw new Error('The file is too small.');
   for (let i = 0; i < 4; i++) {
-    if (data[i] !== MAGIC[i]) throw new Error('TLJ 파일이 아닙니다 (MAGIC 불일치)');
+    if (data[i] !== MAGIC[i]) throw new Error('This is not a valid TLJ file (MAGIC mismatch).');
   }
-  if (data[4] !== 0x03) throw new Error('TLJ v3가 아닙니다');
+  if (data[4] !== 0x03) throw new Error('This is not a TLJ v3 file.');
   const hlen = (data[5] << 24) | (data[6] << 16) | (data[7] << 8) | data[8];
-  if (9 + hlen > data.length) throw new Error('헤더 길이 오류');
+  if (9 + hlen > data.length) throw new Error('Invalid header length.');
   const headerStr = new TextDecoder('utf-8').decode(data.slice(9, 9 + hlen));
   let header;
-  try { header = JSON.parse(headerStr); } catch(e) { throw new Error('헤더 JSON 파싱 실패'); }
+  try { header = JSON.parse(headerStr); } catch(e) { throw new Error('Unable to parse the header JSON.'); }
   const imageOffset = 9 + hlen;
   const imageBytes = data.slice(imageOffset);
   return { header, imageBytes, imageOffset };
@@ -160,7 +174,7 @@ async function loadFile(file) {
     dropZone.style.display = 'none';
     viewer.style.display = 'block';
   } catch(e) {
-    alert('TLJ 로드 실패: ' + e.message);
+    alert('Unable to load TLJ file: ' + e.message);
   }
 }
 
@@ -170,15 +184,15 @@ function escH(s) {
 
 function renderViewer(h, imgUrl, filename, imgSize) {
   const snap = h.snapshot || {};
-  const issueDate = h.issued_at ? new Date(h.issued_at).toLocaleString('ko-KR') : '—';
+  const issueDate = h.issued_at ? new Date(h.issued_at).toLocaleString('en-US') : '—';
   const hashShort = h.cert_hash ? String(h.cert_hash).slice(0, 32) + '...' : '—';
   const imgKB = Math.round(imgSize / 1024);
 
   const html = `
     <div class="viewer">
       <div class="img-panel">
-        ${imgUrl ? `<img src="${imgUrl}" alt="증명서 이미지">` : '<div class="error">이미지 없음</div>'}
-        <div class="badge">✓ TLJ v3 · 이미지 ${imgKB} KB</div>
+        ${imgUrl ? `<img src="${imgUrl}" alt="Certificate image">` : '<div class="error">No image found</div>'}
+        <div class="badge">✓ TLJ v3 · Image · ${imgKB} KB</div>
       </div>
 
       <div class="meta-panel">
@@ -187,26 +201,26 @@ function renderViewer(h, imgUrl, filename, imgSize) {
             <div class="meta-hdr-icon">🏅</div>
             <div>
               <div class="meta-hdr-text">TIMELINK DIGITAL ASSET</div>
-              <div class="meta-hdr-sub">창작권 증명서</div>
+              <div class="meta-hdr-sub">Creator-rights Certificate</div>
             </div>
             <div class="verified-badge">✓ VERIFIED</div>
           </div>
 
           <div class="meta-grid">
             <div class="meta-item">
-              <div class="meta-lbl">증명서 번호</div>
+              <div class="meta-lbl">Certificate Number</div>
               <div class="meta-val mono">${escH(h.cert_no || '—')}</div>
             </div>
             <div class="meta-item">
-              <div class="meta-lbl">자산 ID</div>
+              <div class="meta-lbl">Asset ID</div>
               <div class="meta-val mono">${escH(h.asset_id || '—')}</div>
             </div>
             <div class="meta-item">
-              <div class="meta-lbl">발행일</div>
+              <div class="meta-lbl">Issue Date</div>
               <div class="meta-val">${issueDate}</div>
             </div>
             <div class="meta-item">
-              <div class="meta-lbl">발행자</div>
+              <div class="meta-lbl">Issuer</div>
               <div class="meta-val">${escH(h.issuer || '—')}</div>
             </div>
           </div>
@@ -214,21 +228,21 @@ function renderViewer(h, imgUrl, filename, imgSize) {
           <div class="hash-box">🔐 cert_hash: ${hashShort}</div>
 
           <div class="actions">
-            <button class="btn btn-primary" onclick="verifyCert('${escH(h.cert_no||'')}')">🔍 검증</button>
-            <button class="btn btn-outline" onclick="shareCert('${escH(h.cert_no||'')}')">🔗 공유</button>
+            <button class="btn btn-primary" onclick="verifyCert('${escH(h.cert_no||'')}')">🔍 Verify</button>
+            <button class="btn btn-outline" onclick="shareCert('${escH(h.cert_no||'')}')">🔗 Share</button>
           </div>
         </div>
 
         <div class="song-info">
-          <h3>📀 곡 정보</h3>
-          <div class="song-row"><span class="song-lbl">곡명</span><span class="song-val">${escH(snap.title || h.title || '—')}</span></div>
-          <div class="song-row"><span class="song-lbl">아티스트</span><span class="song-val">${escH(snap.artist || h.artist || '—')}</span></div>
-          <div class="song-row"><span class="song-lbl">장르</span><span class="song-val">${escH(snap.genre || h.genre || '—')}</span></div>
-          <div class="song-row"><span class="song-lbl">작곡</span><span class="song-val">${escH(snap.composer || '—')}</span></div>
-          <div class="song-row"><span class="song-lbl">작사</span><span class="song-val">${escH(snap.lyricist || '—')}</span></div>
-          <div class="song-row"><span class="song-lbl">프로듀서</span><span class="song-val">${escH(snap.producer || '—')}</span></div>
-          <div class="song-row"><span class="song-lbl">재생 시간</span><span class="song-val">${snap.duration_sec ? Math.floor(snap.duration_sec/60) + ':' + String(Math.floor(snap.duration_sec%60)).padStart(2,'0') : '—'}</span></div>
-          <div class="song-row"><span class="song-lbl">파일명</span><span class="song-val">${escH(filename)}</span></div>
+          <h3>📀 Track Information</h3>
+          <div class="song-row"><span class="song-lbl">Title</span><span class="song-val">${escH(snap.title || h.title || '—')}</span></div>
+          <div class="song-row"><span class="song-lbl">Artist</span><span class="song-val">${escH(snap.artist || h.artist || '—')}</span></div>
+          <div class="song-row"><span class="song-lbl">Genre</span><span class="song-val">${escH(snap.genre || h.genre || '—')}</span></div>
+          <div class="song-row"><span class="song-lbl">Composer</span><span class="song-val">${escH(snap.composer || '—')}</span></div>
+          <div class="song-row"><span class="song-lbl">Lyricist</span><span class="song-val">${escH(snap.lyricist || '—')}</span></div>
+          <div class="song-row"><span class="song-lbl">Producer</span><span class="song-val">${escH(snap.producer || '—')}</span></div>
+          <div class="song-row"><span class="song-lbl">Duration</span><span class="song-val">${snap.duration_sec ? Math.floor(snap.duration_sec/60) + ':' + String(Math.floor(snap.duration_sec%60)).padStart(2,'0') : '—'}</span></div>
+          <div class="song-row"><span class="song-lbl">File Name</span><span class="song-val">${escH(filename)}</span></div>
         </div>
       </div>
     </div>
@@ -239,17 +253,17 @@ function renderViewer(h, imgUrl, filename, imgSize) {
 
 // 검증
 async function verifyCert(certNo) {
-  if (!certNo) { alert('증명서 번호 없음'); return; }
+  if (!certNo) { alert('Certificate number is missing.'); return; }
   try {
     const r = await fetch('https://api.timelink.digital/api/v1/certs/' + certNo + '/verify');
     const d = await r.json();
     if (d.valid) {
-      alert('✅ 검증 성공\\n\\n증명서: ' + certNo + '\\n해시 일치\\n\\n검증 시각: ' + new Date().toLocaleString('ko-KR'));
+      alert('✅ Verification successful\\n\\nCertificate: ' + certNo + '\\nHash matched\\n\\nVerified at: ' + new Date().toLocaleString('en-US'));
     } else {
-      alert('⚠️ 검증 실패\\n' + (d.error || '해시 불일치'));
+      alert('⚠️ Verification failed\\n' + (d.error || 'Hash mismatch.'));
     }
   } catch(e) {
-    alert('검증 오류: ' + e.message);
+    alert('Verification error: ' + e.message);
   }
 }
 
@@ -257,9 +271,9 @@ async function verifyCert(certNo) {
 function shareCert(certNo) {
   const url = 'https://timelink.digital/cert/' + certNo;
   if (navigator.share) {
-    navigator.share({ title: '창작권 증명서', text: certNo, url: url }).catch(() => {});
+    navigator.share({ title: 'Creator-rights Certificate', text: certNo, url: url }).catch(() => {});
   } else {
-    navigator.clipboard.writeText(url).then(() => alert('링크 복사됨:\\n' + url)).catch(() => prompt('링크:', url));
+    navigator.clipboard.writeText(url).then(() => alert('Link copied:\\n' + url)).catch(() => prompt('Certificate link:', url));
   }
 }
 </script>
