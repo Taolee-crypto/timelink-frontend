@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TL 라이브 라디오 — TimeLink</title>
+<title>Live DJ Radio — TimeLink</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -183,7 +183,7 @@ button,.btn{font-family:var(--fn)}
         <div class="tb-live-dot"></div>
         <span id="liveCount">LIVE 0</span>
       </div>
-      <a href="radio.html" class="tb-back">← 방송국</a>
+      <a href="radio.html" class="tb-back">← Broadcast</a>
       <div class="tb-user" id="tbUser">--</div>
     </div>
 
@@ -191,12 +191,12 @@ button,.btn{font-family:var(--fn)}
       <!-- 히어로 -->
       <div class="hero">
         <div class="hero-title">🔴 LIVE RADIO</div>
-        <div class="hero-sub">지금 On Air인 DJ를 만나보세요<br>미리듣기 무료 · 청취 시 TL 차감</div>
+        <div class="hero-sub">Discover DJs who are live now.<br>Free preview · TL is used for full listening.</div>
       </div>
 
       <!-- DJ 목록 -->
       <div id="djGrid">
-        <div class="loading"><span class="spinner"></span>라이브 DJ 로딩 중...</div>
+        <div class="loading"><span class="spinner"></span>Loading live DJs…</div>
       </div>
     </div>
   </main>
@@ -238,7 +238,7 @@ try {
   _user = JSON.parse(localStorage.getItem('tl_user') || 'null');
   _token = localStorage.getItem('tl_token') || '';
 } catch(e) {}
-document.getElementById('tbUser').textContent = (_user && (_user.username || _user.email)) || '비로그인';
+document.getElementById('tbUser').textContent = (_user && (_user.username || _user.email)) || 'Guest';
 
 // ── 유틸 ──
 function g(id){ return document.getElementById(id); }
@@ -320,7 +320,7 @@ async function loadLiveDjs(){
     var cnt = _liveDjs.length;
     g('liveCount').textContent = 'LIVE ' + cnt;
   } catch(e) {
-    g('djGrid').innerHTML = '<div class="empty"><div class="empty-title">로드 실패</div></div>';
+    g('djGrid').innerHTML = '<div class="empty"><div class="empty-title">Unable to load live DJs.</div></div>';
   }
 }
 
@@ -330,8 +330,8 @@ function renderDjs(){
     g('djGrid').innerHTML =
       '<div class="empty">' +
         '<div class="empty-icon">📻</div>' +
-        '<div class="empty-title">지금 라이브 중인 DJ가 없습니다</div>' +
-        '<div class="empty-desc">DJ 센터에서 방송을 시작하면 여기에 표시됩니다.</div>' +
+        '<div class="empty-title">No DJs are live right now.</div>' +
+        '<div class="empty-desc">When a DJ starts a broadcast in DJ Center, it will appear here.</div>' +
       '</div>';
     return;
   }
@@ -351,29 +351,29 @@ function renderDjs(){
         '<div class="dj-avatar '+(dj.is_live?'live':'')+'">'+cover+'</div>' +
         '<div class="dj-info">' +
           '<div class="dj-name">'+esc(dj.dj_name||'DJ')+'</div>' +
-          '<div class="dj-bio">'+esc(dj.bio||'소개 없음')+'</div>' +
+          '<div class="dj-bio">'+esc(dj.bio||'No bio available')+'</div>' +
           (tagsHtml?'<div class="dj-tags">'+tagsHtml+'</div>':'') +
         '</div>' +
       '</div>' +
       '<div class="dj-now">' +
         '<div class="dj-now-label">🎵 NOW PLAYING</div>' +
-        '<div class="dj-now-title">'+esc(dj.current_track_id ? 'Playing' : '방송 준비 중')+'</div>' +
-        '<div class="dj-now-artist">'+esc(dj.dj_name||'')+' 방송</div>' +
+        '<div class="dj-now-title">'+esc(dj.current_track_id ? 'Playing' : 'Preparing to broadcast')+'</div>' +
+        '<div class="dj-now-artist">'+esc(dj.dj_name||'')+' broadcast</div>' +
         '<div class="dj-wave"><span></span><span></span><span></span><span></span><span></span></div>' +
       '</div>' +
       '<div class="dj-stats">' +
-        '👥 <strong>'+Number(dj.live_listener_count||0)+'</strong> 청취 · ' +
+        '👥 <strong>'+Number(dj.live_listener_count||0)+'</strong> listening · ' +
         '⭐ <strong>'+Number(dj.rating||0).toFixed(1)+'</strong>' +
       '</div>' +
       '<div class="dj-actions">' +
-        '<button class="dj-btn dj-btn-preview" onclick="previewDj('+dj.id+')">▶ 미리듣기</button>' +
+        '<button class="dj-btn dj-btn-preview" onclick="previewDj('+dj.id+')">▶ Preview</button>' +
         (_user
-          ? '<button class="dj-btn dj-btn-listen" onclick="listenDj('+dj.id+')">🎧 청취</button>'
+          ? '<button class="dj-btn dj-btn-listen" onclick="listenDj('+dj.id+')">🎧 Listen</button>'
           : '') +
         (_isCafeOwner
           ? (isContract
-              ? '<button class="dj-btn dj-btn-contract on" onclick="cancelContract('+dj.id+')">🚪 계약 해지</button>'
-              : '<button class="dj-btn dj-btn-contract" onclick="contractDj('+dj.id+')">🤝 계약 (×0.5)</button>'
+              ? '<button class="dj-btn dj-btn-contract on" onclick="cancelContract('+dj.id+')">🚪 End Contract</button>'
+              : '<button class="dj-btn dj-btn-contract" onclick="contractDj('+dj.id+')">🤝 Contract (×0.5)</button>'
             )
           : '') +
       '</div>' +
@@ -401,9 +401,9 @@ async function previewDj(djId){
     playAudio(d.current_track.stream_url, true, d.current_track.elapsed_ms);
 
     g('playerBar').classList.add('show');
-    g('pbTitle').textContent = d.current_track.title || dj.dj_name + ' 방송';
-    g('pbSub').textContent = '미리듣기 30초 (무료)';
-    g('pbTL').textContent = '무료';
+    g('pbTitle').textContent = d.current_track.title || dj.dj_name + ' broadcast';
+    g('pbSub').textContent = '30-second free preview';
+    g('pbTL').textContent = 'FREE';
     toast('▶ 미리듣기 30초 (무료)', 'i');
 
     var sec = 30;
@@ -416,7 +416,7 @@ async function previewDj(djId){
           toast('미리듣기 종료. 🎧 청취 버튼으로 계속 들으세요', 'i');
         }
       } else {
-        g('pbSub').textContent = '미리듣기 ' + sec + '초 남음';
+        g('pbSub').textContent = 'Preview · ' + sec + ' sec remaining';
       }
     }, 1000);
 
@@ -519,7 +519,7 @@ function stopAudio(){
 // ── 계약 (카페 주인, ×0.5) ──
 async function contractDj(djId){
   if(!_isCafeOwner){ toast('카페 주인만 계약 가능합니다', 'e'); return; }
-  if(!confirm('이 DJ와 계약하시겠습니까?\n\n카페 요율(×0.5)로 초당 차감됩니다.')) return;
+  if(!confirm('Start a contract with this DJ?\n\nListening will be charged per second at the cafe rate (×0.5).')) return;
   try {
     var myCafeId = _myContracts[0] ? _myContracts[0].cafe_channel_id : '';
     var r = await fetch(API+'/api/dj-cafe/apply', {
@@ -544,7 +544,7 @@ async function contractDj(djId){
 }
 
 async function cancelContract(djId){
-  if(!confirm('계약을 해지하시겠습니까?')) return;
+  if(!confirm('End this DJ contract?')) return;
   try {
     var c = _myContracts.find(function(x){ return Number(x.dj_id) === Number(djId); });
     if(c){
@@ -581,7 +581,7 @@ function startCharging(djId, role){
       });
       var d = await r.json();
       if(d.ok){
-        g('pbTL').textContent = Number(d.charged).toFixed(1) + ' TL/초';
+        g('pbTL').textContent = Number(d.charged).toFixed(1) + ' TL/sec';
       } else if(r.status === 402){
         toast('⚠️ TL 부족: ' + d.current + ' / ' + d.required, 'e');
         stopPlay();
