@@ -586,7 +586,7 @@ async function loadScore(){
       if(d.error === "NO_SCORE"){
         container.innerHTML = '<div style="padding:60px;text-align:center;color:#999">'
           + '<div style="font-size:48px;margin-bottom:16px">🎼</div>'
-          + '<div style="font-size:15px;font-weight:700;color:#666;margin-bottom:8px">이 곡은 No sheet music available</div>'
+          + '<div style="font-size:15px;font-weight:700;color:#666;margin-bottom:8px">No sheet music is available for this track</div>'
           + '<div style="font-size:12px;color:#999">The creator has not shared sheet music.</div>'
           + '</div>';
         return;
@@ -1098,7 +1098,7 @@ function handlePlayClick(){
   }
   
   // 구 시스템 로직 (mp3, 기존 tl3)
-  if(isFreeMp3(_share)){ alert('이 곡은 업로드 전용입니다.\n재생은 TL3 파일만 가능합니다.'); return; }
+  if(isFreeMp3(_share)){ alert('This legacy source item cannot be played. Only TL3 digital assets are playable.'); return; }
   if(requiredTL <= 0){ alert('⚠️ This TL3 asset has no TL access amount configured.'); return; }
   if(_myFileTL >= requiredTL){ showLoading(); window._hidePlayLoading = hideLoading; playTrack(); }
   else {
@@ -1150,7 +1150,7 @@ async function doDirectCharge(){
   
   const requiredTL = Number(_share.file_tl||0);
   if(requiredTL === 0){
-    alert('⚠️ 이 곡은 TL이 설정되지 않았습니다.\n먼저 크리에이터가 TL을 설정해야 충전할 수 있습니다.');
+    alert('⚠️ This track has no TL access amount configured.\nThe creator must set the TL amount before it can be charged.');
     closeChargeModal();
     return;
   }
@@ -1175,10 +1175,10 @@ async function doDirectCharge(){
       
       _myFileTL = newBalance;
       closeChargeModal(); 
-      alert(`✅ Top-up complete!\n${_chargeAmount.toLocaleString()} TL 충전됨\n현재 충전 TL: ${_myFileTL.toLocaleString()} TL`);
+      alert(`✅ Top-up complete!\n${_chargeAmount.toLocaleString()} TL added\nAvailable for this track: ${_myFileTL.toLocaleString()} TL`);
       updateUIAfterCharge(_myFileTL);
     } else {
-      alert('❌ Top-up failed: ' + (d.error || '알 수 없는 오류'));
+      alert('❌ Top-up failed: ' + (d.error || 'Unknown error'));
     }
   } catch(e){ 
     console.error('Charge error:', e);
@@ -1251,13 +1251,13 @@ async function toggleLike(){
     const method = _myLiked?'DELETE':'POST';
     const r = await fetch(API+'/api/social/like/'+SHARE_ID,{method,headers:{'Authorization':'Bearer '+getTok()}});
     const d = await r.json();
-    if(!r.ok || d.ok!==true){ alert(d.error||'Likes 처리에 실패했습니다'); return; }
+    if(!r.ok || d.ok!==true){ alert(d.error||'Unable to update likes.'); return; }
     _myLiked=!!d.liked;
     const count=Number(d.likes||0);
     const btn=document.getElementById('likeBtn');
     if(btn){btn.className='btn-icon'+(_myLiked?' liked':'');btn.innerHTML=(_myLiked?'♥ ':'♡ ')+'<span id="likeCount">'+count+'</span>';}
     const sl=document.getElementById('statLikes');if(sl)sl.textContent=count;
-  }catch(e){ alert('Likes 처리 Error: '+e.message); }
+  }catch(e){ alert('Like update failed: '+e.message); }
 }
 
 async function checkFollowStatus(artistId){
@@ -1275,11 +1275,11 @@ async function toggleFollow(artistId){
     const method=_myFollowing?'DELETE':'POST';
     const r=await fetch(API+'/api/social/follow/'+artistId,{method,headers:{'Authorization':'Bearer '+getTok()}});
     const d=await r.json();
-    if(!r.ok || d.ok!==true){ alert(d.error||'Follow 처리에 실패했습니다'); return; }
+    if(!r.ok || d.ok!==true){ alert(d.error||'Unable to update follow status.'); return; }
     _myFollowing=!!d.following;
     const btn=document.getElementById('followBtn');
     if(btn){btn.className='btn-icon'+(_myFollowing?' following':'');btn.textContent=_myFollowing?'✓ Following':'+ Follow';}
-  }catch(e){ alert('Follow 처리 Error: '+e.message); }
+  }catch(e){ alert('Follow update failed: '+e.message); }
 }
 
 async function loadComments(){
@@ -1287,7 +1287,7 @@ async function loadComments(){
   const d=await r.json();
   const list=document.getElementById('commentList');
   if(!list) return;
-  if(!d.comments||!d.comments.length){list.innerHTML='<div class="empty-comment">🎵 첫 Comments을 남겨보세요!</div>';return;}
+  if(!d.comments||!d.comments.length){list.innerHTML='<div class="empty-comment">🎵 Be the first to comment!</div>';return;}
   list.innerHTML=d.comments.map(c=>`
     <div class="comment-item">
       <div class="avatar">${(c.username||'?')[0].toUpperCase()}</div>
@@ -1303,14 +1303,14 @@ async function loadComments(){
 async function submitComment(){
   const input=document.getElementById('commentInput');
   const content=input.value.trim();
-  if(content.length<10){alert('10자 이상 입력해주세요');return;}
+  if(content.length<10){alert('Please enter at least 10 characters.');return;}
   const r=await fetch(API+'/api/social/comment/'+SHARE_ID,{
     method:'POST',headers:{'Authorization':'Bearer '+getTok(),'Content-Type':'application/json'},
     body:JSON.stringify({content})
   });
   const d=await r.json();
   if(d.ok){input.value='';loadComments();const sc=document.getElementById('statComments');if(sc)sc.textContent=Number(sc.textContent||0)+1;}
-  else alert(d.error||'오류');
+  else alert(d.error||'Unknown error.');
 }
 
 async function reportComment(id){
@@ -1318,9 +1318,9 @@ async function reportComment(id){
   try{
     const r=await fetch(API+'/api/social/report/comment/'+id,{method:'POST',headers:{'Authorization':'Bearer '+getTok()}});
     const d=await r.json().catch(()=>({}));
-    if(!r.ok || d.ok!==true){ alert(d.error||'Report 기능을 준비 중입니다'); return; }
-    alert('Report 접수됐어요');
-  }catch(e){ alert('Report 처리 Error: '+e.message); }
+    if(!r.ok || d.ok!==true){ alert(d.error||'Reporting is not available right now.'); return; }
+    alert('Report submitted.');
+  }catch(e){ alert('Report failed: '+e.message); }
 }
 
 async function openPlModal(){
@@ -1330,21 +1330,21 @@ async function openPlModal(){
   const list=document.getElementById('plList');
   if(!d.playlists||!d.playlists.length){list.innerHTML='<div style="color:var(--t3);font-size:13px;padding:10px 0">No playlists yet.</div>';return;}
   list.innerHTML=d.playlists.map(p=>`
-    <div class="pl-item" onclick="addToPlaylist(${p.id})"><div><div class="pl-item-name">${escH(p.title)}</div><div class="pl-item-cnt">${JSON.parse(p.share_ids||'[]').length}곡</div></div><span class="pl-add-btn">+</span></div>
+    <div class="pl-item" onclick="addToPlaylist(${p.id})"><div><div class="pl-item-name">${escH(p.title)}</div><div class="pl-item-cnt">${JSON.parse(p.share_ids||'[]').length} tracks</div></div><span class="pl-add-btn">+</span></div>
   `).join('');
 }
 function closePlModal(){document.getElementById('plModal').classList.remove('open');}
 async function addToPlaylist(pid){
   const r=await fetch(API+'/api/playlist/'+pid+'/add',{method:'POST',headers:{'Authorization':'Bearer '+getTok(),'Content-Type':'application/json'},body:JSON.stringify({share_id:SHARE_ID})});
   const d=await r.json();
-  if(d.ok){alert('Added successfully!');closePlModal();}else alert(d.error||'오류');
+  if(d.ok){alert('Added successfully!');closePlModal();}else alert(d.error||'Unknown error.');
 }
 async function createNewPlaylist(){
   const title=prompt('Playlist name:');
   if(!title)return;
   const r=await fetch(API+'/api/playlist',{method:'POST',headers:{'Authorization':'Bearer '+getTok(),'Content-Type':'application/json'},body:JSON.stringify({title,is_public:false})});
   const d=await r.json();
-  if(d.ok)await addToPlaylist(d.playlist_id);else alert(d.error||'오류');
+  if(d.ok)await addToPlaylist(d.playlist_id);else alert(d.error||'Unknown error.');
 }
 
 function shareTrack(){ document.getElementById('shareModal').classList.add('open'); }
@@ -1369,14 +1369,14 @@ function playTrack(){
   }
   
   if(!_tlFree && _myFileTL < requiredTL){ 
-    alert(`⚠️ Insufficient TL balance!\nRequired: ${requiredTL} TL / My available TL: ${_myFileTL} TL\n충전 후 다시 시도해주세요.`);
+    alert(`⚠️ Insufficient TL balance!\nRequired: ${requiredTL} TL / My available TL: ${_myFileTL} TL\nAdd TL and try again.`);
     chargeTL(); 
     return; 
   }
   if(_tlPlaying){ togglePlay(); return; }
 
   const fileUrl = _share.stream_url || _share.file_url;
-  if(!fileUrl){ alert('재생 파일이 없습니다'); return; }
+  if(!fileUrl){ alert('The playback file is unavailable.'); return; }
 
   _tlCurrentTL = _tlFree ? 0 : _myFileTL;
   _tlMaxTL = _tlFree ? 0 : _myFileTL;
@@ -1408,7 +1408,7 @@ function playTrack(){
   if(_tlFree){
     _tlAudio.oncanplay = function(){
       _tlAudio.play().then(()=>{ _tlPlaying = true; startTLTimer(); })
-        .catch(e=>{ alert('재생 실패: '+e.message); stopPlay(); });
+        .catch(e=>{ alert('Playback failed: '+e.message); stopPlay(); });
     };
     _tlAudio.src = fileUrl;
     _tlAudio.load();
@@ -1503,7 +1503,7 @@ function togglePlay(){
       _tlPlaying = true;
       document.getElementById('playerPlayBtn').textContent = '⏸';
       startTLTimer();
-    }).catch(e=>{ alert('재생 실패: '+e.message); });
+    }).catch(e=>{ alert('Playback failed: '+e.message); });
   }
 }
 
@@ -1529,12 +1529,12 @@ async function downloadTL(){
     setTimeout(function(){
       try { document.body.removeChild(a); } catch(e){}
     }, 200);
-  }catch(e){ alert('다운로드 Error: ' + e.message); }
+  }catch(e){ alert('Download error: ' + e.message); }
 }
 
 // CERT_UI_TRACK_V1: 증명서 상태 UI (인증/미인증)
 async function renderCopyright(s){
-  const items=[{label:'곡명',value:s.title},{label:'아티스트',value:s.artist},{label:'앨범',value:s.album},{label:'Genre',value:s.category},{label:'Composer',value:s.composer},{label:'Lyricist',value:s.lyricist}].filter(i=>i.value);
+  const items=[{label:'Track',value:s.title},{label:'Artist',value:s.artist},{label:'Album',value:s.album},{label:'Genre',value:s.category},{label:'Composer',value:s.composer},{label:'Lyricist',value:s.lyricist}].filter(i=>i.value);
   const section=document.getElementById('copyrightSection');
   const grid=document.getElementById('copyrightGrid');
   if(grid) grid.innerHTML=items.map(i=>'<div class="copyright-item"><div class="copyright-label">'+i.label+'</div><div class="copyright-value">'+escH(i.value)+'</div></div>').join('');
@@ -1621,7 +1621,7 @@ function buildUncertifiedNotice(meta, s){
     + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">'
     + '<div style="font-size:36px">⚠️</div>'
     + '<div>'
-    + '<div style="font-size:15px;font-weight:700;color:#FF9F0A">Creator-rights certificate가 없습니다</div>'
+    + '<div style="font-size:15px;font-weight:700;color:#FF9F0A">No creator-rights certificate yet.</div>'
     + '<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:3px">This track has not been registered as a digital asset.</div>'
     + '</div>'
     + '</div>'
@@ -1769,7 +1769,7 @@ async function downloadCert(certNo){
 
     // 2) 증명서 카드를 canvas → PNG
     var cardEl = document.querySelector('#certStatusDiv > div');
-    if(!cardEl){ alert('증명서 카드를 찾을 수 없습니다'); return; }
+    if(!cardEl){ alert('Certificate card could not be found.'); return; }
 
     // html2canvas 로드 확인
     if(typeof html2canvas === 'undefined'){
