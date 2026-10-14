@@ -616,7 +616,7 @@ function generateMockAds(){
 function renderAds(){
   var list = _filter==='all' ? _ads : _ads.filter(function(a){ return a.ad_type===_filter; });
   if(!list.length){
-    g('adsGrid').innerHTML='<div class="empty-wrap">현재 시청 가능한 No ads available.</div>';
+    g('adsGrid').innerHTML='<div class="empty-wrap">No ads are available to watch right now.</div>';
     return;
   }
   g('adsGrid').innerHTML = list.map(function(ad){
@@ -633,14 +633,14 @@ function renderAds(){
         '<span class="ad-reward-badge">+'+Number(ad.tl_reward||300).toLocaleString()+' TL</span>'+
       '</div>'+
       '<div class="ad-body">'+
-        '<div class="ad-biz">'+esc(ad.business_name||'광고주')+'</div>'+
+        '<div class="ad-biz">'+esc(ad.business_name||'Advertiser')+'</div>'+
         '<div class="ad-title">'+esc(ad.title)+'</div>'+
         '<div class="ad-desc">'+esc(ad.description||'')+'</div>'+
         '<div class="ad-footer">'+
           '<span class="ad-views">👁 '+Number(ad.views||0).toLocaleString()+'회</span>'+
           (done
-            ? '<span class="ad-done-badge">✓ 오늘 Completed</span>'
-            : '<button class="ad-watch-btn" onclick="openWatchModal(\''+ad.id+'\')">▶ 시청하기</button>'
+            ? '<span class="ad-done-badge">✓ Completed today</span>'
+            : '<button class="ad-watch-btn" onclick="openWatchModal(\''+ad.id+'\')">▶ Watch Ad</button>'
           )+
         '</div>'+
       '</div>'+
@@ -661,7 +661,7 @@ function openWatchModal(adId){
   _curAd = _ads.find(function(a){ return a.id===adId; });
   if(!_curAd) return;
 
-  g('wmBiz').textContent = _curAd.business_name || '광고주';
+  g('wmBiz').textContent = _curAd.business_name || 'Advertiser';
   g('wmTitle').textContent = _curAd.title;
   g('wmDesc').textContent = _curAd.description || '';
   g('wmReward').textContent = '+'+Number(_curAd.tl_reward||300).toLocaleString()+' TL';
@@ -669,9 +669,9 @@ function openWatchModal(adId){
   g('wmContent').style.display='';
   g('wmFill').style.width='0%';
   g('wmCollectBtn').disabled=true;
-  g('wmCollectBtn').innerHTML='Completed 후 적립 가능';
+  g('wmCollectBtn').innerHTML='Reward available after completion';
   g('wmSkipBtn').disabled=true;
-  g('wmSkipBtn').textContent='건너뛰기 (5s 후)';
+  g('wmSkipBtn').textContent='Skip (after 5s)';
 
   // 미디어 설정
   _adDuration = _curAd.ad_type==='video' ? 15 : _curAd.ad_type==='audio' ? 30 : 10;
@@ -698,7 +698,7 @@ function setupMedia(){
     var v=document.createElement('video');
     v.src=_curAd.media_url; v.controls=false; v.autoplay=true; v.muted=false;
     v.style.cssText='width:100%;height:100%;object-fit:cover';
-    v.onended=function(){ g('wmCollectBtn').disabled=false; g('wmCollectBtn').innerHTML='⚡ TL 적립받기'; };
+    v.onended=function(){ g('wmCollectBtn').disabled=false; g('wmCollectBtn').innerHTML='⚡ Claim TL Reward'; };
     media.appendChild(v);
   }else if(_curAd.ad_type==='audio' && _curAd.media_url){
     var wrap=document.createElement('div'); wrap.className='wm-audio-bg';
@@ -706,7 +706,7 @@ function setupMedia(){
     media.appendChild(wrap);
     var a=document.createElement('audio');
     a.src=_curAd.media_url; a.autoplay=true;
-    a.onended=function(){ g('wmCollectBtn').disabled=false; g('wmCollectBtn').innerHTML='⚡ TL 적립받기'; };
+    a.onended=function(){ g('wmCollectBtn').disabled=false; g('wmCollectBtn').innerHTML='⚡ Claim TL Reward'; };
     document.body.appendChild(a);
     media._audio=a;
   }else{
@@ -714,7 +714,7 @@ function setupMedia(){
     var ph=document.createElement('div'); ph.className='wm-media-placeholder';
     var icon={video:'📹',audio:'🎵',image:'🖼️'}[_curAd.ad_type]||'📺';
     ph.innerHTML='<div class="ph-icon">'+icon+'</div>'+
-      '<div style="font-size:13px;color:rgba(255,255,255,.5)">'+(_curAd.title||'광고')+'</div>';
+      '<div style="font-size:13px;color:rgba(255,255,255,.5)">'+(_curAd.title||'Ad')+'</div>';
     if(_curAd.thumbnail_url){
       var img=document.createElement('img');
       img.src=_curAd.thumbnail_url;
@@ -738,19 +738,19 @@ function startWatchTimer(){
     g('wmFill').style.width=pct+'%';
     g('wmElapsed').textContent=_elapsed+'s';
     var remain=Math.max(0,_adDuration-_elapsed);
-    g('wmRemain').textContent=remain>0?(remain+'s 후 적립 가능'):'적립 가능!';
+    g('wmRemain').textContent=remain>0?(remain+'s until reward'):'Reward available!';
 
     // 5초 후 건너뛰기 버튼 활성
     if(_elapsed>=_skipUnlockAt){
       g('wmSkipBtn').disabled=false;
-      g('wmSkipBtn').textContent='건너뛰기';
+      g('wmSkipBtn').textContent='Skip';
     }
 
     // Completed
     if(_elapsed>=_adDuration){
       clearInterval(_watchTimer); _watchTimer=null;
       g('wmCollectBtn').disabled=false;
-      g('wmCollectBtn').innerHTML='⚡ TL 적립받기';
+      g('wmCollectBtn').innerHTML='⚡ Claim TL Reward';
       g('wmRemain').textContent='✅ Completed!';
     }
   },1000);
@@ -819,7 +819,7 @@ async function collectTL(){
 
   // 완료 화면
   if(_watchTimer){ clearInterval(_watchTimer); _watchTimer=null; }
-  g('wmDone').classList.add('show'); var noteEl=document.getElementById('wmDoneNote'); if(noteEl) noteEl.textContent='📺 광고TL(TL_A)은 플랫폼 내 소비 전용입니다';
+  g('wmDone').classList.add('show'); var noteEl=document.getElementById('wmDoneNote'); if(noteEl) noteEl.textContent='📺 Ad TL (TL_A) can only be used within the platform.';
   g('wmContent').style.display='none';
   g('wmDoneTL').textContent='+'+Number(reward).toLocaleString()+' TL_A';
 
@@ -828,14 +828,14 @@ async function collectTL(){
     var countdown = 3;
     var doneBtn = g('wmDone') && g('wmDone').querySelector('.wm-done-btn');
     if(doneBtn){
-      doneBtn.textContent = countdown + '초 후 곡으로 돌아갑니다...';
+      doneBtn.textContent = countdown + ' sec until returning to the track…';
       var cdTimer = setInterval(function(){
         countdown--;
         if(countdown <= 0){
           clearInterval(cdTimer);
           location.href = 'track.html?id=' + encodeURIComponent(_returnId);
         } else {
-          doneBtn.textContent = countdown + '초 후 곡으로 돌아갑니다...';
+          doneBtn.textContent = countdown + ' sec until returning to the track…';
         }
       }, 1000);
       // 버튼 클릭 시 즉시 복귀
@@ -861,7 +861,7 @@ async function collectTL(){
     var footer=card.querySelector('.ad-footer');
     if(footer){
       var watchBtn=footer.querySelector('.ad-watch-btn');
-      if(watchBtn) watchBtn.outerHTML='<span class="ad-done-badge">✓ 오늘 Completed</span>';
+      if(watchBtn) watchBtn.outerHTML='<span class="ad-done-badge">✓ Completed today</span>';
     }
   }
   g('statAds').textContent=_ads.filter(function(a){ return !_viewedToday.has(a.id); }).length;
@@ -879,7 +879,7 @@ init();
 
 <!-- ══ 동적 푸터 ══ -->
 <footer id="tl-dynamic-footer" style="border-top:1px solid rgba(255,255,255,.07);padding:40px 24px 32px;margin-top:auto;background:rgba(3,5,8,.8)">
-  <div style="text-align:center;color:rgba(255,255,255,.2);font-size:12px;padding:20px">로딩 중...</div>
+  <div style="text-align:center;color:rgba(255,255,255,.2);font-size:12px;padding:20px">Loading…</div>
 </footer>
 <script>
 /* Dynamic Footer v2 */
