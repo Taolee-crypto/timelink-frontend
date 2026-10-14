@@ -372,7 +372,7 @@ body{font-family:var(--fn);letter-spacing:-.02em;background:var(--bg-root)}
     <div id="filePager" class="pager"></div>
   </div>
   <div class="page-ads" id="adsSidebar">
-    <div style="padding:20px;text-align:center;color:rgba(255,255,255,.2);font-size:12px">광고 Loading…</div>
+    <div style="padding:20px;text-align:center;color:rgba(255,255,255,.2);font-size:12px">Loading ads…</div>
   </div>
 </div>
   </main>
@@ -419,7 +419,7 @@ var _myFileTL = {};
 function doLogout(){ localStorage.removeItem('tl_token'); localStorage.removeItem('tl_user'); location.href='login.html'; }
 function getTotalTL(){
   if(!_user) return 0;
-  // 백엔드와 동일하게 tl_p/tl_a/tl_b를 합산하되, 구버전 세션의 tl_balance/tl도 보존한다.
+  // Sum tl_p, tl_a and tl_b as the backend does, while retaining legacy session balances.
   var p=Number(_user.tl_p);
   if(!Number.isFinite(p)) p=Number(_user.tl);
   if(!Number.isFinite(p)) p=Number(_user.tl_balance);
@@ -459,8 +459,8 @@ function typeLabel(t){ return t==='video'?'Video':t==='image'?'Image':t==='doc'?
 function contentKind(s){ var ft=String(s&&s.file_type||'').toLowerCase(), ck=String(s&&s.content_kind||'').toLowerCase(), rm=String(s&&s.release_mode||'').toLowerCase(), su=String(s&&s.stream_url||'').toLowerCase(); if(rm.indexOf('free_mp3')===0||ck==='mp3'||ft==='audio/mp3') return 'mp3'; if(rm==='tl3'||ck==='tl3'||ft==='audio/tl3'||/\.(tl3|tl4|tlg|tlf)(\?|$)/.test(su)) return 'tl3'; if (/\.tl3(\?|$)/.test(su)) return 'tl3'; return 'mp3'; }
 function isFreeMp3(s){ return contentKind(s)==='mp3'; }
 function isTL3(s){ return contentKind(s)==='tl3'; }
-// 세그먼트 라이선스/confirm 과금 경로를 사용하는 TL3 Audio만 판별한다.
-// 레거시 .tl4/.tlg/.tlf 파일을 TL3로 오인해 기존 경로를 건너뛰지 않도록 별도 구분한다.
+// Identify TL3 audio that uses the segment-license and confirmation billing path.
+// Keep legacy .tl4/.tlg/.tlf files distinct so they are not mistaken for TL3.
 function isSegmentBilledTL3(s){
   var ft=String(s&&s.file_type||'').toLowerCase();
   var ck=String(s&&s.content_kind||'').toLowerCase();
@@ -482,7 +482,7 @@ async function loadShares(){
     if(!r.ok) throw new Error('HTTP '+r.status);
     var d=await r.json();
     _allShares=Array.isArray(d)?d:(Array.isArray(d.shares)?d.shares:(Array.isArray(d.data)?d.data:[]));
-    // 공개 탐색에는 TL 디지털 자산만 노출한다. MP3 원본/레거시 무료 MP3는 공개 목록에서 제외한다.
+    // Public discovery lists TL digital assets only; source MP3 and legacy free-MP3 entries are excluded.
     _allShares=_allShares.filter(function(s){ return !isFreeMp3(s); });
     updateCounts();
     applyFilter();
@@ -491,11 +491,11 @@ async function loadShares(){
     if(sc) sc.innerHTML='Connection error <button onclick="loadShares()" style="margin-left:8px;padding:3px 10px;border-radius:6px;border:1px solid var(--purple);background:transparent;color:var(--purple);font-size:11px;cursor:pointer">🔄 Retry</button>';
     applyFilter();
   }
-  // ⭐ 로그인 유저라면 각 곡의 내 TL 잔액 로드
+  // Load the signed-in user’s TL balance for each asset.
   if (_token) await loadMyTL();
 }
 
-// ⭐ 내 곡별 TL 잔액 로드
+// Load the user’s TL balance per asset.
 async function loadMyTL(){
   var tl3Songs = _allShares.filter(function(s){ return contentKind(s) === 'tl3'; });
   if (!tl3Songs.length) return;
@@ -511,7 +511,7 @@ async function loadMyTL(){
       }
     } catch(e){}
   }
-  applyFilter();   // UI 재렌더
+  applyFilter();   // Re-render the interface
 }
 function updateCounts(){
   var s=_allShares;
@@ -604,7 +604,7 @@ function renderGridView(list,g){
         '<div class="fc-artist">'+escH(s.artist||s.username||'')+'</div>'+
         '<div class="fc-meta">'+
           (isMp3?'<span class="fc-price" style="color:var(--mint)">FREE</span>':'<span class="fc-price" style="color:'+(myTL>=Number(s.file_tl||0)?'var(--teal)':'var(--orange)')+'">⚡ '+Number(s.file_tl||0).toLocaleString()+'/'+myTL.toLocaleString()+'</span>')+
-          (_tlShareId===s.id && _tlPlaying && _tlElapsed>0 ? '<span style="color:var(--orange);font-size:10px;margin-left:4px">▶️'+_tlElapsed+'초</span>' : '')+
+          (_tlShareId===s.id && _tlPlaying && _tlElapsed>0 ? '<span style="color:var(--orange);font-size:10px;margin-left:4px">▶️'+_tlElapsed+'sec</span>' : '')+
         '</div>'+
       '</div>'+
     '</div>';
@@ -640,14 +640,14 @@ function renderListView(list,g){
       (s.cover_url?'<img src="'+escH(s.cover_url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.remove()">':'')+
       '<span style="position:relative;z-index:1">'+btnIcon+'</span></button>'+
       '<div class="fl-info"><div class="fl-title">'+escH(s.title||'Untitled')+
-      (s.cert_no?' <span onclick="viewCert(event,this)" data-cert="'+escH(s.cert_no)+'" style="display:inline-block;margin-left:6px;padding:2px 8px;background:linear-gradient(135deg,rgba(255,215,0,.2),rgba(255,159,10,.15));border:1px solid rgba(255,215,0,.4);border-radius:12px;font-size:10px;color:#FFD700;font-weight:700;cursor:pointer;vertical-align:middle" title="창작권 증명서: '+escH(s.cert_no)+'">🏅 CERT</span>':'')+'</div>'+
+      (s.cert_no?' <span onclick="viewCert(event,this)" data-cert="'+escH(s.cert_no)+'" style="display:inline-block;margin-left:6px;padding:2px 8px;background:linear-gradient(135deg,rgba(255,215,0,.2),rgba(255,159,10,.15));border:1px solid rgba(255,215,0,.4);border-radius:12px;font-size:10px;color:#FFD700;font-weight:700;cursor:pointer;vertical-align:middle" title="Creator-rights certificate: '+escH(s.cert_no)+'">🏅 CERT</span>':'')+'</div>'+
       '<div class="fl-meta"><span>'+escH(s.artist||s.username||'Unknown')+'</span>'+
       '<span>'+new Date(s.created_at||0).toLocaleDateString('ko-KR')+'</span></div></div>'+
-      '<div class="fl-type-badge '+tc+'">'+(isMp3?'무료 MP3':isTl3?'TL3':typeLabel(ftype))+'</div>'+
+      '<div class="fl-type-badge '+tc+'">'+(isMp3?'Legacy MP3':isTl3?'TL3':typeLabel(ftype))+'</div>'+
       '<div class="fl-right"><div class="fl-pulse">🔥 '+Number(s.pulse||0).toLocaleString()+'</div>'+
-      '<div class="fl-price" style="color:'+(isMp3?'var(--mint)':(myTL>=Number(s.file_tl||0)?'var(--teal)':'var(--orange)'))+'">'+(isMp3?'FREE · POC → TLC':'⚡ 필요 '+Number(s.file_tl||0).toLocaleString()+' / 보유 '+myTL.toLocaleString()+' TL')+'</div>'+
-      (_tlShareId===s.id && _tlPlaying && _tlElapsed>0 ? '<div style="font-size:11px;color:var(--orange);margin-top:2px">▶️ '+_tlElapsed+'초 재생 ('+_tlElapsed+' TL)</div>' : '')+
-      '<div class="fl-actions">'+(isTl3?'<button class="fl-btn fl-btn-charge" onclick="chargeTL(\''+s.id+'\',\''+escH(s.title)+'\')">TL 충전</button>':'<span class="fl-btn" style="color:var(--mint);cursor:default">무료 재생 · TLC 보상</span>')+'</div></div></div>';
+      '<div class="fl-price" style="color:'+(isMp3?'var(--mint)':(myTL>=Number(s.file_tl||0)?'var(--teal)':'var(--orange)'))+'">'+(isMp3?'Legacy item':'⚡ Required '+Number(s.file_tl||0).toLocaleString()+' / Available '+myTL.toLocaleString()+' TL')+'</div>'+
+      (_tlShareId===s.id && _tlPlaying && _tlElapsed>0 ? '<div style="font-size:11px;color:var(--orange);margin-top:2px">▶️ '+_tlElapsed+'sec 재생 ('+_tlElapsed+' TL)</div>' : '')+
+      '<div class="fl-actions">'+(isTl3?'<button class="fl-btn fl-btn-charge" onclick="chargeTL(\''+s.id+'\',\''+escH(s.title)+'\')">TL 충전</button>':'<span class="fl-btn" style="color:var(--mint);cursor:default">Legacy item unavailable</span>')+'</div></div></div>';
   }).join('');
 }
 
@@ -655,8 +655,8 @@ function renderListView(list,g){
 var _tlAudio=null, _tlShareId=null, _tlMaxTL=0, _tlCurrentTL=0, _tlTimer=null, _tlPlaying=false, _tlElapsed=0, _tlDuration=0;
 function getStreamUrl(s){
   var u=String(s.stream_url||s.preview_url||'');
-  // 과거 로컬 TL3 서버(127.0.0.1:8787)에 저장된 주소는 배포 환경에서 절대 사용하지 않는다.
-  // 공개 SharePlace에서는 항상 운영 API의 share 스트림 프록시를 사용한다.
+  // Never use local TL3 server addresses in a deployed SharePlace session.
+  // Public SharePlace always uses the production API share-stream proxy.
   if(/^(https?:\/\/)?(127\.0\.0\.1|localhost)(:\d+)?\//i.test(u)){
     return API_BASE+'/api/stream/'+encodeURIComponent(String(s.id));
   }
@@ -668,7 +668,7 @@ function tlPlayCard(el){
   var s=_allShares.find(function(x){return String(x.id)===String(sid);});
   if(!s) return;
   if(_tlShareId===s.id&&_tlPlaying){ tlToggle(); return; }
-  // ⭐ 새 곡 재생 전 이전 audio 완전 정리
+  // Clean up the previous audio before starting another asset.
   if(_tlAudio){
     try{
       _tlAudio.onerror=null;
@@ -682,7 +682,7 @@ function tlPlayCard(el){
   }
   var fileUrl=getStreamUrl(s);
   if(!fileUrl){ alert('⚠️ "'+s.title+'"\n\nThe asset file is unavailable.'); return; }
-  // ⭐ MP3는 업로드 전용 (재생 불가)
+  // Legacy MP3 entries are upload-only and cannot be played.
   if(isFreeMp3(s)){ alert('This legacy item is not playable. Only TL3 digital assets can be played.'); return; }
   var myTL=_myFileTL[String(s.id)]||0;
   var tlForPlay=myTL>0?myTL:(s.file_tl||0);
@@ -690,7 +690,7 @@ function tlPlayCard(el){
   tlPlay(s.id,s.title,s.artist||'',s.cover_url||'',fileUrl,tlForPlay,s.duration||0,s);
 }
 function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
-  // ⭐ MP3 방어 (이중 안전장치)
+  // Guard against legacy MP3 entries.
   if(isFreeMp3(shareObj)){ alert('This legacy item is not playable.'); return; }
   tlStop(true);
   var isFree=false;
@@ -752,7 +752,7 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   };
   _tlAudio.onended=function(){ tlStop(); };
 
-  // MP3는 원본 URL을 바로 재생한다. 불필요한 fetch/decode를 하지 않는다.
+  // Legacy direct-MP3 playback is retained only for compatibility and is blocked above.
   if(isFree){
     _tlAudio.src=fileUrl;
     _tlAudio.load();
@@ -774,7 +774,7 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
     return;
   }
 
-  // TL3는 서버 스트림을 가져와 TLNK 컨테이너를 복호화한 뒤 MP3 Blob으로 재생한다.
+  // TL3 playback resolves the server stream, decrypts the TLNK container and decodes the audio.
   var authHeaders=_token?{'Authorization':'Bearer '+_token}:{}; if(/trycloudflare\.com|127\.0\.0\.1|localhost|agent\.timelink\.digital/i.test(fileUrl)) authHeaders={};
   var _applySrc=function(u){
     _tlAudio.src=u;
@@ -782,10 +782,10 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
     return _tlAudio.play();
   };
   if(window.TL3&&TL3.resolveUrl){
-    var _expectedShareId = shareId;  // ⭐ 현재 요청한 shareId 기억
+    var _expectedShareId = shareId;  // Remember the share ID for the current request.
     TL3.resolveUrl(shareId,{fetchOptions:{headers:authHeaders},fallbackDirect:false,onSegment:function(info){
-      // TL3는 서버가 세그먼트 라이선스 발급 시 예약 차감한다.
-      // 서버가 돌려준 잔액만 UI에 반영하고 레거시 consume은 호출하지 않는다.
+      // The server reserves the TL amount when issuing a segment license.
+      // Reflect only the balance returned by the server; do not call legacy consume.
       if(_tlShareId !== _expectedShareId) return;
       if(info && info.remaining !== undefined){
         _tlCurrentTL=Math.max(0,Number(info.remaining)||0);
@@ -794,7 +794,7 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
       }
     }})
       .then(function(u){
-        // ⭐ 이미 다른 곡으로 바뀌었으면 무시
+        // Ignore callbacks if playback has moved to another asset.
         if(_tlShareId !== _expectedShareId){ console.log('[skip] 다른 곡으로 전환됨'); return; }
         return _applySrc(u);
       })
@@ -828,8 +828,8 @@ function tlStartTimer(){
     var curShare=_allShares.find(function(x){return String(x.id)===String(_tlShareId);});
     var isFree=isFreeMp3(curShare);
     var isTl3=isSegmentBilledTL3(curShare);
-    // TL3 잔액은 /code 및 /confirm의 서버 응답으로만 갱신한다.
-    // 레거시 Share consume을 함께 호출하면 세그먼트 과금과 중복 차감될 수 있다.
+    // Update the TL3 balance only from /code and /confirm server responses.
+    // Calling legacy Share consume as well could double-charge segment playback.
     if(!isTl3) _tlCurrentTL=Math.max(0,_tlCurrentTL-1);
     if(!isFree && !isTl3 && _tlElapsed%5===0&&_tlShareId){
       fetch(API_BASE+'/api/shares/'+_tlShareId+'/consume',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},body:JSON.stringify({seconds:5,user_id:_user?_user.id:null})}).then(function(r){return r.json();}).then(function(d){ if(d.ok&&d.user_tl!==undefined){ _tlCurrentTL=d.user_tl; _myFileTL[String(_tlShareId)]=d.user_tl; if(d.wallet_tl!==undefined){ _user.tl=Number(d.wallet_tl||0); var el=document.getElementById('tbTL'); if(el) el.textContent=Number(_user.tl).toLocaleString()+' TL'; } } else if(d.need_charge){ tlStop(); if(confirm('This asset does not have enough TL.\nWould you like to add TL now?\n\nRequired: '+d.required+' TL\nAsset balance: '+d.current+' TL\nWallet: '+d.wallet+' TL')){ chargeTL(_tlShareId, document.getElementById('tlTitle').textContent); } } }).catch(function(){});
@@ -894,7 +894,7 @@ async function chargeTL(shareId,title){
     var d=await r.json();
     if(!r.ok) throw new Error(d.error||'Top-up failed');
     _myFileTL[String(shareId)]=Number(d.tl_balance||(_myFileTL[String(shareId)]||0)+amt);
-    // 백엔드에서 실제 차감된 지갑 잔액으로 즉시 동기화한다.
+    // Immediately sync the wallet balance actually deducted by the backend.
     _user.tl=Number(d.user_tl||0);
     _user.tl_p=Number(d.tl_p||0);
     _user.tl_a=Number(d.tl_a||0);
@@ -971,7 +971,7 @@ async function requestVirtualCharge(){
       body:JSON.stringify({amount:Number(_tossPkg.amount)})
     });
     var d=await r.json().catch(function(){return{};});
-    if(!r.ok||!d.success) throw new Error(d.error||'가상 Top-up failed');
+    if(!r.ok||!d.success) throw new Error(d.error||'Virtual top-up failed');
     if(_user){
       _user.tl=Number(d.tl_balance||0);
       _user.tl_p=Number(d.tl_p||0);
@@ -981,7 +981,7 @@ async function requestVirtualCharge(){
     if(balEl) balEl.textContent=Number(d.tl_balance||0).toLocaleString()+' TL';
     closeTossPay();
     alert('✅ '+Number(d.total_tl||0).toLocaleString()+' TL added successfully!\n'+
-      (Number(d.bonus_tl||0)>0 ? 'Bonus '+Number(d.bonus_tl).toLocaleString()+' TL 포함\n' : '')+
+      (Number(d.bonus_tl||0)>0 ? 'Bonus '+Number(d.bonus_tl).toLocaleString()+' TL included\n' : '')+
       'Current balance: '+Number(d.tl_balance||0).toLocaleString()+' TL');
     if(typeof applyFilter==='function') applyFilter();
   }catch(e){
@@ -997,7 +997,7 @@ async function requestTossPay(){
   var token=_token||localStorage.getItem('tl_token')||'';
   if(!token){ alert('Please sign in first.'); btn.disabled=false; btn.textContent='💳 Continue to payment'; return; }
   try{
-    // 주문번호는 프론트에서 임의 생성하지 않고 서버가 로그인 사용자와 금액을 묶어 발급한다.
+    // The server issues an order ID bound to the signed-in user and payment amount.
     var orderRes=await fetch(API_BASE+'/api/payment/toss/order',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
@@ -1016,14 +1016,14 @@ async function requestTossPay(){
         document.head.appendChild(s);
       });
     }
-    // 현재 연동된 Toss 클라이언트 키를 사용한다. 운영 전환 시 운영용 키로 교체해야 한다.
+    // Use the currently connected Toss client key; replace it with the production key before launch.
     var CLIENT_KEY='test_ck_yL0qZ4G1VOlboLm0dX1vroWb2MQY';
     var toss=window.TossPayments(CLIENT_KEY);
     btn.textContent='⏳ Opening payment window…';
     await toss.requestPayment('카드',{
       amount:Number(orderData.amount),
       orderId:String(orderData.orderId),
-      orderName:'TimeLink '+Number(_tossPkg.tl).toLocaleString()+' TL 충전',
+      orderName:'TimeLink '+Number(_tossPkg.tl).toLocaleString()+' TL top-up',
       customerName:(_user&&(_user.username||_user.email))||'TimeLink User',
       successUrl:window.location.origin+'/payment-success.html',
       failUrl:window.location.origin+'/payment-fail.html'
@@ -1054,7 +1054,7 @@ function toggleSbDropdown(id){ var el=document.getElementById(id); if(el) el.cla
   var dp=document.createElement('p');dp.style.cssText='font-size:11px;color:rgba(255,255,255,.3);line-height:1.7;max-width:200px';dp.textContent=D.desc;
   brand.appendChild(logoRow);brand.appendChild(dp);grid.appendChild(brand);
   grid.appendChild(col('Services',[['shareplace.html','SharePlace'],['shareplace-v3.html','SharePlace V3 Preview'],['chart.html','TL CHART'],['radio.html','TL Broadcast'],['ads.html','Advertising Center']]));
-  grid.appendChild(col('Creators',[['creator.html','Creators 센터'],['dj-guide.html','DJ Guide'],['advertiser.html','Advertiser Center']]));
+  grid.appendChild(col('Creators',[['creator.html','Creator Center'],['dj-guide.html','DJ Guide'],['advertiser.html','Advertiser Center']]));
   grid.appendChild(col('Legal',[['terms.html','Terms of Service'],['privacy.html','Privacy Policy']]));
   wrap.appendChild(grid);
   var bot=document.createElement('div');bot.style.cssText='padding-top:20px;border-top:1px solid rgba(255,255,255,.06)';
@@ -1067,7 +1067,7 @@ function toggleSbDropdown(id){ var el=document.getElementById(id); if(el) el.cla
 // ==================== INIT ====================
 loadShares();
 
-// ⭐ #charge 앵커 처리 (track.html 등에서 'TL 충전'으로 왔을 때)
+// Handle the #charge anchor when arriving from pages such as track.html.
 (function checkChargeHash(){
   if(!location.hash || !location.hash.startsWith('#charge')) return;
 
@@ -1093,9 +1093,9 @@ loadShares();
         });
       }
       openTossCharge();
-      console.log('[charge] Toss 모달 열림 (amount:', amount, ')');
+      console.log('[charge] Toss modal opened (amount:', amount, ')');
     } else {
-      console.warn('[charge] openTossCharge 함수 없음');
+      console.warn('[charge] openTossCharge function is unavailable');
     }
   }, 500);
 
@@ -1104,12 +1104,12 @@ loadShares();
 
 
 
-// ⭐ 사이드바 광고 로드 (다중 배너 지원)
+// Load sidebar ads (multiple banners supported).
 (async function loadSidebarAds(){
   var adsBox = document.getElementById('adsSidebar');
   if(!adsBox) return;
 
-  // 광고 없을 때 placeholder (플랫폼 자체 광고)
+  // Show platform house-ad placeholders when no ads are available.
   function renderEmpty(){
     adsBox.innerHTML = 
       '<a href="advertiser.html" class="sidebar-ad" style="aspect-ratio:220/120">'+
@@ -1124,7 +1124,7 @@ loadShares();
       '<div class="sidebar-ad-empty">'+
         '<div style="font-size:24px;margin-bottom:8px;opacity:.4">📌</div>'+
         '<div>Banner ad placement</div>'+
-        '<div style="font-size:10px;margin-top:4px;opacity:.6">220×120px · 7일 50,000 TL</div>'+
+        '<div style="font-size:10px;margin-top:4px;opacity:.6">220×120px · 7 days · 50,000 TL</div>'+
       '</div>'+
       '<div class="sidebar-ad-empty">'+
         '<div style="font-size:24px;margin-bottom:8px;opacity:.4">⭐</div>'+
@@ -1146,13 +1146,13 @@ loadShares();
       return;
     }
 
-    // 최대 4개
+    // Show up to four ads.
     adsBox.innerHTML = ads.slice(0, 4).map(function(ad){
       var img = ad.thumbnail_url
         ? '<img src="'+escH(ad.thumbnail_url)+'" onerror="this.remove()">'
         : '';
       var clickUrl = ad.target_url || '#';
-      var biz = ad.business_name || '광고';
+      var biz = ad.business_name || 'Ad';
       var title = ad.title || '';
       var bizHtml = biz ? '<div class="sidebar-ad-biz">'+escH(biz)+'</div>' : '';
       var titleHtml = title ? '<div class="sidebar-ad-title">'+escH(title)+'</div>' : '';
@@ -1168,7 +1168,7 @@ loadShares();
       '</a>';
     }).join('');
 
-    // 광고가 4개 미만이면 placeholder 추가
+    // Add placeholders when fewer than four ads are available.
     var remaining = 4 - ads.length;
     if(remaining > 0){
       var placeholder = '';
@@ -1176,7 +1176,7 @@ loadShares();
         placeholder += '<div class="sidebar-ad-empty">'+
           '<div style="font-size:24px;margin-bottom:8px;opacity:.4">📌</div>'+
           '<div>Banner ad placement</div>'+
-          '<div style="font-size:10px;margin-top:4px;opacity:.6">Advertiser Center에서 등록</div>'+
+          '<div style="font-size:10px;margin-top:4px;opacity:.6">Manage in Advertiser Center</div>'+
         '</div>';
       }
       adsBox.innerHTML += placeholder;
