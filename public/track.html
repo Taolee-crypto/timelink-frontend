@@ -424,6 +424,7 @@ function contentKind(s){
   return 'unknown';
 }
 function isFreeMp3(s){ return contentKind(s)==='mp3'; }
+function isSegmentBilledTL3(s){ return contentKind(s)==='tl3'; }
 
 function renderPage(s, stats, myFileTL, requiredTL){
   const isFree = isFreeMp3(s);
@@ -1413,7 +1414,18 @@ function playTrack(){
     console.log('[PLAY] resolveUrl 시작:', SHARE_ID);
     TL3.resolveUrl(SHARE_ID, {
       fetchOptions: { headers: getTok() ? {'Authorization':'Bearer '+getTok()} : {} },
-      fallbackDirect: false
+      fallbackDirect: false,
+      onSegment: function(info){
+        if(!_share || String(_share.id)!==String(SHARE_ID)) return;
+        if(info && info.remaining !== undefined){
+          _tlCurrentTL = Math.max(0, Number(info.remaining)||0);
+          _myFileTL = _tlCurrentTL;
+          var val = document.getElementById('playerTLVal');
+          if(val) val.textContent = _tlCurrentTL.toLocaleString() + ' TL';
+          var bar = document.getElementById('playerTLBar');
+          if(bar) bar.style.width = (_tlMaxTL>0 ? (_tlCurrentTL/_tlMaxTL*100) : 0) + '%';
+        }
+      }
     }).then(function(u){
       console.log('[PLAY] resolveUrl 성공:', String(u).slice(0,60));
       _tlAudio.src = u;
@@ -1452,14 +1464,15 @@ function startTLTimer(){
   _tlInterval = setInterval(async ()=>{
     if(!_tlPlaying) return;
     _tlElapsed++;
-    if(!_tlFree) _tlCurrentTL = Math.max(0, _tlCurrentTL - 1);
+    var isTl3 = isSegmentBilledTL3(_share);
+    if(!_tlFree && !isTl3) _tlCurrentTL = Math.max(0, _tlCurrentTL - 1);
     document.getElementById('playerTime').textContent = fmtTime(_tlElapsed);
     document.getElementById('playerTLVal').textContent = _tlFree ? 'FREE' : _tlCurrentTL.toLocaleString() + ' TL';
     const pct = _tlMaxTL > 0 ? (_tlCurrentTL / _tlMaxTL * 100) : 0;
     document.getElementById('playerTLBar').style.width = pct + '%';
     
     // 5초마다 서버에 TL 소비 기록
-    if(!_tlFree && _tlElapsed % 5 === 0){
+    if(!_tlFree && !isTl3 && _tlElapsed % 5 === 0){
       try{
         await fetch(API+'/api/shares/'+SHARE_ID+'/consume',{
           method:'POST',
@@ -1471,7 +1484,7 @@ function startTLTimer(){
       } catch(e){}
     }
     
-    if(!_tlFree && _tlCurrentTL <= 0){ stopPlay(); alert('TL이 소진됐습니다. 충전 후 다시 재생하세요'); }
+    if(!_tlFree && !isTl3 && _tlCurrentTL <= 0){ stopPlay(); alert('TL이 소진됐습니다. 충전 후 다시 재생하세요'); }
   }, 1000);
 }
 

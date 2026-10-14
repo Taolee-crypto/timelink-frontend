@@ -784,38 +784,40 @@ async function calcMining(){
   var btn = g('mineBtn');
   if(btn){ btn.disabled = true; btn.textContent = '⏳ POC 계산 중...'; }
   try{
-    var pocRes = await fetch(API + '/api/eco/calc-poc', {
+    // 현재 백엔드가 제공하는 POC 계산 계약은 /activity이며,
+    // 이 호출은 빈 활동값으로 현재 누적 실적을 다시 계산한다.
+    var pocRes = await fetch(API + '/api/eco/activity', {
       method: 'POST',
-      headers: {'Content-Type':'application/json','Authorization':'Bearer '+_token}
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+_token},
+      body: JSON.stringify({})
     });
     var pocData = await pocRes.json();
-    if(!pocData.ok) throw new Error(pocData.error || 'POC 계산 실패');
+    if(!pocRes.ok || !pocData.ok) throw new Error(pocData.error || 'POC 계산 실패');
 
-    var poc = pocData.poc_index;
-    var mineable = pocData.mineable_tlc;
-    var bd = pocData.breakdown || {};
+    var poc = Number(pocData.poc_index || 0);
+    var mineable = Number(pocData.tlc_mining && pocData.tlc_mining.daily_max || 0);
+    var bd = pocData.poc_components || {};
 
     g('miningPoc').textContent = poc.toFixed(2);
     g('miningIndex').textContent = poc.toFixed(2);
     g('miningIndex2').textContent = poc.toFixed(2);
-    g('miningAvailable').textContent = Number(mineable).toFixed(2);
+    g('miningAvailable').textContent = mineable.toFixed(2);
 
-    if(bd.creation){
-      g('pocCreation').textContent = Number(bd.creation.score||0).toFixed(2);
-      g('pocCreationBar').style.width = Math.min(100, (bd.creation.score/2.0)*100) + '%';
+    if(bd.content !== undefined){
+      g('pocCreation').textContent = Number(bd.content).toFixed(2);
+      g('pocCreationBar').style.width = Math.min(100, Number(bd.content)/2.0*100) + '%';
     }
-    if(bd.spending){
-      g('pocSpending').textContent = Number(bd.spending.score||0).toFixed(2);
-      g('pocSpendingBar').style.width = Math.min(100, (bd.spending.score/1.5)*100) + '%';
-      g('miningMonthSpent').textContent = Number(bd.spending.tl_spent||0).toLocaleString();
+    if(bd.spend !== undefined){
+      g('pocSpending').textContent = Number(bd.spend).toFixed(2);
+      g('pocSpendingBar').style.width = Math.min(100, Number(bd.spend)/1.5*100) + '%';
     }
-    if(bd.listening){
-      g('pocListening').textContent = Number(bd.listening.score||0).toFixed(2);
-      g('pocListeningBar').style.width = Math.min(100, (bd.listening.score/1.0)*100) + '%';
+    if(bd.listen !== undefined){
+      g('pocListening').textContent = Number(bd.listen).toFixed(2);
+      g('pocListeningBar').style.width = Math.min(100, Number(bd.listen)/1.0*100) + '%';
     }
-    if(bd.upload){
-      g('pocUpload').textContent = Number(bd.upload.score||0).toFixed(2);
-      g('pocUploadBar').style.width = Math.min(100, (bd.upload.score/0.5)*100) + '%';
+    if(bd.upload !== undefined){
+      g('pocUpload').textContent = Number(bd.upload).toFixed(2);
+      g('pocUploadBar').style.width = Math.min(100, Number(bd.upload)/0.5*100) + '%';
     }
 
     if(mineable <= 0){
@@ -824,29 +826,26 @@ async function calcMining(){
     }
 
     btn.textContent = '⛏️ TLC 채굴 중...';
-    var mineRes = await fetch(API + '/api/eco/mine', {
+    var mineRes = await fetch(API + '/api/eco/mine-tlc', {
       method: 'POST',
-      headers: {'Content-Type':'application/json','Authorization':'Bearer '+_token}
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+_token},
+      body: JSON.stringify({tlc_amount: mineable})
     });
     var mineData = await mineRes.json();
-    if(mineData.ok){
-      _user.tlc = mineData.tlc_total || 0;
-      localStorage.setItem('tl_user', JSON.stringify(_user));
-      g('miningTlc').textContent = Number(mineData.tlc_total||0).toFixed(2);
-      g('tbTlc').textContent = fmt(mineData.tlc_total||0);
-      g('walletTlc').textContent = Number(mineData.tlc_total||0).toFixed(2);
-      toast('🎉 ' + Number(mineData.mined||0).toFixed(2) + ' TLC 채굴 완료!', 'success');
-      loadMiningHistory();
-    } else {
-      toast(mineData.error || '채굴 실패', 'error');
-    }
+    if(!mineRes.ok || !mineData.ok) throw new Error(mineData.error || '채굴 실패');
+    _user.tlc = mineData.tlc_total || 0;
+    localStorage.setItem('tl_user', JSON.stringify(_user));
+    g('miningTlc').textContent = Number(mineData.tlc_total||0).toFixed(2);
+    g('tbTlc').textContent = fmt(mineData.tlc_total||0);
+    g('walletTlc').textContent = Number(mineData.tlc_total||0).toFixed(2);
+    toast('🎉 ' + Number(mineData.mined||0).toFixed(2) + ' TLC 채굴 완료!', 'success');
+    loadMiningHistory();
   }catch(e){
     toast('채굴 오류: ' + e.message, 'error');
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = '⛏️ POC 계산 후 TLC 채굴'; }
   }
 }
-
 // ═══════════════════════════════════════════
 // TL 교환
 // ═══════════════════════════════════════════
