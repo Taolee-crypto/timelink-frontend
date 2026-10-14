@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>결제 완료 - TimeLink</title>
+<title>Payment Complete — TimeLink</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#08080F;color:#fff;font-family:'Noto Sans KR',sans-serif;
+body{background:#08080F;color:#fff;font-family:'DM Sans','Pretendard',sans-serif;
   min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
 .card{background:#0D0D1A;border:1px solid rgba(245,166,35,.3);border-radius:20px;padding:40px;max-width:400px;width:100%}
 .icon{font-size:56px;margin-bottom:16px}
@@ -19,13 +19,20 @@ body{background:#08080F;color:#fff;font-family:'Noto Sans KR',sans-serif;
 <link rel="stylesheet" href="/dropdown-fix.css"><!-- SELECT_FIX_V1 -->
 
 <link rel="stylesheet" href="/apple-theme.css?v=global-20261014" data-tl-global-theme="2026.10">
+<style id="timelink-global-payment">
+:root{--bg:#09090d;--card:#14131b;--bd:rgba(255,255,255,.09);--purple:#9b7bff;--gold:#f5b84b;--text:#f5f4fa;--muted:#a4a2b2;--fn:'DM Sans','Pretendard',sans-serif;--display:'Manrope','Pretendard',sans-serif}
+body{background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(139,108,240,.14),transparent 70%),var(--bg);color:var(--text);font-family:var(--fn)}
+.card{background:linear-gradient(155deg,#17151f,#121118);border:1px solid var(--bd);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,.35)}
+.title{font-family:var(--display);letter-spacing:-.035em;color:var(--gold)}
+.btn{background:linear-gradient(120deg,#c1aaff,#9270f4);color:#100d19}
+</style>
 </head>
 <body>
 <div class="card">
   <div class="icon" id="icon">⏳</div>
-  <div class="title" id="title">결제 처리 중...</div>
-  <div class="sub" id="msg">잠시만 기다려주세요</div>
-  <a href="shareplace.html" class="btn" id="homeBtn" style="display:none">SharePlace로 이동</a>
+  <div class="title" id="title">Processing payment…</div>
+  <div class="sub" id="msg">Please wait while we confirm your payment.</div>
+  <a href="shareplace.html" class="btn" id="homeBtn" style="display:none">Go to SharePlace</a>
 </div>
 <script>
 var API = 'https://api.timelink.digital';
@@ -43,7 +50,7 @@ function setUI(icon, title, msg, showBtn){
 
 async function confirmPayment(){
   if(!paymentKey || !orderId || !amount){
-    setUI('❌','파라미터 오류','결제 정보가 없습니다.',true);
+    setUI('❌','Invalid payment details','Payment information is missing.',true);
     return;
   }
 
@@ -72,7 +79,7 @@ async function confirmPayment(){
     var d = await r.json();
 
     if(!r.ok){
-      setUI('❌','결제 처리 실패', d.error || '오류가 발생했습니다.', true);
+      setUI('❌','Payment could not be completed', d.error || 'An error occurred.', true);
       return;
     }
 
@@ -84,15 +91,15 @@ async function confirmPayment(){
       localStorage.setItem('tl_user', JSON.stringify(user));
     } catch(e){}
 
-    var msg = '+' + d.total_tl.toLocaleString() + ' TL 충전 완료';
-    if(d.bonus_tl > 0) msg += ' (보너스 +' + d.bonus_tl.toLocaleString() + ' TL 포함)';
-    setUI('🎉', '결제 완료!', msg, false);
+    var msg = '+' + d.total_tl.toLocaleString() + ' TL added successfully';
+    if(d.bonus_tl > 0) msg += ' (including a bonus of +' + d.bonus_tl.toLocaleString() + ' TL)';
+    setUI('🎉', 'Payment Complete!', msg, false);
 
     // 3초 후 자동 이동
     setTimeout(function(){ location.href = 'shareplace.html'; }, 3000);
 
   } catch(e) {
-    setUI('❌','네트워크 오류', e.message, true);
+    setUI('❌','Network Error', e.message, true);
   }
 }
 
