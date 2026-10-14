@@ -1,7 +1,7 @@
 /* DJ 콘솔 로직
  * - 상태 폴링 (5초)
  * - 방송 시작/다음/종료
- * - 자동 진행 (onended → next)
+ * - Auto-advance (onended → next)
  * - 프리페치 (다음 곡 미리 다운)
  */
 (function(){
@@ -121,9 +121,9 @@ async function pollStatus(){
       }
       updateNowPlaying(t);
     } else {
-      g('trackTitle').textContent = '방송 대기 중';
+      g('trackTitle').textContent = '방송 Standby';
       g('trackArtist').textContent = '-';
-      g('status').textContent = now.is_live === false ? '방송 중 아님' : '곡 없음';
+      g('status').textContent = now.is_live === false ? 'On Air 아님' : '곡 없음';
     }
   } catch(e){
     console.warn('[poll]', e);
@@ -187,10 +187,10 @@ async function playTrack(t){
       console.log('[DJ] onended', t.id);
       _playing = false;
       if(g('autoAdvance').checked){
-        status.textContent = '⏭ 곡 종료 → 자동 진행';
+        status.textContent = '⏭ 곡 종료 → Auto-advance';
         nextTrack();
       } else {
-        status.textContent = '⏭ 곡 종료 (자동 진행 OFF)';
+        status.textContent = '⏭ 곡 종료 (Auto-advance OFF)';
       }
     };
 
@@ -302,7 +302,7 @@ function onAutoToggle(){
 
 /* ─── 초기화 ─── */
 (async function init(){
-  // 자동 진행 토글 복원
+  // Auto-advance 토글 복원
   var saved = localStorage.getItem('dj_auto_advance');
   if(saved === '1'){ g('autoAdvance').checked = true; onAutoToggle(); }
 
