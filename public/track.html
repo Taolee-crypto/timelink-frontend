@@ -1398,6 +1398,17 @@ function playTrack(){
     };
     _tlAudio.src = fileUrl;
     _tlAudio.load();
+
+  } else if(window.TL3 && TL3.play) {
+    // v3 TL3: 서버에서 세그먼트 순차 수신 + 재생 + confirm
+    _tlAudio.load && _tlAudio.load();
+    window._tl3Session = TL3.play(_tlAudio, {
+      API: API,
+      token: getTok(),
+      shareId: SHARE_ID,
+      kind: 'mp3'
+    }).then(function(sess){
+=======
   } else if(window.TL3 && TL3.resolveUrl){
     console.log('[PLAY] resolveUrl 시작:', SHARE_ID);
     TL3.resolveUrl(SHARE_ID, {
@@ -1419,9 +1430,11 @@ function playTrack(){
       return tryPlay();
     }).then(function(){
       console.log('[PLAY] 재생 시작됨!');
+
       _tlPlaying = true;
       startTLTimer();
       if(window._hidePlayLoading) window._hidePlayLoading(true);
+      return sess;
     }).catch(function(e){
       console.error('[PLAY] 재생 실패:', e);
       if(window._hidePlayLoading) window._hidePlayLoading(false);
@@ -1429,9 +1442,9 @@ function playTrack(){
       stopPlay();
     });
   } else {
-    alert('TL3 플레이어 모듈을 불러오지 못했습니다');
+    alert('TL3 모듈 로드 실패');
     stopPlay();
-  }
+}
 }
 
 function startTLTimer(){
