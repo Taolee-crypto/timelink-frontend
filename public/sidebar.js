@@ -15,7 +15,7 @@
   ];
   var path=(location.pathname||'/').replace(/\/+$/,'')||'/';
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-  function isActive(h){var p=h.split('?')[0];return path===p || (p==='/dashboard.html'&&path==='/dashboard');}
+  function isActive(h){var p=h.split('?')[0];return path===p || (p==='/dashboard.html'&&path==='/dashboard') || (p==='/shareplace.html'&&path==='/track.html');}
   var html='<aside class="tl-global-sidebar" aria-label="TimeLink navigation"><a class="tl-global-brand" href="/index.html"><span class="tl-global-mark">T</span><span>TimeLink</span></a><nav class="tl-global-links">';
   sections.forEach(function(section){
     html+='<div class="tl-global-section">'+esc(section[0])+'</div>';
