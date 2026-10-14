@@ -448,13 +448,13 @@ function renderPage(s, stats, myFileTL, requiredTL){
         <div class="track-title">${escH(s.title)}</div>
         <div class="track-artist">${escH(s.artist||'')}${s.album?' · <span style="color:var(--t3)">'+escH(s.album)+'</span>':''}</div>
         <div class="track-uploader">by ${escH(s.username||'')} · ${new Date(Number(s.created_at||0)).toLocaleDateString('ko')}</div>
-        <div class="track-tl required">${isFree ? '🎵 무료 MP3 · TLC 보상' : '⚡ 필요 TL: '+(requiredTL > 0 ? requiredTL.toLocaleString() + ' TL' : '⚠️ TL 설정 필요 (재생 불가)')} <span style="font-size:12px;color:var(--t3);font-weight:400">/ ${fmtTime(s.duration)}</span></div>
-        <div class="track-tl my" id="myTLDisplay">${isFree ? '💎 POC → TLC 보상 대상' : '💰 내 충전 TL: '+myFileTL.toLocaleString()+' TL'}</div>
+        <div class="track-tl required">${isFree ? '비공개 원본 MP3' : '⚡ 필요 TL: '+(requiredTL > 0 ? requiredTL.toLocaleString() + ' TL' : '⚠️ TL 설정 필요 (재생 불가)')} <span style="font-size:12px;color:var(--t3);font-weight:400">/ ${fmtTime(s.duration)}</span></div>
+        <div class="track-tl my" id="myTLDisplay">${isFree ? '비공개 원본 자산' : '💰 내 충전 TL: '+myFileTL.toLocaleString()+' TL'}</div>
       </div>
 
       <div class="actions">
         <div class="btn-row-group" id="actionButtons">
-          ${isFree ? '<span class="btn-play" style="display:flex;align-items:center;justify-content:center;opacity:.8">무료 재생</span>' : '<button class="btn-charge" id="chargeBtn">⚡ TL 충전</button>'}
+          ${isFree ? '<span class="btn-play" style="display:flex;align-items:center;justify-content:center;opacity:.55">비공개 원본</span>' : '<button class="btn-charge" id="chargeBtn">⚡ TL 충전</button>'}
           <button class="${canPlay ? 'btn-play' : 'btn-play-gray'}" id="playBtn" ${!canPlay ? 'disabled' : ''}>▶ 재생</button>
         </div>
         <div class="btn-icon-group">
@@ -1391,7 +1391,7 @@ function playTrack(){
   };
   _tlAudio.onended = function(){ stopPlay(); };
 
-  // ⭐ MP3는 그냥 재생, TL3는 디코딩 후 재생
+  // TL3만 공개 재생한다. 원본 MP3 직접 재생 경로는 사용하지 않는다.
   if(_tlFree){
     _tlAudio.oncanplay = function(){
       _tlAudio.play().then(()=>{ _tlPlaying = true; startTLTimer(); })
@@ -1400,16 +1400,6 @@ function playTrack(){
     _tlAudio.src = fileUrl;
     _tlAudio.load();
 
-  } else if(window.TL3 && TL3.play) {
-    // v3 TL3: 서버에서 세그먼트 순차 수신 + 재생 + confirm
-    _tlAudio.load && _tlAudio.load();
-    window._tl3Session = TL3.play(_tlAudio, {
-      API: API,
-      token: getTok(),
-      shareId: SHARE_ID,
-      kind: 'mp3'
-    }).then(function(sess){
-=======
   } else if(window.TL3 && TL3.resolveUrl){
     console.log('[PLAY] resolveUrl 시작:', SHARE_ID);
     TL3.resolveUrl(SHARE_ID, {
