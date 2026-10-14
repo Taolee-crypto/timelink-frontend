@@ -85,6 +85,9 @@ footer{border-top:1px solid var(--bd);padding:24px;text-align:center;font-size:1
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <link rel="stylesheet" href="/apple-theme.css">
+<link rel="stylesheet" href="/dropdown-fix.css"><!-- SELECT_FIX_V1 -->
+
+<link rel="stylesheet" href="/apple-theme.css?v=global-20261014" data-tl-global-theme="2026.10">
 </head>
 <body>
 
@@ -235,42 +238,80 @@ footer{border-top:1px solid var(--bd);padding:24px;text-align:center;font-size:1
 
 <script>
 var REPO = 'Taolee-crypto/timelink-app';
-var VER  = 'v1.1.0';
-var WIN_FILE = 'TimeLink-Player-Setup-1.1.0.exe';
-var MAC_FILE = 'TimeLink-Player.dmg';
-var LNX_FILE = 'TimeLink-Player.AppImage';
-var BASE = 'https://github.com/'+REPO+'/releases/download/'+VER+'/';
+var API  = 'https://api.github.com/repos/'+REPO+'/releases/latest';
+var FALLBACK = {
+  VER: 'v1.1.2',
+  WIN: 'TimeLink-Player-Setup-1.1.2.exe',
+  MAC: 'TimeLink-Player-1.1.2-arm64.dmg',
+  LNX: 'TimeLink-Player-1.1.2.AppImage'
+};
 
-// 직접 링크 설정 (항상 정확한 버전)
-document.getElementById('dlWin').href   = BASE + WIN_FILE;
-document.getElementById('dlMac').href   = BASE + MAC_FILE;
-document.getElementById('dlLinux').href = BASE + LNX_FILE;
-document.getElementById('dlWinSize').textContent   = WIN_FILE + ' · Windows 10/11';
-document.getElementById('dlMacSize').textContent   = MAC_FILE + ' · macOS 12+';
-document.getElementById('dlLinuxSize').textContent = LNX_FILE + ' · Linux';
-document.getElementById('verNum').textContent  = VER;
-document.getElementById('verDate').textContent = '2026.03';
-if(document.getElementById('guideWinFile')) document.getElementById('guideWinFile').textContent = WIN_FILE;
-if(document.getElementById('guideMacFile')) document.getElementById('guideMacFile').textContent = MAC_FILE;
+async function loadLatest(){
+  var ver = FALLBACK.VER, winFile = FALLBACK.WIN, macFile = FALLBACK.MAC, lnxFile = FALLBACK.LNX;
+  try {
+    var r = await fetch(API, { headers: { 'Accept': 'application/vnd.github+json' } });
+    if (r.ok) {
+      var rel = await r.json();
+      ver = rel.tag_name || ver;
+      (rel.assets || []).forEach(function(a){
+        var n = a.name;
+        if (/Setup.*\.exe$/i.test(n)) winFile = n;
+        else if (/\.dmg$/i.test(n) && !/TimeLink\.Player/.test(n)) macFile = n;
+        else if (/\.AppImage$/i.test(n)) lnxFile = n;
+      });
+    }
+  } catch(e) {}
 
-// OS 하이라이트
-var ua=navigator.userAgent, target=ua.includes('Win')?'win':ua.includes('Mac')?'mac':'linux';
+  var BASE = 'https://github.com/'+REPO+'/releases/download/'+ver+'/';
+  var dlWin = document.getElementById('dlWin');
+  var dlMac = document.getElementById('dlMac');
+  var dlLinux = document.getElementById('dlLinux');
+  if (dlWin) dlWin.href = BASE + winFile;
+  if (dlMac) dlMac.href = BASE + macFile;
+  if (dlLinux) dlLinux.href = BASE + lnxFile;
+
+  var w1 = document.getElementById('dlWinSize');
+  var w2 = document.getElementById('dlMacSize');
+  var w3 = document.getElementById('dlLinuxSize');
+  if (w1) w1.textContent = winFile + ' · Windows 10/11';
+  if (w2) w2.textContent = macFile + ' · macOS 12+';
+  if (w3) w3.textContent = lnxFile + ' · Linux';
+
+  var vn = document.getElementById('verNum');
+  var vd = document.getElementById('verDate');
+  if (vn) vn.textContent = ver;
+  if (vd) vd.textContent = new Date().toISOString().slice(0,7).replace('-','.');
+
+  var gw = document.getElementById('guideWinFile');
+  var gm = document.getElementById('guideMacFile');
+  if (gw) gw.textContent = winFile;
+  if (gm) gm.textContent = macFile;
+}
+
+var ua = navigator.userAgent, target = ua.includes('Win') ? 'win' : ua.includes('Mac') ? 'mac' : 'linux';
 document.querySelectorAll('.dl-btn').forEach(function(btn){
-  if(btn.classList.contains(target)){
-    btn.style.boxShadow='0 0 0 2px var(--purple)';
-    btn.style.borderColor='var(--purple)';
-    btn.style.position='relative';
-    var b=document.createElement('span');
-    b.style.cssText='position:absolute;top:-8px;right:12px;background:var(--purple);color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px';
-    b.textContent='내 OS ✓'; btn.appendChild(b);
+  if (btn.classList.contains(target)) {
+    btn.style.boxShadow = '0 0 0 2px var(--purple)';
+    btn.style.borderColor = 'var(--purple)';
+    btn.style.position = 'relative';
+    var b = document.createElement('span');
+    b.style.cssText = 'position:absolute;top:-8px;right:12px;background:var(--purple);color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px';
+    b.textContent = '내 OS ✓';
+    btn.appendChild(b);
   }
 });
 
 function trackDownload(os){
   fetch('https://api.timelink.digital/api/eco/activity',{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'app_download',os:os,ts:Date.now()})
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({action:'app_download',os:os,ts:Date.now()})
   }).catch(function(){});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadLatest);
+} else {
+  loadLatest();
 }
 </script>
 </body>

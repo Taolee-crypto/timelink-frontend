@@ -1,121 +1,76 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+
+<script>
+/* ==== TL_PLAY_LOCK_V1 (auto-inserted) ==== */
+(function(){
+  window._tlPlaying = window._tlPlaying || false;
+  window._tlSuppressPause = false;
+  window._tlPlayBusy = false;
+
+  if (!HTMLMediaElement.prototype.__tlPatched) {
+    var _origPlay  = HTMLMediaElement.prototype.play;
+    var _origPause = HTMLMediaElement.prototype.pause;
+
+    HTMLMediaElement.prototype.play = function(){
+      var self = this;
+      if (self !== window._tlAudio) return _origPlay.apply(self, arguments);
+      if (window._tlPlayBusy) { console.log('[PLAY] busy, skip'); return Promise.resolve(); }
+      window._tlPlayBusy = true;
+      window._tlPlaying = true;
+      var args = arguments;
+      var pr = _origPlay.apply(self, args);
+      if (pr && pr.catch) {
+        pr = pr.catch(function(e){
+          if (e && e.name === 'AbortError') {
+            console.log('[PLAY] AbortError -> retry 180ms');
+            return new Promise(function(r){ setTimeout(r, 180); })
+              .then(function(){ return _origPlay.apply(self, args); });
+          }
+          throw e;
+        });
+      }
+      return pr.finally ? pr.finally(function(){ setTimeout(function(){ window._tlPlayBusy=false; }, 250); })
+                        : pr;
+    };
+
+    HTMLMediaElement.prototype.pause = function(){
+      if (this === window._tlAudio && window._tlPlaying && !window._tlSuppressPause) {
+        console.log('[PAUSE] blocked by playlock');
+        return;
+      }
+      return _origPause.apply(this, arguments);
+    };
+
+    HTMLMediaElement.prototype.__tlPatched = true;
+  }
+
+  window.tlRealStop = function(){
+    window._tlSuppressPause = true;
+    window._tlPlaying = false;
+    try { if (window._tlAudio) window._tlAudio.pause(); }
+    finally { setTimeout(function(){ window._tlSuppressPause = false; }, 50); }
+  };
+  console.log('[TL_PLAY_LOCK_V1] installed');
+})();
+</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script><!-- CERT_TL3_DL_V1 -->
+<script src="https://cdn.jsdelivr.net/npm/lucide@1.55.0/dist/umd/lucide.min.js"></script><!-- LUCIDE_ICONS_V1 -->
+<script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script><!-- VEXFLOW_SCORE_V1 -->
+<script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.9/build/opensheetmusicdisplay.min.js"></script><!-- OSMD_SCORE_V1 -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script><!-- JSPDF_PDF_V1 -->
+<script src="https://cdn.jsdelivr.net/npm/svg2pdf.js@2.2.3/dist/svg2pdf.umd.min.js"></script><!-- SVG2PDF_V1 -->
 <title>TimeLink - 트랙 상세</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#0a0a0f;--bg2:#111118;--bg3:#1a1a24;--purple:#0071E3;--mint:#64D2FF;--t1:#fff;--t2:rgba(255,255,255,.7);--t3:rgba(255,255,255,.35);--bd:rgba(255,255,255,.08);--fn:'Pretendard',sans-serif}
-@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;900&display=swap');
-body{background:var(--bg);color:var(--t1);font-family:var(--fn);min-height:100vh}
-
-.hdr{display:flex;align-items:center;gap:12px;padding:14px 24px;border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:100;background:rgba(10,10,15,.95);backdrop-filter:blur(20px)}
-.back{background:none;border:none;color:var(--t2);cursor:pointer;font-size:22px;padding:4px 8px;border-radius:8px}
-.back:hover{color:var(--t1)}
-.logo{font-size:18px;font-weight:900;background:linear-gradient(135deg,var(--purple),var(--mint));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-
-.main{display:grid;grid-template-columns:340px 1fr;gap:0;min-height:calc(100vh - 57px)}
-
-.left-panel{border-right:1px solid var(--bd);padding:32px 24px;position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto}
-.cover-wrap{position:relative;width:100%;aspect-ratio:1;border-radius:16px;overflow:hidden;margin-bottom:20px;background:linear-gradient(135deg,#4a00e0,var(--purple));cursor:pointer}
-.cover-wrap img{width:100%;height:100%;object-fit:cover}
-.cover-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:80px}
-.play-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.4);opacity:0;transition:opacity .2s}
-.cover-wrap:hover .play-overlay{opacity:1}
-.play-overlay-btn{width:64px;height:64px;border-radius:50%;background:rgba(0,113,227,.95);border:none;color:#fff;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.play-overlay-btn:hover{transform:scale(1.05)}
-
-.track-meta{margin-bottom:20px}
-.track-category{font-size:11px;color:var(--purple);font-weight:700;letter-spacing:.1em;margin-bottom:6px}
-.track-title{font-size:22px;font-weight:900;line-height:1.3;margin-bottom:6px}
-.track-artist{font-size:14px;color:var(--t2);margin-bottom:4px}
-.track-uploader{font-size:12px;color:var(--t3)}
-.track-tl{font-size:18px;font-weight:700;margin:12px 0}
-.track-tl.required{color:var(--purple)}
-.track-tl.my{color:var(--mint)}
-
-.actions{display:flex;flex-direction:column;gap:8px}
-.btn-row-group{display:flex;gap:8px;margin-top:8px}
-.btn-play{flex:1;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--purple),#4a00e0);color:#fff;font-size:14px;font-weight:700;cursor:pointer}
-.btn-play:hover{opacity:.9}
-.btn-charge{flex:1;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#f7971e,#ffd200);color:#000;font-size:14px;font-weight:700;cursor:pointer}
-.btn-play-gray{flex:1;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.05);color:rgba(255,255,255,.4);font-size:14px;cursor:not-allowed}
-.btn-icon-group{display:flex;gap:8px;margin-top:8px}
-.btn-icon{flex:1;padding:10px;border-radius:12px;border:1px solid var(--bd);background:none;color:var(--t2);font-size:13px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
-.btn-icon:hover{border-color:var(--purple);color:var(--purple)}
-.btn-icon.liked{border-color:var(--purple);color:var(--purple);background:rgba(0,113,227,.1)}
-.btn-icon.following{border-color:var(--mint);color:var(--mint);background:rgba(100,210,255,.1)}
-.btn-dl{width:100%;padding:10px;border-radius:12px;border:1px solid rgba(100,210,255,.3);background:none;color:var(--mint);font-size:13px;cursor:pointer;margin-top:8px}
-.btn-dl:hover{background:rgba(100,210,255,.1)}
-
-.stats{display:flex;gap:0;margin-top:20px;border-top:1px solid var(--bd);padding-top:16px}
-.stat{flex:1;text-align:center}
-.stat-val{font-size:18px;font-weight:900}
-.stat-label{font-size:10px;color:var(--t3);margin-top:2px}
-.stat+.stat{border-left:1px solid var(--bd)}
-
-.right-panel{display:flex;flex-direction:column}
-.right-top{padding:32px 32px 0}
-.section-label{font-size:11px;font-weight:700;color:var(--t3);letter-spacing:.1em;margin-bottom:16px;display:flex;align-items:center;gap:8px}
-.section-label::after{content:'';flex:1;height:1px;background:var(--bd)}
-
-.comments-wrap{flex:1;padding:0 32px;overflow-y:auto}
-.comment-list{display:flex;flex-direction:column;gap:20px;margin-bottom:20px}
-.comment-item{display:flex;gap:12px}
-.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--mint));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
-.comment-body{flex:1}
-.comment-name{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:4px}
-.comment-text{font-size:14px;color:var(--t2);line-height:1.6}
-.comment-footer{display:flex;align-items:center;gap:12px;margin-top:6px}
-.comment-time{font-size:11px;color:var(--t3)}
-.comment-report{background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer}
-.comment-report:hover{color:rgba(255,100,100,.7)}
-.empty-comment{text-align:center;padding:40px 20px;color:var(--t3);font-size:14px}
-
-.comment-input-wrap{padding:20px 32px 24px;border-top:1px solid var(--bd);display:flex;gap:10px;align-items:flex-start}
-.input-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--mint));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
-.comment-box{flex:1}
-.comment-textarea{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--bd);border-radius:12px;color:#fff;font-size:14px;padding:12px 16px;font-family:var(--fn);resize:none}
-.comment-textarea:focus{outline:none;border-color:var(--purple)}
-.comment-actions{display:flex;justify-content:flex-end;margin-top:8px;gap:8px}
-.comment-submit{background:var(--purple);border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;padding:8px 20px;cursor:pointer}
-.comment-submit:hover{background:#7c3aed}
-
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1000;align-items:center;justify-content:center}
-.modal-overlay.open{display:flex}
-.modal{background:var(--bg2);border:1px solid var(--bd);border-radius:20px;padding:24px;width:90%;max-width:380px}
-.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.modal-title{font-size:16px;font-weight:700}
-.modal-close{background:none;border:none;color:var(--t3);font-size:20px;cursor:pointer}
-.pl-item{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:10px;cursor:pointer}
-.pl-item:hover{background:rgba(255,255,255,.05)}
-.pl-item-name{font-size:14px;font-weight:600}
-.pl-item-cnt{font-size:11px;color:var(--t3);margin-top:2px}
-.pl-add-btn{color:var(--purple);font-size:18px}
-.new-pl-btn{width:100%;background:none;border:1px dashed rgba(0,113,227,.4);border-radius:10px;color:var(--purple);padding:12px;cursor:pointer;font-size:13px;margin-top:8px}
-.new-pl-btn:hover{background:rgba(0,113,227,.1)}
-
-.loading{display:flex;align-items:center;justify-content:center;height:300px;color:var(--t3);font-size:14px;gap:12px}
-.spinner{width:28px;height:28px;border:3px solid var(--bd);border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-@media(max-width:768px){.main{grid-template-columns:1fr}.left-panel{position:static;height:auto;border-right:none;border-bottom:1px solid var(--bd)}}
-
-.copyright-section{padding:24px 32px;border-top:1px solid var(--bd)}
-.lyrics-box{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:12px;padding:20px;font-size:14px;color:var(--t2);line-height:2;white-space:pre-wrap;max-height:400px;overflow-y:auto}
-.copyright-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-.copyright-item{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:10px;padding:12px 16px}
-.copyright-label{font-size:10px;color:var(--t3);font-weight:700;letter-spacing:.08em;margin-bottom:4px}
-.copyright-value{font-size:14px;color:var(--t1);font-weight:600}
-
-.charge-pkg{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:10px;padding:14px;cursor:pointer;text-align:center}
-.charge-pkg:hover,.charge-pkg.active{border-color:var(--purple);background:rgba(0,113,227,.1)}
-
-#tlPlayerBar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:rgba(13,13,20,.98);backdrop-filter:blur(20px);border-top:1px solid rgba(0,113,227,.4);padding:12px 24px}
-</style>
+<link rel="stylesheet" href="/_track_new.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <link rel="stylesheet" href="/apple-theme.css">
+<link rel="stylesheet" href="/dropdown-fix.css"><!-- SELECT_FIX_V1 -->
+
+<link rel="stylesheet" href="/apple-theme.css?v=global-20261014" data-tl-global-theme="2026.10">
 </head>
 <body>
 
@@ -129,6 +84,92 @@ body{background:var(--bg);color:var(--t1);font-family:var(--fn);min-height:100vh
 </div>
 
 <!-- 충전 모달 -->
+<!-- CERT_MODAL_V1: 증명서 신청 모달 -->
+<div class="modal-overlay" id="certModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-hdr">
+      <span class="modal-title">🏅 창작권 증명서 신청</span>
+      <button class="modal-close" onclick="closeCertModal()">✕</button>
+    </div>
+    <div style="padding:20px">
+      <div style="font-size:12px;color:rgba(255,255,255,.6);line-height:1.7;margin-bottom:16px;padding:12px;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);border-radius:10px">
+        이 곡을 <b style="color:#FFD700">디지털 자산</b>으로 등록하고 증명서를 발행합니다.<br>
+        발행 후 Shareplace · Track에 <b>🏅 인증 마크</b>가 표시됩니다.
+      </div>
+
+      <div style="display:grid;gap:12px;margin-bottom:16px">
+        <div>
+          <label style="display:block;font-size:11px;color:rgba(255,255,255,.5);margin-bottom:6px">장르 (Spotify)</label>
+          <select id="cmGenre" style="width:100%;padding:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:13px">
+            <option value="">선택 안 함</option>
+            <option value="k-pop">K-Pop</option>
+            <option value="k-ballad">K-Ballad</option>
+            <option value="k-hip-hop">K-Hip-Hop</option>
+            <option value="k-rnb">K-R&B</option>
+            <option value="k-rock">K-Rock</option>
+            <option value="k-indie">K-Indie</option>
+            <option value="k-trot">K-Trot</option>
+            <option value="pop">Pop</option>
+            <option value="hip-hop">Hip-Hop</option>
+            <option value="rnb">R&B</option>
+            <option value="rock">Rock</option>
+            <option value="jazz">Jazz</option>
+            <option value="classical">Classical</option>
+            <option value="electronic">Electronic</option>
+            <option value="folk">Folk</option>
+            <option value="country">Country</option>
+            <option value="ambient">Ambient</option>
+            <option value="soundtrack">Soundtrack</option>
+          </select>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label style="display:block;font-size:11px;color:rgba(255,255,255,.5);margin-bottom:6px">작곡</label>
+            <input type="text" id="cmComposer" placeholder="예: 홍길동" style="width:100%;padding:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:13px;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:rgba(255,255,255,.5);margin-bottom:6px">작사</label>
+            <input type="text" id="cmLyricist" placeholder="예: 홍길동" style="width:100%;padding:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:13px;box-sizing:border-box">
+          </div>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:11px;color:rgba(255,255,255,.5);margin-bottom:6px">프로듀서</label>
+          <input type="text" id="cmProducer" placeholder="예: 홍길동" style="width:100%;padding:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:13px;box-sizing:border-box">
+        </div>
+
+        <div>
+          <label style="display:block;font-size:11px;color:rgba(255,255,255,.5);margin-bottom:6px">가사</label>
+          <textarea id="cmLyrics" rows="4" placeholder="가사를 입력하세요 (선택)" style="width:100%;padding:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:13px;box-sizing:border-box;font-family:inherit;resize:vertical"></textarea>
+        </div>
+      </div>
+
+      <div style="padding:14px;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.25);border-radius:10px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+          <span style="color:rgba(255,255,255,.6)">발행 수수료</span>
+          <span style="color:#FFD700;font-weight:700">5,000 TL</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px">
+          <span style="color:rgba(255,255,255,.5)">현재 잔액</span>
+          <span id="cmBalance" style="color:rgba(255,255,255,.7)">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px">
+          <span style="color:rgba(255,255,255,.5)">발행 후 잔액</span>
+          <span id="cmAfterBalance" style="color:#FFD700;font-weight:700">—</span>
+        </div>
+      </div>
+
+      <div id="cmError" style="display:none;padding:10px;background:rgba(255,69,58,.1);border:1px solid rgba(255,69,58,.3);border-radius:8px;font-size:12px;color:#FF453A;margin-bottom:12px"></div>
+
+      <div style="display:flex;gap:8px">
+        <button onclick="closeCertModal()" style="flex:1;padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:transparent;color:#fff;font-weight:600;cursor:pointer">취소</button>
+        <button id="cmSubmitBtn" onclick="submitCertify()" style="flex:2;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:700;font-size:14px;cursor:pointer">🏅 발행 (5,000 TL)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="chargeModal">
   <div class="modal" style="max-width:440px">
     <div class="modal-hdr">
@@ -214,6 +255,36 @@ body{background:var(--bg);color:var(--t1);font-family:var(--fn);min-height:100vh
   </div>
 </div>
 
+<!-- ★ 악보 모달 (Score Modal) ★ -->
+<div class="modal-overlay" id="scoreModal">
+  <div class="modal modal-score">
+    <div class="modal-hdr">
+      <span class="modal-title"><i data-lucide="music" style="width:18px;height:18px"></i> 악보</span>
+      <button class="modal-close" onclick="closeScoreModal()"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <div class="score-controls">
+      <div class="score-transpose">
+        <button class="score-btn" onclick="transposeScore(-1)" title="반음 내림">♭ -1</button>
+        <span class="score-transpose-val" id="transposeVal">0</span>
+        <button class="score-btn" onclick="transposeScore(1)" title="반음 올림">♯ +1</button>
+        <button class="score-btn" onclick="transposeScore(0)" title="원곡">↺ 원곡</button>
+      </div>
+      <button class="score-btn primary" id="useScoreBtn" onclick="useScore()">
+        <i data-lucide="download" style="width:14px;height:14px"></i> 악보 사용 (1,000 TL)
+      </button>
+      <button class="score-btn" id="downloadPdfBtn" onclick="downloadTldPdf()" style="background:rgba(100,181,246,.15);border-color:rgba(100,181,246,.4)">
+        <i data-lucide="file-text" style="width:14px;height:14px"></i> PDF 악보
+      </button>
+    </div>
+    <div id="scoreContainer">
+      <div style="padding:40px;text-align:center;color:#666">⏳ 악보 불러오는 중...</div>
+    </div>
+    <div style="margin-top:16px;padding:10px 12px;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);border-radius:8px;font-size:11px;color:rgba(255,255,255,.5);text-align:center">
+      💡 악보 사용 시 1,000 TL이 차감되며, 창작자에게 기여됩니다.
+    </div>
+  </div>
+</div>
+
 <!-- TL 플레이어 바 -->
 <div id="tlPlayerBar">
   <div style="display:flex;align-items:center;gap:16px;max-width:900px;margin:0 auto">
@@ -230,7 +301,9 @@ body{background:var(--bg);color:var(--t1);font-family:var(--fn);min-height:100vh
   </div>
 </div>
 
-<script src="/tl3.js"></script>
+<script src="/offline-store.js"></script>
+  <script src="/offline-fetcher.js"></script>
+  <script src="/tl3.js"></script>
 <script src="/tl3-config.js"></script>
 <script>
 const API = 'https://api.timelink.digital';
@@ -355,7 +428,7 @@ function isFreeMp3(s){ return contentKind(s)==='mp3'; }
 function renderPage(s, stats, myFileTL, requiredTL){
   const isFree = isFreeMp3(s);
   const needCharge = !isFree && (requiredTL <= 0 || myFileTL < requiredTL);
-  const canPlay = !!(s.stream_url||s.file_url) && (isFree || (!needCharge && requiredTL > 0));
+  const canPlay = !isFree && !!(s.stream_url||s.file_url) && (!needCharge && requiredTL > 0);
   
   const ftype = s.category_type||'audio';
   const hasUrl = !!(s.stream_url||s.file_url);
@@ -390,12 +463,23 @@ function renderPage(s, stats, myFileTL, requiredTL){
           <button class="btn-icon" id="shareBtn">🔗</button>
         </div>
         ${hasUrl && !isFree ? '<button class="btn-dl" id="dlBtn">⬇ .tl3 다운로드</button>' : ''}
+        <button class="btn-dl" id="openTl3Btn" style="background:linear-gradient(135deg,#7C3AED,#A855F7);margin-left:6px">📂 .tl3 열기</button>
+        <button class="btn-score" id="scoreBtn">🎼 악보 보기</button>
       </div>
 
       <div class="stats">
         <div class="stat"><div class="stat-val" id="statLikes">${stats.likes||0}</div><div class="stat-label">좋아요</div></div>
         <div class="stat"><div class="stat-val" id="statComments">${stats.comments||0}</div><div class="stat-label">댓글</div></div>
-        <div class="stat"><div class="stat-val">${Number(s.pulse||0).toLocaleString()}</div><div class="stat-label">재생수</div></div>
+        <div class="stat"><div class="stat-val">${fmtTime(Number(s.pulse||0))}</div><div class="stat-label">누적 이용 시간</div></div>
+      </div>
+      <div class="poc-card" id="pocCard" style="display:none">
+        <div class="poc-header">
+          <i data-lucide="award" class="poc-icon"></i>
+          <span class="poc-title">창작자 기여지수</span>
+          <span class="poc-value" id="pocValue">0.0</span>
+        </div>
+        <div class="poc-bar"><div class="poc-fill" id="pocFill" style="width:0%"></div></div>
+        <div class="poc-breakdown" id="pocBreakdown"></div>
       </div>
     </div>
 
@@ -436,10 +520,544 @@ function renderPage(s, stats, myFileTL, requiredTL){
     directBtn.parentNode.replaceChild(newBtn, directBtn);
     newBtn.addEventListener('click', () => { doDirectCharge(); });
   }
+
+  // ★ 악보 버튼
+  document.getElementById('scoreBtn')?.addEventListener('click', () => {
+    if (typeof loadScore === 'function') loadScore();
+  });
+
+  // ★ Lucide 아이콘 초기화
+  if (window.lucide && lucide.createIcons) {
+    setTimeout(() => lucide.createIcons(), 10);
+  }
+
+  // ★ 창작자 POC 로드
+  if (s && s.user_id && typeof loadCreatorPOC === 'function') {
+    loadCreatorPOC(s.user_id);
+  }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// ★ 악보(Score) 시스템
+// ═══════════════════════════════════════════════════════════════
+let _scoreData = null;
+let _scoreTranspose = 0;
+
+// ★ TLD PDF 다운로드 (Workers 프록시 경유)
+function downloadTldPdf(page){
+  page = page || 1;
+  if(!SHARE_ID){
+    alert("곡 정보를 찾을 수 없습니다");
+    return;
+  }
+  const url = API + "/api/v1/scores/" + SHARE_ID + "/file.tld?page=" + page;
+  window.open(url, '_blank');
+}
+
+// 악보 데이터 로드 + 모달 열기
+async function loadScore(){
+  if(!_share){ alert("곡 정보를 불러오는 중입니다"); return; }
+
+  const modal = document.getElementById("scoreModal");
+  const container = document.getElementById("scoreContainer");
+  if(!modal || !container){ alert("악보 모달을 찾을 수 없습니다"); return; }
+
+  container.innerHTML = '<div style="padding:40px;text-align:center;color:#666">⏳ 악보 불러오는 중...</div>';
+  modal.classList.add("open");
+
+  try {
+    const r = await fetch(API + "/api/v1/tl3/score/" + SHARE_ID);
+    const d = await r.json();
+
+    if(!r.ok || !d.ok){
+      if(d.error === "NO_SCORE"){
+        container.innerHTML = '<div style="padding:60px;text-align:center;color:#999">'
+          + '<div style="font-size:48px;margin-bottom:16px">🎼</div>'
+          + '<div style="font-size:15px;font-weight:700;color:#666;margin-bottom:8px">이 곡은 악보가 없습니다</div>'
+          + '<div style="font-size:12px;color:#999">창작자가 악보를 공유하지 않았습니다</div>'
+          + '</div>';
+        return;
+      }
+      throw new Error(d.error || "악보 조회 실패");
+    }
+
+    _scoreData = d.score;
+    _scoreTranspose = 0;
+
+    // POC 로그 (보기)
+    if(getTok()){
+      fetch(API + "/api/v1/scores/" + SHARE_ID + "/log-view", {
+        method: "POST",
+        headers: {"Authorization": "Bearer " + getTok()}
+      }).catch(function(){});
+    }
+
+    renderScoreVexFlow(_scoreData, 0);
+  } catch(e){
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:#e55">'
+      + '<div style="font-size:32px;margin-bottom:12px">⚠️</div>'
+      + '<div style="font-size:13px;color:#666">' + (e.message || "오류") + '</div>'
+      + '</div>';
+  }
+}
+
+function closeScoreModal(){
+  const modal = document.getElementById("scoreModal");
+  if(modal) modal.classList.remove("open");
+}
+
+// VexFlow로 악보 SVG 렌더링
+// ═══════════════════════════════════════════════════════════════
+// ★ OSMD 기반 악보 렌더링 (A4 자동 맞춤, 조옮김, 페이지 넘김)
+// ═══════════════════════════════════════════════════════════════
+
+let _osmdInstance = null;   // OSMD 재사용
+
+// ScoreData → MusicXML 문자열 변환
+function scoreDataToMusicXml(scoreData, transpose, shareInfo){
+  if(!scoreData || !scoreData.melody || !scoreData.melody.length){
+    return null;
+  }
+
+  transpose = transpose || 0;
+  shareInfo = shareInfo || {};
+
+  // ── 메타 정보 ──
+  const title = escapeXml(shareInfo.title || "Untitled");
+  const artist = escapeXml(shareInfo.artist || "");
+  const composer = escapeXml(shareInfo.composer || "");
+  const lyricist = escapeXml(shareInfo.lyricist || "");
+  const genre = escapeXml(shareInfo.genre || "");
+  const copyrightYear = shareInfo.copyright_year || new Date().getFullYear();
+  const country = escapeXml(shareInfo.country || "KR");
+  const isrc = escapeXml(shareInfo.isrc || "");
+  const creatorName = escapeXml(shareInfo.creator_name || shareInfo.username || "");
+
+  // ── 조성 ──
+  const keyData = scoreData.key || { tonic: "C", mode: "major" };
+  const tonic = keyData.tonic || "C";
+  const mode = keyData.mode || "major";
+  const fifths = keyToFifths(tonic, mode);
+
+  // ── 박자 ──
+  const timeSig = scoreData.time_signature || "4/4";
+  const [beats, beatType] = timeSig.split("/").map(Number);
+
+  // ── 템포 ──
+  const bpm = Math.round(scoreData.bpm || 120);
+
+  // ── divisions: 4분음표당 tick (MusicXML 표준: 1 = 4분음표)
+  const DIVISIONS = 4;   // 16분음표 = 1 tick
+
+  // ── 음표 변환 ──
+  const melody = scoreData.melody.slice();
+
+  // 마디로 그룹화 (4/4 기준 4박씩)
+  const measures = [];
+  let currentMeasure = [];
+  let currentBeat = 0;
+
+  for(let i = 0; i < melody.length; i++){
+    const ev = melody[i];
+    const midi = ev.m + transpose;
+    const durationBeats = (ev.d || 0.5) * (bpm / 60);   // 초 → 박
+    const durationTicks = Math.round(durationBeats * DIVISIONS);
+
+    // 쉼표 (이전 음표와의 간격)
+    if(i > 0){
+      const prevEnd = melody[i-1].s + melody[i-1].d;
+      const gap = ev.s - prevEnd;
+      if(gap > 0.05){
+        const gapTicks = Math.round(gap * (bpm / 60) * DIVISIONS);
+        if(gapTicks > 0){
+          currentMeasure.push({
+            type: "rest",
+            duration: gapTicks,
+            chord: false
+          });
+          currentBeat += gapTicks / DIVISIONS;
+        }
+      }
+    }
+
+    // 마디 넘김 처리
+    if(currentBeat + durationTicks / DIVISIONS > beats){
+      // 마디 마감
+      measures.push(currentMeasure);
+      currentMeasure = [];
+      currentBeat = 0;
+    }
+
+    // 코드 심볼 (마디 첫 음표에)
+    let chordSym = null;
+    if(scoreData.chords && scoreData.chords.length){
+      const t = ev.s;
+      for(const cd of scoreData.chords){
+        if(t >= cd.s && t < cd.e){
+          if(!currentMeasure.some(n => n.chordSym)){
+            chordSym = cd.sym;
+          }
+          break;
+        }
+      }
+    }
+
+    // 음표 추가
+    currentMeasure.push({
+      type: "note",
+      midi: midi,
+      duration: durationTicks,
+      chordSym: chordSym
+    });
+    currentBeat += durationTicks / DIVISIONS;
+  }
+
+  // 마지막 마디
+  if(currentMeasure.length > 0){
+    measures.push(currentMeasure);
+  }
+
+  // ── MusicXML 생성 ──
+  const xml = [];
+  xml.push('<?xml version="1.0" encoding="UTF-8"?>');
+  xml.push('<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">');
+  xml.push('<score-partwise version="4.0">');
+
+  // work-title
+  xml.push('  <work><work-title>' + title + '</work-title></work>');
+
+  // identification
+  xml.push('  <identification>');
+  if(composer) xml.push('    <creator type="composer">' + composer + '</creator>');
+  if(lyricist) xml.push('    <creator type="lyricist">' + lyricist + '</creator>');
+  if(artist) xml.push('    <creator type="artist">' + artist + '</creator>');
+  if(creatorName) xml.push('    <creator type="creator">' + creatorName + '</creator>');
+  xml.push('    <rights>© ' + copyrightYear + ' ' + country + (isrc ? ' | ISRC ' + isrc : '') + '</rights>');
+  xml.push('    <encoding><software>TimeLink Score v1</software><encoding-date>' + new Date().toISOString().slice(0,10) + '</encoding-date></encoding>');
+  xml.push('  </identification>');
+
+  // part-list
+  xml.push('  <part-list>');
+  xml.push('    <score-part id="P1"><part-name>Melody</part-name></score-part>');
+  xml.push('  </part-list>');
+
+  // part
+  xml.push('  <part id="P1">');
+
+  for(let mIdx = 0; mIdx < measures.length; mIdx++){
+    const measure = measures[mIdx];
+    xml.push('    <measure number="' + (mIdx + 1) + '">');
+
+    // 첫 마디: attributes
+    if(mIdx === 0){
+      xml.push('      <attributes>');
+      xml.push('        <divisions>' + DIVISIONS + '</divisions>');
+      xml.push('        <key><fifths>' + fifths + '</fifths><mode>' + mode + '</mode></key>');
+      xml.push('        <time><beats>' + beats + '</beats><beat-type>' + beatType + '</beat-type></time>');
+      xml.push('        <clef><sign>G</sign><line>2</line></clef>');
+      xml.push('      </attributes>');
+      xml.push('      <direction placement="above">');
+      xml.push('        <direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>' + bpm + '</per-minute></metronome></direction-type>');
+      xml.push('        <sound tempo="' + bpm + '"/>');
+      xml.push('      </direction>');
+    }
+
+    // 마디 내 요소
+    for(const item of measure){
+      if(item.type === "rest"){
+        xml.push('      <note>');
+        xml.push('        <rest/>');
+        xml.push('        <duration>' + item.duration + '</duration>');
+        xml.push('        <type>' + ticksToType(item.duration, DIVISIONS) + '</type>');
+        xml.push('      </note>');
+      } else if(item.type === "note"){
+        // 코드 심볼 (harmony)
+        if(item.chordSym){
+          xml.push('      <harmony>');
+          xml.push('        <root><root-step>' + chordRoot(item.chordSym) + '</root-step>' + chordAlter(item.chordSym) + '</root>');
+          xml.push('        <kind>' + chordKind(item.chordSym) + '</kind>');
+          xml.push('      </harmony>');
+        }
+
+        // 음표
+        const [step, alter, octave] = midiToStepAlterOctave(item.midi);
+        xml.push('      <note>');
+        xml.push('        <pitch>');
+        xml.push('          <step>' + step + '</step>');
+        if(alter !== 0) xml.push('          <alter>' + alter + '</alter>');
+        xml.push('          <octave>' + octave + '</octave>');
+        xml.push('        </pitch>');
+        xml.push('        <duration>' + item.duration + '</duration>');
+        xml.push('        <type>' + ticksToType(item.duration, DIVISIONS) + '</type>');
+        xml.push('      </note>');
+      }
+    }
+
+    xml.push('    </measure>');
+  }
+
+  xml.push('  </part>');
+  xml.push('</score-partwise>');
+
+  return xml.join("\n");
+}
+
+// ── 헬퍼들 ──
+function escapeXml(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function keyToFifths(tonic, mode){
+  const majorMap = { "C":0,"G":1,"D":2,"A":3,"E":4,"B":5,"F#":6,"C#":7,"F":-1,"Bb":-2,"Eb":-3,"Ab":-4,"Db":-5,"Gb":-6,"Cb":-7 };
+  const minorMap = { "A":0,"E":1,"B":2,"F#":3,"C#":4,"G#":5,"D#":6,"A#":7,"D":-1,"G":-2,"C":-3,"F":-4,"Bb":-5,"Eb":-6,"Ab":-7 };
+  const map = mode === "minor" ? minorMap : majorMap;
+  return map[tonic] !== undefined ? map[tonic] : 0;
+}
+
+function midiToStepAlterOctave(midi){
+  const names = [["C",0],["C",1],["D",0],["D",1],["E",0],["F",0],["F",1],["G",0],["G",1],["A",0],["A",1],["B",0]];
+  const octave = Math.floor(midi / 12) - 1;
+  const [step, alter] = names[midi % 12];
+  return [step, alter, octave];
+}
+
+function ticksToType(ticks, divisions){
+  const q = ticks / divisions;   // 4분음표 단위
+  if(q >= 4) return "whole";
+  if(q >= 3) return "half";       // 점2분은 별도
+  if(q >= 2) return "half";
+  if(q >= 1.5) return "quarter";  // 점4분
+  if(q >= 1) return "quarter";
+  if(q >= 0.75) return "eighth";
+  if(q >= 0.5) return "eighth";
+  if(q >= 0.25) return "16th";
+  return "16th";
+}
+
+function chordRoot(sym){
+  const m = sym.match(/^([A-G][#b]?)/);
+  return m ? m[1][0] : "C";
+}
+
+function chordAlter(sym){
+  const m = sym.match(/^([A-G])([#b]?)/);
+  if(!m || !m[2]) return "";
+  const alter = m[2] === "#" ? 1 : -1;
+  return "<root-alter>" + alter + "</root-alter>";
+}
+
+function chordKind(sym){
+  if(/m7b5|ø/.test(sym)) return "half-diminished";
+  if(/maj7|M7|Δ/.test(sym)) return "major-seventh";
+  if(/m7|min7/.test(sym)) return "minor-seventh";
+  if(/dim7|°7/.test(sym)) return "diminished-seventh";
+  if(/dim|°/.test(sym)) return "diminished";
+  if(/aug|\+/.test(sym)) return "augmented";
+  if(/sus4/.test(sym)) return "suspended-fourth";
+  if(/sus2/.test(sym)) return "suspended-second";
+  if(/^[A-G][#b]?m(?!aj)/.test(sym)) return "minor";
+  if(/7/.test(sym)) return "dominant";
+  return "major";
+}
+
+// ── OSMD 렌더링 (A4 자동) ──
+async function renderScoreOSMD(scoreData, transpose){
+  const container = document.getElementById("scoreContainer");
+  if(!container) return;
+  container.innerHTML = "";
+
+  // 1. ScoreData → MusicXML
+  const shareInfo = {
+    title: _share?.title || "",
+    artist: _share?.artist || "",
+    composer: _share?.composer || "",
+    lyricist: _share?.lyricist || "",
+    genre: _share?.category || "",
+    copyright_year: new Date().getFullYear(),
+    country: "KR",
+    isrc: _share?.isrc || "",
+    creator_name: _share?.username || "",
+  };
+
+  const musicXml = scoreDataToMusicXml(scoreData, transpose, shareInfo);
+  if(!musicXml){
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:#999">악보 변환 실패</div>';
+    return;
+  }
+
+  // 2. OSMD 초기화 (A4 자동)
+  try {
+    if(_osmdInstance && _osmdInstance.container === container){
+      // 재사용
+    } else {
+      _osmdInstance = new opensheetmusicdisplay.OpenSheetMusicDisplay(container, {
+        autoResize: true,
+        backend: "svg",
+        drawingParameters: "default",
+        pageFormat: "A4_P",
+        drawTitle: true,
+        drawComposer: true,
+        drawLyricist: true,
+        drawCredits: true,
+        drawingParameters: "compacttight",
+      });
+    }
+
+    await _osmdInstance.load(musicXml);
+    _osmdInstance.Zoom = 1.0;
+    _osmdInstance.render();
+  } catch(e){
+    console.error("[OSMD] 렌더 오류:", e);
+    container.innerHTML = '<div style="padding:40px;text-align:center;color:#e55">악보 렌더 실패: ' + e.message + '</div>';
+  }
+}
+
+// 기존 함수명 유지 (호환) — 내부만 OSMD로
+function renderScoreVexFlow(scoreData, transpose){
+  renderScoreOSMD(scoreData, transpose);
+}
+
+// 조옮김
+function transposeScore(semitones){
+  if(semitones === 0){
+    _scoreTranspose = 0;
+  } else {
+    _scoreTranspose += semitones;
+    if(_scoreTranspose > 12) _scoreTranspose = 12;
+    if(_scoreTranspose < -12) _scoreTranspose = -12;
+  }
+  const valEl = document.getElementById("transposeVal");
+  if(valEl){
+    valEl.textContent = _scoreTranspose > 0 ? "+" + _scoreTranspose : String(_scoreTranspose);
+  }
+  renderScoreOSMD(_scoreData, _scoreTranspose);
+}
+
+// 악보 사용 (1,000 TL)
+async function useScore(){
+  if(!getTok()){ alert("로그인이 필요합니다"); return; }
+  if(!_share){ alert("곡 정보를 불러오는 중입니다"); return; }
+
+  if(!confirm("악보를 사용하시겠습니까?\\n\\n• 1,000 TL 차감\\n• 창작자에게 기여\\n• 악보(TLD) 다운로드")) return;
+
+  const btn = document.getElementById("useScoreBtn");
+  if(btn){ btn.disabled = true; btn.textContent = "⏳ 처리 중..."; }
+
+  try {
+    const r = await fetch(API + "/api/v1/scores/" + SHARE_ID + "/use", {
+      method: "POST",
+      headers: {"Authorization": "Bearer " + getTok()}
+    });
+    const d = await r.json();
+
+    if(!r.ok && !d.ok){
+      if(d.error === "TL 부족"){
+        alert("⚠️ TL이 부족합니다\\n\\n필요: " + (d.required||1000) + " TL\\n보유: " + (d.balance||0) + " TL");
+        closeScoreModal();
+        chargeTL();
+        return;
+      }
+      throw new Error(d.error || "사용 실패");
+    }
+
+    if(d.already){
+      alert("✅ 이미 사용한 악보입니다\\n\\n다운로드를 시작합니다.");
+    } else {
+      alert("✅ 악보 사용 완료!\\n\\n차감: " + d.tl_paid + " TL\\n창작자 기여: " + (d.creator_share ? d.creator_share.tl_p : 0) + " TL");
+    }
+
+
+    // ★ 임시 클라이언트 PDF (정식 TLD는 서버 예정)
+    try {
+      const svgEl = document.querySelector("#scoreContainer svg");
+      if(!svgEl){
+        alert("악보를 찾을 수 없습니다");
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+        compress: true
+      });
+
+      // 헤더 (임시 표시)
+      pdf.setFontSize(8);
+      pdf.setTextColor(150);
+      pdf.text("TimeLink Score (Preview) — 정식 TLD는 준비 중", 10, 6);
+
+      // SVG → PDF (A4 자동 맞춤)
+      await pdf.svg(svgEl, {
+        x: 10,
+        y: 10,
+        width: 190,
+        height: 0
+      });
+
+      // 파일명 (preview 표시)
+      const safeTitle = (_share.title || "score").replace(/[^a-zA-Z0-9가-힣_-]/g, "_");
+      pdf.save(safeTitle + "_preview.pdf");
+    } catch(pdfErr){
+      console.error("[PDF] 생성 오류:", pdfErr);
+      alert("PDF 생성 오류: " + pdfErr.message);
+    }
+  } catch(e){
+    alert("오류: " + e.message);
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = "📥 악보 사용 (1,000 TL)"; }
+  }
+}
+
+// 창작자 POC 카드 로드
+async function loadCreatorPOC(userId){
+  const card = document.getElementById("pocCard");
+  if(!card) return;
+
+  // ★ 임시: 실제 POC API 준비 전까지 안전한 표시만
+  // TODO: /api/eco/poc/:userId API 준비 후 실제 값으로 교체
+  try {
+    card.style.display = "block";
+
+    // 임시 값 (실제 API 연동 시 교체)
+    const poc = 3.5;
+
+    const valEl = document.getElementById("pocValue");
+    if(valEl) valEl.textContent = poc.toFixed(1) + " / 5.0";
+
+    const fillEl = document.getElementById("pocFill");
+    if(fillEl) fillEl.style.width = (poc / 5.0 * 100) + "%";
+
+    const bdEl = document.getElementById("pocBreakdown");
+    if(bdEl){
+      bdEl.innerHTML = '<div>🎵 창작 <span>1.8</span></div>'
+        + '<div>💰 소비 <span>1.2</span></div>'
+        + '<div>🎧 청취 <span>0.4</span></div>'
+        + '<div>📤 공유 <span>0.1</span></div>'
+        + '<div>🎼 악보 <span>0.0</span></div>';
+    }
+
+    // Lucide 아이콘 재초기화
+    if(window.lucide && lucide.createIcons){ lucide.createIcons(); }
+  } catch(e){
+    console.warn("[POC] 로드 실패:", e.message);
+  }
+}
+
 
 function handlePlayClick(){
   if(!_share){ alert('곡 정보를 불러오는 중입니다'); return; }
+  
+  // ⭐ NODUP: 이미 재생 중이면 정지, 로딩 중이면 스킵
+  if(_tlPlaying){ stopPlay(); return; }
+  if(window._loadingPlay){
+    console.log('[PLAY] 이미 로딩 중, 스킵');
+    return;
+  }
+  window._loadingPlay = true;
+  setTimeout(function(){ window._loadingPlay = false; }, 3000);
+  
   const requiredTL = Number(_share.file_tl||0);
   
   // ⭐ 로딩 표시
@@ -452,12 +1070,22 @@ function handlePlayClick(){
     if(_covBtn) { _covBtn.disabled = true; _covBtn.textContent = '⏳'; }
   }
   function hideLoading(playing){
+    window._loadingPlay = false;
     if(_pBtn) _pBtn.textContent = playing ? '⏸' : '▶';
     if(_cBtn) { _cBtn.disabled = false; _cBtn.textContent = playing ? '⏸ 재생 중' : '▶ 재생'; }
     if(_covBtn) { _covBtn.disabled = false; _covBtn.textContent = playing ? '⏸' : '▶'; }
   }
   
-  if(isFreeMp3(_share)){ showLoading(); window._hidePlayLoading = hideLoading; playTrack(); return; }
+  // ⭐ V3_FIX: v3 곡(contentKind=tl3)은 파일에 lic 내장 → 구 TL 조건 스킵
+  var _ck = contentKind(_share);
+  if(_ck === 'tl3'){
+    console.log('[V3_FIX] v3 곡 → 즉시 재생');
+    showLoading(); window._hidePlayLoading = hideLoading; playTrack();
+    return;
+  }
+  
+  // 구 시스템 로직 (mp3, 기존 tl3)
+  if(isFreeMp3(_share)){ alert('이 곡은 업로드 전용입니다.\n재생은 TL3 파일만 가능합니다.'); return; }
   if(requiredTL <= 0){ alert('⚠️ 이 TL3 파일은 TL 설정이 없습니다.'); return; }
   if(_myFileTL >= requiredTL){ showLoading(); window._hidePlayLoading = hideLoading; playTrack(); }
   else {
@@ -605,15 +1233,18 @@ function openAdsPageFromTrack(){
 }
 
 async function toggleLike(){
-  const method = _myLiked?'DELETE':'POST';
-  const r = await fetch(API+'/api/social/like/'+SHARE_ID,{method,headers:{'Authorization':'Bearer '+getTok()}});
-  const d = await r.json();
-  if(d.ok!==false){
-    _myLiked=!_myLiked;
+  if(!getTok()){ alert('로그인이 필요합니다'); location.href='/login.html'; return; }
+  try{
+    const method = _myLiked?'DELETE':'POST';
+    const r = await fetch(API+'/api/social/like/'+SHARE_ID,{method,headers:{'Authorization':'Bearer '+getTok()}});
+    const d = await r.json();
+    if(!r.ok || d.ok!==true){ alert(d.error||'좋아요 처리에 실패했습니다'); return; }
+    _myLiked=!!d.liked;
+    const count=Number(d.likes||0);
     const btn=document.getElementById('likeBtn');
-    if(btn){btn.className='btn-icon'+(_myLiked?' liked':'');btn.innerHTML=(_myLiked?'♥ ':'♡ ')+'<span id="likeCount">'+(d.likes||0)+'</span>';}
-    const sl=document.getElementById('statLikes');if(sl)sl.textContent=d.likes||0;
-  }
+    if(btn){btn.className='btn-icon'+(_myLiked?' liked':'');btn.innerHTML=(_myLiked?'♥ ':'♡ ')+'<span id="likeCount">'+count+'</span>';}
+    const sl=document.getElementById('statLikes');if(sl)sl.textContent=count;
+  }catch(e){ alert('좋아요 처리 오류: '+e.message); }
 }
 
 async function checkFollowStatus(artistId){
@@ -626,14 +1257,16 @@ async function checkFollowStatus(artistId){
 }
 
 async function toggleFollow(artistId){
-  const method=_myFollowing?'DELETE':'POST';
-  const r=await fetch(API+'/api/social/follow/'+artistId,{method,headers:{'Authorization':'Bearer '+getTok()}});
-  const d=await r.json();
-  if(d.ok!==false){
-    _myFollowing=!_myFollowing;
+  if(!getTok()){ alert('로그인이 필요합니다'); location.href='/login.html'; return; }
+  try{
+    const method=_myFollowing?'DELETE':'POST';
+    const r=await fetch(API+'/api/social/follow/'+artistId,{method,headers:{'Authorization':'Bearer '+getTok()}});
+    const d=await r.json();
+    if(!r.ok || d.ok!==true){ alert(d.error||'팔로우 처리에 실패했습니다'); return; }
+    _myFollowing=!!d.following;
     const btn=document.getElementById('followBtn');
     if(btn){btn.className='btn-icon'+(_myFollowing?' following':'');btn.textContent=_myFollowing?'✓ 팔로잉':'+ 팔로우';}
-  }
+  }catch(e){ alert('팔로우 처리 오류: '+e.message); }
 }
 
 async function loadComments(){
@@ -668,8 +1301,13 @@ async function submitComment(){
 }
 
 async function reportComment(id){
-  await fetch(API+'/api/social/report/comment/'+id,{method:'POST',headers:{'Authorization':'Bearer '+getTok()}});
-  alert('신고 접수됐어요');
+  if(!getTok()){ alert('로그인이 필요합니다'); location.href='/login.html'; return; }
+  try{
+    const r=await fetch(API+'/api/social/report/comment/'+id,{method:'POST',headers:{'Authorization':'Bearer '+getTok()}});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok || d.ok!==true){ alert(d.error||'신고 기능을 준비 중입니다'); return; }
+    alert('신고 접수됐어요');
+  }catch(e){ alert('신고 처리 오류: '+e.message); }
 }
 
 async function openPlModal(){
@@ -739,6 +1377,7 @@ function playTrack(){
 
   if(_tlAudio){ _tlAudio.pause(); _tlAudio = null; }
   _tlAudio = new Audio();
+  window._tlAudio = _tlAudio;  // ← PLAY LOCK 호환
   _tlAudio.preload = 'auto';
   _tlAudio.onerror = function(){
     var src = _tlAudio && _tlAudio.src || '';
@@ -759,6 +1398,7 @@ function playTrack(){
     };
     _tlAudio.src = fileUrl;
     _tlAudio.load();
+
   } else if(window.TL3 && TL3.play) {
     // v3 TL3: 서버에서 세그먼트 순차 수신 + 재생 + confirm
     _tlAudio.load && _tlAudio.load();
@@ -768,11 +1408,35 @@ function playTrack(){
       shareId: SHARE_ID,
       kind: 'mp3'
     }).then(function(sess){
+=======
+  } else if(window.TL3 && TL3.resolveUrl){
+    console.log('[PLAY] resolveUrl 시작:', SHARE_ID);
+    TL3.resolveUrl(SHARE_ID, {
+      fetchOptions: { headers: getTok() ? {'Authorization':'Bearer '+getTok()} : {} },
+      fallbackDirect: false
+    }).then(function(u){
+      console.log('[PLAY] resolveUrl 성공:', String(u).slice(0,60));
+      _tlAudio.src = u;
+      // load() 제거 (AbortError 원인)
+      function tryPlay(){
+        return _tlAudio.play().catch(function(e){
+          if(e && e.name === 'AbortError'){
+            console.log('[PLAY] AbortError → 200ms 후 재시도');
+            return new Promise(function(r){ setTimeout(r, 200); }).then(function(){ return _tlAudio.play(); });
+          }
+          throw e;
+        });
+      }
+      return tryPlay();
+    }).then(function(){
+      console.log('[PLAY] 재생 시작됨!');
+
       _tlPlaying = true;
       startTLTimer();
       if(window._hidePlayLoading) window._hidePlayLoading(true);
       return sess;
     }).catch(function(e){
+      console.error('[PLAY] 재생 실패:', e);
       if(window._hidePlayLoading) window._hidePlayLoading(false);
       alert('TL3 재생 실패: ' + (e && e.message ? e.message : e));
       stopPlay();
@@ -828,48 +1492,400 @@ function togglePlay(){
 }
 
 function stopPlay(){
+  console.log('[PLAY] stopPlay 호출됨!');
   if(_tlAudio){ _tlAudio.pause(); _tlAudio = null; }
+  window._tlAudio = null;
   if(_tlInterval){ clearInterval(_tlInterval); _tlInterval = null; }
   _tlPlaying = false;
   document.getElementById('tlPlayerBar').style.display = 'none';
 }
 
 async function downloadTL(){
-  const btn=document.getElementById('dlBtn');
-  if(btn){btn.textContent='⏳...';btn.disabled=true;}
+  // ⭐ 네이티브 다운로드 (fetch/blob 우회)
   try{
-    const localUrl=String(_share?.stream_url||'');
-    let r;
-    if(/127\.0\.0\.1|localhost|trycloudflare\.com|agent\.timelink\.digital/i.test(localUrl)){
-      // 창작자 PC or Cloudflare Tunnel → 직접 fetch
-      r = await fetch(localUrl,{headers:{'Authorization':'Bearer '+getTok()}});
-    } else {
-      // D1 스토리지 → 서버 API
-      r = await fetch(API+'/api/download/'+SHARE_ID,{headers:{'Authorization':'Bearer '+getTok()}});
-    }
-    if(!r.ok){
-      const d=await r.json().catch(()=>({}));
-      throw new Error(d.error||('다운로드 실패 [HTTP '+r.status+']'));
-    }
-    const blob=await r.blob();
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(_share?.title||'track')+'.tl3';a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),3000);
-  }catch(e){alert('오류: '+e.message);}
-  finally{if(btn){btn.textContent='⬇ .tl3 다운로드';btn.disabled=false;}}
+    var url = API + '/api/v1/tl3/file/' + SHARE_ID;
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = ((_share && _share.title) || 'track') + '.tl3';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){
+      try { document.body.removeChild(a); } catch(e){}
+    }, 200);
+  }catch(e){ alert('다운로드 오류: ' + e.message); }
 }
 
-function renderCopyright(s){
+// CERT_UI_TRACK_V1: 증명서 상태 UI (인증/미인증)
+async function renderCopyright(s){
   const items=[{label:'곡명',value:s.title},{label:'아티스트',value:s.artist},{label:'앨범',value:s.album},{label:'장르',value:s.category},{label:'작곡',value:s.composer},{label:'작사',value:s.lyricist}].filter(i=>i.value);
-  if(!items.length && !s.lyrics) return;
   const section=document.getElementById('copyrightSection');
   const grid=document.getElementById('copyrightGrid');
-  if(section) section.style.display='block';
   if(grid) grid.innerHTML=items.map(i=>'<div class="copyright-item"><div class="copyright-label">'+i.label+'</div><div class="copyright-value">'+escH(i.value)+'</div></div>').join('');
   if(s.lyrics){ const lw=document.getElementById('lyricsWrap'); const lb=document.getElementById('lyricsBox'); if(lw) lw.style.display='block'; if(lb) lb.textContent=s.lyrics; }
+  if(section) section.style.display='block';
+
+  // ★ 증명서 상태 조회
+  try {
+    // SHARE_ID_FIX_V1: file-meta API가 share_id도 지원 (서버 확장됨)
+    var fileId = s.file_id || s.id;
+    if(!fileId){
+      console.warn('[CERT_UI] file_id/share_id 없음');
+      return;
+    }
+
+    var metaRes = await fetch(API + '/api/v1/tl3/file-meta/' + fileId, {
+      headers: {'Authorization': 'Bearer ' + getTok()}
+    });
+    var meta = await metaRes.json();
+    if(!meta || !meta.ok) return;
+
+    // 증명서 상태 UI를 copyrightSection 뒤에 삽입
+    var certDiv = document.getElementById('certStatusDiv');
+    if(!certDiv){
+      certDiv = document.createElement('div');
+      certDiv.id = 'certStatusDiv';
+      section.parentNode.insertBefore(certDiv, section.nextSibling);
+    }
+
+    if(meta.certified){
+      // 🏅 인증됨 → 멋진 증명서 카드
+      certDiv.innerHTML = buildCertCard(meta);
+    } else {
+      // ⚠️ 미인증 → 공지 + 신청 유도
+      certDiv.innerHTML = buildUncertifiedNotice(meta, s);
+    }
+  } catch(e){
+    console.warn('[CERT_UI] 조회 실패:', e.message);
+  }
+}
+
+// 🏅 인증된 증명서 카드
+function buildCertCard(meta){
+  var issueDate = meta.cert_issued_at ? new Date(meta.cert_issued_at).toLocaleDateString('ko-KR') : '—';
+  var hashShort = meta.cert_hash ? meta.cert_hash.slice(0, 16) + '...' : '—';
+  return '<div style="margin:24px 0;padding:24px;background:linear-gradient(135deg,rgba(255,215,0,.08),rgba(255,159,10,.04));border:2px solid rgba(255,215,0,.35);border-radius:20px;position:relative;overflow:hidden">'
+    + '<div style="position:absolute;top:-50px;right:-50px;width:200px;height:200px;background:radial-gradient(circle,rgba(255,215,0,.15),transparent);border-radius:50%"></div>'
+    + '<div style="position:relative;z-index:1">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">'
+    + '<div style="font-size:32px">🏅</div>'
+    + '<div>'
+    + '<div style="font-size:11px;font-weight:700;color:#FFD700;letter-spacing:1.5px">TIMELINK DIGITAL ASSET</div>'
+    + '<div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:2px">창작권 증명서</div>'
+    + '</div>'
+    + '<div style="margin-left:auto;padding:6px 14px;background:rgba(48,209,88,.15);border:1px solid rgba(48,209,88,.4);border-radius:20px;font-size:11px;font-weight:700;color:#30D158">✓ VERIFIED</div>'
+    + '</div>'
+
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px;background:rgba(0,0,0,.25);border-radius:12px;margin-bottom:14px">'
+    + '<div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">증명서 번호</div><div style="font-size:13px;font-weight:700;color:#FFD700;font-family:monospace">' + escH(meta.cert_no || '') + '</div></div>'
+    + '<div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">자산 ID</div><div style="font-size:13px;font-weight:700;font-family:monospace">' + escH(meta.asset_id || '') + '</div></div>'
+    + '<div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">발행일</div><div style="font-size:13px">' + issueDate + '</div></div>'
+    + '<div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">장르</div><div style="font-size:13px">' + escH(meta.asset_genre || '—') + '</div></div>'
+    + (meta.asset_composer ? '<div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">작곡</div><div style="font-size:13px">' + escH(meta.asset_composer) + '</div></div>' : '')
+    + (meta.asset_lyricist ? '<div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">작사</div><div style="font-size:13px">' + escH(meta.asset_lyricist) + '</div></div>' : '')
+    + '</div>'
+
+    + '<div style="padding:10px 12px;background:rgba(0,0,0,.2);border-radius:8px;font-size:10px;color:rgba(255,255,255,.5);font-family:monospace;margin-bottom:14px">'
+    + '🔐 ' + hashShort
+    + '</div>'
+
+    + '<div style="display:flex;gap:8px">'
+    + '<button onclick="downloadCert(\'' + meta.cert_no + '\')" style="flex:1;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:700;font-size:13px;cursor:pointer">📥 다운로드 (1,000 TL)</button>'
+    + '<button onclick="shareCert(\'' + meta.cert_no + '\')" style="padding:12px 16px;border-radius:10px;border:1px solid rgba(255,215,0,.4);background:transparent;color:#FFD700;font-weight:700;cursor:pointer">🔗</button>'
+    + '</div>'
+    + '</div>'
+    + '</div>';
+}
+
+// ⚠️ 미인증 공지
+function buildUncertifiedNotice(meta, s){
+  var canCertify = meta.can_certify;
+  var isOwner = meta.is_owner;
+  return '<div style="margin:24px 0;padding:24px;background:linear-gradient(135deg,rgba(255,69,58,.06),rgba(255,159,10,.03));border:2px solid rgba(255,159,10,.35);border-radius:20px">'
+    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">'
+    + '<div style="font-size:36px">⚠️</div>'
+    + '<div>'
+    + '<div style="font-size:15px;font-weight:700;color:#FF9F0A">창작권 증명서가 없습니다</div>'
+    + '<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:3px">이 곡은 디지털 자산으로 등록되지 않았습니다</div>'
+    + '</div>'
+    + '</div>'
+
+    + '<div style="padding:16px;background:rgba(0,0,0,.25);border-radius:12px;margin-bottom:16px">'
+    + '<div style="font-size:12px;font-weight:700;color:#FF9F0A;margin-bottom:10px">📋 증명서를 발행해야 다음이 가능합니다:</div>'
+    + '<div style="display:grid;gap:8px;font-size:12px;color:rgba(255,255,255,.8)">'
+    + '<div>✅ 정상적인 TL 수익 분배</div>'
+    + '<div>✅ TLC 채굴 (POC 기여 반영)</div>'
+    + '<div>✅ Shareplace 🏅 인증 마크</div>'
+    + '<div>✅ 자산 담보 대출 (예정)</div>'
+    + '</div>'
+    + '</div>'
+
+    + (canCertify
+        ? '<button onclick="goCertify()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:700;font-size:14px;cursor:pointer">🏅 증명서 신청하기 (5,000 TL)</button>'
+        : (isOwner
+            ? '<div style="padding:12px;background:rgba(255,215,0,.1);border-radius:10px;font-size:12px;color:rgba(255,255,255,.7);text-align:center">이미 자산이 등록되어 있습니다</div>'
+            : '<div style="padding:12px;background:rgba(255,255,255,.03);border-radius:10px;font-size:12px;color:rgba(255,255,255,.5);text-align:center">창작자만 증명서를 신청할 수 있습니다</div>'
+          )
+      )
+    + '</div>';
+}
+
+// 증명서 신청 모달 열기
+// CERT_MODAL_V1: track 안에서 직접 신청
+async function goCertify(){
+  if(!getTok()){ alert('로그인이 필요합니다'); location.href = '/login.html'; return; }
+  if(!_share){ alert('곡 정보를 불러오는 중입니다'); return; }
+
+  // 잔액 조회
+  try {
+    var wr = await fetch(API + '/api/eco/wallet', {headers:{'Authorization':'Bearer '+getTok()}});
+    var wd = await wr.json();
+    var bal = Number((wd.wallet||{}).tl_total || 0);
+    document.getElementById('cmBalance').textContent = bal.toLocaleString() + ' TL';
+    var after = bal - 5000;
+    document.getElementById('cmAfterBalance').textContent = after.toLocaleString() + ' TL';
+    document.getElementById('cmAfterBalance').style.color = after >= 0 ? '#FFD700' : '#FF453A';
+  } catch(e){}
+
+  // 곡 정보 자동 채움 (이미 있으면 유지)
+  if(!document.getElementById('cmComposer').value) {
+    document.getElementById('cmComposer').value = _share.artist || '';
+  }
+  if(!document.getElementById('cmLyricist').value) {
+    document.getElementById('cmLyricist').value = _share.artist || '';
+  }
+
+  document.getElementById('cmError').style.display = 'none';
+  document.getElementById('certModal').classList.add('open');
+}
+
+function closeCertModal(){
+  document.getElementById('certModal').classList.remove('open');
+}
+
+async function submitCertify(){
+  if(!_share){ alert('곡 정보 없음'); return; }
+  var btn = document.getElementById('cmSubmitBtn');
+  var errEl = document.getElementById('cmError');
+  errEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = '⏳ 처리 중...';
+
+  try {
+    // 1) 자산 등록
+    var fileId = _share.file_id || _share.id;
+    var assetBody = {
+      file_id: null,  // share_id 기반이면 서버가 해석 필요
+      share_id: _share.id,
+      title: _share.title,
+      artist: _share.artist,
+      album: _share.album || '',
+      genre: document.getElementById('cmGenre').value || '',
+      composer: document.getElementById('cmComposer').value.trim() || _share.artist || '',
+      lyricist: document.getElementById('cmLyricist').value.trim() || _share.artist || '',
+      producer: document.getElementById('cmProducer').value.trim() || '',
+      lyrics: document.getElementById('cmLyrics').value.trim() || '',
+      duration_sec: Number(_share.duration || 0)
+    };
+
+    var ar = await fetch(API + '/api/v1/assets', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'Authorization':'Bearer '+getTok()},
+      body: JSON.stringify(assetBody)
+    });
+    var ad = await ar.json();
+    if(!ad.ok){
+      errEl.textContent = '자산 등록 실패: ' + (ad.error||'');
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = '🏅 발행 (5,000 TL)';
+      return;
+    }
+    var assetId = ad.asset_id;
+
+    // 2) 증명서 발행 (5,000 TL)
+    var cr = await fetch(API + '/api/v1/assets/' + assetId + '/certify', {
+      method: 'POST',
+      headers: {'Authorization':'Bearer '+getTok()}
+    });
+    var cd = await cr.json();
+    if(!cd.ok){
+      var msg = cd.error || '증명서 발행 실패';
+      if(cd.code === 'TL_INSUFFICIENT') msg = 'TL 부족 (필요: ' + cd.required + ' TL, 보유: ' + cd.balance + ' TL)';
+      errEl.textContent = msg;
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = '🏅 발행 (5,000 TL)';
+      return;
+    }
+
+    // 3) 성공
+    alert('✅ 창작권 증명서 발행 완료!\n\n증명서: ' + cd.cert_no + '\n수수료: ' + (cd.fee_paid||5000) + ' TL');
+    closeCertModal();
+    setTimeout(function(){ location.reload(); }, 500);
+  } catch(e){
+    errEl.textContent = '오류: ' + e.message;
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = '🏅 발행 (5,000 TL)';
+  }
+}
+
+// 증명서 다운로드 (TL3 파일로)
+// CERT_TL3_DL_V1: 1,000 TL → 카드 이미지 생성 → TL3 래핑 → .tl3 파일 다운로드
+async function downloadCert(certNo){
+  if(!getTok()){ alert('로그인이 필요합니다'); return; }
+  if(!confirm('증명서를 다운로드하시겠습니까?\n\n수수료: 1,000 TL\n365일 유효 (.tl3 파일)')) return;
+
+  try {
+    // 1) 1,000 TL 결제 + 다운로드 토큰 발급
+    var r = await fetch(API + '/api/v1/certs/' + certNo + '/download', {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer ' + getTok()}
+    });
+    var d = await r.json();
+    if(!d.ok){
+      if(d.code === 'TL_INSUFFICIENT'){
+        alert('TL 부족\n필요: ' + d.required + ' TL\n보유: ' + d.balance + ' TL');
+      } else {
+        alert('결제 실패: ' + (d.error||'알 수 없음'));
+      }
+      return;
+    }
+    if(!d.already){ console.log('[CERT] 결제 완료:', d.fee_paid, 'TL'); }
+
+    // 2) 증명서 카드를 canvas → PNG
+    var cardEl = document.querySelector('#certStatusDiv > div');
+    if(!cardEl){ alert('증명서 카드를 찾을 수 없습니다'); return; }
+
+    // html2canvas 로드 확인
+    if(typeof html2canvas === 'undefined'){
+      alert('이미지 생성 라이브러리 로드 실패. 새로고침 후 다시 시도해주세요.');
+      return;
+    }
+
+    var canvas;
+    try {
+      canvas = await html2canvas(cardEl, {
+        scale: 2,
+        backgroundColor: '#0a0a0f',
+        useCORS: true,
+        logging: false
+      });
+    } catch(e){
+      alert('이미지 생성 실패: ' + e.message);
+      return;
+    }
+
+    var dataUrl = canvas.toDataURL('image/png');
+    var imageB64 = dataUrl.split(',')[1];
+    if(!imageB64){ alert('이미지 인코딩 실패'); return; }
+
+    console.log('[CERT] 이미지 생성됨:', Math.round(imageB64.length/1024), 'KB');
+
+    // 3) 서버에서 TL3 래핑
+    var resp = await fetch(API + '/api/v1/certs/' + certNo + '/file.tlj'  /* TLJ_EXT_V1 */, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        token: d.download_token,
+        image_b64: imageB64
+      })
+    });
+
+    if(!resp.ok){
+      var errTxt = '';
+      try { var ej = await resp.json(); errTxt = ej.error || ''; } catch(_){}
+      alert('TL3 생성 실패: ' + errTxt);
+      return;
+    }
+
+    // 4) .tl3 파일 저장
+    var blob = await resp.blob();
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = certNo + '.tlj';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+
+    console.log('[CERT] 다운로드 완료:', certNo + '.tlj', blob.size, 'bytes');
+    alert('✅ 다운로드 완료\n\n파일: ' + certNo + '.tlj\n크기: ' + Math.round(blob.size/1024) + ' KB\n\nTL3 플레이어로 열면 증명서가 표시됩니다.');
+  } catch(e){
+    console.error('[CERT] 다운로드 오류:', e);
+    alert('오류: ' + e.message);
+  }
+}
+
+// 증명서 공유
+function shareCert(certNo){
+  var url = 'https://timelink.digital/cert/' + certNo;
+  if(navigator.share){ navigator.share({title:'창작권 증명서', url:url}).catch(function(){}); }
+  else { navigator.clipboard.writeText(url); alert('링크 복사됨:\n' + url); }
 }
 
 loadTrack();
 </script>
-<script src="/notice-popup.js"></script>
+<script src="/notice-popup.js">
+// ═══════════════════════════════════════════
+// TL3 파일 열기 (오프라인 재생)
+// OPEN_TL3_INJECTED
+// ═══════════════════════════════════════════
+function openTl3File(){
+  if(!window.TL3 || !TL3.playFile){ alert('TL3 모듈이 없습니다'); return; }
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.tl3,application/octet-stream';
+  input.onchange = async function(e){
+    var file = e.target.files && e.target.files[0];
+    if(!file) return;
+    // _tlAudio 없으면 새로 생성 (오프라인 전용 진입)
+    if(!_tlAudio){
+      _tlAudio = new Audio();
+      _tlAudio.onended = function(){ if(typeof stopPlay==='function') stopPlay(); };
+      _tlAudio.ontimeupdate = function(){
+        if(!_tlAudio) return;
+        var dur = _tlAudio.duration || 0;
+        var cur = _tlAudio.currentTime || 0;
+        var tEl = document.getElementById('playerTime');
+        var dEl = document.getElementById('playerDur');
+        if(tEl) tEl.textContent = (typeof fmtTime==='function') ? fmtTime(Math.floor(cur)) : Math.floor(cur)+'s';
+        if(dEl && dur) dEl.textContent = (typeof fmtTime==='function') ? fmtTime(Math.floor(dur)) : Math.floor(dur)+'s';
+      };
+      var bar = document.getElementById('tlPlayerBar');
+      if(bar) bar.style.display = 'block';
+      // 제목/아티스트는 파일명으로
+      var titleEl = document.getElementById('playerTitle');
+      var artistEl = document.getElementById('playerArtist');
+      var fname = (file.name || 'offline.tl3').replace(/\.tl3$/i, '');
+      if(titleEl) titleEl.textContent = fname;
+      if(artistEl) artistEl.textContent = '오프라인 재생';
+    }
+    try {
+      console.log('[V3PLAY] before TL3.playFile'); var res = await TL3.playFile(file, _tlAudio, {
+        onSegment: function(info){ console.log('[TL3.playFile] seg', info); },
+        onError:   function(err){ console.error('[TL3.playFile] err', err); }
+      });
+      _tlAudio.src = res.msUrl;
+      _tlAudio.load();
+      console.log('[V3PLAY] before _tlAudio.play'); await _tlAudio.play();
+      _tlPlaying = true;
+      if(typeof startTLTimer === 'function') startTLTimer();
+      if(window._hidePlayLoading) window._hidePlayLoading(true);
+    } catch(err){
+      alert('오프라인 재생 실패: ' + (err && err.message ? err.message : err));
+    }
+  };
+  input.click();
+}
+
+// 이벤트 바인딩 (동적 렌더 후)
+document.addEventListener('click', function(e){
+  if(e.target && e.target.id === 'openTl3Btn'){
+    e.preventDefault();
+    openTl3File();
+  }
+}, true);
+
+</script>
 </body>
 </html>

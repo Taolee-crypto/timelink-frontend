@@ -277,6 +277,9 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <link rel="stylesheet" href="/apple-theme.css">
+<link rel="stylesheet" href="/dropdown-fix.css"><!-- SELECT_FIX_V1 -->
+
+<link rel="stylesheet" href="/apple-theme.css?v=global-20261014" data-tl-global-theme="2026.10">
 </head>
 <body>
 
@@ -375,14 +378,16 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 
 <footer id="tl-dynamic-footer" style="border-top:1px solid rgba(255,255,255,.07);padding:40px 24px 32px;margin-top:auto;background:rgba(3,5,8,.8)"></footer>
 
-<script src="/tl3.js"></script>
+<script src="/offline-store.js"></script>
+  <script src="/offline-fetcher.js"></script>
+  <script src="/tl3.js"></script>
 <script src="/tl3-config.js"></script>
 <script>
 // ==================== CONFIG ====================
 var API_BASE = 'https://api.timelink.digital';
 var _user = null, _token = null;
 var _allShares = [], _filter = 'all', _tab = 'tl', _search = '', _view = 'grid', _genre = 'all';
-var _curPage = 1, _perPage = 40, _kind = 'all';
+var _curPage = 1, _perPage = 50, _kind = 'all';
 var _myFileTL = {};
 
 // ==================== AUTH ====================
@@ -560,7 +565,7 @@ function renderGridView(list,g){
     var kind=contentKind(s), isMp3=kind==='mp3', isTl3=kind==='tl3';
     var myTL=_myFileTL[String(s.id)]||0;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
-    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':isMp3||myTL>0?'playable':'need-charge');
+    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':isMp3?'disabled':myTL>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     var dur=s.duration?(Math.floor(s.duration/60)+':'+String(s.duration%60).padStart(2,'0')):'--:--';
     return '<div class="file-card" id="card-'+s.id+'" onclick="location.href=\'track.html?id='+s.id+'\'" style="cursor:pointer">'+
@@ -580,6 +585,20 @@ function renderGridView(list,g){
     '</div>';
   }).join('');
 }
+// CERT_MARK_UI_V1: 증명서 뷰어 이동
+function viewCert(ev, el){
+  if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+  var cert = el && el.getAttribute ? el.getAttribute('data-cert') : '';
+  if(!cert){
+    // 백업: 상위에서 data-cert 찾기
+    var p = el;
+    while(p && !cert){ cert = p.getAttribute && p.getAttribute('data-cert'); p = p.parentElement; }
+  }
+  if(!cert){ alert('증명서 정보를 찾을 수 없습니다'); return; }
+  // track.html?cert=xxx 로 이동
+  window.location.href = 'track.html?cert=' + encodeURIComponent(cert);
+}
+
 function renderListView(list,g){
   g.className='file-list-view';
   g.innerHTML=list.slice(0,30).map(function(s){
@@ -589,13 +608,14 @@ function renderListView(list,g){
     var kind=contentKind(s), isMp3=kind==='mp3', isTl3=kind==='tl3';
     var myTL=_myFileTL[String(s.id)]||0;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
-    var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':isMp3||myTL>0?'playable':'need-charge');
+    var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':isMp3?'disabled':myTL>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     return '<div class="fl-item" id="card-'+s.id+'" onclick="location.href=\'track.html?id='+s.id+'\'" style="cursor:pointer">'+
       '<button class="'+btnClass+'" data-sid="'+s.id+'" onclick="tlPlayCard(this);event.stopPropagation()" style="flex-shrink:0">'+
       (s.cover_url?'<img src="'+escH(s.cover_url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.remove()">':'')+
       '<span style="position:relative;z-index:1">'+btnIcon+'</span></button>'+
-      '<div class="fl-info"><div class="fl-title">'+escH(s.title||'Untitled')+'</div>'+
+      '<div class="fl-info"><div class="fl-title">'+escH(s.title||'Untitled')+
+      (s.cert_no?' <span onclick="viewCert(event,this)" data-cert="'+escH(s.cert_no)+'" style="display:inline-block;margin-left:6px;padding:2px 8px;background:linear-gradient(135deg,rgba(255,215,0,.2),rgba(255,159,10,.15));border:1px solid rgba(255,215,0,.4);border-radius:12px;font-size:10px;color:#FFD700;font-weight:700;cursor:pointer;vertical-align:middle" title="창작권 증명서: '+escH(s.cert_no)+'">🏅 CERT</span>':'')+'</div>'+
       '<div class="fl-meta"><span>'+escH(s.artist||s.username||'Unknown')+'</span>'+
       '<span>'+new Date(s.created_at||0).toLocaleDateString('ko-KR')+'</span></div></div>'+
       '<div class="fl-type-badge '+tc+'">'+(isMp3?'무료 MP3':isTl3?'TL3':typeLabel(ftype))+'</div>'+
@@ -637,15 +657,18 @@ function tlPlayCard(el){
   }
   var fileUrl=getStreamUrl(s);
   if(!fileUrl){ alert('⚠️ "'+s.title+'"\n\n파일이 없습니다.'); return; }
-  var isFree=isFreeMp3(s);
+  // ⭐ MP3는 업로드 전용 (재생 불가)
+  if(isFreeMp3(s)){ alert('이 곡은 업로드 전용입니다.\n재생은 TL3 파일만 가능합니다.'); return; }
   var myTL=_myFileTL[String(s.id)]||0;
   var tlForPlay=myTL>0?myTL:(s.file_tl||0);
-  if(!isFree && tlForPlay<=0){ if(confirm('"'+s.title+'"\n\nTL이 필요합니다.\n지금 충전하시겠습니까?')) chargeTL(String(s.id),s.title); return; }
+  if(tlForPlay<=0){ if(confirm('"'+s.title+'"\n\nTL이 필요합니다.\n지금 충전하시겠습니까?')) chargeTL(String(s.id),s.title); return; }
   tlPlay(s.id,s.title,s.artist||'',s.cover_url||'',fileUrl,tlForPlay,s.duration||0,s);
 }
 function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
+  // ⭐ MP3 방어 (이중 안전장치)
+  if(isFreeMp3(shareObj)){ alert('이 곡은 업로드 전용입니다.'); return; }
   tlStop(true);
-  var isFree=isFreeMp3(shareObj);
+  var isFree=false;
   _tlShareId=shareId; _tlMaxTL=isFree?0:fileTL; _tlCurrentTL=isFree?0:fileTL; _tlElapsed=0; _tlDuration=duration||0;
   document.getElementById('tlTitle').textContent=title;
   document.getElementById('tlArtist').textContent=artist||'';
@@ -735,7 +758,7 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
   };
   if(window.TL3&&TL3.resolveUrl){
     var _expectedShareId = shareId;  // ⭐ 현재 요청한 shareId 기억
-    TL3.resolveUrl(fileUrl,{fetchOptions:{headers:authHeaders},fallbackDirect:false})
+    TL3.resolveUrl(shareId,{fetchOptions:{headers:authHeaders},fallbackDirect:false})
       .then(function(u){
         // ⭐ 이미 다른 곡으로 바뀌었으면 무시
         if(_tlShareId !== _expectedShareId){ console.log('[skip] 다른 곡으로 전환됨'); return; }

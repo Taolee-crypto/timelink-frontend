@@ -155,6 +155,9 @@ body::before{content:'';position:fixed;inset:0;
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <link rel="stylesheet" href="/apple-theme.css">
+<link rel="stylesheet" href="/dropdown-fix.css"><!-- SELECT_FIX_V1 -->
+
+<link rel="stylesheet" href="/apple-theme.css?v=global-20261014" data-tl-global-theme="2026.10">
 </head>
 <body>
 <div id="toast-box"></div>
@@ -202,7 +205,9 @@ body::before{content:'';position:fixed;inset:0;
 
 <audio id="liveAudio" crossorigin="anonymous"></audio>
 
-<script src="/tl3.js"></script>
+<script src="/offline-store.js"></script>
+  <script src="/offline-fetcher.js"></script>
+  <script src="/tl3.js"></script>
 <script>
 var API = 'https://api.timelink.digital';
 var _user = null, _token = null;
@@ -440,7 +445,8 @@ async function playDjTrack(djId, skipIfSame, role){
     if(skipIfSame && _playingTrackId === track.id) return;
 
     _playingTrackId = track.id;
-    playAudio(track.stream_url, false, track.elapsed_ms);
+    var _src = String(track.content_kind||'').toLowerCase()==='tl3' ? track.id : track.stream_url;
+    playAudio(_src, false, track.elapsed_ms);
 
     // UI 업데이트
     g('pbTitle').textContent = track.title || 'Unknown';
@@ -472,7 +478,8 @@ function playAudio(url, isPreview, startMs){
   var authHeaders = _token ? {'Authorization':'Bearer '+_token} : {};
   if(/trycloudflare\.com|127\.0\.0\.1|localhost|agent\.timelink\.digital/i.test(url)) authHeaders = {};
 
-  if(window.TL3 && TL3.resolveUrl){
+  var _isTl3Id = /^(sh_|tl3_)/.test(String(url||''));
+  if(window.TL3 && TL3.resolveUrl && _isTl3Id){
     TL3.resolveUrl(url, {fetchOptions:{headers:authHeaders}, fallbackDirect:false})
       .then(_attach)
       .then(function(){
