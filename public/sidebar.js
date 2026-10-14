@@ -21,7 +21,7 @@
     html+='<div class="tl-global-section">'+esc(section[0])+'</div>';
     section[1].forEach(function(item){html+='<a class="tl-global-link'+(isActive(item[0])?' is-active':'')+'" href="'+esc(item[0])+'"'+(isActive(item[0])?' aria-current="page"':'')+'><span class="tl-global-icon">'+esc(item[1])+'</span><span>'+esc(item[2])+'</span></a>';});
   });
-  html+='</nav><div class="tl-global-balance"><small>MY TL BALANCE</small><strong id="tlGlobalBalance">— TL</strong><a href="/wallet.html#charge">＋ Charge TL</a></div></aside>';
+  html+='</nav><div class="tl-global-balance"><small>MY TL BALANCE</small><strong id="tlGlobalBalance">— TL</strong><a href="/shareplace.html#charge">＋ Charge TL</a></div></aside>';
   // Dashboard has its own essential in-page tabs (Home, Wallet, Mining, Library, Missions).
   // Keep that navigation intact instead of adding a second global sidebar.
   if (document.querySelector('.body > .sidebar')) return;
