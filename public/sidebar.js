@@ -1,76 +1,87 @@
-/* TimeLink 공통 사이드바 */
+/* TimeLink Global Navigation — unified information architecture */
 (function(){
   'use strict';
-  
-  var _MENU = [
-    {group:'방송', items:[
-      {href:'/radio', icon:'📻', label:'TL방송국'}
+  if(window.__TL_GLOBAL_NAV__) return;
+  window.__TL_GLOBAL_NAV__ = true;
+
+  var groups = [
+    {group:'HOME',items:[
+      {href:'/index.html',icon:'⌂',label:'Home'}
     ]},
-    {group:'내 방송', items:[
-      {href:'/dj-center', icon:'🎧', label:'DJ 센터'},
-      {href:'/cafe-channel', icon:'+', label:'채널 개설'},
-      {href:'/cafe-owner', icon:'☕', label:'마이카페'},
-      {href:'/creator', icon:'🎨', label:'크리에이터 센터'}
+    {group:'DIGITAL ASSETS',items:[
+      {href:'/shareplace.html',icon:'◈',label:'SharePlace'},
+      {href:'/dashboard.html?tab=content',icon:'▤',label:'My Library'},
+      {href:'/tl3-player.html',icon:'♫',label:'TL3 Player'},
+      {href:'/tlj-viewer.html',icon:'▧',label:'TLJ Viewer'},
+      {href:'/track.html',icon:'♪',label:'Track'}
+    ],note:'TL3  ·  TL4  ·  TLD  ·  TLJ'},
+    {group:'CREATOR',items:[
+      {href:'/creator.html',icon:'✧',label:'Creator Profile'},
+      {href:'/creator-studio.html',icon:'＋',label:'Creator Studio'}
     ]},
-    {group:'플랫폼', items:[
-      {href:'/dashboard', icon:'📊', label:'대시보드'},
-      {href:'/shareplace', icon:'📁', label:'SharePlace'},
-      {href:'/chart', icon:'🏆', label:'TL CHART'},
-      {href:'/wallet', icon:'💰', label:'지갑 & 채굴'}
+    {group:'BROADCAST',items:[
+      {href:'/radio.html',icon:'◉',label:'TL Broadcast'},
+      {href:'/dj-center.html',icon:'♫',label:'DJ Center'},
+      {href:'/cafe-radio.html',icon:'▣',label:'Cafe Broadcast'},
+      {href:'/cafe-owner.html',icon:'⌂',label:'Cafe Management'},
+      {href:'/incar.html',icon:'◇',label:'In-car'}
     ]},
-    {group:'기타', items:[
-      {href:'/ads', icon:'📺', label:'광고 시청'},
-      {href:'/advertiser', icon:'📢', label:'광고주 센터'},
-      {href:'/download', icon:'⬇', label:'앱 다운로드'}
+    {group:'ADVERTISING',items:[
+      {href:'/advertiser.html',icon:'▱',label:'Advertiser Center'},
+      {href:'/ads.html',icon:'▣',label:'Campaign & Ads'}
+    ]},
+    {group:'TL ECONOMICS',items:[
+      {href:'/wallet.html',icon:'◉',label:'TL Wallet'},
+      {href:'/chart.html',icon:'⌁',label:'POC & TLC'}
+    ]},
+    {group:'MY',items:[
+      {href:'/dashboard.html',icon:'◎',label:'My Dashboard'}
     ]}
   ];
-  
-  var path = location.pathname.replace(/\.html$/, '').replace(/\/+$/,'') || '/';
-  if(path === '') path = '/';
-  
-  function isActive(href){
-    if(href === path) return true;
-    if(href === '/radio' && path === '/radio') return true;
-    return false;
+  var admin = {href:'/admin.html',icon:'⚙',label:'Admin Console'};
+  var path = (location.pathname || '/').replace(/\\.html$/i,'').replace(/\\/+$/,'') || '/';
+  function active(href){
+    var target=href.replace(/\\.html$/i,'').replace(/\\/+$/,'') || '/';
+    return path===target || (target==='/dashboard' && path==='/');
   }
-  
-  var html = '<aside class="sidebar tl-sidebar">';
-  html += '<a href="/radio" class="sb-logo"><div class="sb-logo-icon">📻</div><span class="sb-logo-text">TL방송국</span></a>';
-  html += '<nav class="sb-nav">';
-  _MENU.forEach(function(g){
-    html += '<div class="sb-section">' + g.group + '</div>';
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+  var html='<aside class="sidebar tl-sidebar" aria-label="TimeLink global navigation">';
+  html+='<a href="/index.html" class="sb-logo" aria-label="TimeLink home"><span class="sb-logo-icon">T</span><span class="sb-logo-text">TimeLink</span></a>';
+  html+='<nav class="sb-nav" aria-label="Global navigation">';
+  groups.forEach(function(g){
+    html+='<div class="sb-section">'+esc(g.group)+'</div>';
     g.items.forEach(function(it){
-      html += '<a href="' + it.href + '" class="sb-link' + (isActive(it.href) ? ' active' : '') + '">';
-      html += '<span class="sb-icon">' + it.icon + '</span><span>' + it.label + '</span>';
-      html += '</a>';
+      html+='<a href="'+esc(it.href)+'" class="sb-link'+(active(it.href)?' active':'')+'"'+(active(it.href)?' aria-current="page"':'')+'>';
+      html+='<span class="sb-icon" aria-hidden="true">'+esc(it.icon)+'</span><span>'+esc(it.label)+'</span></a>';
     });
+    if(g.note) html+='<div class="tl-nav-note">'+esc(g.note)+'</div>';
   });
-  html += '</nav>';
-  html += '<div style="padding:12px 16px;border-top:1px solid var(--bd)">';
-  html += '<div style="font-size:10px;color:var(--t3);font-family:var(--fm);margin-bottom:6px">내 TL 잔액</div>';
-  html += '<div id="sbTLBal" style="font-size:16px;font-weight:700;color:var(--amber);font-family:var(--fm);margin-bottom:10px">-- TL</div>';
-  html += '<button onclick="if(window.openPayModal)openPayModal()" style="width:100%;padding:9px;border-radius:10px;border:1px solid rgba(245,166,35,.3);background:rgba(245,166,35,.08);color:var(--amber);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fn)">⚡ TL 충전</button>';
-  html += '</div></aside>';
-  
-  // 기존 .sidebar 있으면 대체, 없으면 .app 안 or body 첫 자식으로 삽입
-  var existing = document.querySelector('aside.sidebar:not(.tl-sidebar)');
-  if(existing){
-    existing.outerHTML = html;
-  } else {
-    var app = document.querySelector('.app');
-    if(app){
-      app.insertAdjacentHTML('afterbegin', html);
-    } else {
-      document.body.insertAdjacentHTML('afterbegin', html);
-    }
+  html+='<div class="sb-section tl-admin-label">SYSTEM</div>';
+  html+='<a href="'+admin.href+'" class="sb-link'+(active(admin.href)?' active':'')+'"><span class="sb-icon" aria-hidden="true">'+admin.icon+'</span><span>'+admin.label+'</span></a>';
+  html+='</nav>';
+  html+='<div class="tl-sidebar-balance"><div class="tl-sidebar-caption">MY TL BALANCE</div><div id="sbTLBal" class="tl-sidebar-amount">-- TL</div><button type="button" class="tl-sidebar-charge" onclick="if(window.openPayModal)window.openPayModal();else location.href='/wallet.html#charge';">＋ Charge TL</button></div>';
+  html+='</aside>';
+
+  var existing=document.querySelector('.sidebar:not(.tl-sidebar)');
+  if(existing){existing.outerHTML=html;}
+  else{
+    var app=document.querySelector('.app');
+    if(app) app.insertAdjacentHTML('afterbegin',html);
   }
-  
-  // TL 잔액 로드
-  try {
-    var u = JSON.parse(localStorage.getItem('tl_user') || '{}');
-    var el = document.getElementById('sbTLBal');
-    if(el && (u.tl_balance != null || u.tl != null)){
-      el.textContent = Number(u.tl_balance ?? u.tl ?? 0).toLocaleString() + ' TL';
+
+  try{
+    var user=JSON.parse(localStorage.getItem('tl_user')||'{}');
+    var balance=document.getElementById('sbTLBal');
+    if(balance && (user.tl_balance!=null || user.tl!=null)){
+      balance.textContent=Number(user.tl_balance!=null?user.tl_balance:user.tl).toLocaleString()+' TL';
     }
-  } catch(e){}
+  }catch(e){}
+
+  if(!document.getElementById('tl-global-nav-style')){
+    var style=document.createElement('style');
+    style.id='tl-global-nav-style';
+    style.textContent='.tl-nav-note{padding:4px 16px 10px 55px;color:rgba(245,245,247,.34);font:10px Inter,Pretendard,sans-serif;letter-spacing:.04em}.tl-admin-label{margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.07)}.tl-sidebar-balance{padding:14px 16px;border-top:1px solid rgba(255,255,255,.08)}.tl-sidebar-caption{font-size:10px;color:rgba(245,245,247,.4);letter-spacing:.1em;margin-bottom:7px}.tl-sidebar-amount{font-size:17px;font-weight:750;color:#F5A623;margin-bottom:11px}.tl-sidebar-charge{width:100%;padding:10px 12px;border-radius:9px;border:1px solid rgba(245,166,35,.28);background:rgba(245,166,35,.09);color:#F5A623;font-size:12px;font-weight:700;cursor:pointer}.tl-sidebar-charge:hover{background:rgba(245,166,35,.16)}.tl-sidebar .sb-nav{overflow-y:auto;flex:1}.tl-sidebar .sb-section{padding:17px 16px 6px;font-size:9px;font-weight:750;letter-spacing:.13em;color:rgba(245,245,247,.38)}.tl-sidebar .sb-link{padding:9px 16px;font-size:12px;gap:11px}.tl-sidebar .sb-icon{width:22px;height:22px;display:grid;place-items:center;border-radius:7px;background:rgba(255,255,255,.045);font-size:13px}';
+    document.head.appendChild(style);
+  }
 })();
