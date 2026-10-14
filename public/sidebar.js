@@ -11,8 +11,8 @@
     ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/dj-center.html','♫','DJ Center'],['/cafe-radio.html','▣','Cafe Broadcast'],['/cafe-owner.html','⌂','Cafe Management'],['/incar.html','◇','In-car']]],
     ['ADVERTISING', [['/advertiser.html','▱','Advertiser Center'],['/ads.html','▣','Campaigns']]],
     ['TL ECONOMICS', [['/wallet.html','◉','TL Wallet'],['/chart.html','⌁','POC & TLC']]],
-    ['MY', [['/dashboard.html','◎','My Dashboard'],['/settings.html','⚙','Settings']]],
-    ['SYSTEM', [['/admin.html','⚙','Admin Console']]]
+    ['MY', [['/dashboard.html','◎','My Dashboard']]],
+    ['ADMIN', [['/admin.html','⚙','Admin Console']]
   ];
   var path=(location.pathname||'/').replace(/\\/+$/,'')||'/';
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
