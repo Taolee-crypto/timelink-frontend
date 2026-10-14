@@ -1,382 +1,193 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TimeLink — 지갑 & 채굴</title>
-<link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<style>
-
-:root{
-  --bg-root:#08080F;--bg-deep:#0D0D1A;
-  --bg-card:rgba(255,255,255,.05);--bg-card2:rgba(255,255,255,.07);
-  --bd:rgba(255,255,255,.08);--bd2:rgba(255,255,255,.13);
-  --purple:#8B5CF6;--purple-dim:#6D28D9;--mint:#F5A623;
-  --pink:#F472B6;--amber:#FBBF24;--rose:#FB7185;--blue:#60A5FA;
-  --t1:#fff;--t2:rgba(255,255,255,.65);--t3:rgba(255,255,255,.35);
-  --grad:linear-gradient(135deg,#8B5CF6 0%,#F5A623 100%);
-  --fn:'Noto Sans KR',sans-serif;--fm:'JetBrains Mono',monospace
-}
-
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--fn);background:var(--bg-root);color:var(--t1);min-height:100vh;cursor:none}
-body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:0}
-.cursor-dot{width:8px;height:8px;background:var(--purple);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:10000;transform:translate(-50%,-50%);mix-blend-mode:screen}
-.cursor-ring{width:32px;height:32px;border:1px solid rgba(129,140,248,.4);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:all .15s ease}
-.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh;position:relative;z-index:2}
-.sidebar{background:#090D12;border-right:1px solid var(--bd);position:sticky;top:0;height:100vh;overflow-y:auto}
-.sb-logo{padding:20px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;text-decoration:none}
-.sb-logo-icon{width:30px;height:30px;background:var(--grad);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:11px;font-weight:700;color:#fff}
-.sb-logo-text{font-family:var(--font-display);font-size:12px;font-weight:700;letter-spacing:.1em}
-.sb-nav{padding:10px 0}
-.sb-section{padding:8px 16px 3px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);font-family:var(--fm)}
-.sb-link{display:flex;align-items:center;gap:9px;padding:8px 16px;text-decoration:none;color:var(--t2);font-size:12px;font-weight:500;transition:all .2s ease;position:relative}
-.sb-link:hover{color:var(--t1);background:rgba(255,255,255,.03)}
-.sb-link.active{color:var(--t1);background:rgba(129,140,248,.08)}
-.sb-link.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--purple)}
-.sb-icon{font-size:14px;width:20px;text-align:center}
-.main{overflow-y:auto}
-.topbar{display:flex;align-items:center;gap:14px;padding:18px 32px;border-bottom:1px solid var(--bd);background:rgba(3,5,7,.7);backdrop-filter:blur(20px);position:sticky;top:0;z-index:100}
-.tb-back{color:var(--t3);font-size:13px;text-decoration:none;cursor:none}
-.tb-back:hover{color:var(--t2)}
-.tb-title{font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:.08em}
-.page-content{padding:28px 32px}
-/* BALANCE HERO */
-.balance-hero{background:var(--bg-card);border:1px solid var(--bd2);border-radius:24px;padding:32px;margin-bottom:24px;position:relative;overflow:hidden}
-.balance-hero::before{content:'';position:absolute;top:-100px;right:-100px;width:500px;height:500px;background:radial-gradient(circle,rgba(99,102,241,.07) 0%,transparent 65%);pointer-events:none}
-.bh-label{font-size:10px;color:var(--t3);font-family:var(--fm);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px}
-.bh-amounts{display:flex;align-items:flex-end;gap:28px;margin-bottom:28px;flex-wrap:wrap;position:relative;z-index:1}
-.bh-tl-val{font-family:var(--font-display);font-size:52px;font-weight:700;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1}
-.bh-unit{font-size:13px;color:var(--t3);font-family:var(--fm);margin-top:5px}
-.bh-div{width:1px;height:64px;background:var(--bd)}
-.bh-tlc-val{font-family:var(--font-display);font-size:38px;font-weight:700;color:var(--mint);line-height:1}
-.bh-donate-side{margin-left:auto;text-align:right;padding:14px 20px;background:rgba(251,113,133,.06);border:1px solid rgba(251,113,133,.15);border-radius:14px}
-.bh-donate-val{font-family:var(--fm);font-size:20px;font-weight:700;color:var(--rose)}
-.bh-donate-label{font-size:11px;color:var(--t3);margin-top:3px}
-.bh-actions{display:flex;gap:10px;flex-wrap:wrap;position:relative;z-index:1}
-.bh-btn{padding:11px 24px;border-radius:10px;border:none;font-size:13px;font-family:var(--fn);font-weight:700;cursor:none;transition:all .2s ease}
-.bh-btn-p{background:var(--grad);color:#fff}
-.bh-btn-p:hover{box-shadow:0 0 20px rgba(99,102,241,.4);transform:translateY(-1px)}
-.bh-btn-g{background:rgba(255,255,255,.04);color:var(--t2);border:1px solid var(--bd2)}
-.bh-btn-g:hover{color:var(--t1)}
-/* 2 COL */
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
-.wallet-card{background:var(--bg-card);border:1px solid var(--bd);border-radius:18px;overflow:hidden}
-.wc-hdr{padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
-.wc-title{font-size:14px;font-weight:700}
-.wc-body{padding:20px}
-/* EXCHANGE */
-.exc-dir{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-.exc-from{font-family:var(--fm);font-size:14px;font-weight:700;color:var(--purple)}
-.exc-to{font-family:var(--fm);font-size:14px;font-weight:700;color:var(--mint)}
-.exc-rate{margin-left:auto;font-size:11px;color:var(--t3)}
-.exc-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.exc-inp{flex:1;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid var(--bd2);border-radius:8px;color:var(--t1);font-size:14px;font-family:var(--fm);font-weight:700;outline:none;cursor:none}
-.exc-result{font-family:var(--fm);font-size:14px;font-weight:700;color:var(--mint);white-space:nowrap}
-.exc-btn{padding:10px 18px;border-radius:8px;background:rgba(129,140,248,.15);border:1px solid rgba(129,140,248,.25);color:var(--purple);font-size:12px;font-family:var(--fn);font-weight:700;cursor:none;transition:all .2s ease}
-.exc-btn:hover{background:rgba(129,140,248,.25)}
-.exc-sep{border:none;border-top:1px solid var(--bd);margin:16px 0}
-/* WITHDRAW */
-.wi-address{background:rgba(255,255,255,.03);border:1px solid var(--bd2);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:8px;margin-bottom:12px}
-.wi-addr-text{font-family:var(--fm);font-size:11px;color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wi-copy-btn{padding:5px 10px;border-radius:6px;background:rgba(255,255,255,.04);border:1px solid var(--bd);color:var(--t3);font-size:10px;cursor:none}
-.wi-range{width:100%;-webkit-appearance:none;height:4px;background:var(--grad);border-radius:2px;cursor:none;margin:12px 0}
-.wi-range::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--purple-dim);cursor:none;box-shadow:0 0 8px rgba(99,102,241,.4)}
-.wi-preview{display:flex;justify-content:space-between;font-size:12px;margin-bottom:14px}
-.wi-preview-label{color:var(--t3)}
-.wi-preview-val{font-family:var(--fm);font-weight:700;color:var(--mint)}
-.wi-btn{width:100%;padding:13px;border-radius:10px;background:var(--grad);border:none;color:#fff;font-size:14px;font-family:var(--fn);font-weight:700;cursor:none;transition:all .3s ease}
-.wi-btn:hover{box-shadow:0 8px 28px rgba(99,102,241,.4);transform:translateY(-1px)}
-.wi-fee{font-size:10px;color:var(--t3);text-align:center;margin-top:8px;font-family:var(--fm)}
-/* MINING */
-.mining-section{background:var(--bg-card);border:1px solid rgba(52,211,153,.2);border-radius:18px;overflow:hidden;margin-bottom:18px}
-.ms-hdr{background:rgba(52,211,153,.05);border-bottom:1px solid rgba(52,211,153,.12);padding:16px 20px;display:flex;align-items:center;justify-content:space-between}
-.ms-title{font-size:15px;font-weight:700}
-.ms-badge{font-family:var(--fm);font-size:10px;padding:3px 9px;border-radius:100px;background:rgba(52,211,153,.15);color:var(--mint);border:1px solid rgba(52,211,153,.25)}
-.ms-body{padding:20px}
-.mining-grade{display:flex;align-items:center;gap:16px;padding:16px;background:rgba(255,255,255,.02);border:1px solid var(--bd);border-radius:12px;margin-bottom:18px}
-.mg-icon{font-size:28px}
-.mg-grade{font-size:15px;font-weight:700}
-.mg-points{font-size:12px;color:var(--t2);margin-top:3px}
-.mg-multi{margin-left:auto;text-align:center;padding:10px 18px;background:rgba(129,140,248,.1);border:1px solid rgba(129,140,248,.2);border-radius:10px}
-.mg-multi-val{font-family:var(--font-display);font-size:24px;font-weight:700;color:var(--purple);display:block}
-.mg-multi-lbl{font-size:10px;color:var(--t3);display:block;margin-top:2px}
-.conditions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
-.cond-item{padding:12px;background:rgba(255,255,255,.02);border:1px solid var(--bd);border-radius:10px;text-align:center}
-.ci-icon{font-size:18px;margin-bottom:5px}
-.ci-label{font-size:10px;color:var(--t3);margin-bottom:4px}
-.ci-val{font-family:var(--fm);font-size:12px;font-weight:700}
-.ci-met{color:var(--mint)}.ci-unmet{color:var(--rose)}
-.mine-btn{display:block;width:fit-content;margin:0 auto;padding:14px 44px;border-radius:14px;background:var(--grad);border:none;color:#fff;font-size:16px;font-family:var(--fn);font-weight:700;cursor:none;transition:all .3s ease;box-shadow:0 8px 28px rgba(99,102,241,.3)}
-.mine-btn:hover{transform:translateY(-3px);box-shadow:0 14px 40px rgba(99,102,241,.5)}
-.mine-preview{font-size:12px;color:var(--t2);text-align:center;margin-top:10px;font-family:var(--fm)}
-/* INCOME BREAKDOWN */
-.income-section{background:var(--bg-card);border:1px solid var(--bd);border-radius:18px;padding:20px;margin-bottom:18px}
-.income-title{font-size:14px;font-weight:700;margin-bottom:16px}
-.income-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bd)}
-.income-item:last-child{border-bottom:none}
-.ii-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
-.ii-label{flex:1;font-size:13px;color:var(--t2)}
-.ii-bar-wrap{flex:1;margin:0 12px}
-.ii-bar{height:4px;background:var(--bd);border-radius:2px;overflow:hidden}
-.ii-fill{height:100%;border-radius:2px}
-.ii-amount{font-family:var(--fm);font-size:13px;font-weight:700;white-space:nowrap}
-/* TX HISTORY */
-.tx-section{background:var(--bg-card);border:1px solid var(--bd);border-radius:18px;overflow:hidden}
-.tx-hdr{padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
-.tx-title{font-size:14px;font-weight:700}
-.tx-list{padding:8px 0}
-.tx-item{display:flex;align-items:center;gap:12px;padding:12px 20px;transition:all .2s ease}
-.tx-item:hover{background:rgba(255,255,255,.02)}
-.tx-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
-.tx-info{flex:1}
-.tx-type{font-size:13px;font-weight:600}
-.tx-date{font-size:11px;color:var(--t3);font-family:var(--fm);margin-top:2px}
-.tx-amount{font-family:var(--fm);font-size:14px;font-weight:700;text-align:right}
-.tx-plus{color:var(--mint)}.tx-minus{color:var(--rose)}
-::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(129,140,248,.15);border-radius:3px}
-@media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{display:none}.grid-2{grid-template-columns:1fr}.conditions{grid-template-columns:1fr 1fr}}
-</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#09090d">
+<meta name="description" content="Your TimeLink wallet, TL balance, TLC contribution rewards and Proof of Contribution overview.">
+<title>Wallet & Contribution Economy — TimeLink</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-<link rel="stylesheet" href="/apple-theme.css">
-<link rel="stylesheet" href="/dropdown-fix.css"><!-- SELECT_FIX_V1 -->
-
 <link rel="stylesheet" href="/apple-theme.css?v=global-20261014" data-tl-global-theme="2026.10">
+<link rel="stylesheet" href="/dropdown-fix.css">
+<style>
+:root{color-scheme:dark;--bg:#09090d;--bg2:#0f0e15;--card:#14131b;--card2:#1b1924;--bd:rgba(255,255,255,.09);--bd2:rgba(255,255,255,.15);--purple:#9b7bff;--gold:#f5b84b;--green:#62c99a;--red:#ef7474;--text:#f5f4fa;--muted:#a4a2b2;--dim:#777586;--fn:'DM Sans','Pretendard',sans-serif;--display:'Manrope','Pretendard',sans-serif;--mono:'JetBrains Mono',monospace}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}
+body{font-family:var(--fn);letter-spacing:-.02em}
+.app{min-height:100vh;position:relative}
+.main{min-width:0}
+.topbar{display:flex;align-items:center;gap:14px;padding:18px clamp(18px,3vw,34px);border-bottom:1px solid var(--bd);background:rgba(9,9,13,.88);backdrop-filter:blur(18px);position:sticky;top:0;z-index:50}
+.tb-back{color:var(--dim);font-size:13px;text-decoration:none}.tb-back:hover{color:var(--text)}
+.tb-title{font:750 15px var(--display);letter-spacing:-.03em}
+.page-content{max-width:1240px;margin:0 auto;padding:28px clamp(16px,3vw,34px) 60px}
+.eyebrow{font:700 10px var(--display);letter-spacing:.16em;text-transform:uppercase;color:#cbbaff}
+.balance-hero{position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(155,123,255,.12),rgba(245,184,75,.055)),var(--card);border:1px solid rgba(155,123,255,.22);border-radius:22px;padding:clamp(22px,3vw,34px);margin-bottom:20px}
+.balance-hero:after{content:"";position:absolute;width:340px;height:340px;right:-150px;top:-180px;border-radius:50%;background:radial-gradient(circle,rgba(155,123,255,.2),transparent 68%);pointer-events:none}
+.bh-head{display:flex;align-items:center;justify-content:space-between;gap:14px;position:relative;z-index:1;margin-bottom:24px}
+.preview-badge{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid rgba(245,184,75,.28);border-radius:999px;background:rgba(245,184,75,.08);color:var(--gold);font:700 9px var(--display);letter-spacing:.12em}
+.bh-amounts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;position:relative;z-index:1}
+.balance-tile{padding:18px;border:1px solid var(--bd);border-radius:15px;background:rgba(9,9,13,.35);min-width:0}
+.bh-label{font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:11px}
+.bh-val{font:800 clamp(26px,4vw,40px) var(--display);letter-spacing:-.055em;color:var(--text)}
+.bh-unit{font:11px var(--mono);color:var(--dim);margin-top:6px}
+.bh-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;position:relative;z-index:1}
+.action{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:10px 16px;border-radius:10px;text-decoration:none;font-size:12px;font-weight:700;transition:transform .18s,filter .18s}
+.action:hover{transform:translateY(-1px);filter:brightness(1.08)}
+.action-primary{background:linear-gradient(120deg,#c1aaff,#9270f4);color:#100d19}
+.action-secondary{border:1px solid var(--bd2);background:rgba(255,255,255,.035);color:var(--text)}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.wallet-card,.mining-section,.income-section,.tx-section{background:var(--card);border:1px solid var(--bd);border-radius:17px;overflow:hidden}
+.wc-hdr,.ms-hdr,.tx-hdr{padding:16px 19px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.wc-title,.ms-title,.tx-title{font:700 14px var(--display)}
+.wc-body,.ms-body{padding:20px}
+.econ-item{display:flex;align-items:flex-start;gap:13px;padding:15px 0;border-bottom:1px solid var(--bd)}
+.econ-item:last-child{border-bottom:0;padding-bottom:0}
+.econ-icon{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:rgba(155,123,255,.12);color:#cbbaff;flex:0 0 36px}
+.econ-item strong{display:block;font-size:13px;margin-bottom:5px}
+.econ-item p{font-size:11px;color:var(--muted);line-height:1.7;margin:0}
+.econ-highlight{color:var(--gold);font-weight:700}
+.market-note{margin-top:13px;padding:12px 13px;border-radius:11px;background:rgba(245,184,75,.06);border:1px solid rgba(245,184,75,.16);color:var(--muted);font-size:11px;line-height:1.7}
+.mining-section{margin-bottom:16px}
+.ms-hdr{background:rgba(155,123,255,.055)}
+.ms-badge{font:700 9px var(--display);letter-spacing:.1em;padding:6px 9px;border-radius:999px;background:rgba(155,123,255,.12);color:#cbbaff;border:1px solid rgba(155,123,255,.22)}
+.mining-intro{display:flex;align-items:flex-start;gap:14px;margin-bottom:18px}
+.mining-icon{width:44px;height:44px;border-radius:13px;background:rgba(245,184,75,.1);display:grid;place-items:center;font-size:20px;flex:0 0 44px}
+.mining-intro strong{display:block;font-size:14px;margin-bottom:5px}
+.mining-intro p{margin:0;color:var(--muted);font-size:11px;line-height:1.7}
+.conditions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.cond-item{padding:14px 12px;border:1px solid var(--bd);border-radius:12px;background:rgba(255,255,255,.02)}
+.ci-icon{font-size:17px;margin-bottom:9px}.ci-label{font-size:10px;color:var(--dim);margin-bottom:6px}.ci-val{font-size:12px;font-weight:700;color:var(--text)}
+.mine-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:17px;padding-top:15px;border-top:1px solid var(--bd)}
+.mine-footer p{font-size:11px;color:var(--muted);line-height:1.65;margin:0;max-width:620px}
+.income-section,.tx-section{margin-bottom:16px}
+.income-body{padding:24px;text-align:center;color:var(--dim);font-size:12px;line-height:1.8}
+.empty-icon{font-size:23px;margin-bottom:9px;color:var(--purple)}
+.tx-list{padding:10px 18px 16px}
+.tx-empty{padding:24px 8px;text-align:center;color:var(--dim);font-size:12px;line-height:1.7}
+.footer-note{margin-top:14px;color:var(--dim);font-size:10px;line-height:1.7;text-align:center}
+@media(max-width:850px){.bh-amounts{grid-template-columns:1fr 1fr}.bh-amounts .balance-tile:last-child{grid-column:1/-1}.conditions{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-2{grid-template-columns:1fr}}
+@media(max-width:520px){.page-content{padding-top:18px}.bh-head{align-items:flex-start;flex-direction:column}.bh-amounts{grid-template-columns:1fr}.bh-amounts .balance-tile:last-child{grid-column:auto}.balance-tile{padding:15px}.bh-actions{display:grid;grid-template-columns:1fr 1fr}.action{padding:10px 9px;font-size:11px}.conditions{grid-template-columns:1fr 1fr}.wc-body,.ms-body{padding:16px}}
+</style>
 </head>
 <body>
-<div class="cursor-dot" id="cd"></div>
-<div class="cursor-ring" id="cr"></div>
 <div class="app">
   <main class="main">
     <div class="topbar">
-      <a href="dashboard.html" class="tb-back">← 대시보드</a>
-      <div class="tb-title">💰 지갑 & 채굴</div>
+      <a href="dashboard.html" class="tb-back">← Dashboard</a>
+      <div class="tb-title">💰 Wallet & Contribution Economy</div>
     </div>
     <div class="page-content">
-      <!-- BALANCE HERO -->
-      <div class="balance-hero">
-        <div class="bh-label">총 자산 현황</div>
+      <section class="balance-hero">
+        <div class="bh-head">
+          <div>
+            <div class="eyebrow">Your TimeLink Economy</div>
+            <div style="font:750 24px var(--display);letter-spacing:-.04em;margin-top:8px">Wallet Overview</div>
+          </div>
+          <span class="preview-badge">ACCOUNT DATA PLACEHOLDERS</span>
+        </div>
         <div class="bh-amounts">
-          <div>
-            <div class="bh-tl-val">42,500</div>
-            <div class="bh-unit">⏰ TL · ₩42,500 상당</div>
+          <div class="balance-tile">
+            <div class="bh-label">TL Balance</div>
+            <div class="bh-val">—</div>
+            <div class="bh-unit">Time-based access unit</div>
           </div>
-          <div class="bh-div"></div>
-          <div>
-            <div class="bh-tlc-val">123.45</div>
-            <div class="bh-unit">🪙 TLC · ≈₩123,450</div>
+          <div class="balance-tile">
+            <div class="bh-label">TLC Balance</div>
+            <div class="bh-val">—</div>
+            <div class="bh-unit">Market-priced contribution token</div>
           </div>
-          <div class="bh-donate-side">
-            <div class="bh-donate-val">12,345 TL</div>
-            <div class="bh-donate-label">💝 누적 기부 (초록우산)</div>
+          <div class="balance-tile">
+            <div class="bh-label">POC Contribution Index</div>
+            <div class="bh-val">—</div>
+            <div class="bh-unit">Calculated from eligible activity</div>
           </div>
         </div>
         <div class="bh-actions">
-          <button class="bh-btn bh-btn-p">⇄ TL → TLC 교환</button>
-          <button class="bh-btn bh-btn-p">📤 TON 출금</button>
-          <button class="bh-btn bh-btn-g">📥 TL 충전</button>
-          <button class="bh-btn bh-btn-g">📋 거래내역</button>
+          <a class="action action-primary" href="shareplace.html#charge">⚡ Add TL</a>
+          <a class="action action-secondary" href="dashboard.html">▦ Open Dashboard</a>
+          <a class="action action-secondary" href="dashboard.html">◷ View Activity</a>
         </div>
-      </div>
+      </section>
 
-      <!-- EXCHANGE + WITHDRAW -->
       <div class="grid-2">
-        <!-- EXCHANGE -->
-        <div class="wallet-card">
-          <div class="wc-hdr"><div class="wc-title">⇄ TL ↔ TLC 교환</div></div>
+        <section class="wallet-card">
+          <div class="wc-hdr"><div class="wc-title">◷ TL — Time-based Access</div></div>
           <div class="wc-body">
-            <div class="exc-dir">
-              <span class="exc-from">TL</span>
-              <span style="color:var(--t3)">→</span>
-              <span class="exc-to">TLC</span>
-              <span class="exc-rate">현재 환율: 1,000 TL = 1 TLC</span>
+            <div class="econ-item">
+              <div class="econ-icon">◷</div>
+              <div><strong>One second = one TL</strong><p>TL is TimeLink’s internal unit for authorized access and use of digital assets.</p></div>
             </div>
-            <div class="exc-row">
-              <input type="number" class="exc-inp" value="10000" placeholder="TL 입력" oninput="updateExc(this.value,'tl')">
-              <span style="color:var(--t3);font-size:13px">→</span>
-              <span class="exc-result" id="excResult">10 TLC</span>
+            <div class="econ-item">
+              <div class="econ-icon">₩</div>
+              <div><strong>Reference value: 1 TL = KRW 1</strong><p>The reference value is used for TL charging and display. TL remains the platform’s time-based unit.</p></div>
             </div>
-            <button class="exc-btn" style="width:100%;margin-top:6px">TL → TLC 교환하기</button>
-            <hr class="exc-sep">
-            <div class="exc-dir">
-              <span class="exc-from" style="color:var(--mint)">TLC</span>
-              <span style="color:var(--t3)">→</span>
-              <span class="exc-to" style="color:var(--purple)">TL</span>
-              <span class="exc-rate">시장가 적용</span>
-            </div>
-            <div class="exc-row">
-              <input type="number" class="exc-inp" value="10" placeholder="TLC 입력" oninput="updateExc(this.value,'tlc')">
-              <span style="color:var(--t3);font-size:13px">→</span>
-              <span class="exc-result" id="excResult2" style="color:var(--purple)">10,000 TL</span>
-            </div>
-            <button class="exc-btn" style="width:100%;margin-top:6px;background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.25);color:var(--mint)">TLC → TL 교환하기</button>
+            <div class="market-note">Add TL through the existing payment flow. Usage is measured against the access terms of each digital asset.</div>
           </div>
-        </div>
-        <!-- WITHDRAW -->
-        <div class="wallet-card">
-          <div class="wc-hdr"><div class="wc-title">📤 TON 지갑 출금</div></div>
+        </section>
+
+        <section class="wallet-card">
+          <div class="wc-hdr"><div class="wc-title">◈ TLC — Contribution Value</div></div>
           <div class="wc-body">
-            <div style="font-size:11px;color:var(--t3);font-family:var(--fm);margin-bottom:8px">연결된 TON 지갑</div>
-            <div class="wi-address">
-              <span style="font-size:16px">🔗</span>
-              <span class="wi-addr-text">EQDrsX7vYsXbkFPN8YoxKsqF8mj5HBsFLM4bJ8kL2pA</span>
-              <button class="wi-copy-btn">복사</button>
+            <div class="econ-item">
+              <div class="econ-icon">◈</div>
+              <div><strong>Market-priced contribution token</strong><p>TLC is connected to ecosystem contribution and POC-based mining. Its value is not represented by a fixed TL exchange rate.</p></div>
             </div>
-            <div style="font-size:11px;color:var(--t3);font-family:var(--fm);margin-bottom:6px">출금 TLC 수량 <span style="color:var(--mint);font-weight:700" id="withdrawAmt">50 TLC</span></div>
-            <input type="range" class="wi-range" min="1" max="123" value="50" oninput="updateWithdraw(this.value)">
-            <div class="wi-preview">
-              <span class="wi-preview-label">출금 수수료 (2%)</span>
-              <span class="wi-preview-val" style="color:var(--rose)" id="withdrawFee">-1 TLC</span>
+            <div class="econ-item">
+              <div class="econ-icon">↔</div>
+              <div><strong>TLC ↔ TL settlement</strong><p>Settlement follows the existing TimeLink economic rules, including the applicable burn process.</p></div>
             </div>
-            <div class="wi-preview" style="margin-bottom:16px">
-              <span class="wi-preview-label">실 수령액</span>
-              <span class="wi-preview-val" id="withdrawNet">49 TLC ≈ ₩49,000</span>
-            </div>
-            <button class="wi-btn">📤 TON 출금 신청</button>
-            <div class="wi-fee">최소 출금: 10 TLC · 처리 시간: 1-3분 · 수수료 2%</div>
+            <div class="market-note">No fixed conversion ratio is shown here. Current value and eligible settlement details belong to the connected wallet service.</div>
           </div>
-        </div>
+        </section>
       </div>
 
-      <!-- MINING -->
-      <div class="mining-section">
+      <section class="mining-section">
         <div class="ms-hdr">
-          <div class="ms-title">⛏️ TLC 채굴</div>
-          <span class="ms-badge">🥇 골드 등급 · 1.3× 배율</span>
+          <div class="ms-title">⛏️ Proof of Contribution · POC</div>
+          <span class="ms-badge">CONTRIBUTION-BASED</span>
         </div>
         <div class="ms-body">
-          <div class="mining-grade">
-            <span class="mg-icon">🥇</span>
-            <div>
-              <div class="mg-grade">골드 등급 창작자</div>
-              <div class="mg-points">기여도 점수: 12,345점 · 다음 등급까지 2,655점</div>
-            </div>
-            <div class="mg-multi">
-              <span class="mg-multi-val">1.3×</span>
-              <span class="mg-multi-lbl">채굴 배율</span>
-            </div>
+          <div class="mining-intro">
+            <div class="mining-icon">⛏️</div>
+            <div><strong>Contribution is the basis of TLC mining.</strong><p>Eligible creation, sharing, access and ecosystem activity contribute to the POC record. TLC mining follows the platform’s existing calculation and verification process.</p></div>
           </div>
           <div class="conditions">
-            <div class="cond-item">
-              <div class="ci-icon">📁</div>
-              <div class="ci-label">업로드 파일</div>
-              <div class="ci-val ci-met">23 ✓</div>
-            </div>
-            <div class="cond-item">
-              <div class="ci-icon">⭐</div>
-              <div class="ci-label">평균 평점</div>
-              <div class="ci-val ci-met">4.8 ✓</div>
-            </div>
-            <div class="cond-item">
-              <div class="ci-icon">💝</div>
-              <div class="ci-label">기부 약정</div>
-              <div class="ci-val ci-met">10% ✓</div>
-            </div>
-            <div class="cond-item">
-              <div class="ci-icon">🔒</div>
-              <div class="ci-label">MP3 원본 보안</div>
-              <div class="ci-val ci-met">100% ✓</div>
-            </div>
-            <div class="cond-item">
-              <div class="ci-icon">📅</div>
-              <div class="ci-label">마지막 채굴</div>
-              <div class="ci-val" style="color:var(--amber)">3시간 전</div>
-            </div>
-            <div class="cond-item">
-              <div class="ci-icon">⚡</div>
-              <div class="ci-label">오늘 채굴</div>
-              <div class="ci-val" style="color:var(--purple)">3.9 TLC</div>
-            </div>
+            <div class="cond-item"><div class="ci-icon">✦</div><div class="ci-label">Creation</div><div class="ci-val">Creator activity</div></div>
+            <div class="cond-item"><div class="ci-icon">◇</div><div class="ci-label">Sharing</div><div class="ci-val">Asset contribution</div></div>
+            <div class="cond-item"><div class="ci-icon">◷</div><div class="ci-label">Access</div><div class="ci-val">Time-based usage</div></div>
+            <div class="cond-item"><div class="ci-icon">◎</div><div class="ci-label">Participation</div><div class="ci-val">Ecosystem activity</div></div>
           </div>
-          <button class="mine-btn" onclick="doClaim()">⛏️ TLC 채굴 클레임</button>
-          <div class="mine-preview">예상 수령: <strong style="color:var(--mint)">~4.2 TLC</strong> (기여도 12,345 × 1.3× 배율)</div>
+          <div class="mine-footer">
+            <p>Live POC scores, TLC balances and mining eligibility are account-specific. This page does not fabricate balances, ranks, multipliers or claim results.</p>
+            <a class="action action-primary" href="dashboard.html">Open POC Dashboard ↗</a>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <!-- INCOME BREAKDOWN -->
-      <div class="income-section">
-        <div class="income-title">📊 이번달 수익 분석 <span style="font-family:var(--fm);font-size:13px;color:var(--t2)">358,023 TL 총계</span></div>
-        <div class="income-item">
-          <div class="ii-icon" style="background:rgba(99,102,241,.12)">🎵</div>
-          <span class="ii-label">창작자 수익 (파일 변환)</span>
-          <div class="ii-bar-wrap"><div class="ii-bar"><div class="ii-fill" style="width:65%;background:var(--purple)"></div></div></div>
-          <span class="ii-amount" style="color:var(--purple)">234,567 TL</span>
-        </div>
-        <div class="income-item">
-          <div class="ii-icon" style="background:rgba(52,211,153,.1)">☕</div>
-          <span class="ii-label">카페 방송 수익</span>
-          <div class="ii-bar-wrap"><div class="ii-bar"><div class="ii-fill" style="width:34%;background:var(--mint)"></div></div></div>
-          <span class="ii-amount" style="color:var(--mint)">123,456 TL</span>
-        </div>
+      <div class="grid-2">
+        <section class="income-section">
+          <div class="wc-hdr"><div class="wc-title">▥ Rewards & Contributions</div></div>
+          <div class="income-body"><div class="empty-icon">▥</div>Reward and contribution records will appear here when connected to your account data.</div>
+        </section>
+        <section class="tx-section" id="history">
+          <div class="tx-hdr"><div class="tx-title">◷ Transaction History</div></div>
+          <div class="tx-list"><div class="tx-empty">Your TL and TLC transaction records will appear here.</div></div>
+        </section>
       </div>
-
-      <!-- TX HISTORY -->
-      <div class="tx-section">
-        <div class="tx-hdr"><div class="tx-title">📋 최근 거래내역</div></div>
-        <div class="tx-list">
-          <div class="tx-item">
-            <div class="tx-icon" style="background:rgba(52,211,153,.1)">⛏️</div>
-            <div class="tx-info"><div class="tx-type">TLC 채굴 클레임</div><div class="tx-date">2026.03.08 14:32</div></div>
-            <div class="tx-amount tx-plus">+4.2 TLC</div>
-          </div>
-          <div class="tx-item">
-            <div class="tx-icon" style="background:rgba(99,102,241,.1)">🎵</div>
-            <div class="tx-info"><div class="tx-type">파일 변환 수익 — Summer Vibes</div><div class="tx-date">2026.03.08 12:15</div></div>
-            <div class="tx-amount tx-plus">+86,400 TL</div>
-          </div>
-          <div class="tx-item">
-            <div class="tx-icon" style="background:rgba(252,211,77,.1)">☕</div>
-            <div class="tx-info"><div class="tx-type">카페 방송 수익 — 스타벅스 강남</div><div class="tx-date">2026.03.08 11:00</div></div>
-            <div class="tx-amount tx-plus">+12,340 TL</div>
-          </div>
-          <div class="tx-item">
-            <div class="tx-icon" style="background:rgba(251,113,133,.1)">💝</div>
-            <div class="tx-info"><div class="tx-type">기부 — 초록우산 어린이재단</div><div class="tx-date">2026.03.07 23:59</div></div>
-            <div class="tx-amount tx-minus">-1,234 TL</div>
-          </div>
-          <div class="tx-item">
-            <div class="tx-icon" style="background:rgba(52,211,153,.1)">📤</div>
-            <div class="tx-info"><div class="tx-type">TON 출금 완료</div><div class="tx-date">2026.03.07 15:22</div></div>
-            <div class="tx-amount tx-minus">-50 TLC</div>
-          </div>
-        </div>
-      </div>
+      <div class="footer-note">TimeLink Wallet · TL, TLC and POC overview · Account-specific values are provided by the connected wallet services.</div>
     </div>
   </main>
 </div>
 <script>
-const cd=document.getElementById('cd'),cr=document.getElementById('cr');
-let mx=0,my=0,rx=0,ry=0;
-document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY});
-function ac(){rx=mx;ry=my;cd.style.left=mx+'px';cd.style.top=my+'px';cr.style.left=rx+'px';cr.style.top=ry+'px';requestAnimationFrame(ac);}ac();
-function updateExc(v,dir){
-  if(dir==='tl')document.getElementById('excResult').textContent=(v/1000).toFixed(2)+' TLC';
-  else document.getElementById('excResult2').textContent=(v*1000).toLocaleString('ko-KR')+' TL';
-}
-function updateWithdraw(v){
-  const amt=parseInt(v);const fee=Math.ceil(amt*.02);const net=amt-fee;
-  document.getElementById('withdrawAmt').textContent=amt+' TLC';
-  document.getElementById('withdrawFee').textContent='-'+fee+' TLC';
-  document.getElementById('withdrawNet').textContent=net+' TLC ≈ ₩'+((net*1000).toLocaleString('ko-KR'));
-}
-function doClaim(){
-  const btn=document.querySelector('.mine-btn');
-  btn.textContent='✅ 4.2 TLC 클레임 완료!';
-  btn.style.background='rgba(52,211,153,.2)';
-  btn.style.color='var(--mint)';
-  btn.style.border='1px solid rgba(52,211,153,.3)';
-  btn.style.boxShadow='0 0 20px rgba(52,211,153,.2)';
-  setTimeout(()=>{btn.textContent='⛏️ TLC 채굴 클레임';btn.style.cssText='';},3000);
-}
-
-// ═══ AUTH GUARD ═══
 (function(){
-  var u = JSON.parse(localStorage.getItem('tl_user')||'null');
-  if(!u){ location.href='login.html'; }
+  var user = null;
+  try { user = JSON.parse(localStorage.getItem('tl_user') || 'null'); } catch (_) {}
+  if (!user) location.href = 'login.html';
 })();
-
 </script>
 <script src="/sidebar.js?v=global-20261014"></script>
 </body>
 </html>
-
-
