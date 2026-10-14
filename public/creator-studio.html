@@ -92,18 +92,18 @@ $('back2').onclick=()=>step(1);
 $('freeBtn').onclick=async()=>{
  clearErr('error2');const b=$('freeBtn');b.disabled=true;b.textContent='원본 등록 중…';
  try{
-  const body={title:$('title').value.trim(),artist:$('artist').value.trim(),genre:$('genre').value.trim()||'Music',stream_url:upload.url||upload.stream_url||'',cover_image:upload.cover_url||'',shared_to_shareplace:false,auth_status:'creator_uploaded',icon:'🎵',user_email:user.email,username:user.username||user.email};
+  const body={title:$('title').value.trim(),artist:$('artist').value.trim(),genre:$('genre').value.trim()||'Music',file_type:'audio/mpeg',stream_url:upload.url||upload.stream_url||'',cover_image:upload.cover_url||'',file_tl:0,shared_to_shareplace:false,auth_status:'creator_uploaded',icon:'🎵',user_email:user.email,username:user.username||user.email};
   const r=await fetch(API+'/api/files/sync',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),body:JSON.stringify(body)});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'원본 자산 등록 실패');share=d;share.file_id=d.d1_id;preview();step(3);
  }catch(e){err('error2',e.message);b.disabled=false;b.textContent='비공개 원본 등록하고 계속';}
 };
 $('releaseBtn').onclick=async()=>{
  clearErr('error3');if(!$('rights').checked){err('error3','권리 확인에 동의해야 TL3로 공유할 수 있습니다.');return;}if(!share?.file_id){err('error3','비공개 원본 등록이 먼저 완료되어야 합니다.');return;}
  const b=$('releaseBtn');b.disabled=true;b.textContent='TL3 생성 및 공유 중…';
- try{const r=await fetch(API+'/api/v1/tl3/releases',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),body:JSON.stringify({file_id:Number(share.file_id),title:$('title').value.trim(),artist:$('artist').value.trim(),price_tl:Number($('price').value||0),rights_confirmed:true})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'TL3 공유 실패');tl3=true;finish(true,d);}catch(e){err('error3',e.message);b.disabled=false;b.textContent='TL3 공유 등록';}
+ try{const releasePrice=Math.max(0,Math.floor(Number($('price').value||0)));const syncBody={title:$('title').value.trim(),artist:$('artist').value.trim(),genre:$('genre').value.trim()||'Music',file_type:'audio/tl3',stream_url:upload.url||upload.stream_url||'',cover_image:upload.cover_url||'',file_tl:releasePrice,shared_to_shareplace:false,user_email:user.email,username:user.username||user.email};const sr=await fetch(API+'/api/files/sync',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),body:JSON.stringify(syncBody)});const sd=await sr.json();if(!sr.ok||!sd.ok||!sd.d1_id)throw new Error(sd.error||'TL3 릴리스 정보 저장 실패');share.file_id=sd.d1_id;const r=await fetch(API+'/api/v1/tl3/releases',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),body:JSON.stringify({file_id:Number(share.file_id),share_id:'tl3_'+share.file_id,title:$('title').value.trim(),artist:$('artist').value.trim(),price_tl:releasePrice,rights_confirmed:true})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'TL3 공유 실패');tl3=true;finish(true,d);}catch(e){err('error3',e.message);b.disabled=false;b.textContent='TL3 공유 등록';}
 };
 function finish(released,d){
  $('doneTitle').textContent='TL3 공유 완료';
- $('doneText').innerHTML='「'+esc($('title').value)+'」가 TL3로 공유되었습니다.<br><b style="color:#F5A623">'+Number(d?.price_tl||$('price').value||0).toLocaleString()+' TL</b>의 공유 조건이 적용되었습니다.<br>이제 SharePlace에서 TL3 자산을 확인할 수 있습니다.';
+ $('doneText').innerHTML='「'+esc($('title').value)+'」가 TL3로 공유되었습니다.<br><b style="color:#F5A623">'+Number(d?.price_tl||$('price').value||0).toLocaleString()+' TL</b>의 공유 조건이 적용되었습니다.<br>관리자 권리 검증이 완료되면 SharePlace에 공개됩니다.';
  step(4);
 }
 loadBalance();
