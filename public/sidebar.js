@@ -7,7 +7,7 @@
   var sections = [
     ['HOME', [['/index.html','⌂','Overview']]],
     ['DIGITAL ASSETS', [['/shareplace.html','◈','SharePlace'],['/dashboard.html?tab=content','▤','My Library'],['/tl3-player.html','♫','TL3 Player'],['/tlj-viewer.html','▧','TLJ Viewer']]],
-    ['CREATOR', [['/creator.html','✧','Creator Center'],['/creator-studio.html','＋','Creator Studio']],
+    ['CREATOR', [['/creator.html','✧','Creator Center'],['/creator-studio.html','＋','Creator Studio']]],
     ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/dj-center.html','♫','DJ Center'],['/cafe-radio.html','▣','Cafe Broadcast'],['/cafe-owner.html','⌂','Cafe Management'],['/incar.html','◇','In-car']]],
     ['ADVERTISING', [['/advertiser.html','▱','Advertiser Center'],['/ads.html','▣','Campaigns']]],
     ['TL ECONOMICS', [['/wallet.html','◉','TL Wallet'],['/chart.html','⌁','POC & TLC']]],
