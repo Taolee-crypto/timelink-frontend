@@ -470,7 +470,7 @@ function renderPage(s, stats, myFileTL, requiredTL){
       <div class="stats">
         <div class="stat"><div class="stat-val" id="statLikes">${stats.likes||0}</div><div class="stat-label">좋아요</div></div>
         <div class="stat"><div class="stat-val" id="statComments">${stats.comments||0}</div><div class="stat-label">댓글</div></div>
-        <div class="stat"><div class="stat-val">${Number(s.pulse||0).toLocaleString()}</div><div class="stat-label">재생수</div></div>
+        <div class="stat"><div class="stat-val">${fmtTime(Number(s.pulse||0))}</div><div class="stat-label">누적 이용 시간</div></div>
       </div>
       <div class="poc-card" id="pocCard" style="display:none">
         <div class="poc-header">
@@ -1233,15 +1233,18 @@ function openAdsPageFromTrack(){
 }
 
 async function toggleLike(){
-  const method = _myLiked?'DELETE':'POST';
-  const r = await fetch(API+'/api/social/like/'+SHARE_ID,{method,headers:{'Authorization':'Bearer '+getTok()}});
-  const d = await r.json();
-  if(d.ok!==false){
-    _myLiked=!_myLiked;
+  if(!getTok()){ alert('로그인이 필요합니다'); location.href='/login.html'; return; }
+  try{
+    const method = _myLiked?'DELETE':'POST';
+    const r = await fetch(API+'/api/social/like/'+SHARE_ID,{method,headers:{'Authorization':'Bearer '+getTok()}});
+    const d = await r.json();
+    if(!r.ok || d.ok!==true){ alert(d.error||'좋아요 처리에 실패했습니다'); return; }
+    _myLiked=!!d.liked;
+    const count=Number(d.likes||0);
     const btn=document.getElementById('likeBtn');
-    if(btn){btn.className='btn-icon'+(_myLiked?' liked':'');btn.innerHTML=(_myLiked?'♥ ':'♡ ')+'<span id="likeCount">'+(d.likes||0)+'</span>';}
-    const sl=document.getElementById('statLikes');if(sl)sl.textContent=d.likes||0;
-  }
+    if(btn){btn.className='btn-icon'+(_myLiked?' liked':'');btn.innerHTML=(_myLiked?'♥ ':'♡ ')+'<span id="likeCount">'+count+'</span>';}
+    const sl=document.getElementById('statLikes');if(sl)sl.textContent=count;
+  }catch(e){ alert('좋아요 처리 오류: '+e.message); }
 }
 
 async function checkFollowStatus(artistId){
@@ -1254,14 +1257,16 @@ async function checkFollowStatus(artistId){
 }
 
 async function toggleFollow(artistId){
-  const method=_myFollowing?'DELETE':'POST';
-  const r=await fetch(API+'/api/social/follow/'+artistId,{method,headers:{'Authorization':'Bearer '+getTok()}});
-  const d=await r.json();
-  if(d.ok!==false){
-    _myFollowing=!_myFollowing;
+  if(!getTok()){ alert('로그인이 필요합니다'); location.href='/login.html'; return; }
+  try{
+    const method=_myFollowing?'DELETE':'POST';
+    const r=await fetch(API+'/api/social/follow/'+artistId,{method,headers:{'Authorization':'Bearer '+getTok()}});
+    const d=await r.json();
+    if(!r.ok || d.ok!==true){ alert(d.error||'팔로우 처리에 실패했습니다'); return; }
+    _myFollowing=!!d.following;
     const btn=document.getElementById('followBtn');
     if(btn){btn.className='btn-icon'+(_myFollowing?' following':'');btn.textContent=_myFollowing?'✓ 팔로잉':'+ 팔로우';}
-  }
+  }catch(e){ alert('팔로우 처리 오류: '+e.message); }
 }
 
 async function loadComments(){
@@ -1296,8 +1301,13 @@ async function submitComment(){
 }
 
 async function reportComment(id){
-  await fetch(API+'/api/social/report/comment/'+id,{method:'POST',headers:{'Authorization':'Bearer '+getTok()}});
-  alert('신고 접수됐어요');
+  if(!getTok()){ alert('로그인이 필요합니다'); location.href='/login.html'; return; }
+  try{
+    const r=await fetch(API+'/api/social/report/comment/'+id,{method:'POST',headers:{'Authorization':'Bearer '+getTok()}});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok || d.ok!==true){ alert(d.error||'신고 기능을 준비 중입니다'); return; }
+    alert('신고 접수됐어요');
+  }catch(e){ alert('신고 처리 오류: '+e.message); }
 }
 
 async function openPlModal(){
