@@ -60,7 +60,6 @@ main{max-width:900px;margin:48px auto;padding:0 20px 90px}.eyebrow{font:700 10px
  function show(id,msg,type){const e=$(id);e.className='status '+type;e.textContent=msg;}
  function headers(){return {'Authorization':'Bearer '+token,'Content-Type':'application/json'};}
  async function api(path,options){const r=await fetch(API+path,options);let d={};try{d=await r.json()}catch{}if(!r.ok||d.ok===false)throw new Error(d.error||d.message||('API 오류 '+r.status));return d;}
- async function hashFile(file){const b=await file.arrayBuffer();const h=await crypto.subtle.digest('SHA-256',b);return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,'0')).join('');}
  $('health').onclick=async()=>{try{const base=$('agent').value.trim().replace(/\/$/,'');const r=await fetch(base+'/health');const d=await r.json();if(!r.ok||!d.ok)throw new Error('Agent 응답이 올바르지 않습니다.');show('status','Local Agent 연결됨 · 저장 파일 '+d.files+'개','ok');}catch(e){show('status','Local Agent 연결 실패: '+e.message,'error');}};
  $('submit').onclick=async()=>{
   if(!token){location.href='login.html?redirect=creator-studio-v3.html';return;}
@@ -72,16 +71,21 @@ main{max-width:900px;margin:48px auto;padding:0 20px 90px}.eyebrow{font:700 10px
   try{
    // Check login, API reachability and applied V3 migration before copying a large file to the PC Agent.
    await api('/api/v3/music/tracks',{method:'GET',headers:{'Authorization':'Bearer '+token}});
-   const health=await fetch(base+'/health');if(!health.ok)throw new Error('TimeLink Local Agent에 연결할 수 없습니다. Agent를 먼저 실행해 주세요.');
-   const uploadUrl=base+'/upload?kind=mp3&name='+encodeURIComponent(file.name);
-   const ur=await fetch(uploadUrl,{method:'POST',body:file});const ud=await ur.json();
-   if(!ur.ok||!ud.ok||!ud.public_url)throw new Error(ud.error||'PC 저장 또는 HTTPS 공개 터널 준비에 실패했습니다.');
-   agentResult=ud;
-   const track=await api('/api/v3/music/tracks',{method:'POST',headers:headers(),body:JSON.stringify({title,artist,album:$('album').value.trim(),original_filename:file.name,metadata_source:'manual'})});
-   trackId=track.track_id;
-   const digest=await hashFile(file);
-   const asset=await api('/api/v3/music/tracks/'+encodeURIComponent(trackId)+'/assets/local',{method:'POST',headers:headers(),body:JSON.stringify({asset_type:'mp3_audio',public_url:ud.public_url,size_bytes:file.size,mime_type:'audio/mpeg',content_hash:digest})});
-   assetId=asset.asset_id;
+   if(!trackId){
+    const track=await api('/api/v3/music/tracks',{method:'POST',headers:headers(),body:JSON.stringify({title,artist,album:$('album').value.trim(),original_filename:file.name,metadata_source:'manual'})});
+    trackId=track.track_id;
+   }
+   if(!agentResult){
+    const health=await fetch(base+'/health');if(!health.ok)throw new Error('TimeLink Local Agent에 연결할 수 없습니다. Agent를 먼저 실행해 주세요.');
+    const uploadUrl=base+'/upload?kind=mp3&name='+encodeURIComponent(file.name);
+    const ur=await fetch(uploadUrl,{method:'POST',body:file});const ud=await ur.json();
+    if(!ur.ok||!ud.ok||!ud.public_url)throw new Error(ud.error||'PC 저장 또는 HTTPS 공개 터널 준비에 실패했습니다.');
+    agentResult=ud;
+   }
+   if(!assetId){
+    const asset=await api('/api/v3/music/tracks/'+encodeURIComponent(trackId)+'/assets/local',{method:'POST',headers:headers(),body:JSON.stringify({asset_type:'mp3_audio',public_url:agentResult.public_url,size_bytes:file.size,mime_type:'audio/mpeg'})});
+    assetId=asset.asset_id;
+   }
    $('rightsPanel').hidden=false;
    show('status','PC 저장 완료. Track과 MP3 자산 참조가 생성되었습니다. 이제 권리 확인을 진행해 주세요.\nTrack: '+trackId+'\nAsset: '+assetId,'ok');
    $('rightsPanel').scrollIntoView({behavior:'smooth',block:'start'});
