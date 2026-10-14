@@ -6,11 +6,11 @@
 
   var groups = [
     {group:'HOME',items:[
-      {href:'/dashboard.html',icon:'⌂',label:'Home Dashboard'}
+      {href:'/index.html',icon:'⌂',label:'Home'}
     ]},
     {group:'DIGITAL ASSETS',items:[
       {href:'/shareplace.html',icon:'◈',label:'SharePlace'},
-      {href:'/dashboard.html',icon:'▤',label:'My Library'},
+      {href:'/dashboard.html?tab=content',icon:'▤',label:'My Library'},
       {href:'/tl3-player.html',icon:'♫',label:'TL3 Player'},
       {href:'/tlj-viewer.html',icon:'▧',label:'TLJ Viewer'},
       {href:'/track.html',icon:'♪',label:'Track'}
@@ -35,7 +35,7 @@
       {href:'/chart.html',icon:'⌁',label:'POC & TLC'}
     ]},
     {group:'MY',items:[
-      {href:'/onboarding.html',icon:'◎',label:'My Account'}
+      {href:'/dashboard.html',icon:'◎',label:'My Dashboard'}
     ]}
   ];
   var admin = {href:'/admin.html',icon:'⚙',label:'Admin Console'};
@@ -63,7 +63,7 @@
   html+='<div class="tl-sidebar-balance"><div class="tl-sidebar-caption">MY TL BALANCE</div><div id="sbTLBal" class="tl-sidebar-amount">-- TL</div><button type="button" class="tl-sidebar-charge" onclick="if(window.openPayModal)window.openPayModal();else location.href='/wallet.html#charge';">＋ Charge TL</button></div>';
   html+='</aside>';
 
-  var existing=document.querySelector('aside.sidebar:not(.tl-sidebar)');
+  var existing=document.querySelector('.sidebar:not(.tl-sidebar)');
   if(existing){existing.outerHTML=html;}
   else{
     var app=document.querySelector('.app');
