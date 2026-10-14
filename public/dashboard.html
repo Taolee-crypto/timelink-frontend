@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="description" content="TimeLink 디지털 자산, TL 지갑, 기여 보상과 방송 활동을 관리하는 개인 대시보드입니다.">
-<title>My Dashboard — TimeLink</title>
+<meta name="description" content="Manage your TimeLink digital assets, TL wallet, contribution records and broadcast activity.">
+<title>Dashboard — TimeLink</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <link rel="stylesheet" href="/apple-theme.css">
 <style>
@@ -414,32 +414,18 @@ body{overflow-x:hidden}
       <div class="quick-bar">
         <a href="creator.html" class="qb-btn">📤 새 파일 업로드</a>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
-        <div class="sec">
-          <div class="sec-head">
-            <div class="sec-title">🔒 TL3 (보호 스트리밍)</div>
-            <button onclick="selectAllType('tl3')" style="padding:4px 10px;font-size:11px;background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:6px;color:var(--teal);cursor:pointer;font-family:inherit;margin-left:8px">전체 선택</button><button onclick="deleteSelected()" style="padding:4px 10px;font-size:11px;background:rgba(255,69,58,.1);border:1px solid rgba(255,69,58,.35);border-radius:6px;color:#ff453a;cursor:pointer;font-family:inherit;margin-left:4px">🗑️ 선택 삭제</button>
-            <button onclick="sendToDj('tl3')" style="padding:4px 10px;font-size:11px;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.4);border-radius:6px;color:var(--accent);cursor:pointer;font-family:inherit;margin-left:4px">📡 DJ로 보내기</button>
-            <div style="font-size:11px;color:var(--t3)" id="cntTl3">0개</div>
-          </div>
-          <div class="file-list" id="myTl3List">
-            <div class="empty">
-              <div class="empty-icon">🔒</div>
-              <div class="empty-text">TL3 파일이 없습니다.</div>
-            </div>
+      <div class="sec" style="margin-top:16px">
+        <div class="sec-head">
+          <div class="sec-title">◇ My Digital Assets</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <button onclick="selectAllType('tl3')" class="tl-btn tl-btn-secondary" style="padding:6px 10px;font-size:11px">Select TL3</button>
+            <button onclick="deleteSelected()" class="tl-btn tl-btn-secondary" style="padding:6px 10px;font-size:11px">Delete selected</button>
+            <button onclick="sendToDj('tl3')" class="tl-btn tl-btn-secondary" style="padding:6px 10px;font-size:11px">Send TL3 to DJ</button>
+            <span style="font-size:11px;color:var(--t3)" id="cntTl3">0</span>
           </div>
         </div>
-        <div class="sec">
-          <div class="sec-head">
-            <div class="sec-title">🔒 MP3 원본 (비공개)</div>
-            <div style="font-size:11px;color:var(--t3)" id="cntMp3">0개</div>
-          </div>
-          <div class="file-list" id="myMp3List">
-            <div class="empty">
-              <div class="empty-icon">🎵</div>
-              <div class="empty-text">MP3 파일이 없습니다.</div>
-            </div>
-          </div>
+        <div class="file-list" id="myAssetList">
+          <div class="empty"><div class="empty-icon">◇</div><div class="empty-text">Your published digital assets will appear here.</div></div>
         </div>
       </div>
       <div id="contentBroadcastBar" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:999;padding:14px 24px;background:rgba(10,10,20,.95);border:1px solid rgba(139,92,246,.4);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.5);align-items:center;gap:16px;backdrop-filter:blur(20px)">
@@ -598,123 +584,47 @@ async function loadShares(){
     var r = await fetch(API + '/api/shares');
     var d = await r.json();
     var shares = Array.isArray(d) ? d : (d.shares || []);
-
-    var myFiles = shares.filter(function(s){ return String(s.user_id) === String(_user.id); });
-
-    // Public releases come from /api/shares. Private MP3 source assets are owner-only
-    // and must be loaded separately; they are never treated as free/public releases.
-    try{
-      var ownResponse = await fetch(API + '/api/v1/files/my', {
-        headers: {'Authorization':'Bearer '+_token}
-      });
-      if(ownResponse.ok){
-        var ownPayload = await ownResponse.json();
-        var ownFiles = Array.isArray(ownPayload) ? ownPayload : [];
-        ownFiles.forEach(function(file){
-          var type = String(file.file_type || '').toLowerCase();
-          var sourceName = String(file.file_name || file.filename || file.stream_url || file.file_url || '');
-          var isPrivateMp3 = type === 'audio/mpeg' || type === 'audio/mp3' || /\.mp3(?:$|[?#])/i.test(sourceName);
-          var isTl3Asset = type === 'audio/tl3';
-          var isAlreadyPublic = isTl3Asset &&
-            String(file.auth_status || '').toLowerCase() === 'verified' &&
-            Number(file.shared || 0) === 1 && Number(file.revenue_held || 0) === 0;
-          if(isAlreadyPublic || (!isPrivateMp3 && !isTl3Asset)) return;
-          myFiles.push(Object.assign({}, file, {
-            content_kind: isTl3Asset ? 'tl3' : 'mp3',
-            source_table: 'private_source'
-          }));
-        });
-      }
-    }catch(privateLoadError){
-      console.warn('비공개 원본 목록 로드 실패:', privateLoadError);
-    }
-
+    var supportedTypes = ['tl3','tl4','tld','tlj'];
+    var myFiles = shares.filter(function(item){
+      var type = String(item.content_kind || item.asset_type || '').toLowerCase();
+      return String(item.user_id) === String(_user.id) && supportedTypes.indexOf(type) >= 0;
+    });
     g('homeFiles').textContent = myFiles.length;
     g('cntFiles').textContent = myFiles.length;
-
-    var totalPulse = myFiles.reduce(function(acc, s){ return acc + (s.pulse||0); }, 0);
+    var totalPulse = myFiles.reduce(function(acc,item){ return acc + Number(item.pulse || 0); },0);
     g('cntPulse').textContent = fmt(totalPulse);
-    g('cntEarned').textContent = fmt(myFiles.reduce(function(acc, s){ return acc + Math.floor((s.pulse||0)*10); }, 0));
-    g('cntPlays').textContent = fmt(myFiles.reduce(function(acc, s){ return acc + (s.pulse||0)*3; }, 0));
-
-    var tl3Files = myFiles.filter(function(s){ return String(s.content_kind||'').toLowerCase() === 'tl3'; });
-    var mp3Files = myFiles.filter(function(s){ return String(s.content_kind||'mp3').toLowerCase() !== 'tl3'; });
-
-    g('cntTl3').textContent = tl3Files.length + '개';
-    g('cntMp3').textContent = mp3Files.length + '개';
-
-    function renderFileItem(s, isTl3){
-      var isVerifiedRelease = isTl3 &&
-        String(s.auth_status || '').toLowerCase() === 'verified' &&
-        Number(s.shared || 0) === 1 && Number(s.revenue_held || 0) === 0;
-      var canDelete = isVerifiedRelease && String(s.source_table || '') === 'share';
-      var badge = isTl3 ? (isVerifiedRelease ? 'TL3' : 'PENDING') : 'SOURCE';
-      var badgeClass = isTl3 ? 'video' : 'music';
-      var icon = isTl3 ? (isVerifiedRelease ? '♫' : '◷') : '🔒';
+    g('cntEarned').textContent = fmt(myFiles.reduce(function(acc,item){ return acc + Math.floor(Number(item.pulse || 0) * 10); },0));
+    g('cntPlays').textContent = fmt(myFiles.reduce(function(acc,item){ return acc + Number(item.pulse || 0) * 3; },0));
+    var tl3Files = myFiles.filter(function(item){ return String(item.content_kind || item.asset_type || '').toLowerCase() === 'tl3'; });
+    g('cntTl3').textContent = tl3Files.length + ' TL3 assets';
+    function renderFileItem(item){
+      var type = String(item.content_kind || item.asset_type || '').toLowerCase();
+      var labels = {tl3:'TL3',tl4:'TL4',tld:'TLD',tlj:'TLJ'};
+      var classes = {tl3:'music',tl4:'video',tld:'doc',tlj:'image'};
+      var icons = {tl3:'♫',tl4:'▶',tld:'▤',tlj:'▧'};
+      var canBroadcast = type === 'tl3';
+      var amount = Number(item.file_tl || 0);
       return '<div class="file-item">' +
-        '<div class="file-icon">' + icon + '</div>' +
-        '<div class="file-info">' +
-          '<div class="file-name">' + esc(s.title||'Untitled') + '</div>' +
-          '<div class="file-meta">' + esc(s.artist||'') + ' · ' + new Date(s.created_at||0).toLocaleDateString('ko-KR') + '</div>' +
-        '</div>' +
-        '<div class="file-stats">' +
-          '<div class="file-stat">' +
-            '<div class="file-stat-val" style="color:var(--orange)">' + (isTl3 ? fmt(Math.floor(s.file_tl||0)) + ' TL' : '비공개') + '</div>' +
-            '<div class="file-stat-label">' + (isTl3 ? '기여 기준' : '공개 상태') + '</div>' +
-          '</div>' +
-          '<div class="file-stat">' +
-            '<div class="file-stat-val" style="color:var(--teal)">' + (s.pulse||0) + '</div>' +
-            '<div class="file-stat-label">Pulse</div>' +
-          '</div>' +
-        '</div>' +
-        '<div class="file-type-badge ' + badgeClass + '">' + badge + '</div>' +
-        (isVerifiedRelease ? '<input type="checkbox" class="file-broadcast-cb" data-id="' + s.id + '" data-can-delete="' + (canDelete ? '1' : '0') + '" onchange="toggleContentTrack(this)" title="방송 대기" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);flex-shrink:0">' : '') +
-        (canDelete ? '<button class="file-delete-btn" onclick="deleteMyFile(\'' + s.id + '\', \'' + esc(s.title||'Untitled').replace(/'/g, '') + '\')" title="삭제">🗑️</button>' : '') +
-      '</div>';
+        '<div class="file-icon">' + (icons[type] || '◇') + '</div>' +
+        '<div class="file-info"><div class="file-name">' + esc(item.title || 'Untitled') + '</div>' +
+        '<div class="file-meta">' + esc(item.artist || item.username || 'Creator') + ' · ' + new Date(item.created_at || 0).toLocaleDateString('en-US') + '</div></div>' +
+        '<div class="file-stats"><div class="file-stat"><div class="file-stat-val" style="color:var(--orange)">' + (amount > 0 ? fmt(Math.floor(amount)) + ' TL' : '—') + '</div><div class="file-stat-label">TL amount</div></div>' +
+        '<div class="file-stat"><div class="file-stat-val" style="color:var(--teal)">' + Number(item.pulse || 0) + '</div><div class="file-stat-label">Pulse</div></div></div>' +
+        '<div class="file-type-badge ' + (classes[type] || 'music') + '">' + (labels[type] || type.toUpperCase()) + '</div>' +
+        (canBroadcast ? '<input type="checkbox" class="file-broadcast-cb" data-id="' + item.id + '" onchange="toggleContentTrack(this)" title="Add to broadcast queue" aria-label="Select asset for broadcast" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);flex-shrink:0">' : '') +
+        '<button class="file-delete-btn" onclick="deleteMyFile(\'' + item.id + '\', \'' + esc(item.title || 'Untitled').replace(/'/g,'') + '\')" title="Delete" aria-label="Delete asset">🗑️</button></div>';
     }
-
-    if(tl3Files.length){
-      g('myTl3List').innerHTML = tl3Files.map(function(s){ return renderFileItem(s, true); }).join('');
+    var list = g('myAssetList');
+    if(myFiles.length){
+      list.innerHTML = myFiles.map(renderFileItem).join('');
     } else {
-      g('myTl3List').innerHTML = '<div class="empty"><div class="empty-icon">🔒</div><div class="empty-text">TL3 파일이 없습니다.</div></div>';
-    }
-
-    if(mp3Files.length){
-      g('myMp3List').innerHTML = mp3Files.map(function(s){ return renderFileItem(s, false); }).join('');
-    } else {
-      g('myMp3List').innerHTML = '<div class="empty"><div class="empty-icon">🎵</div><div class="empty-text">MP3 파일이 없습니다.</div></div>';
+      list.innerHTML = '<div class="empty"><div class="empty-icon">◇</div><div class="empty-text">No published digital assets yet.</div><a class="tl-btn tl-btn-primary" href="creator.html">Open Creator Center</a></div>';
     }
   }catch(e){
-    console.warn('shares 로드 실패:', e);
+    console.warn('Unable to load digital assets:',e);
+    var list = g('myAssetList');
+    if(list) list.innerHTML = '<div class="empty"><div class="empty-icon">!</div><div class="empty-text">Unable to load your digital assets.</div></div>';
   }
-}
-
-async function deleteSelected(){
-  var selected = Array.from(document.querySelectorAll('.file-broadcast-cb:checked'));
-  var deletable = selected.filter(function(cb){ return cb.dataset.canDelete === '1'; });
-  if(!deletable.length){
-    toast('선택한 항목 중 삭제 가능한 공유 레코드가 없습니다.', 'error');
-    return;
-  }
-  if(!confirm(deletable.length + '개 공유 자산을 삭제하시겠습니까?')) return;
-  var failed = [];
-  for(var i=0;i<deletable.length;i++){
-    var cb = deletable[i];
-    try{
-      var response = await fetch(API + '/api/shares/' + encodeURIComponent(cb.dataset.id), {
-        method:'DELETE',
-        headers:{'Authorization':'Bearer '+_token}
-      });
-      if(!response.ok){
-        var payload = await response.json().catch(function(){ return {}; });
-        throw new Error(payload.error || '삭제 실패');
-      }
-    }catch(e){ failed.push(cb.dataset.id); }
-  }
-  clearContentSelection();
-  await loadShares();
-  if(failed.length) toast(failed.length + '개 항목을 삭제하지 못했습니다.', 'error');
-  else toast(deletable.length + '개 공유 자산을 삭제했습니다.', 'success');
 }
 
 async function deleteMyFile(id, title){
@@ -1056,50 +966,32 @@ async function startContentBroadcast(){
 
 /* ═══ 전체 선택 (TL3 / MP3) ═══ */
 function selectAllType(kind){
-  if(kind !== 'tl3'){
-    toast('비공개 원본 MP3는 방송 대기 목록에 추가할 수 없습니다. TL3 릴리스를 이용하세요.', 'error');
-    return;
-  }
-  var listId = 'myTl3List';
-  var list = document.getElementById(listId);
+  if(kind !== 'tl3') return;
+  var list = document.getElementById('myAssetList');
   if(!list) return;
   var cbs = list.querySelectorAll('.file-broadcast-cb');
-  var added = 0;
   cbs.forEach(function(cb){
     if(!cb.checked){
       cb.checked = true;
       var id = cb.dataset.id;
-      if(_contentSelectedIds.indexOf(id) === -1){
-        _contentSelectedIds.push(id);
-        added++;
-      }
+      if(_contentSelectedIds.indexOf(id) === -1) _contentSelectedIds.push(id);
     }
   });
   updateContentBroadcastBar();
-  console.log('[selectAllType]', kind, '추가:', added, '총:', _contentSelectedIds.length);
 }
-
 function clearType(kind){
-  var listId = kind === 'tl3' ? 'myTl3List' : 'myMp3List';
-  var list = document.getElementById(listId);
+  if(kind !== 'tl3') return;
+  var list = document.getElementById('myAssetList');
   if(!list) return;
-  var cbs = list.querySelectorAll('.file-broadcast-cb');
-  cbs.forEach(function(cb){
-    if(cb.checked){
-        cb.checked = false;
-      toggleContentTrack(cb);
-    }
+  list.querySelectorAll('.file-broadcast-cb').forEach(function(cb){
+    if(cb.checked){ cb.checked = false; toggleContentTrack(cb); }
   });
 }
 
 /* ═══ DJ 센터로 보내기 ═══ */
 async function sendToDj(kind){
-  if(kind !== 'tl3'){
-    toast('비공개 원본 MP3는 DJ 방송에 보낼 수 없습니다. TL3 릴리스를 이용하세요.', 'error');
-    return;
-  }
-  var listId = 'myTl3List';
-  var list = document.getElementById(listId);
+  if(kind !== 'tl3') return;
+  var list = document.getElementById('myAssetList');
   if(!list) return;
   var cbs = list.querySelectorAll('.file-broadcast-cb:checked');
   if(!cbs.length){ toast('먼저 곡을 선택하세요', 'error'); return; }
