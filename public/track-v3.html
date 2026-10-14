@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Track | TimeLink</title><link rel="stylesheet" href="/apple-theme.css">
+<style>
+:root{color-scheme:dark;--bg:#080d19;--panel:#111a2b;--line:#26354c;--muted:#9aa9bd;--blue:#398bff;--cyan:#67d5e8}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 10% 0%,#102b4d 0,transparent 42%),var(--bg);color:#f4f7fc;font:15px/1.65 -apple-system,BlinkMacSystemFont,"Pretendard","Noto Sans KR",sans-serif}nav{height:64px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 max(20px,calc((100% - 900px)/2));gap:22px}.logo{font-weight:900;letter-spacing:.13em;color:#fff;text-decoration:none}.link{color:var(--muted);text-decoration:none;font-size:13px}main{max-width:900px;margin:42px auto;padding:0 20px 80px}.panel{background:linear-gradient(145deg,#142239,#0e1726);border:1px solid var(--line);border-radius:18px;padding:24px;margin-bottom:18px}.hero{display:grid;grid-template-columns:220px 1fr;gap:24px;align-items:center}.cover{aspect-ratio:1;border-radius:13px;overflow:hidden;background:linear-gradient(135deg,#1b365b,#132033);display:grid;place-items:center;font-size:46px;color:#80c9e7}.cover img{width:100%;height:100%;object-fit:cover}.eyebrow{font:700 10px ui-monospace,monospace;letter-spacing:.18em;color:var(--cyan)}h1{font-size:clamp(27px,5vw,40px);line-height:1.2;margin:8px 0}.artist{color:var(--muted)}audio{width:100%;margin-top:18px}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}.btn{border:1px solid #34445b;border-radius:10px;background:#1b2a40;color:#fff;padding:10px 15px;font-weight:700;cursor:pointer}.btn.primary{background:linear-gradient(120deg,#2477ee,#36b5d1);border:0}.btn:disabled{opacity:.45}.stats{color:var(--muted);font-size:12px;margin-top:12px}.field{display:flex;gap:9px;margin-top:12px}.field input{flex:1;min-width:0;background:#091321;border:1px solid #34445b;border-radius:10px;padding:12px;color:#fff;font:inherit}.comment{border-top:1px solid var(--line);padding:13px 0}.comment b{font-size:13px}.comment p{margin:4px 0 0;color:#c0ccdc;white-space:pre-wrap}.muted{color:var(--muted);font-size:13px}.notice{font-size:12px;color:#90a2ba}.status{font-size:13px;color:#b9d8ff;white-space:pre-wrap;margin-top:12px}
+@media(max-width:640px){.hero{grid-template-columns:1fr}.cover{max-width:190px}.panel{padding:18px}.field{flex-direction:column}}
+</style></head><body>
+<nav><a class="logo" href="/">TIMELINK</a><a class="link" href="/shareplace-v3.html">SharePlace</a><a class="link" href="/creator-studio-v3.html">Creator Studio V3</a></nav>
+<main>
+<section class="panel"><div class="hero"><div class="cover" id="cover">♪</div><div><div class="eyebrow">TRACK PAGE / V3</div><h1 id="title">불러오는 중…</h1><div class="artist" id="artist"></div><div class="stats" id="stats"></div><div class="actions"><button class="btn primary" id="like">♥ 좋아요</button><button class="btn" id="follow">창작자 팔로우</button><button class="btn" id="share">공유</button></div></div></div><audio id="audio" controls preload="none"></audio><div class="notice">무료 MP3 스트리밍 · TL 차감 없음 · 조회수는 아직 집계하지 않는다.</div><div class="status" id="status"></div></section>
+<section class="panel"><h2>댓글</h2><div class="field"><input id="commentInput" maxlength="1000" placeholder="이 곡에 대한 생각을 남겨주세요"><button class="btn primary" id="send">등록</button></div><div id="comments" style="margin-top:16px"></div></section>
+</main>
+<script>
+(async function(){
+ const API='https://api.timelink.digital',params=new URLSearchParams(location.search),id=params.get('id')||'',token=localStorage.getItem('tl_token')||'';
+ const $=x=>document.getElementById(x);let liked=false,following=false,track=null;
+ const auth=()=>({'Authorization':'Bearer '+token,'Content-Type':'application/json'});
+ async function request(path,options){const r=await fetch(API+path,options);let d={};try{d=await r.json()}catch{}if(!r.ok||d.ok===false)throw new Error(d.error||'요청 실패 ('+r.status+')');return d;}
+ function message(s){$('status').textContent=s;}
+ async function loadComments(){const d=await request('/api/v3/social/music/'+encodeURIComponent(id)+'/comments');$('comments').replaceChildren();if(!d.comments?.length){$('comments').textContent='첫 댓글을 남겨보세요.';return;}for(const c of d.comments){const el=document.createElement('div');el.className='comment';const b=document.createElement('b');b.textContent=c.username||'회원';const p=document.createElement('p');p.textContent=c.content;el.append(b,p);$('comments').appendChild(el);}}
+ try{
+  if(!id)throw new Error('곡 ID가 없습니다.');
+  const d=await request('/api/v3/public/music/tracks/'+encodeURIComponent(id));track=d.track;
+  $('title').textContent=track.display_title||'제목 없음';$('artist').textContent=(track.artist||'아티스트')+' · '+(track.creator_name||'TimeLink Creator');
+  $('audio').src=track.stream_url;
+  if(track.cover_url){const img=document.createElement('img');img.src=track.cover_url;img.alt='';$('cover').replaceChildren(img);}
+  const stats=await request('/api/v3/social/music/'+encodeURIComponent(id)+'/stats');$('stats').textContent='♥ '+stats.likes+' · 댓글 '+stats.comments;
+  if(token){try{const [l,f]=await Promise.all([request('/api/v3/social/music/'+encodeURIComponent(id)+'/like',{headers:auth()}),request('/api/v3/social/music/'+encodeURIComponent(id)+'/follow',{headers:auth()})]);liked=l.liked;following=f.following;}catch(e){}}
+  $('like').textContent=liked?'♥ 좋아요 취소':'♥ 좋아요';$('follow').textContent=following?'팔로우 중':'창작자 팔로우';
+  await loadComments();
+ }catch(e){message(e.message);return;}
+ $('like').onclick=async()=>{if(!token){message('좋아요는 로그인 후 이용할 수 있습니다.');return;}try{const d=await request('/api/v3/social/music/'+encodeURIComponent(id)+'/like',{method:liked?'DELETE':'POST',headers:auth()});liked=d.liked;$('like').textContent=liked?'♥ 좋아요 취소':'♥ 좋아요';$('stats').textContent='♥ '+d.likes+' · 댓글';}catch(e){message(e.message);}};
+ $('follow').onclick=async()=>{if(!token){message('팔로우는 로그인 후 이용할 수 있습니다.');return;}try{const d=await request('/api/v3/social/music/'+encodeURIComponent(id)+'/follow',{method:following?'DELETE':'POST',headers:auth()});following=d.following;$('follow').textContent=following?'팔로우 중':'창작자 팔로우';}catch(e){message(e.message);}};
+ $('send').onclick=async()=>{if(!token){message('댓글은 로그인 후 등록할 수 있습니다.');return;}const content=$('commentInput').value.trim();if(!content){message('댓글 내용을 입력해 주세요.');return;}try{await request('/api/v3/social/music/'+encodeURIComponent(id)+'/comments',{method:'POST',headers:auth(),body:JSON.stringify({content})});$('commentInput').value='';await loadComments();const s=await request('/api/v3/social/music/'+encodeURIComponent(id)+'/stats');$('stats').textContent='♥ '+s.likes+' · 댓글 '+s.comments;message('댓글을 등록했습니다.');}catch(e){message(e.message);}};
+ $('share').onclick=async()=>{const url=location.href;try{if(navigator.share)await navigator.share({title:track.display_title||'TimeLink Track',url});else{await navigator.clipboard.writeText(url);message('Track 링크를 복사했습니다.');}}catch(e){if(e.name!=='AbortError')message('공유를 완료하지 못했습니다.');}};
+})();
+</script></body></html>
