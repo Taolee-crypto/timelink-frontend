@@ -13,7 +13,7 @@
     ['TL ECONOMICS', [['/wallet.html','◉','TL Wallet'],['/chart.html','⌁','POC & TLC']]],
     ['MY', [['/dashboard.html','◎','My Dashboard']]]
   ];
-  var path=(location.pathname||'/').replace(/\\/+$/,'')||'/';
+  var path=(location.pathname||'/').replace(/\/+$/,'')||'/';
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function isActive(h){var p=h.split('?')[0];return path===p || (p==='/dashboard.html'&&path==='/dashboard');}
   var html='<aside class="tl-global-sidebar" aria-label="TimeLink navigation"><a class="tl-global-brand" href="/index.html"><span class="tl-global-mark">T</span><span>TimeLink</span></a><nav class="tl-global-links">';
