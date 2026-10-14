@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>TL 라이브 플레이어</title>
+<title>TL Live Player — TimeLink</title>
 <style>
 :root{--bg:#0a0a14;--bd:rgba(255,255,255,.08);--red:#ff4757;--mint:#F5A623;--t1:#fff;--t3:rgba(255,255,255,.4)}
 *{box-sizing:border-box}
@@ -34,6 +34,14 @@ audio{display:none}
 <link rel="stylesheet" href="/dropdown-fix.css"><!-- SELECT_FIX_V1 -->
 
 <link rel="stylesheet" href="/apple-theme.css?v=global-20261014" data-tl-global-theme="2026.10">
+<style id="timelink-global-player-host">
+:root{--bg:#0A0A0A;--card:#1A1A1A;--purple:#8B5CF6;--gold:#F5A623;--text:#F5F4FA;--muted:#A4A2B2;--dim:#777586;--bd:rgba(255,255,255,.09);--fn:'Pretendard','Inter',sans-serif}
+body{background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(139,92,246,.12),transparent 70%),var(--bg);color:var(--text);font-family:var(--fn);letter-spacing:-.02em}
+.cover{background:linear-gradient(145deg,#211b35,#171717);border-color:var(--bd)}
+.tl-box{background:var(--card);border-color:var(--bd);border-radius:14px}
+.btn-play{background:linear-gradient(120deg,#a78bfa,var(--purple));color:#100d19}
+.btn-stop{border-color:var(--bd);background:#1a1a1a}
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -42,19 +50,19 @@ audio{display:none}
     &#127911;
   </div>
   <div>
-    <div class="title" id="title">방송 준비 중...</div>
+    <div class="title" id="title">Preparing broadcast…</div>
     <div class="artist" id="artist">-</div>
   </div>
   <div class="tl-box">
-    <div class="tl-row"><span>곡당 소모</span><span class="tl-val" id="rate">-- TL</span></div>
-    <div class="tl-row"><span>남은 잔액</span><span class="tl-val" id="balance">-- TL</span></div>
+    <div class="tl-row"><span>TL per Track</span><span class="tl-val" id="rate">-- TL</span></div>
+    <div class="tl-row"><span>Remaining Balance</span><span class="tl-val" id="balance">-- TL</span></div>
     <div class="bar-bg"><div class="bar" id="bar"></div></div>
   </div>
   <div class="controls">
     <button class="btn btn-play" id="playBtn" onclick="togglePlay()">&#9208;</button>
     <button class="btn btn-stop" onclick="stopAll()">&#9209;</button>
   </div>
-  <div class="status" id="status">연결 중...</div>
+  <div class="status" id="status">Connecting…</div>
 </div>
 <audio id="audio" crossorigin="anonymous"></audio>
 
@@ -88,7 +96,7 @@ async function init(){
     var d = await r.json();
     if(!d.ok){ g('status').textContent = '\u274c 방송 없음'; return; }
     _dj = d.dj || {dj_name:'DJ'};
-    g('title').textContent = _dj.dj_name + ' 라이브';
+    g('title').textContent = _dj.dj_name + ' Live';
     if(_dj.avatar_url) g('cover').innerHTML = '<img src="'+_dj.avatar_url+'"><div class="badge"><span class="dot"></span>LIVE</div>';
   } catch(e){ g('status').textContent = '\u274c 로드 실패'; return; }
 
@@ -107,11 +115,11 @@ async function init(){
   _pollTimer = setInterval(loadAndPlay, 5000);
   startCharging();
 
-  g('status').textContent = '\u2705 재생 중 \u00b7 이 창을 닫으면 정지됩니다';
+  g('status').textContent = '\u2705 Playing \u00b7 이 창을 닫으면 정지됩니다';
 }
 
 async function loadAndPlay(){
-  // 🔒 재생 중이면 폴링이 절대 손대지 않음
+  // 🔒 Playing이면 폴링이 절대 손대지 않음
   // 🔒 로딩 중이면 스킵
   if(_loadingTrackId) return;
 
@@ -121,7 +129,7 @@ async function loadAndPlay(){
     if(!d.ok || !d.current_track) return;
     var t = d.current_track;
 
-    // mp3는 재생 안 함 (tl3만)
+    // mp3는 Play 안 함 (tl3만)
     if(t.content_kind === 'mp3'){
       console.log('[player] mp3 스킵, 다음 곡:', t.title);
       _endedTrackId = t.id;
@@ -179,7 +187,7 @@ async function loadAndPlay(){
         _playing = true;
         _loadingTrackId = null;
         g('playBtn').textContent = '⏸';
-        g('status').textContent = '✅ 재생 중';
+        g('status').textContent = '✅ Playing';
       }).catch(function(e){
         console.warn('[player] play 실패:', e.name, e.message);
         _loadingTrackId = null;
@@ -187,7 +195,7 @@ async function loadAndPlay(){
         _playing = false;
         _trackId = null;
         g('playBtn').textContent = '▶';
-        g('status').textContent = '⚠️ ▶ 버튼을 눌러 재생하세요';
+        g('status').textContent = '⚠️ Press Play to start playback.';
       });
     }
   } catch(e){
@@ -207,7 +215,7 @@ function startCharging(){
       });
       if(r.status === 402){
         var d = await r.json();
-        g('status').textContent = '\u26a0\ufe0f TL 부족: ' + d.current + ' / ' + d.required;
+        g('status').textContent = '\u26a0\ufe0f Insufficient TL: ' + d.current + ' / ' + d.required;
         stopAll();
         return;
       }
@@ -238,19 +246,19 @@ function togglePlay(){
     audio.pause();
     _playing = false;
     g('playBtn').textContent = '\u25b6';
-    g('status').textContent = '\u23f8 일시정지 (과금 중단됨)';
+    g('status').textContent = '\u23f8 Pause (과금 중단됨)';
   } else {
     var p = audio.play();
     if(p !== undefined){
       p.then(function(){
         _playing = true;
         g('playBtn').textContent = '\u23f8';
-        g('status').textContent = '\u2705 재생 중';
+        g('status').textContent = '\u2705 Playing';
       }).catch(function(e){
         console.warn('[player] togglePlay 실패:', e.name, e.message);
         _playing = false;
         g('playBtn').textContent = '\u25b6';
-        g('status').textContent = '\u26a0\ufe0f 재생 실패: ' + e.name;
+        g('status').textContent = '\u26a0\ufe0f Playback failed: ' + e.name;
       });
     }
   }
@@ -264,7 +272,7 @@ function stopAll(){
   _playing = false;
   _trackId = null;
   g('playBtn').textContent = '\u25b6';
-  g('status').textContent = '\u23f9 정지됨';
+  g('status').textContent = '\u23f9 Stopped';
 }
 
 window.addEventListener('beforeunload', function(){ stopAll(); });
