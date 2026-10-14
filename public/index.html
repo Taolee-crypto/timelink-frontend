@@ -521,6 +521,41 @@ button,a{-webkit-tap-highlight-color:transparent}
   var API='https://api.timelink.digital';
   function escapeHTML(value){return String(value==null?'':value).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];});}
   function safeImage(value){try{var u=new URL(String(value||''),location.origin);return (u.protocol==='https:'||u.protocol==='http:')?u.href:'';}catch(e){return '';}}
+  async function loadTopMusic(){
+    var grid=document.getElementById('musicGrid');
+    if(!grid)return;
+    try{
+      var response=await fetch(API+'/api/shares',{headers:{'Accept':'application/json'}});
+      if(!response.ok)throw new Error('Music request failed');
+      var payload=await response.json();
+      var items=Array.isArray(payload)?payload:(Array.isArray(payload.shares)?payload.shares:[]);
+      items=items.filter(function(item){
+        return String(item.content_kind||item.asset_type||'').toLowerCase()==='tl3';
+      });
+      items.sort(function(a,b){return Number(b.pulse||0)-Number(a.pulse||0);});
+      var top=items.slice(0,5);
+      if(!top.length){
+        grid.innerHTML='<div class="music-loading">등록된 TL3 음악이 여기에 표시됩니다.</div>';
+        return;
+      }
+      grid.innerHTML=top.map(function(item,index){
+        var id=encodeURIComponent(String(item.id||''));
+        var title=escapeHTML(item.title||'Untitled');
+        var artist=escapeHTML(item.artist||item.username||'Creator');
+        var image=safeImage(item.cover_url);
+        var cover=image?'<img src="'+escapeHTML(image)+'" alt="" loading="lazy">':'<span aria-hidden="true">♫</span>';
+        return '<a href="track.html?id='+id+'" class="music-card">'+
+          '<div class="music-cover"><div class="music-rank">'+(index+1)+'</div>'+cover+'</div>'+
+          '<div class="music-title">'+title+'</div>'+
+          '<div class="music-artist">'+artist+'</div>'+
+          '<span class="music-kind tl3">TL3</span>'+
+        '</a>';
+      }).join('');
+    }catch(error){
+      grid.innerHTML='<div class="music-loading">음악 목록을 불러오지 못했습니다.</div>';
+      console.warn('TimeLink music list:',error);
+    }
+  }
   async function loadFeatured(){
     var root=document.getElementById('featuredAssets');
     try{
@@ -544,7 +579,7 @@ button,a{-webkit-tap-highlight-color:transparent}
       console.warn('TimeLink featured assets:',error);
     }
   }
-  document.addEventListener('DOMContentLoaded',loadFeatured);
+  document.addEventListener('DOMContentLoaded',function(){loadFeatured();loadTopMusic();});
 })();
 </script>
 <script src="/sidebar.js?v=global-shell-v2"></script>
