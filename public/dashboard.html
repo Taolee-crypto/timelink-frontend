@@ -431,9 +431,7 @@ body{overflow-x:hidden}
         </div>
         <div class="sec">
           <div class="sec-head">
-            <div class="sec-title">🎵 MP3 (무료 재생)</div>
-            <button onclick="selectAllType('mp3')" style="padding:4px 10px;font-size:11px;background:rgba(48,209,88,.1);border:1px solid rgba(48,209,88,.3);border-radius:6px;color:var(--green);cursor:pointer;font-family:inherit;margin-left:8px">전체 선택</button>
-            <button onclick="sendToDj('mp3')" style="padding:4px 10px;font-size:11px;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.4);border-radius:6px;color:var(--accent);cursor:pointer;font-family:inherit;margin-left:4px">📡 DJ로 보내기</button>
+            <div class="sec-title">🔒 MP3 원본 (비공개)</div>
             <div style="font-size:11px;color:var(--t3)" id="cntMp3">0개</div>
           </div>
           <div class="file-list" id="myMp3List">
@@ -603,6 +601,26 @@ async function loadShares(){
 
     var myFiles = shares.filter(function(s){ return String(s.user_id) === String(_user.id); });
 
+    // Public releases come from /api/shares. Private MP3 source assets are owner-only
+    // and must be loaded separately; they are never treated as free/public releases.
+    try{
+      var ownResponse = await fetch(API + '/api/v1/files/my', {
+        headers: {'Authorization':'Bearer '+_token}
+      });
+      if(ownResponse.ok){
+        var ownPayload = await ownResponse.json();
+        var ownFiles = Array.isArray(ownPayload) ? ownPayload : [];
+        ownFiles.forEach(function(file){
+          var type = String(file.file_type || '').toLowerCase();
+          var isPrivateMp3 = type === 'audio/mpeg' || type === 'audio/mp3' || /\.mp3$/i.test(String(file.file_name || file.filename || ''));
+          if(!isPrivateMp3) return;
+          myFiles.push(Object.assign({}, file, {content_kind:'mp3', source_table:'private_source'}));
+        });
+      }
+    }catch(privateLoadError){
+      console.warn('비공개 원본 목록 로드 실패:', privateLoadError);
+    }
+
     g('homeFiles').textContent = myFiles.length;
     g('cntFiles').textContent = myFiles.length;
 
@@ -618,9 +636,9 @@ async function loadShares(){
     g('cntMp3').textContent = mp3Files.length + '개';
 
     function renderFileItem(s, isTl3){
-      var badge = isTl3 ? 'TL3' : 'FREE';
+      var badge = isTl3 ? 'TL3' : 'SOURCE';
       var badgeClass = isTl3 ? 'video' : 'music';
-      var icon = isTl3 ? '🔒' : '🎵';
+      var icon = isTl3 ? '♫' : '🔒';
       return '<div class="file-item">' +
         '<div class="file-icon">' + icon + '</div>' +
         '<div class="file-info">' +
@@ -629,8 +647,8 @@ async function loadShares(){
         '</div>' +
         '<div class="file-stats">' +
           '<div class="file-stat">' +
-            '<div class="file-stat-val" style="color:var(--orange)">' + (isTl3 ? fmt(Math.floor(s.file_tl||0)) + ' TL' : '무료') + '</div>' +
-            '<div class="file-stat-label">가격</div>' +
+            '<div class="file-stat-val" style="color:var(--orange)">' + (isTl3 ? fmt(Math.floor(s.file_tl||0)) + ' TL' : '비공개') + '</div>' +
+            '<div class="file-stat-label">' + (isTl3 ? '기여 기준' : '공개 상태') + '</div>' +
           '</div>' +
           '<div class="file-stat">' +
             '<div class="file-stat-val" style="color:var(--teal)">' + (s.pulse||0) + '</div>' +
@@ -638,8 +656,8 @@ async function loadShares(){
           '</div>' +
         '</div>' +
         '<div class="file-type-badge ' + badgeClass + '">' + badge + '</div>' +
-        '<input type="checkbox" class="file-broadcast-cb" data-id="' + s.id + '" onchange="toggleContentTrack(this)" title="방송 대기" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);flex-shrink:0">' +
-        '<button class="file-delete-btn" onclick="deleteMyFile(\'' + s.id + '\', \'' + esc(s.title||'Untitled').replace(/'/g, '') + '\')" title="삭제">🗑️</button>' +
+        (isTl3 ? '<input type="checkbox" class="file-broadcast-cb" data-id="' + s.id + '" onchange="toggleContentTrack(this)" title="방송 대기" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);flex-shrink:0">' : '') +
+        (isTl3 ? '<button class="file-delete-btn" onclick="deleteMyFile(\'' + s.id + '\', \'' + esc(s.title||'Untitled').replace(/'/g, '') + '\')" title="삭제">🗑️</button>' : '') +
       '</div>';
     }
 
@@ -998,7 +1016,11 @@ async function startContentBroadcast(){
 
 /* ═══ 전체 선택 (TL3 / MP3) ═══ */
 function selectAllType(kind){
-  var listId = kind === 'tl3' ? 'myTl3List' : 'myMp3List';
+  if(kind !== 'tl3'){
+    toast('비공개 원본 MP3는 방송 대기 목록에 추가할 수 없습니다. TL3 릴리스를 이용하세요.', 'error');
+    return;
+  }
+  var listId = 'myTl3List';
   var list = document.getElementById(listId);
   if(!list) return;
   var cbs = list.querySelectorAll('.file-broadcast-cb');
@@ -1032,7 +1054,11 @@ function clearType(kind){
 
 /* ═══ DJ 센터로 보내기 ═══ */
 async function sendToDj(kind){
-  var listId = kind === 'tl3' ? 'myTl3List' : 'myMp3List';
+  if(kind !== 'tl3'){
+    toast('비공개 원본 MP3는 DJ 방송에 보낼 수 없습니다. TL3 릴리스를 이용하세요.', 'error');
+    return;
+  }
+  var listId = 'myTl3List';
   var list = document.getElementById(listId);
   if(!list) return;
   var cbs = list.querySelectorAll('.file-broadcast-cb:checked');
