@@ -34,7 +34,7 @@ main{max-width:980px;margin:auto;padding:48px 22px 100px}.hero{display:flex;just
 <div class="steps"><div class="step active" id="s1"><b>01 / UPLOAD</b><span>음원 등록</span></div><div class="step" id="s2"><b>02 / REGISTER</b><span>원본 등록</span></div><div class="step" id="s3"><b>03 / RIGHTS & TL3</b><span>권리 확인 및 공유</span></div></div>
 
 <section class="card" id="panel1">
-<h2>음원 등록</h2><p class="desc">MP3 파일과 기본 정보를 입력한다. 업로드는 무료이며, 공개 여부와 TL3 공유 여부는 다음 단계에서 선택한다.</p>
+<h2>음원 등록</h2><p class="desc">MP3 원본과 기본 정보를 등록한다. 원본은 비공개로 보관되며 권리 확인을 거쳐 TL3로만 공유할 수 있다.</p>
 <div class="row"><div class="field"><label>제목 *</label><input id="title" placeholder="음원 제목"></div><div class="field"><label>아티스트 *</label><input id="artist" placeholder="아티스트명"></div></div>
 <div class="field"><label>장르</label><div class="chips" id="chips"></div><input id="genre" placeholder="직접 입력 가능"></div>
 <div class="field"><label>앨범 / 설명</label><input id="album" placeholder="앨범명 또는 간단한 설명"></div>
@@ -97,11 +97,15 @@ $('freeBtn').onclick=async()=>{
  }catch(e){err('error2',e.message);b.disabled=false;b.textContent='비공개 원본 등록하고 계속';}
 };
 $('releaseBtn').onclick=async()=>{
- clearErr('error3');if(!$('rights').checked){err('error3','권리 확인에 동의해야 TL3로 공유할 수 있습니다.');return;}if(!share?.file_id){err('error3','무료 공개 단계가 먼저 완료되어야 합니다.');return;}
+ clearErr('error3');if(!$('rights').checked){err('error3','권리 확인에 동의해야 TL3로 공유할 수 있습니다.');return;}if(!share?.file_id){err('error3','비공개 원본 등록이 먼저 완료되어야 합니다.');return;}
  const b=$('releaseBtn');b.disabled=true;b.textContent='TL3 생성 및 공유 중…';
- try{const r=await fetch(API+'/api/v1/tl3/releases',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),body:JSON.stringify({file_id:Number(share.file_id),title:$('title').value.trim(),artist:$('artist').value.trim(),price_tl:Number($('price').value||0)})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'TL3 공유 실패');tl3=true;finish(true,d);}catch(e){err('error3',e.message);b.disabled=false;b.textContent='TL3 공유 등록';}
+ try{const r=await fetch(API+'/api/v1/tl3/releases',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),body:JSON.stringify({file_id:Number(share.file_id),title:$('title').value.trim(),artist:$('artist').value.trim(),price_tl:Number($('price').value||0),rights_confirmed:true})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'TL3 공유 실패');tl3=true;finish(true,d);}catch(e){err('error3',e.message);b.disabled=false;b.textContent='TL3 공유 등록';}
 };
-function finish(released,d){$('doneTitle').textContent='TL3 공유 완료';$('doneText').innerHTML=released?'「'+esc($('title').value)+'」가 TL3로 공유되었습니다.<br><b style="color:#bca6ff">'+Number(d?.price_tl||$('price').value||0).toLocaleString()+' TL</b>의 공유 가격을 크리에이터가 설정했습니다.<br>이제 SharePlace에서 TL3 재생을 시작할 수 있습니다.;step(4);}
+function finish(released,d){
+ $('doneTitle').textContent='TL3 공유 완료';
+ $('doneText').innerHTML='「'+esc($('title').value)+'」가 TL3로 공유되었습니다.<br><b style="color:#F5A623">'+Number(d?.price_tl||$('price').value||0).toLocaleString()+' TL</b>의 공유 조건이 적용되었습니다.<br>이제 SharePlace에서 TL3 자산을 확인할 수 있습니다.';
+ step(4);
+}
 loadBalance();
 })();
 </script>
