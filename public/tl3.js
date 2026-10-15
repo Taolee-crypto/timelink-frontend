@@ -399,7 +399,7 @@
             console.log('[TL3.playStream] segment', n, 'status', sr.status);
             if(!sr.ok){ onError(new Error('segment ' + sr.status)); return; }
             var ciphertext = new Uint8Array(await sr.arrayBuffer());
-            var durationMs = Number(sr.headers.get('X-TL3-Segment-Duration-Ms') || 5000);
+            var durationMs = Number(sr.headers.get('X-TL3-Segment-Duration-Ms') || 1000);
 
             var Tprev;
             if(n === 0){
@@ -453,7 +453,7 @@
                   onSegment({index:confirmedIndex,seconds:durationMs/1000,remaining:d.wallet_tl??d.remaining_tl,wallet_tl:d.wallet_tl??d.remaining_tl,asset_remaining_tl:d.asset_remaining_tl,settled:true});
                 }
                 n++;
-                _next();
+                if(!stopped) _next();
               }).catch(function(e){console.warn('[TL3] segment confirm failed',e);onError(e);});
             },durationMs);
           } catch(e){ onError(e); }
@@ -605,16 +605,27 @@
             console.log('[TL3.playStream] ✅ appended segment', n);
             onSegment({index: n, seconds: durationMs/1000, remaining: codeData.remaining_tl});
 
-            setTimeout(function(){
-              fetch(API + '/api/v1/tl3/segment/confirm/' + fidStr, {
-                method: 'POST',
-                headers: Object.assign({}, authHeaders(), {'Content-Type':'application/json'}),
-                body: JSON.stringify({session_id: sessionId, played_seconds: durationMs/1000})
-              }).catch(function(){});
+            // A session may have only one unsettled segment. Settle this
+            // segment before requesting the next one; immediate prefetch races
+            // the pending-segment guard and triggers 409/429 playback failures.
+            setTimeout(async function(){
+              try {
+                var confirmResponse = await fetch(API + '/api/v1/tl3/segment/confirm/' + fidStr, {
+                  method: 'POST',
+                  headers: Object.assign({}, authHeaders(), {'Content-Type':'application/json'}),
+                  body: JSON.stringify({session_id: sessionId, played_seconds: durationMs/1000})
+                });
+                var confirmData = await confirmResponse.json().catch(function(){ return {}; });
+                if(!confirmResponse.ok || confirmData.ok === false){
+                  onError(new Error(confirmData.error || ('segment confirm ' + confirmResponse.status)));
+                  return;
+                }
+                n++;
+                _next();
+              } catch(confirmError) {
+                onError(confirmError);
+              }
             }, durationMs);
-
-            n++;
-            _next();
           } catch(e){
             console.log('[TL3.playStream] ❌ _next catch:', e.name, '|', e.message);
             console.log('[TL3.playStream] ❌ stack:', e.stack);
@@ -1379,7 +1390,7 @@
             console.log('[TL3.playStream] segment', n, 'status', sr.status);
             if(!sr.ok){ onError(new Error('segment ' + sr.status)); return; }
             var ciphertext = new Uint8Array(await sr.arrayBuffer());
-            var durationMs = Number(sr.headers.get('X-TL3-Segment-Duration-Ms') || 5000);
+            var durationMs = Number(sr.headers.get('X-TL3-Segment-Duration-Ms') || 1000);
 
             var Tprev;
             if(n === 0){
@@ -1434,16 +1445,26 @@
             console.log('[TL3.playStream] ✅ appended segment', n);
             onSegment({index: n, seconds: durationMs/1000, remaining: codeData.remaining_tl});
 
-            setTimeout(function(){
-              fetch(API + '/api/v1/tl3/segment/confirm/' + fidStr, {
-                method: 'POST',
-                headers: Object.assign({}, authHeaders(), {'Content-Type':'application/json'}),
-                body: JSON.stringify({session_id: sessionId, played_seconds: durationMs/1000})
-              }).catch(function(){});
+            // Settle the pending segment before requesting the next one.
+            // The backend session allows only one unsettled segment at a time.
+            setTimeout(async function(){
+              try {
+                var confirmResponse = await fetch(API + '/api/v1/tl3/segment/confirm/' + fidStr, {
+                  method: 'POST',
+                  headers: Object.assign({}, authHeaders(), {'Content-Type':'application/json'}),
+                  body: JSON.stringify({session_id: sessionId, played_seconds: durationMs/1000})
+                });
+                var confirmData = await confirmResponse.json().catch(function(){ return {}; });
+                if(!confirmResponse.ok || confirmData.ok === false){
+                  onError(new Error(confirmData.error || ('segment confirm ' + confirmResponse.status)));
+                  return;
+                }
+                n++;
+                if(!stopped) _next();
+              } catch(confirmError) {
+                onError(confirmError);
+              }
             }, durationMs);
-
-            n++;
-            _next();
           } catch(e){
             console.log('[TL3.playStream] ❌ _next catch:', e.name, '|', e.message);
             console.log('[TL3.playStream] ❌ stack:', e.stack);
