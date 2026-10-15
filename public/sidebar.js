@@ -22,17 +22,9 @@
   function labelText(en, ko) { return label(en, ko); }
 
   var sections = [
-    ['HOME', [['/index.html','⌂','Overview']]],
-    ['DIGITAL ASSETS', [['/shareplace.html','◈','SharePlace']]],
-    ['CREATOR', [['/creator-studio.html','＋','Creator Studio']]],
-    ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/cafe-channel.html','▣','Cafe Broadcast',true],['/incar-channel.html','◇','In-car Broadcast',true],['/dj-center.html','♫','DJ Center']]],
-    ['ADVERTISING', [['/advertiser.html','▱','Advertiser Center'],['/ads.html','▣','Ad Watching']]],
-    ['TL ECONOMICS', [['/wallet.html','◉','Wallet']]],
-    ['MY', [['/dashboard.html','◎','Dashboard'],['/dashboard.html?tab=mining','⛏','TLC Mining',true],['/dashboard.html?tab=mission','🎯','Missions',true],['/dashboard.html?tab=cafe','☕','Cafe Channels',true]]],
-    ['ADMIN', [['/admin.html','⚙','Admin Console']]]
     ['HOME', '홈', [['/dashboard.html?tab=home', '⌂', 'Overview', '둘러보기']]],
     ['DIGITAL ASSETS', '디지털자산', [['/shareplace.html', '◈', 'SharePlace', '공유플레이스']]],
-    ['CREATOR', '창작', [['/creator.html', '✧', 'Creator Center', '크리에이터센터']]],
+    ['CREATOR', '창작', [['/creator-studio.html', '✧', 'Creator Studio', '크리에이터 스튜디오']]],
     ['TL BROADCAST', 'TL 방송국', [
       ['/cafe-channel.html', '▣', 'Cafe Channel', '카페방송'],
       ['/incar-channel.html', '◇', 'In-car Channel', '인카방송'],
@@ -44,13 +36,13 @@
     ]],
     ['ADVERTISING', '광고', [
       ['/advertiser.html', '▱', 'Sponsor Center', '광고주센터'],
-      ['/ads.html', '▣', 'Ad Watching', '광고 시청 및 TL 벌기']
+      ['/ads.html', '▣', 'Ad Watching', '광고 시청 및 TL 기여']
     ]],
     ['TL ECONOMICS', 'TL 경제', [['/wallet.html', '◉', 'Wallet', '지갑']]],
     ['MY', '내 정보', [
-      ['/dashboard.html?tab=content', '▤', 'My Library', '내 파일', true],
+      ['/dashboard.html?tab=home', '◎', 'Dashboard', '대시보드'],
       ['/dashboard.html?tab=mining', '⛏', 'TLC Mining', 'TLC 채굴', true],
-      ['/dashboard.html?tab=mission', '◎', 'Mission', '미션', true],
+      ['/dashboard.html?tab=mission', '◎', 'Missions', '미션', true],
       ['/dashboard.html?tab=cafe', '☕', 'My Cafe', '나의 카페', true]
     ]]
   ];
@@ -73,7 +65,12 @@
   }
 
   var html = `<style id="tl-global-sidebar-css">
-    body.tl-global-shell{padding-left:252px!important;min-height:100vh}
+    body.tl-global-shell{box-sizing:border-box;width:100%;padding-left:252px!important;min-height:100vh;overflow-x:hidden}
+    body.tl-global-shell .layout,body.tl-global-shell .app{box-sizing:border-box;width:100%;max-width:none;min-width:0}
+    body.tl-global-shell .body{box-sizing:border-box;width:100%;min-width:0;flex:1 1 auto}
+    body.tl-global-shell .main{box-sizing:border-box;width:auto!important;max-width:none;min-width:0;flex:1 1 auto;margin-left:0!important;transform:none!important}
+    body.tl-global-shell .quick-bar{max-width:100%;box-sizing:border-box}
+    body.tl-global-shell .quick-bar>*{min-width:0;max-width:100%}
     .tl-global-sidebar{position:fixed;z-index:500;left:0;top:0;bottom:0;width:252px;display:flex;flex-direction:column;padding:22px 15px 16px;background:#0b0b0e;border-right:1px solid rgba(255,255,255,.09);color:#f5f5f7;font-family:Inter,Pretendard,sans-serif;overflow-y:auto}
     .tl-global-brand{display:flex;align-items:center;gap:11px;padding:4px 10px 25px;color:#fff;font-size:21px;font-weight:800;letter-spacing:-.04em}
     .tl-global-mark{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:linear-gradient(140deg,#b69aff,#7655e8 68%,#f5b84b);color:#100d19;font-weight:900}
@@ -120,13 +117,19 @@
   if (app) {
     app.style.display = 'block';
     app.style.width = '100%';
+    app.style.maxWidth = 'none';
     app.style.minWidth = '0';
+    app.style.boxSizing = 'border-box';
   }
   var main = document.querySelector('.body > .main, .layout > .main, .app > .main');
   if (main) {
-    main.style.width = '100%';
+    main.style.width = 'auto';
+    main.style.flex = '1 1 auto';
+    main.style.boxSizing = 'border-box';
     main.style.minWidth = '0';
     main.style.maxWidth = 'none';
+    main.style.marginLeft = '0';
+    main.style.transform = 'none';
   }
 
   var user = {};
