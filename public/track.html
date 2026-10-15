@@ -400,15 +400,14 @@ async function loadTrack(){
   
   try {
     const authHeaders={'Authorization':'Bearer '+getTok()};
-    const [sr,statsR,walletR,assetR]=await Promise.all([
+    const [sr,statsR,walletR]=await Promise.all([
       fetch(API+'/api/shares/'+SHARE_ID),
       fetch(API+'/api/social/stats/'+SHARE_ID,{headers:authHeaders}),
-      fetch(API+'/api/eco/wallet',{headers:authHeaders}),
-      fetch(API+'/api/v1/tl3/asset/'+encodeURIComponent(SHARE_ID)+'/tl',{headers:authHeaders})
+      fetch(API+'/api/eco/wallet',{headers:authHeaders})
     ]);
-    const s=await sr.json(),stats=await statsR.json(),walletData=await walletR.json(),assetData=await assetR.json();
+    const s=await sr.json(),stats=await statsR.json(),walletData=await walletR.json();
+    if(!sr.ok) throw new Error(s.error||'트랙 정보를 찾을 수 없습니다.');
     if(!walletR.ok) throw new Error(walletData.error||'공통 지갑 조회 실패');
-    if(!assetR.ok) throw new Error(assetData.error||'음원 자산 TL 조회 실패');
     if(contentKind(s)!=='tl3'){
       document.getElementById('mainWrap').innerHTML='<div class="loading">이 페이지는 검증된 TL3 음악 자산 전용입니다. SharePlace에서 공개된 TL3 트랙을 선택해 주세요.</div>';
       return;
@@ -416,8 +415,10 @@ async function loadTrack(){
     
     // 공통 사용자 지갑과 음원 자체 TL 풀을 각각 서버에서 조회
     _myFileTL=Number(walletData.wallet?.tl_total||0);
-    _assetTL=Number(assetData.remaining_tl||0);
-    _assetInitialTL=Number(assetData.initial_tl||0);
+    // TL3 V3 재생은 사용자 지갑에서 초 단위로 정산한다.
+    // 존재하지 않는 legacy asset-TL API에 의존하지 않고 트랙 메타의 기준량을 표시한다.
+    _assetInitialTL=Number(s.file_tl||0);
+    _assetTL=_assetInitialTL;
     _share=s;
     _myLiked=stats.my_like||false;
     const requiredTL=_assetInitialTL;
@@ -1111,12 +1112,10 @@ function handlePlayClick(){
 async function updateMyTLFromServer(){
   try{
     const h={'Authorization':'Bearer '+getTok()};
-    const [wr,ar]=await Promise.all([fetch(API+'/api/eco/wallet',{headers:h}),fetch(API+'/api/v1/tl3/asset/'+encodeURIComponent(SHARE_ID)+'/tl',{headers:h})]);
-    const [w,a]=await Promise.all([wr.json(),ar.json()]);
-    if(!wr.ok||!ar.ok) throw new Error(w.error||a.error||'TL 조회 실패');
+    const wr=await fetch(API+'/api/eco/wallet',{headers:h});
+    const w=await wr.json();
+    if(!wr.ok) throw new Error(w.error||'TL 조회 실패');
     _myFileTL=Number(w.wallet?.tl_total||0);
-    _assetTL=Number(a.remaining_tl||0);
-    _assetInitialTL=Number(a.initial_tl||_assetInitialTL);
     updateUIAfterCharge(_myFileTL);
     updatePlayerTLDisplay();
     return _myFileTL;
