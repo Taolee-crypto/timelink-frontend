@@ -9,7 +9,7 @@
   try{token=localStorage.getItem('tl_token')||'';}catch(e){}
   // Keep the public landing page clean for visitors. Authenticated members get
   // the same navigation shell used throughout the application.
-  var pathName=(location.pathname||'/').replace(/\\/+$/,'')||'/';
+  var pathName=(location.pathname||'/').replace(/\/+$/,'')||'/';
   if(!token && (pathName==='/'||pathName==='/index.html')) return;
   if(pathName==='/admin.html'||pathName==='/incar.html') return;
 
