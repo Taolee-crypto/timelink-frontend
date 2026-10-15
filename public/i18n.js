@@ -451,22 +451,25 @@ function injectSwitcher(){
     'border:1px solid rgba(255,255,255,.18);border-radius:22px',
     'padding:4px;box-shadow:0 4px 20px rgba(0,0,0,.38)'
   ].join(';');
-  ['en','ko'].forEach(function(l){
+  // Keep the visible label and target language identical: EN -> English, KR -> Korean.
+  ['ko','en'].forEach(function(lang){
     var btn=document.createElement('button');
-    btn.className='tl-lang-btn'+(l===_lang?' tl-lang-active':'');
-    btn.dataset.lang=l;
-    btn.textContent=l==='en'?'EN':'KR';
-    btn.title=LABELS[l];
-    btn.setAttribute('aria-pressed',l===_lang?'true':'false');
+    btn.type='button';
+    btn.className='tl-lang-btn'+(lang===_lang?' tl-lang-active':'');
+    btn.dataset.lang=lang;
+    btn.textContent=lang==='en'?'EN':'KR';
+    btn.title=LABELS[lang];
+    btn.setAttribute('aria-label',lang==='en'?'Switch to English':'한국어로 전환');
+    btn.setAttribute('aria-pressed',lang===_lang?'true':'false');
     btn.style.cssText=[
-      'background:'+(l===_lang?'rgba(139,108,240,.95)':'transparent'),
-      'border:1px solid '+(l===_lang?'rgba(255,255,255,.24)':'transparent'),
+      'background:'+(lang===_lang?'rgba(139,108,240,.95)':'transparent'),
+      'border:1px solid '+(lang===_lang?'rgba(255,255,255,.24)':'transparent'),
       'cursor:pointer;font:700 11px/1 Inter,Pretendard,sans-serif',
       'min-width:36px;padding:8px 10px;border-radius:18px',
-      'opacity:'+(l===_lang?'1':'0.58'),
+      'opacity:'+(lang===_lang?'1':'0.58'),
       'transition:all .2s;color:#fff'
     ].join(';');
-    (function(lang){btn.onclick=function(){TLi18n.setLang(lang);};})(l);
+    btn.addEventListener('click',function(){setLang(lang);});
     sw.appendChild(btn);
   });
   document.body.appendChild(sw);
