@@ -93,7 +93,7 @@
   sections.forEach(function (section) {
     html += '<div class="tl-global-section" data-tl-nav-en="' + esc(section[0]) + '" data-tl-nav-ko="' + esc(section[1]) + '">' + esc(label(section[0], section[1])) + '</div>';
     section[2].forEach(function (item) {
-      html += '<a class="tl-global-link' + (item[4] ? ' tl-global-link-child' : '') + (active(item[0]) ? ' is-active' : '') + '" href="' + esc(item[0]) + '"' + (active(item[0]) ? ' aria-current="page"' : '') + '><span class="tl-global-icon">' + esc(item[1]) + '</span><span>' + esc(label(item[2], item[3])) + '</span></a>';
+      html += '<a class="tl-global-link' + (item[4] ? ' tl-global-link-child' : '') + (active(item[0]) ? ' is-active' : '') + '" href="' + esc(item[0]) + '"' + (active(item[0]) ? ' aria-current="page"' : '') + '><span class="tl-global-icon">' + esc(item[1]) + '</span><span data-tl-nav-en="' + esc(item[2]) + '" data-tl-nav-ko="' + esc(item[3]) + '">' + esc(label(item[2], item[3])) + '</span></a>';
     });
   });
   html += '</nav><div class="tl-global-balance"><small>' + esc(label('MY TL BALANCE', '내 TL 잔액')) + '</small><strong id="tlGlobalBalance">— TL</strong><a href="/wallet.html#charge">＋ ' + esc(label('Charge TL', 'TL 충전')) + '</a></div></aside>';
@@ -139,7 +139,7 @@
       var link = document.createElement('a');
       link.className = 'tl-global-link' + (pathName === '/admin.html' ? ' is-active' : '');
       link.href = '/admin.html';
-      link.innerHTML = '<span class="tl-global-icon">⚙</span><span>' + esc(label('Admin Console', '관리자 제어')) + '</span>';
+      link.innerHTML = '<span class="tl-global-icon">⚙</span><span data-tl-nav-en="Admin Console" data-tl-nav-ko="관리자 제어">' + esc(label('Admin Console', '관리자 제어')) + '</span>';
       nav.appendChild(label);
       nav.appendChild(link);
     }).catch(function () {});
