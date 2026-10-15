@@ -8,7 +8,7 @@
     ['HOME', [['/index.html','⌂','Overview']]],
     ['DIGITAL ASSETS', [['/shareplace.html','◈','SharePlace'],['/dashboard.html?tab=content','▤','My Library']]],
     ['CREATOR', [['/creator.html','✧','Creator Center']]],
-    ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/dj-center.html','♫','DJ Center'],['/cafe-owner.html','▣','Cafe Broadcast'],['/incar.html','◇','In-car']]],
+    ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/dj-center.html','♫','DJ Center'],['/cafe-channel.html','▣','Cafe Broadcast'],['/incar.html','◇','In-car']]],
     ['ADVERTISING', [['/advertiser.html','▱','Advertiser Center'],['/ads.html','▣','Campaigns']]],
     ['TL ECONOMICS', [['/wallet.html','◉','TL Wallet'],['/chart.html','⌁','TL-CHART']]],
     ['MY', [['/dashboard.html','◎','My Dashboard']]],
