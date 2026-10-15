@@ -358,17 +358,25 @@ var CHANNEL_FEE = 50000;
 var _user = null, _token = null;
 var _shares = [], _selected = new Set(), _images = [];
 
-// Auth
-(function(){
+// Auth + existing cafe owner routing
+(async function(){
   try{
     _user = JSON.parse(localStorage.getItem('tl_user')||'null');
-    _token = localStorage.getItem('tl_token');
+    _token = localStorage.getItem('tl_token') || '';
   }catch(e){}
-  if(!_user){ location.href='login.html'; return; }
+  if(!_user || !_token){ location.href='login.html'; return; }
   document.getElementById('tbUser').textContent = _user.username||_user.email;
   updateBalance();
   var d = new Date(); d.setDate(d.getDate()+30);
   document.getElementById('nextRenew').textContent = d.toLocaleDateString('ko-KR');
+  try{
+    var r=await fetch(API+'/api/cafe/my-channels',{headers:{'Authorization':'Bearer '+_token}});
+    var data=await r.json();
+    if(r.ok && data.ok && (data.channels||[]).length){
+      localStorage.setItem('tl_cafe_channels',JSON.stringify(data.channels));
+      location.replace('cafe-studio.html');
+    }
+  }catch(e){console.warn('[Cafe] existing channel check failed',e);}
 })();
 
 function toast(msg,t){ t=t||'i'; var el=document.createElement('div'); el.className='t '+t; el.textContent=msg; document.getElementById('toast-box').prepend(el); setTimeout(function(){el.remove();},3200); }
@@ -577,10 +585,10 @@ async function submitChannel(){
       updateBalance();
     }
 
-    // 성공 UI
-    btn.style.display='none';
-    g('successBox').classList.add('show');
+    // 개설 완료 후 카페 운영 허브로 이동
+    localStorage.setItem('tl_cafe_channels',JSON.stringify([{channel_id:d.channel_id,name:d.name,expires_at:d.expires_at}]));
     toast('🎉 카페 채널이 개설되었습니다!','s');
+    location.href='cafe-studio.html';
 
     // 성공 박스에 채널 정보 표시
     var sb = g('successBox');
