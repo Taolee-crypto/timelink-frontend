@@ -148,6 +148,17 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
  .file-item-row{flex-wrap:wrap}
 }
 @media(prefers-reduced-motion:reduce){.drop-zone,.mode-card,.lp-opt,.upload-btn{transition:none!important}}
+
+/* ── 타입 탭 (4종) ── */
+.type-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.type-tab{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;background:var(--card);border:1px solid var(--bd);border-radius:14px;cursor:pointer;transition:all .2s;color:var(--t2);font-family:inherit}
+.type-tab:hover{border-color:var(--accent);background:var(--accent-soft)}
+.type-tab.active{border-color:var(--accent);background:var(--accent-soft);color:var(--t1)}
+.type-tab.active .tt-code{color:var(--accent)}
+.tt-icon{font-size:22px}
+.tt-label{font-size:12px;font-weight:600}
+.tt-code{font-size:9px;font-weight:700;letter-spacing:.08em;color:var(--t4)}
+@media(max-width:640px){.type-tabs{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -186,20 +197,35 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
     <div class="content">
       <!-- 안내 -->
       <div style="padding:14px 18px;background:var(--accent-soft);border:1px solid rgba(0,113,227,.25);border-radius:12px;margin-bottom:20px;font-size:13px;color:var(--t2);line-height:1.7">
-        ⚡ <strong style="color:var(--t1)">TL3</strong>는 TL 기반 유료 재생 ·
-        <strong style="color:var(--purple)">LP 음질 특허 기술</strong> 선택 가능
+        ⚡ <strong style="color:var(--t1)">TL 컨테이너</strong>로 자산화 — 음원(TL3) · 영상(TL4) · 이미지(TLJ) · 문서(TLD)
+      </div>
+
+      <!-- ⓪ 타입 선택 탭 -->
+      <div class="type-tabs" id="typeTabs">
+        <button class="type-tab active" data-kind="tl3" onclick="selectKind('tl3')">
+          <span class="tt-icon">🎵</span><span class="tt-label">음원</span><span class="tt-code">TL3</span>
+        </button>
+        <button class="type-tab" data-kind="tl4" onclick="selectKind('tl4')">
+          <span class="tt-icon">🎬</span><span class="tt-label">영상</span><span class="tt-code">TL4</span>
+        </button>
+        <button class="type-tab" data-kind="tlj" onclick="selectKind('tlj')">
+          <span class="tt-icon">🖼️</span><span class="tt-label">이미지</span><span class="tt-code">TLJ</span>
+        </button>
+        <button class="type-tab" data-kind="tld" onclick="selectKind('tld')">
+          <span class="tt-icon">📄</span><span class="tt-label">문서</span><span class="tt-code">TLD</span>
+        </button>
       </div>
 
       <!-- ① 파일 선택 -->
       <div class="form-section">
-        <div class="fsec-title">① 원본 MP3 선택</div>
+        <div class="fsec-title" id="step1Title">① 원본 MP3 선택</div>
         <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
              ondragover="event.preventDefault();this.classList.add('drag')"
              ondragleave="this.classList.remove('drag')"
              ondrop="handleDrop(event)">
-          <div class="dz-icon">🎵</div>
-          <div class="dz-title">원본 MP3를 여기에 놓으세요</div>
-          <div class="dz-sub">또는 클릭해서 파일 선택 · 여러 파일 선택 가능</div>
+          <div class="dz-icon" id="dzIcon">🎵</div>
+          <div class="dz-title" id="dzTitle">원본 MP3를 여기에 놓으세요</div>
+          <div class="dz-sub" id="dzSub">또는 클릭해서 파일 선택 · 여러 파일 선택 가능</div>
         </div>
         <input type="file" id="fileInput" style="display:none" accept="audio/mpeg,.mp3" multiple onchange="onFilesSelected(this.files)">
         <div class="file-list-wrap" id="fileListWrap">
@@ -1263,6 +1289,64 @@ function wavFromBuffers(L, R, fs){
   <script src="/i18n.js?v=20261015"></script>
 
   <script src="/i18n.js?v=20261015-nav-event"></script>
-<script src="/sidebar.js?v=global-shell-layout-20261015"></script>
+<script src="/sidebar.js?v=global-shell-layout-20261015">
+// ─────────────────────────────
+// 4탭 타입 선택 (TL3 / TL4 / TLJ / TLD)
+// ─────────────────────────────
+var KIND_MAP = {
+  tl3: { label:'음원',  step:'원본 MP3 선택',   icon:'🎵', dzTitle:'원본 MP3를 여기에 놓으세요',           accept:'audio/mpeg,.mp3',                     kindParam:'mp3', contentType:'audio/mpeg',      category:'audio',    ext:'.tl3' },
+  tl4: { label:'영상',  step:'원본 영상 선택',  icon:'🎬', dzTitle:'원본 영상(MP4/MOV)을 여기에 놓으세요',   accept:'video/mp4,video/quicktime,.mp4,.mov', kindParam:'mp4', contentType:'video/mp4',       category:'video',    ext:'.tl4' },
+  tlj: { label:'이미지',step:'원본 이미지 선택',icon:'🖼️', dzTitle:'원본 이미지(JPG/PNG)를 여기에 놓으세요', accept:'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp', kindParam:'img', contentType:'image/jpeg', category:'image', ext:'.tlj' },
+  tld: { label:'문서',  step:'원본 문서 선택',  icon:'📄', dzTitle:'원본 문서(PDF)를 여기에 놓으세요',       accept:'application/pdf,.pdf',                kindParam:'pdf', contentType:'application/pdf', category:'document', ext:'.tld' }
+};
+
+function selectKind(kind){
+  var k = KIND_MAP[kind];
+  if(!k) return;
+
+  // 탭 active
+  document.querySelectorAll('.type-tab').forEach(function(b){
+    b.classList.toggle('active', b.dataset.kind === kind);
+  });
+
+  // _mode 갱신 (기존 로직과 호환)
+  _mode = kind;
+
+  // drop zone
+  var dzIcon = document.getElementById('dzIcon');
+  var dzTitle = document.getElementById('dzTitle');
+  var dzSub  = document.getElementById('dzSub');
+  var stepTitle = document.getElementById('step1Title');
+  var fileInput = document.getElementById('fileInput');
+  if(dzIcon) dzIcon.textContent = k.icon;
+  if(dzTitle) dzTitle.textContent = k.dzTitle;
+  if(dzSub) dzSub.textContent = '또는 클릭해서 파일 선택 · ' + k.accept;
+  if(stepTitle) stepTitle.textContent = '① ' + k.step;
+  if(fileInput) fileInput.accept = k.accept;
+
+  // 기존 파일 목록 초기화 (타입 바뀌면 리셋)
+  if(typeof clearAllFiles === 'function') clearAllFiles();
+
+  // TL3 전용 옵션 패널 토글
+  var tl3Opt = document.getElementById('tl3Options');
+  if(tl3Opt) tl3Opt.style.display = (kind === 'tl3') ? 'block' : 'none';
+
+  // LP 안내문 (TL3일 때만)
+  var lpNote = document.getElementById('lpNote');
+  if(lpNote) lpNote.style.display = (kind === 'tl3') ? '' : 'none';
+
+  // 버튼 라벨
+  var btn = document.getElementById('btnUpload') || document.querySelector('button[onclick*="upload"]');
+  if(btn && typeof _pendingFiles !== 'undefined' && _pendingFiles.length === 0){
+    btn.textContent = k.icon + ' ' + k.label + ' 자산화';
+  }
+}
+
+// 초기값
+document.addEventListener('DOMContentLoaded', function(){
+  if(document.querySelector('.type-tab.active')) return;
+  selectKind('tl3');
+});
+</script>
 </body>
 </html>
