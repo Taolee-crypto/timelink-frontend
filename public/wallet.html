@@ -205,27 +205,22 @@ body::before{background-image:radial-gradient(ellipse 60% 40% at 12% 8%,rgba(139
 <div class="cursor-ring" id="cr"></div>
 <div class="app">
   <main class="main">
-    <div class="topbar">
-      <a href="dashboard.html" class="tb-back">← 대시보드</a>
-      <div class="tb-title">💰 지갑 & 채굴</div>
-      <a href="/economy-policy.html" style="margin-left:auto;color:#C4B5FD;text-decoration:none;font-size:12px;font-weight:700">TL Economics Policy ↗</a>
-    </div>
     <div class="page-content">
       <!-- BALANCE HERO -->
       <div class="balance-hero">
         <div class="bh-label">총 자산 현황</div>
         <div class="bh-amounts">
           <div>
-            <div class="bh-tl-val">42,500</div>
-            <div class="bh-unit">⏰ TL · ₩42,500 상당</div>
+            <div class="bh-tl-val" id="walletTl">0</div>
+            <div class="bh-unit" id="walletTlUnit">⏰ TL</div>
           </div>
           <div class="bh-div"></div>
           <div>
-            <div class="bh-tlc-val">123.45</div>
-            <div class="bh-unit">🪙 TLC · ≈₩123,450</div>
+            <div class="bh-tlc-val" id="walletTlc">0</div>
+            <div class="bh-unit" id="walletTlcUnit">🪙 TLC</div>
           </div>
           <div class="bh-donate-side">
-            <div class="bh-donate-val">12,345 TL</div>
+            <div class="bh-donate-val" id="walletDonate">0 TL</div>
             <div class="bh-donate-label">💝 누적 기부 (초록우산)</div>
           </div>
         </div>
@@ -422,14 +417,52 @@ function updateWithdraw(v){
   document.getElementById('withdrawFee').textContent='-'+fee+' TLC';
   document.getElementById('withdrawNet').textContent=net+' TLC ≈ ₩'+((net*1000).toLocaleString('ko-KR'));
 }
-function doClaim(){
+async function doClaim(){
   const btn=document.querySelector('.mine-btn');
-  btn.textContent='✅ 4.2 TLC 클레임 완료!';
-  btn.style.background='rgba(52,211,153,.2)';
-  btn.style.color='var(--mint)';
-  btn.style.border='1px solid rgba(52,211,153,.3)';
-  btn.style.boxShadow='0 0 20px rgba(52,211,153,.2)';
-  setTimeout(()=>{btn.textContent='⛏️ TLC 채굴 클레임';btn.style.cssText='';},3000);
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⛏️ 채굴 중…';
+  try {
+    const token = localStorage.getItem('tl_token') || '';
+    // 1) 서버에서 채굴 가능량 조회
+    const w = await fetch('https://api.timelink.digital/api/v1/users/me/wallet', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    }).then(r=>r.json());
+    const mineable = Number(w.tlc_mineable || 0);
+    if(mineable <= 0){
+      btn.textContent = '❌ 채굴 가능한 TLC가 없습니다';
+      btn.style.background = 'rgba(251,113,133,.2)';
+      btn.style.color = '#FB7185';
+      setTimeout(()=>{ btn.disabled=false; btn.textContent=orig; btn.style.cssText=''; }, 3500);
+      return;
+    }
+    // 2) 실제 채굴
+    const r = await fetch('https://api.timelink.digital/api/eco/mine-tlc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ tlc_amount: mineable })
+    });
+    const d = await r.json();
+    if(!r.ok || !d.ok) throw new Error(d.error || '채굴 실패');
+    const mined = Number(d.mined || mineable).toFixed(2);
+    const total = Number(d.tlc_total || 0).toFixed(2);
+    btn.textContent = '✅ ' + mined + ' TLC 채굴 완료!';
+    btn.style.background = 'rgba(52,211,153,.2)';
+    btn.style.color = 'var(--mint)';
+    btn.style.border = '1px solid rgba(52,211,153,.3)';
+    btn.style.boxShadow = '0 0 20px rgba(52,211,153,.2)';
+    // 잔액 갱신
+    const el = document.getElementById('walletTlc');
+    if(el) el.textContent = total;
+    // 상단바 TLC도 갱신
+    const tbTlc = document.getElementById('tbTlc');
+    if(tbTlc) tbTlc.textContent = total;
+  } catch(e){
+    btn.textContent = '❌ ' + e.message;
+    btn.style.background = 'rgba(251,113,133,.2)';
+    btn.style.color = '#FB7185';
+  }
+  setTimeout(()=>{ btn.disabled=false; btn.textContent=orig; btn.style.cssText=''; }, 3500);
 }
 
 // ═══ AUTH GUARD ═══
@@ -446,6 +479,38 @@ function doClaim(){
 <script src="/sidebar.js?v=global-nav-lang-20261015-v9"></script>
   <script src="/i18n.js?v=20261015-nav-event"></script>
 
+
+<script>
+(function(){
+  var API = 'https://api.timelink.digital';
+  var token = localStorage.getItem('tl_token') || '';
+  if(!token) return;
+  async function loadWallet(){
+    try {
+      var r = await fetch(API + '/api/v1/users/me/wallet', { headers: { 'Authorization': 'Bearer ' + token } });
+      var d = await r.json();
+      var fmt = function(n){ return Number(n).toLocaleString(undefined, {maximumFractionDigits:2}); };
+      var bal = Number(d.tl_balance || 0);
+      var tlc = Number(d.tlc_balance || 0);
+      var el;
+      if(el = document.getElementById('walletTl')) el.textContent = fmt(bal);
+      if(el = document.getElementById('walletTlUnit')) el.textContent = '⏰ TL · ₩' + Math.round(bal).toLocaleString() + ' 상당';
+      if(el = document.getElementById('walletTlc')) el.textContent = tlc.toFixed(2);
+      if(el = document.getElementById('walletTlcUnit')) el.textContent = '🪙 TLC · ≈₩' + Math.round(tlc*1000).toLocaleString();
+      // 상단바에도 반영
+      var tb = document.querySelector('.tl-bal-tl');
+      if(tb) tb.textContent = fmt(bal) + ' TL';
+      var sb = document.getElementById('tlGlobalBalance');
+      if(sb) sb.textContent = fmt(bal) + ' TL';
+    } catch(e){ console.error('wallet load err', e); }
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', loadWallet);
+  } else {
+    loadWallet();
+  }
+})();
+</script>
 </body>
 </html>
 
