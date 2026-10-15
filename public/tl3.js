@@ -453,7 +453,7 @@
                   onSegment({index:confirmedIndex,seconds:durationMs/1000,remaining:d.wallet_tl??d.remaining_tl,wallet_tl:d.wallet_tl??d.remaining_tl,asset_remaining_tl:d.asset_remaining_tl,settled:true});
                 }
                 n++;
-                _next();
+                if(!stopped) _next();
               }).catch(function(e){console.warn('[TL3] segment confirm failed',e);onError(e);});
             },durationMs);
           } catch(e){ onError(e); }
@@ -609,7 +609,6 @@
             // segment before requesting the next one; immediate prefetch races
             // the pending-segment guard and triggers 409/429 playback failures.
             setTimeout(async function(){
-              if(stopped) return;
               try {
                 var confirmResponse = await fetch(API + '/api/v1/tl3/segment/confirm/' + fidStr, {
                   method: 'POST',
