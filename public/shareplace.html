@@ -641,10 +641,10 @@ function renderGridView(list,g){
   g.innerHTML=list.slice(0,40).map(function(s,i){
     var ftype=detectType(s);
     var hasUrl=!!(s.stream_url||s.preview_url);
-    var kind=contentKind(s), isMp3=kind==='mp3', isTl3=kind==='tl3';
+    var kind=contentKind(s), isTl3=kind==='tl3';
     var myTL=_myFileTL[String(s.id)]||0;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
-    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':isMp3?'disabled':myTL>0?'playable':'need-charge');
+    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':myTL>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     var dur=s.duration?(Math.floor(s.duration/60)+':'+String(s.duration%60).padStart(2,'0')):'--:--';
     return '<div class="file-card" id="card-'+s.id+'" onclick="location.href=\''+assetDetailUrl(s)+'\'" style="cursor:pointer">'+
@@ -657,7 +657,7 @@ function renderGridView(list,g){
         '<div class="fc-title">'+escH(s.title||'Untitled')+'</div>'+
         '<div class="fc-artist">'+escH(s.artist||s.username||'')+'</div>'+
         '<div class="fc-meta">'+
-          (isMp3?'<span class="fc-price" style="color:var(--mint)">FREE</span>':'<span class="fc-price" style="color:'+(myTL>=Number(s.file_tl||0)?'var(--teal)':'var(--orange)')+'">⚡ '+Number(s.file_tl||0).toLocaleString()+'/'+myTL.toLocaleString()+'</span>')+
+          '<span class="fc-price" style="color:'+(myTL>=Number(s.file_tl||0)?'var(--teal)':'var(--orange)')+'">⚡ '+Number(s.file_tl||0).toLocaleString()+'/'+myTL.toLocaleString()+'</span>'+
           (_tlShareId===s.id && _tlPlaying && _tlElapsed>0 ? '<span style="color:var(--orange);font-size:10px;margin-left:4px">▶️'+_tlElapsed+'초</span>' : '')+
         '</div>'+
       '</div>'+
@@ -687,7 +687,7 @@ function renderListView(list,g){
     var kind=contentKind(s), isMp3=kind==='mp3', isTl3=kind==='tl3';
     var myTL=_myFileTL[String(s.id)]||0;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
-    var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':isMp3?'disabled':myTL>0?'playable':'need-charge');
+    var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':myTL>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     return '<div class="fl-item" id="card-'+s.id+'" onclick="location.href=\''+assetDetailUrl(s)+'\'" style="cursor:pointer">'+
       '<button class="'+btnClass+'" data-sid="'+s.id+'" onclick="tlPlayCard(this);event.stopPropagation()" style="flex-shrink:0">'+
@@ -699,7 +699,7 @@ function renderListView(list,g){
       '<span>'+new Date(s.created_at||0).toLocaleDateString('ko-KR')+'</span></div></div>'+
       '<div class="fl-type-badge '+tc+'">'+({tl3:'TL3',tl4:'TL4',tld:'TLD',tlj:'TLJ'}[kind]||typeLabel(ftype))+'</div>'+
       '<div class="fl-right"><div class="fl-pulse">🔥 '+Number(s.pulse||0).toLocaleString()+'</div>'+
-      '<div class="fl-price" style="color:'+(isMp3?'var(--mint)':(myTL>=Number(s.file_tl||0)?'var(--teal)':'var(--orange)'))+'">'+'⚡ 필요 '+Number(s.file_tl||0).toLocaleString()+' / 보유 '+myTL.toLocaleString()+' TL'+'</div>'+
+      '<div class="fl-price" style="color:'+(myTL>=Number(s.file_tl||0)?'var(--teal)':'var(--orange)')+'">⚡ 필요 '+Number(s.file_tl||0).toLocaleString()+' / 보유 '+myTL.toLocaleString()+' TL</div>'+
       (_tlShareId===s.id && _tlPlaying && _tlElapsed>0 ? '<div style="font-size:11px;color:var(--orange);margin-top:2px">▶️ '+_tlElapsed+'초 재생 ('+_tlElapsed+' TL)</div>' : '')+
       '<div class="fl-actions"><button class="fl-btn fl-btn-charge" onclick="chargeTL(\''+s.id+'\',\''+escH(s.title)+'\')">TL 충전</button></div></div></div>';
   }).join('');
@@ -989,17 +989,6 @@ async function downloadTL(shareId,title,btn){
     alert('다운로드 실패: '+e.message);
   }
 }
-function quickPreview(url,title){
-  var a=new Audio(url);
-  a.play().catch(function(e){ alert('미리듣기 실패: '+e.message); });
-  document.getElementById('tlPlayerBar').style.display='block';
-  document.getElementById('tlTitle').textContent='[미리듣기] '+title;
-  document.getElementById('tlArtist').textContent='무료 미리보기';
-  document.getElementById('tlRemain').textContent='FREE';
-  document.getElementById('tlPlayBtn').textContent='⏸';
-  a.onended=function(){ document.getElementById('tlPlayBtn').textContent='▶'; tlStop(true); };
-}
-
 // ==================== TOSS PAYMENT ====================
 var _tossPkg={amount:10000,tl:10500};
 var TL_PKGS={5000:{tl:5000,bonus:0},10000:{tl:10000,bonus:500},30000:{tl:30000,bonus:2000},50000:{tl:50000,bonus:5000},100000:{tl:100000,bonus:15000}};
