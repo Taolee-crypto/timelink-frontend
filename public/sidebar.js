@@ -14,9 +14,10 @@
 
   // Navigation language follows the platform-wide tl_lang preference.
   // Korean mode renders Korean labels; English mode renders English labels.
-  var currentLang = 'en';
-  try { currentLang = localStorage.getItem('tl_lang') || 'ko'; } catch (e) {}
-  currentLang = String(currentLang).toLowerCase().indexOf('en') === 0 ? 'en' : 'ko';
+  var currentLang = '';
+  try { currentLang = localStorage.getItem('tl_lang') || ''; } catch (e) {}
+  if (!currentLang) currentLang = (navigator.language || navigator.userLanguage || 'ko').toLowerCase();
+  currentLang = String(currentLang).toLowerCase().indexOf('ko') === 0 ? 'ko' : 'en';
   function label(en, ko) { return currentLang === 'ko' ? ko : en; }
   function labelText(en, ko) { return label(en, ko); }
 
@@ -90,7 +91,7 @@
 
   html += '<aside class="tl-global-sidebar" aria-label="' + esc(label('TimeLink navigation', 'TimeLink 메뉴')) + '"><a class="tl-global-brand" href="/dashboard.html?tab=home"><span class="tl-global-mark">T</span><span>TimeLink</span></a><nav class="tl-global-links">';
   sections.forEach(function (section) {
-    html += '<div class="tl-global-section">' + esc(label(section[0], section[1])) + '</div>';
+    html += '<div class="tl-global-section" data-tl-nav-en="' + esc(section[0]) + '" data-tl-nav-ko="' + esc(section[1]) + '">' + esc(label(section[0], section[1])) + '</div>';
     section[2].forEach(function (item) {
       html += '<a class="tl-global-link' + (item[4] ? ' tl-global-link-child' : '') + (active(item[0]) ? ' is-active' : '') + '" href="' + esc(item[0]) + '"' + (active(item[0]) ? ' aria-current="page"' : '') + '><span class="tl-global-icon">' + esc(item[1]) + '</span><span>' + esc(label(item[2], item[3])) + '</span></a>';
     });
@@ -165,6 +166,12 @@
     toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
   scrim.addEventListener('click', closeNav);
+  window.addEventListener('tl-language-changed', function (event) {
+    var lang = String(event.detail && event.detail.lang || 'en').toLowerCase();
+    document.querySelectorAll('[data-tl-nav-en][data-tl-nav-ko]').forEach(function (node) {
+      node.textContent = lang.indexOf('ko') === 0 ? node.getAttribute('data-tl-nav-ko') : node.getAttribute('data-tl-nav-en');
+    });
+  });
   document.querySelector('.tl-global-sidebar').addEventListener('click', function (event) {
     if (event.target.closest('a')) closeNav();
   });
