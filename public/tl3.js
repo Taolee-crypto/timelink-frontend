@@ -439,7 +439,7 @@
             });
 
             console.log('[TL3.playStream] ✅ appended segment', n);
-            onSegment({index: n, seconds: durationMs/1000, remaining: codeData.remaining_tl});
+            onSegment({index:n,seconds:durationMs/1000,remaining:codeData.wallet_tl??codeData.remaining_tl,wallet_tl:codeData.wallet_tl??codeData.remaining_tl,asset_remaining_tl:codeData.asset_remaining_tl});
 
             var confirmedIndex = n;
             setTimeout(function(){
@@ -450,7 +450,7 @@
               }).then(function(r){ return r.json(); }).then(function(d){
                 // confirm 응답의 최종 잔액(미사용 예약액 환급 반영)을 SharePlace UI에 전달한다.
                 if(d && d.ok && d.remaining_tl !== undefined){
-                  onSegment({index: confirmedIndex, seconds: durationMs/1000, remaining: d.remaining_tl, settled: true});
+                  onSegment({index:confirmedIndex,seconds:durationMs/1000,remaining:d.wallet_tl??d.remaining_tl,wallet_tl:d.wallet_tl??d.remaining_tl,asset_remaining_tl:d.asset_remaining_tl,settled:true});
                 }
               }).catch(function(e){ console.warn('[TL3] segment confirm failed', e); });
             }, durationMs);
