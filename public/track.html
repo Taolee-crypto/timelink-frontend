@@ -2,59 +2,7 @@
 <html lang="ko">
 <head>
 
-<script>
-/* ==== TL_PLAY_LOCK_V1 (auto-inserted) ==== */
-(function(){
-  window._tlPlaying = window._tlPlaying || false;
-  window._tlSuppressPause = false;
-  window._tlPlayBusy = false;
 
-  if (!HTMLMediaElement.prototype.__tlPatched) {
-    var _origPlay  = HTMLMediaElement.prototype.play;
-    var _origPause = HTMLMediaElement.prototype.pause;
-
-    HTMLMediaElement.prototype.play = function(){
-      var self = this;
-      if (self !== window._tlAudio) return _origPlay.apply(self, arguments);
-      if (window._tlPlayBusy) { console.log('[PLAY] busy, skip'); return Promise.resolve(); }
-      window._tlPlayBusy = true;
-      window._tlPlaying = true;
-      var args = arguments;
-      var pr = _origPlay.apply(self, args);
-      if (pr && pr.catch) {
-        pr = pr.catch(function(e){
-          if (e && e.name === 'AbortError') {
-            console.log('[PLAY] AbortError -> retry 180ms');
-            return new Promise(function(r){ setTimeout(r, 180); })
-              .then(function(){ return _origPlay.apply(self, args); });
-          }
-          throw e;
-        });
-      }
-      return pr.finally ? pr.finally(function(){ setTimeout(function(){ window._tlPlayBusy=false; }, 250); })
-                        : pr;
-    };
-
-    HTMLMediaElement.prototype.pause = function(){
-      if (this === window._tlAudio && window._tlPlaying && !window._tlSuppressPause) {
-        console.log('[PAUSE] blocked by playlock');
-        return;
-      }
-      return _origPause.apply(this, arguments);
-    };
-
-    HTMLMediaElement.prototype.__tlPatched = true;
-  }
-
-  window.tlRealStop = function(){
-    window._tlSuppressPause = true;
-    window._tlPlaying = false;
-    try { if (window._tlAudio) window._tlAudio.pause(); }
-    finally { setTimeout(function(){ window._tlSuppressPause = false; }, 50); }
-  };
-  console.log('[TL_PLAY_LOCK_V1] installed');
-})();
-</script>
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -108,6 +56,33 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
 }
 @media(prefers-reduced-motion:reduce){.play-overlay,.btn-play,.btn-icon,.comment-submit{transition:none!important}}
 </style>
+
+<style id="track-player-layout-fix">
+/* Compact floating player: prevent full-viewport horizontal stretching */
+#tlPlayerBar{
+  left:50%;
+  right:auto;
+  bottom:16px;
+  width:min(760px, calc(100vw - 32px));
+  box-sizing:border-box;
+  transform:translateX(-50%);
+  padding:12px 16px;
+  border:1px solid rgba(139,92,246,.38);
+  border-radius:14px;
+  background:rgba(16,15,21,.97);
+}
+#tlPlayerBar > div{
+  width:100%;
+  max-width:100%!important;
+  gap:12px!important;
+}
+@media(max-width:600px){
+  #tlPlayerBar{width:calc(100vw - 20px);bottom:8px;padding:10px 12px}
+  #tlPlayerBar > div{gap:8px!important}
+  #tlPlayerBar > div > div:nth-child(2){max-width:130px}
+}
+</style>
+
 </head>
 <body>
 
@@ -324,9 +299,9 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
 
 <!-- TL 플레이어 바 -->
 <div id="tlPlayerBar">
-  <div style="display:flex;align-items:center;gap:16px;max-width:900px;margin:0 auto">
+  <div style="display:flex;align-items:center;gap:14px;width:100%;max-width:100%;margin:0 auto;box-sizing:border-box">
     <div style="min-width:0;flex:1"><div id="playerTitle" style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">-</div><div id="playerArtist" style="font-size:11px;color:rgba(255,255,255,.4)">-</div></div>
-    <div style="flex:2;min-width:120px">
+    <div style="flex:1;min-width:0;max-width:260px">
       <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;color:rgba(255,255,255,.4)">TL 잔액</span><span id="playerTLVal" style="font-size:11px;font-weight:700;color:#64D2FF">0 TL</span></div>
       <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px"><div id="playerTLBar" style="height:100%;background:linear-gradient(90deg,#0071E3,#64D2FF);border-radius:2px;width:100%"></div></div>
       <div style="display:flex;justify-content:space-between;margin-top:3px"><span id="playerTime" style="font-size:9px;color:rgba(255,255,255,.3)">0:00</span><span id="playerDur" style="font-size:9px;color:rgba(255,255,255,.3)">-</span></div>
@@ -1537,11 +1512,27 @@ function togglePlay(){
 
 function stopPlay(){
   console.log('[PLAY] stopPlay 호출됨!');
-  if(_tlAudio){ _tlAudio.pause(); _tlAudio = null; }
+  // 재생 잠금 우회가 아닌 브라우저 기본 pause를 사용하고, 현재 소스도 해제합니다.
+  const audio = _tlAudio;
+  if(audio){
+    try { audio.pause(); } catch(e){}
+    try { audio.removeAttribute('src'); audio.load(); } catch(e){}
+  }
+  _tlAudio = null;
   window._tlAudio = null;
+  window._tlPlaying = false;
+  window._tlPlayBusy = false;
   if(_tlInterval){ clearInterval(_tlInterval); _tlInterval = null; }
   _tlPlaying = false;
-  document.getElementById('tlPlayerBar').style.display = 'none';
+  if(window._hidePlayLoading) window._hidePlayLoading(false);
+  const playBtn = document.getElementById('playerPlayBtn');
+  if(playBtn) playBtn.textContent = '▶';
+  const coverBtn = document.getElementById('coverPlayBtn');
+  if(coverBtn){ coverBtn.disabled = false; coverBtn.textContent = '▶'; }
+  const trackBtn = document.getElementById('playBtn');
+  if(trackBtn){ trackBtn.disabled = false; trackBtn.textContent = '▶ 재생'; }
+  const bar = document.getElementById('tlPlayerBar');
+  if(bar) bar.style.display = 'none';
 }
 
 async function downloadTL(){
