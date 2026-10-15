@@ -552,14 +552,7 @@ async function submitChannel(){
   btn.disabled=true; btn.textContent='⏳ 처리 중...';
 
   try{
-    // TL 차감 (DB)
-    await fetch(API+'/api/admin/sql', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({sql:"UPDATE users SET tl=tl-"+CHANNEL_FEE+" WHERE id="+(_user.id)})
-    });
-
-    // 채널 정보 저장 (백엔드 incar_channels 테이블)
+    // 채널 등록과 TL 차감은 인증된 백엔드에서 원자적으로 처리한다.
     var pocIdx = parseFloat((_user.poc_index)||1.0);
     var channelData = {
       channel_id: chId,
@@ -571,8 +564,8 @@ async function submitChannel(){
       drive_region: g('driveRegion').value.trim(),
       description: g('channelDesc').value.trim(),
       theme: _theme,
-      playlist: JSON.stringify(Array.from(_selected)),
-      schedules: JSON.stringify(SCHEDULES),
+      playlist: Array.from(_selected),
+      schedules: SCHEDULES,
       poc_index_at_creation: pocIdx
     };
 
@@ -581,11 +574,12 @@ async function submitChannel(){
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
       body: JSON.stringify(channelData)
     });
-    var d2 = await r2.json();
-    if(d2.error) throw new Error(d2.error);
+    var d2 = await r2.json().catch(function(){ return {}; });
+    if(!r2.ok || !d2.ok) throw new Error(d2.error || ('채널 등록 실패 [HTTP '+r2.status+']'));
 
     // 로컬 업데이트
-    _user.tl = Math.max(0, bal - CHANNEL_FEE);
+    _user.tl = Number(d2.tl_balance != null ? d2.tl_balance : Math.max(0, bal - CHANNEL_FEE));
+    _user.tl_balance = _user.tl;
     localStorage.setItem('tl_user', JSON.stringify(_user));
     localStorage.setItem('tl_incar_channel', JSON.stringify(channelData));
     updateBalance();
