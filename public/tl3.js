@@ -748,6 +748,10 @@
               throw decErr;
             }
 
+            if (stopped || !sb || !ms || ms.readyState !== 'open' || !ms.sourceBuffers || !ms.sourceBuffers.includes(sb)) {
+              console.log('[TL3.playStream] appendBuffer 스킵 (stopped=', stopped, ', sb=', !!sb, ', msState=', ms && ms.readyState, ')');
+              return;
+            }
             console.log('[TL3.playStream] appendBuffer 직전, plain.length=', plain.length, 'sb=', !!sb, 'sb.updating=', sb && sb.updating, 'ms.readyState=', ms.readyState);
             await new Promise(function(res, rej){
               var timedOut = false;
