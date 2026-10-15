@@ -517,21 +517,21 @@ body.tl-global-shell .g-nav{padding:0 24px}
   async function loadFeatured(){
     var root=document.getElementById('featuredAssets');
     var musicRoot=document.getElementById('musicGrid');
-    function isAudio(item){
-      var type=String(item.file_type||'').toLowerCase();
-      var kind=String(item.content_kind||item.asset_type||item.tl_type||'').toLowerCase();
-      var release=String(item.release_mode||'').toLowerCase();
-      var url=String(item.stream_url||item.preview_url||'').toLowerCase();
-      return kind==='tl3'||release==='tl3'||type==='audio/tl3'||/\.tl3(\?|$)/.test(url);
+    function assetKind(item){
+      var values=[item.content_kind,item.asset_type,item.tl_type,item.release_mode,item.file_type,item.stream_url,item.preview_url].map(function(v){return String(v||'').toLowerCase();});
+      if(values.some(function(v){return v==='tl3'||v==='audio/tl3'||/\.tl3(\?|$)/.test(v);})) return 'tl3';
+      if(values.some(function(v){return v==='tl4'||v==='video/tl4'||/\.tl4(\?|$)/.test(v);})) return 'tl4';
+      if(values.some(function(v){return v==='tld'||v==='application/tld'||/\.tld(\?|$)/.test(v);})) return 'tld';
+      return 'unverified';
     }
+    function isAudio(item){ return assetKind(item)==='tl3'; }
+    function isSupportedAsset(item){ return ['tl3','tl4','tld'].indexOf(assetKind(item))>=0; }
     function renderCards(target,list,emptyMessage){
       if(!target)return;
       if(!list.length){target.innerHTML='<div class="g-track-empty">'+emptyMessage+'</div>';return;}
       target.innerHTML=list.map(function(item){
         var id=encodeURIComponent(String(item.id||''));
-        var kind=String(item.content_kind||item.asset_type||item.tl_type||item.release_mode||'').toLowerCase();
-        var url=String(item.stream_url||item.preview_url||'').toLowerCase();
-        var isTL3=kind==='tl3'||/\.tl3(\?|$)/.test(url);
+        var isTL3=assetKind(item)==='tl3';
         var target=isTL3?'track.html?id='+id:'shareplace.html';
         var title=escapeHTML(item.title||'Untitled');
         var artist=escapeHTML(item.artist||item.username||'Creator');
@@ -546,7 +546,7 @@ body.tl-global-shell .g-nav{padding:0 24px}
       var payload=await response.json();
       var items=Array.isArray(payload)?payload:(Array.isArray(payload.shares)?payload.shares:[]);
       items.sort(function(a,b){return Number(b.pulse||0)-Number(a.pulse||0);});
-      renderCards(root,items.slice(0,5),'공유된 디지털 자산이 여기에 표시됩니다.');
+      renderCards(root,items.filter(isSupportedAsset).slice(0,5),'공유된 디지털 자산이 여기에 표시됩니다.');
       renderCards(musicRoot,items.filter(isAudio).slice(0,5),'공유된 음악 자산이 여기에 표시됩니다.');
     }catch(error){
       var message='<div class="g-track-empty">공유 자산을 일시적으로 불러올 수 없습니다.</div>';
