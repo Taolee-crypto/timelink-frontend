@@ -8,7 +8,7 @@
   var token = '';
   try { token = localStorage.getItem('tl_token') || ''; } catch (e) {}
 
-  var pathName = (location.pathname || '/').replace(/\\/+$/, '') || '/';
+  var pathName = (location.pathname || '/').replace(/\/+$/, '') || '/';
   if (!token && (pathName === '/' || pathName === '/index.html')) return;
   if (pathName === '/admin.html' || pathName === '/incar.html') return;
 
