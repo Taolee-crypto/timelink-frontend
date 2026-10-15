@@ -22,6 +22,14 @@
   function labelText(en, ko) { return label(en, ko); }
 
   var sections = [
+    ['HOME', [['/index.html','⌂','Overview']]],
+    ['DIGITAL ASSETS', [['/shareplace.html','◈','SharePlace']]],
+    ['CREATOR', [['/creator-studio.html','＋','Creator Studio']]],
+    ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/cafe-channel.html','▣','Cafe Broadcast',true],['/incar-channel.html','◇','In-car Broadcast',true],['/dj-center.html','♫','DJ Center']]],
+    ['ADVERTISING', [['/advertiser.html','▱','Advertiser Center'],['/ads.html','▣','Ad Watching']]],
+    ['TL ECONOMICS', [['/wallet.html','◉','Wallet']]],
+    ['MY', [['/dashboard.html','◎','Dashboard'],['/dashboard.html?tab=mining','⛏','TLC Mining',true],['/dashboard.html?tab=mission','🎯','Missions',true],['/dashboard.html?tab=cafe','☕','Cafe Channels',true]]],
+    ['ADMIN', [['/admin.html','⚙','Admin Console']]]
     ['HOME', '홈', [['/dashboard.html?tab=home', '⌂', 'Overview', '둘러보기']]],
     ['DIGITAL ASSETS', '디지털자산', [['/shareplace.html', '◈', 'SharePlace', '공유플레이스']]],
     ['CREATOR', '창작', [['/creator.html', '✧', 'Creator Center', '크리에이터센터']]],
