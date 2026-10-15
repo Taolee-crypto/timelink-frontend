@@ -439,24 +439,23 @@
             });
 
             console.log('[TL3.playStream] ✅ appended segment', n);
-            onSegment({index: n, seconds: durationMs/1000, remaining: codeData.remaining_tl});
+            onSegment({index:n,seconds:durationMs/1000,remaining:codeData.wallet_tl??codeData.remaining_tl,wallet_tl:codeData.wallet_tl??codeData.remaining_tl,asset_remaining_tl:codeData.asset_remaining_tl});
 
-            var confirmedIndex = n;
+            var confirmedIndex=n;
             setTimeout(function(){
               fetch(API + '/api/v1/tl3/segment/confirm/' + fileId, {
-                method: 'POST',
-                headers: Object.assign({}, authHeaders(), {'Content-Type':'application/json'}),
-                body: JSON.stringify({session_id: sessionId, played_seconds: durationMs/1000})
-              }).then(function(r){ return r.json(); }).then(function(d){
-                // confirm 응답의 최종 잔액(미사용 예약액 환급 반영)을 SharePlace UI에 전달한다.
-                if(d && d.ok && d.remaining_tl !== undefined){
-                  onSegment({index: confirmedIndex, seconds: durationMs/1000, remaining: d.remaining_tl, settled: true});
+                method:'POST',
+                headers:Object.assign({},authHeaders(),{'Content-Type':'application/json'}),
+                body:JSON.stringify({session_id:sessionId,played_seconds:durationMs/1000})
+              }).then(function(r){return r.json();}).then(function(d){
+                if(!d||!d.ok) throw new Error((d&&d.error)||'세그먼트 정산 실패');
+                if(d.remaining_tl!==undefined){
+                  onSegment({index:confirmedIndex,seconds:durationMs/1000,remaining:d.wallet_tl??d.remaining_tl,wallet_tl:d.wallet_tl??d.remaining_tl,asset_remaining_tl:d.asset_remaining_tl,settled:true});
                 }
-              }).catch(function(e){ console.warn('[TL3] segment confirm failed', e); });
-            }, durationMs);
-
-            n++;
-            _next();
+                n++;
+                _next();
+              }).catch(function(e){console.warn('[TL3] segment confirm failed',e);onError(e);});
+            },durationMs);
           } catch(e){ onError(e); }
         }
 
