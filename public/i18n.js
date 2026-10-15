@@ -6,6 +6,15 @@ var LABELS={ko:'한국어',en:'English',ja:'日本語',zh:'中文',th:'ภาษ
 
 var T={
 /* ── 누락 키 전체 보완 (60개) ── */
+/* ── ch.* 키 추가 (cafe/incar channel) ── */
+'ch.back.radio':       {ko:'← 방송국으로',en:'← Back to Radio',ja:'← ラジオへ',zh:'← 返回电台',th:'← กลับวิทยุ',vi:'← Về radio'},
+'ch.cafe.title':       {ko:'☕ 카페 채널 개설',en:'☕ Open Cafe Channel',ja:'☕ カフェチャンネル開設',zh:'☕ 开设咖啡频道',th:'☕ เปิดช่องคาเฟ่',vi:'☕ Mở kênh quán cà phê'},
+'ch.cafe.name.label':  {ko:'카페명',en:'Cafe name',ja:'カフェ名',zh:'咖啡店名',th:'ชื่อคาเฟ่',vi:'Tên quán'},
+'ch.channel.id':       {ko:'채널 ID',en:'Channel ID',ja:'チャンネルID',zh:'频道ID',th:'ID ช่อง',vi:'ID kênh'},
+'ch.monthly.fee':      {ko:'월정액 채널 이용료',en:'Monthly channel fee',ja:'月額チャンネル利用料',zh:'月度频道费用',th:'ค่าช่องรายเดือน',vi:'Phí kênh hàng tháng'},
+'ch.monthly.sub':      {ko:'매월 자동 갱신 • 언제든 해지 가능',en:'Auto-renew monthly • Cancel anytime',ja:'毎月自動更新 • いつでも解約可能',zh:'每月自动续费 • 随时取消',th:'ต่ออายุอัตโนมัติ • ยกเลิกได้ทุกเมื่อ',vi:'Tự động gia hạn • Hủy bất cứ lúc nào'},
+'ch.incar.title':      {ko:'🚗 인카 채널 개설',en:'🚗 Open In-Car Channel',ja:'🚗 車内チャンネル開設',zh:'🚗 开设车载频道',th:'🚗 เปิดช่องในรถ',vi:'🚗 Mở kênh trong xe'},
+'ch.incar.name.label': {ko:'차량명',en:'Vehicle name',ja:'車両名',zh:'车辆名称',th:'ชื่อรถ',vi:'Tên xe'},
 'sp.back.dashboard':   {ko:'← 대시보드',en:'← Dashboard',ja:'← ダッシュボード',zh:'← 控制台',th:'← แดชบอร์ด',vi:'← Bảng điều khiển'},
 'sp.chart.all':        {ko:'전체 차트 →',en:'All Charts →',ja:'全チャート →',zh:'全部榜单 →',th:'ชาร์ตทั้งหมด →',vi:'Tất cả →'},
 'sp.close':            {ko:'✕ 닫기',en:'✕ Close',ja:'✕ 閉じる',zh:'✕ 关闭',th:'✕ ปิด',vi:'✕ Đóng'},
