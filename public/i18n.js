@@ -323,22 +323,22 @@ function applyAll(){
     var key=el.getAttribute('data-i18n');
     var val=t(key);
     if(el.tagName==='INPUT'||el.tagName==='TEXTAREA'){
-      el.placeholder=val;
+      if(el.placeholder!==val) el.placeholder=val;
     } else {
-      el.textContent=val;
+      if(el.textContent!==val) el.textContent=val;
     }
   });
   // data-i18n-placeholder
   document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){
-    el.placeholder=t(el.getAttribute('data-i18n-placeholder'));
+    var v=t(el.getAttribute('data-i18n-placeholder')); if(el.placeholder!==v) el.placeholder=v;
   });
   // data-i18n-title
   document.querySelectorAll('[data-i18n-title]').forEach(function(el){
-    el.title=t(el.getAttribute('data-i18n-title'));
+    var v=t(el.getAttribute('data-i18n-title')); if(el.title!==v) el.title=v;
   });
   // data-i18n-html (HTML 내용 포함)
   document.querySelectorAll('[data-i18n-html]').forEach(function(el){
-    el.innerHTML=t(el.getAttribute('data-i18n-html'));
+    var v=t(el.getAttribute('data-i18n-html')); if(el.innerHTML!==v) el.innerHTML=v;
   });
   // Apply exact-copy translations to legacy pages without data-i18n annotations.
   applyAutoText();
@@ -440,7 +440,8 @@ function injectStyle(){
   s.textContent=[
     '.tl-lang-btn{color:#fff!important;-webkit-text-fill-color:initial!important;}',
     '.tl-lang-active{opacity:1!important;background:rgba(255,255,255,.15)!important;}',
-    '.tl-lang-btn:hover{opacity:1!important;background:rgba(255,255,255,.1)!important;}'
+    '.tl-lang-btn:hover{opacity:1!important;background:rgba(255,255,255,.1)!important;}',
+    'body:has(.g-nav) .g-nav-actions{margin-right:104px!important;}@media(max-width:650px){body:has(.g-nav) .g-nav-actions{margin-right:0!important;}}'
   ].join('');
   document.head.appendChild(s);
 }
@@ -450,6 +451,15 @@ function init(){
   injectStyle();
   applyAll();
   injectSwitcher();
+  if(!window.__TL_I18N_OBSERVER__){
+    var queued=false;
+    var observer=new MutationObserver(function(){
+      if(queued)return;queued=true;
+      Promise.resolve().then(function(){queued=false;applyAll();});
+    });
+    observer.observe(document.body,{subtree:true,childList:true,characterData:true});
+    window.__TL_I18N_OBSERVER__=observer;
+  }
 }
 
 if(document.readyState==='loading'){
