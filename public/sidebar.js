@@ -6,9 +6,9 @@
 
   var sections = [
     ['HOME', [['/index.html','⌂','Overview']]],
-    ['DIGITAL ASSETS', [['/shareplace.html','◈','SharePlace'],['/dashboard.html?tab=content','▤','My Library'],['/tl3-player.html','♫','TL3 Player'],['/tlj-viewer.html','▧','TLJ Viewer'],['/track.html','♪','Track']]],
+    ['DIGITAL ASSETS', [['/shareplace.html','◈','SharePlace'],['/dashboard.html?tab=content','▤','My Library']]],
     ['CREATOR', [['/creator.html','✧','Creator Profile'],['/creator-studio.html','＋','Creator Studio']]],
-    ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/dj-center.html','♫','DJ Center'],['/cafe-radio.html','▣','Cafe Broadcast'],['/cafe-owner.html','⌂','Cafe Management'],['/incar.html','◇','In-car']]],
+    ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/cafe-radio.html','▣','Cafe Broadcast',true],['/incar.html','◇','In-car Broadcast',true],['/dj-center.html','♫','DJ Center'],['/cafe-owner.html','⌂','Cafe Management']]],
     ['ADVERTISING', [['/advertiser.html','▱','Advertiser Center'],['/ads.html','▣','Campaigns']]],
     ['TL ECONOMICS', [['/wallet.html','◉','TL Wallet'],['/chart.html','⌁','POC & TLC']]],
     ['MY', [['/dashboard.html','◎','My Dashboard']]],
@@ -19,10 +19,10 @@
   if(path==='/admin.html'||path==='/incar.html') return;
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
   function isActive(h){var p=h.split('?')[0];return path===p || (p==='/index.html'&&path==='/') || (p==='/dashboard.html'&&path==='/dashboard');}
-  var html='<aside class="tl-global-sidebar" aria-label="TimeLink navigation"><a class="tl-global-brand" href="/index.html"><span class="tl-global-mark">T</span><span>TimeLink</span></a><nav class="tl-global-links">';
+  var html='<style id="tl-global-sidebar-hierarchy">.tl-global-link.tl-global-link-child{margin-left:18px;padding-left:14px;width:calc(100% - 18px);font-size:12px;opacity:.86;position:relative}.tl-global-link.tl-global-link-child:before{content:"";position:absolute;left:3px;top:0;bottom:0;width:1px;background:rgba(255,255,255,.14)}.tl-global-link.tl-global-link-child .tl-global-icon{font-size:12px;width:18px}</style><aside class="tl-global-sidebar" aria-label="TimeLink navigation"><a class="tl-global-brand" href="/index.html"><span class="tl-global-mark">T</span><span>TimeLink</span></a><nav class="tl-global-links">';
   sections.forEach(function(section){
     html+='<div class="tl-global-section">'+esc(section[0])+'</div>';
-    section[1].forEach(function(item){html+='<a class="tl-global-link'+(isActive(item[0])?' is-active':'')+'" href="'+esc(item[0])+'"'+(isActive(item[0])?' aria-current="page"':'')+'><span class="tl-global-icon">'+esc(item[1])+'</span><span>'+esc(item[2])+'</span></a>';});
+    section[1].forEach(function(item){html+='<a class="tl-global-link'+(item[3]?' tl-global-link-child':'')+(isActive(item[0])?' is-active':'')+'" href="'+esc(item[0])+'"'+(isActive(item[0])?' aria-current="page"':'')+'><span class="tl-global-icon">'+esc(item[1])+'</span><span>'+esc(item[2])+'</span></a>';});
   });
   html+='</nav><div class="tl-global-balance"><small>MY TL BALANCE</small><strong id="tlGlobalBalance">— TL</strong><a href="/wallet.html#charge">＋ Charge TL</a></div></aside>';
   var old=document.querySelector('.app > .sidebar, .app > .tl-sidebar, .layout > .sidebar, .body > .sidebar');
