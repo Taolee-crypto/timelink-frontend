@@ -14,7 +14,7 @@
     ['MY', [['/dashboard.html','◎','My Dashboard']]],
     ['ADMIN', [['/admin.html','⚙','Admin Console']]]
   ];
-  var pathName=(location.pathname||'/').replace(/\\/+$/,'')||'/';
+  var pathName=location.pathname||'/'; while(pathName.length>1&&pathName.endsWith('/'))pathName=pathName.slice(0,-1);
   if(pathName==='/admin.html'||pathName==='/incar.html') return;
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
   function isActive(h){var p=h.split('?')[0];return pathName===p || (p==='/index.html'&&pathName==='/') || (p==='/dashboard.html'&&pathName==='/dashboard');}
