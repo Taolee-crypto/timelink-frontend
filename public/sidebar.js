@@ -4,6 +4,16 @@
   if (window.__TL_GLOBAL_SHELL_V3__) return;
   window.__TL_GLOBAL_SHELL_V3__ = true;
 
+  var sections = [
+    ['HOME', [['/index.html','⌂','Overview']]],
+    ['DIGITAL ASSETS', [['/shareplace.html','◈','SharePlace']]],
+    ['CREATOR', [['/creator-studio.html','＋','Creator Studio']]],
+    ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/cafe-channel.html','▣','Cafe Broadcast',true],['/incar-channel.html','◇','In-car Broadcast',true],['/dj-center.html','♫','DJ Center']]],
+    ['ADVERTISING', [['/advertiser.html','▱','Advertiser Center'],['/ads.html','▣','Ad Watching']]],
+    ['TL ECONOMICS', [['/wallet.html','◉','Wallet']]],
+    ['MY', [['/dashboard.html','◎','Dashboard'],['/dashboard.html?tab=mining','⛏','TLC Mining',true],['/dashboard.html?tab=mission','🎯','Missions',true],['/dashboard.html?tab=cafe','☕','Cafe Channels',true]]],
+    ['ADMIN', [['/admin.html','⚙','Admin Console']]]
+
   var API=(window.TL3_API_BASE||'https://api.timelink.digital');
   var token='';
   try{token=localStorage.getItem('tl_token')||'';}catch(e){}
