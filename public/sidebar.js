@@ -22,17 +22,9 @@
   function labelText(en, ko) { return label(en, ko); }
 
   var sections = [
-    ['HOME', [['/index.html','⌂','Overview']]],
-    ['DIGITAL ASSETS', [['/shareplace.html','◈','SharePlace']]],
-    ['CREATOR', [['/creator-studio.html','＋','Creator Studio']]],
-    ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/cafe-channel.html','▣','Cafe Broadcast',true],['/incar-channel.html','◇','In-car Broadcast',true],['/dj-center.html','♫','DJ Center']]],
-    ['ADVERTISING', [['/advertiser.html','▱','Advertiser Center'],['/ads.html','▣','Ad Watching']]],
-    ['TL ECONOMICS', [['/wallet.html','◉','Wallet']]],
-    ['MY', [['/dashboard.html','◎','Dashboard'],['/dashboard.html?tab=mining','⛏','TLC Mining',true],['/dashboard.html?tab=mission','🎯','Missions',true],['/dashboard.html?tab=cafe','☕','Cafe Channels',true]]],
-    ['ADMIN', [['/admin.html','⚙','Admin Console']]]
     ['HOME', '홈', [['/dashboard.html?tab=home', '⌂', 'Overview', '둘러보기']]],
     ['DIGITAL ASSETS', '디지털자산', [['/shareplace.html', '◈', 'SharePlace', '공유플레이스']]],
-    ['CREATOR', '창작', [['/creator.html', '✧', 'Creator Center', '크리에이터센터']]],
+    ['CREATOR', '창작', [['/creator-studio.html', '✧', 'Creator Studio', '크리에이터 스튜디오']]],
     ['TL BROADCAST', 'TL 방송국', [
       ['/cafe-channel.html', '▣', 'Cafe Channel', '카페방송'],
       ['/incar-channel.html', '◇', 'In-car Channel', '인카방송'],
@@ -44,13 +36,13 @@
     ]],
     ['ADVERTISING', '광고', [
       ['/advertiser.html', '▱', 'Sponsor Center', '광고주센터'],
-      ['/ads.html', '▣', 'Ad Watching', '광고 시청 및 TL 벌기']
+      ['/ads.html', '▣', 'Ad Watching', '광고 시청 및 TL 기여']
     ]],
     ['TL ECONOMICS', 'TL 경제', [['/wallet.html', '◉', 'Wallet', '지갑']]],
     ['MY', '내 정보', [
-      ['/dashboard.html?tab=content', '▤', 'My Library', '내 파일', true],
+      ['/dashboard.html?tab=home', '◎', 'Dashboard', '대시보드'],
       ['/dashboard.html?tab=mining', '⛏', 'TLC Mining', 'TLC 채굴', true],
-      ['/dashboard.html?tab=mission', '◎', 'Mission', '미션', true],
+      ['/dashboard.html?tab=mission', '◎', 'Missions', '미션', true],
       ['/dashboard.html?tab=cafe', '☕', 'My Cafe', '나의 카페', true]
     ]]
   ];
