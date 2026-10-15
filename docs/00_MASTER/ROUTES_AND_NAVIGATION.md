@@ -24,6 +24,7 @@
 | /album/:albumId | 신규 | 앨범 페이지 |
 | /artist/:artistId | 신규 | 아티스트 공개 프로필 |
 | /terms, /privacy | 기존 legal pages | 약관·개인정보 |
+| /economy-policy | /economy-policy.html | TL Economics 정책 안내 |
 
 ## 3. 로그인 회원 영역
 
