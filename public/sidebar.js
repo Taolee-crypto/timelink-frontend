@@ -6,19 +6,20 @@
 
   var sections = [
     ['HOME', [['/index.html','⌂','Overview']]],
-    ['DIGITAL ASSETS', [['/shareplace.html','◈','SharePlace'],['/dashboard.html?tab=content','▤','My Library']]],
+    ['DIGITAL ASSETS', [['/shareplace.html','◈','SharePlace']]],
     ['CREATOR', [['/creator.html','✧','Creator Profile'],['/creator-studio.html','＋','Creator Studio']]],
     ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/cafe-radio.html','▣','Cafe Broadcast',true],['/incar.html','◇','In-car Broadcast',true],['/dj-center.html','♫','DJ Center'],['/cafe-owner.html','⌂','Cafe Management']]],
     ['ADVERTISING', [['/advertiser.html','▱','Advertiser Center'],['/ads.html','▣','Ad Watching']]],
     ['TL ECONOMICS', [['/wallet.html','◉','Wallet']]],
     ['MY', [['/dashboard.html','◎','My Dashboard']]],
+    ['MY', [['/dashboard.html','◎','Dashboard'],['/dashboard.html?tab=content','▤','My Library',true],['/dashboard.html?tab=mining','⛏','TLC Mining',true],['/dashboard.html?tab=mission','🎯','Missions',true],['/dashboard.html?tab=cafe','☕','Cafe Channels',true]]],
     ['ADMIN', [['/admin.html','⚙','Admin Console']]]
   ];
   var path=(location.pathname||'/').replace(/\/+$/,'')||'/';
   // Admin has its own dedicated console navigation; never stack the public shell on it.
   if(path==='/admin.html'||path==='/incar.html') return;
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
-  function isActive(h){var p=h.split('?')[0];return path===p || (p==='/index.html'&&path==='/') || (p==='/dashboard.html'&&path==='/dashboard');}
+  function isActive(h){var parts=h.split('?'),p=parts[0],targetTab='';if(parts[1]){var m=parts[1].match(/(?:^|&)tab=([^&]*)/);if(m)targetTab=decodeURIComponent(m[1]);}var same=path===p||(p==='/index.html'&&path==='/')||(p==='/dashboard.html'&&path==='/dashboard');if(!same)return false;if(p==='/dashboard.html'){var currentTab=new URLSearchParams(location.search).get('tab')||'home';return targetTab?currentTab===targetTab:currentTab==='home';}return true;}
   var html='<style id="tl-global-sidebar-hierarchy">.tl-global-link.tl-global-link-child{margin-left:18px;padding-left:14px;width:calc(100% - 18px);font-size:12px;opacity:.86;position:relative}.tl-global-link.tl-global-link-child:before{content:"";position:absolute;left:3px;top:0;bottom:0;width:1px;background:rgba(255,255,255,.14)}.tl-global-link.tl-global-link-child .tl-global-icon{font-size:12px;width:18px}</style><aside class="tl-global-sidebar" aria-label="TimeLink navigation"><a class="tl-global-brand" href="/index.html"><span class="tl-global-mark">T</span><span>TimeLink</span></a><nav class="tl-global-links">';
   sections.forEach(function(section){
     html+='<div class="tl-global-section">'+esc(section[0])+'</div>';
