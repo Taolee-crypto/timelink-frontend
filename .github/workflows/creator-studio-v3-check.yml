@@ -1,0 +1,83 @@
+name: Creator Studio V3 HTML validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "public/creator-studio.html"
+      - "public/creator-studio-v3.html"
+      - "public/shareplace.html"
+      - "public/shareplace-v3.html"
+      - "public/track-v3.html"
+      - ".github/workflows/creator-studio-v3-check.yml"
+  push:
+    branches: [v3/creator-studio-integration]
+    paths:
+      - "public/creator-studio.html"
+      - "public/creator-studio-v3.html"
+      - ".github/workflows/creator-studio-v3-check.yml"
+
+jobs:
+  inline-script-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate inline JavaScript in Creator Studio pages
+        run: |
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import subprocess, tempfile
+
+          class Scripts(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.inline = []
+                  self.active = False
+                  self.parts = []
+              def handle_starttag(self, tag, attrs):
+                  if tag == "script" and not any(k.lower() == "src" for k, _ in attrs):
+                      self.active = True
+                      self.parts = []
+              def handle_data(self, data):
+                  if self.active:
+                      self.parts.append(data)
+              def handle_endtag(self, tag):
+                  if tag == "script" and self.active:
+                      self.inline.append("".join(self.parts))
+                      self.active = False
+
+          for page in ("public/creator-studio.html", "public/creator-studio-v3.html", "public/shareplace.html", "public/shareplace-v3.html", "public/track-v3.html"):
+              parser = Scripts()
+              parser.feed(Path(page).read_text(encoding="utf-8"))
+              for index, source in enumerate(parser.inline):
+                  if not source.strip():
+                      continue
+                  with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8") as f:
+                      f.write(source)
+                      f.flush()
+                      subprocess.run(["node", "--check", f.name], check=True)
+              print(f"Validated inline scripts: {page}")
+
+          studio = Path("public/creator-studio-v3.html").read_text(encoding="utf-8")
+          track = Path("public/track-v3.html").read_text(encoding="utf-8")
+          shareplace = Path("public/shareplace-v3.html").read_text(encoding="utf-8")
+          assert "release_type:'MP3'" not in studio
+          assert "MP3 심사 요청" not in studio
+          assert "source_asset_visibility:'private'" in studio
+          assert "conversions/tl3/build" in studio
+          assert "conversions/tl3/complete" in studio
+          assert "release_type:'TL3'" in studio
+          assert "release_type:'MP3'" not in studio
+          assert "kind=tl3" in studio
+          assert "price_tl:price" in studio
+          assert "<audio" not in track.lower()
+          assert "무료 MP3" not in track
+          assert "track.price_tl" in track
+          assert "무료 MP3" not in shareplace
+          assert "t.price_tl" in shareplace
+          print("Validated V3 product policy: private MP3 source, TL3-only catalogue, no free MP3 stream.")
+          PY

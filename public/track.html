@@ -2,59 +2,7 @@
 <html lang="ko">
 <head>
 
-<script>
-/* ==== TL_PLAY_LOCK_V1 (auto-inserted) ==== */
-(function(){
-  window._tlPlaying = window._tlPlaying || false;
-  window._tlSuppressPause = false;
-  window._tlPlayBusy = false;
 
-  if (!HTMLMediaElement.prototype.__tlPatched) {
-    var _origPlay  = HTMLMediaElement.prototype.play;
-    var _origPause = HTMLMediaElement.prototype.pause;
-
-    HTMLMediaElement.prototype.play = function(){
-      var self = this;
-      if (self !== window._tlAudio) return _origPlay.apply(self, arguments);
-      if (window._tlPlayBusy) { console.log('[PLAY] busy, skip'); return Promise.resolve(); }
-      window._tlPlayBusy = true;
-      window._tlPlaying = true;
-      var args = arguments;
-      var pr = _origPlay.apply(self, args);
-      if (pr && pr.catch) {
-        pr = pr.catch(function(e){
-          if (e && e.name === 'AbortError') {
-            console.log('[PLAY] AbortError -> retry 180ms');
-            return new Promise(function(r){ setTimeout(r, 180); })
-              .then(function(){ return _origPlay.apply(self, args); });
-          }
-          throw e;
-        });
-      }
-      return pr.finally ? pr.finally(function(){ setTimeout(function(){ window._tlPlayBusy=false; }, 250); })
-                        : pr;
-    };
-
-    HTMLMediaElement.prototype.pause = function(){
-      if (this === window._tlAudio && window._tlPlaying && !window._tlSuppressPause) {
-        console.log('[PAUSE] blocked by playlock');
-        return;
-      }
-      return _origPause.apply(this, arguments);
-    };
-
-    HTMLMediaElement.prototype.__tlPatched = true;
-  }
-
-  window.tlRealStop = function(){
-    window._tlSuppressPause = true;
-    window._tlPlaying = false;
-    try { if (window._tlAudio) window._tlAudio.pause(); }
-    finally { setTimeout(function(){ window._tlSuppressPause = false; }, 50); }
-  };
-  console.log('[TL_PLAY_LOCK_V1] installed');
-})();
-</script>
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -70,7 +18,74 @@
 <link rel="stylesheet" href="/apple-theme.css">
 <link rel="stylesheet" href="/dropdown-fix.css"><!-- SELECT_FIX_V1 -->
 
-<link rel="stylesheet" href="/apple-theme.css?v=global-20261014" data-tl-global-theme="2026.10">
+<link rel="stylesheet" href="/apple-theme.css?v=global-20261015" data-tl-global-theme="2026.10">
+<style>
+/* Track page — TimeLink global purple/gold system */
+:root{--bg:#0A0A0A;--bg2:#111111;--bg3:#1A1A1A;--purple:#8B5CF6;--purple-hover:#A78BFA;--mint:#F5A623;--accent:#8B5CF6;--accent-soft:rgba(139,92,246,.14);--bd:rgba(255,255,255,.085);--bd2:rgba(255,255,255,.14);--t1:#F5F5F7;--t2:rgba(245,245,247,.74);--t3:rgba(245,245,247,.48);--t4:rgba(245,245,247,.28)}
+body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-system','BlinkMacSystemFont','Noto Sans KR',sans-serif}
+.hdr{background:rgba(10,10,10,.9);border-color:rgba(255,255,255,.08)}
+.logo{background:linear-gradient(120deg,#C4AFFF,#8B5CF6 62%,#F5A623);-webkit-background-clip:text;background-clip:text}
+.cover-wrap{background:linear-gradient(135deg,#211638,#11111a 60%,#302515)}
+.play-overlay-btn,.btn-play,.comment-submit{background:linear-gradient(135deg,#9B75FA,#7042D8)}
+.btn-play:hover:not(:disabled){box-shadow:0 6px 20px rgba(139,92,246,.32)}
+.btn-icon.liked{border-color:#8B5CF6;color:#C4B5FD;background:rgba(139,92,246,.13)}
+.btn-icon.following{border-color:#F5A623;color:#F5A623;background:rgba(245,166,35,.1)}
+.comment-textarea:focus{border-color:#8B5CF6;background:rgba(139,92,246,.06)}
+.comment-submit:hover{background:#A78BFA}
+.new-pl-btn{border-color:rgba(139,92,246,.4);color:#C4B5FD}
+.new-pl-btn:hover,.charge-pkg:hover,.charge-pkg.active{background:rgba(139,92,246,.12)}
+#tlPlayerBar{background:rgba(16,15,21,.97);border-top-color:rgba(139,92,246,.38)}
+@media(max-width:900px){
+ .main{grid-template-columns:minmax(0,1fr)}
+ .left-panel{position:static;height:auto;max-height:none;border-right:0;border-bottom:1px solid var(--bd)}
+ .right-panel{min-width:0}
+}
+@media(max-width:600px){
+ .hdr{padding:12px 14px;min-height:56px}
+ .left-panel{padding:22px 16px}
+ .right-top{padding:24px 16px 0}
+ .copyright-section{padding:20px 16px}
+ .comments-wrap{padding:0 16px}
+ .comment-input-wrap{padding:16px}
+ .track-title{font-size:21px}
+ .stats{gap:4px}
+ .stat-val{font-size:17px}
+ .modal{width:calc(100% - 24px);padding:18px}
+ .modal-score{width:calc(100% - 16px);padding:12px}
+ #tlPlayerBar{padding:10px 12px}
+}
+@media(prefers-reduced-motion:reduce){.play-overlay,.btn-play,.btn-icon,.comment-submit{transition:none!important}}
+</style>
+
+<style id="track-player-layout-fix">
+/* Compact floating player: prevent full-viewport horizontal stretching */
+#tlPlayerBar{
+  /* Keep the floating player visually balanced with the content canvas,
+     not mathematically centered across the full page/sidebar shell. */
+  /* Center inside the content area to the right of the 252px global sidebar. */
+  left:calc(50% + 126px);
+  right:auto;
+  bottom:16px;
+  width:min(760px, calc(100vw - 284px));
+  box-sizing:border-box;
+  transform:translateX(-50%);
+  padding:12px 16px;
+  border:1px solid rgba(139,92,246,.38);
+  border-radius:14px;
+  background:rgba(16,15,21,.97);
+}
+#tlPlayerBar > div{
+  width:100%;
+  max-width:100%!important;
+  gap:12px!important;
+}
+@media(max-width:900px){
+  #tlPlayerBar{left:50%;width:calc(100vw - 32px);bottom:8px;padding:10px 12px}
+  #tlPlayerBar > div{gap:8px!important}
+  #tlPlayerBar > div > div:nth-child(2){max-width:130px}
+}
+</style>
+
 </head>
 <body>
 
@@ -287,12 +302,12 @@
 
 <!-- TL 플레이어 바 -->
 <div id="tlPlayerBar">
-  <div style="display:flex;align-items:center;gap:16px;max-width:900px;margin:0 auto">
+  <div style="display:flex;align-items:center;gap:14px;width:100%;max-width:100%;margin:0 auto;box-sizing:border-box">
     <div style="min-width:0;flex:1"><div id="playerTitle" style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">-</div><div id="playerArtist" style="font-size:11px;color:rgba(255,255,255,.4)">-</div></div>
-    <div style="flex:2;min-width:120px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;color:rgba(255,255,255,.4)">TL 잔액</span><span id="playerTLVal" style="font-size:11px;font-weight:700;color:#64D2FF">0 TL</span></div>
+    <div style="flex:1;min-width:0;max-width:260px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;color:rgba(255,255,255,.4)">음원 잔여 TL</span><span id="playerTLVal" style="font-size:11px;font-weight:700;color:#64D2FF">0 TL</span></div>
       <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px"><div id="playerTLBar" style="height:100%;background:linear-gradient(90deg,#0071E3,#64D2FF);border-radius:2px;width:100%"></div></div>
-      <div style="display:flex;justify-content:space-between;margin-top:3px"><span id="playerTime" style="font-size:9px;color:rgba(255,255,255,.3)">0:00</span><span id="playerDur" style="font-size:9px;color:rgba(255,255,255,.3)">-</span></div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-size:9px;color:rgba(255,255,255,.35)">내 지갑 TL</span><span id="playerWalletVal" style="font-size:10px;color:#F5A623">0 TL</span></div><div style="display:flex;justify-content:space-between;margin-top:3px"><span id="playerTime" style="font-size:9px;color:rgba(255,255,255,.3)">0:00</span><span id="playerDur" style="font-size:9px;color:rgba(255,255,255,.3)">-</span></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <button id="playerPlayBtn" onclick="togglePlay()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:22px">▶</button>
@@ -309,7 +324,8 @@
 const API = 'https://api.timelink.digital';
 const SHARE_ID = new URLSearchParams(location.search).get('id');
 let _share = null, _myLiked = false, _myFollowing = false;
-let _myFileTL = 0;  // 이 곡에 충전한 TL (tl_user_files DB에서 가져옴)
+let _myFileTL = 0;  // 공통 사용자 지갑 TL
+let _assetTL = 0, _assetInitialTL = 0;
 let _chargeAmount = 10000;
 
 function getTok(){ return localStorage.getItem('tl_token')||''; }
@@ -386,25 +402,30 @@ async function loadTrack(){
   if(!SHARE_ID){ document.getElementById('mainWrap').innerHTML='<div class="loading">잘못된 접근</div>'; return; }
   
   try {
-    const [sr, statsR, myTlR] = await Promise.all([
+    const authHeaders={'Authorization':'Bearer '+getTok()};
+    const [sr,statsR,walletR]=await Promise.all([
       fetch(API+'/api/shares/'+SHARE_ID),
-      fetch(API+'/api/social/stats/'+SHARE_ID,{headers:{'Authorization':'Bearer '+getTok()}}),
-      fetch(API+'/api/shares/'+SHARE_ID+'/my-tl',{headers:{'Authorization':'Bearer '+getTok()}})
+      fetch(API+'/api/social/stats/'+SHARE_ID,{headers:authHeaders}),
+      fetch(API+'/api/eco/wallet',{headers:authHeaders})
     ]);
+    const s=await sr.json(),stats=await statsR.json(),walletData=await walletR.json();
+    if(!sr.ok) throw new Error(s.error||'트랙 정보를 찾을 수 없습니다.');
+    if(!walletR.ok) throw new Error(walletData.error||'공통 지갑 조회 실패');
+    if(contentKind(s)!=='tl3'){
+      document.getElementById('mainWrap').innerHTML='<div class="loading">이 페이지는 검증된 TL3 음악 자산 전용입니다. SharePlace에서 공개된 TL3 트랙을 선택해 주세요.</div>';
+      return;
+    }
     
-    const s = await sr.json();
-    const stats = await statsR.json();
-    const myTl = await myTlR.json();
-    
-    // 🔥 중요: 서버에서 tl_balance 가져오기 (tl_user_files 테이블)
-    // 응답 형식: { tl_balance: 1234 } 또는 { user_tl: 1234 }
-    _myFileTL = Number(myTl.tl_balance ?? myTl.user_tl ?? myTl.balance ?? 0);
-    _share = s; 
-    _myLiked = stats.my_like||false;
-    
-    const requiredTL = Number(s.file_tl || 0);
-    console.log('[DEBUG] track.html - shareId:', SHARE_ID);
-    console.log('[DEBUG] requiredTL:', requiredTL, 'myFileTL:', _myFileTL);
+    // 공통 사용자 지갑과 음원 자체 TL 풀을 각각 서버에서 조회
+    _myFileTL=Number(walletData.wallet?.tl_total||0);
+    // TL3 V3 재생은 사용자 지갑에서 초 단위로 정산한다.
+    // 존재하지 않는 legacy asset-TL API에 의존하지 않고 트랙 메타의 기준량을 표시한다.
+    _assetInitialTL=Number(s.file_tl||0);
+    _assetTL=_assetInitialTL;
+    _share=s;
+    _myLiked=stats.my_like||false;
+    const requiredTL=_assetInitialTL;
+    console.log('[TRACK TL] wallet:',_myFileTL,'asset:',_assetTL,'initial:',_assetInitialTL);
     
     document.title = (s.title||'곡') + ' - TimeLink';
     renderPage(s, stats, _myFileTL, requiredTL);
@@ -419,16 +440,16 @@ async function loadTrack(){
 
 function contentKind(s){
   var ft=String(s&&s.file_type||'').toLowerCase(), ck=String(s&&s.content_kind||'').toLowerCase(), rm=String(s&&s.release_mode||'').toLowerCase();
-  if(ft==='audio/mp3'||ck==='mp3'||rm==='free_mp3_local'||rm==='free_mp3_external') return 'mp3';
-  if(ft==='audio/tl3'||ck==='tl3'||rm==='tl3') return 'tl3';
-  return 'unknown';
+  if(ft==='audio/tl3'||ck==='tl3'||rm==='tl3'||/\.tl3(\?|$)/i.test(String(s&&s.stream_url||''))) return 'tl3';
+  return 'unverified';
 }
-function isFreeMp3(s){ return contentKind(s)==='mp3'; }
+function isFreeMp3(s){ return false; }
+function isSegmentBilledTL3(s){ return contentKind(s)==='tl3'; }
 
 function renderPage(s, stats, myFileTL, requiredTL){
   const isFree = isFreeMp3(s);
-  const needCharge = !isFree && (requiredTL <= 0 || myFileTL < requiredTL);
-  const canPlay = !isFree && !!(s.stream_url||s.file_url) && (!needCharge && requiredTL > 0);
+  const needCharge = !isFree && (myFileTL < 1 || _assetTL < 1);
+  const canPlay = !isFree && !!(s.stream_url||s.file_url) && !needCharge;
   
   const ftype = s.category_type||'audio';
   const hasUrl = !!(s.stream_url||s.file_url);
@@ -447,8 +468,8 @@ function renderPage(s, stats, myFileTL, requiredTL){
         <div class="track-title">${escH(s.title)}</div>
         <div class="track-artist">${escH(s.artist||'')}${s.album?' · <span style="color:var(--t3)">'+escH(s.album)+'</span>':''}</div>
         <div class="track-uploader">by ${escH(s.username||'')} · ${new Date(Number(s.created_at||0)).toLocaleDateString('ko')}</div>
-        <div class="track-tl required">${isFree ? '🎵 무료 MP3 · TLC 보상' : '⚡ 필요 TL: '+(requiredTL > 0 ? requiredTL.toLocaleString() + ' TL' : '⚠️ TL 설정 필요 (재생 불가)')} <span style="font-size:12px;color:var(--t3);font-weight:400">/ ${fmtTime(s.duration)}</span></div>
-        <div class="track-tl my" id="myTLDisplay">${isFree ? '💎 POC → TLC 보상 대상' : '💰 내 충전 TL: '+myFileTL.toLocaleString()+' TL'}</div>
+        <div class="track-tl required">${isFree ? '🎵 무료 MP3 · TLC 보상' : '⚡ 재생에 필요한 TL량: '+(requiredTL > 0 ? requiredTL.toLocaleString() + ' TL' : '확인 중')} <span style="font-size:12px;color:var(--t3);font-weight:400">/ ${fmtTime(s.duration)}</span></div>
+        <div class="track-tl my" id="myTLDisplay">${isFree ? '💎 POC → TLC 보상 대상' : '💰 내 지갑 TL: '+myFileTL.toLocaleString()+' TL'}</div>
       </div>
 
       <div class="actions">
@@ -1048,6 +1069,7 @@ async function loadCreatorPOC(userId){
 
 function handlePlayClick(){
   if(!_share){ alert('곡 정보를 불러오는 중입니다'); return; }
+  if(contentKind(_share)!=='tl3'){ alert('검증된 TL3 음악 자산만 재생할 수 있습니다.'); return; }
   
   // ⭐ NODUP: 이미 재생 중이면 정지, 로딩 중이면 스킵
   if(_tlPlaying){ stopPlay(); return; }
@@ -1058,7 +1080,7 @@ function handlePlayClick(){
   window._loadingPlay = true;
   setTimeout(function(){ window._loadingPlay = false; }, 3000);
   
-  const requiredTL = Number(_share.file_tl||0);
+  const requiredTL = Number(_assetInitialTL||0);
   
   // ⭐ 로딩 표시
   var _pBtn = document.getElementById('playerPlayBtn');
@@ -1086,39 +1108,28 @@ function handlePlayClick(){
   
   // 구 시스템 로직 (mp3, 기존 tl3)
   if(isFreeMp3(_share)){ alert('이 곡은 업로드 전용입니다.\n재생은 TL3 파일만 가능합니다.'); return; }
-  if(requiredTL <= 0){ alert('⚠️ 이 TL3 파일은 TL 설정이 없습니다.'); return; }
-  if(_myFileTL >= requiredTL){ showLoading(); window._hidePlayLoading = hideLoading; playTrack(); }
-  else {
-    alert(`⚠️ TL이 부족합니다!\n필요: ${requiredTL} TL\n내 충전 TL: ${_myFileTL} TL\n\nTL을 충전해주세요.`);
-    chargeTL();
-  }
+  if(_myFileTL>=1&&_assetTL>=1){showLoading();window._hidePlayLoading=hideLoading;playTrack();}
+  else {alert('사용자 지갑 TL 또는 음원 잔여 TL이 부족합니다. 지갑을 확인해 주세요.');chargeTL();}
 }
 
 async function updateMyTLFromServer(){
   try{
-    const r = await fetch(API+'/api/shares/'+SHARE_ID+'/my-tl',{
-      headers:{'Authorization':'Bearer '+getTok()}
-    });
-    const d = await r.json();
-    const newTL = Number(d.tl_balance ?? d.user_tl ?? d.balance ?? 0);
-    if(newTL !== _myFileTL){
-      _myFileTL = newTL;
-      console.log('[DEBUG] Updated _myFileTL from server:', _myFileTL);
-      updateUIAfterCharge(_myFileTL);
-    }
-    return newTL;
-  } catch(e){ return _myFileTL; }
+    const h={'Authorization':'Bearer '+getTok()};
+    const wr=await fetch(API+'/api/eco/wallet',{headers:h});
+    const w=await wr.json();
+    if(!wr.ok) throw new Error(w.error||'TL 조회 실패');
+    _myFileTL=Number(w.wallet?.tl_total||0);
+    updateUIAfterCharge(_myFileTL);
+    updatePlayerTLDisplay();
+    return _myFileTL;
+  }catch(e){console.warn('[TRACK TL sync]',e);return _myFileTL;}
 }
 
 function updateUIAfterCharge(newBalance){
-  _myFileTL = newBalance;
-  const requiredTL = Number(_share?.file_tl||0);
-  const canPlayNow = requiredTL > 0 && _myFileTL >= requiredTL;
-  
-  const myTLDisplay = document.getElementById('myTLDisplay');
-  if(myTLDisplay){
-    myTLDisplay.textContent = `💰 내 충전 TL: ${_myFileTL.toLocaleString()} TL`;
-  }
+  _myFileTL=Number(newBalance||0);
+  const canPlayNow=_myFileTL>=1&&_assetTL>=1;
+  const myTLDisplay=document.getElementById('myTLDisplay');
+  if(myTLDisplay) myTLDisplay.textContent=`💰 내 지갑 TL: ${_myFileTL.toLocaleString()} TL`;
   
   const btnRow = document.getElementById('actionButtons');
   if(btnRow && _share){
@@ -1132,48 +1143,9 @@ function updateUIAfterCharge(newBalance){
 }
 
 async function doDirectCharge(){
-  if(!getTok()){ alert('로그인이 필요합니다'); return; }
-  if(!_share){ alert('곡 정보를 불러올 수 없습니다'); return; }
-  
-  const requiredTL = Number(_share.file_tl||0);
-  if(requiredTL === 0){
-    alert('⚠️ 이 곡은 TL이 설정되지 않았습니다.\n먼저 크리에이터가 TL을 설정해야 충전할 수 있습니다.');
-    closeChargeModal();
-    return;
-  }
-  
-  const btn = document.getElementById('directChargeBtn');
-  const originalText = btn?.textContent;
-  if(btn){ btn.textContent = '⏳ 처리 중...'; btn.disabled = true; }
-  
-  try{
-    const r = await fetch(API+'/api/shares/'+SHARE_ID+'/charge', {
-      method:'POST',
-      headers:{'Authorization':'Bearer '+getTok(),'Content-Type':'application/json'},
-      body:JSON.stringify({amount:_chargeAmount})
-    });
-    
-    const d = await r.json();
-    console.log('[DEBUG] Charge response:', d);
-    
-    if(r.ok || d.ok){
-      // 서버 응답에서 새 잔액 가져오기
-      let newBalance = d.user_tl ?? d.tl_balance ?? d.balance ?? (_myFileTL + _chargeAmount);
-      
-      _myFileTL = newBalance;
-      closeChargeModal(); 
-      alert(`✅ 충전 완료!\n${_chargeAmount.toLocaleString()} TL 충전됨\n현재 충전 TL: ${_myFileTL.toLocaleString()} TL`);
-      updateUIAfterCharge(_myFileTL);
-    } else {
-      alert('❌ 충전 실패: ' + (d.error || '알 수 없는 오류'));
-    }
-  } catch(e){ 
-    console.error('Charge error:', e);
-    alert('오류: ' + e.message); 
-  }
-  finally{
-    if(btn){ btn.textContent = originalText; btn.disabled = false; }
-  }
+  if(!getTok()){alert('로그인이 필요합니다');return;}
+  closeChargeModal();
+  openTossChargeFromTrack();
 }
 
 function selectChargePkg(el){
@@ -1198,9 +1170,9 @@ function chargeTL(){
 
   var box = document.getElementById('tlShortageBox');
   if(box){
-    if(required > 0 && need > 0){
+    if(need > 0 || _assetTL < 1){
       box.style.display = 'block';
-      document.getElementById('shortageReq').textContent = required.toLocaleString()+' TL';
+      document.getElementById('shortageReq').textContent = '1 TL / 초';
       document.getElementById('shortageHave').textContent = have.toLocaleString()+' TL';
       document.getElementById('shortageNeed').textContent = need.toLocaleString()+' TL';
     } else {
@@ -1344,33 +1316,40 @@ function copyLink(){ navigator.clipboard.writeText(location.href).then(()=>{ let
 // ==================== TL PLAYER ====================
 let _tlAudio=null, _tlPlaying=false, _tlInterval=null, _tlCurrentTL=0, _tlMaxTL=0, _tlElapsed=0, _tlFree=false;
 
+function updatePlayerTLDisplay(){
+  var assetVal=document.getElementById('playerTLVal'),walletVal=document.getElementById('playerWalletVal'),bar=document.getElementById('playerTLBar');
+  if(assetVal) assetVal.textContent=Number(_assetTL||0).toLocaleString()+' TL';
+  if(walletVal) walletVal.textContent=Number(_myFileTL||0).toLocaleString()+' TL';
+  var pageWallet=document.getElementById('myTLDisplay');
+  if(pageWallet) pageWallet.textContent='💰 내 지갑 TL: '+Number(_myFileTL||0).toLocaleString()+' TL';
+  if(bar) bar.style.width=(_assetInitialTL>0?Math.max(0,Math.min(100,_assetTL/_assetInitialTL*100)):0)+'%';
+}
+
 function playTrack(){
   if(!_share){ alert('곡 정보를 불러오는 중입니다'); return; }
-  const requiredTL = Number(_share.file_tl||0);
+  if(contentKind(_share)!=='tl3'){ alert('검증된 TL3 음악 자산만 재생할 수 있습니다.'); return; }
+  const requiredTL = Number(_assetInitialTL||0);
   _tlFree = isFreeMp3(_share);
   
   if(!_tlFree && requiredTL <= 0){
-    alert('⚠️ 이 TL3 파일은 TL 설정이 없습니다.');
+    alert('⚠️ 음원 재생 시간을 확인할 수 없습니다.');
     return;
   }
   
-  if(!_tlFree && _myFileTL < requiredTL){ 
-    alert(`⚠️ TL이 부족합니다!\n필요: ${requiredTL} TL / 내 충전 TL: ${_myFileTL} TL\n충전 후 다시 시도해주세요.`);
-    chargeTL(); 
-    return; 
-  }
+  if(!_tlFree && (_myFileTL < 1 || _assetTL < 1)){alert('사용자 지갑 TL 또는 음원 잔여 TL이 부족합니다.');chargeTL();return;}
   if(_tlPlaying){ togglePlay(); return; }
 
   const fileUrl = _share.stream_url || _share.file_url;
   if(!fileUrl){ alert('재생 파일이 없습니다'); return; }
 
-  _tlCurrentTL = _tlFree ? 0 : _myFileTL;
-  _tlMaxTL = _tlFree ? 0 : _myFileTL;
+  _tlCurrentTL = _tlFree ? 0 : _assetTL;
+  _tlMaxTL = _tlFree ? 0 : _assetInitialTL;
   _tlElapsed = 0;
 
   document.getElementById('playerTitle').textContent = _share.title || '';
   document.getElementById('playerArtist').textContent = _share.artist || '';
   document.getElementById('playerTLVal').textContent = _tlFree ? 'FREE' : _tlCurrentTL.toLocaleString() + ' TL';
+  document.getElementById('playerWalletVal').textContent = _myFileTL.toLocaleString()+' TL';
   document.getElementById('playerDur').textContent = fmtTime(_share.duration||0);
   document.getElementById('tlPlayerBar').style.display = 'block';
   document.getElementById('playerPlayBtn').textContent = '⏸';
@@ -1399,44 +1378,27 @@ function playTrack(){
     _tlAudio.src = fileUrl;
     _tlAudio.load();
 
-  } else if(window.TL3 && TL3.play) {
-    // v3 TL3: 서버에서 세그먼트 순차 수신 + 재생 + confirm
-    _tlAudio.load && _tlAudio.load();
-    window._tl3Session = TL3.play(_tlAudio, {
-      API: API,
-      token: getTok(),
-      shareId: SHARE_ID,
-      kind: 'mp3'
-    }).then(function(sess){
-=======
-  } else if(window.TL3 && TL3.resolveUrl){
-    console.log('[PLAY] resolveUrl 시작:', SHARE_ID);
-    TL3.resolveUrl(SHARE_ID, {
-      fetchOptions: { headers: getTok() ? {'Authorization':'Bearer '+getTok()} : {} },
-      fallbackDirect: false
-    }).then(function(u){
-      console.log('[PLAY] resolveUrl 성공:', String(u).slice(0,60));
-      _tlAudio.src = u;
-      // load() 제거 (AbortError 원인)
-      function tryPlay(){
-        return _tlAudio.play().catch(function(e){
-          if(e && e.name === 'AbortError'){
-            console.log('[PLAY] AbortError → 200ms 후 재시도');
-            return new Promise(function(r){ setTimeout(r, 200); }).then(function(){ return _tlAudio.play(); });
-          }
-          throw e;
-        });
+  } else if(window.TL3 && TL3.playStream){
+    console.log('[PLAY] TL3.playStream 시작:', SHARE_ID);
+    TL3.playStream(SHARE_ID, _tlAudio, {
+      onSegment: function(info){
+        if(!_share || String(_share.id)!==String(SHARE_ID)) return;
+        if(info && info.remaining !== undefined){_myFileTL=Math.max(0,Number(info.wallet_tl??info.remaining)||0);}
+        if(info && info.asset_remaining_tl !== undefined){_assetTL=Math.max(0,Number(info.asset_remaining_tl)||0);_tlCurrentTL=_assetTL;}
+        updatePlayerTLDisplay();
+      },
+      onError:function(err){
+        console.error('[TRACK TL3]',err);
+        stopPlay();
+        alert('재생을 중지했습니다: '+(err&&err.message?err.message:err));
       }
-      return tryPlay();
-    }).then(function(){
-      console.log('[PLAY] 재생 시작됨!');
-
+    }).then(function(result){
+      console.log('[PLAY] TL3 스트림 연결됨:', result && result.sessionId);
       _tlPlaying = true;
       startTLTimer();
       if(window._hidePlayLoading) window._hidePlayLoading(true);
-      return sess;
     }).catch(function(e){
-      console.error('[PLAY] 재생 실패:', e);
+      console.error('[PLAY] TL3 스트림 시작 실패:', e);
       if(window._hidePlayLoading) window._hidePlayLoading(false);
       alert('TL3 재생 실패: ' + (e && e.message ? e.message : e));
       stopPlay();
@@ -1452,14 +1414,15 @@ function startTLTimer(){
   _tlInterval = setInterval(async ()=>{
     if(!_tlPlaying) return;
     _tlElapsed++;
-    if(!_tlFree) _tlCurrentTL = Math.max(0, _tlCurrentTL - 1);
+    var isTl3 = isSegmentBilledTL3(_share);
+    if(!_tlFree && !isTl3) _tlCurrentTL = Math.max(0, _tlCurrentTL - 1);
     document.getElementById('playerTime').textContent = fmtTime(_tlElapsed);
     document.getElementById('playerTLVal').textContent = _tlFree ? 'FREE' : _tlCurrentTL.toLocaleString() + ' TL';
     const pct = _tlMaxTL > 0 ? (_tlCurrentTL / _tlMaxTL * 100) : 0;
     document.getElementById('playerTLBar').style.width = pct + '%';
     
     // 5초마다 서버에 TL 소비 기록
-    if(!_tlFree && _tlElapsed % 5 === 0){
+    if(!_tlFree && !isTl3 && _tlElapsed % 5 === 0){
       try{
         await fetch(API+'/api/shares/'+SHARE_ID+'/consume',{
           method:'POST',
@@ -1471,7 +1434,7 @@ function startTLTimer(){
       } catch(e){}
     }
     
-    if(!_tlFree && _tlCurrentTL <= 0){ stopPlay(); alert('TL이 소진됐습니다. 충전 후 다시 재생하세요'); }
+    if(!_tlFree && !isTl3 && _tlCurrentTL <= 0){ stopPlay(); alert('TL이 소진됐습니다. 충전 후 다시 재생하세요'); }
   }, 1000);
 }
 
@@ -1493,11 +1456,27 @@ function togglePlay(){
 
 function stopPlay(){
   console.log('[PLAY] stopPlay 호출됨!');
-  if(_tlAudio){ _tlAudio.pause(); _tlAudio = null; }
+  // 재생 잠금 우회가 아닌 브라우저 기본 pause를 사용하고, 현재 소스도 해제합니다.
+  const audio = _tlAudio;
+  if(audio){
+    try { audio.pause(); } catch(e){}
+    try { audio.removeAttribute('src'); audio.load(); } catch(e){}
+  }
+  _tlAudio = null;
   window._tlAudio = null;
+  window._tlPlaying = false;
+  window._tlPlayBusy = false;
   if(_tlInterval){ clearInterval(_tlInterval); _tlInterval = null; }
   _tlPlaying = false;
-  document.getElementById('tlPlayerBar').style.display = 'none';
+  if(window._hidePlayLoading) window._hidePlayLoading(false);
+  const playBtn = document.getElementById('playerPlayBtn');
+  if(playBtn) playBtn.textContent = '▶';
+  const coverBtn = document.getElementById('coverPlayBtn');
+  if(coverBtn){ coverBtn.disabled = false; coverBtn.textContent = '▶'; }
+  const trackBtn = document.getElementById('playBtn');
+  if(trackBtn){ trackBtn.disabled = false; trackBtn.textContent = '▶ 재생'; }
+  const bar = document.getElementById('tlPlayerBar');
+  if(bar) bar.style.display = 'none';
 }
 
 async function downloadTL(){
@@ -1887,5 +1866,10 @@ document.addEventListener('click', function(e){
 }, true);
 
 </script>
+<script src="/sidebar.js?v=global-nav-20261015-v5"></script>
+  <script src="/i18n.js?v=20261015"></script>
+<script src="/sidebar.js?v=global-nav-lang-20261015-v10"></script>
+  <script src="/i18n.js?v=20261015-nav-event"></script>
+
 </body>
 </html>
