@@ -10,7 +10,7 @@
 
   var pathName = (location.pathname || '/').replace(/\/+$/, '') || '/';
   if (!token && (pathName === '/' || pathName === '/index.html')) return;
-  if (pathName === '/admin.html' || pathName === '/incar.html') return;
+  if (pathName === '/admin.html') return;
 
   // Navigation language follows the platform-wide tl_lang preference.
   // Korean mode renders Korean labels; English mode renders English labels.
