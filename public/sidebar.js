@@ -30,6 +30,10 @@
       ['/incar-channel.html', '◇', 'In-car Channel', '인카방송'],
       ['/dj-center.html', '♫', 'DJ Center', '디제이센터']
     ]],
+    ['COMMUNICATION', '커뮤니케이션', [
+      ['/cafe-world.html', '☕', 'Cafe World', '카페월드'],
+      ['/my-car-world.html', '🚘', 'My Car World', '마이카월드']
+    ]],
     ['ADVERTISING', '광고', [
       ['/advertiser.html', '▱', 'Sponsor Center', '광고주센터'],
       ['/ads.html', '▣', 'Ad Watching', '광고 시청 및 TL 벌기']
