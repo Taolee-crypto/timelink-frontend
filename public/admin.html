@@ -193,7 +193,7 @@ html,body{background:#0A0A0A;color:#F5F5F7}
     </div>
     <form onsubmit="login();return false;" autocomplete="on">
       <label class="l-label">EMAIL</label>
-      <input type="email" class="l-input" id="lEmail" value="admin@timelink.digital" autocomplete="username">
+      <input type="email" class="l-input" id="lEmail" value="" placeholder="관리자 계정 이메일" autocomplete="username">
       <label class="l-label">PASSWORD</label>
       <input type="password" class="l-input" id="lPw" placeholder="••••••••" autocomplete="current-password">
       <button type="submit" class="l-btn">ACCESS ADMIN</button>
@@ -1157,30 +1157,62 @@ function adminPlay(url,title){
   _adminAudio=new Audio(pu);
   _adminAudio.play().catch(function(e){ alert('재생 실패: '+e.message+'\nURL: '+pu); });
 }
-var CRED = { email:'mununglee@gmail.com', pw:'new30year!' };
 var _shares=[], _users=[], _shareFilter='', _shareTypeFilter='', _userFilter='';
 
-// ─ Login ─
-async function login(){
-  var e=v('lEmail'), p=v('lPw');
-  if(e===CRED.email && p===CRED.pw){
-    try {
-      var r = await fetch(API+'/api/auth/login', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({email:e, password:p})
-      });
-      var d = await r.json();
-      if(!r.ok || !d.token) { show('lErr'); return; }
-      localStorage.setItem('tl_token', d.token);
-      if(d.user) localStorage.setItem('tl_user', JSON.stringify(d.user));
-      localStorage.setItem('tl_adm', Date.now());
-      hide('loginWrap');
-      loadAll(); startClock();
-    } catch(err) { show('lErr'); }
-  } else { show('lErr'); }
+// ─ Login: authenticate with the account service, then verify the admin role on the server ─
+async function verifyAdminToken(token){
+  var r = await fetch(API+'/api/admin/sql', {
+    method:'POST', mode:'cors',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({sql:'SELECT 1 AS admin_ok'})
+  });
+  if(!r.ok) return false;
+  var d = await r.json();
+  return !!(d && d.ok);
 }
-function logout(){ localStorage.removeItem('tl_adm'); location.reload(); }
+async function login(){
+  var e=v('lEmail'), p=g('lPw').value;
+  var err=g('lErr');
+  err.style.display='none';
+  if(!e || !p){
+    err.textContent='이메일과 비밀번호를 입력하세요.';
+    err.style.display='block'; return;
+  }
+  var btn=document.querySelector('#loginWrap .l-btn');
+  if(btn) btn.disabled=true;
+  try {
+    var r = await fetch(API+'/api/auth/login', {
+      method:'POST', mode:'cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email:e, password:p})
+    });
+    var d = await r.json().catch(function(){return {};});
+    if(!r.ok || !d.token){
+      err.textContent=d.error || '이메일 또는 비밀번호를 확인하세요.';
+      err.style.display='block'; return;
+    }
+    if(!(await verifyAdminToken(d.token))){
+      err.textContent='로그인은 확인됐지만 관리자 권한이 없습니다. 관리자 계정(role=admin)으로 로그인하세요.';
+      err.style.display='block'; return;
+    }
+    localStorage.setItem('tl_token', d.token);
+    if(d.user) localStorage.setItem('tl_user', JSON.stringify(d.user));
+    localStorage.setItem('tl_adm', Date.now());
+    hide('loginWrap');
+    loadAll(); startClock();
+  } catch(err2) {
+    err.textContent='서버 연결에 실패했습니다. 잠시 후 다시 시도하세요.';
+    err.style.display='block';
+  } finally {
+    if(btn) btn.disabled=false;
+  }
+}
+function logout(){
+  localStorage.removeItem('tl_adm');
+  localStorage.removeItem('tl_token');
+  localStorage.removeItem('tl_adm_token');
+  location.reload();
+}
 
 // ─ Nav ─
 async function loadAdvertisers(){
@@ -2121,14 +2153,19 @@ async function saveFooterSettings(){
   await loadFooterSettings();
 }
 
-// ─ Session Restore ─
+// ─ Session Restore: never trust the browser marker without server-side role verification ─
 (function(){
   var sess=localStorage.getItem('tl_adm');
   var MAX=8*60*60*1000;
-  if(sess&&Date.now()-parseInt(sess)<MAX){
-    // ⭐ 기존 tl_token(진짜 JWT) 유지
-    hide('loginWrap'); loadAll(); startClock();
-  }
+  if(sess && Date.now()-parseInt(sess)<MAX){
+    var token=localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'';
+    if(token){
+      verifyAdminToken(token).then(function(ok){
+        if(ok){hide('loginWrap');loadAll();startClock();}
+        else {localStorage.removeItem('tl_adm');g('loginWrap').style.display='flex';}
+      }).catch(function(){localStorage.removeItem('tl_adm');g('loginWrap').style.display='flex';});
+    } else {localStorage.removeItem('tl_adm');}
+  } else if(sess){localStorage.removeItem('tl_adm');}
   document.addEventListener('keydown',function(e){
     if(e.key==='Enter'&&g('loginWrap').style.display!=='none') login();
   });
