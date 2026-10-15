@@ -12,25 +12,33 @@
   if (!token && (pathName === '/' || pathName === '/index.html')) return;
   if (pathName === '/admin.html' || pathName === '/incar.html') return;
 
+  // Navigation language follows the platform-wide tl_lang preference.
+  // Korean mode renders Korean labels; English mode renders English labels.
+  var currentLang = 'en';
+  try { currentLang = localStorage.getItem('tl_lang') || 'ko'; } catch (e) {}
+  currentLang = String(currentLang).toLowerCase().indexOf('en') === 0 ? 'en' : 'ko';
+  function label(en, ko) { return currentLang === 'ko' ? ko : en; }
+  function labelText(en, ko) { return label(en, ko); }
+
   var sections = [
-    ['HOME', [['/dashboard.html?tab=home', '⌂', 'Overview']]],
-    ['DIGITAL ASSETS', [['/shareplace.html', '◈', 'Shareplace']]],
-    ['CREATOR', [['/creator.html', '✧', 'Creator Center']]],
-    ['TL BROADCAST', [
-      ['/cafe-channel.html', '▣', 'Cafe Channel'],
-      ['/incar-channel.html', '◇', 'In-car Channel'],
-      ['/dj-center.html', '♫', 'DJ Center']
+    ['HOME', '홈', [['/dashboard.html?tab=home', '⌂', 'Overview', '둘러보기']]],
+    ['DIGITAL ASSETS', '디지털자산', [['/shareplace.html', '◈', 'SharePlace', '공유플레이스']]],
+    ['CREATOR', '창작', [['/creator.html', '✧', 'Creator Center', '크리에이터센터']]],
+    ['TL BROADCAST', 'TL 방송국', [
+      ['/cafe-channel.html', '▣', 'Cafe Channel', '카페방송'],
+      ['/incar-channel.html', '◇', 'In-car Channel', '인카방송'],
+      ['/dj-center.html', '♫', 'DJ Center', '디제이센터']
     ]],
-    ['ADVERTISING', [
-      ['/advertiser.html', '▱', 'Sponsor Center'],
-      ['/ads.html', '▣', 'Ad Watching']
+    ['ADVERTISING', '광고', [
+      ['/advertiser.html', '▱', 'Sponsor Center', '광고주센터'],
+      ['/ads.html', '▣', 'Ad Watching', '광고 시청 및 TL 벌기']
     ]],
-    ['TL ECONOMICS', [['/wallet.html', '◉', 'Wallet']]],
-    ['MY', [
-      ['/dashboard.html?tab=content', '▤', 'My Library', true],
-      ['/dashboard.html?tab=mining', '⛏', 'TLC Mining', true],
-      ['/dashboard.html?tab=mission', '◎', 'Mission', true],
-      ['/dashboard.html?tab=cafe', '☕', 'Cafe Channel', true]
+    ['TL ECONOMICS', 'TL 경제', [['/wallet.html', '◉', 'Wallet', '지갑']]],
+    ['MY', '내 정보', [
+      ['/dashboard.html?tab=content', '▤', 'My Library', '내 파일', true],
+      ['/dashboard.html?tab=mining', '⛏', 'TLC Mining', 'TLC 채굴', true],
+      ['/dashboard.html?tab=mission', '◎', 'Mission', '미션', true],
+      ['/dashboard.html?tab=cafe', '☕', 'My Cafe', '나의 카페', true]
     ]]
   ];
 
@@ -80,14 +88,14 @@
     }
   </style>`;
 
-  html += '<aside class="tl-global-sidebar" aria-label="TimeLink navigation"><a class="tl-global-brand" href="/dashboard.html?tab=home"><span class="tl-global-mark">T</span><span>TimeLink</span></a><nav class="tl-global-links">';
+  html += '<aside class="tl-global-sidebar" aria-label="' + esc(label('TimeLink navigation', 'TimeLink 메뉴')) + '"><a class="tl-global-brand" href="/dashboard.html?tab=home"><span class="tl-global-mark">T</span><span>TimeLink</span></a><nav class="tl-global-links">';
   sections.forEach(function (section) {
-    html += '<div class="tl-global-section">' + esc(section[0]) + '</div>';
-    section[1].forEach(function (item) {
-      html += '<a class="tl-global-link' + (item[3] ? ' tl-global-link-child' : '') + (active(item[0]) ? ' is-active' : '') + '" href="' + esc(item[0]) + '"' + (active(item[0]) ? ' aria-current="page"' : '') + '><span class="tl-global-icon">' + esc(item[1]) + '</span><span>' + esc(item[2]) + '</span></a>';
+    html += '<div class="tl-global-section">' + esc(label(section[0], section[1])) + '</div>';
+    section[2].forEach(function (item) {
+      html += '<a class="tl-global-link' + (item[4] ? ' tl-global-link-child' : '') + (active(item[0]) ? ' is-active' : '') + '" href="' + esc(item[0]) + '"' + (active(item[0]) ? ' aria-current="page"' : '') + '><span class="tl-global-icon">' + esc(item[1]) + '</span><span>' + esc(label(item[2], item[3])) + '</span></a>';
     });
   });
-  html += '</nav><div class="tl-global-balance"><small>MY TL BALANCE</small><strong id="tlGlobalBalance">— TL</strong><a href="/wallet.html#charge">＋ Charge TL</a></div></aside>';
+  html += '</nav><div class="tl-global-balance"><small>' + esc(label('MY TL BALANCE', '내 TL 잔액')) + '</small><strong id="tlGlobalBalance">— TL</strong><a href="/wallet.html#charge">＋ ' + esc(label('Charge TL', 'TL 충전')) + '</a></div></aside>';
 
   document.body.insertAdjacentHTML('afterbegin', html);
   document.body.classList.add('tl-global-shell');
@@ -126,11 +134,11 @@
       if (!nav) return;
       var label = document.createElement('div');
       label.className = 'tl-global-section';
-      label.textContent = 'ADMIN';
+      label.textContent = labelText('ADMIN', '관리자');
       var link = document.createElement('a');
       link.className = 'tl-global-link' + (pathName === '/admin.html' ? ' is-active' : '');
       link.href = '/admin.html';
-      link.innerHTML = '<span class="tl-global-icon">⚙</span><span>Admin Console</span>';
+      link.innerHTML = '<span class="tl-global-icon">⚙</span><span>' + esc(label('Admin Console', '관리자 제어')) + '</span>';
       nav.appendChild(label);
       nav.appendChild(link);
     }).catch(function () {});
@@ -139,13 +147,13 @@
   var toggle = document.createElement('button');
   toggle.type = 'button';
   toggle.className = 'tl-global-toggle';
-  toggle.setAttribute('aria-label', 'Open navigation');
+  toggle.setAttribute('aria-label', label('Open navigation', '메뉴 열기'));
   toggle.setAttribute('aria-expanded', 'false');
   toggle.textContent = '☰';
   var scrim = document.createElement('button');
   scrim.type = 'button';
   scrim.className = 'tl-global-scrim';
-  scrim.setAttribute('aria-label', 'Close navigation');
+  scrim.setAttribute('aria-label', label('Close navigation', '메뉴 닫기'));
   document.body.appendChild(scrim);
   document.body.appendChild(toggle);
   function closeNav() {
