@@ -381,45 +381,38 @@ function createLangSwitcher(containerId){
 }
 
 /* ── 상단 고정 스위처 자동 삽입 ── */
-function injectSwitcher(){ return; // 크롬 자동번역 사용
-
+function injectSwitcher(){
   if(document.getElementById('tl-lang-switcher')) return;
   var sw=document.createElement('div');
   sw.id='tl-lang-switcher';
-  var topbar = document.querySelector('.topbar');
-  if(topbar){
-    sw.style.cssText='display:flex;gap:2px;align-items:center;margin-left:8px';
-  } else {
-    sw.style.cssText=[
-      'position:fixed;top:12px;right:16px;z-index:99999',
-      'display:flex;gap:2px;align-items:center',
-      'background:rgba(10,10,20,.92);backdrop-filter:blur(16px)',
-      'border:1px solid rgba(255,255,255,.15);border-radius:22px',
-      'padding:5px 10px;box-shadow:0 4px 20px rgba(0,0,0,.5)'
-    ].join(';');
-  }
-  LANGS.forEach(function(l){
+  sw.setAttribute('role','group');
+  sw.setAttribute('aria-label','Language');
+  sw.style.cssText=[
+    'position:fixed;top:14px;right:18px;z-index:100050',
+    'display:flex;gap:3px;align-items:center',
+    'background:rgba(10,10,20,.94);backdrop-filter:blur(16px)',
+    'border:1px solid rgba(255,255,255,.18);border-radius:22px',
+    'padding:4px;box-shadow:0 4px 20px rgba(0,0,0,.38)'
+  ].join(';');
+  ['en','ko'].forEach(function(l){
     var btn=document.createElement('button');
     btn.className='tl-lang-btn'+(l===_lang?' tl-lang-active':'');
     btn.dataset.lang=l;
-    btn.textContent=FLAGS[l];
+    btn.textContent=l==='en'?'EN':'KR';
     btn.title=LABELS[l];
+    btn.setAttribute('aria-pressed',l===_lang?'true':'false');
     btn.style.cssText=[
-      'background:'+(l===_lang?'rgba(255,255,255,.15)':'none'),
-      'border:'+(l===_lang?'1px solid rgba(255,255,255,.3)':'1px solid transparent'),
-      'cursor:pointer;font-size:17px;padding:3px 5px;border-radius:8px',
-      'opacity:'+(l===_lang?'1':'0.5'),
-      'transition:all .2s;line-height:1;color:#fff'
+      'background:'+(l===_lang?'rgba(139,108,240,.95)':'transparent'),
+      'border:1px solid '+(l===_lang?'rgba(255,255,255,.24)':'transparent'),
+      'cursor:pointer;font:700 11px/1 Inter,Pretendard,sans-serif',
+      'min-width:36px;padding:8px 10px;border-radius:18px',
+      'opacity:'+(l===_lang?'1':'0.58'),
+      'transition:all .2s;color:#fff'
     ].join(';');
-    (function(lang){ btn.onclick=function(){ TLi18n.setLang(lang); }; })(l);
+    (function(lang){btn.onclick=function(){TLi18n.setLang(lang);};})(l);
     sw.appendChild(btn);
   });
-  var topbar2 = document.querySelector('.topbar');
-  if(topbar2){
-    topbar2.appendChild(sw);
-  } else {
-    document.body.appendChild(sw);
-  }
+  document.body.appendChild(sw);
 }
 
 function injectStyle(){
