@@ -21,13 +21,11 @@
   };
 
   function totalTL(){
-    var p = Number(_user.tl_p);
-    if(!isFinite(p)) p = Number(_user.tl);
-    if(!isFinite(p)) p = Number(_user.tl_balance);
-    if(!isFinite(p)) p = 0;
-    var a = Number(_user.tl_a); if(!isFinite(a)) a = 0;
-    var b = Number(_user.tl_b); if(!isFinite(b)) b = 0;
-    return p + a + b;
+    var b = Number(_user.tl_balance);
+    if(isFinite(b) && b > 0) return b;
+    var tl = Number(_user.tl);
+    if(isFinite(tl) && tl > 0) return tl;
+    return 0;
   }
   function tlcVal(){ var t = Number(_user.tlc); return isFinite(t) ? t : 0; }
 
@@ -80,6 +78,31 @@
     return bar;
   }
 
+
+  // 서버에서 최신 잔액 조회
+  async function fetchBalance(){
+    try {
+      var r = await fetch('https://api.timelink.digital/api/v1/users/me/wallet', {
+        headers: { 'Authorization': 'Bearer ' + _token }
+      });
+      var d = await r.json();
+      var bal = Number(d.tl_balance);
+      if(isFinite(bal)){
+        var el = document.getElementById('tl-topbar-tl');
+        if(el) el.textContent = bal.toLocaleString() + ' TL';
+        // 로컬 캐시 갱신
+        _user.tl_balance = bal;
+        localStorage.setItem('tl_user', JSON.stringify(_user));
+      }
+      var tlc = Number(d.tlc_balance);
+      if(isFinite(tlc)){
+        var el2 = document.getElementById('tl-topbar-tlc');
+        if(el2) el2.textContent = tlc.toFixed(2) + ' TLC';
+      }
+      // 사이드바에도 반영
+      window.dispatchEvent(new CustomEvent('tl-balance-updated', {detail:{tl: bal, tlc: tlc}}));
+    } catch(e){}
+  }
   function inject(){
     styleInject();
     if(document.querySelector('.tl-topbar')) return;

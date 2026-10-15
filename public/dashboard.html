@@ -268,7 +268,7 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
 }
 @media(prefers-reduced-motion:reduce){.stat-card,.sb-link,.tb-action,.qb-btn{transition:none!important}}
 </style>
-<script src="/_shared/topbar.js"></script>
+<script src="/_shared/topbar-v2.js"></script>
 </head>
 <body>
 
@@ -604,6 +604,27 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
 // 전역 변수
 // ═══════════════════════════════════════════
 var API = 'https://api.timelink.digital';
+async function fetchServerBalance(){
+    try {
+      var _t = localStorage.getItem('tl_token') || '';
+      if(!_t) return;
+      var r = await fetch(API + '/api/v1/users/me/wallet', {
+        headers: { 'Authorization': 'Bearer ' + _t }
+      });
+      var d = await r.json();
+      var bal = Number(d.tl_balance);
+      if(isFinite(bal)){
+        if(!_user) _user = {};
+        _user.tl_balance = bal;
+        localStorage.setItem('tl_user', JSON.stringify(_user));
+        // 화면 갱신
+        var fmt = function(n){ return Number(n).toLocaleString(undefined,{maximumFractionDigits:2}); };
+        if(g('tbTl')) g('tbTl').textContent = fmt(bal);
+        if(g('homeTl')) g('homeTl').textContent = fmt(bal);
+        if(g('walletTl')) g('walletTl').textContent = fmt(bal);
+      }
+    } catch(e){}
+  }
 var _token = localStorage.getItem('tl_token') || '';
 var _user = null;
 
@@ -639,34 +660,33 @@ function renderUser(){
   var tlTotal = getTotalTL();
   var tlc = Number(_user.tlc || 0);
   var poc = parseFloat(localStorage.getItem('tl_poc_today') || '0');
+  function st(id, val){ var el = document.getElementById(id); if(el) el.textContent = val; }
 
-  g('tbName').textContent = name;
-  g('tbTl').textContent = fmt(tlTotal);
-  g('tbTlc').textContent = fmt(tlc);
-  g('tbPoc').textContent = poc.toFixed(1);
+  st('tbName', name);
+  st('tbTl', fmt(tlTotal));
+  st('tbTlc', fmt(tlc));
+  st('tbPoc', poc.toFixed(1));
 
-  g('sbName').textContent = name;
-  g('sbEmail').textContent = _user.email || '';
-  g('sbType').textContent = _user.role || 'personal';
+  st('sbName', name);
+  st('sbEmail', _user.email || '');
+  st('sbType', _user.role || 'personal');
 
-  g('homeTl').textContent = fmt(tlTotal);
-  g('homeTlc').textContent = fmt(tlc);
-  g('homePoc').textContent = poc.toFixed(1);
+  st('homeTl', fmt(tlTotal));
+  st('homeTlc', fmt(tlc));
+  st('homePoc', poc.toFixed(1));
 
-  g('walletTl').textContent = fmt(tlTotal);
-  g('walletTlc').textContent = Number(tlc).toFixed(2);
+  st('walletTl', fmt(tlTotal));
+  st('walletTlc', Number(tlc).toFixed(2));
 }
 
 function getTotalTL(){
-  if(!_user) return 0;
-  if(_user.tl_p === undefined || _user.tl_p === null){
-    _user.tl_p = Number(_user.tl || 0);
-    _user.tl_a = Number(_user.tl_a || 0);
-    _user.tl_b = Number(_user.tl_b || 0);
-    localStorage.setItem('tl_user', JSON.stringify(_user));
+    if(!_user) return 0;
+    var b = Number(_user.tl_balance);
+    if(isFinite(b) && b > 0) return b;
+    var tl = Number(_user.tl);
+    if(isFinite(tl) && tl > 0) return tl;
+    return 0;
   }
-  return Number(_user.tl_p||0) + Number(_user.tl_a||0) + Number(_user.tl_b||0);
-}
 
 // ═══════════════════════════════════════════
 // 탭 전환
@@ -1151,6 +1171,7 @@ async function sendToDj(kind){
 // ═══════════════════════════════════════════
 // 시작 (DOMContentLoaded)
 // ═══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function(){ setTimeout(fetchServerBalance, 100); });
 document.addEventListener('DOMContentLoaded', function(){
   if(!initAuth()) return;
   loadShares();

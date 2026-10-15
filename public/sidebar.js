@@ -191,4 +191,33 @@
   document.querySelector('.tl-global-sidebar').addEventListener('click', function (event) {
     if (event.target.closest('a')) closeNav();
   });
+
+  // 서버에서 최신 잔액 조회 (topbar.js와 동기화)
+  async function fetchServerBalance(){
+    try {
+      var r = await fetch(API + '/api/v1/users/me/wallet', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      var d = await r.json();
+      var bal = Number(d.tl_balance);
+      if(isFinite(bal)){
+        var el = document.getElementById('tlGlobalBalance');
+        if(el) el.textContent = bal.toLocaleString() + ' TL';
+        // 로컬 캐시도 갱신
+        try {
+          var u = JSON.parse(localStorage.getItem('tl_user') || '{}');
+          u.tl_balance = bal;
+          localStorage.setItem('tl_user', JSON.stringify(u));
+        } catch(e){}
+      }
+    } catch(e){}
+  }
+  // topbar.js가 잔액 갱신하면 사이드바도 반영
+  window.addEventListener('tl-balance-updated', function(e){
+    if(e.detail && isFinite(e.detail.tl)){
+      var el = document.getElementById('tlGlobalBalance');
+      if(el) el.textContent = Number(e.detail.tl).toLocaleString() + ' TL';
+    }
+  });
+  fetchServerBalance();
 })();
