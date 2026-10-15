@@ -9,8 +9,8 @@
     ['DIGITAL ASSETS', [['/shareplace.html','◈','SharePlace'],['/dashboard.html?tab=content','▤','My Library']]],
     ['CREATOR', [['/creator.html','✧','Creator Profile'],['/creator-studio.html','＋','Creator Studio']]],
     ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/cafe-radio.html','▣','Cafe Broadcast',true],['/incar.html','◇','In-car Broadcast',true],['/dj-center.html','♫','DJ Center'],['/cafe-owner.html','⌂','Cafe Management']]],
-    ['ADVERTISING', [['/advertiser.html','▱','Advertiser Center'],['/ads.html','▣','Campaigns']]],
-    ['TL ECONOMICS', [['/wallet.html','◉','TL Wallet'],['/chart.html','⌁','POC & TLC']]],
+    ['ADVERTISING', [['/advertiser.html','▱','Advertiser Center'],['/ads.html','▣','Ad Watching']]],
+    ['TL ECONOMICS', [['/wallet.html','◉','Wallet']]],
     ['MY', [['/dashboard.html','◎','My Dashboard']]],
     ['ADMIN', [['/admin.html','⚙','Admin Console']]]
   ];
