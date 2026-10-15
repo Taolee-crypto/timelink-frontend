@@ -403,18 +403,26 @@ var SCHEDULES = [
   {time:'02~05', icon:'😴', label:'새벽',      active:false},
 ];
 
-// Auth
-(function(){
+// Auth + existing channel routing
+(async function(){
   try{
     _user = JSON.parse(localStorage.getItem('tl_user')||'null');
-    _token = localStorage.getItem('tl_token');
+    _token = localStorage.getItem('tl_token') || '';
   }catch(e){}
-  if(!_user){ location.href='login.html'; return; }
+  if(!_user || !_token){ location.href='login.html'; return; }
   document.getElementById('tbUser').textContent = _user.username||_user.email;
   var d = new Date(); d.setDate(d.getDate()+30);
   document.getElementById('nextRenew').textContent = d.toLocaleDateString('ko-KR');
   updateBalance();
   updatePocCalc();
+  try {
+    var existing = await fetch(API+'/api/incar/my-channel',{headers:{'Authorization':'Bearer '+_token}});
+    var result = await existing.json();
+    if(existing.ok && result.ok && result.registered && result.channel){
+      localStorage.setItem('tl_incar_channel',JSON.stringify(result.channel));
+      location.replace('incar-studio.html');
+    }
+  } catch(e) { console.warn('[In-car] 기존 채널 확인 실패',e); }
 })();
 
 function toast(msg,t){ t=t||'i'; var el=document.createElement('div'); el.className='t '+t; el.textContent=msg; document.getElementById('toast-box').prepend(el); setTimeout(function(){el.remove();},3200); }
@@ -581,9 +589,8 @@ async function submitChannel(){
     localStorage.setItem('tl_incar_channel', JSON.stringify(channelData));
     updateBalance();
 
-    btn.style.display='none';
-    g('successBox').classList.add('show');
     toast(TLi18n.t('toast.ch.incar.success'),'s');
+    location.href='incar-studio.html';
 
   }catch(e){
     toast(TLi18n.t('toast.general.error')+': '+e.message,'e');
