@@ -16,7 +16,7 @@
   ];
   var path=(location.pathname||'/').replace(/\/+$/,'')||'/';
   // Admin has its own dedicated console navigation; never stack the public shell on it.
-  if(path==='/admin.html') return;
+  if(path==='/admin.html'||path==='/incar.html') return;
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
   function isActive(h){var p=h.split('?')[0];return path===p || (p==='/index.html'&&path==='/') || (p==='/dashboard.html'&&path==='/dashboard');}
   var html='<aside class="tl-global-sidebar" aria-label="TimeLink navigation"><a class="tl-global-brand" href="/index.html"><span class="tl-global-mark">T</span><span>TimeLink</span></a><nav class="tl-global-links">';
