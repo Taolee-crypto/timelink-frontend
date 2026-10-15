@@ -394,6 +394,7 @@ function setLang(lang){
   _settingLang = true;
   _lang=lang;
   localStorage.setItem('tl_lang',lang);
+  window.dispatchEvent(new CustomEvent('tl-language-changed',{detail:{lang:lang}}));
   applyAll();
   updateSwitcherUI();
   // 페이지별 동적 재렌더링 (renderLangSw는 updateSwitcherUI에서 처리)
