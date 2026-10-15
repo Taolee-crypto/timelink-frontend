@@ -42,10 +42,12 @@
     var formatted=Math.floor(value).toLocaleString();
     var sidebar=document.getElementById('tlGlobalBalance');
     if(sidebar) sidebar.textContent=formatted+' TL';
-    ['tbTl','walletTl','tbTL','tlBalance','tlWalletBalance','globalTlBalance'].forEach(function(id){
+    ['tbTl','walletTl','tlBalance','tlWalletBalance','globalTlBalance'].forEach(function(id){
       var el=document.getElementById(id);
       if(el) el.textContent=formatted;
     });
+    var creatorBalance=document.getElementById('tbTL');
+    if(creatorBalance) creatorBalance.textContent=formatted+' TL';
     document.querySelectorAll('[data-tl-wallet-balance]').forEach(function(el){el.textContent=formatted;});
     document.querySelectorAll('.tb-tl').forEach(function(el){el.textContent=formatted+' TL';});
     window.dispatchEvent(new CustomEvent('timelink:wallet-synced',{detail:{tl_total:value}}));
