@@ -11,22 +11,27 @@
     ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/dj-center.html','♫','DJ Center'],['/cafe-radio.html','▣','Cafe Broadcast'],['/cafe-owner.html','⌂','Cafe Management'],['/incar.html','◇','In-car']]],
     ['ADVERTISING', [['/advertiser.html','▱','Advertiser Center'],['/ads.html','▣','Campaigns']]],
     ['TL ECONOMICS', [['/wallet.html','◉','TL Wallet'],['/chart.html','⌁','POC & TLC']]],
-    ['MY', [['/dashboard.html','◎','My Dashboard'],['/settings.html','⚙','Settings']]],
-    ['SYSTEM', [['/admin.html','⚙','Admin Console']]]
+    ['MY', [['/dashboard.html','◎','My Dashboard']]],
+    ['ADMIN', [['/admin.html','⚙','Admin Console']]]
   ];
-  var path=(location.pathname||'/').replace(/\\/+$/,'')||'/';
-  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-  function isActive(h){var p=h.split('?')[0];return path===p || (p==='/dashboard.html'&&path==='/dashboard');}
+  var path=(location.pathname||'/').replace(/\/+$/,'')||'/';
+  // Admin has its own dedicated console navigation; never stack the public shell on it.
+  if(path==='/admin.html'||path==='/incar.html') return;
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+  function isActive(h){var p=h.split('?')[0];return path===p || (p==='/index.html'&&path==='/') || (p==='/dashboard.html'&&path==='/dashboard');}
   var html='<aside class="tl-global-sidebar" aria-label="TimeLink navigation"><a class="tl-global-brand" href="/index.html"><span class="tl-global-mark">T</span><span>TimeLink</span></a><nav class="tl-global-links">';
   sections.forEach(function(section){
     html+='<div class="tl-global-section">'+esc(section[0])+'</div>';
     section[1].forEach(function(item){html+='<a class="tl-global-link'+(isActive(item[0])?' is-active':'')+'" href="'+esc(item[0])+'"'+(isActive(item[0])?' aria-current="page"':'')+'><span class="tl-global-icon">'+esc(item[1])+'</span><span>'+esc(item[2])+'</span></a>';});
   });
   html+='</nav><div class="tl-global-balance"><small>MY TL BALANCE</small><strong id="tlGlobalBalance">— TL</strong><a href="/wallet.html#charge">＋ Charge TL</a></div></aside>';
-  var old=document.querySelector('.app > .sidebar, .app > .tl-sidebar');
+  var old=document.querySelector('.app > .sidebar, .app > .tl-sidebar, .layout > .sidebar, .body > .sidebar');
   if(old) old.remove();
   var app=document.querySelector('.app');
   if(app){app.style.gridTemplateColumns='minmax(0,1fr)';app.style.minWidth='0';}
+  // Pages using the legacy .layout grid had a second fixed sidebar and a 220px main offset.
+  var legacyLayout=document.querySelector('.layout');
+  if(legacyLayout){var legacyMain=legacyLayout.querySelector('.main');if(legacyMain)legacyMain.style.marginLeft='0';}
   document.body.insertAdjacentHTML('afterbegin',html);
   document.body.classList.add('tl-global-shell');
   var user={};try{user=JSON.parse(localStorage.getItem('tl_user')||'{}');}catch(e){}

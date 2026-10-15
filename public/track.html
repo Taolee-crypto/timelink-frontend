@@ -70,7 +70,44 @@
 <link rel="stylesheet" href="/apple-theme.css">
 <link rel="stylesheet" href="/dropdown-fix.css"><!-- SELECT_FIX_V1 -->
 
-<link rel="stylesheet" href="/apple-theme.css?v=global-20261014" data-tl-global-theme="2026.10">
+<link rel="stylesheet" href="/apple-theme.css?v=global-20261015" data-tl-global-theme="2026.10">
+<style>
+/* Track page — TimeLink global purple/gold system */
+:root{--bg:#0A0A0A;--bg2:#111111;--bg3:#1A1A1A;--purple:#8B5CF6;--purple-hover:#A78BFA;--mint:#F5A623;--accent:#8B5CF6;--accent-soft:rgba(139,92,246,.14);--bd:rgba(255,255,255,.085);--bd2:rgba(255,255,255,.14);--t1:#F5F5F7;--t2:rgba(245,245,247,.74);--t3:rgba(245,245,247,.48);--t4:rgba(245,245,247,.28)}
+body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-system','BlinkMacSystemFont','Noto Sans KR',sans-serif}
+.hdr{background:rgba(10,10,10,.9);border-color:rgba(255,255,255,.08)}
+.logo{background:linear-gradient(120deg,#C4AFFF,#8B5CF6 62%,#F5A623);-webkit-background-clip:text;background-clip:text}
+.cover-wrap{background:linear-gradient(135deg,#211638,#11111a 60%,#302515)}
+.play-overlay-btn,.btn-play,.comment-submit{background:linear-gradient(135deg,#9B75FA,#7042D8)}
+.btn-play:hover:not(:disabled){box-shadow:0 6px 20px rgba(139,92,246,.32)}
+.btn-icon.liked{border-color:#8B5CF6;color:#C4B5FD;background:rgba(139,92,246,.13)}
+.btn-icon.following{border-color:#F5A623;color:#F5A623;background:rgba(245,166,35,.1)}
+.comment-textarea:focus{border-color:#8B5CF6;background:rgba(139,92,246,.06)}
+.comment-submit:hover{background:#A78BFA}
+.new-pl-btn{border-color:rgba(139,92,246,.4);color:#C4B5FD}
+.new-pl-btn:hover,.charge-pkg:hover,.charge-pkg.active{background:rgba(139,92,246,.12)}
+#tlPlayerBar{background:rgba(16,15,21,.97);border-top-color:rgba(139,92,246,.38)}
+@media(max-width:900px){
+ .main{grid-template-columns:minmax(0,1fr)}
+ .left-panel{position:static;height:auto;max-height:none;border-right:0;border-bottom:1px solid var(--bd)}
+ .right-panel{min-width:0}
+}
+@media(max-width:600px){
+ .hdr{padding:12px 14px;min-height:56px}
+ .left-panel{padding:22px 16px}
+ .right-top{padding:24px 16px 0}
+ .copyright-section{padding:20px 16px}
+ .comments-wrap{padding:0 16px}
+ .comment-input-wrap{padding:16px}
+ .track-title{font-size:21px}
+ .stats{gap:4px}
+ .stat-val{font-size:17px}
+ .modal{width:calc(100% - 24px);padding:18px}
+ .modal-score{width:calc(100% - 16px);padding:12px}
+ #tlPlayerBar{padding:10px 12px}
+}
+@media(prefers-reduced-motion:reduce){.play-overlay,.btn-play,.btn-icon,.comment-submit{transition:none!important}}
+</style>
 </head>
 <body>
 
@@ -395,6 +432,10 @@ async function loadTrack(){
     const s = await sr.json();
     const stats = await statsR.json();
     const myTl = await myTlR.json();
+    if(contentKind(s)!=='tl3'){
+      document.getElementById('mainWrap').innerHTML='<div class="loading">이 페이지는 검증된 TL3 음악 자산 전용입니다. SharePlace에서 공개된 TL3 트랙을 선택해 주세요.</div>';
+      return;
+    }
     
     // 🔥 중요: 서버에서 tl_balance 가져오기 (tl_user_files 테이블)
     // 응답 형식: { tl_balance: 1234 } 또는 { user_tl: 1234 }
@@ -419,11 +460,10 @@ async function loadTrack(){
 
 function contentKind(s){
   var ft=String(s&&s.file_type||'').toLowerCase(), ck=String(s&&s.content_kind||'').toLowerCase(), rm=String(s&&s.release_mode||'').toLowerCase();
-  if(ft==='audio/mp3'||ck==='mp3'||rm==='free_mp3_local'||rm==='free_mp3_external') return 'mp3';
-  if(ft==='audio/tl3'||ck==='tl3'||rm==='tl3') return 'tl3';
-  return 'unknown';
+  if(ft==='audio/tl3'||ck==='tl3'||rm==='tl3'||/\.tl3(\?|$)/i.test(String(s&&s.stream_url||''))) return 'tl3';
+  return 'unverified';
 }
-function isFreeMp3(s){ return contentKind(s)==='mp3'; }
+function isFreeMp3(s){ return false; }
 function isSegmentBilledTL3(s){ return contentKind(s)==='tl3'; }
 
 function renderPage(s, stats, myFileTL, requiredTL){
@@ -1049,6 +1089,7 @@ async function loadCreatorPOC(userId){
 
 function handlePlayClick(){
   if(!_share){ alert('곡 정보를 불러오는 중입니다'); return; }
+  if(contentKind(_share)!=='tl3'){ alert('검증된 TL3 음악 자산만 재생할 수 있습니다.'); return; }
   
   // ⭐ NODUP: 이미 재생 중이면 정지, 로딩 중이면 스킵
   if(_tlPlaying){ stopPlay(); return; }
@@ -1347,6 +1388,7 @@ let _tlAudio=null, _tlPlaying=false, _tlInterval=null, _tlCurrentTL=0, _tlMaxTL=
 
 function playTrack(){
   if(!_share){ alert('곡 정보를 불러오는 중입니다'); return; }
+  if(contentKind(_share)!=='tl3'){ alert('검증된 TL3 음악 자산만 재생할 수 있습니다.'); return; }
   const requiredTL = Number(_share.file_tl||0);
   _tlFree = isFreeMp3(_share);
   
@@ -1400,16 +1442,6 @@ function playTrack(){
     _tlAudio.src = fileUrl;
     _tlAudio.load();
 
-  } else if(window.TL3 && TL3.play) {
-    // v3 TL3: 서버에서 세그먼트 순차 수신 + 재생 + confirm
-    _tlAudio.load && _tlAudio.load();
-    window._tl3Session = TL3.play(_tlAudio, {
-      API: API,
-      token: getTok(),
-      shareId: SHARE_ID,
-      kind: 'mp3'
-    }).then(function(sess){
-=======
   } else if(window.TL3 && TL3.resolveUrl){
     console.log('[PLAY] resolveUrl 시작:', SHARE_ID);
     TL3.resolveUrl(SHARE_ID, {
@@ -1446,7 +1478,6 @@ function playTrack(){
       _tlPlaying = true;
       startTLTimer();
       if(window._hidePlayLoading) window._hidePlayLoading(true);
-      return sess;
     }).catch(function(e){
       console.error('[PLAY] 재생 실패:', e);
       if(window._hidePlayLoading) window._hidePlayLoading(false);
@@ -1900,6 +1931,6 @@ document.addEventListener('click', function(e){
 }, true);
 
 </script>
-<script src="/sidebar.js?v=global-20261014"></script>
+<script src="/sidebar.js?v=global-20261015"></script>
 </body>
 </html>
