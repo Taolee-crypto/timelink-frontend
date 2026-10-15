@@ -1,24 +1,23 @@
-/* TimeLink Global Application Shell — independent of legacy page classes */
+/* TimeLink Global Application Shell — canonical navigation + shared wallet */
 (function () {
   'use strict';
-  if (window.__TL_GLOBAL_SHELL_V2__) return;
-  window.__TL_GLOBAL_SHELL_V2__ = true;
+  if (window.__TL_GLOBAL_SHELL_V3__) return;
+  window.__TL_GLOBAL_SHELL_V3__ = true;
 
   var sections = [
     ['HOME', [['/index.html','⌂','Overview']]],
-    ['DIGITAL ASSETS', [['/shareplace.html','◈','SharePlace'],['/dashboard.html?tab=content','▤','My Library'],['/tl3-player.html','♫','TL3 Player'],['/tlj-viewer.html','▧','TLJ Viewer'],['/track.html','♪','Track']]],
-    ['CREATOR', [['/creator.html','✧','Creator Profile'],['/creator-studio.html','＋','Creator Studio']]],
-    ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/dj-center.html','♫','DJ Center'],['/cafe-radio.html','▣','Cafe Broadcast'],['/cafe-owner.html','⌂','Cafe Management'],['/incar.html','◇','In-car']]],
+    ['DIGITAL ASSETS', [['/shareplace.html','◈','SharePlace'],['/dashboard.html?tab=content','▤','My Library']]],
+    ['CREATOR', [['/creator.html','✧','Creator Center']]],
+    ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/dj-center.html','♫','DJ Center'],['/cafe-owner.html','▣','Cafe Broadcast'],['/incar.html','◇','In-car']]],
     ['ADVERTISING', [['/advertiser.html','▱','Advertiser Center'],['/ads.html','▣','Campaigns']]],
-    ['TL ECONOMICS', [['/wallet.html','◉','TL Wallet'],['/chart.html','⌁','POC & TLC']]],
+    ['TL ECONOMICS', [['/wallet.html','◉','TL Wallet'],['/chart.html','⌁','TL-CHART']]],
     ['MY', [['/dashboard.html','◎','My Dashboard']]],
     ['ADMIN', [['/admin.html','⚙','Admin Console']]]
   ];
-  var path=(location.pathname||'/').replace(/\/+$/,'')||'/';
-  // Admin has its own dedicated console navigation; never stack the public shell on it.
-  if(path==='/admin.html'||path==='/incar.html') return;
+  var pathName=(location.pathname||'/').replace(/\\/+$/,'')||'/';
+  if(pathName==='/admin.html'||pathName==='/incar.html') return;
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
-  function isActive(h){var p=h.split('?')[0];return path===p || (p==='/index.html'&&path==='/') || (p==='/dashboard.html'&&path==='/dashboard');}
+  function isActive(h){var p=h.split('?')[0];return pathName===p || (p==='/index.html'&&pathName==='/') || (p==='/dashboard.html'&&pathName==='/dashboard');}
   var html='<aside class="tl-global-sidebar" aria-label="TimeLink navigation"><a class="tl-global-brand" href="/index.html"><span class="tl-global-mark">T</span><span>TimeLink</span></a><nav class="tl-global-links">';
   sections.forEach(function(section){
     html+='<div class="tl-global-section">'+esc(section[0])+'</div>';
@@ -29,15 +28,50 @@
   if(old) old.remove();
   var app=document.querySelector('.app');
   if(app){app.style.gridTemplateColumns='minmax(0,1fr)';app.style.minWidth='0';}
-  // Pages using the legacy .layout grid had a second fixed sidebar and a 220px main offset.
   var legacyLayout=document.querySelector('.layout');
   if(legacyLayout){var legacyMain=legacyLayout.querySelector('.main');if(legacyMain)legacyMain.style.marginLeft='0';}
   document.body.insertAdjacentHTML('afterbegin',html);
   document.body.classList.add('tl-global-shell');
-  var user={};try{user=JSON.parse(localStorage.getItem('tl_user')||'{}');}catch(e){}
-  var bal=document.getElementById('tlGlobalBalance');
-  var amount=user.tl_balance!=null?user.tl_balance:user.tl;
-  if(bal&&amount!=null)bal.textContent=Number(amount).toLocaleString()+' TL';
+
+  // One server-authoritative wallet value is reflected in every page header and sidebar.
+  var API='https://api.timelink.digital';
+  var lastWallet=null, walletRequest=null;
+  function renderWallet(total){
+    var value=Math.max(0,Number(total)||0);
+    lastWallet=value;
+    var formatted=Math.floor(value).toLocaleString();
+    var sidebar=document.getElementById('tlGlobalBalance');
+    if(sidebar) sidebar.textContent=formatted+' TL';
+    ['tbTl','walletTl','tbTL','tlBalance','tlWalletBalance','globalTlBalance'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el) el.textContent=formatted;
+    });
+    document.querySelectorAll('[data-tl-wallet-balance]').forEach(function(el){el.textContent=formatted;});
+    document.querySelectorAll('.tb-tl').forEach(function(el){el.textContent=formatted+' TL';});
+    window.dispatchEvent(new CustomEvent('timelink:wallet-synced',{detail:{tl_total:value}}));
+  }
+  async function syncWallet(){
+    if(walletRequest) return walletRequest;
+    var token=localStorage.getItem('tl_token');
+    if(!token){renderWallet(0);var b=document.getElementById('tlGlobalBalance');if(b)b.textContent='— TL';return;}
+    walletRequest=fetch(API+'/api/eco/wallet',{headers:{'Authorization':'Bearer '+token,'Accept':'application/json'},cache:'no-store'})
+      .then(function(r){if(!r.ok)throw new Error('wallet '+r.status);return r.json();})
+      .then(function(data){
+        var total=data&&data.wallet&&data.wallet.tl_total;
+        if(total===undefined||total===null)throw new Error('wallet total missing');
+        renderWallet(total);
+      })
+      .catch(function(err){console.warn('[TimeLink wallet sync]',err);})
+      .finally(function(){walletRequest=null;});
+    return walletRequest;
+  }
+  syncWallet();
+  window.addEventListener('focus',syncWallet);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)syncWallet();});
+  window.addEventListener('storage',function(e){if(e.key==='tl_token')syncWallet();});
+  window.addEventListener('timelink:wallet-refresh',syncWallet);
+  window.addEventListener('timelink:wallet-updated',syncWallet);
+  window.setInterval(syncWallet,20000);
 
   var toggle=document.createElement('button');
   toggle.type='button';toggle.className='tl-global-toggle';toggle.setAttribute('aria-label','Open navigation');toggle.setAttribute('aria-expanded','false');toggle.textContent='☰';
