@@ -215,6 +215,7 @@ html,body{background:#0A0A0A;color:#F5F5F7}
   <div class="sb-item on" onclick="go('dashboard',this)"><span class="ico">◈</span>대시보드</div>
   <div class="sb-section">콘텐츠</div>
   <div class="sb-item" onclick="go('shares',this)"><span class="ico">▦</span>공유 파일 <span class="sb-badge g" id="sb-shares-cnt">0</span></div>
+  <div class="sb-item" onclick="go('rights-review',this)"><span class="ico">✓</span>TL3 권리 검증 <span class="sb-badge" id="sb-rights-pending">0</span></div>
   <div class="sb-item" onclick="go('users',this)"><span class="ico">◎</span>유저 관리 <span class="sb-badge" id="sb-users-cnt">0</span></div>
   <div class="sb-section">도구</div>
   <div class="sb-item" onclick="go('charge',this)"><span class="ico">⚡</span>TL 충전/차감</div>
@@ -324,6 +325,25 @@ html,body{background:#0A0A0A;color:#F5F5F7}
           <thead><tr><th></th><th>제목</th><th>유저</th><th>카테고리</th><th>File TL</th><th>Pulse</th><th>플랜</th><th>R2 파일</th><th>등록일</th><th>관리</th></tr></thead>
           <tbody id="shares-tbody"></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- TL3 권리 검증 대기열 -->
+    <div class="panel" id="panel-rights-review">
+      <div class="tbox">
+        <div class="tbox-top">
+          <div>
+            <div class="tbox-title">TL3 권리 검증 대기열</div>
+            <div style="font-size:10px;color:var(--t3);margin-top:5px">창작자 권리 확인과 TL3 생성이 끝났으며 관리자 승인을 기다리는 자산만 표시합니다.</div>
+          </div>
+          <button class="btn btn-g btn-xs" onclick="loadPendingTL3()">↻ 새로고침</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>자산 ID</th><th>곡명 / 아티스트</th><th>창작자</th><th>공유 조건</th><th>등록일</th><th>처리</th></tr></thead>
+            <tbody id="rights-pending-tbody"><tr><td colspan="6"><div class="empty">검증 대기 목록을 불러오는 중...</div></td></tr></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -1251,7 +1271,7 @@ async function createTestAd(){
   await execSQL("INSERT INTO tl_ads (id,business_name,title,description,ad_type,status,budget_tl,spent_tl,tl_reward,views,created_at) VALUES ('"+id+"','"+biz+"','"+title+"','"+desc+"','"+type+"','active',"+budget+",0,"+reward+",0,datetime('now'))");
   toast('광고 생성됨!','g'); loadAdvertisers();
 }
-var TITLES={dashboard:'대시보드',revenue:'재무 현황',shares:'공유 파일 관리',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리',realtime:'🔴 실시간 현황',payout:'💸 크리에이터 정산','tl-flow':'♻ TL 이코노미 흐름','music-analytics':'🎵 음악 콘텐츠 분석','cafe-mgmt':'☕ 카페방송 채널 관리',infra:'🖥 인프라/비용 추적','dj-stats':'🤖 AI DJ 통계','dj-manage':'🎧 DJ 관리',security:'🔒 보안/접근 로그','auto-payout':'🔄 자동 정산 워크플로우'};
+var TITLES={dashboard:'대시보드',revenue:'재무 현황',shares:'공유 파일 관리','rights-review':'TL3 권리 검증',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리',realtime:'🔴 실시간 현황',payout:'💸 크리에이터 정산','tl-flow':'♻ TL 이코노미 흐름','music-analytics':'🎵 음악 콘텐츠 분석','cafe-mgmt':'☕ 카페방송 채널 관리',infra:'🖥 인프라/비용 추적','dj-stats':'🤖 AI DJ 통계','dj-manage':'🎧 DJ 관리',security:'🔒 보안/접근 로그','auto-payout':'🔄 자동 정산 워크플로우'};
 function go(id,el){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
   document.querySelectorAll('.sb-item').forEach(function(i){i.classList.remove('on');});
@@ -1261,6 +1281,7 @@ function go(id,el){
   if(id==='users') renderUsers();
   if(id==='charge') renderTLUsers();
   if(id==='shares') renderShares();
+  if(id==='rights-review') loadPendingTL3();
   if(id==='notice') initNoticePanel();
   if(id==='footer') initFooterPanel();
   if(id==='revenue') loadRevenue();
@@ -1290,6 +1311,63 @@ async function api(path,opts){
     if(!r.ok){ toast('HTTP '+r.status+' — '+path,'r'); return null; }
     return await r.json();
   } catch(e){ toast('네트워크 오류: '+e.message,'r'); return null; }
+}
+
+// TL3 rights review queue — publication remains blocked until an administrator approves it.
+function escapeReviewText(value){
+  return String(value==null?'':value).replace(/[&<>"']/g,function(ch){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+  });
+}
+async function loadPendingTL3(){
+  var body=document.getElementById('rights-pending-tbody');
+  if(!body)return;
+  body.innerHTML='<tr><td colspan="6"><div class="empty">불러오는 중...</div></td></tr>';
+  var data=await api('/api/v1/files/pending-tl3');
+  var items=data&&Array.isArray(data.items)?data.items:[];
+  var badge=document.getElementById('sb-rights-pending');
+  if(badge)badge.textContent=items.length;
+  if(!items.length){
+    body.innerHTML='<tr><td colspan="6"><div class="empty">권리 검증 대기 중인 TL3 자산이 없습니다.</div></td></tr>';
+    return;
+  }
+  body.innerHTML=items.map(function(item){
+    var title=escapeReviewText(item.title||'제목 없음');
+    var artist=escapeReviewText(item.artist||'');
+    var creator=escapeReviewText(item.username||item.email||('User #'+item.user_id));
+    var price=Number(item.price_tl||0).toLocaleString('ko-KR')+' TL';
+    var date=escapeReviewText(item.created_at||'-');
+    return '<tr>'+
+      '<td class="td-mono">#'+Number(item.id)+'</td>'+
+      '<td><b>'+title+'</b><div style="color:var(--t3);font-size:10px;margin-top:3px">'+artist+'</div></td>'+
+      '<td>'+creator+'</td>'+
+      '<td style="color:var(--amber);font-family:var(--mono)">'+price+'</td>'+
+      '<td class="td-mono">'+date+'</td>'+
+      '<td><button class="btn btn-g btn-xs" onclick="approvePendingTL3('+Number(item.id)+')">승인·공개</button> <button class="btn btn-r btn-xs" onclick="rejectPendingTL3('+Number(item.id)+')">반려</button></td>'+
+    '</tr>';
+  }).join('');
+}
+async function approvePendingTL3(id){
+  if(!confirm('자산 #'+id+'의 권리 검증을 승인하고 SharePlace에 공개할까요?'))return;
+  var result=await api('/api/v1/files/'+id+'/approve',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({approved:true})
+  });
+  if(result&&result.auth_status==='verified'){
+    toast('TL3 권리 검증 승인 완료 — SharePlace에 공개됩니다.','g');
+    await loadPendingTL3();await loadShares();renderDashboard();
+  }
+}
+async function rejectPendingTL3(id){
+  if(!confirm('이 TL3 자산의 공개 심사를 반려할까요?'))return;
+  var result=await api('/api/v1/files/'+id+'/approve',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({approved:false})
+  });
+  if(result&&result.auth_status==='rejected'){
+    toast('TL3 공개 심사를 반려했습니다.','a');
+    await loadPendingTL3();
+  }
 }
 
 // ─ Load ─
@@ -1384,7 +1462,7 @@ async function rejectWithdrawal(id){
 }
 
 async function loadAll(){
-  await Promise.all([loadShares(),loadUsers()]);
+  await Promise.all([loadShares(),loadUsers(),loadPendingTL3()]);
   renderDashboard();
 }
 async function loadShares(){
