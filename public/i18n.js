@@ -1,104 +1,467 @@
-/* TimeLink global EN/KR switch. Shared preference, dynamic DOM support. */
+/* TimeLink i18n v2 — KO·EN·JA·ZH·TH·VI */
 (function(){
-'use strict';
-if(window.__TL_I18N__)return;window.__TL_I18N__=true;
-var ko={
-'로그인':'Login','회원가입':'Sign up','다시 오셨군요':'Welcome back','계속 Pulse를 쌓아보세요':'Keep building your Pulse',
-'이메일':'Email','비밀번호':'Password','비밀번호를 잊으셨나요?':'Forgot password?','또는':'OR','TON Wallet 연결':'Connect TON Wallet',
-'계정이 없으신가요?':'Don’t have an account?','무료 가입':'Sign up free','계정 만들기':'Create account',
-'몇 초면 TimeLink를 시작할 수 있어요.':'Start using TimeLink in seconds.','비밀번호 확인':'Confirm password','닉네임':'Display name',
-'가입하고 시작하기':'Create account and continue','이미 계정이 있으신가요?':'Already have an account?','인증 완료':'Verified','코드 재발송':'Resend code',
-'확인':'Confirm','취소':'Cancel','닫기':'Close','저장':'Save','수정':'Edit','삭제':'Delete','완료':'Done','다음':'Next','이전':'Back','검색':'Search','필터':'Filter','적용':'Apply','더 보기':'See more','로그아웃':'Log out',
-'대시보드':'Dashboard','홈':'Home','지갑':'Wallet','TLC 채굴':'TLC Mining','내 콘텐츠':'My Assets','미션':'Missions','바로가기':'Quick Links',
-'TL방송국':'TimeLink Radio','크리에이터 센터':'Creator Studio','카페 채널':'Cafe Channels','TL 잔액':'TL Balance','소비용 토큰':'Usage Token',
-'TLC 보유량':'TLC Balance','거래용 토큰':'Exchange Token','오늘 POC':'Today’s POC','기여 점수':'Contribution Score','업로드한 파일':'Uploaded Assets',
-'파일 업로드':'Upload Asset','방송 청취':'Listen to Broadcast','카페방송':'Cafe Broadcast','TL 총 잔액':'Total TL Balance','+ TL 충전':'+ Add TL',
-'채굴 현황':'Mining Status','오늘 POC 점수':'Today’s POC Score','누적 TLC 채굴량':'Total TLC Mined','POC 기여 지수':'POC Contribution Index',
-'채굴 내역':'Mining History','로딩 중...':'Loading…','전체 파일':'All Assets','총 재생 수':'Total Plays','수익 TL':'Reward (TL)','총 Pulse':'Total Pulse',
-'새 파일 업로드':'Upload New Asset','전체 선택':'Select All','선택 삭제':'Delete Selected','방송 시작':'Start Broadcast','방송 중인 곡':'Now Playing',
-'전체 보기 →':'View all →','최신순':'Latest','인기순':'Popular','전체 자산':'All Assets','음악':'Music','영상':'Video','문서':'Documents',
-'TL 충전':'Add TL','결제하기':'Pay','결제 금액':'Payment Amount','지급 TL':'TL to Receive','현재 잔액':'Current Balance','거래내역':'Transactions',
-'내역':'History','복사':'Copy','제목':'Title','아티스트':'Artist','앨범':'Album','장르':'Genre','설명':'Description','공개 범위 설정':'Set Visibility',
-'공개 범위':'Visibility','공개 방식':'Sharing Method','권리 확인':'Rights Verification','권리보호형':'Rights Protected',
-'창작권 증명 신청':'Apply for Creator Rights Certificate','발행':'Issue','발행 수수료':'Issuance Fee','정지':'Stop','재생':'Play','일시정지':'Pause',
-'공유하기':'Share','링크 복사':'Copy Link','플레이리스트에 추가':'Add to Playlist','새 플레이리스트 만들기':'Create Playlist','악보':'Sheet Music',
-'사용시간에 따라 보상이 산정됩니다':'Rewards are calculated based on usage time','시간을 충전하고, 사용한 만큼만 지불합니다.':'Add time and pay only for what you use.',
-'10시간 TL 충전':'Add 10 hours of TL','40분 사용':'40 minutes used','사용 측정 · 차감':'Usage measured · deducted','9시간 20분 남음':'9 hours 20 minutes remaining',
-'창작자 정산':'Creator settlement','하나의 Core Engine에 형식별 Adapter-Viewer만 추가합니다.':'One Core Engine with format-specific adapters and viewers.',
-'음악 자산 등록 및 관리':'Register and manage music assets','TL3 공유 조건 직접 설정':'Set TL3 sharing terms','사용시간 기반 정산':'Usage-time-based rewards',
-'카페방송 B2B':'B2B cafe broadcasting','지금 공유되는 음악':'Music shared now','창작자가 공유한 음악 자산과 트랙을 살펴보세요.':'Explore music assets and tracks shared by creators.',
-'음악 자산을 불러오는 중...':'Loading music assets…','모든 음악 자산 보기 →':'Explore all music assets →',
-'☕ 카페를 위한 24시간 라디오':'☕ 24/7 Radio for Cafes',
-'카페 전용 채널에서 직접 곡을 고르거나 자동으로 음악이 흐릅니다. 사장님은 음악을 신경 쓸 필요가 없습니다.':'Choose tracks for your cafe channel or let music play automatically. No need to manage the music yourself.',
-'카페 시작하기':'Get Started','유료화를 강요하지 않습니다':'Monetization is your choice','창작자가 공개 범위와 공유 조건, 권리 정책을 직접 결정합니다.':'Creators control visibility, sharing terms, and rights policies.',
-'공개 범위 설정':'Set Visibility','작품의 공개 범위와 공유 대상을 창작자가 직접 설정합니다.':'Creators choose who can see and access their work.',
-'기여와 보상 연결':'Contribution and Rewards','자산 이용과 생태계 기여가 기록되고 정해진 기준에 따라 보상으로 연결됩니다.':'Asset usage and ecosystem contributions are recorded and rewarded under defined rules.',
-'사용조건·권리정책을 설정하고 디지털 자산의 이용을 관리합니다.':'Set usage terms and rights policies to manage access to digital assets.',
-'플랫폼에 대한 기여를 경제적으로 측정합니다.':'Measure contributions to the platform economically.','콘텐츠 측면':'Content Contributions',
-'콘텐츠 제작 · 등록':'Create · Register Content','콘텐츠 이용':'Use Content','추천 · 공유':'Recommend · Share','신규 사용자 유입':'Bring in New Users',
-'생태계 측면':'Ecosystem Contributions','큐레이션 · 검증':'Curation · Verification','커뮤니티 · 창작자 지원':'Community · Creator Support',
-'플랫폼 활성화':'Platform Growth','기여 측정 → Index → TLC':'Contribution Measurement → Index → TLC','콘텐츠 제작':'Content Creation',
-'추천·공유':'Recommend · Share','POC 측정':'POC Measurement','Index 산출':'Calculate Index','TLC 보상':'TLC Rewards',
-'사용·수익 데이터 기반 예측':'Usage and Reward Data Forecasting','콘텐츠 데이터':'Content Data','사용 데이터':'Usage Data','수익 데이터':'Reward Data',
-'AI 예측':'AI Forecasting','금융 연계':'Financial Integration','디지털 자산을 공유하고':'Share Digital Assets','사용 권한을 관리합니다':'Manage Usage Rights',
-'법률':'Legal','연구':'Research','금융':'Finance','기업':'Business','컨설팅':'Consulting','엔지니어링':'Engineering','교육':'Education',
-'← 대시보드':'← Dashboard','처리 중...':'Processing…','잠시만 기다려주세요':'Please wait','원본 MP3 선택':'Select Original MP3',
-'원본 MP3를 여기에 놓으세요':'Drop the original MP3 here','또는 클릭해서 파일 선택 · 여러 파일 선택 가능':'Or click to select files · Multiple files supported',
-'전체 제거':'Remove All','디지털 자산 정보 입력':'Enter Digital Asset Details','초당 차감 TL':'TL deducted per second','보상 정책':'Reward Policy',
-'일반 음질':'Standard Quality','원본 그대로 · 무료':'Original quality · Free','장르 (Spotify)':'Genre (Spotify)','선택 안 함':'None selected',
-'작곡':'Composer','작사':'Lyricist','프로듀서':'Producer','가사':'Lyrics','증명서 즉시 발행':'Issue Certificate Now','권리 확인':'Rights Verification',
-'TL / 월':'TL / month','창작자':'Creator','이용자와 커뮤니티':'Users and Community','오프라인 사업자':'Offline Businesses','기업과 기관':'Enterprises and Institutions',
-'공유된 디지털 자산이 여기에 표시됩니다.':'Shared digital assets will appear here.','공유된 음악 자산이 여기에 표시됩니다.':'Shared music assets will appear here.',
-'공유 자산을 일시적으로 불러올 수 없습니다.':'Shared assets are temporarily unavailable.','TL 잔량':'TL Remaining','초당 소모':'Per-second Usage',
-'⚠️ TL 부족!':'⚠️ Insufficient TL!','TL 충전하기':'Add TL','이용약관':'Terms of Service','개인정보 처리방침':'Privacy Policy','개인정보처리방침':'Privacy Policy',
-'크리에이터 정책':'Creator Policy','광고 센터':'Advertising Center','광고주 센터':'Advertiser Center','DJ 가이드':'DJ Guide','서비스':'Services','법적 정보':'Legal',
-'내역 보기':'View History','연결':'Connect','연결 해제':'Disconnect','신청':'Apply','신청하기':'Apply Now','상세 보기':'View Details',
-'타임링크':'TimeLink','음악 자산':'Music Assets','디지털 자산':'Digital Assets','공유':'Share','보상':'Rewards','기여':'Contribution'
+var LANGS=['ko','en','ja','zh','th','vi'];
+var FLAGS={ko:'🇰🇷',en:'🇺🇸',ja:'🇯🇵',zh:'🇨🇳',th:'🇹🇭',vi:'🇻🇳'};
+var LABELS={ko:'한국어',en:'English',ja:'日本語',zh:'中文',th:'ภาษาไทย',vi:'Tiếng Việt'};
+
+var T={
+/* ── 누락 키 전체 보완 (60개) ── */
+'sp.back.dashboard':   {ko:'← 대시보드',en:'← Dashboard',ja:'← ダッシュボード',zh:'← 控制台',th:'← แดชบอร์ด',vi:'← Bảng điều khiển'},
+'sp.chart.all':        {ko:'전체 차트 →',en:'All Charts →',ja:'全チャート →',zh:'全部榜单 →',th:'ชาร์ตทั้งหมด →',vi:'Tất cả →'},
+'sp.close':            {ko:'✕ 닫기',en:'✕ Close',ja:'✕ 閉じる',zh:'✕ 关闭',th:'✕ ปิด',vi:'✕ Đóng'},
+'sp.close.video':      {ko:'✕ 닫기 (재생 중단)',en:'✕ Close (stop)',ja:'✕ 閉じる（停止）',zh:'✕ 关闭（停止）',th:'✕ ปิด (หยุด)',vi:'✕ Đóng (dừng)'},
+'sp.doc.label':        {ko:'📄 문서',en:'📄 Document',ja:'📄 文書',zh:'📄 文档',th:'📄 เอกสาร',vi:'📄 Tài liệu'},
+'sp.tl.consuming':     {ko:'⚡ TL 소모 중 · ESC로 닫기',en:'⚡ TL consuming · ESC to close',ja:'⚡ TL消費中 · ESCで閉じる',zh:'⚡ TL消耗中 · ESC关闭',th:'⚡ กำลังใช้ TL · ESC ปิด',vi:'⚡ Đang dùng TL · ESC đóng'},
+'sp.tl.consuming.doc': {ko:'⚡ TL 소모 중 — 열람 시간만큼 차감됩니다',en:'⚡ TL consuming — deducted per second',ja:'⚡ TL消費中 — 閲覧時間分差引',zh:'⚡ TL消耗中 — 按秒扣除',th:'⚡ กำลังใช้ TL — หักตามเวลา',vi:'⚡ Đang dùng TL — trừ theo thời gian'},
+'sp.tl.remain':        {ko:'⚡ TL 잔량',en:'⚡ TL Remaining',ja:'⚡ TL残量',zh:'⚡ TL剩余',th:'⚡ TL คงเหลือ',vi:'⚡ TL còn lại'},
+'cr.artist.label':     {ko:'아티스트',en:'Artist',ja:'アーティスト',zh:'艺术家',th:'ศิลปิน',vi:'Nghệ sĩ'},
+'cr.back.dash':        {ko:'← 대시보드',en:'← Dashboard',ja:'← ダッシュボード',zh:'← 控制台',th:'← แดชบอร์ด',vi:'← Bảng điều khiển'},
+'cr.center.title':     {ko:'창작자 센터',en:'Creator Center',ja:'クリエイターセンター',zh:'创作者中心',th:'ศูนย์ครีเอเตอร์',vi:'Trung tâm tác giả'},
+'cr.file.info':        {ko:'② 파일 정보 입력',en:'② File Info',ja:'② ファイル情報',zh:'② 文件信息',th:'② ข้อมูลไฟล์',vi:'② Thông tin file'},
+'cr.file.type':        {ko:'① 파일 형식 선택',en:'① File Type',ja:'① ファイル形式',zh:'① 文件类型',th:'① ประเภทไฟล์',vi:'① Loại file'},
+'cr.logout':           {ko:'↩ 로그아웃',en:'↩ Logout',ja:'↩ ログアウト',zh:'↩ 退出',th:'↩ ออกจากระบบ',vi:'↩ Đăng xuất'},
+'cr.menu':             {ko:'메뉴',en:'Menu',ja:'メニュー',zh:'菜单',th:'เมนู',vi:'Menu'},
+'cr.my.files.sub':     {ko:'업로드한 파일 목록',en:'Uploaded files',ja:'アップロード済み',zh:'已上传文件',th:'ไฟล์ที่อัปโหลด',vi:'File đã tải lên'},
+'cr.remove.file':      {ko:'✕ 제거',en:'✕ Remove',ja:'✕ 削除',zh:'✕ 移除',th:'✕ ลบ',vi:'✕ Xóa'},
+'cr.title.req':        {ko:'제목 *',en:'Title *',ja:'タイトル *',zh:'标题 *',th:'ชื่อ *',vi:'Tiêu đề *'},
+'cr.uploading':        {ko:'R2에 파일 업로드 중...',en:'Uploading to R2...',ja:'R2にアップロード中...',zh:'上传到R2中...',th:'กำลังอัปโหลด...',vi:'Đang tải lên R2...'},
+'dash.channel.open':   {ko:'☕ 채널 개설',en:'☕ Open Channel',ja:'☕ チャンネル開設',zh:'☕ 创建频道',th:'☕ เปิดช่อง',vi:'☕ Tạo kênh'},
+'dash.greeting':       {ko:'안녕하세요',en:'Hello',ja:'こんにちは',zh:'你好',th:'สวัสดี',vi:'Xin chào'},
+'dash.mine':           {ko:'TLC 채굴',en:'TLC Mining',ja:'TLC採掘',zh:'TLC挖矿',th:'ขุด TLC',vi:'Khai thác TLC'},
+'dash.poc.sub':        {ko:'기여 점수',en:'Contribution score',ja:'貢献スコア',zh:'贡献分数',th:'คะแนนการมีส่วนร่วม',vi:'Điểm đóng góp'},
+'dash.shortcuts':      {ko:'바로가기',en:'Shortcuts',ja:'ショートカット',zh:'快捷方式',th:'ทางลัด',vi:'Lối tắt'},
+'dash.tl':             {ko:'TL 잔액',en:'TL Balance',ja:'TL残高',zh:'TL余额',th:'ยอด TL',vi:'Số dư TL'},
+'dash.tlc':            {ko:'TLC 보유량',en:'TLC Held',ja:'TLC保有量',zh:'TLC持有量',th:'TLC ที่มี',vi:'TLC đang giữ'},
+'dash.tlc.sub':        {ko:'거래용 토큰',en:'Trading token',ja:'取引用トークン',zh:'交易代币',th:'โทเค็นซื้อขาย',vi:'Token giao dịch'},
+'dash.token.sub':      {ko:'소비용 토큰',en:'Consumption token',ja:'消費用トークン',zh:'消费代币',th:'โทเค็นใช้งาน',vi:'Token tiêu dùng'},
+'dash.upload.sub':     {ko:'업로드한 파일',en:'Uploaded files',ja:'アップロード済み',zh:'已上传文件',th:'ไฟล์อัปโหลด',vi:'File đã tải lên'},
+'chart.genre.all':     {ko:'전체 장르',en:'All Genres',ja:'全ジャンル',zh:'全部类型',th:'ทุกแนว',vi:'Tất cả thể loại'},
+'chart.loading':       {ko:'차트 로딩 중...',en:'Loading chart...',ja:'チャート読込中...',zh:'加载榜单...',th:'กำลังโหลดชาร์ต...',vi:'Đang tải...'},
+'chart.logout':        {ko:'로그아웃',en:'Logout',ja:'ログアウト',zh:'退出',th:'ออกจากระบบ',vi:'Đăng xuất'},
+'chart.sub':           {ko:'가장 많이 소비된 콘텐츠 실시간 순위',en:'Most consumed content live ranking',ja:'最も消費されたコンテンツ',zh:'消费最多内容实时排名',th:'อันดับเนื้อหายอดนิยม',vi:'Bảng xếp hạng nội dung'},
+'chart.title':         {ko:'TL CHART',en:'TL CHART',ja:'TLチャート',zh:'TL排行榜',th:'TL ชาร์ต',vi:'BXH TL'},
+'chart.tl.desc':       {ko:'리스너들이 가장 많이 TL을 충전한 파일',en:'Files with most TL charged by listeners',ja:'リスナーが最もTLをチャージしたファイル',zh:'听众充值最多TL的文件',th:'ไฟล์ที่มีการเติม TL มากที่สุด',vi:'File được nạp TL nhiều nhất'},
+'radio.cafe.incar.ai': {ko:'분위기별 AI 큐레이션',en:'AI curation by mood',ja:'雰囲気別AIキュレーション',zh:'氛围AI推荐',th:'AI คิวเพลงตามบรรยากาศ',vi:'AI theo tâm trạng'},
+'radio.cafe.mode':     {ko:'카페방송 기본',en:'Cafe Radio Basic',ja:'カフェ放送基本',zh:'咖啡广播基础',th:'วิทยุคาเฟ่พื้นฐาน',vi:'Radio cà phê cơ bản'},
+'radio.incar.ai.desc': {ko:'주행 연동 AI 라디오',en:'Drive-sync AI Radio',ja:'走行連動AIラジオ',zh:'驾车AI广播',th:'วิทยุ AI เชื่อมการขับ',vi:'Radio AI theo xe'},
+'radio.live.ch':       {ko:'라이브 채널',en:'Live Channels',ja:'ライブチャンネル',zh:'直播频道',th:'ช่องสด',vi:'Kênh trực tiếp'},
+'radio.mode':          {ko:'방송 모드',en:'Broadcast Mode',ja:'放送モード',zh:'广播模式',th:'โหมดออกอากาศ',vi:'Chế độ phát sóng'},
+'radio.poc':           {ko:'POC 점수',en:'POC Score',ja:'POCスコア',zh:'POC分数',th:'คะแนน POC',vi:'Điểm POC'},
+'radio.poc.label':     {ko:'현재 POC 배율',en:'Current POC rate',ja:'現在のPOC倍率',zh:'当前POC倍率',th:'อัตรา POC ปัจจุบัน',vi:'Tỷ lệ POC hiện tại'},
+'radio.ready':         {ko:'방송 준비 중...',en:'Preparing broadcast...',ja:'放送準備中...',zh:'准备广播...',th:'กำลังเตรียม...',vi:'Đang chuẩn bị...'},
+'radio.request':       {ko:'신청하기',en:'Request',ja:'リクエスト',zh:'申请',th:'ร้องขอ',vi:'Yêu cầu'},
+'radio.today.poc':     {ko:'오늘 기여',en:'Today contribution',ja:'今日の貢献',zh:'今日贡献',th:'การมีส่วนร่วมวันนี้',vi:'Đóng góp hôm nay'},
+'incar.poc.drive':     {ko:'주행 중 POC 2.5배',en:'Driving POC 2.5x',ja:'走行中POC 2.5倍',zh:'行驶中POC 2.5倍',th:'ขับรถ POC 2.5x',vi:'Lái xe POC 2.5x'},
+'incar.queue':         {ko:'재생 목록',en:'Queue',ja:'再生リスト',zh:'播放列表',th:'คิวเพลง',vi:'Danh sách phát'},
+'incar.skip.plate':    {ko:'번호판 없이 시작 (POC 1.0x)',en:'Start without plate (POC 1.0x)',ja:'ナンバーなし開始（POC 1.0x）',zh:'无车牌开始（POC 1.0x）',th:'เริ่มโดยไม่มีทะเบียน (POC 1.0x)',vi:'Bắt đầu không biển số (POC 1.0x)'},
+'incar.stopped':       {ko:'정차 중',en:'Stopped',ja:'停車中',zh:'已停车',th:'จอดอยู่',vi:'Đã dừng'},
+'login.email.label':   {ko:'이메일',en:'Email',ja:'メール',zh:'邮箱',th:'อีเมล',vi:'Email'},
+'login.pw.label':      {ko:'비밀번호',en:'Password',ja:'パスワード',zh:'密码',th:'รหัสผ่าน',vi:'Mật khẩu'},
+'login.ton.btn':       {ko:'TON Wallet 로그인 (Phase 2)',en:'TON Wallet Login (Phase 2)',ja:'TONウォレット (Phase 2)',zh:'TON钱包登录 (Phase 2)',th:'TON Wallet (Phase 2)',vi:'TON Wallet (Phase 2)'},
+'signup.email.label':  {ko:'이메일 주소',en:'Email address',ja:'メールアドレス',zh:'邮箱地址',th:'ที่อยู่อีเมล',vi:'Địa chỉ email'},
+'signup.nick.label':   {ko:'닉네임',en:'Username',ja:'ニックネーム',zh:'昵称',th:'ชื่อผู้ใช้',vi:'Tên người dùng'},
+'signup.or.email':     {ko:'또는 이메일로 가입',en:'Or sign up with email',ja:'またはメールで登録',zh:'或用邮箱注册',th:'หรือสมัครด้วยอีเมล',vi:'Hoặc đăng ký bằng email'},
+'signup.pw.label':     {ko:'비밀번호',en:'Password',ja:'パスワード',zh:'密码',th:'รหัสผ่าน',vi:'Mật khẩu'},
+'signup.pw2.label':    {ko:'비밀번호 확인',en:'Confirm password',ja:'パスワード確認',zh:'确认密码',th:'ยืนยันรหัสผ่าน',vi:'Xác nhận mật khẩu'},
+'signup.send.code':    {ko:'인증 발송',en:'Send code',ja:'認証送信',zh:'发送验证码',th:'ส่งรหัส',vi:'Gửi mã'},
+'signup.title2':       {ko:'계정 만들기',en:'Create account',ja:'アカウント作成',zh:'创建账号',th:'สร้างบัญชี',vi:'Tạo tài khoản'},
+'signup.verify.btn':   {ko:'확인',en:'Verify',ja:'確認',zh:'验证',th:'ยืนยัน',vi:'Xác nhận'},
+
+/* ── 네비게이션 ── */
+
+/* ── SharePlace 추가 키 ── */
+'sp.tl.charge.tab':    {ko:'⚡ TL충전',en:'⚡ Charge TL',ja:'⚡ TLチャージ',zh:'⚡ 充值TL',th:'⚡ เติม TL',vi:'⚡ Nạp TL'},
+'sp.tl.charge.link':   {ko:'TL 충전하기',en:'Charge TL',ja:'TLチャージ',zh:'充值TL',th:'เติม TL',vi:'Nạp TL'},
+'sp.tl.low':           {ko:'TL 부족!',en:'Low TL!',ja:'TL不足！',zh:'TL不足！',th:'TL ไม่พอ!',vi:'TL thấp!'},
+'sp.notice.title':     {ko:'공지사항',en:'Notice',ja:'お知らせ',zh:'公告',th:'ประกาศ',vi:'Thông báo'},
+'sp.notice.head':      {ko:'공지사항',en:'Notice',ja:'お知らせ',zh:'公告',th:'ประกาศ',vi:'Thông báo'},
+'sp.notice.confirm':   {ko:'확인',en:'OK',ja:'確認',zh:'确认',th:'ตกลง',vi:'Xác nhận'},
+'sp.tab.all':          {ko:'전체',en:'All',ja:'すべて',zh:'全部',th:'ทั้งหมด',vi:'Tất cả'},
+'sp.tab.music':        {ko:'🎵 음악',en:'🎵 Music',ja:'🎵 音楽',zh:'🎵 音乐',th:'🎵 เพลง',vi:'🎵 Âm nhạc'},
+'sp.tab.video':        {ko:'🎬 영상',en:'🎬 Video',ja:'🎬 動画',zh:'🎬 视频',th:'🎬 วิดีโอ',vi:'🎬 Video'},
+'sp.tab.image':        {ko:'🖼️ 이미지',en:'🖼️ Image',ja:'🖼️ 画像',zh:'🖼️ 图片',th:'🖼️ รูปภาพ',vi:'🖼️ Hình'},
+'sp.tab.doc':          {ko:'📄 문서',en:'📄 Docs',ja:'📄 文書',zh:'📄 文档',th:'📄 เอกสาร',vi:'📄 Tài liệu'},
+'sp.tab.etc':          {ko:'📦 기타',en:'📦 Etc',ja:'📦 その他',zh:'📦 其他',th:'📦 อื่นๆ',vi:'📦 Khác'},
+
+'nav.dashboard':       {ko:'대시보드',en:'Dashboard',ja:'ダッシュボード',zh:'控制台',th:'แดชบอร์ด',vi:'Bảng điều khiển'},
+'nav.shareplace':      {ko:'SHAREPLACE',en:'SHAREPLACE',ja:'SHAREPLACE',zh:'SHAREPLACE',th:'SHAREPLACE',vi:'SHAREPLACE'},
+'nav.chart':           {ko:'TL CHART',en:'TL CHART',ja:'TLチャート',zh:'TL排行榜',th:'TL ชาร์ต',vi:'BXH TL'},
+'nav.radio':           {ko:'방송국',en:'Radio',ja:'放送局',zh:'电台',th:'วิทยุ',vi:'Đài phát'},
+'nav.creator':         {ko:'크리에이터 센터',en:'Creator',ja:'クリエイター',zh:'创作者',th:'ครีเอเตอร์',vi:'Tác giả'},
+'nav.wallet':          {ko:'지갑 & 채굴',en:'Wallet & Mine',ja:'ウォレット',zh:'钱包',th:'กระเป๋า',vi:'Ví'},
+'nav.logout':          {ko:'로그아웃',en:'Logout',ja:'ログアウト',zh:'退出',th:'ออกจากระบบ',vi:'Đăng xuất'},
+'nav.login':           {ko:'로그인',en:'Login',ja:'ログイン',zh:'登录',th:'เข้าสู่ระบบ',vi:'Đăng nhập'},
+'nav.signup':          {ko:'회원가입',en:'Sign Up',ja:'新規登録',zh:'注册',th:'สมัครสมาชิก',vi:'Đăng ký'},
+'nav.advertiser':      {ko:'광고주 센터',en:'Advertiser',ja:'広告主',zh:'广告主',th:'ผู้ลงโฆษณา',vi:'Nhà quảng cáo'},
+'nav.appdownload':     {ko:'앱 다운로드',en:'App Download',ja:'アプリDL',zh:'下载应用',th:'ดาวน์โหลดแอป',vi:'Tải ứng dụng'},
+'nav.menu':            {ko:'메뉴',en:'Menu',ja:'メニュー',zh:'菜单',th:'เมนู',vi:'Menu'},
+
+/* ── 공통 액션 ── */
+'common.cancel':       {ko:'취소',en:'Cancel',ja:'キャンセル',zh:'取消',th:'ยกเลิก',vi:'Hủy'},
+'common.confirm':      {ko:'확인',en:'Confirm',ja:'確認',zh:'确认',th:'ยืนยัน',vi:'Xác nhận'},
+'common.delete':       {ko:'삭제',en:'Delete',ja:'削除',zh:'删除',th:'ลบ',vi:'Xóa'},
+'common.close':        {ko:'닫기',en:'Close',ja:'閉じる',zh:'关闭',th:'ปิด',vi:'Đóng'},
+'common.save':         {ko:'저장',en:'Save',ja:'保存',zh:'保存',th:'บันทึก',vi:'Lưu'},
+'common.edit':         {ko:'수정',en:'Edit',ja:'編集',zh:'编辑',th:'แก้ไข',vi:'Sửa'},
+'common.search':       {ko:'검색',en:'Search',ja:'検索',zh:'搜索',th:'ค้นหา',vi:'Tìm kiếm'},
+'common.upload':       {ko:'업로드',en:'Upload',ja:'アップロード',zh:'上传',th:'อัปโหลด',vi:'Tải lên'},
+'common.download':     {ko:'다운로드',en:'Download',ja:'ダウンロード',zh:'下载',th:'ดาวน์โหลด',vi:'Tải xuống'},
+'common.play':         {ko:'재생',en:'Play',ja:'再生',zh:'播放',th:'เล่น',vi:'Phát'},
+'common.pause':        {ko:'일시정지',en:'Pause',ja:'一時停止',zh:'暂停',th:'หยุด',vi:'Tạm dừng'},
+'common.loading':      {ko:'로딩 중...',en:'Loading...',ja:'読み込み中...',zh:'加载中...',th:'กำลังโหลด...',vi:'Đang tải...'},
+'common.error':        {ko:'오류가 발생했습니다',en:'An error occurred',ja:'エラーが発生しました',zh:'发生错误',th:'เกิดข้อผิดพลาด',vi:'Đã xảy ra lỗi'},
+'common.retry':        {ko:'다시 시도',en:'Retry',ja:'再試行',zh:'重试',th:'ลองใหม่',vi:'Thử lại'},
+'common.free':         {ko:'무료',en:'Free',ja:'無料',zh:'免费',th:'ฟรี',vi:'Miễn phí'},
+'common.paid':         {ko:'유료',en:'Paid',ja:'有料',zh:'付费',th:'จ่ายเงิน',vi:'Trả phí'},
+'common.charge':       {ko:'충전',en:'Charge',ja:'チャージ',zh:'充值',th:'เติมเงิน',vi:'Nạp tiền'},
+'common.all':          {ko:'전체',en:'All',ja:'すべて',zh:'全部',th:'ทั้งหมด',vi:'Tất cả'},
+'common.music':        {ko:'음악',en:'Music',ja:'音楽',zh:'音乐',th:'เพลง',vi:'Âm nhạc'},
+'common.video':        {ko:'영상',en:'Video',ja:'動画',zh:'视频',th:'วิดีโอ',vi:'Video'},
+'common.image':        {ko:'이미지',en:'Image',ja:'画像',zh:'图片',th:'รูปภาพ',vi:'Hình ảnh'},
+'common.doc':          {ko:'문서',en:'Document',ja:'文書',zh:'文档',th:'เอกสาร',vi:'Tài liệu'},
+'common.audio':        {ko:'오디오',en:'Audio',ja:'オーディオ',zh:'音频',th:'เสียง',vi:'Âm thanh'},
+'common.file':         {ko:'파일',en:'File',ja:'ファイル',zh:'文件',th:'ไฟล์',vi:'File'},
+
+/* ── 로그인 ── */
+'login.title':         {ko:'다시 오셨군요',en:'Welcome back',ja:'おかえりなさい',zh:'欢迎回来',th:'ยินดีต้อนรับกลับ',vi:'Chào mừng trở lại'},
+'login.sub':           {ko:'계속 Pulse를 쌓아보세요',en:'Keep building your Pulse',ja:'Pulseを積み重ねよう',zh:'继续积累Pulse',th:'สร้าง Pulse ต่อไป',vi:'Tiếp tục tích lũy Pulse'},
+'login.email':         {ko:'이메일',en:'Email',ja:'メール',zh:'邮箱',th:'อีเมล',vi:'Email'},
+'login.password':      {ko:'비밀번호',en:'Password',ja:'パスワード',zh:'密码',th:'รหัสผ่าน',vi:'Mật khẩu'},
+'login.forgot':        {ko:'비밀번호를 잊으셨나요?',en:'Forgot password?',ja:'パスワードをお忘れですか？',zh:'忘记密码？',th:'ลืมรหัสผ่าน?',vi:'Quên mật khẩu?'},
+'login.btn':           {ko:'로그인',en:'Log in',ja:'ログイン',zh:'登录',th:'เข้าสู่ระบบ',vi:'Đăng nhập'},
+'login.or':            {ko:'또는',en:'or',ja:'または',zh:'或者',th:'หรือ',vi:'hoặc'},
+'login.no.account':    {ko:'계정이 없으신가요?',en:'No account?',ja:'アカウントがない？',zh:'没有账号？',th:'ยังไม่มีบัญชี?',vi:'Chưa có tài khoản?'},
+'login.signup.link':   {ko:'무료 가입',en:'Sign up free',ja:'無料登録',zh:'免费注册',th:'สมัครฟรี',vi:'Đăng ký miễn phí'},
+'login.free.signup':   {ko:'무료 가입',en:'Sign up free',ja:'無料登録',zh:'免费注册',th:'สมัครฟรี',vi:'Đăng ký miễn phí'},
+
+/* ── 회원가입 ── */
+'signup.title':        {ko:'TimeLink 시작하기',en:'Get started',ja:'TimeLink を始める',zh:'开始使用',th:'เริ่มต้น',vi:'Bắt đầu'},
+'signup.sub':          {ko:'이메일로 가입하고 TL을 받으세요',en:'Sign up and get TL',ja:'登録してTLをもらおう',zh:'注册并获得TL',th:'สมัครและรับ TL',vi:'Đăng ký và nhận TL'},
+'signup.email':        {ko:'이메일 주소',en:'Email address',ja:'メールアドレス',zh:'邮箱地址',th:'ที่อยู่อีเมล',vi:'Địa chỉ email'},
+'signup.username':     {ko:'닉네임',en:'Username',ja:'ニックネーム',zh:'昵称',th:'ชื่อผู้ใช้',vi:'Tên người dùng'},
+'signup.password':     {ko:'비밀번호',en:'Password',ja:'パスワード',zh:'密码',th:'รหัสผ่าน',vi:'Mật khẩu'},
+'signup.send':         {ko:'인증 발송',en:'Send code',ja:'認証送信',zh:'发送验证码',th:'ส่งรหัส',vi:'Gửi mã'},
+'signup.verify':       {ko:'확인',en:'Verify',ja:'確認',zh:'验证',th:'ยืนยัน',vi:'Xác nhận'},
+'signup.next':         {ko:'다음',en:'Next',ja:'次へ',zh:'下一步',th:'ถัดไป',vi:'Tiếp theo'},
+'signup.submit':       {ko:'가입 완료',en:'Complete',ja:'登録完了',zh:'完成注册',th:'สมัครเสร็จสิ้น',vi:'Hoàn tất đăng ký'},
+'signup.have.account': {ko:'이미 계정이 있으신가요?',en:'Already have an account?',ja:'既にアカウントがある？',zh:'已有账号？',th:'มีบัญชีอยู่แล้ว?',vi:'Đã có tài khoản?'},
+'signup.go.login':     {ko:'로그인',en:'Log in',ja:'ログイン',zh:'登录',th:'เข้าสู่ระบบ',vi:'Đăng nhập'},
+
+/* ── SharePlace ── */
+'sp.search':           {ko:'제목, 아티스트, 태그 검색...',en:'Search title, artist, tag...',ja:'検索...',zh:'搜索...',th:'ค้นหา...',vi:'Tìm kiếm...'},
+'sp.filter.all':       {ko:'전체',en:'All',ja:'すべて',zh:'全部',th:'ทั้งหมด',vi:'Tất cả'},
+'sp.filter.music':     {ko:'음악',en:'Music',ja:'音楽',zh:'音乐',th:'เพลง',vi:'Âm nhạc'},
+'sp.filter.video':     {ko:'영상',en:'Video',ja:'動画',zh:'视频',th:'วิดีโอ',vi:'Video'},
+'sp.filter.image':     {ko:'이미지',en:'Image',ja:'画像',zh:'图片',th:'รูปภาพ',vi:'Hình ảnh'},
+'sp.filter.doc':       {ko:'문서',en:'Docs',ja:'文書',zh:'文档',th:'เอกสาร',vi:'Tài liệu'},
+'sp.sort.new':         {ko:'최신순',en:'Latest',ja:'最新順',zh:'最新',th:'ล่าสุด',vi:'Mới nhất'},
+'sp.sort.pulse':       {ko:'인기순',en:'Popular',ja:'人気順',zh:'热门',th:'ยอดนิยม',vi:'Phổ biến'},
+'sp.sort.tl':          {ko:'TL충전순',en:'TL Top',ja:'TL順',zh:'TL排行',th:'TL สูงสุด',vi:'TL Top'},
+'sp.grid':             {ko:'그리드',en:'Grid',ja:'グリッド',zh:'网格',th:'กริด',vi:'Lưới'},
+'sp.list':             {ko:'목록',en:'List',ja:'リスト',zh:'列表',th:'รายการ',vi:'Danh sách'},
+'sp.btn.preview':      {ko:'미리듣기',en:'Preview',ja:'試聴',zh:'试听',th:'ตัวอย่าง',vi:'Xem trước'},
+'sp.btn.no.preview':   {ko:'미리듣기 없음',en:'No preview',ja:'試聴なし',zh:'无试听',th:'ไม่มีตัวอย่าง',vi:'Không có'},
+'sp.btn.charge':       {ko:'TL 충전',en:'Charge TL',ja:'TLチャージ',zh:'充值TL',th:'เติม TL',vi:'Nạp TL'},
+'sp.btn.play':         {ko:'재생',en:'Play',ja:'再生',zh:'播放',th:'เล่น',vi:'Phát'},
+'sp.btn.no.file':      {ko:'파일 없음',en:'No file',ja:'ファイルなし',zh:'无文件',th:'ไม่มีไฟล์',vi:'Không có file'},
+'sp.uncharged':        {ko:'미충전',en:'Uncharged',ja:'未チャージ',zh:'未充值',th:'ยังไม่เติม',vi:'Chưa nạp'},
+'sp.no.files':         {ko:'공유된 파일이 없습니다',en:'No files shared yet',ja:'ファイルがありません',zh:'暂无文件',th:'ยังไม่มีไฟล์',vi:'Chưa có file'},
+'sp.playing':          {ko:'재생 중',en:'Now playing',ja:'再生中',zh:'正在播放',th:'กำลังเล่น',vi:'Đang phát'},
+'sp.charge.title':     {ko:'TL 충전',en:'Charge TL',ja:'TLチャージ',zh:'充值TL',th:'เติม TL',vi:'Nạp TL'},
+'sp.tl.balance':       {ko:'TL 잔액',en:'TL Balance',ja:'TL残高',zh:'TL余额',th:'ยอด TL',vi:'Số dư TL'},
+'sp.my.tl':            {ko:'내 TL',en:'My TL',ja:'マイTL',zh:'我的TL',th:'TL ของฉัน',vi:'TL của tôi'},
+'sp.charge.input':     {ko:'충전할 TL 수량',en:'TL amount to charge',ja:'チャージするTL',zh:'充值TL数量',th:'จำนวน TL ที่เติม',vi:'Số TL cần nạp'},
+'sp.charge.btn':       {ko:'충전하기',en:'Charge',ja:'チャージする',zh:'充值',th:'เติมเงิน',vi:'Nạp tiền'},
+
+/* ── 크리에이터 ── */
+'cr.title':            {ko:'크리에이터 센터',en:'Creator Center',ja:'クリエイターセンター',zh:'创作者中心',th:'ศูนย์ครีเอเตอร์',vi:'Trung tâm tác giả'},
+'cr.tab.upload':       {ko:'업로드',en:'Upload',ja:'アップロード',zh:'上传',th:'อัปโหลด',vi:'Tải lên'},
+'cr.tab.myfiles':      {ko:'내 파일',en:'My Files',ja:'マイファイル',zh:'我的文件',th:'ไฟล์ของฉัน',vi:'File của tôi'},
+'cr.type.audio':       {ko:'오디오',en:'Audio',ja:'オーディオ',zh:'音频',th:'เสียง',vi:'Âm thanh'},
+'cr.type.video':       {ko:'영상',en:'Video',ja:'動画',zh:'视频',th:'วิดีโอ',vi:'Video'},
+'cr.type.image':       {ko:'이미지',en:'Image',ja:'画像',zh:'图片',th:'รูปภาพ',vi:'Hình ảnh'},
+'cr.type.doc':         {ko:'문서',en:'Document',ja:'文書',zh:'文档',th:'เอกสาร',vi:'Tài liệu'},
+'cr.drop.audio':       {ko:'오디오 파일을 여기에 드롭',en:'Drop audio file here',ja:'オーディオをドロップ',zh:'拖放音频文件',th:'วางไฟล์เสียงที่นี่',vi:'Thả file âm thanh'},
+'cr.drop.video':       {ko:'영상 파일을 여기에 드롭',en:'Drop video file here',ja:'動画をドロップ',zh:'拖放视频文件',th:'วางไฟล์วิดีโอที่นี่',vi:'Thả file video'},
+'cr.drop.image':       {ko:'이미지 파일을 여기에 드롭',en:'Drop image file here',ja:'画像をドロップ',zh:'拖放图片文件',th:'วางไฟล์รูปภาพ',vi:'Thả file hình ảnh'},
+'cr.drop.doc':         {ko:'문서 파일을 여기에 드롭',en:'Drop document here',ja:'文書をドロップ',zh:'拖放文档文件',th:'วางไฟล์เอกสาร',vi:'Thả file tài liệu'},
+'cr.drop.select':      {ko:'파일 선택',en:'Select file',ja:'ファイルを選択',zh:'选择文件',th:'เลือกไฟล์',vi:'Chọn file'},
+'cr.title.label':      {ko:'제목',en:'Title',ja:'タイトル',zh:'标题',th:'ชื่อ',vi:'Tiêu đề'},
+'cr.artist':           {ko:'아티스트',en:'Artist',ja:'アーティスト',zh:'艺术家',th:'ศิลปิน',vi:'Nghệ sĩ'},
+'cr.album':            {ko:'앨범',en:'Album',ja:'アルバム',zh:'专辑',th:'อัลบั้ม',vi:'Album'},
+'cr.genre':            {ko:'장르',en:'Genre',ja:'ジャンル',zh:'流派',th:'แนวเพลง',vi:'Thể loại'},
+'cr.desc':             {ko:'설명',en:'Description',ja:'説明',zh:'描述',th:'คำอธิบาย',vi:'Mô tả'},
+'cr.tl.info':          {ko:'③ TL 정보',en:'③ TL Info',ja:'③ TL情報',zh:'③ TL信息',th:'③ ข้อมูล TL',vi:'③ Thông tin TL'},
+'cr.plan.section':     {ko:'④ 수익 배분 플랜',en:'④ Revenue Plan',ja:'④ 収益プラン',zh:'④ 收益方案',th:'④ แผนรายได้',vi:'④ Kế hoạch thu nhập'},
+'cr.plan.a.split':     {ko:'크리에이터 70% · 플랫폼 30%',en:'Creator 70% · Platform 30%',ja:'クリエイター70%・プラットフォーム30%',zh:'创作者70%·平台30%',th:'ครีเอเตอร์ 70%·แพลตฟอร์ม 30%',vi:'Tác giả 70%·Nền tảng 30%'},
+'cr.plan.b.split':     {ko:'크리에이터 50% + TLC 채굴',en:'Creator 50% + TLC mining',ja:'クリエイター50%+TLC採掘',zh:'创作者50%+TLC挖矿',th:'ครีเอเตอร์ 50%+TLC mining',vi:'Tác giả 50%+khai thác TLC'},
+'cr.upload.btn':       {ko:'📤 업로드 및 공유 등록',en:'📤 Upload & Share',ja:'📤 アップロード',zh:'📤 上传并分享',th:'📤 อัปโหลดและแชร์',vi:'📤 Tải lên & Chia sẻ'},
+'cr.no.files':         {ko:'업로드한 파일이 없습니다',en:'No uploaded files',ja:'アップロードなし',zh:'没有上传的文件',th:'ไม่มีไฟล์อัปโหลด',vi:'Chưa có file'},
+'cr.delete':           {ko:'삭제',en:'Delete',ja:'削除',zh:'删除',th:'ลบ',vi:'Xóa'},
+'cr.share.view':       {ko:'SharePlace에서 보기',en:'View in SharePlace',ja:'SharePlaceで見る',zh:'在SharePlace查看',th:'ดูใน SharePlace',vi:'Xem trong SharePlace'},
+
+/* ── 차트 ── */
+'chart.tab.music':     {ko:'음악',en:'Music',ja:'音楽',zh:'音乐',th:'เพลง',vi:'Âm nhạc'},
+'chart.tab.video':     {ko:'영상',en:'Video',ja:'動画',zh:'视频',th:'วิดีโอ',vi:'Video'},
+'chart.tab.doc':       {ko:'문서·강의',en:'Docs',ja:'文書',zh:'文档',th:'เอกสาร',vi:'Tài liệu'},
+'chart.tab.image':     {ko:'이미지·아트',en:'Art',ja:'アート',zh:'图片',th:'ภาพ',vi:'Nghệ thuật'},
+'chart.tab.top':       {ko:'⚡ TL TOP',en:'⚡ TL Top',ja:'⚡ TLトップ',zh:'⚡ TL排行',th:'⚡ TL สูงสุด',vi:'⚡ TL Top'},
+'chart.rank':          {ko:'위',en:'#',ja:'位',zh:'名',th:'อันดับ',vi:'#'},
+'chart.pulse':         {ko:'Pulse',en:'Pulse',ja:'パルス',zh:'Pulse',th:'Pulse',vi:'Pulse'},
+'chart.plays':         {ko:'재생',en:'Plays',ja:'再生',zh:'播放',th:'การเล่น',vi:'Lượt phát'},
+'chart.no.data':       {ko:'데이터 없음',en:'No data',ja:'データなし',zh:'暂无数据',th:'ไม่มีข้อมูล',vi:'Không có dữ liệu'},
+
+/* ── 라디오 ── */
+'radio.cafe':          {ko:'카페방송',en:'Cafe Radio',ja:'カフェ放送',zh:'咖啡广播',th:'วิทยุคาเฟ่',vi:'Radio quán cà phê'},
+'radio.incar':         {ko:'인카방송',en:'In-Car Radio',ja:'車内放送',zh:'车载广播',th:'วิทยุในรถ',vi:'Radio trong xe'},
+'radio.playing':       {ko:'재생 중',en:'Now playing',ja:'再生中',zh:'正在播放',th:'กำลังเล่น',vi:'Đang phát'},
+'radio.listener':      {ko:'청취자',en:'Listeners',ja:'リスナー',zh:'听众',th:'ผู้ฟัง',vi:'Người nghe'},
+'radio.no.channel':    {ko:'채널 없음',en:'No channel',ja:'チャンネルなし',zh:'无频道',th:'ไม่มีช่อง',vi:'Không có kênh'},
+'radio.create.channel':{ko:'채널 개설',en:'Create channel',ja:'チャンネル開設',zh:'创建频道',th:'สร้างช่อง',vi:'Tạo kênh'},
+'radio.cafe.desc':     {ko:'카페 BGM 방송',en:'Cafe BGM Radio',ja:'カフェBGM',zh:'咖啡BGM',th:'BGM คาเฟ่',vi:'BGM quán cà phê'},
+'radio.incar.desc':    {ko:'드라이브 음악 방송',en:'Drive Music Radio',ja:'ドライブ音楽',zh:'驾车音乐',th:'เพลงขับรถ',vi:'Nhạc lái xe'},
+
+/* ── 카페 ── */
+'cafe.live':           {ko:'라이브',en:'Live',ja:'ライブ',zh:'直播',th:'สด',vi:'Trực tiếp'},
+'cafe.playlist':       {ko:'플레이리스트',en:'Playlist',ja:'プレイリスト',zh:'播放列表',th:'เพลย์ลิสต์',vi:'Danh sách phát'},
+'cafe.channel.name':   {ko:'채널명',en:'Channel name',ja:'チャンネル名',zh:'频道名称',th:'ชื่อช่อง',vi:'Tên kênh'},
+'cafe.on.air':         {ko:'ON AIR',en:'ON AIR',ja:'ON AIR',zh:'正在直播',th:'ออกอากาศ',vi:'Đang phát sóng'},
+'cafe.off.air':        {ko:'방송 종료',en:'Off Air',ja:'放送終了',zh:'已结束',th:'หยุดออกอากาศ',vi:'Kết thúc phát sóng'},
+'cafe.listeners':      {ko:'청취자',en:'Listeners',ja:'リスナー',zh:'听众',th:'ผู้ฟัง',vi:'Người nghe'},
+
+/* ── 인카 ── */
+'incar.start':         {ko:'방송 시작',en:'Start Broadcast',ja:'放送開始',zh:'开始直播',th:'เริ่มออกอากาศ',vi:'Bắt đầu phát sóng'},
+'incar.stop':          {ko:'방송 종료',en:'Stop Broadcast',ja:'放送終了',zh:'结束直播',th:'หยุดออกอากาศ',vi:'Kết thúc'},
+'incar.driving':       {ko:'주행 중',en:'Driving',ja:'走行中',zh:'行驶中',th:'กำลังขับ',vi:'Đang lái xe'},
+'incar.plate':         {ko:'차량번호',en:'Plate No.',ja:'ナンバープレート',zh:'车牌号',th:'ทะเบียนรถ',vi:'Biển số xe'},
+'incar.region':        {ko:'주행 지역',en:'Drive region',ja:'走行エリア',zh:'行驶区域',th:'พื้นที่ขับรถ',vi:'Khu vực lái'},
+
+/* ── 대시보드 ── */
+'dash.wallet':         {ko:'지갑',en:'Wallet',ja:'ウォレット',zh:'钱包',th:'กระเป๋า',vi:'Ví'},
+'dash.mining':         {ko:'TLC 채굴',en:'TLC Mining',ja:'TLC採掘',zh:'TLC挖矿',th:'ขุด TLC',vi:'Khai thác TLC'},
+'dash.content':        {ko:'내 콘텐츠',en:'My Content',ja:'マイコンテンツ',zh:'我的内容',th:'เนื้อหาของฉัน',vi:'Nội dung của tôi'},
+'dash.mission':        {ko:'미션',en:'Missions',ja:'ミッション',zh:'任务',th:'ภารกิจ',vi:'Nhiệm vụ'},
+'dash.cafe.link':      {ko:'카페 채널',en:'Cafe Channel',ja:'カフェチャンネル',zh:'咖啡频道',th:'ช่องคาเฟ่',vi:'Kênh quán cà phê'},
+'dash.tl.total':       {ko:'TL 총 잔액',en:'Total TL Balance',ja:'TL合計残高',zh:'TL总余额',th:'ยอด TL รวม',vi:'Tổng số dư TL'},
+'dash.tl.purchase':    {ko:'구매 TL',en:'Purchase TL',ja:'購入TL',zh:'购买TL',th:'TL ซื้อ',vi:'TL mua'},
+'dash.tl.ad':          {ko:'광고 TL',en:'Ad TL',ja:'広告TL',zh:'广告TL',th:'TL โฆษณา',vi:'TL quảng cáo'},
+'dash.tl.bonus':       {ko:'보너스 TL',en:'Bonus TL',ja:'ボーナスTL',zh:'奖励TL',th:'TL โบนัส',vi:'TL thưởng'},
+'dash.poc':            {ko:'POC 기여지수',en:'POC Index',ja:'POC指数',zh:'POC指数',th:'ดัชนี POC',vi:'Chỉ số POC'},
+'dash.tlc.held':       {ko:'보유 TLC',en:'TLC Held',ja:'保有TLC',zh:'持有TLC',th:'TLC ที่มี',vi:'TLC đang giữ'},
+'dash.exchange':       {ko:'현금 교환 신청',en:'Cash Exchange',ja:'現金交換',zh:'现金兑换',th:'แลกเงินสด',vi:'Đổi tiền mặt'},
+'dash.mining.today':   {ko:'오늘 채굴량',en:'Today mined',ja:'今日の採掘量',zh:'今日挖矿',th:'ขุดวันนี้',vi:'Khai thác hôm nay'},
+'dash.mission.daily':  {ko:'일일 미션',en:'Daily missions',ja:'デイリーミッション',zh:'每日任务',th:'ภารกิจรายวัน',vi:'Nhiệm vụ hàng ngày'},
+'dash.mission.done':   {ko:'완료',en:'Done',ja:'完了',zh:'完成',th:'เสร็จแล้ว',vi:'Hoàn thành'},
+
+/* ── 광고 ── */
+'ad.reward':           {ko:'리워드 광고',en:'Reward Ad',ja:'リワード広告',zh:'激励广告',th:'โฆษณาแบบรีวอร์ด',vi:'Quảng cáo thưởng'},
+'ad.banner':           {ko:'배너 광고',en:'Banner Ad',ja:'バナー広告',zh:'横幅广告',th:'โฆษณาแบนเนอร์',vi:'Quảng cáo banner'},
+'ad.watch':            {ko:'광고 시청',en:'Watch Ad',ja:'広告視聴',zh:'观看广告',th:'ดูโฆษณา',vi:'Xem quảng cáo'},
+'ad.skip':             {ko:'건너뛰기',en:'Skip',ja:'スキップ',zh:'跳过',th:'ข้าม',vi:'Bỏ qua'},
+'ad.earn':             {ko:'적립 완료',en:'Earned',ja:'獲得完了',zh:'已获得',th:'ได้รับแล้ว',vi:'Đã nhận'},
+
+/* ── 오류 메시지 ── */
+'msg.login.required':  {ko:'로그인이 필요합니다',en:'Login required',ja:'ログインが必要です',zh:'需要登录',th:'กรุณาเข้าสู่ระบบ',vi:'Vui lòng đăng nhập'},
+'msg.tl.low':          {ko:'TL이 부족합니다. 현재: ',en:'Insufficient TL. Balance: ',ja:'TL不足。残高: ',zh:'TL不足。余额: ',th:'TL ไม่พอ ยอด: ',vi:'TL không đủ. Số dư: '},
+'msg.no.file':         {ko:'파일이 없습니다',en:'File not found',ja:'ファイルなし',zh:'文件不存在',th:'ไม่พบไฟล์',vi:'Không tìm thấy file'},
+'msg.play.fail':       {ko:'재생 실패: ',en:'Playback failed: ',ja:'再生失敗: ',zh:'播放失败: ',zh:'播放失败: ',th:'เล่นล้มเหลว: ',vi:'Phát thất bại: '},
+'msg.upload.success':  {ko:'업로드 완료!',en:'Upload complete!',ja:'アップロード完了！',zh:'上传完成！',th:'อัปโหลดสำเร็จ!',vi:'Tải lên thành công!'},
+'msg.upload.fail':     {ko:'업로드 실패',en:'Upload failed',ja:'アップロード失敗',zh:'上传失败',th:'อัปโหลดล้มเหลว',vi:'Tải lên thất bại'},
+'msg.delete.confirm':  {ko:'을 삭제하시겠습니까?',en:'Delete this file?',ja:'削除しますか？',zh:'确认删除？',th:'ต้องการลบ?',vi:'Xóa file này?'},
+'msg.invalid.num':     {ko:'올바른 숫자를 입력하세요',en:'Enter a valid number',ja:'正しい数値を入力してください',zh:'请输入有效数字',th:'กรุณากรอกตัวเลขที่ถูกต้อง',vi:'Nhập số hợp lệ'},
+'msg.autoplay.block':  {ko:'재생 버튼을 클릭하세요',en:'Click play button',ja:'再生ボタンをクリック',zh:'请点击播放按钮',th:'คลิกปุ่มเล่น',vi:'Nhấn nút phát'},
+'msg.file.load.fail':  {ko:'파일 로드 실패',en:'File load failed',ja:'ファイル読み込み失敗',zh:'文件加载失败',th:'โหลดไฟล์ล้มเหลว',vi:'Tải file thất bại'},
+'msg.tl.empty':        {ko:'TL이 소진됐습니다. 충전이 필요합니다.',en:'TL depleted. Please charge.',ja:'TLが切れました。チャージしてください。',zh:'TL已耗尽，请充值。',th:'TL หมดแล้ว กรุณาเติม',vi:'TL đã hết. Vui lòng nạp.'},
+'toast.tl.empty.total':{ko:'TL이 소진됐습니다. 충전이 필요합니다.',en:'TL depleted. Please charge.',ja:'TL切れ。チャージを。',zh:'TL耗尽。',th:'TL หมด',vi:'Hết TL.'},
+'toast.cr.upload.success':{ko:'업로드 완료!',en:'Uploaded!',ja:'完了！',zh:'已上传！',th:'อัปโหลดแล้ว!',vi:'Đã tải lên!'},
+'toast.cr.upload.fail':{ko:'업로드 실패',en:'Upload failed',ja:'失敗',zh:'失败',th:'ล้มเหลว',vi:'Thất bại'},
+'toast.cr.delete.confirm':{ko:'을 삭제하시겠습니까?',en:'Delete?',ja:'削除？',zh:'删除？',th:'ลบ?',vi:'Xóa?'},
 };
-var enToKo={
-'HOME':'홈','DIGITAL ASSETS':'디지털 자산','CREATOR':'창작자','BROADCAST':'방송','ADVERTISING':'광고','TL ECONOMICS':'TL 경제','MY':'내 정보','ADMIN':'관리자',
-'Overview':'개요','SharePlace':'공유 공간','My Library':'내 라이브러리','TL3 Player':'TL3 플레이어','TLJ Viewer':'TLJ 뷰어','Track':'트랙',
-'Creator Profile':'창작자 프로필','Creator Studio':'창작자 스튜디오','TL Broadcast':'TL 방송국','DJ Center':'DJ 센터','Cafe Broadcast':'카페 방송',
-'Cafe Management':'카페 관리','In-car':'차량 방송','Advertiser Center':'광고주 센터','Campaigns':'캠페인','TL Wallet':'TL 지갑','POC & TLC':'POC 및 TLC',
-'My Dashboard':'내 대시보드','Admin Console':'관리자 콘솔','Login':'로그인','Sign up':'회원가입','Dashboard':'대시보드','Home':'홈','Wallet':'지갑',
-'Music':'음악','Video':'영상','Documents':'문서','Search':'검색','Save':'저장','Cancel':'취소','Close':'닫기','Confirm':'확인','Loading…':'로딩 중…',
-'Popular':'인기순','Latest':'최신순','Play':'재생','Pause':'일시정지','Stop':'정지','Share':'공유','Upload':'업로드','Delete':'삭제','Edit':'수정',
-'Settings':'설정','Log out':'로그아웃','Creator':'창작자','Business':'기업','Legal':'법적 정보','Services':'서비스','Transactions':'거래내역'
+
+/* ── 언어 감지 ── */
+function detectLang(){
+  var saved=localStorage.getItem('tl_lang');
+  if(saved&&LANGS.includes(saved)) return saved;
+  var br=(navigator.language||navigator.userLanguage||'ko').toLowerCase();
+  if(br.startsWith('ja')) return 'ja';
+  if(br.startsWith('zh')) return 'zh';
+  if(br.startsWith('th')) return 'th';
+  if(br.startsWith('vi')) return 'vi';
+  if(br.startsWith('ko')) return 'ko';
+  return 'en';
+}
+
+var _lang=detectLang();
+
+/* ── 번역 함수 ── */
+function t(key,fallback){
+  var row=T[key];
+  if(!row) return fallback||key;
+  return row[_lang]||row['en']||row['ko']||fallback||key;
+}
+
+/* ── DOM 자동 번역 ── */
+function applyAll(){
+  // data-i18n 텍스트
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    var key=el.getAttribute('data-i18n');
+    var val=t(key);
+    if(el.tagName==='INPUT'||el.tagName==='TEXTAREA'){
+      el.placeholder=val;
+    } else {
+      el.textContent=val;
+    }
+  });
+  // data-i18n-placeholder
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){
+    el.placeholder=t(el.getAttribute('data-i18n-placeholder'));
+  });
+  // data-i18n-title
+  document.querySelectorAll('[data-i18n-title]').forEach(function(el){
+    el.title=t(el.getAttribute('data-i18n-title'));
+  });
+  // data-i18n-html (HTML 내용 포함)
+  document.querySelectorAll('[data-i18n-html]').forEach(function(el){
+    el.innerHTML=t(el.getAttribute('data-i18n-html'));
+  });
+  // html lang 속성
+  document.documentElement.lang=_lang;
+  // body에 lang 클래스 추가 (CSS font 등 제어용)
+  document.body.setAttribute('data-lang',_lang);
+}
+
+/* ── 언어 전환 ── */
+var _settingLang = false; // 재진입 방지
+function setLang(lang){
+  if(!LANGS.includes(lang)) return;
+  if(_settingLang) return; // 재진입 방지
+  _settingLang = true;
+  _lang=lang;
+  localStorage.setItem('tl_lang',lang);
+  applyAll();
+  updateSwitcherUI();
+  // 페이지별 동적 재렌더링 (renderLangSw는 updateSwitcherUI에서 처리)
+  if(typeof window.applyFilter==='function') window.applyFilter();
+  if(typeof window.renderMyFiles==='function') window.renderMyFiles();
+  setTimeout(function(){ _settingLang=false; }, 50);
+}
+
+function updateSwitcherUI(){
+  // 상단 고정 스위처 버튼 상태만 업데이트 (재생성 없음)
+  var sw=document.getElementById('tl-lang-switcher');
+  if(sw) sw.querySelectorAll('.tl-lang-btn').forEach(function(b){
+    var on=b.dataset.lang===_lang;
+    b.classList.toggle('tl-lang-active',on);
+    b.style.opacity=on?'1':'0.5';
+    b.style.background=on?'rgba(255,255,255,.15)':'none';
+    b.style.borderColor=on?'rgba(255,255,255,.3)':'transparent';
+  });
+  // 인라인 스위처 (.lang-btn 클래스만, data-lang 전체 X - 너무 광범위)
+  document.querySelectorAll('.lang-btn').forEach(function(b){
+    if(!b.dataset.lang) return;
+    b.classList.toggle('active',b.dataset.lang===_lang);
+    b.style.opacity=b.dataset.lang===_lang?'1':'0.4';
+  });
+}
+
+/* ── 언어 선택 버튼 UI 생성 ── */
+function createLangSwitcher(containerId){
+  var wrap=document.getElementById(containerId);
+  if(!wrap) return;
+  wrap.innerHTML='';
+  LANGS.forEach(function(l){
+    var btn=document.createElement('button');
+    btn.className='lang-btn'+(l===_lang?' active':'');
+    btn.dataset.lang=l;
+    btn.textContent=LABELS[l];
+    btn.style.opacity=l===_lang?'1':'0.4';
+    btn.onclick=function(){ TLi18n.setLang(l); };
+    wrap.appendChild(btn);
+  });
+}
+
+/* ── 상단 고정 스위처 자동 삽입 ── */
+function injectSwitcher(){ return; // 크롬 자동번역 사용
+
+  if(document.getElementById('tl-lang-switcher')) return;
+  var sw=document.createElement('div');
+  sw.id='tl-lang-switcher';
+  var topbar = document.querySelector('.topbar');
+  if(topbar){
+    sw.style.cssText='display:flex;gap:2px;align-items:center;margin-left:8px';
+  } else {
+    sw.style.cssText=[
+      'position:fixed;top:12px;right:16px;z-index:99999',
+      'display:flex;gap:2px;align-items:center',
+      'background:rgba(10,10,20,.92);backdrop-filter:blur(16px)',
+      'border:1px solid rgba(255,255,255,.15);border-radius:22px',
+      'padding:5px 10px;box-shadow:0 4px 20px rgba(0,0,0,.5)'
+    ].join(';');
+  }
+  LANGS.forEach(function(l){
+    var btn=document.createElement('button');
+    btn.className='tl-lang-btn'+(l===_lang?' tl-lang-active':'');
+    btn.dataset.lang=l;
+    btn.textContent=FLAGS[l];
+    btn.title=LABELS[l];
+    btn.style.cssText=[
+      'background:'+(l===_lang?'rgba(255,255,255,.15)':'none'),
+      'border:'+(l===_lang?'1px solid rgba(255,255,255,.3)':'1px solid transparent'),
+      'cursor:pointer;font-size:17px;padding:3px 5px;border-radius:8px',
+      'opacity:'+(l===_lang?'1':'0.5'),
+      'transition:all .2s;line-height:1;color:#fff'
+    ].join(';');
+    (function(lang){ btn.onclick=function(){ TLi18n.setLang(lang); }; })(l);
+    sw.appendChild(btn);
+  });
+  var topbar2 = document.querySelector('.topbar');
+  if(topbar2){
+    topbar2.appendChild(sw);
+  } else {
+    document.body.appendChild(sw);
+  }
+}
+
+function injectStyle(){
+  if(document.getElementById('tl-i18n-style')) return;
+  var s=document.createElement('style');
+  s.id='tl-i18n-style';
+  s.textContent=[
+    '.tl-lang-btn{color:#fff!important;-webkit-text-fill-color:initial!important;}',
+    '.tl-lang-active{opacity:1!important;background:rgba(255,255,255,.15)!important;}',
+    '.tl-lang-btn:hover{opacity:1!important;background:rgba(255,255,255,.1)!important;}'
+  ].join('');
+  document.head.appendChild(s);
+}
+
+/* ── 초기화 ── */
+function init(){
+  injectStyle();
+  applyAll();
+  injectSwitcher();
+}
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',init);
+} else {
+  init();
+}
+
+window.TLi18n={
+  t:t,
+  setLang:setLang,
+  applyAll:applyAll,
+  createLangSwitcher:createLangSwitcher,
+  getLang:function(){ return _lang; },
+  lang:_lang
 };
-var originalText=new WeakMap(),originalAttrs=new WeakMap(),lang='ko',busy=false;
-function dict(){return lang==='en'?ko:enToKo}
-function translateNode(n){
- var v=n.nodeValue,r=originalText.get(n);if(r&&v!==r.last)r=null;if(!r)r={source:v,last:v};
- var key=r.source.trim(),d=dict(),out=d[key]||r.source;
- if(d[key]){var lead=r.source.match(/^\s*/)[0],tail=r.source.match(/\s*$/)[0];out=lead+d[key]+tail;}
- n.nodeValue=out;r.last=out;originalText.set(n,r);
-}
-function translateAttr(el,a){
- var m=originalAttrs.get(el)||{},r=m[a],v=el.getAttribute(a);if(r&&v!==r.last)r=null;if(!r)r={source:v,last:v};
- var out=dict()[r.source]||r.source;el.setAttribute(a,out);r.last=out;m[a]=r;originalAttrs.set(el,m);
-}
-function scan(root){
- if(!root)return;var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:function(n){var p=n.parentElement;return !p||/^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA|CODE|PRE)$/i.test(p.tagName)||!n.nodeValue.trim()?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT;}}),a=[];
- while(w.nextNode())a.push(w.currentNode);a.forEach(translateNode);
- if(root.querySelectorAll)root.querySelectorAll('[placeholder],[title],[aria-label]').forEach(function(e){['placeholder','title','aria-label'].forEach(function(k){if(e.hasAttribute(k))translateAttr(e,k);});});
-}
-function setLang(next){
- lang=next==='en'?'en':'ko';document.documentElement.lang=lang;
- try{localStorage.setItem('timelink-language',lang);}catch(e){}
- scan(document.body);document.documentElement.dataset.tlLanguage=lang;
- var en=document.getElementById('tl-lang-en'),kr=document.getElementById('tl-lang-kr');
- if(en&&kr){en.setAttribute('aria-pressed',String(lang==='en'));kr.setAttribute('aria-pressed',String(lang==='ko'));}
-}
-function mount(){
- if(!document.body||document.getElementById('tl-language-switch'))return;
- var css=document.createElement('style');css.id='tl-language-css';css.textContent='#tl-language-switch{position:fixed;z-index:10050;top:14px;right:18px;display:flex;gap:3px;padding:4px;border:1px solid rgba(255,255,255,.17);border-radius:999px;background:rgba(18,18,24,.95);box-shadow:0 5px 22px rgba(0,0,0,.3);backdrop-filter:blur(14px);font:700 11px/1.2 Inter,Pretendard,sans-serif}#tl-language-switch button{min-width:36px;padding:7px 9px;border:0;border-radius:999px;background:transparent;color:#aaa7b8;font:inherit;cursor:pointer}#tl-language-switch button[aria-pressed=true]{background:#8b6cf0;color:white}#tl-language-switch button:focus-visible{outline:2px solid #f5b84b;outline-offset:2px}body:has(.g-nav) .g-nav-actions{margin-right:105px}@media(max-width:650px){#tl-language-switch{top:10px;right:10px}body:has(.g-nav) #tl-language-switch{top:72px;right:12px}body:has(.g-nav) .g-nav-actions{margin-right:0}}';
- document.head.appendChild(css);var box=document.createElement('div');box.id='tl-language-switch';box.setAttribute('role','group');box.setAttribute('aria-label','Language');
- box.innerHTML='<button type="button" id="tl-lang-en" aria-pressed="false">EN</button><button type="button" id="tl-lang-kr" aria-pressed="true">KR</button>';document.body.appendChild(box);
- box.addEventListener('click',function(e){var b=e.target.closest('button');if(b)setLang(b.id==='tl-lang-en'?'en':'ko');});
- var initial='ko';try{initial=localStorage.getItem('timelink-language')==='en'?'en':'ko';}catch(e){}setLang(initial);
- var observer=new MutationObserver(function(records){if(busy)return;busy=true;Promise.resolve().then(function(){busy=false;records.forEach(function(r){if(r.type==='characterData')translateNode(r.target);(r.addedNodes||[]).forEach(function(n){if(n.nodeType===3)translateNode(n);else if(n.nodeType===1&&n.id!=='tl-language-switch')scan(n);});});});});
- observer.observe(document.body,{subtree:true,childList:true,characterData:true});
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();
-window.TimeLinkLanguage={set:setLang,get:function(){return lang;}};
+
+Object.defineProperty(window.TLi18n,'lang',{get:function(){return _lang;}});
+
 })();
+
+
+
+
+
+
