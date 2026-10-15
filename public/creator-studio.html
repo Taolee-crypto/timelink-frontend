@@ -118,6 +118,7 @@ nav{background:rgba(10,10,10,.9);border-color:var(--line)}
 
 <section class="card done" id="done" style="display:none"><div class="done-icon">✓</div><h2 id="doneTitle">TL3 등록 완료 · 승인 대기</h2><p id="doneText"></p><div class="actions"><a class="btn secondary" href="creator-studio.html">새 음악 올리기</a><a class="btn primary" href="shareplace.html">SharePlace 확인 (승인 후 공개)</a></div></section>
 </main>
+<script src="/tl3-manufacture.js?v=20261015"></script>
 <script>
 const KIND_MAP = {
   tl3:{label:'음원',code:'TL3',accept:'.mp3,audio/mpeg',dzTitle:'MP3 파일을 여기에 놓거나 클릭',step:'음원 등록'},
@@ -178,14 +179,14 @@ $('back2').onclick=()=>step(1);
 $('freeBtn').onclick=async()=>{
  clearErr('error2');const b=$('freeBtn');b.disabled=true;b.textContent='원본 등록 중…';
  try{
-  const body={title:$('title').value.trim(),artist:$('artist').value.trim(),genre:$('genre').value.trim()||'Music',stream_url:upload.url||upload.stream_url||'',cover_image:upload.cover_url||'',shared_to_shareplace:false,auth_status:'creator_uploaded',icon:'🎵',user_email:user.email,username:user.username||user.email};
+  const body={title:$('title').value.trim(),artist:$('artist').value.trim(),genre:$('genre').value.trim()||'Music',stream_url:upload.url||upload.stream_url||'',cover_image:upload.cover_url||'',shared_to_shareplace:false,auth_status:'creator_uploaded',icon:'🎵',file_type:'audio/mpeg',force_new:true,user_email:user.email,username:user.username||user.email};
   const r=await fetch(API+'/api/files/sync',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),body:JSON.stringify(body)});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'원본 자산 등록 실패');share=d;share.file_id=d.d1_id;preview();step(3);
  }catch(e){err('error2',e.message);b.disabled=false;b.textContent='비공개 원본 등록하고 계속';}
 };
 $('releaseBtn').onclick=async()=>{
  clearErr('error3');if(!$('rights').checked){err('error3','권리 확인에 동의해야 TL3로 공유할 수 있습니다.');return;}if(!share?.file_id){err('error3','비공개 원본 등록이 먼저 완료되어야 합니다.');return;}
  const b=$('releaseBtn');b.disabled=true;b.textContent='TL3 생성 및 공유 중…';
- try{const r=await fetch(API+'/api/v1/tl3/releases',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),body:JSON.stringify({file_id:Number(share.file_id),title:$('title').value.trim(),artist:$('artist').value.trim(),price_tl:Number($('price').value||0),rights_confirmed:true})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'TL3 공유 실패');tl3=true;finish(true,d);}catch(e){err('error3',e.message);b.disabled=false;b.textContent='TL3 공유 등록';}
+ try{if(!window.TimeLinkTL3||typeof window.TimeLinkTL3.manufacture!=='function')throw new Error('공통 TL3 제조 엔진을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');const fileId=Number(share.file_id);const result=await window.TimeLinkTL3.manufacture({api:API,token:token,fileId:fileId,shareId:'tl3_'+fileId,title:$('title').value.trim(),artist:$('artist').value.trim(),priceTl:Number($('price').value||0),rightsConfirmed:true});tl3=true;finish(true,result.release);if(result.spineError){$('doneText').innerHTML+='<br><span style="color:#F5A623">Spine v4 봉인 보류: '+esc(result.spineError)+'</span>';}}catch(e){err('error3',e.message);b.disabled=false;b.textContent='TL3 공유 등록';}
 };
 function finish(released,d){
  $('doneTitle').textContent='TL3 등록 완료 · 관리자 승인 대기';

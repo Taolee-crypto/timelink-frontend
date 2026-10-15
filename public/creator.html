@@ -457,6 +457,7 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
   </main>
 </div>
 
+<script src="/tl3-manufacture.js?v=20261015"></script>
 <script>
 // ═══════════════════════════════════════════
 // 전역 변수
@@ -1117,7 +1118,8 @@ var localUpload = await fetch(localAgent+'/upload?kind=mp3&name='+encodeURICompo
       cover_image: _finalCoverUrl,
       user_email: _user.email,
       username: _user.username || _user.email,
-      shared_to_shareplace: true
+      shared_to_shareplace: true,
+      force_new: true
     };
     var _syncRes = await fetch(API + '/api/files/sync', {
       method: 'POST',
@@ -1127,46 +1129,21 @@ var localUpload = await fetch(localAgent+'/upload?kind=mp3&name='+encodeURICompo
     var _syncData = await _syncRes.json().catch(function(){ return {}; });
     if(!_syncData.ok || !_syncData.d1_id) throw new Error('tl_files 저장 실패: ' + (_syncData.error || ''));
 
-    var _v3Res = await fetch(API + '/api/v1/tl3/releases', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + _token
-      },
-      body: JSON.stringify({
-        file_id: _syncData.d1_id,
-        share_id: _shareData.id,
-        title: p.title,
-        artist: p.artist,
-        price_tl: fileTL,
-        rights_confirmed: true
-      })
+    setProg(95, '공통 TL3 제조 엔진 실행 중... ('+idx+'/'+total+')');
+    if (!window.TimeLinkTL3 || typeof window.TimeLinkTL3.manufacture !== 'function') {
+      throw new Error('공통 TL3 제조 엔진을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
+    }
+    var _manufactured = await window.TimeLinkTL3.manufacture({
+      api: API, token: _token, fileId: _syncData.d1_id, shareId: _shareData.id,
+      title: p.title, artist: p.artist, priceTl: fileTL, rightsConfirmed: true
     });
-    var _v3Data = await _v3Res.json().catch(function(){ return {}; });
-    if(!_v3Data.ok) throw new Error('v3 빌드 실패: ' + (_v3Data.error || ''));
-    console.log('[TL3 v3]', _v3Data);
-
-    // Spine v4 제조본도 서버에 별도 봉인한다. v3 공개 재생 경로는 그대로 유지한다.
-    setProg(96, 'Spine v4 변환 및 스파인 결속 중... ('+idx+'/'+total+')');
-    var _spineRes = await fetch(API + '/api/v1/tl3/spine/releases', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + _token
-      },
-      body: JSON.stringify({
-        file_id: _syncData.d1_id,
-        share_id: _shareData.id,
-        rights_confirmed: true
-      })
-    });
-    var _spineData = await _spineRes.json().catch(function(){ return {}; });
-    if (!_spineRes.ok || !_spineData.ok) {
-      console.error('[TL3 Spine v4]', _spineData);
-      toast('기존 TL3 출시는 완료됐지만 Spine v4 제조는 보류됐습니다: ' + (_spineData.error || _spineRes.status), 'warning');
+    var _v3Data = _manufactured.release;
+    console.log('[TL3 제조 완료]', _manufactured);
+    if (_manufactured.spineError) {
+      console.error('[TL3 Spine v4]', _manufactured.spineError);
+      toast('TL3 출시는 완료됐지만 Spine v4 봉인은 보류됐습니다: ' + _manufactured.spineError, 'warning');
     } else {
-      console.log('[TL3 Spine v4]', _spineData);
-      toast('TL3 Spine v4 제조 및 서버 봉인이 완료됐습니다.', 'success');
+      toast('TL3 v3 제조 및 Spine v4 봉인이 완료됐습니다.', 'success');
     }
 
     // ═══ CERT_LOGIC_V1: 자산 등록 + (선택) 증명서 발행 ═══
