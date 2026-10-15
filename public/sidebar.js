@@ -11,6 +11,7 @@
     ['BROADCAST', [['/radio.html','◉','TL Broadcast'],['/cafe-radio.html','▣','Cafe Broadcast',true],['/incar.html','◇','In-car Broadcast',true],['/dj-center.html','♫','DJ Center'],['/cafe-owner.html','⌂','Cafe Management']]],
     ['ADVERTISING', [['/advertiser.html','▱','Advertiser Center'],['/ads.html','▣','Ad Watching']]],
     ['TL ECONOMICS', [['/wallet.html','◉','Wallet']]],
+    ['MY', [['/dashboard.html','◎','My Dashboard']]],
     ['MY', [['/dashboard.html','◎','Dashboard'],['/dashboard.html?tab=content','▤','My Library',true],['/dashboard.html?tab=mining','⛏','TLC Mining',true],['/dashboard.html?tab=mission','🎯','Missions',true],['/dashboard.html?tab=cafe','☕','Cafe Channels',true]]],
     ['ADMIN', [['/admin.html','⚙','Admin Console']]]
   ];
