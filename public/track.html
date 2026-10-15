@@ -406,12 +406,15 @@ async function loadTrack(){
   
   try {
     const authHeaders={'Authorization':'Bearer '+getTok()};
-    const [sr,statsR,walletR]=await Promise.all([
-      fetch(API+'/api/shares/'+SHARE_ID),
-      fetch(API+'/api/social/stats/'+SHARE_ID,{headers:authHeaders}),
-      fetch(API+'/api/eco/wallet',{headers:authHeaders})
-    ]);
-    const s=await sr.json(),stats=await statsR.json(),walletData=await walletR.json();
+    const sr = await fetch(API+'/api/shares/'+SHARE_ID);
+    const s = await sr.json();
+    let stats = { my_like: false, likes: 0, comments: 0 };
+    try {
+      const statsR = await fetch(API+'/api/social/stats/'+SHARE_ID,{headers:authHeaders});
+      if (statsR.ok) stats = await statsR.json();
+    } catch(e){ console.warn('[social stats]', e); }
+    const walletR = await fetch(API+'/api/eco/wallet',{headers:authHeaders});
+    const walletData = await walletR.json();
     if(!sr.ok) throw new Error(s.error||'트랙 정보를 찾을 수 없습니다.');
     if(!walletR.ok) throw new Error(walletData.error||'공통 지갑 조회 실패');
     if(contentKind(s)!=='tl3'){
