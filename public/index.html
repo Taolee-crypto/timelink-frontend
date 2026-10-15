@@ -519,21 +519,25 @@ body.tl-global-shell .g-nav{padding:0 24px}
     var musicRoot=document.getElementById('musicGrid');
     function isAudio(item){
       var type=String(item.file_type||'').toLowerCase();
+      var kind=String(item.content_kind||item.asset_type||item.tl_type||'').toLowerCase();
+      var release=String(item.release_mode||'').toLowerCase();
       var url=String(item.stream_url||item.preview_url||'').toLowerCase();
-      var category=String(item.category||'').toLowerCase();
-      return type.indexOf('audio/')===0 || /\.(mp3|wav|flac|aac|ogg|m4a|tl3)(\?|$)/.test(url) ||
-        ['k-pop','kpop','pop','ballad','hip-hop','indie','jazz','electronic','rock','classical','lo-fi','lofi','acoustic','dance'].some(function(g){return category.indexOf(g)>=0;});
+      return kind==='tl3'||release==='tl3'||type==='audio/tl3'||/\.tl3(\?|$)/.test(url);
     }
     function renderCards(target,list,emptyMessage){
       if(!target)return;
       if(!list.length){target.innerHTML='<div class="g-track-empty">'+emptyMessage+'</div>';return;}
       target.innerHTML=list.map(function(item){
         var id=encodeURIComponent(String(item.id||''));
+        var kind=String(item.content_kind||item.asset_type||item.tl_type||item.release_mode||'').toLowerCase();
+        var url=String(item.stream_url||item.preview_url||'').toLowerCase();
+        var isTL3=kind==='tl3'||/\.tl3(\?|$)/.test(url);
+        var target=isTL3?'track.html?id='+id:'shareplace.html';
         var title=escapeHTML(item.title||'Untitled');
         var artist=escapeHTML(item.artist||item.username||'Creator');
         var image=safeImage(item.cover_url);
         var cover=image?'<img src="'+escapeHTML(image)+'" alt="" loading="lazy">':'<span aria-hidden="true">♫</span>';
-        return '<a class="g-track" href="track.html?id='+id+'"><div class="g-cover">'+cover+'</div><div class="g-track-title">'+title+'</div><div class="g-track-artist">'+artist+'</div></a>';
+        return '<a class="g-track" href="'+target+'"><div class="g-cover">'+cover+'</div><div class="g-track-title">'+title+'</div><div class="g-track-artist">'+artist+'</div></a>';
       }).join('');
     }
     try{
