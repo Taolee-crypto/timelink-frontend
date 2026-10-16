@@ -1575,9 +1575,13 @@ function togglePlay(){
 
 function stopPlay(){
   console.log('[PLAY] stopPlay 호출됨!');
-  // 재생 잠금 우회가 아닌 브라우저 기본 pause를 사용하고, 현재 소스도 해제합니다.
+  // STOP_FIX_V1: MediaSource 파괴 전에 tl3.js 세션을 정지시켜야 함
   const audio = _tlAudio;
   if(audio){
+    // ★ tl3.js의 _next가 appendBuffer 시도하지 않도록 세션 정지
+    if(audio._tl3Stop) { try { audio._tl3Stop(); console.log('[PLAY] _tl3Stop 호출'); } catch(e){} }
+    if(audio._tl3Confirm) { try { audio._tl3Confirm().catch(function(){}); } catch(e){} }
+    if(audio._tl3SegmentStop) { try { audio._tl3SegmentStop(); } catch(e){} }
     try { audio.pause(); } catch(e){}
     try { audio.removeAttribute('src'); audio.load(); } catch(e){}
   }
