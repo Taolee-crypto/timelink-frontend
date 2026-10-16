@@ -291,7 +291,7 @@ $('lpCheck').addEventListener('change', function(){
 async function buildLpFlac(){
   if(!window._lpLicense || !window._lpLicense.lp_enabled) return null;
   if(!file){ return null; }
-  if(!window.TL3_LP || !window.TL3_LP_FLAC){ return null; }
+  if(!window.TL3_LP || !window.TL3_LP_Opus){ return null; }
   try{
     var s = $('lpPreviewStatus');
     if(s) s.textContent = 'LP 처리 중...';
@@ -314,24 +314,24 @@ async function buildLpFlac(){
 
     // 3. LP 처리 (PCM)
     var lp = window.TL3_LP.render(Lorig, Rorig, fs, g, seed);
-    if(s) s.textContent = 'LP FLAC 인코딩 준비...';
+    if(s) s.textContent = 'LP Opus 인코딩 준비...';
 
     // 4. AudioBuffer 생성
     var lpBuf = ac.createBuffer(2, n, fs);
     lpBuf.getChannelData(0).set(lp.L);
     lpBuf.getChannelData(1).set(lp.R);
 
-    // 5. FLAC 인코딩 (WebCodecs)
-    var supported = await window.TL3_LP_FLAC.isSupported();
+    // 5. Opus 인코딩 (WebCodecs)
+    var supported = await window.TL3_LP_Opus.isSupported();
     if(!supported){
-      throw new Error('이 브라우저는 FLAC 인코딩을 지원하지 않습니다 (Chrome 94+ 필요)');
+      throw new Error('이 브라우저는 Opus 인코딩을 지원하지 않습니다 (Chrome 94+ 필요)');
     }
-    if(s) s.textContent = 'FLAC 인코딩 중... (0%)';
+    if(s) s.textContent = 'Opus 인코딩 중... (0%)';
 
-    var flacResult = await window.TL3_LP_FLAC.encode(lpBuf, {
+    var opusResult = await window.TL3_LP_Opus.encode(lpBuf, {
       bitrate: 700000,
       onProgress: function(p){
-        if(s) s.textContent = 'FLAC 인코딩 중... (' + (p.pct || 0) + '%)';
+        if(s) s.textContent = 'Opus 인코딩 중... (' + (p.pct || 0) + '%)';
       }
     });
 
@@ -339,22 +339,22 @@ async function buildLpFlac(){
     window._lpLicense.lp_g = g;
     window._lpLicense.lp_fs = fs;
     window._lpLicense.lp_n = n;
-    window._lpFlac = flacResult;
+    window._lpOpus = opusResult;
 
-    if(s) s.textContent = '✅ FLAC 인코딩 완료 (' + Math.round(flacResult.size/1024) + ' KB)';
-    console.log('[LP-FLAC]', {
+    if(s) s.textContent = '✅ Opus 인코딩 완료 (' + Math.round(opusResult.size/1024) + ' KB)';
+    console.log('[LP-OPUS]', {
       original_samples: n,
       fs: fs,
-      flac_bytes: flacResult.size,
-      ratio: (flacResult.size / (n*2*2) * 100).toFixed(2) + '%'
+      opus_bytes: opusResult.size,
+      ratio: (opusResult.size / (n*2*2) * 100).toFixed(2) + '%'
     });
     ac.close();
-    return flacResult;
+    return opusResult;
   }catch(e){
-    console.error('[LP-FLAC] 인코딩 실패:', e);
+    console.error('[LP-OPUS] 인코딩 실패:', e);
     var s2 = $('lpPreviewStatus');
-    if(s2) s2.textContent = '⚠️ FLAC 인코딩 실패: ' + e.message;
-    window._lpFlac = null;
+    if(s2) s2.textContent = '⚠️ Opus 인코딩 실패: ' + e.message;
+    window._lpOpus = null;
     return null;
   }
 }
@@ -378,7 +378,7 @@ $('lpContinueBtn').onclick=async function(){
     };
     // ★ 차분 생성
     var btn = $('lpContinueBtn');
-    if(btn){ btn.disabled = true; btn.textContent = 'FLAC 인코딩 중...'; }
+    if(btn){ btn.disabled = true; btn.textContent = 'Opus 인코딩 중...'; }
     await buildLpFlac();
     if(btn){ btn.disabled = false; btn.textContent = '다음 (TL3 공유 설정) →'; }
   } else {
@@ -430,7 +430,7 @@ $('lpPreviewLp').onclick=function(){lpPreview('lp');};
 $('releaseBtn').onclick=async()=>{
  clearErr('error3');if(!$('rights').checked){err('error3','권리 확인에 동의해야 TL3로 공유할 수 있습니다.');return;}if(!share?.file_id){err('error3','비공개 원본 등록이 먼저 완료되어야 합니다.');return;}
  const b=$('releaseBtn');b.disabled=true;b.textContent='TL3 생성 및 공유 중…';
- try{if(!window.TimeLinkTL3||typeof window.TimeLinkTL3.manufacture!=='function')throw new Error('공통 TL3 제조 엔진을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');const fileId=Number(share.file_id);const result=await window.TimeLinkTL3.manufacture({api:API,token:token,fileId:fileId,shareId:'tl3_'+fileId,title:$('title').value.trim(),artist:$('artist').value.trim(),priceTl:Number($('price').value||0),rightsConfirmed:true,lpLicense:window._lpLicense||null,lpFlac:window._lpFlac||null});tl3=true;finish(true,result.release);if(result.spineError){$('doneText').innerHTML+='<br><span style="color:#F5A623">Spine v4 봉인 보류: '+esc(result.spineError)+'</span>';}}catch(e){err('error3',e.message);b.disabled=false;b.textContent='TL3 공유 등록';}
+ try{if(!window.TimeLinkTL3||typeof window.TimeLinkTL3.manufacture!=='function')throw new Error('공통 TL3 제조 엔진을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');const fileId=Number(share.file_id);const result=await window.TimeLinkTL3.manufacture({api:API,token:token,fileId:fileId,shareId:'tl3_'+fileId,title:$('title').value.trim(),artist:$('artist').value.trim(),priceTl:Number($('price').value||0),rightsConfirmed:true,lpLicense:window._lpLicense||null,lpOpus:window._lpOpus||null});tl3=true;finish(true,result.release);if(result.spineError){$('doneText').innerHTML+='<br><span style="color:#F5A623">Spine v4 봉인 보류: '+esc(result.spineError)+'</span>';}}catch(e){err('error3',e.message);b.disabled=false;b.textContent='TL3 공유 등록';}
 };
 function finish(released,d){
  $('doneTitle').textContent='TL3 자산 등록 및 SharePlace 공유 완료';
