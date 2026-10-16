@@ -410,6 +410,7 @@ html, body { height: auto; overflow-y: auto; overflow-x: hidden; }
 <script>
 const API = 'https://api.timelink.digital';
 const SHARE_ID = new URLSearchParams(location.search).get('id');
+const _VALID_SHARE_ID = SHARE_ID && /^sh_/.test(SHARE_ID);
 let _share = null, _myLiked = false, _myFollowing = false;
 let _myFileTL = 0;  // 공통 사용자 지갑 TL
 let _assetTL = 0, _assetInitialTL = 0;
@@ -494,9 +495,11 @@ async function loadTrack(){
     const s = await sr.json();
     let stats = { my_like: false, likes: 0, comments: 0 };
     try {
-      const statsR = await fetch(API+'/api/social/stats/'+SHARE_ID,{headers:authHeaders});
-      if (statsR.ok) stats = await statsR.json();
-    } catch(e){ console.warn('[social stats]', e); }
+      if (_VALID_SHARE_ID) {
+        const statsR = await fetch(API+'/api/social/stats/'+SHARE_ID,{headers:authHeaders});
+        if (statsR.ok) stats = await statsR.json();
+      }
+    } catch(e){ /* silent */ }
     const walletR = await fetch(API+'/api/eco/wallet',{headers:authHeaders});
     const walletData = await walletR.json();
     if(!sr.ok) throw new Error(s.error||'트랙 정보를 찾을 수 없습니다.');
@@ -1349,9 +1352,11 @@ async function loadComments(){
   if(!list) return;
   let d = { comments: [] };
   try {
-    const r=await fetch(API+'/api/social/comments/'+SHARE_ID);
-    if (r.ok) d = await r.json();
-  } catch(e){ console.warn('[comments]', e); }
+    if (_VALID_SHARE_ID) {
+      const r=await fetch(API+'/api/social/comments/'+SHARE_ID);
+      if (r.ok) d = await r.json();
+    }
+  } catch(e){ /* silent */ }
   if(!d.comments||!d.comments.length){list.innerHTML='<div class="empty-comment">🎵 첫 댓글을 남겨보세요!</div>';return;}
   list.innerHTML=d.comments.map(c=>`
     <div class="comment-item">
