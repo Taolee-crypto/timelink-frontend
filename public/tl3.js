@@ -455,40 +455,23 @@
       // 5. LP 차분 다운로드
       onProgress({ stage: 'diff', pct: 60 });
       var fileId = header.file_id || header.fid;
-      var diffRes = await fetch(API + '/api/v1/tl3/lp-diff/' + fileId, { headers: authHeaders() });
-      if(!diffRes.ok) throw new Error('lp-diff HTTP ' + diffRes.status);
-      var diffBytes = new Uint8Array(await diffRes.arrayBuffer());
-      var packed = {
-        codec: diffRes.headers.get('X-LP-Codec') || lpMeta.diff_codec || 'deflate',
-        bytes: diffBytes,
-        n: Number(diffRes.headers.get('X-LP-N') || lpMeta.diff_n || 0),
-        scale: Number(diffRes.headers.get('X-LP-Scale') || lpMeta.diff_scale || 128)
-      };
-      console.log('[LP] 차분 로드:', diffBytes.length, 'bytes, codec:', packed.codec);
+      var flacRes = await fetch(API + '/api/v1/tl3/lp-flac/' + fileId, { headers: authHeaders() });
+      if(!flacRes.ok) throw new Error('lp-flac HTTP ' + flacRes.status);
+      var flacBytes = new Uint8Array(await flacRes.arrayBuffer());
+      console.log('[LP] FLAC 로드:', flacBytes.length, 'bytes');
 
       // 6. 압축 해제
       onProgress({ stage: 'unpack', pct: 75 });
-      if(!window.TL3_LP_DIFF){
-        throw new Error('TL3_LP_DIFF 모듈 미로드');
+      if(!window.TL3_LP_FLAC){
+        throw new Error('TL3_LP_FLAC 모듈 미로드');
       }
-      var diff = await window.TL3_LP_DIFF.unpackDiff(packed);
+      // FLAC 디코딩 → LP PCM (AudioBuffer)
+      var lpPcmBuf = await window.TL3_LP_FLAC.decode(flacBytes, audioCtx);
+      console.log('[LP] FLAC 디코딩 완료:', lpPcmBuf.length, 'samples');
 
-      // 7. PCM + 차분 = LP PCM
+      // 7. LP PCM 그대로 사용 (FLAC 디코딩 결과)
       onProgress({ stage: 'apply', pct: 85 });
-      var L = pcmBuf.getChannelData(0).slice(0);
-      var R = pcmBuf.numberOfChannels > 1 ? pcmBuf.getChannelData(1).slice(0) : L.slice(0);
-      // 차분 배열 길이 맞춤
-      var applyLen = Math.min(diff.n, L.length);
-      var invScale = 1 / (diff.scale || 128);
-      for(var i = 0; i < applyLen; i++){
-        L[i] += (diff.dL[i] || 0) * invScale;
-        R[i] += (diff.dR[i] || 0) * invScale;
-      }
-
-      // 8. AudioBuffer 재구성
-      var lpBuf = audioCtx.createBuffer(2, pcmBuf.length, pcmBuf.sampleRate);
-      lpBuf.getChannelData(0).set(L);
-      lpBuf.getChannelData(1).set(R);
+      var lpBuf = lpPcmBuf;  // FLAC에서 디코딩된 LP PCM
 
       // 9. 재생
       onProgress({ stage: 'play', pct: 100 });
@@ -1759,7 +1742,6 @@
 
     playStream: playStream,
     playFile: playFile,
-    playFileLP: playFileLP,
     streamSegmented: streamSegmented,
     stop: stop,
     loadHeader: loadHeader,
