@@ -633,7 +633,33 @@
   //   TL3.playStream(fileId, audioEl, opts) → Promise
   //   opts: { onReady, onSegment, onError, sessionId }
   // ─────────────────────────────
-  function playStream(fileId, audioEl, opts){
+  async function _hasLpMeta(fileId){
+    try {
+      var hdr = await loadHeader(String(fileId).split('/').pop().split('?')[0]);
+      return !!(hdr && hdr.lp_meta && hdr.lp_meta.enabled);
+    } catch(e){ return false; }
+  }
+
+  async function playStream(fileId, audioEl, opts){
+    // ★ LP 자동 감지: lp_meta 있으면 playFileLP로 위임
+    try {
+      if(!opts || !opts._noLp){
+        var hasLp = await _hasLpMeta(fileId);
+        if(hasLp && typeof playFileLP === 'function'){
+          console.log('[TL3.playStream] LP 감지 → 파일 모드로 전환');
+          // 파일 다운로드
+          var fileRes = await fetch(API + '/api/v1/tl3/file/' + encodeURIComponent(fileId), {
+            headers: (opts && opts.fetchOptions && opts.fetchOptions.headers) || {}
+          });
+          if(fileRes.ok){
+            var blob = await fileRes.blob();
+            return playFileLP(blob, audioEl, opts);
+          }
+        }
+      }
+    } catch(e){
+      console.warn('[TL3.playStream] LP 감지 실패, 원본 스트리밍:', e);
+    }
     console.log('[TL3.playStream] START fileId=', fileId);
     opts = opts || {};
     var onSegment = opts.onSegment || function(){};
@@ -1674,6 +1700,7 @@
 
     playStream: playStream,
     playFile: playFile,
+    playFileLP: playFileLP,
     streamSegmented: streamSegmented,
     stop: stop,
     loadHeader: loadHeader,
