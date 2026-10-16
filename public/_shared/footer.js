@@ -63,15 +63,8 @@
     // grid 부모에서 전체 폭 차지 (grid-column: 1 / -1)
     footerEl.style.gridColumn = '1 / -1';
 
-    // grid 부모에서 전체 폭 차지 (grid-column: 1 / -1)
-    footerEl.style.gridColumn = '1 / -1';
-
-    var mainWrap = document.getElementById('mainWrap');
-    if (mainWrap) {
-      mainWrap.appendChild(footerEl);
-    } else {
-      document.body.appendChild(footerEl);
-    }
+    // body 직계 자식으로 삽입 (mainWrap의 grid/flex 영향 회피)
+    document.body.appendChild(footerEl);
   }
 
   if (document.readyState === 'loading') {
