@@ -356,6 +356,170 @@
   }
 
   // ─────────────────────────────
+  // playFileLP — .tl3 파일 LP Enhanced 재생 (차분 적용)
+  //   opts: { onSegment, onError, onProgress }
+  //   원리: MP3 세그먼트 전체 복호화 → PCM → +차분 → 재생
+  // ─────────────────────────────
+  async function playFileLP(file, audio, opts){
+    opts = opts || {};
+    var onError = opts.onError || function(){};
+    var onProgress = opts.onProgress || function(){};
+
+    try {
+      // 1. TL3 파싱
+      onProgress({ stage: 'parse', pct: 5 });
+      var buf = file instanceof ArrayBuffer ? new Uint8Array(file)
+              : new Uint8Array(await file.arrayBuffer());
+      if(buf[0]!==0x54||buf[1]!==0x4C||buf[2]!==0x4E||buf[3]!==0x4B) throw new Error('Not TL3');
+      if(buf[4]!==0x03) throw new Error('Not TL3 v3');
+
+      var hlen = ((buf[5]<<24)|(buf[6]<<16)|(buf[7]<<8)|buf[8])>>>0;
+      var header = JSON.parse(new TextDecoder().decode(buf.subarray(9, 9+hlen)));
+
+      // 2. lp_meta 확인
+      var lpMeta = header.lp_meta;
+      if(!lpMeta || !lpMeta.enabled){
+        console.log('[LP] lp_meta 없음 → 원본 재생');
+        return playFile(file, audio, opts);
+      }
+
+      // 3. 세그먼트 복호화
+      onProgress({ stage: 'decrypt', pct: 10 });
+      var fid = unhex(header.fid);
+      var salt = unhex(header.salt);
+      var hashMp3 = unhex(header.hash_mp3);
+      var lic = unhex(header.lic);
+      var tokens = header.mp3_tokens || [];
+      var mp3Info = header.mp3 || {};
+      var N = Number(mp3Info.N || 0);
+      var segBytes = Number(mp3Info.seg_bytes || 0);
+      var lastBytes = Number(mp3Info.last_bytes || 0);
+      var segLens = header.mp3_seg_lens || null;
+      var off = 9 + hlen;
+
+      var mp3Chunks = [];
+      var totalBytes = 0;
+      var Tprev = null;
+
+      for(var n = 1; n <= N; n++){
+        if(n === 1){
+          var T0c = await sha256(fid, hashMp3, salt);
+          Tprev = T0c;
+        } else {
+          Tprev = unhex(tokens[n-1]);
+        }
+
+        var ctLen;
+        if(segLens && segLens.length >= n){
+          ctLen = Number(segLens[n-1]);
+        } else if(segBytes > 0){
+          ctLen = (n < N) ? (segBytes + 16) : (lastBytes || (segBytes + 16));
+        } else {
+          throw new Error('segment length 정보 없음');
+        }
+
+        var ct = buf.subarray(off, off + ctLen);
+        off += ctLen;
+
+        // T_n 검증
+        var hct = await sha256(ct);
+        var Tnc = await sha256(Tprev, fid, enc(String(n)), hct);
+        var Tnf = tokens[n] ? unhex(tokens[n]) : null;
+        if(Tnf && hex(Tnc) !== hex(Tnf)){
+          throw new Error('[스파인] T_'+n+' 검증 실패');
+        }
+
+        // K_n 유도 + 복호화
+        var K_n = await sha256(Tprev, lic, enc('K' + n));
+        var key = await crypto.subtle.importKey('raw', K_n, {name:'AES-GCM'}, false, ['decrypt']);
+        var plain = new Uint8Array(await crypto.subtle.decrypt(
+          {name:'AES-GCM', iv: ivFor(n), tagLength: 128},
+          key, ct
+        ));
+        mp3Chunks.push(plain);
+        totalBytes += plain.length;
+
+        if(n % 10 === 0 || n === N){
+          onProgress({ stage: 'decrypt', pct: 10 + Math.round(n / N * 30) });
+        }
+      }
+      console.log('[LP] 복호화 완료:', N, '세그먼트,', totalBytes, 'bytes');
+
+      // 4. MP3 Blob → decodeAudioData → PCM
+      onProgress({ stage: 'decode', pct: 45 });
+      var mp3Blob = new Blob(mp3Chunks, { type: 'audio/mpeg' });
+      var audioCtx = window._tlAudioCtx || (window._tlAudioCtx = new (window.AudioContext||window.webkitAudioContext)());
+      var pcmBuf = await audioCtx.decodeAudioData(await mp3Blob.arrayBuffer());
+      console.log('[LP] PCM 디코딩 완료:', pcmBuf.length, 'samples,', pcmBuf.sampleRate, 'Hz');
+
+      // 5. LP 차분 다운로드
+      onProgress({ stage: 'diff', pct: 60 });
+      var fileId = header.file_id || header.fid;
+      var diffRes = await fetch(API + '/api/v1/tl3/lp-diff/' + fileId, { headers: authHeaders() });
+      if(!diffRes.ok) throw new Error('lp-diff HTTP ' + diffRes.status);
+      var diffBytes = new Uint8Array(await diffRes.arrayBuffer());
+      var packed = {
+        codec: diffRes.headers.get('X-LP-Codec') || lpMeta.diff_codec || 'deflate',
+        bytes: diffBytes,
+        n: Number(diffRes.headers.get('X-LP-N') || lpMeta.diff_n || 0),
+        scale: Number(diffRes.headers.get('X-LP-Scale') || lpMeta.diff_scale || 128)
+      };
+      console.log('[LP] 차분 로드:', diffBytes.length, 'bytes, codec:', packed.codec);
+
+      // 6. 압축 해제
+      onProgress({ stage: 'unpack', pct: 75 });
+      if(!window.TL3_LP_DIFF){
+        throw new Error('TL3_LP_DIFF 모듈 미로드');
+      }
+      var diff = await window.TL3_LP_DIFF.unpackDiff(packed);
+
+      // 7. PCM + 차분 = LP PCM
+      onProgress({ stage: 'apply', pct: 85 });
+      var L = pcmBuf.getChannelData(0).slice(0);
+      var R = pcmBuf.numberOfChannels > 1 ? pcmBuf.getChannelData(1).slice(0) : L.slice(0);
+      // 차분 배열 길이 맞춤
+      var applyLen = Math.min(diff.n, L.length);
+      var invScale = 1 / (diff.scale || 128);
+      for(var i = 0; i < applyLen; i++){
+        L[i] += (diff.dL[i] || 0) * invScale;
+        R[i] += (diff.dR[i] || 0) * invScale;
+      }
+
+      // 8. AudioBuffer 재구성
+      var lpBuf = audioCtx.createBuffer(2, pcmBuf.length, pcmBuf.sampleRate);
+      lpBuf.getChannelData(0).set(L);
+      lpBuf.getChannelData(1).set(R);
+
+      // 9. 재생
+      onProgress({ stage: 'play', pct: 100 });
+      var src = audioCtx.createBufferSource();
+      src.buffer = lpBuf;
+      src.connect(audioCtx.destination);
+      // 기존 audio 엘리먼트와 동기화 (선택)
+      src.onended = function(){
+        if(opts.onEnded) opts.onEnded();
+      };
+      src.start(0);
+
+      // 정지 함수
+      function stopLP(){
+        try { src.stop(); } catch(e){}
+      }
+      if(audio){ audio._tl3Stop = stopLP; }
+
+      console.log('[LP] ✅ LP Enhanced 재생 시작');
+      return { stop: stopLP, header: header, lpMeta: lpMeta };
+
+    } catch(e){
+      console.error('[LP] 재생 실패:', e);
+      onError(e);
+      // 폴백: 원본 재생
+      console.log('[LP] 원본으로 폴백');
+      return playFile(file, audio, opts);
+    }
+  }
+
+  // ─────────────────────────────
   // resolveUrl (shareplace용)
   // ─────────────────────────────
   function resolveUrl(fileUrl, opts){
@@ -670,7 +834,7 @@
     resolveUrl: resolveUrl,
 
     playStream: playStream,
-    playFile: playFile,
+    playFile: playFile, playFileLP: playFileLP,
     streamSegmented: streamSegmented,
     stop: stop,
     loadHeader: loadHeader,
