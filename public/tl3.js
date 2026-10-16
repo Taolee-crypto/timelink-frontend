@@ -583,10 +583,22 @@
         var n = 0;
         var stopped = false;
 
+        // resolveUrl_STOP_FIX: 중단 함수 + audio에 연결
+        function stopSession(){
+          stopped = true;
+          console.log('[TL3.resolveUrl] stopSession 호출');
+          try {
+            if (sb && sb.updating) { try { sb.abort(); } catch(e){} }
+            if (ms && ms.readyState === 'open') { try { ms.endOfStream(); } catch(e){} }
+          } catch(e){}
+        }
+        if (opts.audioEl) opts.audioEl._tl3Stop = stopSession;
+        if (opts.audio)   opts.audio._tl3Stop   = stopSession;
+        if (opts.audioEl) opts.audioEl._tl3Confirm = async function(){};
+
         ms.addEventListener('sourceopen', function(){
           try {
             sb = ms.addSourceBuffer('audio/mpeg');
-            // sb 참조 업데이트
             if (window._tlMsRefs) {
               var refs = window._tlMsRefs;
               for (var _i = refs.length - 1; _i >= 0; _i--) {
