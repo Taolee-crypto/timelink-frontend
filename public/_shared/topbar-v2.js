@@ -71,9 +71,7 @@
     if (!title || title === 'NaN' || title === 'undefined' || title === 'null') title = 'TIMELINK';
     var bar = document.createElement('div');
     bar.className = 'tl-topbar';
-    bar.innerHTML =
-
-      + '<div class="tl-title">' + title.toUpperCase() + '</div>'
+    bar.innerHTML = '<div class="tl-title">' + title.toUpperCase() + '</div>'
       + '<div class="tl-search"><span style="color:rgba(255,255,255,.35);font-size:14px">🔍</span>'
       + '<input type="text" placeholder="파일명, 아티스트, 태그 검색..." id="tl-topbar-search"></div>'
       + '<button class="tl-upload" onclick="location.href=\'/creator-studio.html\'">📤 내 파일 업로드</button>'
