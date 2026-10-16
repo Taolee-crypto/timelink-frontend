@@ -31,19 +31,19 @@
     if (o.rightsConfirmed !== true) throw new Error('저작권 또는 적법한 이용 권한 확인이 필요합니다.');
     // ★ LP 라이선스 + 차분 처리
     var lpLicense = o.lpLicense || null;
-    var lpDiff = o.lpDiff || null;
-    var lpDiffB64 = null;
-    if (lpDiff && lpDiff.bytes) {
+    // ★ LP FLAC 처리 (특허 10-2025-0167813)
+    var lpFlac = o.lpFlac || null;
+    var lpFlacB64 = null;
+    if (lpFlac && lpFlac.flac) {
       try {
-        // Uint8Array → base64
-        var bytes = lpDiff.bytes;
+        var bytes = lpFlac.flac;
         var bin = '';
         for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-        lpDiffB64 = btoa(bin);
-        console.log('[manufacture] LP diff base64:', lpDiffB64.length, 'chars, codec:', lpDiff.codec);
+        lpFlacB64 = btoa(bin);
+        console.log('[manufacture] LP FLAC base64:', lpFlacB64.length, 'chars, size:', bytes.length, 'bytes');
       } catch (e) {
-        console.warn('[manufacture] lpDiff base64 인코딩 실패:', e);
-        lpDiffB64 = null;
+        console.warn('[manufacture] lpFlac base64 인코딩 실패:', e);
+        lpFlacB64 = null;
       }
     }
     var releaseBody = {
@@ -55,11 +55,12 @@
       rights_confirmed: true
     };
     if (lpLicense) releaseBody.lp_license = lpLicense;
-    if (lpDiffB64) {
-      releaseBody.lp_diff_b64 = lpDiffB64;
-      releaseBody.lp_diff_codec = lpDiff.codec || 'deflate';
-      releaseBody.lp_diff_n = lpDiff.n || 0;
-      releaseBody.lp_diff_scale = lpDiff.scale || 128;
+    if (lpFlacB64) {
+      releaseBody.lp_flac_b64 = lpFlacB64;
+      releaseBody.lp_flac_fs = lpFlac.sampleRate || 44100;
+      releaseBody.lp_flac_ch = lpFlac.channels || 2;
+      releaseBody.lp_flac_n = lpFlac.length || 0;
+      releaseBody.lp_flac_bytes = lpFlac.size || 0;
     }
     const release = await postJson(api + '/api/v1/tl3/releases', token, releaseBody);
     if (Number(release.file_id) !== fileId) throw new Error('서버가 반환한 TL3 file_id가 원본 자산과 일치하지 않습니다.');
@@ -74,7 +75,7 @@
     }
     return { ok: true, release: release, spine: spine, spineError: spineError,
       file_id: fileId, share_id: String(release.share_id || shareId),
-      lp: lpLicense ? { enabled: true, diff_bytes: lpDiffB64 ? lpDiffB64.length : 0 } : { enabled: false } };
+      lp: lpLicense ? { enabled: true, flac_bytes: lpFlacB64 ? lpFlacB64.length : 0 } : { enabled: false } };
   }
   global.TimeLinkTL3 = Object.freeze({ manufacture: manufacture });
 })(window);
