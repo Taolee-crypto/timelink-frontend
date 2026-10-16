@@ -522,11 +522,46 @@
   // ─────────────────────────────
   // resolveUrl (shareplace용)
   // ─────────────────────────────
+  // LP_AUTO_STREAMS: 스트리밍 LP 자동 감지 (모든 경로)
+  async function _lpAutoCheck(fileUrl, opts){
+    if(opts && opts._noLp) return null;
+    try {
+      var fileId = String(fileUrl).split('/').pop().split('?')[0];
+      var hdr = await loadHeader(fileId);
+      if(hdr && hdr.lp_meta && hdr.lp_meta.enabled){
+        return { fileId: fileId, lpMeta: hdr.lp_meta };
+      }
+    } catch(e){}
+    return null;
+  }
+
+  async function _lpFetchAndPlay(fileUrl, audioEl, opts, lp){
+    var fetchHeaders = (opts && opts.fetchOptions && opts.fetchOptions.headers) || {};
+    var fileRes = await fetch(API + '/api/v1/tl3/file/' + encodeURIComponent(lp.fileId), {
+      headers: fetchHeaders
+    });
+    if(!fileRes.ok) throw new Error('LP file HTTP ' + fileRes.status);
+    var blob = await fileRes.blob();
+    return playFileLP(blob, audioEl, opts);
+  }
+
   function resolveUrl(fileUrl, opts){
     console.log('[TL3_DIAG] resolveUrl called:', fileUrl);
     opts = opts || {};
     return new Promise(async function(resolve, reject){
       try {
+        // ★ LP 자동 감지
+        var lp = await _lpAutoCheck(fileUrl, opts);
+        if(lp){
+          console.log('[TL3.resolveUrl] LP 감지 → playFileLP');
+          try {
+            var lpResult = await _lpFetchAndPlay(fileUrl, opts.audioEl, opts, lp);
+            resolve(lpResult);
+            return;
+          } catch(lpErr){
+            console.warn('[TL3.resolveUrl] LP 실패, 원본 폴백:', lpErr);
+          }
+        }
         var fileId = String(fileUrl).split('/').pop().split('?')[0];
         var header = await loadHeader(fileId);
 
@@ -834,9 +869,21 @@
   // streamSegmented (tl3-player용)
   // ─────────────────────────────
   function streamSegmented(audio, segUrl, opts){
+    // STREAMSEG_LP_V1: LP 자동 감지
     opts = opts || {};
     return new Promise(async function(resolve, reject){
       try {
+        var _lp = await _lpAutoCheck(segUrl, opts);
+        if(_lp){
+          console.log('[TL3.streamSegmented] LP 감지 → playFileLP');
+          try {
+            var _lpRes = await _lpFetchAndPlay(segUrl, audio, opts, _lp);
+            resolve(_lpRes);
+            return;
+          } catch(_lpErr){
+            console.warn('[TL3.streamSegmented] LP 실패, 원본 폴백:', _lpErr);
+          }
+        }
         var fileId = String(segUrl).split('/').pop().split('?')[0];
         var header = await loadHeader(fileId);
         var ctx = _startSession(audio, {
@@ -1673,9 +1720,21 @@
   // streamSegmented (tl3-player용)
   // ─────────────────────────────
   function streamSegmented(audio, segUrl, opts){
+    // STREAMSEG_LP_V1: LP 자동 감지
     opts = opts || {};
     return new Promise(async function(resolve, reject){
       try {
+        var _lp = await _lpAutoCheck(segUrl, opts);
+        if(_lp){
+          console.log('[TL3.streamSegmented] LP 감지 → playFileLP');
+          try {
+            var _lpRes = await _lpFetchAndPlay(segUrl, audio, opts, _lp);
+            resolve(_lpRes);
+            return;
+          } catch(_lpErr){
+            console.warn('[TL3.streamSegmented] LP 실패, 원본 폴백:', _lpErr);
+          }
+        }
         var fileId = String(segUrl).split('/').pop().split('?')[0];
         var header = await loadHeader(fileId);
         var ctx = _startSession(audio, {
