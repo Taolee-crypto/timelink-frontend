@@ -40,7 +40,6 @@
   var CSS = ''
     + '.tl-topbar{display:flex;align-items:center;gap:14px;padding:0 24px;height:60px;border-bottom:1px solid rgba(255,255,255,.08);position:sticky;top:0;z-index:9000;background:rgba(8,8,15,.9);backdrop-filter:blur(22px);font-family:"Noto Sans KR","Pretendard",sans-serif;color:#fff}'
     + '.tl-topbar a{text-decoration:none;color:inherit}'
-    + '.tl-topbar .tl-logo{font-weight:700;letter-spacing:.1em;font-size:14px;color:#fff}'
     + '.tl-topbar .tl-title{font-size:14px;font-weight:700;letter-spacing:.08em;color:#fff;opacity:.85}'
     + '.tl-topbar .tl-search{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:11px;padding:9px 14px;flex:1;max-width:520px;margin-left:auto}'
     + '.tl-topbar .tl-search input{background:none;border:none;outline:none;color:#fff;font-size:13px;width:100%;font-family:inherit}'
@@ -66,10 +65,12 @@
 
   function build(){
     var title = (document.title || 'TIMELINK').split('—')[0].split('|')[0].trim();
+    // 2026-10-16: "TIMELINK - " 접두사 제거
+    title = title.replace(/^TIMELINK\s*[-—:]\s*/i, '').replace(/^TimeLink\s*[-—:]\s*/i, '').trim() || title;
     var bar = document.createElement('div');
     bar.className = 'tl-topbar';
     bar.innerHTML =
-      '<a href="/" class="tl-logo">TIMELINK</a>'
+
       + '<div class="tl-title">' + title.toUpperCase() + '</div>'
       + '<div class="tl-search"><span style="color:rgba(255,255,255,.35);font-size:14px">🔍</span>'
       + '<input type="text" placeholder="파일명, 아티스트, 태그 검색..." id="tl-topbar-search"></div>'
