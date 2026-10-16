@@ -528,12 +528,27 @@
     return playFileLP(blob, audioEl, opts);
   }
 
+  // resolveUrl_MS_FIX_V2 (shareplace용) — 자체 MediaSource + _tlMsRefs 추적
   function resolveUrl(fileUrl, opts){
     console.log('[TL3_DIAG] resolveUrl called:', fileUrl);
     opts = opts || {};
+
+    // ★ 이전 MediaSource 정리
+    if (window._tlMsRefs && window._tlMsRefs.length) {
+      window._tlMsRefs.forEach(function(r){
+        try {
+          if (r.sb && r.sb.updating) { try { r.sb.abort(); } catch(e){} }
+          if (r.ms && r.ms.readyState === 'open') { try { r.ms.endOfStream(); } catch(e){} }
+          if (r.url) { try { URL.revokeObjectURL(r.url); } catch(e){} }
+        } catch(e){}
+      });
+      window._tlMsRefs = [];
+      console.log('[TL3.resolveUrl] 이전 MediaSource 정리 완료');
+    }
+
     return new Promise(async function(resolve, reject){
       try {
-        // ★ LP 자동 감지
+        // LP 자동 감지
         var lp = await _lpAutoCheck(fileUrl, opts);
         if(lp){
           console.log('[TL3.resolveUrl] LP 감지 → playFileLP');
@@ -548,9 +563,14 @@
         var fileId = String(fileUrl).split('/').pop().split('?')[0];
         var header = await loadHeader(fileId);
 
-        // MediaSource 시작 (audio는 나중에 붙음)
         var ms = new MediaSource();
         var msUrl = URL.createObjectURL(ms);
+
+        // ★ _tlMsRefs 추적 등록
+        window._tlMsRefs = window._tlMsRefs || [];
+        window._tlMsRefs.push({ ms: ms, url: msUrl, sb: null });
+        console.log('[TL3.resolveUrl] MediaSource 등록, refs.len=', window._tlMsRefs.length);
+
         var sessionId = opts.sessionId || genSid();
         var tokens = header.mp3_tokens || [];
         var hashMp3 = unhex(header.hash_mp3 || '');
@@ -564,7 +584,16 @@
         var stopped = false;
 
         ms.addEventListener('sourceopen', function(){
-          try { sb = ms.addSourceBuffer('audio/mpeg'); }
+          try {
+            sb = ms.addSourceBuffer('audio/mpeg');
+            // sb 참조 업데이트
+            if (window._tlMsRefs) {
+              var refs = window._tlMsRefs;
+              for (var _i = refs.length - 1; _i >= 0; _i--) {
+                if (refs[_i].ms === ms) { refs[_i].sb = sb; break; }
+              }
+            }
+          }
           catch(e){ reject(e); return; }
           _next();
         });
