@@ -122,7 +122,7 @@
   function inject(){
     styleInject();
     // 2026-10-16: 자체 topbar 제거 (통일)
-    document.querySelectorAll('body > .topbar, body > .hdr').forEach(function(el){ el.remove(); });
+    document.querySelectorAll('.topbar, .hdr').forEach(function(el){ el.remove(); });
     if(document.querySelector('.tl-topbar')) return;
     var bar = build();
     if(document.body.firstChild){
