@@ -11,7 +11,7 @@
   if (document.getElementById('tl-dynamic-footer')) return;
 
   // ─── footer HTML (creator.html 기준) ───
-  var FOOTER_HTML = `<footer id="tl-dynamic-footer" style="border-top:1px solid rgba(255,255,255,.07);padding:40px 24px 32px;margin-top:auto;background:rgba(3,5,8,.8);position:relative;z-index:1">
+  var FOOTER_HTML = `<footer id="tl-dynamic-footer" style="border-top:1px solid rgba(255,255,255,.07);padding:20px 24px 16px;margin-top:auto;background:rgba(3,5,8,.8);position:relative;z-index:1">
   <div style="max-width:1200px;margin:0 auto">
     <div style="display:flex;flex-wrap:wrap;gap:40px;justify-content:space-between;margin-bottom:32px">
       <div>
