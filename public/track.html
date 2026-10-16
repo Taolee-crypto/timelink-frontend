@@ -1149,9 +1149,22 @@ function updateUIAfterCharge(newBalance){
 }
 
 async function doDirectCharge(){
-  if(!getTok()){alert('로그인이 필요합니다');return;}
-  closeChargeModal();
-  openTossChargeFromTrack();
+  if(!getTok()){ alert('로그인이 필요합니다'); return; }
+  try {
+    const r = await fetch(API+'/api/shares/'+SHARE_ID+'/charge',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+getTok(),'Content-Type':'application/json'},
+      body:JSON.stringify({amount:_chargeAmount, source:'direct'})
+    });
+    const d = await r.json();
+    if(d.ok||d.user_tl){
+      closeChargeModal();
+      alert('충전 완료! '+_chargeAmount.toLocaleString()+' TL 충전되었어요');
+      loadTrack();
+    } else {
+      alert(d.error||'충전 실패. TL 잔액을 확인하세요');
+    }
+  } catch(e){ alert('오류: '+e.message); }
 }
 
 function selectChargePkg(el){
