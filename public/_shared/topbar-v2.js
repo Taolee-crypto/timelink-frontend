@@ -1,5 +1,13 @@
 /* TimeLink 공통 상단바 */
 (function(){
+  // 2026-10-16: i18n.js 자동 로드
+  if(!window.__TL_I18N_LOADING__ && !window.TLi18n){
+    window.__TL_I18N_LOADING__ = true;
+    var i18nScript = document.createElement('script');
+    i18nScript.src = '/i18n.js?v=20261015';
+    i18nScript.async = false;
+    document.head.appendChild(i18nScript);
+  }
   var _user = null, _token = null;
   try {
     _user = JSON.parse(localStorage.getItem('tl_user') || 'null');
@@ -43,6 +51,10 @@
     + '.tl-topbar .tl-bal-tlc{color:#8B5CF6;font-weight:700}'
     + '.tl-topbar .tl-sep{width:1px;height:16px;background:rgba(255,255,255,.15)}'
     + '.tl-topbar .tl-logout{margin-left:8px;padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-size:11px;cursor:pointer}';
+    + '.tl-topbar .tl-lang-sw{display:flex;gap:2px;margin-left:8px;padding:3px;background:rgba(255,255,255,.05);border-radius:8px}'
+    + '.tl-topbar .tl-lang-btn{padding:4px 10px;border:0;border-radius:6px;background:transparent;color:rgba(255,255,255,.5);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}'
+    + '.tl-topbar .tl-lang-btn:hover{color:#fff;background:rgba(255,255,255,.08)}'
+    + '.tl-topbar .tl-lang-btn.active{color:#fff;background:rgba(139,92,246,.3)}'
 
   function styleInject(){
     if(document.getElementById('tl-topbar-style')) return;
@@ -67,6 +79,10 @@
       +   '<span class="tl-bal-tl">' + totalTL().toLocaleString() + ' TL</span>'
       +   '<span class="tl-sep"></span>'
       +   '<span class="tl-bal-tlc">' + tlcVal().toFixed(0) + ' TLC</span>'
+      +   '<div class="tl-lang-sw">'
+      +     '<button class="tl-lang-btn" data-lang="ko" onclick="tlTopbarSetLang(\'ko\')">KR</button>'
+      +     '<button class="tl-lang-btn" data-lang="en" onclick="tlTopbarSetLang(\'en\')">EN</button>'
+      +   '</div>'
       +   '<button class="tl-logout" onclick="doLogout()">↩ 로그아웃</button>'
       + '</div>';
     var search = bar.querySelector('#tl-topbar-search');
@@ -105,6 +121,8 @@
   }
   function inject(){
     styleInject();
+    // 2026-10-16: 자체 topbar 제거 (통일)
+    document.querySelectorAll('body > .topbar, body > .hdr').forEach(function(el){ el.remove(); });
     if(document.querySelector('.tl-topbar')) return;
     var bar = build();
     if(document.body.firstChild){
@@ -119,4 +137,25 @@
   } else {
     inject();
   }
+  // 2026-10-16: 언어 전환
+  window.tlTopbarSetLang = function(lang){
+    if(window.TLi18n && window.TLi18n.setLang){
+      window.TLi18n.setLang(lang);
+    } else {
+      localStorage.setItem('tl_lang', lang);
+      location.reload();
+    }
+    setTimeout(function(){
+      document.querySelectorAll('.tl-lang-btn').forEach(function(b){
+        b.classList.toggle('active', b.dataset.lang === lang);
+      });
+    }, 50);
+  };
+  function syncLangButtons(){
+    var cur = (window.TLi18n && window.TLi18n.getLang && window.TLi18n.getLang()) || localStorage.getItem('tl_lang') || 'ko';
+    document.querySelectorAll('.tl-lang-btn').forEach(function(b){
+      b.classList.toggle('active', b.dataset.lang === cur);
+    });
+  }
+  setTimeout(syncLangButtons, 200);
 })();

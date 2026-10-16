@@ -499,7 +499,10 @@ function injectStyle(){
 function init(){
   injectStyle();
   applyAll();
-  injectSwitcher();
+  // 2026-10-16: topbar 있으면 자체 스위처 X (topbar-v2.js가 대신)
+  if(!document.querySelector('.tl-topbar') && !document.querySelector('[data-tl-topbar]')){
+    injectSwitcher();
+  }
   if(!window.__TL_I18N_OBSERVER__){
     var queued=false;
     var observer=new MutationObserver(function(){
