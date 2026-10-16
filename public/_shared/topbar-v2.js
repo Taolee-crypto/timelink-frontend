@@ -64,9 +64,11 @@
   }
 
   function build(){
-    var title = (document.title || 'TIMELINK').split('—')[0].split('|')[0].trim();
-    // 2026-10-16: "TIMELINK - " 접두사 제거
-    title = title.replace(/^TIMELINK\s*[-—:]\s*/i, '').replace(/^TimeLink\s*[-—:]\s*/i, '').trim() || title;
+    // 2026-10-16: title 안전 처리 (NaN 방지)
+    var rawTitle = String(document.title || 'TIMELINK');
+    var title = rawTitle.split('—')[0].split('|')[0].trim();
+    title = title.replace(/^TIMELINK\s*[-—:]\s*/i, '').replace(/^TimeLink\s*[-—:]\s*/i, '').trim();
+    if (!title || title === 'NaN' || title === 'undefined' || title === 'null') title = 'TIMELINK';
     var bar = document.createElement('div');
     bar.className = 'tl-topbar';
     bar.innerHTML =
