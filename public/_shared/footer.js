@@ -60,6 +60,9 @@
     if (!footerEl) return;
 
     // ─── 주입 위치: mainWrap 있으면 그 안, 없으면 body 끝 ───
+    // grid 부모에서 전체 폭 차지 (grid-column: 1 / -1)
+    footerEl.style.gridColumn = '1 / -1';
+
     var mainWrap = document.getElementById('mainWrap');
     if (mainWrap) {
       mainWrap.appendChild(footerEl);
