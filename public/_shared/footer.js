@@ -63,6 +63,9 @@
     // grid 부모에서 전체 폭 차지 (grid-column: 1 / -1)
     footerEl.style.gridColumn = '1 / -1';
 
+    // grid 부모에서 전체 폭 차지 (grid-column: 1 / -1)
+    footerEl.style.gridColumn = '1 / -1';
+
     var mainWrap = document.getElementById('mainWrap');
     if (mainWrap) {
       mainWrap.appendChild(footerEl);
