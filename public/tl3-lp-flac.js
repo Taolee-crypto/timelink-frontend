@@ -1,6 +1,6 @@
-/*! tl3-lp-flac.js — TimeLink LP FLAC 엔진 (v1)
+/*! tl3-lp-flac.js — TimeLink LP Opus 엔진 (v1)
  *  MP3에 LP PCM을 FLAC으로 심기 (특허 10-2025-0167813)
- *  용도: 창작자 PC에서 LP PCM → FLAC 인코딩
+ *  용도: 창작자 PC에서 LP PCM → Opus 인코딩
  *  재생: Player에서 FLAC 디코딩 → PCM → MP3와 동시 재생
  */
 (function(global){
@@ -10,13 +10,13 @@
   async function isSupported(){
     if(!global.AudioEncoder) return false;
     try {
-      var cfg = { codec: 'flac', sampleRate: 44100, numberOfChannels: 2, bitrate: 700000 };
+      var cfg = { codec: 'opus', sampleRate: 44100, numberOfChannels: 2, bitrate: 128000 };
       var r = await AudioEncoder.isConfigSupported(cfg);
       return !!(r && r.supported);
     } catch(e){ return false; }
   }
 
-  // ── LP PCM → FLAC 인코딩 ─────────────────
+  // ── LP PCM → Opus 인코딩 ─────────────────
   //  입력: AudioBuffer (LP 처리된 PCM)
   //  출력: Uint8Array (FLAC bytes)
   async function encode(audioBuffer, opts){
@@ -42,13 +42,13 @@
     });
 
     var cfg = {
-      codec: 'flac',
+      codec: 'opus',
       sampleRate: sampleRate,
       numberOfChannels: channels,
-      bitrate: opts.bitrate || 700000
+      bitrate: opts.bitrate || 128000
     };
     var support = await AudioEncoder.isConfigSupported(cfg);
-    if(!support.supported) throw new Error('FLAC 인코딩 미지원: ' + sampleRate + 'Hz ' + channels + 'ch');
+    if(!support.supported) throw new Error('Opus 인코딩 미지원: ' + sampleRate + 'Hz ' + channels + 'ch');
     encoder.configure(cfg);
 
     // ── AudioBuffer → AudioData (프레임별) ──
@@ -121,7 +121,7 @@
   }
 
   // ── LP PCM + 원본 PCM 믹스 (LP Enhanced) ─
-  //  LP PCM = LP FLAC 디코딩 결과
+  //  LP PCM = LP Opus 디코딩 결과
   //  최종 재생 = LP PCM (그대로) 또는 원본 + 차이
   function mix(originalBuffer, lpBuffer, mode){
     mode = mode || 'replace';
@@ -150,6 +150,6 @@
     encode: encode,
     decode: decode,
     mix: mix,
-    version: 'lp-flac-v1'
+    version: 'lp-opus-v1'
   };
 })(window);
