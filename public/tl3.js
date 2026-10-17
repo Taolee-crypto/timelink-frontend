@@ -192,8 +192,7 @@
       }
     }
 
-    function stop()
-          stopped = true; // TL3_FINAL_STOP_FIX: 강제 중단{
+    function stop(){
       stopped = true;
       pendingConfirmTimers.forEach(function(t){ clearTimeout(t); });
       pendingConfirmTimers = [];
@@ -263,8 +262,7 @@
     var stopped = false;
     var off = 9 + hlen;   // first_offset 대신 실제 payload 시작
 
-    function stop()
-          stopped = true; // TL3_FINAL_STOP_FIX: 강제 중단{ stopped = true; }
+    function stop(){ stopped = true; }
     audio._tl3Stop = stop;
 
     console.log('[TL3.playStream] sourceopen listener 등록');
@@ -277,10 +275,10 @@
 
     async function _next(){
       if(stopped) return;
-          // 안전한 중단 패치
-          if (window._tl3_force_stopped) return;
-          if (typeof _tlAudio !== 'undefined' && _tlAudio && _tlAudio.paused && !_tlAudio.ended && _tlAudio.currentTime > 0) {
-            console.log('[TL3.playStream] Paused - _next stop');
+          // TL3_PATCH_FINAL: 안전한 중단 로직
+          if (window._tl3_force_stopped) { return; }
+          if (typeof _tlAudio !== "undefined" && _tlAudio && _tlAudio.paused && !_tlAudio.ended && _tlAudio.currentTime > 0) {
+            console.log("[TL3] Paused - _next stop");
             return;
           }
       if(n > N){
@@ -667,20 +665,9 @@
             var lic = unhex(codeData.lic_n || '');
 
             var segNumber = n + 1;
-            if(window.addDebugLog) window.addDebugLog('🔑 복호화 시작 n=' + n + ' segNumber=' + segNumber);
             var K_n = await sha256(Tprev, lic, enc('K' + segNumber));
-            if(window.addDebugLog) window.addDebugLog('✅ 키 유도 완료 n=' + n);
             var key = await crypto.subtle.importKey('raw', K_n, {name:'AES-GCM'}, false, ['decrypt']);
-            if(window.addDebugLog) window.addDebugLog('✅ 키 임포트 완료 n=' + n);
-            var plain;
-            try {
-              plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv: ivFor(segNumber), tagLength: 128}, key, ciphertext));
-              if(window.addDebugLog) window.addDebugLog('✅ 복호화 완료 n=' + n + ' plain.len=' + plain.length);
-            } catch(decErr) {
-              console.error('[TL3.playStream] AES-GCM 복호화 실패:', decErr);
-              if(window.addDebugLog) window.addDebugLog('❌ 복호화 실패 n=' + n + ': ' + decErr.name + ' / ' + decErr.message);
-              throw decErr;
-            }
+            var plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv: ivFor(segNumber), tagLength: 128}, key, ciphertext));
 
             if (stopped || !sb || !ms || ms.readyState === 'closed') {
               console.log('[TL3.playStream] appendBuffer 직전 중단 감지');
@@ -741,19 +728,20 @@
   }
 
   async function playStream(fileId, audioEl, opts){
-    // _tl3_stop_fix_installed
-    if (typeof _tlAudio !== 'undefined' && _tlAudio && !_tlAudio._originalPause) {
-        _tlAudio._originalPause = _tlAudio.pause;
-        _tlAudio.pause = function() {
-            window._tl3_force_stopped = true;
-            return _tlAudio._originalPause.apply(this, arguments);
-        };
-        _tlAudio._originalPlay = _tlAudio.play;
-        _tlAudio.play = function() {
-            window._tl3_force_stopped = false;
-            return _tlAudio._originalPlay.apply(this, arguments);
-        };
-    }
+        // TL3_PATCH_FINAL: pause/play 가로채기
+        if (audioEl && !audioEl._tl_patched) {
+            audioEl._tl_patched = true;
+            var _origPause = audioEl.pause;
+            audioEl.pause = function() {
+                window._tl3_force_stopped = true;
+                return _origPause.apply(this, arguments);
+            };
+            var _origPlay = audioEl.play;
+            audioEl.play = function() {
+                window._tl3_force_stopped = false;
+                return _origPlay.apply(this, arguments);
+            };
+        }
     // ★ LP 자동 감지: lp_meta 있으면 playFileLP로 위임
     try {
       if(!opts || !opts._noLp){
@@ -839,35 +827,14 @@
           playOnce();
         } else {
           audioEl.addEventListener('canplay', playOnce, { once: true });
-                audioEl.addEventListener('pause', () => {
-          console.log('[TL3.playStream] pause event');
-          stopped = true; // TL3_HARD_STOP_FIX: 일시정지 시 루프 강제 중단
-        });
-        audioEl.addEventListener('play', () => {
-          console.log('[TL3.playStream] play event');
-          stopped = false; // TL3_HARD_STOP_FIX: 재생 시 루프 재개
-        });
         }
 
         async function _next(){
           if(stopped) return;
-          // TL3_BUFFER_CONTROL: 재생 위치 기준 버퍼 제어
-          if (audioEl && !audioEl.paused) {
-            var buf = audioEl.buffered;
-            if (buf.length > 0) {
-              var bufEnd = buf.end(buf.length - 1);
-              var cur = audioEl.currentTime;
-              // 현재 재생 위치보다 15초 이상 앞서 있으면 1초 대기 후 재시도
-              if (bufEnd - cur > 15) {
-                setTimeout(_next, 1000);
-                return;
-              }
-            }
-          }
-          // TL3_FINAL_STOP_FIX: MediaSource가 닫혔으면 즉시 중단
-          if(!ms || ms.readyState === 'closed') return;
-                    if (stopped || (audioEl && audioEl.paused && !audioEl.ended && audioEl.currentTime > 0)) {
-            console.log('[TL3.playStream] Paused - _next stop');
+          // TL3_PAUSE_FINAL_STOP: 재생 루프 중단
+          if (window._tl3_force_stopped) { return; }
+          if (audioEl && audioEl.paused && !audioEl.ended && audioEl.currentTime > 0) {
+            console.log("[TL3] Paused - _next stop");
             return;
           }
           console.log('[TL3.playStream] _next n=', n);
@@ -908,18 +875,13 @@
             var lic = unhex(codeData.lic_n || '');
             var segNumber = n + 1;
             console.log('[TL3.playStream] pre-decrypt: n=', n, 'segNumber=', segNumber, 'ctLen=', ciphertext.length, 'Tprev.len=', Tprev.length, 'lic.len=', lic.length);
-            if(window.addDebugLog) window.addDebugLog('🔑 복호화 시작 n=' + n + ' segNumber=' + segNumber);
             var K_n = await sha256(Tprev, lic, enc('K' + segNumber));
-            if(window.addDebugLog) window.addDebugLog('✅ 키 유도 완료 n=' + n);
             var key = await crypto.subtle.importKey('raw', K_n, {name:'AES-GCM'}, false, ['decrypt']);
-            if(window.addDebugLog) window.addDebugLog('✅ 키 임포트 완료 n=' + n);
             var plain;
             try {
               plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv: ivFor(segNumber), tagLength: 128}, key, ciphertext));
-              if(window.addDebugLog) window.addDebugLog('✅ 복호화 완료 n=' + n + ' plain.len=' + plain.length);
             } catch(decErr) {
               console.log('[TL3.playStream] DECRYPT FAILED:', decErr.name, decErr.message, 'ctLen=', ciphertext.length);
-              if(window.addDebugLog) window.addDebugLog('❌ 복호화 실패 n=' + n + ': ' + decErr.name + ' / ' + decErr.message);
               throw decErr;
             }
 
