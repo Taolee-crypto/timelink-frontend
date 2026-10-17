@@ -113,6 +113,7 @@
         lpMediaSource.connect(lpProcessor);
         lpProcessor.connect(lpAudioCtx.destination);
         lpAudioCtx.resume().catch(function(){});
+        audioEl.addEventListener('playing', function() { if (lpAudioCtx && lpAudioCtx.state === 'suspended') lpAudioCtx.resume().catch(function(){}); });
         console.log('[TL3-LP] realtime DSP attached', {version:meta.version, sampleRate:meta.fs, seed:seed});
       } catch (error) {
         console.warn('[TL3-LP] realtime DSP setup failed; original audio remains available:', error);
@@ -124,7 +125,7 @@
     }
 
     audioEl._tl3Confirm = function() {
-      if (segmentTimer) { clearTimeout(segmentTimer); segmentTimer = null; }
+      if (segmentTimer) { clearInterval(segmentTimer); segmentTimer = null; }
       const played = pendingMediaStart >= 0 ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
       pendingMediaStart = -1;
       return confirmPending(played);
