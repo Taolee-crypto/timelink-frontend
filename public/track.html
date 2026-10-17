@@ -1551,8 +1551,8 @@ function playTrack(){
     console.warn('[audio error]', src.slice(0, 100), _tlAudio && _tlAudio.error);
     // blob/tl3/stream URL은 무시
     if(src.startsWith('blob:') || src.includes('.tl3') || src.includes('/api/stream/') || src.includes('agent.timelink.digital')) return;
-    // 실제 재생 불가 (src 없음) → 중단
-    if(!src){ stopPlay(); }
+    // ★ MediaSource 버퍼링 중에는 중단하지 않음 (강제 중지 방지)
+    // if(!src){ stopPlay(); }
   };
   
 
@@ -1560,7 +1560,10 @@ function playTrack(){
   if(_tlFree){
     _tlAudio.oncanplay = function(){
       _tlAudio.play().then(()=>{ _tlPlaying = true; startTLTimer(); })
-        .catch(e=>{ alert('재생 실패: '+e.message); stopPlay(); });
+        .catch(e=>{ 
+          console.warn('재생 실패 (무시):', e.message); 
+          // stopPlay(); // ★ 일시적 버퍼링 실패는 무시
+        });
     };
     _tlAudio.src = fileUrl;
     _tlAudio.load();
