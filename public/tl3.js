@@ -297,10 +297,9 @@
               // playing. The MSE stream can become unbuffered slightly before
               // its nominal 1-second boundary, so a late handoff always clicks.
               const segmentSeconds = durationMs / 1000;
-              // 다음 구간 전환은 현재 조각의 끝부분에서 시작한다.
-              // 기존 0.95초 선행값은 1초 조각을 0.05초만 재생하고 넘기게 했다.
-              // 끝나기 약 0.15초 전에 정산·다음 라이선스를 준비한다.
-              const advanceLeadSeconds = 0.15;
+              // 1초 세그먼트는 재생 0.15초 후 다음 조각 준비를 시작한다.
+              // 즉, 세그먼트 종료 약 0.85초 전에 정산·다음 라이선스를 준비한다.
+              const advanceLeadSeconds = 0.85;
               const advanceAt = Math.max(0.05, segmentSeconds - advanceLeadSeconds);
               if (playedSeconds < advanceAt) return;
               clearInterval(segmentTimer);
