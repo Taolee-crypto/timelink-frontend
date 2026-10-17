@@ -687,6 +687,17 @@
 
             console.log('[TL3.playStream] ✅ appended segment', n);
             if(window.addDebugLog) window.addDebugLog('✅ 버퍼링 완료 n=' + n);
+
+            // ★ 첫 세그먼트 버퍼링 후 즉시 강제 재생 (canplay 이벤트 무시)
+            if (n === 0) {
+              console.log('[TL3.playStream] 첫 세그먼트 준비 완료 -> 강제 재생 시도');
+              audioEl.play().then(function() {
+                console.log('[TL3.playStream] ✅ audio.play() 강제 성공');
+              }).catch(function(err) {
+                console.log('[TL3.playStream] ❌ 강제 play 실패:', err.name, err.message);
+                onError(err);
+              });
+            }
             if (n === 5) {
               console.log('--- 5개 세그먼트 버퍼링 완료, 계속 진행 중 ---');
             }
