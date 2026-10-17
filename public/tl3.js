@@ -309,9 +309,9 @@
             // The previous segment is settled asynchronously at the handoff.
             // Retry the temporary single-pending reservation conflict while that
             // settlement completes; ciphertext is already prefetched.
-            for (let attempt = 0; attempt < 20; attempt++) {
+            for (let attempt = 0; attempt < 40; attempt++) {
               cr = await fetch(codeUrl, { headers: authHeaders() });
-              if (cr.status !== 409 || attempt === 19) break;
+              if (cr.status !== 409 || attempt === 39) break;
               console.log('[TL3v4] waiting for previous segment settlement', {
                 nextSegment:n, attempt:attempt + 1
               });
