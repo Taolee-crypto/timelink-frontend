@@ -12,38 +12,39 @@
   if (!token && (pathName === '/' || pathName === '/index.html')) return;
   if (pathName === '/admin.html') return;
 
-  // Navigation language follows the platform-wide tl_lang preference.
-  // Korean mode renders Korean labels; English mode renders English labels.
   var currentLang = '';
   try { currentLang = localStorage.getItem('tl_lang') || ''; } catch (e) {}
   if (!currentLang) currentLang = (navigator.language || navigator.userLanguage || 'ko').toLowerCase();
   currentLang = String(currentLang).toLowerCase().indexOf('ko') === 0 ? 'ko' : 'en';
   function label(en, ko) { return currentLang === 'ko' ? ko : en; }
-  function labelText(en, ko) { return label(en, ko); }
 
+  // ★ 지시하신 대로 섹션(대분류)과 소메뉴 구조를 명확히 재정의
   var sections = [
-    ['HOME', '홈', [['/', '⌂', 'About TimeLink', '타임링크 소개']]],
-    ['DIGITAL ASSETS', '디지털자산', [['/shareplace.html', '◈', 'SharePlace', '공유플레이스']]],
-    ['CREATOR', '창작', [['/creator-studio.html', '✧', 'Creator Studio', '크리에이터 스튜디오']]],
+    ['HOME', '홈', [
+      ['/', '⌂', 'About TimeLink', '타임링크 소개'],
+      ['/dashboard.html', '◎', 'Dashboard', '대시보드'], // ★ 대시보드를 HOME 섹션으로 이동
+      ['/dashboard.html?tab=content', '📁', 'My Content', '내 콘텐츠'],
+      ['/wallet.html', '◉', 'Wallet', '지갑']
+    ]],
+    ['DIGITAL ASSETS', '디지털자산', [
+      ['/shareplace.html', '◈', 'SharePlace', '공유플레이스']
+    ]],
+    ['CREATOR', '창작', [
+      ['/creator-studio.html', '✧', 'Creator Studio', '크리에이터 스튜디오']
+    ]],
     ['TL BROADCAST', 'TL 방송국', [
       ['/cafe-channel.html', '▣', 'Cafe Channel', '카페방송'],
       ['/incar-channel.html', '◇', 'In-car Channel', '인카방송'],
       ['/dj-center.html', '♫', 'DJ Center', '디제이센터']
     ]],
-    ['COMMUNICATION', '커뮤니케이션', [
-      ['/cafe-world.html', '☕', 'Cafe World', '카페월드'],
-      ['/my-car-world.html', '🚘', 'My Car World', '마이카월드']
-    ]],
     ['ADVERTISING', '광고', [
       ['/advertiser.html', '▱', 'Sponsor Center', '광고주센터'],
       ['/ads.html', '▣', 'Ad Watching', '광고 시청 및 TL 기여']
     ]],
-    ['TL ECONOMICS', 'TL 경제', [['/wallet.html', '◉', 'Wallet', '지갑']]],
     ['MY', '내 정보', [
-      ['/dashboard.html', '◎', 'Dashboard', '대시보드'],
-      ['/dashboard.html?tab=mining', '⛏', 'TLC Mining', 'TLC 채굴', true],
-      ['/dashboard.html?tab=mission', '◎', 'Missions', '미션', true],
-      ['/dashboard.html?tab=cafe', '☕', 'My Cafe', '나의 카페', true]
+      ['/dashboard.html?tab=mining', '⛏', 'TLC Mining', 'TLC 채굴'],
+      ['/dashboard.html?tab=mission', '◎', 'Missions', '미션'],
+      ['/dashboard.html?tab=cafe', '☕', 'My Cafe', '나의 카페']
     ]]
   ];
 
@@ -76,13 +77,16 @@
     body.tl-global-shell .tl-global-brand{display:flex;align-items:center;gap:11px;flex:0 0 auto;padding:4px 10px 20px!important;margin:0 0 8px!important;color:#fff!important;font-size:21px;font-weight:800;letter-spacing:-.04em;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.07)}
     body.tl-global-shell .tl-global-mark{width:34px;height:34px;display:grid;place-items:center;flex:0 0 34px;border-radius:10px;background:linear-gradient(140deg,#b69aff,#7655e8 68%,#f5b84b);color:#100d19;font-weight:900}
     body.tl-global-shell .tl-global-sidebar nav.tl-global-links{display:block!important;flex:1 1 auto;min-height:0;width:100%;margin:0!important;padding:8px 0 12px!important;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
-    body.tl-global-shell .tl-global-section{display:block;padding:16px 11px 7px!important;margin:0!important;color:#777586!important;font-size:10px;font-weight:800;letter-spacing:.13em;line-height:1.4}
+    
+    /* ★ 섹션(대분류) 굵은 글씨 스타일 */
+    body.tl-global-shell .tl-global-section{display:block;padding:16px 11px 7px!important;margin:0!important;color:#777586!important;font-size:11px;font-weight:800;letter-spacing:.13em;line-height:1.4;text-transform:uppercase;}
+    
+    /* ★ 소메뉴(링크) 스타일 */
     body.tl-global-shell .tl-global-link{display:flex!important;align-items:center;gap:11px;min-height:42px;width:auto;margin:2px 0!important;padding:9px 11px!important;border:1px solid transparent;border-radius:10px;color:#aaa8b6!important;font-size:13px;font-weight:550;line-height:1.35;text-decoration:none!important;white-space:normal}
     body.tl-global-shell .tl-global-link:hover{background:rgba(255,255,255,.055)!important;color:#fff!important}
     body.tl-global-shell .tl-global-link.is-active{background:rgba(139,92,246,.15)!important;border-color:rgba(139,92,246,.25)!important;color:#cbbaff!important}
     body.tl-global-shell .tl-global-icon{display:grid;place-items:center;width:22px;height:22px;flex:0 0 22px;padding:0!important;margin:0!important;background:transparent;color:#a78bfa;font-size:17px;line-height:1}
-    body.tl-global-shell .tl-global-link-child{margin-left:12px!important;width:calc(100% - 12px);padding-left:11px!important;font-size:12px;opacity:.92;position:relative}
-    body.tl-global-shell .tl-global-link-child:before{content:"";position:absolute;left:1px;top:7px;bottom:7px;width:1px;background:rgba(255,255,255,.13)}
+    
     body.tl-global-shell .tl-global-balance{flex:0 0 auto;margin:10px 0 0;padding:13px;border:1px solid rgba(139,92,246,.22);border-radius:13px;background:linear-gradient(140deg,rgba(139,92,246,.12),rgba(245,166,35,.035))}
     body.tl-global-shell .tl-global-balance small{display:block;color:#8d899b;font-size:9px;letter-spacing:.13em;font-weight:800}
     body.tl-global-shell .tl-global-balance strong{display:block;margin:7px 0;color:#e6dcff;font:700 20px Manrope,Inter,sans-serif}
@@ -99,11 +103,13 @@
     }
   </style>`;
 
-  html += '<aside class="tl-global-sidebar" aria-label="' + esc(label('TimeLink navigation', 'TimeLink 메뉴')) + '"><a class="tl-global-brand" href="/dashboard.html?tab=home"><span class="tl-global-mark">T</span><span>TimeLink</span></a><nav class="tl-global-links">';
+  html += '<aside class="tl-global-sidebar" aria-label="' + esc(label('TimeLink navigation', 'TimeLink 메뉴')) + '"><a class="tl-global-brand" href="/dashboard.html"><span class="tl-global-mark">T</span><span>TimeLink</span></a><nav class="tl-global-links">';
   sections.forEach(function (section) {
-    html += '<div class="tl-global-section" data-tl-nav-en="' + esc(section[0]) + '" data-tl-nav-ko="' + esc(section[1]) + '">' + esc(label(section[0], section[1])) + '</div>';
+    // ★ 대분류(섹션) 타이틀
+    html += '<div class="tl-global-section">' + esc(label(section[0], section[1])) + '</div>';
+    // ★ 소메뉴(링크)
     section[2].forEach(function (item) {
-      html += '<a class="tl-global-link' + (item[4] ? ' tl-global-link-child' : '') + (active(item[0]) ? ' is-active' : '') + '" href="' + esc(item[0]) + '"' + (active(item[0]) ? ' aria-current="page"' : '') + '><span class="tl-global-icon">' + esc(item[1]) + '</span><span data-tl-nav-en="' + esc(item[2]) + '" data-tl-nav-ko="' + esc(item[3]) + '">' + esc(label(item[2], item[3])) + '</span></a>';
+      html += '<a class="tl-global-link' + (active(item[0]) ? ' is-active' : '') + '" href="' + esc(item[0]) + '"' + (active(item[0]) ? ' aria-current="page"' : '') + '><span class="tl-global-icon">' + esc(item[1]) + '</span><span>' + esc(label(item[2], item[3])) + '</span></a>';
     });
   });
   html += '</nav><div class="tl-global-balance"><small>' + esc(label('MY TL BALANCE', '내 TL 잔액')) + '</small><strong id="tlGlobalBalance">— TL</strong><a href="/wallet.html#charge">＋ ' + esc(label('Charge TL', 'TL 충전')) + '</a></div></aside>';
@@ -111,9 +117,11 @@
   document.body.insertAdjacentHTML('afterbegin', html);
   document.body.classList.add('tl-global-shell');
 
-  // Remove the legacy page sidebar without touching page content or feature logic.
+  // 기존 페이지 사이드바 제거
   var oldSidebar = document.querySelector('.body > .sidebar, .layout > .sidebar, .app > .sidebar, .app > .tl-sidebar');
   if (oldSidebar) oldSidebar.remove();
+
+  // 레이아웃 조정
   var app = document.querySelector('.app');
   if (app) {
     app.style.display = 'block';
@@ -139,7 +147,7 @@
   var amount = user.tl_balance != null ? user.tl_balance : user.tl;
   if (balance && amount != null) balance.textContent = Number(amount).toLocaleString() + ' TL';
 
-  // The backend confirms administrator access before the menu is displayed.
+  // 관리자 권한 확인
   if (token) {
     fetch(API + '/api/admin/settings/__sidebar_access__', {
       headers: {'Authorization':'Bearer ' + token, 'Accept':'application/json'}
@@ -151,16 +159,17 @@
       if (!nav) return;
       var label = document.createElement('div');
       label.className = 'tl-global-section';
-      label.textContent = labelText('ADMIN', '관리자');
+      label.textContent = label('ADMIN', '관리자');
       var link = document.createElement('a');
       link.className = 'tl-global-link' + (pathName === '/admin.html' ? ' is-active' : '');
       link.href = '/admin.html';
-      link.innerHTML = '<span class="tl-global-icon">⚙</span><span data-tl-nav-en="Admin Console" data-tl-nav-ko="관리자 제어">' + esc(label('Admin Console', '관리자 제어')) + '</span>';
+      link.innerHTML = '<span class="tl-global-icon">⚙</span><span>' + esc(label('Admin Console', '관리자 제어')) + '</span>';
       nav.appendChild(label);
       nav.appendChild(link);
     }).catch(function () {});
   }
 
+  // 모바일 토글
   var toggle = document.createElement('button');
   toggle.type = 'button';
   toggle.className = 'tl-global-toggle';
@@ -182,17 +191,11 @@
     toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
   scrim.addEventListener('click', closeNav);
-  window.addEventListener('tl-language-changed', function (event) {
-    var lang = String(event.detail && event.detail.lang || 'en').toLowerCase();
-    document.querySelectorAll('[data-tl-nav-en][data-tl-nav-ko]').forEach(function (node) {
-      node.textContent = lang.indexOf('ko') === 0 ? node.getAttribute('data-tl-nav-ko') : node.getAttribute('data-tl-nav-en');
-    });
-  });
   document.querySelector('.tl-global-sidebar').addEventListener('click', function (event) {
     if (event.target.closest('a')) closeNav();
   });
 
-  // 서버에서 최신 잔액 조회 (topbar.js와 동기화)
+  // 잔액 동기화
   async function fetchServerBalance(){
     try {
       var r = await fetch(API + '/api/v1/users/me/wallet', {
@@ -203,7 +206,6 @@
       if(isFinite(bal)){
         var el = document.getElementById('tlGlobalBalance');
         if(el) el.textContent = bal.toLocaleString() + ' TL';
-        // 로컬 캐시도 갱신
         try {
           var u = JSON.parse(localStorage.getItem('tl_user') || '{}');
           u.tl_balance = bal;
@@ -212,7 +214,6 @@
       }
     } catch(e){}
   }
-  // topbar.js가 잔액 갱신하면 사이드바도 반영
   window.addEventListener('tl-balance-updated', function(e){
     if(e.detail && isFinite(e.detail.tl)){
       var el = document.getElementById('tlGlobalBalance');
