@@ -412,6 +412,37 @@ html, body { height: auto; overflow-y: auto; overflow-x: hidden; }
 const API = 'https://api.timelink.digital';
 
 }
+
+// ★ SHARE_ID 선언 및 file_id -> share_id 변환 로직
+let SHARE_ID = new URLSearchParams(location.search).get('id');
+window.SHARE_ID = SHARE_ID;
+
+(async function initTrack() {
+  // 숫자로 들어온 경우 서버에서 share_id로 변환
+  if (/^\d+$/.test(String(SHARE_ID))) {
+    try {
+      const res = await fetch(API + '/api/v1/tl3/file-meta/' + SHARE_ID, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('tl_token') || '') }
+      });
+      const meta = await res.json();
+      if (meta && meta.ok && meta.share_id) {
+        SHARE_ID = meta.share_id;
+        window.SHARE_ID = SHARE_ID;
+        history.replaceState(null, '', 'track?id=' + encodeURIComponent(SHARE_ID));
+        console.log('[TRACK] file_id -> share_id 변환 완료:', SHARE_ID);
+      } else {
+        console.warn('[TRACK] 유효하지 않은 파일 ID:', SHARE_ID);
+      }
+    } catch(e) {
+      console.warn('[TRACK] SHARE_ID 변환 실패:', e);
+    }
+  }
+  // 데이터 로드 시작
+  if (typeof loadTrack === 'function') {
+    loadTrack();
+  }
+})();
+
 const _VALID_SHARE_ID = SHARE_ID && /^sh_/.test(SHARE_ID);
 let _share = null, _myLiked = false, _myFollowing = false;
 let _myFileTL = 0;  // 공통 사용자 지갑 TL
