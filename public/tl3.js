@@ -192,7 +192,8 @@
       }
     }
 
-    function stop(){
+    function stop()
+          stopped = true; // TL3_FINAL_STOP_FIX: 강제 중단{
       stopped = true;
       pendingConfirmTimers.forEach(function(t){ clearTimeout(t); });
       pendingConfirmTimers = [];
@@ -262,7 +263,8 @@
     var stopped = false;
     var off = 9 + hlen;   // first_offset 대신 실제 payload 시작
 
-    function stop(){ stopped = true; }
+    function stop()
+          stopped = true; // TL3_FINAL_STOP_FIX: 강제 중단{ stopped = true; }
     audio._tl3Stop = stop;
 
     console.log('[TL3.playStream] sourceopen listener 등록');
@@ -831,6 +833,8 @@
 
         async function _next(){
           if(stopped) return;
+          // TL3_FINAL_STOP_FIX: MediaSource가 닫혔으면 즉시 중단
+          if(!ms || ms.readyState === 'closed') return;
           // TL3_PAUSE_FIX: 일시정지 상태면 루프 중단
           if (stopped || (audioEl && audioEl.paused && !audioEl.ended && audioEl.currentTime > 0)) {
             console.log('[TL3.playStream] Paused - _next stop');
