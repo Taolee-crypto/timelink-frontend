@@ -95,15 +95,36 @@
     }
 
     function attachLpRealtime(meta) {
-      // Keep TL3 MSE playback on the native media-element output path.
-      // The realtime WebAudio LP graph is isolated until it passes audible
-      // output verification; it must never intercept and silence the source.
+      // The player owns LP processing. The module is local, so no network
+      // request is made when playback starts. Missing metadata/module or any
+      // initialization failure leaves the native output path untouched.
+      try {
+        if (lpController && lpController.enabled) {
+          lpController.resume();
+          return;
+        }
+        if (global.TL3Audio && typeof global.TL3Audio.attach === 'function') {
+          // LP is a player feature: use per-track metadata when available,
+          // otherwise run the lightweight profile bundled with the player.
+          const profile = meta && meta.enabled === true && meta.g
+            ? meta
+            : global.TL3Audio.defaultProfile;
+          lpController = global.TL3Audio.attach(audioEl, profile);
+          if (lpController && lpController.enabled) {
+            console.log('[TL3-AUDIO] player LP engine active.', {
+              version: global.TL3Audio.version || 'embedded',
+              profile: profile.version || 'player-default',
+              state: lpController.state()
+            });
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn('[TL3-AUDIO] LP initialization failed; native output retained.', error);
+      }
       lpController = null;
-      console.warn('[TL3-AUDIO] realtime DSP bypassed; native audio output active.', {
-        lpMetadataPresent: !!meta
-      });
+      console.info('[TL3-AUDIO] native audio passthrough active.');
     }
-
     audioEl._tl3Confirm = function() {
       if (segmentTimer) { clearInterval(segmentTimer); segmentTimer = null; }
       const played = pendingMediaStart >= 0 ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
@@ -116,7 +137,8 @@
       const played = pendingMediaStart >= 0 ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
       pendingMediaStart = -1;
       confirmPending(played);
-      if (lpController) { lpController.destroy(); lpController = null; }
+      // Keep the single MediaElementAudioSourceNode and its graph alive for reuse.
+      // Browsers do not allow creating a second source node for the same element.
     };
     audioEl._tl3SegmentStop = audioEl._tl3Stop;
 
@@ -297,10 +319,9 @@
               // playing. The MSE stream can become unbuffered slightly before
               // its nominal 1-second boundary, so a late handoff always clicks.
               const segmentSeconds = durationMs / 1000;
-              // 다음 구간 전환은 현재 조각의 끝부분에서 시작한다.
-              // 기존 0.95초 선행값은 1초 조각을 0.05초만 재생하고 넘기게 했다.
-              // 끝나기 약 0.15초 전에 정산·다음 라이선스를 준비한다.
-              const advanceLeadSeconds = 0.15;
+              // 1초 세그먼트는 재생 0.15초 후 다음 구간 준비를 시작한다.
+              // 즉, 세그먼트 종료 약 0.85초 전에 정산·다음 라이선스를 준비한다.
+              const advanceLeadSeconds = 0.85;
               const advanceAt = Math.max(0.05, segmentSeconds - advanceLeadSeconds);
               if (playedSeconds < advanceAt) return;
               clearInterval(segmentTimer);
