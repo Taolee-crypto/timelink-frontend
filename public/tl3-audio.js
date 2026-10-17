@@ -176,9 +176,7 @@
       if (source && ctx) {
         try { source.disconnect(); source.connect(ctx.destination); } catch (_) {}
       }
-      if (ctx) {
-        try { const closing = ctx.close(); if (closing && closing.catch) closing.catch(function () {}); } catch (_) {}
-      }
+      // Keep the context alive in direct mode; closing it would silence the media element.
       audioEl.addEventListener('playing', resume);
       resume();
       return {
