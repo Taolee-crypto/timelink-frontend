@@ -26,11 +26,6 @@
     const onError = opts.onError || function(){};
     const onReady = opts.onReady || function(){};
     const sessionId = String(opts.sessionId || genSid());
-    // Parallel test mode: /track.html?id=...&tl3engine=next
-    // Default playback remains on the established MSE path until browser validation passes.
-    const experimentalEngine = (new URLSearchParams(global.location.search).get('tl3engine') === 'next' && global.TL3AudioEngineNext)
-      ? new global.TL3AudioEngineNext(audioEl) : null;
-
     console.log('[TL3v4] START fileId=', fileId, 'sessionId=', sessionId);
 
     // 1. 헤더 로드 (V4)
@@ -90,8 +85,10 @@
         if (!response.ok || !data.ok) throw new Error(data.error || ('confirm ' + response.status));
         if (index === segmentIndexPending) segmentIndexPending = -1;
         if (data.wallet_tl !== undefined) onSegment({index:index, seconds:played, remaining:data.wallet_tl, wallet_tl:data.wallet_tl, asset_remaining_tl:data.asset_remaining_tl});
+        return true;
       } catch (error) {
         console.warn('[TL3v4] segment confirm failed; server expiry refund remains available:', error);
+        return false;
       } finally { confirmBusy = false; }
     }
 
@@ -208,12 +205,8 @@
       pendingMediaStart = -1;
       return confirmPending(played);
     };
-    audioEl._tl3EngineSnapshot = function() {
-      return experimentalEngine ? experimentalEngine.snapshot(sb) : null;
-    };
     audioEl._tl3Stop = function() {
       stopped = true;
-      if (experimentalEngine) experimentalEngine.stop();
       if (segmentTimer) { clearInterval(segmentTimer); segmentTimer = null; }
       const played = pendingMediaStart >= 0 ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
       pendingMediaStart = -1;
@@ -347,30 +340,26 @@
             segmentIndexPending = n - 1;
 
             // 버퍼 추가 및 재생
-            if (experimentalEngine) {
-              await experimentalEngine.append(sb, plain, n);
-            } else {
-              await new Promise((res, rej) => {
-                const cleanup = () => {
-                  sb.removeEventListener('updateend', onEnd);
-                  sb.removeEventListener('error', onError);
-                  sb.removeEventListener('abort', onAbort);
-                };
-                const onEnd = () => { cleanup(); res(); };
-                const onError = () => { cleanup(); rej(new Error('SourceBuffer append error at segment ' + n)); };
-                const onAbort = () => { cleanup(); rej(new Error('SourceBuffer append aborted at segment ' + n)); };
-                sb.addEventListener('updateend', onEnd, { once: true });
-                sb.addEventListener('error', onError, { once: true });
-                sb.addEventListener('abort', onAbort, { once: true });
-                try {
-                  if (sb.updating) throw new Error('SourceBuffer is already updating at segment ' + n);
-                  sb.appendBuffer(plain);
-                } catch(e) {
-                  cleanup();
-                  rej(e);
-                }
-              });
-            }
+            await new Promise((res, rej) => {
+              const cleanup = () => {
+                sb.removeEventListener('updateend', onEnd);
+                sb.removeEventListener('error', onError);
+                sb.removeEventListener('abort', onAbort);
+              };
+              const onEnd = () => { cleanup(); res(); };
+              const onError = () => { cleanup(); rej(new Error('SourceBuffer append error at segment ' + n)); };
+              const onAbort = () => { cleanup(); rej(new Error('SourceBuffer append aborted at segment ' + n)); };
+              sb.addEventListener('updateend', onEnd, { once: true });
+              sb.addEventListener('error', onError, { once: true });
+              sb.addEventListener('abort', onAbort, { once: true });
+              try {
+                if (sb.updating) throw new Error('SourceBuffer is already updating at segment ' + n);
+                sb.appendBuffer(plain);
+              } catch(e) {
+                cleanup();
+                rej(e);
+              }
+            });
 
             // 다음 암호문만 선행 수신한다. TL 라이선스 예약은 confirm 뒤에 한다.
             if (n < header.mp3.N && !prefetchedSegment) {
@@ -419,19 +408,19 @@
                 segment:n, playedSeconds, segmentSeconds, advanceAt,
                 currentTime:audioEl.currentTime, paused:audioEl.paused
               });
-              // Start settlement now, but do not serialize the next segment
-              // behind its network round-trip. The next code request retries
-              // the single-pending guard until this settlement is committed.
-              // Reaching this handoff means playback is active and the
-              // already-appended segment is expected to finish naturally.
-              // Settle its full reserved duration now so the next segment can
-              // be licensed and appended before the current MSE buffer ends.
-              // If the user pauses/stops before this point, _tl3Confirm still
-              // settles only the actually elapsed playback time.
-              const settlement = confirmPending(segmentSeconds);
+              // Finish the current segment's TL settlement before requesting
+              // the next license. This removes the old race in which /code
+              // repeatedly collided with the still-pending /confirm request.
+              // The handoff starts with about 850ms of the current MSE segment
+              // still buffered, giving the next license/decrypt/append time
+              // to complete while the current audio continues playing.
+              const settled = await confirmPending(segmentSeconds);
+              if (stopped) return;
+              if (!settled) {
+                console.warn('[TL3v4] settlement did not complete; next license will use bounded conflict retry');
+              }
               n++;
-              if (!stopped) _next();
-              settlement.catch(error => console.warn('[TL3v4] background settlement error:', error));
+              await _next();
             }, 50);
             
           } catch (e) {
