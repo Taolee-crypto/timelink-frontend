@@ -80,12 +80,24 @@ jobs:
           assert "lp-v1-runtime" in creator
           assert "TL3_LP_FLAC.encode" not in creator
           assert "lp_opus_b64" not in manufacture
-          assert "TL3Audio.attach" in player
-          audio_module = Path("public/tl3-audio.js").read_text(encoding="utf-8")
-          assert "lightweight LP module attached" in audio_module
           assert "/tl3-lp.js" in track
-          assert "/tl3-audio.js" in track
           assert "segment/confirm/" in player
           assert "genSid()" in player
-          print("Validated LP metadata-only publishing, realtime Track DSP and TL3 segment sessions.")
+
+          # Track playback may use realtime LP DSP or the explicit native
+          # media-element bypass while WebAudio output is being isolated.
+          native_bypass = (
+              "realtime DSP bypassed; native audio output active." in player
+              and "/tl3-audio.js" not in track
+              and "TL3Audio.attach" not in player
+          )
+          audio_module = Path("public/tl3-audio.js").read_text(encoding="utf-8")
+          realtime_lp = (
+              "TL3Audio.attach" in player
+              and "/tl3-audio.js" in track
+              and "lightweight LP module attached" in audio_module
+          )
+          assert native_bypass or realtime_lp, "Track must use a complete LP runtime or an explicit native-audio bypass."
+          mode = "native audio bypass" if native_bypass else "realtime LP DSP"
+          print(f"Validated LP metadata-only publishing, Track playback mode ({mode}) and TL3 segment sessions.")
           PY
