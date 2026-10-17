@@ -31,8 +31,7 @@
       ['/shareplace.html', '◈', 'SharePlace', '공유플레이스']
     ]],
     ['CREATOR', '창작', [
-      ['/creator-studio.html', '✧', 'Creator Studio', '크리에이터 스튜디오'],
-      ['/creator.html', '✎', 'Creator Center', '크리에이터 센터']
+      ['/creator-studio.html', '✧', 'Creator Studio', '크리에이터 스튜디오']
     ]],
     ['TL BROADCAST', 'TL 방송국', [
       ['/cafe-channel.html', '▣', 'Cafe Channel', '카페방송'],
