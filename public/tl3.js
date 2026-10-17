@@ -95,11 +95,13 @@
     }
 
     function attachLpRealtime(meta) {
-      if (!global.TL3Audio || typeof global.TL3Audio.attach !== 'function') {
-        console.warn('[TL3-AUDIO] module missing; original audio bypass enabled.');
-        return;
-      }
-      lpController = global.TL3Audio.attach(audioEl, meta || null);
+      // Keep TL3 MSE playback on the native media-element output path.
+      // The realtime WebAudio LP graph is isolated until it passes audible
+      // output verification; it must never intercept and silence the source.
+      lpController = null;
+      console.warn('[TL3-AUDIO] realtime DSP bypassed; native audio output active.', {
+        lpMetadataPresent: !!meta
+      });
     }
 
     audioEl._tl3Confirm = function() {
