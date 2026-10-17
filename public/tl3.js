@@ -281,8 +281,15 @@
               { name: 'AES-GCM', iv: ivFor(n), tagLength: 128 }, key, ciphertext
             ));
 
-            // 7. 버퍼 추가 및 재생
+            // 7. 재생 구간의 시작 시각은 appendBuffer 전에 기록한다.
+            // appendBuffer 완료 후 기록하면 첫 구간이 이미 재생된 뒤일 수 있어
+            // currentTime이 멈춘 상태에서 다음 세그먼트 전환을 기다리게 된다.
             if (stopped || !sb) return;
+            pendingMediaStart = audioEl.currentTime;
+            pendingDurationMs = durationMs;
+            segmentIndexPending = n - 1;
+
+            // 버퍼 추가 및 재생
             await new Promise((res, rej) => {
               const cleanup = () => {
                 sb.removeEventListener('updateend', onEnd);
@@ -305,9 +312,6 @@
             });
 
             onSegment({ index: n - 1, seconds: durationMs / 1000, remaining: codeData.wallet_tl ?? codeData.remaining_tl, wallet_tl:codeData.wallet_tl ?? codeData.remaining_tl, asset_remaining_tl:codeData.asset_remaining_tl });
-            pendingMediaStart = audioEl.currentTime;
-            pendingDurationMs = durationMs;
-            segmentIndexPending = n - 1;
             // 실제 재생시간을 서버에 확정하고 미사용 예약분은 환급한다.
             segmentTimer = setInterval(async function() {
               const playedSeconds = Math.max(0, audioEl.currentTime - pendingMediaStart);
