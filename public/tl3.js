@@ -100,7 +100,8 @@
         return;
       }
       lpController = global.TL3Audio.attach(audioEl, meta || null);
-    }val(segmentTimer); segmentTimer = null; }
+    audioEl._tl3Confirm = function() {
+      if (segmentTimer) { clearInterval(segmentTimer); segmentTimer = null; }
       const played = pendingMediaStart >= 0 ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
       pendingMediaStart = -1;
       return confirmPending(played);
