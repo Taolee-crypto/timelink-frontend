@@ -208,8 +208,12 @@
       pendingMediaStart = -1;
       return confirmPending(played);
     };
+    audioEl._tl3EngineSnapshot = function() {
+      return experimentalEngine ? experimentalEngine.snapshot(sb) : null;
+    };
     audioEl._tl3Stop = function() {
       stopped = true;
+      if (experimentalEngine) experimentalEngine.stop();
       if (segmentTimer) { clearInterval(segmentTimer); segmentTimer = null; }
       const played = pendingMediaStart >= 0 ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
       pendingMediaStart = -1;
