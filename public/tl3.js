@@ -276,10 +276,11 @@
 
           try {
             // 3. 세그먼트 암호문은 이전 구간 재생 중 미리 받아 둔 값을 우선 사용한다.
-            const payload = (prefetchedSegment && prefetchedSegment.segment === n)
+            let payload = (prefetchedSegment && prefetchedSegment.segment === n)
               ? await prefetchedSegment.promise
               : await fetchSegmentPayload(n);
             if (prefetchedSegment && prefetchedSegment.segment === n) prefetchedSegment = null;
+            if (payload && payload.retry) payload = await fetchSegmentPayload(n);
             if (payload.status === 416) {
               try { if (ms.readyState === 'open') ms.endOfStream(); } catch(e){}
               return;
@@ -353,8 +354,9 @@
               prefetchedSegment = {
                 segment:nextSegment,
                 promise:fetchSegmentPayload(nextSegment).catch(error => {
+                  console.warn('[TL3v4] ciphertext prefetch failed; retrying on demand', nextSegment, error);
                   if (prefetchedSegment && prefetchedSegment.segment === nextSegment) prefetchedSegment = null;
-                  throw error;
+                  return {retry:true};
                 })
               };
               console.log('[TL3v4] prefetch started', nextSegment);
