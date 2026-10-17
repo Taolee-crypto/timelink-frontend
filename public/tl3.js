@@ -205,8 +205,10 @@
     return new Promise(async (resolve, reject) => {
       try {
         ms.addEventListener('sourceopen', async function() {
+          console.log('[TL3v4] MediaSource sourceopen');
           try {
             sb = ms.addSourceBuffer('audio/mpeg');
+            console.log('[TL3v4] SourceBuffer ready:', sb.type);
           } catch (e) {
             onError(e); reject(e); return;
           }
@@ -229,7 +231,11 @@
         else audioEl.addEventListener('canplay', playOnce, { once: true });
 
         async function _next() {
-          if (stopped || !sb || ms.readyState === 'closed') return;
+          if (stopped || !sb || ms.readyState === 'closed') {
+            console.warn('[TL3v4] segment loop not started:', {stopped, sourceBuffer:!!sb, mediaSourceState:ms.readyState});
+            return;
+          }
+          console.log('[TL3v4] requesting segment', n, '/', header.mp3.N);
           
           // MP3 세그먼트가 끝났으면? 아직 LP Opus 처리 안 했다면 LP로 넘어감?
           // 지금은 MP3만 재생하는 로직으로 우선 테스트
@@ -244,6 +250,7 @@
             // 3. 세그먼트 요청
             const segUrl = API + '/api/v1/tl3/segment/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(sessionId);
             const sr = await fetch(segUrl, { headers: authHeaders() });
+            console.log('[TL3v4] segment response', n, sr.status, sr.headers.get('X-TL3-Segment-Duration-Ms'));
             if (sr.status === 416) {
               try { if (ms.readyState === 'open') ms.endOfStream(); } catch(e){}
               return;
@@ -270,6 +277,7 @@
 
             // 5. 라이센스 키 요청
             const cr = await fetch(API + '/api/v1/tl3/code/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(sessionId), { headers: authHeaders() });
+            console.log('[TL3v4] code response', n, cr.status);
             if (!cr.ok) { onError(new Error('code ' + cr.status)); return; }
             const codeData = await cr.json();
             const lic = unhex(codeData.lic_n || '');
@@ -280,6 +288,7 @@
             const plain = new Uint8Array(await crypto.subtle.decrypt(
               { name: 'AES-GCM', iv: ivFor(n), tagLength: 128 }, key, ciphertext
             ));
+            console.log('[TL3v4] segment decrypted', n, 'bytes=', plain.length);
 
             // 7. 재생 구간의 시작 시각은 appendBuffer 전에 기록한다.
             // appendBuffer 완료 후 기록하면 첫 구간이 이미 재생된 뒤일 수 있어
@@ -311,6 +320,7 @@
               }
             });
 
+            console.log('[TL3v4] append complete', n, {durationMs, currentTime:audioEl.currentTime, buffered:sb.buffered.length ? [sb.buffered.start(0),sb.buffered.end(sb.buffered.length-1)] : []});
             onSegment({ index: n - 1, seconds: durationMs / 1000, remaining: codeData.wallet_tl ?? codeData.remaining_tl, wallet_tl:codeData.wallet_tl ?? codeData.remaining_tl, asset_remaining_tl:codeData.asset_remaining_tl });
             // 실제 재생시간을 서버에 확정하고 미사용 예약분은 환급한다.
             segmentTimer = setInterval(async function() {
@@ -325,7 +335,7 @@
             }, 50);
             
           } catch (e) {
-            console.error('[TL3v4] _next error:', e);
+            console.error('[TL3v4] _next error at segment', n, e);
             onError(e);
           }
         }
