@@ -692,8 +692,14 @@
             }
             onSegment({index:n,seconds:durationMs/1000,remaining:codeData.wallet_tl??codeData.remaining_tl,wallet_tl:codeData.wallet_tl??codeData.remaining_tl,asset_remaining_tl:codeData.asset_remaining_tl});
 
-            var confirmedIndex=n;
+            // ★ 1. 다음 세그먼트 선요청 (Pre-buffering)
+            var confirmedIndex = n;
+            n++;
+            if (!stopped) _next();
+
+            // ★ 2. 정산(Confirm)은 백그라운드에서 처리
             setTimeout(function(){
+              if (stopped) return;
               fetch(API + '/api/v1/tl3/segment/confirm/' + fileId, {
                 method:'POST',
                 headers:Object.assign({},authHeaders(),{'Content-Type':'application/json'}),
@@ -703,10 +709,8 @@
                 if(d.remaining_tl!==undefined){
                   onSegment({index:confirmedIndex,seconds:durationMs/1000,remaining:d.wallet_tl??d.remaining_tl,wallet_tl:d.wallet_tl??d.remaining_tl,asset_remaining_tl:d.asset_remaining_tl,settled:true});
                 }
-                n++;
-                if(!stopped) _next();
               }).catch(function(e){console.warn('[TL3] segment confirm failed',e);onError(e);});
-            },durationMs);
+            }, durationMs);
           } catch(e){ onError(e); }
         }
 
@@ -826,11 +830,39 @@
         if (audioEl.readyState >= 3) {
           playOnce();
         } else {
-          audioEl.addEventListener('canplay', playOnce, { once: true });
+          
+        // TL3_PREBUFFER_FIX: 버퍼가 충분히 쌓일 때까지 재생 지연
+        var _canplayHandler = function() {
+            if (audioEl.buffered.length > 0) {
+                var bufferedEnd = audioEl.buffered.end(audioEl.buffered.length - 1);
+                // 현재 버퍼가 10초 이상이면 재생 시작
+                if (bufferedEnd >= 10) {
+                    playOnce();
+                } else {
+                    // 10초가 안 되면 1초 후 다시 확인
+                    setTimeout(_canplayHandler, 1000);
+                }
+            } else {
+                setTimeout(_canplayHandler, 1000);
+            }
+        };
+        audioEl.addEventListener('canplay', _canplayHandler, { once: true });
         }
 
         async function _next(){
           if(stopped) return;
+          // TL3_BUFFER_WAIT2: 버퍼가 10초 이상 앞서면 대기
+          if (audioEl && !audioEl.paused) {
+            var _buf = audioEl.buffered;
+            if (_buf.length > 0) {
+              var _bufEnd = _buf.end(_buf.length - 1);
+              var _cur = audioEl.currentTime;
+              if (_bufEnd - _cur > 10) {
+                setTimeout(_next, 500);
+                return;
+              }
+            }
+          }
           // TL3_PAUSE_FINAL_STOP: 재생 루프 중단
           if (window._tl3_force_stopped) { return; }
           if (audioEl && audioEl.paused && !audioEl.ended && audioEl.currentTime > 0) {
