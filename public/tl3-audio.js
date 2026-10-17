@@ -126,6 +126,9 @@
       shaper.disconnect();
       shaper.connect(delay);
       delay.connect(output);
+      // output.disconnect() above also removed the speaker connection.
+      // Restore the final route after inserting the wow delay stage.
+      output.connect(ctx.destination);
       nodes.push(delay, wowDepth);
       oscillator.start();
 
