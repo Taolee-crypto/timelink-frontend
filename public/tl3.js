@@ -390,12 +390,11 @@
             // 실제 재생시간을 서버에 확정하고 미사용 예약분은 환급한다.
             segmentTimer = setInterval(async function() {
               const playedSeconds = Math.max(0, audioEl.currentTime - pendingMediaStart);
-              // MP3 frame boundaries can make the browser's playable segment
-              // slightly shorter than the nominal 1-second billing duration.
-              // Advance before the MSE buffer is exhausted; confirm only the
-              // measured playback time, then request the next licensed segment.
+              // Prepare the next licensed segment while this segment is still
+              // playing. The MSE stream can become unbuffered slightly before
+              // its nominal 1-second boundary, so a late handoff always clicks.
               const segmentSeconds = durationMs / 1000;
-              const advanceAt = Math.max(0.1, segmentSeconds - 0.12);
+              const advanceAt = Math.max(0.15, segmentSeconds - 0.5);
               if (playedSeconds < advanceAt) return;
               clearInterval(segmentTimer);
               segmentTimer = null;
@@ -407,7 +406,13 @@
               // Start settlement now, but do not serialize the next segment
               // behind its network round-trip. The next code request retries
               // the single-pending guard until this settlement is committed.
-              const settlement = confirmPending(Math.min(segmentSeconds, playedSeconds));
+              // Reaching this handoff means playback is active and the
+              // already-appended segment is expected to finish naturally.
+              // Settle its full reserved duration now so the next segment can
+              // be licensed and appended before the current MSE buffer ends.
+              // If the user pauses/stops before this point, _tl3Confirm still
+              // settles only the actually elapsed playback time.
+              const settlement = confirmPending(segmentSeconds);
               n++;
               if (!stopped) _next();
               settlement.catch(error => console.warn('[TL3v4] background settlement error:', error));
