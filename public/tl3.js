@@ -283,10 +283,25 @@
 
             // 7. 버퍼 추가 및 재생
             if (stopped || !sb) return;
-            await new Promise((res) => {
-              const h = () => { sb.removeEventListener('updateend', h); res(); };
-              sb.addEventListener('updateend', h);
-              try { sb.appendBuffer(plain); } catch(e) { sb.removeEventListener('updateend', h); res(); }
+            await new Promise((res, rej) => {
+              const cleanup = () => {
+                sb.removeEventListener('updateend', onEnd);
+                sb.removeEventListener('error', onError);
+                sb.removeEventListener('abort', onAbort);
+              };
+              const onEnd = () => { cleanup(); res(); };
+              const onError = () => { cleanup(); rej(new Error('SourceBuffer append error at segment ' + n)); };
+              const onAbort = () => { cleanup(); rej(new Error('SourceBuffer append aborted at segment ' + n)); };
+              sb.addEventListener('updateend', onEnd, { once: true });
+              sb.addEventListener('error', onError, { once: true });
+              sb.addEventListener('abort', onAbort, { once: true });
+              try {
+                if (sb.updating) throw new Error('SourceBuffer is already updating at segment ' + n);
+                sb.appendBuffer(plain);
+              } catch(e) {
+                cleanup();
+                rej(e);
+              }
             });
 
             onSegment({ index: n - 1, seconds: durationMs / 1000, remaining: codeData.wallet_tl ?? codeData.remaining_tl, wallet_tl:codeData.wallet_tl ?? codeData.remaining_tl, asset_remaining_tl:codeData.asset_remaining_tl });
