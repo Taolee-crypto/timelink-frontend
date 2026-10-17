@@ -200,5 +200,17 @@
     }
   }
 
-  global.TL3Audio = { attach: attach, version: 'audio-lite-v1' };
+  // Player-resident fallback profile: no LP payload or network fetch is
+  // required in a TL3 asset. Track metadata may override these parameters.
+  const defaultProfile = {
+    enabled: true,
+    version: 'player-default-lp-v1',
+    seed: 7,
+    g: { Gd: 0.5, Gw: 0.5, Gi: 0.5, Gt: 0.2, Gp: 0.2, nz: -60 }
+  };
+  global.TL3Audio = {
+    attach: attach,
+    defaultProfile: defaultProfile,
+    version: 'audio-lite-v1'
+  };
 })(window);
