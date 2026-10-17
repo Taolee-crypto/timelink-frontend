@@ -99,11 +99,21 @@
       // request is made when playback starts. Missing metadata/module or any
       // initialization failure leaves the native output path untouched.
       try {
+        if (lpController && lpController.enabled) {
+          lpController.resume();
+          return;
+        }
         if (global.TL3Audio && typeof global.TL3Audio.attach === 'function') {
-          lpController = global.TL3Audio.attach(audioEl, meta || null);
+          // LP is a player feature: use per-track metadata when available,
+          // otherwise run the lightweight profile bundled with the player.
+          const profile = meta && meta.enabled === true && meta.g
+            ? meta
+            : global.TL3Audio.defaultProfile;
+          lpController = global.TL3Audio.attach(audioEl, profile);
           if (lpController && lpController.enabled) {
             console.log('[TL3-AUDIO] player LP engine active.', {
               version: global.TL3Audio.version || 'embedded',
+              profile: profile.version || 'player-default',
               state: lpController.state()
             });
             return;
@@ -127,7 +137,9 @@
       const played = pendingMediaStart >= 0 ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
       pendingMediaStart = -1;
       confirmPending(played);
-      if (lpController) { lpController.destroy(); lpController = null; }
+      // Keep the single MediaElementAudioSourceNode alive for this audio element.
+      // Browsers do not allow creating a second source node for the same element.
+      if (lpController) lpController.resume();
     };
     audioEl._tl3SegmentStop = audioEl._tl3Stop;
 
