@@ -51,7 +51,7 @@
     let sb = null, n = 1;
     let stopped = false;
     let lpAudioCtx = null, lpMediaSource = null, lpProcessor = null, lpNoiseSource = null;
-    let segmentTimer = null, pendingStartedAt = 0, pendingDurationMs = 0, confirmBusy = false;
+    let segmentTimer = null, pendingMediaStart = 0, pendingDurationMs = 0, confirmBusy = false;
     let segmentIndexPending = -1;
 
     async function confirmPending(playedSeconds) {
@@ -125,15 +125,15 @@
 
     audioEl._tl3Confirm = function() {
       if (segmentTimer) { clearTimeout(segmentTimer); segmentTimer = null; }
-      const played = pendingStartedAt ? (Date.now() - pendingStartedAt) / 1000 : 0;
-      pendingStartedAt = 0;
+      const played = pendingMediaStart ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
+      pendingMediaStart = 0;
       return confirmPending(played);
     };
     audioEl._tl3Stop = function() {
       stopped = true;
       if (segmentTimer) { clearTimeout(segmentTimer); segmentTimer = null; }
-      const played = pendingStartedAt ? (Date.now() - pendingStartedAt) / 1000 : 0;
-      pendingStartedAt = 0;
+      const played = pendingMediaStart ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
+      pendingMediaStart = 0;
       confirmPending(played);
       try { if (lpMediaSource) lpMediaSource.disconnect(); } catch(_){}
       try { if (lpProcessor) { lpProcessor.onaudioprocess = null; lpProcessor.disconnect(); } } catch(_){}
@@ -229,17 +229,20 @@
             });
 
             onSegment({ index: n - 1, seconds: durationMs / 1000, remaining: codeData.wallet_tl ?? codeData.remaining_tl, wallet_tl:codeData.wallet_tl ?? codeData.remaining_tl, asset_remaining_tl:codeData.asset_remaining_tl });
-            pendingStartedAt = Date.now();
+            pendingMediaStart = audioEl.currentTime;
             pendingDurationMs = durationMs;
             segmentIndexPending = n - 1;
             // 실제 재생시간을 서버에 확정하고 미사용 예약분은 환급한다.
-            segmentTimer = setTimeout(async function() {
+            segmentTimer = setInterval(async function() {
+              const playedSeconds = Math.max(0, audioEl.currentTime - pendingMediaStart);
+              if (playedSeconds + 0.025 < durationMs / 1000) return;
+              clearInterval(segmentTimer);
               segmentTimer = null;
-              pendingStartedAt = 0;
-              await confirmPending(durationMs / 1000);
+              pendingMediaStart = 0;
+              await confirmPending(Math.min(durationMs / 1000, playedSeconds));
               n++;
               if (!stopped) _next();
-            }, Math.max(1, durationMs));
+            }, 50);
             
           } catch (e) {
             console.error('[TL3v4] _next error:', e);
