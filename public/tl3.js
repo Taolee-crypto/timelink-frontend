@@ -347,11 +347,21 @@
             // 실제 재생시간을 서버에 확정하고 미사용 예약분은 환급한다.
             segmentTimer = setInterval(async function() {
               const playedSeconds = Math.max(0, audioEl.currentTime - pendingMediaStart);
-              if (playedSeconds + 0.025 < durationMs / 1000) return;
+              // MP3 frame boundaries can make the browser's playable segment
+              // slightly shorter than the nominal 1-second billing duration.
+              // Advance before the MSE buffer is exhausted; confirm only the
+              // measured playback time, then request the next licensed segment.
+              const segmentSeconds = durationMs / 1000;
+              const advanceAt = Math.max(0.1, segmentSeconds - 0.12);
+              if (playedSeconds < advanceAt) return;
               clearInterval(segmentTimer);
               segmentTimer = null;
               pendingMediaStart = -1;
-              await confirmPending(Math.min(durationMs / 1000, playedSeconds));
+              console.log('[TL3v4] segment playback threshold reached', {
+                segment:n, playedSeconds, segmentSeconds, advanceAt,
+                currentTime:audioEl.currentTime, paused:audioEl.paused
+              });
+              await confirmPending(Math.min(segmentSeconds, playedSeconds));
               n++;
               if (!stopped) _next();
             }, 50);
