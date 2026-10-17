@@ -50,7 +50,7 @@
     const msUrl = URL.createObjectURL(ms);
     let sb = null, n = 1;
     let stopped = false;
-    let lpAudioCtx = null, lpMediaSource = null, lpProcessor = null, lpNoiseSource = null;
+    let lpAudioCtx = null, lpMediaSource = null, lpNodes = [], lpOscillator = null, lpNoiseSource = null;
     let segmentTimer = null, pendingMediaStart = -1, pendingDurationMs = 0, confirmBusy = false;
     let segmentIndexPending = -1;
 
@@ -76,10 +76,6 @@
 
     function attachLpRealtime(meta) {
       if (!meta || meta.enabled !== true) return;
-      if (!global.TL3_LP || typeof global.TL3_LP.render !== 'function') {
-        console.warn('[TL3-LP] DSP module unavailable; playing original audio.');
-        return;
-      }
       const params = meta.g;
       if (!params || typeof params !== 'object') {
         console.warn('[TL3-LP] LP parameters missing; playing original audio.');
@@ -90,36 +86,90 @@
         if (!AudioContextCtor) return;
         lpAudioCtx = new AudioContextCtor();
         lpMediaSource = lpAudioCtx.createMediaElementSource(audioEl);
-        lpProcessor = lpAudioCtx.createScriptProcessor(4096, 2, 2);
-        const seed = Number(meta.seed || 7);
-        let block = 0;
-        lpProcessor.onaudioprocess = function(event) {
-          const input = event.inputBuffer;
-          const output = event.outputBuffer;
-          const left = input.getChannelData(0);
-          const right = input.numberOfChannels > 1 ? input.getChannelData(1) : left;
-          const outL = output.getChannelData(0);
-          const outR = output.numberOfChannels > 1 ? output.getChannelData(1) : outL;
-          try {
-            const rendered = global.TL3_LP.render(left, right, lpAudioCtx.sampleRate, params, (seed + block++) | 0);
-            outL.set(rendered.L);
-            if (output.numberOfChannels > 1) outR.set(rendered.R);
-          } catch (error) {
-            outL.set(left);
-            if (output.numberOfChannels > 1) outR.set(right);
-            console.warn('[TL3-LP] realtime DSP block bypassed:', error);
-          }
-        };
-        lpMediaSource.connect(lpProcessor);
-        lpProcessor.connect(lpAudioCtx.destination);
+
+        // Stable Web Audio graph: filters, saturation, wow/flutter and seeded vinyl noise.
+        const highpass = lpAudioCtx.createBiquadFilter();
+        highpass.type = 'highpass';
+        highpass.frequency.value = 30 + 20 * Number(params.Gd || 0.5);
+        highpass.Q.value = 0.707;
+
+        const lowpass = lpAudioCtx.createBiquadFilter();
+        lowpass.type = 'lowpass';
+        lowpass.frequency.value = Math.max(9000, Math.min(18000,
+          16000 - 7000 * Number(params.Gw || 0.5) - 4000 * Number(params.Gi || 0.5)));
+        lowpass.Q.value = 0.707;
+
+        const shaper = lpAudioCtx.createWaveShaper();
+        const amount = 1 + 2.5 * Number(params.Gt || 0.2);
+        const curve = new Float32Array(2048);
+        const norm = Math.tanh(amount) || 1;
+        for (let i = 0; i < curve.length; i++) {
+          const x = (i * 2 / (curve.length - 1)) - 1;
+          curve[i] = Math.tanh(amount * x) / norm;
+        }
+        shaper.curve = curve;
+        shaper.oversample = '2x';
+
+        const wowDelay = lpAudioCtx.createDelay(0.05);
+        wowDelay.delayTime.value = 0.012;
+        lpOscillator = lpAudioCtx.createOscillator();
+        lpOscillator.type = 'sine';
+        lpOscillator.frequency.value = 0.55;
+        const wowDepth = lpAudioCtx.createGain();
+        wowDepth.gain.value = 0.00025 + 0.001 * Number(params.Gp || 0.2);
+        lpOscillator.connect(wowDepth);
+        wowDepth.connect(wowDelay.delayTime);
+
+        const outputGain = lpAudioCtx.createGain();
+        outputGain.gain.value = 0.96;
+        lpMediaSource.connect(highpass);
+        highpass.connect(lowpass);
+        lowpass.connect(shaper);
+        shaper.connect(wowDelay);
+        wowDelay.connect(outputGain);
+        outputGain.connect(lpAudioCtx.destination);
+        lpNodes = [highpass, lowpass, shaper, wowDelay, wowDepth, outputGain];
+
+        // Deterministic, very low-level surface noise from the licensed seed.
+        const seed = Number(meta.seed || 7) | 0;
+        let randomState = seed || 7;
+        const noiseBuffer = lpAudioCtx.createBuffer(1, lpAudioCtx.sampleRate * 2, lpAudioCtx.sampleRate);
+        const noiseData = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseData.length; i++) {
+          randomState = (Math.imul(randomState ^ (randomState >>> 15), 1 | randomState) + 0x6D2B79F5) | 0;
+          noiseData[i] = ((randomState >>> 0) / 2147483648) - 1;
+        }
+        lpNoiseSource = lpAudioCtx.createBufferSource();
+        lpNoiseSource.buffer = noiseBuffer;
+        lpNoiseSource.loop = true;
+        const noiseFilter = lpAudioCtx.createBiquadFilter();
+        noiseFilter.type = 'lowpass';
+        noiseFilter.frequency.value = 7500;
+        const noiseGain = lpAudioCtx.createGain();
+        noiseGain.gain.value = Math.pow(10, Number(params.nz ?? -48) / 20) * 0.16;
+        lpNoiseSource.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(lpAudioCtx.destination);
+        lpNodes.push(noiseFilter, noiseGain);
+
+        lpOscillator.start();
+        lpNoiseSource.start();
         lpAudioCtx.resume().catch(function(){});
-        audioEl.addEventListener('playing', function() { if (lpAudioCtx && lpAudioCtx.state === 'suspended') lpAudioCtx.resume().catch(function(){}); });
-        console.log('[TL3-LP] realtime DSP attached', {version:meta.version, sampleRate:meta.fs, seed:seed});
+        audioEl.addEventListener('playing', function() {
+          if (lpAudioCtx && lpAudioCtx.state === 'suspended') lpAudioCtx.resume().catch(function(){});
+        });
+        console.log('[TL3-LP] realtime vinyl DSP attached', {
+          version:meta.version, sampleRate:meta.fs, seed:seed,
+          highpass:highpass.frequency.value, lowpass:lowpass.frequency.value
+        });
       } catch (error) {
         console.warn('[TL3-LP] realtime DSP setup failed; original audio remains available:', error);
         try { if (lpMediaSource) lpMediaSource.disconnect(); } catch(_){}
-        try { if (lpProcessor) lpProcessor.disconnect(); } catch(_){}
-        lpMediaSource = null; lpProcessor = null;
+        for (const node of lpNodes) { try { node.disconnect(); } catch(_){} }
+        lpNodes = [];
+        if (lpOscillator) { try { lpOscillator.stop(); } catch(_){} lpOscillator = null; }
+        if (lpNoiseSource) { try { lpNoiseSource.stop(); } catch(_){} lpNoiseSource = null; }
+        lpMediaSource = null;
         if (lpAudioCtx) { try { lpAudioCtx.close(); } catch(_){} lpAudioCtx = null; }
       }
     }
@@ -137,7 +187,10 @@
       pendingMediaStart = -1;
       confirmPending(played);
       try { if (lpMediaSource) lpMediaSource.disconnect(); } catch(_){}
-      try { if (lpProcessor) { lpProcessor.onaudioprocess = null; lpProcessor.disconnect(); } } catch(_){}
+      for (const node of lpNodes) { try { node.disconnect(); } catch(_){} }
+      lpNodes = [];
+      if (lpOscillator) { try { lpOscillator.stop(); } catch(_){} lpOscillator = null; }
+      if (lpNoiseSource) { try { lpNoiseSource.stop(); } catch(_){} lpNoiseSource = null; }
       if (lpAudioCtx) { try { lpAudioCtx.close(); } catch(_){} lpAudioCtx = null; }
     };
     audioEl._tl3SegmentStop = audioEl._tl3Stop;
