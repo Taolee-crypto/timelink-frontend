@@ -613,9 +613,11 @@
         });
 
         async function _next(){
+          if(window.addDebugLog) window.addDebugLog('▶ _next 시작 n=' + n);
           // ★ 세션 중단 확인 (더 엄격하게)
           if(stopped || !ms || ms.readyState === 'closed' || !sb || !ms.sourceBuffers || ms.sourceBuffers.length === 0) {
             console.log('[TL3.playStream] 세션 중단됨 -> 루프 종료');
+            if(window.addDebugLog) window.addDebugLog('❌ 세션 중단 감지 -> 루프 종료');
             return;
           }
           console.log('[TL3.playStream] _next n=', n);
@@ -678,6 +680,7 @@
             });
 
             console.log('[TL3.playStream] ✅ appended segment', n);
+            if(window.addDebugLog) window.addDebugLog('✅ 버퍼링 완료 n=' + n);
             if (n === 5) {
               console.log('--- 5개 세그먼트 버퍼링 완료, 계속 진행 중 ---');
             }
