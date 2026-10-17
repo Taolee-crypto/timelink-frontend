@@ -161,7 +161,7 @@ nav{background:rgba(10,10,10,.9);border-color:var(--line)}
 
 <div class="actions">
   <button class="btn secondary" id="back2lp">← 이전</button>
-  <button class="btn primary" id="lpContinueBtn">효과 완료</button>
+  <button class="btn primary" id="lpContinueBtn">TL3 등록하러 가기 →</button>
 </div>
 <div class="error" id="error2lp"></div>
 </section>
@@ -222,7 +222,7 @@ function clearErr(id){$(id).style.display='none';}
 function step(n){
   // LP_ALWAYS_VISIBLE: panel2_lp는 항상 표시
   ['panel1','panel2','panel3','done'].forEach(function(x){var e=$(x);if(e)e.style.display='none';});
-  var _lpEl=$('panel2_lp');if(_lpEl)_lpEl.style.display='block';
+  var _lpEl=$('panel2_lp');if(_lpEl)_lpEl.style.display = (n === 2 ? 'block' : 'none');
   var tgt = (n===4) ? $('done') : $('panel'+n);
   if(tgt) tgt.style.removeProperty('display');
   if(n===4 && $('done')) $('done').style.display='block';
@@ -371,8 +371,8 @@ $('lpContinueBtn').onclick=async function(){
   var _btn = $('lpContinueBtn');
   if(_btn && _btn.disabled) return;
   
-  // ★ 권리 확인 체크 (panel1에 있음)
-  if(!$('rights') || !$('rights').checked){
+  // ★ 권리 확인 체크 (panel1에서 이미 체크했거나 생략 가능)
+  if($('rights') && !$('rights').checked){
     var _e = $('error2lp'); if(_e){ _e.textContent = '권리 확인에 동의해야 TL3로 공유할 수 있습니다.'; _e.style.display='block'; }
     return;
   }
@@ -396,12 +396,15 @@ $('lpContinueBtn').onclick=async function(){
     // ★ 차분 생성
     var btn = $('lpContinueBtn');
     if(btn){ btn.disabled = true; btn.textContent = 'Opus 인코딩 중...'; }
-    await buildLpFlac();
-    if(btn){ btn.disabled = true; btn.textContent = 'TL3 제조 중...'; }
     
-    // ★ Opus 인코딩 완료 → panel3 (TL3 등록)으로 이동
-    if(btn){ btn.disabled = false; btn.textContent = '음질 개선 완료'; }
-    if(typeof step === 'function') step(3);
+    try {
+      await buildLpFlac(); // Opus 인코딩 실행
+      if(btn){ btn.disabled = false; btn.textContent = 'TL3 등록하러 가기 →'; }
+      step(3); // ★ panel3 (TL3 등록)으로 이동
+    } catch(e) {
+      if(btn){ btn.disabled = false; btn.textContent = '다시 시도'; }
+      var _e2 = $('error2lp'); if(_e2){ _e2.textContent = '인코딩 실패: ' + e.message; _e2.style.display='block'; }
+    }
   } else {
     window._lpLicense = {
       lp_enabled: false,
