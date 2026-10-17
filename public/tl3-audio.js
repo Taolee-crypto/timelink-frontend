@@ -46,6 +46,11 @@
       return Promise.resolve();
     }
 
+    function param(key, fallback) {
+      const value = Number(meta && meta.g && meta.g[key]);
+      return Number.isFinite(value) ? value : fallback;
+    }
+
     function destroy() {
       if (destroyed) return;
       destroyed = true;
@@ -75,20 +80,20 @@
       // 1) LP tone: 단순한 2단 필터 체인
       const highpass = ctx.createBiquadFilter();
       highpass.type = 'highpass';
-      highpass.frequency.value = 30 + 20 * clamp(p.Gd, 0, 1);
+      highpass.frequency.value = 30 + 20 * clamp(param('Gd', 0.5), 0, 1);
       highpass.Q.value = 0.707;
 
       const lowpass = ctx.createBiquadFilter();
       lowpass.type = 'lowpass';
       lowpass.frequency.value = clamp(
-        16000 - 7000 * clamp(p.Gw, 0, 1) - 4000 * clamp(p.Gi, 0, 1),
+        16000 - 7000 * clamp(param('Gw', 0.5), 0, 1) - 4000 * clamp(param('Gi', 0.5), 0, 1),
         9000, 18000
       );
       lowpass.Q.value = 0.707;
 
       // 2) 약한 아날로그 포화. 커브는 연결 시 한 번만 계산한다.
       const shaper = ctx.createWaveShaper();
-      const amount = 1 + 2.5 * clamp(p.Gt, 0, 1);
+      const amount = 1 + 2.5 * clamp(param('Gt', 0.2), 0, 1);
       const curve = new Float32Array(1024);
       const norm = Math.tanh(amount) || 1;
       for (let i = 0; i < curve.length; i++) {
@@ -114,7 +119,7 @@
       oscillator.type = 'sine';
       oscillator.frequency.value = 0.55;
       const wowDepth = ctx.createGain();
-      wowDepth.gain.value = 0.00015 + 0.00035 * clamp(p.Gp, 0, 1);
+      wowDepth.gain.value = 0.00025 + 0.001 * clamp(param('Gp', 0.2), 0, 1);
       oscillator.connect(wowDepth);
       wowDepth.connect(delay.delayTime);
       output.disconnect();
@@ -126,7 +131,7 @@
 
       // 4) LP 표면 노이즈는 아주 작은 단일 루프 버퍼로만 생성한다.
       //    값이 없거나 사실상 꺼진 경우에는 노이즈 경로 자체를 만들지 않는다.
-      const noiseDb = Number(p.nz);
+      const noiseDb = param('nz', -48);
       if (Number.isFinite(noiseDb) && noiseDb > -90) {
         noiseSource = ctx.createBufferSource();
         noiseSource.buffer = makeNoiseBuffer(ctx, meta.seed);
@@ -174,11 +179,19 @@
       if (ctx) {
         try { const closing = ctx.close(); if (closing && closing.catch) closing.catch(function () {}); } catch (_) {}
       }
+      audioEl.addEventListener('playing', resume);
+      resume();
       return {
-        resume: function () { return Promise.resolve(); },
+        resume: resume,
         destroy: function () {
+          audioEl.removeEventListener('playing', resume);
           if (source) { try { source.disconnect(); } catch (_) {} }
           source = null;
+          if (ctx) {
+            const closing = ctx.close();
+            if (closing && closing.catch) closing.catch(function () {});
+          }
+          ctx = null;
         },
         enabled: false,
         state: function () { return direct ? 'direct' : 'bypass'; }
