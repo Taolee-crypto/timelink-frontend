@@ -18,28 +18,33 @@
   currentLang = String(currentLang).toLowerCase().indexOf('ko') === 0 ? 'ko' : 'en';
   function label(en, ko) { return currentLang === 'ko' ? ko : en; }
 
-  // ★ 지시하신 대로 섹션(대분류)과 소메뉴 구조를 명확히 재정의
+  // ★ 지시하신 최종 구조 표 100% 반영
   var sections = [
     ['HOME', '홈', [
       ['/', '⌂', 'About TimeLink', '타임링크 소개'],
-      ['/dashboard.html', '◎', 'Dashboard', '대시보드'], // ★ 대시보드를 HOME 섹션으로 이동
+      ['/dashboard.html', '◎', 'Dashboard', '대시보드'],
       ['/dashboard.html?tab=content', '📁', 'My Content', '내 콘텐츠'],
-      ['/wallet.html', '◉', 'Wallet', '지갑']
+      ['/wallet.html', '◉', 'Wallet', '지갑'],
+      ['/chart.html', '📊', 'TL CHART', 'TL 차트']
     ]],
     ['DIGITAL ASSETS', '디지털자산', [
       ['/shareplace.html', '◈', 'SharePlace', '공유플레이스']
     ]],
     ['CREATOR', '창작', [
-      ['/creator-studio.html', '✧', 'Creator Studio', '크리에이터 스튜디오']
+      ['/creator-studio.html', '✧', 'Creator Studio', '크리에이터 스튜디오'],
+      ['/creator.html', '✎', 'Creator Center', '크리에이터 센터']
     ]],
     ['TL BROADCAST', 'TL 방송국', [
       ['/cafe-channel.html', '▣', 'Cafe Channel', '카페방송'],
       ['/incar-channel.html', '◇', 'In-car Channel', '인카방송'],
-      ['/dj-center.html', '♫', 'DJ Center', '디제이센터']
+      ['/dj-center.html', '♫', 'DJ Center', '디제이센터'],
+      ['/cafe-radio.html', '📻', 'Cafe Radio', '카페 라디오'],
+      ['/dj-console.html', '🎛', 'DJ Console', 'DJ 콘솔']
     ]],
     ['ADVERTISING', '광고', [
       ['/advertiser.html', '▱', 'Sponsor Center', '광고주센터'],
-      ['/ads.html', '▣', 'Ad Watching', '광고 시청 및 TL 기여']
+      ['/ads.html', '▣', 'Ad Watching', '광고 시청'],
+      ['/download.html', '⬇', 'Download App', '앱 다운로드']
     ]],
     ['MY', '내 정보', [
       ['/dashboard.html?tab=mining', '⛏', 'TLC Mining', 'TLC 채굴'],
@@ -78,14 +83,20 @@
     body.tl-global-shell .tl-global-mark{width:34px;height:34px;display:grid;place-items:center;flex:0 0 34px;border-radius:10px;background:linear-gradient(140deg,#b69aff,#7655e8 68%,#f5b84b);color:#100d19;font-weight:900}
     body.tl-global-shell .tl-global-sidebar nav.tl-global-links{display:block!important;flex:1 1 auto;min-height:0;width:100%;margin:0!important;padding:8px 0 12px!important;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
     
-    /* ★ 섹션(대분류) 굵은 글씨 스타일 */
+    /* ★ 섹션(대분류) 굵은 글씨 */
     body.tl-global-shell .tl-global-section{display:block;padding:16px 11px 7px!important;margin:0!important;color:#777586!important;font-size:11px;font-weight:800;letter-spacing:.13em;line-height:1.4;text-transform:uppercase;}
     
-    /* ★ 소메뉴(링크) 스타일 */
-    body.tl-global-shell .tl-global-link{display:flex!important;align-items:center;gap:11px;min-height:42px;width:auto;margin:2px 0!important;padding:9px 11px!important;border:1px solid transparent;border-radius:10px;color:#aaa8b6!important;font-size:13px;font-weight:550;line-height:1.35;text-decoration:none!important;white-space:normal}
+    /* ★ 소메뉴(링크) - 들여쓰기, 작은 글씨, 앞에 단추(아이콘) */
+    body.tl-global-shell .tl-global-link{display:flex!important;align-items:center;gap:8px;min-height:32px;width:auto;margin:1px 0 1px 12px!important;padding:5px 8px!important;border:1px solid transparent;border-radius:6px;color:#aaa8b6!important;font-size:12px;font-weight:500;line-height:1.3;text-decoration:none!important;white-space:normal;position:relative;}
+    body.tl-global-shell .tl-global-link:before{content:"";position:absolute;left:-6px;top:50%;transform:translateY(-50%);width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,.2);transition:all .2s;}
     body.tl-global-shell .tl-global-link:hover{background:rgba(255,255,255,.055)!important;color:#fff!important}
+    body.tl-global-shell .tl-global-link:hover:before{background:#a78bfa;}
     body.tl-global-shell .tl-global-link.is-active{background:rgba(139,92,246,.15)!important;border-color:rgba(139,92,246,.25)!important;color:#cbbaff!important}
-    body.tl-global-shell .tl-global-icon{display:grid;place-items:center;width:22px;height:22px;flex:0 0 22px;padding:0!important;margin:0!important;background:transparent;color:#a78bfa;font-size:17px;line-height:1}
+    body.tl-global-shell .tl-global-link.is-active:before{background:#8B5CF6;box-shadow:0 0 6px rgba(139,92,246,.8);}
+    
+    /* ★ 앞에 붙는 단추(아이콘) 스타일 */
+    body.tl-global-shell .tl-global-icon{display:grid;place-items:center;width:18px;height:18px;flex:0 0 18px;padding:0!important;margin:0!important;background:transparent;color:#a78bfa;font-size:13px;line-height:1;opacity:.8;}
+    body.tl-global-shell .tl-global-link:hover .tl-global-icon,body.tl-global-shell .tl-global-link.is-active .tl-global-icon{opacity:1;}
     
     body.tl-global-shell .tl-global-balance{flex:0 0 auto;margin:10px 0 0;padding:13px;border:1px solid rgba(139,92,246,.22);border-radius:13px;background:linear-gradient(140deg,rgba(139,92,246,.12),rgba(245,166,35,.035))}
     body.tl-global-shell .tl-global-balance small{display:block;color:#8d899b;font-size:9px;letter-spacing:.13em;font-weight:800}
@@ -117,11 +128,9 @@
   document.body.insertAdjacentHTML('afterbegin', html);
   document.body.classList.add('tl-global-shell');
 
-  // 기존 페이지 사이드바 제거
   var oldSidebar = document.querySelector('.body > .sidebar, .layout > .sidebar, .app > .sidebar, .app > .tl-sidebar');
   if (oldSidebar) oldSidebar.remove();
 
-  // 레이아웃 조정
   var app = document.querySelector('.app');
   if (app) {
     app.style.display = 'block';
@@ -147,7 +156,6 @@
   var amount = user.tl_balance != null ? user.tl_balance : user.tl;
   if (balance && amount != null) balance.textContent = Number(amount).toLocaleString() + ' TL';
 
-  // 관리자 권한 확인
   if (token) {
     fetch(API + '/api/admin/settings/__sidebar_access__', {
       headers: {'Authorization':'Bearer ' + token, 'Accept':'application/json'}
@@ -169,7 +177,6 @@
     }).catch(function () {});
   }
 
-  // 모바일 토글
   var toggle = document.createElement('button');
   toggle.type = 'button';
   toggle.className = 'tl-global-toggle';
@@ -195,7 +202,6 @@
     if (event.target.closest('a')) closeNav();
   });
 
-  // 잔액 동기화
   async function fetchServerBalance(){
     try {
       var r = await fetch(API + '/api/v1/users/me/wallet', {
