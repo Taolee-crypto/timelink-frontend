@@ -394,7 +394,11 @@
               // playing. The MSE stream can become unbuffered slightly before
               // its nominal 1-second boundary, so a late handoff always clicks.
               const segmentSeconds = durationMs / 1000;
-              const advanceAt = Math.max(0.15, segmentSeconds - 0.5);
+              // 다음 조각의 라이선스 예약·복호화·append에 더 긴 선행 시간을 준다.
+              // 서버의 단일 pending 정산 왕복이 재생 경계까지 밀려오지 않도록
+              // 1초 조각 기준 약 0.85초 전에 다음 조각 준비를 시작한다.
+              const advanceLeadSeconds = 0.85;
+              const advanceAt = Math.max(0.08, segmentSeconds - advanceLeadSeconds);
               if (playedSeconds < advanceAt) return;
               clearInterval(segmentTimer);
               segmentTimer = null;
