@@ -509,32 +509,20 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
       <div class="quick-bar">
         <a href="creator.html" class="qb-btn">📤 새 파일 업로드</a>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+      <div style="margin-top:16px">
         <div class="sec">
-          <div class="sec-head">
-            <div class="sec-title">🔒 TL3 (보호 스트리밍)</div>
-            <button onclick="selectAllType('tl3')" style="padding:4px 10px;font-size:11px;background:rgba(100,210,255,.1);border:1px solid rgba(100,210,255,.3);border-radius:6px;color:var(--teal);cursor:pointer;font-family:inherit;margin-left:8px">전체 선택</button><button onclick="deleteSelected()" style="padding:4px 10px;font-size:11px;background:rgba(255,69,58,.1);border:1px solid rgba(255,69,58,.35);border-radius:6px;color:#ff453a;cursor:pointer;font-family:inherit;margin-left:4px">🗑️ 선택 삭제</button>
-            <button onclick="sendToDj('tl3')" style="padding:4px 10px;font-size:11px;background:rgba(0,113,227,.15);border:1px solid rgba(0,113,227,.4);border-radius:6px;color:var(--accent);cursor:pointer;font-family:inherit;margin-left:4px">📡 DJ로 보내기</button>
-            <div style="font-size:11px;color:var(--t3)" id="cntTl3">0개</div>
+          <div class="sec-head" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+            <div class="sec-title">📁 내 파일 (TL3)</div>
+            <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+              <button onclick="toggleAllTl3(this)" id="selectAllTl3Btn" style="padding:6px 14px;font-size:12px;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.4);border-radius:6px;color:#C4B5FD;cursor:pointer;font-family:inherit;font-weight:600">☑ 전체 선택</button>
+              <button onclick="deleteSelectedTl3()" style="padding:6px 14px;font-size:12px;background:rgba(255,69,58,.15);border:1px solid rgba(255,69,58,.4);border-radius:6px;color:#FF453A;cursor:pointer;font-family:inherit;font-weight:600">🗑️ 완전 삭제</button>
+              <div style="font-size:12px;color:var(--t3);margin-left:8px" id="cntTl3">0개</div>
+            </div>
           </div>
           <div class="file-list" id="myTl3List">
             <div class="empty">
               <div class="empty-icon">🔒</div>
               <div class="empty-text">TL3 파일이 없습니다.</div>
-            </div>
-          </div>
-        </div>
-        <div class="sec">
-          <div class="sec-head">
-            <div class="sec-title">🎵 MP3 (무료 재생)</div>
-            <button onclick="selectAllType('mp3')" style="padding:4px 10px;font-size:11px;background:rgba(48,209,88,.1);border:1px solid rgba(48,209,88,.3);border-radius:6px;color:var(--green);cursor:pointer;font-family:inherit;margin-left:8px">전체 선택</button>
-            <button onclick="sendToDj('mp3')" style="padding:4px 10px;font-size:11px;background:rgba(0,113,227,.15);border:1px solid rgba(0,113,227,.4);border-radius:6px;color:var(--accent);cursor:pointer;font-family:inherit;margin-left:4px">📡 DJ로 보내기</button>
-            <div style="font-size:11px;color:var(--t3)" id="cntMp3">0개</div>
-          </div>
-          <div class="file-list" id="myMp3List">
-            <div class="empty">
-              <div class="empty-icon">🎵</div>
-              <div class="empty-text">MP3 파일이 없습니다.</div>
             </div>
           </div>
         </div>
@@ -727,24 +715,19 @@ async function loadShares(){
     g('cntPlays').textContent = fmt(myFiles.reduce(function(acc, s){ return acc + (s.pulse||0)*3; }, 0));
 
     var tl3Files = myFiles.filter(function(s){ return String(s.content_kind||'').toLowerCase() === 'tl3'; });
-    var mp3Files = myFiles.filter(function(s){ return String(s.content_kind||'mp3').toLowerCase() !== 'tl3'; });
-
     g('cntTl3').textContent = tl3Files.length + '개';
-    g('cntMp3').textContent = mp3Files.length + '개';
 
-    function renderFileItem(s, isTl3){
-      var badge = isTl3 ? 'TL3' : 'FREE';
-      var badgeClass = isTl3 ? 'video' : 'music';
-      var icon = isTl3 ? '🔒' : '🎵';
+    function renderFileItem(s){
       return '<div class="file-item">' +
-        '<div class="file-icon">' + icon + '</div>' +
+        '<input type="checkbox" class="file-select-cb" data-id="' + s.id + '" title="선택" style="width:16px;height:16px;cursor:pointer;accent-color:#FF453A;flex-shrink:0">' +
+        '<div class="file-icon">🔒</div>' +
         '<div class="file-info">' +
           '<div class="file-name">' + esc(s.title||'Untitled') + '</div>' +
           '<div class="file-meta">' + esc(s.artist||'') + ' · ' + new Date(s.created_at||0).toLocaleDateString('ko-KR') + '</div>' +
         '</div>' +
         '<div class="file-stats">' +
           '<div class="file-stat">' +
-            '<div class="file-stat-val" style="color:var(--orange)">' + (isTl3 ? fmt(Math.floor(s.file_tl||0)) + ' TL' : '무료') + '</div>' +
+            '<div class="file-stat-val" style="color:var(--orange)">' + fmt(Math.floor(s.file_tl||0)) + ' TL</div>' +
             '<div class="file-stat-label">가격</div>' +
           '</div>' +
           '<div class="file-stat">' +
@@ -752,10 +735,7 @@ async function loadShares(){
             '<div class="file-stat-label">Pulse</div>' +
           '</div>' +
         '</div>' +
-        '<div class="file-type-badge ' + badgeClass + '">' + badge + '</div>' +
-        '<input type="checkbox" class="file-select-cb" data-id="' + s.id + '" title="선택" style="width:16px;height:16px;cursor:pointer;accent-color:#FF453A;flex-shrink:0">' +
-        '<input type="checkbox" class="file-broadcast-cb" data-id="' + s.id + '" onchange="toggleContentTrack(this)" title="방송 대기" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);flex-shrink:0">' +
-        '<button class="file-delete-btn" onclick="deleteMyFile(\'' + s.id + '\', \'' + esc(s.title||'Untitled').replace(/'/g, '') + '\')" title="삭제">🗑️</button>' +
+        '<div class="file-type-badge video">TL3</div>' +
       '</div>';
     }
 
@@ -765,19 +745,21 @@ async function loadShares(){
       g('myTl3List').innerHTML = '<div class="empty"><div class="empty-icon">🔒</div><div class="empty-text">TL3 파일이 없습니다.</div></div>';
     }
 
-    if(mp3Files.length){
-      g('myMp3List').innerHTML = mp3Files.map(function(s){ return renderFileItem(s, false); }).join('');
-    } else {
-      g('myMp3List').innerHTML = '<div class="empty"><div class="empty-icon">🎵</div><div class="empty-text">MP3 파일이 없습니다.</div></div>';
-    }
+
   }catch(e){
     console.warn('shares 로드 실패:', e);
   }
 }
 
-function toggleAllTl3(master) {
+function toggleAllTl3(btn) {
   var cbs = document.querySelectorAll('#myTl3List .file-select-cb');
-  for (var i = 0; i < cbs.length; i++) cbs[i].checked = master.checked;
+  var allChecked = true;
+  for (var i = 0; i < cbs.length; i++) {
+    if (!cbs[i].checked) { allChecked = false; break; }
+  }
+  var newState = !allChecked;
+  for (var j = 0; j < cbs.length; j++) cbs[j].checked = newState;
+  if (btn) btn.textContent = newState ? '☐ 선택 해제' : '☑ 전체 선택';
 }
 
 async function deleteSelectedTl3() {
@@ -786,7 +768,7 @@ async function deleteSelectedTl3() {
   var ids = [];
   for (var i = 0; i < cbs.length; i++) ids.push(cbs[i].dataset.id);
   
-  if (!confirm(ids.length + '개의 파일을 삭제하시겠습니까?\n\n(복구 불가)')) return;
+  if (!confirm(ids.length + '개의 파일을 완전 삭제하시겠습니까?\n\n(복구 불가)')) return;
   
   var ok = 0, fail = 0;
   for (var j = 0; j < ids.length; j++) {
@@ -802,8 +784,10 @@ async function deleteSelectedTl3() {
     }
   }
   
-  toast(ok + '개 삭제 완료' + (fail ? ' / ' + fail + '개 실패' : ''), ok ? 'success' : 'error');
+  toast(ok + '개 완전 삭제 완료' + (fail ? ' / ' + fail + '개 실패' : ''), ok ? 'success' : 'error');
   loadShares();
+  var btn = document.getElementById('selectAllTl3Btn');
+  if (btn) btn.textContent = '☑ 전체 선택';
 }
 
 async function deleteMyFile(id, title){
@@ -1145,10 +1129,10 @@ async function startContentBroadcast(){
 
 /* ═══ 전체 선택 (TL3 / MP3) ═══ */
 function selectAllType(kind){
-  var listId = kind === 'tl3' ? 'myTl3List' : 'myMp3List';
+  var listId = 'myTl3List'; // TL3 전용
   var list = document.getElementById(listId);
   if(!list) return;
-  var cbs = list.querySelectorAll('.file-broadcast-cb');
+  var cbs = list.querySelectorAll('.file-select-cb'); // 삭제용 체크박스로 변경
   var added = 0;
   cbs.forEach(function(cb){
     if(!cb.checked){
@@ -1165,10 +1149,10 @@ function selectAllType(kind){
 }
 
 function clearType(kind){
-  var listId = kind === 'tl3' ? 'myTl3List' : 'myMp3List';
+  var listId = 'myTl3List'; // TL3 전용
   var list = document.getElementById(listId);
   if(!list) return;
-  var cbs = list.querySelectorAll('.file-broadcast-cb');
+  var cbs = list.querySelectorAll('.file-select-cb');
   cbs.forEach(function(cb){
     if(cb.checked){
         cb.checked = false;
@@ -1179,10 +1163,10 @@ function clearType(kind){
 
 /* ═══ DJ 센터로 보내기 ═══ */
 async function sendToDj(kind){
-  var listId = kind === 'tl3' ? 'myTl3List' : 'myMp3List';
+  var listId = 'myTl3List'; // TL3 전용
   var list = document.getElementById(listId);
   if(!list) return;
-  var cbs = list.querySelectorAll('.file-broadcast-cb:checked');
+  var cbs = list.querySelectorAll('.file-select-cb:checked');
   if(!cbs.length){ toast('먼저 곡을 선택하세요', 'error'); return; }
   var ids = [];
   cbs.forEach(function(cb){ ids.push(cb.dataset.id); });
