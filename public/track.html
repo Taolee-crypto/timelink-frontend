@@ -526,6 +526,31 @@ async function loadTrack(){
     loadComments();
     renderCopyright(s);
     if(s.user_id) checkFollowStatus(s.user_id);
+
+  // ★ duration이 없으면 서버에서 가져와서 표시 갱신
+  if(!s.duration && !s.duration_sec){
+    (async function(){
+      try {
+        var fileId = s.file_id || s.id;
+        if(!fileId) return;
+        var res = await fetch(API + '/api/v1/tl3/file-meta/' + fileId, {headers:{'Authorization':'Bearer '+getTok()}});
+        var meta = await res.json();
+        if(meta && meta.ok && meta.duration_sec){
+          var dur = Math.round(meta.duration_sec);
+          var reqEl = document.getElementById('reqTLText');
+          var durEl = document.getElementById('durText');
+          if(reqEl) reqEl.textContent = dur.toLocaleString() + ' TL';
+          if(durEl) durEl.textContent = '/ ' + fmtTime(dur);
+        }
+      } catch(e) { console.warn('[duration fetch]', e); }
+    })();
+  } else {
+    var reqEl = document.getElementById('reqTLText');
+    if(reqEl && reqEl.textContent === '...') {
+      var dur = Math.round(s.duration || s.duration_sec || 0);
+      if(dur > 0) reqEl.textContent = dur.toLocaleString() + ' TL';
+    }
+  }
   } catch(e){ 
     console.error('Load error:', e);
     document.getElementById('mainWrap').innerHTML='<div class="loading">불러오기 실패: ' + e.message + '</div>'; 
@@ -567,7 +592,7 @@ function renderPage(s, stats, myFileTL, requiredTL){
           작사: ${escH(s.lyricist || s.asset_lyricist || '—')} · 
           공유: ${s.created_at ? new Date(s.created_at).toLocaleDateString('ko-KR') : '—'}
         </div>
-        <div class="track-tl required">${isFree ? '🎵 무료 MP3 · TLC 보상' : '⚡ 재생에 필요한 TL량: '+(requiredTL > 0 ? requiredTL.toLocaleString() + ' TL' : (s.duration ? Math.round(s.duration) + ' TL' : '0 TL'))} <span style="font-size:12px;color:var(--t3);font-weight:400">/ ${fmtTime(s.duration)}</span></div>
+        <div class="track-tl required">${isFree ? '🎵 무료 MP3 · TLC 보상' : '⚡ 재생에 필요한 TL량: <span id="reqTLText">${requiredTL > 0 ? requiredTL.toLocaleString() + ' TL' : (s.duration ? Math.round(s.duration) + ' TL' : '...')}</span>'} <span id="durText" style="font-size:12px;color:var(--t3);font-weight:400">/ ${fmtTime(s.duration)}</span></div>
         <div class="track-tl my" id="myTLDisplay">${isFree ? '💎 POC → TLC 보상 대상' : '💰 내 지갑 TL: '+myFileTL.toLocaleString()+' TL'}</div>
       </div>
 
