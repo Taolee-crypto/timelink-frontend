@@ -40,7 +40,7 @@
     ]],
     ['TL ECONOMICS', 'TL 경제', [['/wallet.html', '◉', 'Wallet', '지갑']]],
     ['MY', '내 정보', [
-      ['/dashboard.html?tab=home', '◎', 'Dashboard', '대시보드'],
+      ['/dashboard.html', '◎', 'Dashboard', '대시보드'],
       ['/dashboard.html?tab=mining', '⛏', 'TLC Mining', 'TLC 채굴', true],
       ['/dashboard.html?tab=mission', '◎', 'Missions', '미션', true],
       ['/dashboard.html?tab=cafe', '☕', 'My Cafe', '나의 카페', true]
