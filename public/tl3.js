@@ -26,6 +26,10 @@
     const onError = opts.onError || function(){};
     const onReady = opts.onReady || function(){};
     const sessionId = String(opts.sessionId || genSid());
+    // Parallel test mode: /track.html?id=...&tl3engine=next
+    // Default playback remains on the established MSE path until browser validation passes.
+    const experimentalEngine = (new URLSearchParams(global.location.search).get('tl3engine') === 'next' && global.TL3AudioEngineNext)
+      ? new global.TL3AudioEngineNext(audioEl) : null;
 
     console.log('[TL3v4] START fileId=', fileId, 'sessionId=', sessionId);
 
@@ -339,26 +343,30 @@
             segmentIndexPending = n - 1;
 
             // 버퍼 추가 및 재생
-            await new Promise((res, rej) => {
-              const cleanup = () => {
-                sb.removeEventListener('updateend', onEnd);
-                sb.removeEventListener('error', onError);
-                sb.removeEventListener('abort', onAbort);
-              };
-              const onEnd = () => { cleanup(); res(); };
-              const onError = () => { cleanup(); rej(new Error('SourceBuffer append error at segment ' + n)); };
-              const onAbort = () => { cleanup(); rej(new Error('SourceBuffer append aborted at segment ' + n)); };
-              sb.addEventListener('updateend', onEnd, { once: true });
-              sb.addEventListener('error', onError, { once: true });
-              sb.addEventListener('abort', onAbort, { once: true });
-              try {
-                if (sb.updating) throw new Error('SourceBuffer is already updating at segment ' + n);
-                sb.appendBuffer(plain);
-              } catch(e) {
-                cleanup();
-                rej(e);
-              }
-            });
+            if (experimentalEngine) {
+              await experimentalEngine.append(sb, plain, n);
+            } else {
+              await new Promise((res, rej) => {
+                const cleanup = () => {
+                  sb.removeEventListener('updateend', onEnd);
+                  sb.removeEventListener('error', onError);
+                  sb.removeEventListener('abort', onAbort);
+                };
+                const onEnd = () => { cleanup(); res(); };
+                const onError = () => { cleanup(); rej(new Error('SourceBuffer append error at segment ' + n)); };
+                const onAbort = () => { cleanup(); rej(new Error('SourceBuffer append aborted at segment ' + n)); };
+                sb.addEventListener('updateend', onEnd, { once: true });
+                sb.addEventListener('error', onError, { once: true });
+                sb.addEventListener('abort', onAbort, { once: true });
+                try {
+                  if (sb.updating) throw new Error('SourceBuffer is already updating at segment ' + n);
+                  sb.appendBuffer(plain);
+                } catch(e) {
+                  cleanup();
+                  rej(e);
+                }
+              });
+            }
 
             // 다음 암호문만 선행 수신한다. TL 라이선스 예약은 confirm 뒤에 한다.
             if (n < header.mp3.N && !prefetchedSegment) {
