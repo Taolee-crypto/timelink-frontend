@@ -304,7 +304,19 @@
             }
 
             // 5. 라이센스 키 요청
-            const cr = await fetch(API + '/api/v1/tl3/code/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(sessionId), { headers: authHeaders() });
+            const codeUrl = API + '/api/v1/tl3/code/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(sessionId);
+            let cr = null;
+            // The previous segment is settled asynchronously at the handoff.
+            // Retry the temporary single-pending reservation conflict while that
+            // settlement completes; ciphertext is already prefetched.
+            for (let attempt = 0; attempt < 20; attempt++) {
+              cr = await fetch(codeUrl, { headers: authHeaders() });
+              if (cr.status !== 409 || attempt === 19) break;
+              console.log('[TL3v4] waiting for previous segment settlement', {
+                nextSegment:n, attempt:attempt + 1
+              });
+              await new Promise(resolve => setTimeout(resolve, 75));
+            }
             console.log('[TL3v4] code response', n, cr.status);
             if (!cr.ok) { onError(new Error('code ' + cr.status)); return; }
             const codeData = await cr.json();
@@ -392,9 +404,13 @@
                 segment:n, playedSeconds, segmentSeconds, advanceAt,
                 currentTime:audioEl.currentTime, paused:audioEl.paused
               });
-              await confirmPending(Math.min(segmentSeconds, playedSeconds));
+              // Start settlement now, but do not serialize the next segment
+              // behind its network round-trip. The next code request retries
+              // the single-pending guard until this settlement is committed.
+              const settlement = confirmPending(Math.min(segmentSeconds, playedSeconds));
               n++;
               if (!stopped) _next();
+              settlement.catch(error => console.warn('[TL3v4] background settlement error:', error));
             }, 50);
             
           } catch (e) {
