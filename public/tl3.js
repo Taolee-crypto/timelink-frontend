@@ -223,9 +223,20 @@
         audioEl.src = msUrl;
         audioEl.load();
         
+        // 오디오 출력 상태를 추적한다.
+        ['playing','pause','waiting','stalled','canplay','error','ended'].forEach(function(eventName) {
+          audioEl.addEventListener(eventName, function() {
+            console.log('[TL3v4] audio event:', eventName, {
+              currentTime:audioEl.currentTime, paused:audioEl.paused,
+              readyState:audioEl.readyState, networkState:audioEl.networkState,
+              audioContextState:lpAudioCtx && lpAudioCtx.state,
+              mediaError:audioEl.error && {code:audioEl.error.code,message:audioEl.error.message}
+            });
+          });
+        });
         // 첫 재생 트리거
         const playOnce = () => {
-          audioEl.play().catch(err => console.warn('[TL3v4] play 차단:', err.name));
+          audioEl.play().then(()=>console.log('[TL3v4] initial play accepted')).catch(err => console.warn('[TL3v4] play 차단:', err.name, err.message));
         };
         if (audioEl.readyState >= 3) playOnce();
         else audioEl.addEventListener('canplay', playOnce, { once: true });
@@ -320,7 +331,18 @@
               }
             });
 
-            console.log('[TL3v4] append complete', n, {durationMs, currentTime:audioEl.currentTime, buffered:sb.buffered.length ? [sb.buffered.start(0),sb.buffered.end(sb.buffered.length-1)] : []});
+            console.log('[TL3v4] append complete', n, {
+              durationMs, currentTime:audioEl.currentTime, paused:audioEl.paused,
+              readyState:audioEl.readyState, networkState:audioEl.networkState,
+              buffered:Array.from({length:sb.buffered.length},(_,i)=>[sb.buffered.start(i),sb.buffered.end(i)]),
+              audioContextState:lpAudioCtx && lpAudioCtx.state
+            });
+            // MSE에 첫 구간이 추가된 뒤에도 오디오가 정지 상태라면 재생을 다시 요청한다.
+            if (audioEl.paused) {
+              if (lpAudioCtx && lpAudioCtx.state === 'suspended') lpAudioCtx.resume().catch(e=>console.warn('[TL3-LP] resume failed:',e));
+              audioEl.play().then(()=>console.log('[TL3v4] playback started after append', {currentTime:audioEl.currentTime, audioContextState:lpAudioCtx && lpAudioCtx.state}))
+                .catch(e=>console.warn('[TL3v4] playback request after append failed:',e.name,e.message));
+            }
             onSegment({ index: n - 1, seconds: durationMs / 1000, remaining: codeData.wallet_tl ?? codeData.remaining_tl, wallet_tl:codeData.wallet_tl ?? codeData.remaining_tl, asset_remaining_tl:codeData.asset_remaining_tl });
             // 실제 재생시간을 서버에 확정하고 미사용 예약분은 환급한다.
             segmentTimer = setInterval(async function() {
