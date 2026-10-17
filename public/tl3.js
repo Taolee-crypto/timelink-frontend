@@ -412,11 +412,9 @@
                 segment:n, playedSeconds, segmentSeconds, advanceAt,
                 currentTime:audioEl.currentTime, paused:audioEl.paused
               });
-              // The server settles this segment and reserves the next license
-              // in one request/transaction sequence. No second /code round-trip
-              // is needed at the segment boundary.
-              const nextIndex = n < header.mp3.N ? n : null;
-              const settled = await confirmPending(segmentSeconds, nextIndex);
+              // 확정 요청에는 실제 재생된 시간만 전달한다.
+              // 다음 세그먼트 라이선스는 기존 /code 경로에서 별도로 예약한다.
+              const settled = await confirmPending(playedSeconds);
               if (stopped) return;
               if (!settled) {
                 onError(new Error('TL3 segment settlement failed; playback stopped to protect TL balance.'));
