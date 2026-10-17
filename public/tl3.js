@@ -678,6 +678,9 @@
             });
 
             console.log('[TL3.playStream] ✅ appended segment', n);
+            if (n === 5) {
+              console.log('--- 5개 세그먼트 버퍼링 완료, 계속 진행 중 ---');
+            }
             onSegment({index:n,seconds:durationMs/1000,remaining:codeData.wallet_tl??codeData.remaining_tl,wallet_tl:codeData.wallet_tl??codeData.remaining_tl,asset_remaining_tl:codeData.asset_remaining_tl});
 
             var confirmedIndex=n;
