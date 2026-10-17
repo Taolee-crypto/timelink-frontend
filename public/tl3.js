@@ -586,9 +586,11 @@
         // resolveUrl_STOP_FIX: 중단 함수 + audio에 연결
         function stopSession(){
           stopped = true;
-          console.log('[TL3.resolveUrl] stopSession 호출');
+          console.log('[TL3.resolveUrl] stopSession 호출 -> 세션 중단');
           try {
+            // 1. 진행 중인 버퍼링 중단
             if (sb && sb.updating) { try { sb.abort(); } catch(e){} }
+            // 2. 미디어소스 스트림 종료
             if (ms && ms.readyState === 'open') { try { ms.endOfStream(); } catch(e){} }
           } catch(e){}
         }
@@ -611,7 +613,11 @@
         });
 
         async function _next(){
-          if(stopped) return;
+          // ★ 세션 중단 확인 (더 엄격하게)
+          if(stopped || !ms || ms.readyState === 'closed' || !sb || !ms.sourceBuffers || ms.sourceBuffers.length === 0) {
+            console.log('[TL3.playStream] 세션 중단됨 -> 루프 종료');
+            return;
+          }
           console.log('[TL3.playStream] _next n=', n);
           try {
             var sr = await fetch(API + '/api/v1/tl3/segment/' + fileId + '?segment=' + n + '&session_id=' + encodeURIComponent(sessionId), {headers: authHeaders()});
@@ -655,10 +661,20 @@
             var key = await crypto.subtle.importKey('raw', K_n, {name:'AES-GCM'}, false, ['decrypt']);
             var plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv: ivFor(segNumber), tagLength: 128}, key, ciphertext));
 
+            if (stopped || !sb || !ms || ms.readyState === 'closed') {
+              console.log('[TL3.playStream] appendBuffer 직전 중단 감지');
+              return;
+            }
             await new Promise(function(res){
               var h = function(){ sb.removeEventListener('updateend', h); res(); };
               sb.addEventListener('updateend', h);
-              sb.appendBuffer(plain);
+              try {
+                sb.appendBuffer(plain);
+              } catch(e) {
+                sb.removeEventListener('updateend', h);
+                console.warn('[TL3.playStream] appendBuffer 무시됨:', e);
+                res(); // 에러가 나도 루프는 계속 돌게
+              }
             });
 
             console.log('[TL3.playStream] ✅ appended segment', n);
