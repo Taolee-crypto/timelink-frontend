@@ -688,40 +688,35 @@
             console.log('[TL3.playStream] ✅ appended segment', n);
             if(window.addDebugLog) window.addDebugLog('✅ 버퍼링 완료 n=' + n);
 
-            // ★ 첫 세그먼트 버퍼링 후 즉시 강제 재생 (canplay 이벤트 무시)
+            // 1. V3 원본: 첫 세그먼트가 차면 즉시 재생
             if (n === 0) {
-              console.log('[TL3.playStream] 첫 세그먼트 준비 완료 -> 강제 재생 시도');
-              audioEl.play().then(function() {
-                console.log('[TL3.playStream] ✅ audio.play() 강제 성공');
-              }).catch(function(err) {
-                console.log('[TL3.playStream] ❌ 강제 play 실패:', err.name, err.message);
-                onError(err);
+              console.log('[TL3.playStream] 첫 세그먼트 준비 완료 -> 재생 시작');
+              audioEl.play().catch(function(err) {
+                console.warn('[TL3.playStream] play 차단됨:', err.name);
               });
             }
-            if (n === 5) {
-              console.log('--- 5개 세그먼트 버퍼링 완료, 계속 진행 중 ---');
-            }
-            onSegment({index:n,seconds:durationMs/1000,remaining:codeData.wallet_tl??codeData.remaining_tl,wallet_tl:codeData.wallet_tl??codeData.remaining_tl,asset_remaining_tl:codeData.asset_remaining_tl});
 
-            // ★ 1. 다음 세그먼트 선요청 (Pre-buffering)
+            onSegment({index:n, seconds:durationMs/1000, remaining:codeData.wallet_tl??codeData.remaining_tl, wallet_tl:codeData.wallet_tl??codeData.remaining_tl, asset_remaining_tl:codeData.asset_remaining_tl});
+
+            // 2. 정산(Confirm)은 백그라운드에서
             var confirmedIndex = n;
-            n++;
-            if (!stopped) _next();
+            fetch(API + '/api/v1/tl3/segment/confirm/' + fileId, {
+              method:'POST',
+              headers:Object.assign({},authHeaders(),{'Content-Type':'application/json'}),
+              body:JSON.stringify({session_id:sessionId,played_seconds:durationMs/1000})
+            }).then(function(r){return r.json();}).then(function(d){
+              if(d&&d.remaining_tl!==undefined){
+                onSegment({index:confirmedIndex,seconds:durationMs/1000,remaining:d.wallet_tl??d.remaining_tl,wallet_tl:d.wallet_tl??d.remaining_tl,asset_remaining_tl:d.asset_remaining_tl,settled:true});
+              }
+            }).catch(function(){});
 
-            // ★ 2. 정산(Confirm)은 백그라운드에서 처리
-            setTimeout(function(){
-              if (stopped) return;
-              fetch(API + '/api/v1/tl3/segment/confirm/' + fileId, {
-                method:'POST',
-                headers:Object.assign({},authHeaders(),{'Content-Type':'application/json'}),
-                body:JSON.stringify({session_id:sessionId,played_seconds:durationMs/1000})
-              }).then(function(r){return r.json();}).then(function(d){
-                if(!d||!d.ok) throw new Error((d&&d.error)||'세그먼트 정산 실패');
-                if(d.remaining_tl!==undefined){
-                  onSegment({index:confirmedIndex,seconds:durationMs/1000,remaining:d.wallet_tl??d.remaining_tl,wallet_tl:d.wallet_tl??d.remaining_tl,asset_remaining_tl:d.asset_remaining_tl,settled:true});
-                }
-              }).catch(function(e){console.warn('[TL3] segment confirm failed',e);onError(e);});
-            }, durationMs);
+            // 3. V3 원본: 재생 시간(durationMs)만큼 대기 후 다음 요청 (Pacing)
+            n++;
+            if (!stopped) {
+              setTimeout(function(){
+                if (!stopped) _next();
+              }, durationMs); // 1초 재생 시간만큼 기다렸다가 다음 요청
+            }
           } catch(e){ onError(e); }
         }
 
