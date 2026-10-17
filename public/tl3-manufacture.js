@@ -29,23 +29,8 @@
       throw new Error('TL3 제조에 필요한 API, 로그인 토큰, file_id가 없습니다.');
     }
     if (o.rightsConfirmed !== true) throw new Error('저작권 또는 적법한 이용 권한 확인이 필요합니다.');
-    // ★ LP 라이선스 + 차분 처리
+    // LP 오디오는 TL3에 포함하지 않는다. 라이선스/재생 파라미터만 헤더 메타데이터로 전달한다.
     var lpLicense = o.lpLicense || null;
-    // ★ LP FLAC 처리 (특허 10-2025-0167813)
-    var lpOpus = o.lpOpus || null;
-    var lpOpusB64 = null;
-    if (lpOpus && lpOpus.flac) {
-      try {
-        var bytes = lpOpus.flac;
-        var bin = '';
-        for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-        lpOpusB64 = btoa(bin);
-        console.log('[manufacture] LP Opus base64:', lpOpusB64.length, 'chars, size:', bytes.length, 'bytes');
-      } catch (e) {
-        console.warn('[manufacture] lpFlac base64 인코딩 실패:', e);
-        lpOpusB64 = null;
-      }
-    }
     var releaseBody = {
       file_id: fileId,
       share_id: shareId,
@@ -55,13 +40,6 @@
       rights_confirmed: true
     };
     if (lpLicense) releaseBody.lp_license = lpLicense;
-    if (lpOpusB64) {
-      releaseBody.lp_opus_b64 = lpOpusB64;
-      releaseBody.lp_opus_fs = lpOpus.sampleRate || 48000;
-      releaseBody.lp_opus_ch = lpOpus.channels || 2;
-      releaseBody.lp_opus_n = lpOpus.length || 0;
-      releaseBody.lp_opus_bytes = lpOpus.size || 0;
-    }
     const release = await postJson(api + '/api/v1/tl3/releases', token, releaseBody);
     if (Number(release.file_id) !== fileId) throw new Error('서버가 반환한 TL3 file_id가 원본 자산과 일치하지 않습니다.');
     let spine = null, spineError = null;
@@ -75,7 +53,7 @@
     }
     return { ok: true, release: release, spine: spine, spineError: spineError,
       file_id: fileId, share_id: String(release.share_id || shareId),
-      lp: lpLicense ? { enabled: true, opus_bytes: lpOpusB64 ? lpOpusB64.length : 0 } : { enabled: false } };
+      lp: lpLicense ? { enabled: lpLicense.lp_enabled === true, runtime: true, opus_bytes: 0 } : { enabled: false } };
   }
   global.TimeLinkTL3 = Object.freeze({ manufacture: manufacture });
 })(window);

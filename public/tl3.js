@@ -25,8 +25,9 @@
     const onSegment = opts.onSegment || function(){};
     const onError = opts.onError || function(){};
     const onReady = opts.onReady || function(){};
+    const sessionId = String(opts.sessionId || genSid());
 
-    console.log('[TL3v4] START fileId=', fileId);
+    console.log('[TL3v4] START fileId=', fileId, 'sessionId=', sessionId);
 
     // 1. 헤더 로드 (V4)
     const fileUrlStr = String(fileId);
@@ -49,10 +50,150 @@
     const msUrl = URL.createObjectURL(ms);
     let sb = null, n = 1;
     let stopped = false;
-    
-    // LP Opus 버퍼 (Web Audio API용)
-    let lpAudioCtx = null;
-    let lpBufferSource = null;
+    let lpAudioCtx = null, lpMediaSource = null, lpNodes = [], lpOscillator = null, lpNoiseSource = null;
+    let segmentTimer = null, pendingMediaStart = -1, pendingDurationMs = 0, confirmBusy = false;
+    let segmentIndexPending = -1;
+
+    async function confirmPending(playedSeconds) {
+      if (confirmBusy || segmentIndexPending < 0) return;
+      confirmBusy = true;
+      const index = segmentIndexPending;
+      const played = Math.max(0, Math.min(pendingDurationMs / 1000, Number(playedSeconds) || 0));
+      try {
+        const response = await fetch(API + '/api/v1/tl3/segment/confirm/' + encodeURIComponent(fidStr), {
+          method: 'POST',
+          headers: Object.assign({'Content-Type':'application/json'}, authHeaders()),
+          body: JSON.stringify({session_id:sessionId, played_seconds:played})
+        });
+        const data = await response.json().catch(function(){ return {}; });
+        if (!response.ok || !data.ok) throw new Error(data.error || ('confirm ' + response.status));
+        if (index === segmentIndexPending) segmentIndexPending = -1;
+        if (data.wallet_tl !== undefined) onSegment({index:index, seconds:played, remaining:data.wallet_tl, wallet_tl:data.wallet_tl, asset_remaining_tl:data.asset_remaining_tl});
+      } catch (error) {
+        console.warn('[TL3v4] segment confirm failed; server expiry refund remains available:', error);
+      } finally { confirmBusy = false; }
+    }
+
+    function attachLpRealtime(meta) {
+      if (!meta || meta.enabled !== true) return;
+      const params = meta.g;
+      if (!params || typeof params !== 'object') {
+        console.warn('[TL3-LP] LP parameters missing; playing original audio.');
+        return;
+      }
+      try {
+        const AudioContextCtor = global.AudioContext || global.webkitAudioContext;
+        if (!AudioContextCtor) return;
+        lpAudioCtx = new AudioContextCtor();
+        lpMediaSource = lpAudioCtx.createMediaElementSource(audioEl);
+
+        // Stable Web Audio graph: filters, saturation, wow/flutter and seeded vinyl noise.
+        const highpass = lpAudioCtx.createBiquadFilter();
+        highpass.type = 'highpass';
+        highpass.frequency.value = 30 + 20 * Number(params.Gd || 0.5);
+        highpass.Q.value = 0.707;
+
+        const lowpass = lpAudioCtx.createBiquadFilter();
+        lowpass.type = 'lowpass';
+        lowpass.frequency.value = Math.max(9000, Math.min(18000,
+          16000 - 7000 * Number(params.Gw || 0.5) - 4000 * Number(params.Gi || 0.5)));
+        lowpass.Q.value = 0.707;
+
+        const shaper = lpAudioCtx.createWaveShaper();
+        const amount = 1 + 2.5 * Number(params.Gt || 0.2);
+        const curve = new Float32Array(2048);
+        const norm = Math.tanh(amount) || 1;
+        for (let i = 0; i < curve.length; i++) {
+          const x = (i * 2 / (curve.length - 1)) - 1;
+          curve[i] = Math.tanh(amount * x) / norm;
+        }
+        shaper.curve = curve;
+        shaper.oversample = '2x';
+
+        const wowDelay = lpAudioCtx.createDelay(0.05);
+        wowDelay.delayTime.value = 0.012;
+        lpOscillator = lpAudioCtx.createOscillator();
+        lpOscillator.type = 'sine';
+        lpOscillator.frequency.value = 0.55;
+        const wowDepth = lpAudioCtx.createGain();
+        wowDepth.gain.value = 0.00025 + 0.001 * Number(params.Gp || 0.2);
+        lpOscillator.connect(wowDepth);
+        wowDepth.connect(wowDelay.delayTime);
+
+        const outputGain = lpAudioCtx.createGain();
+        outputGain.gain.value = 0.96;
+        lpMediaSource.connect(highpass);
+        highpass.connect(lowpass);
+        lowpass.connect(shaper);
+        shaper.connect(wowDelay);
+        wowDelay.connect(outputGain);
+        outputGain.connect(lpAudioCtx.destination);
+        lpNodes = [highpass, lowpass, shaper, wowDelay, wowDepth, outputGain];
+
+        // Deterministic, very low-level surface noise from the licensed seed.
+        const seed = Number(meta.seed || 7) | 0;
+        let randomState = seed || 7;
+        const noiseBuffer = lpAudioCtx.createBuffer(1, lpAudioCtx.sampleRate * 2, lpAudioCtx.sampleRate);
+        const noiseData = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseData.length; i++) {
+          randomState = (Math.imul(randomState ^ (randomState >>> 15), 1 | randomState) + 0x6D2B79F5) | 0;
+          noiseData[i] = ((randomState >>> 0) / 2147483648) - 1;
+        }
+        lpNoiseSource = lpAudioCtx.createBufferSource();
+        lpNoiseSource.buffer = noiseBuffer;
+        lpNoiseSource.loop = true;
+        const noiseFilter = lpAudioCtx.createBiquadFilter();
+        noiseFilter.type = 'lowpass';
+        noiseFilter.frequency.value = 7500;
+        const noiseGain = lpAudioCtx.createGain();
+        noiseGain.gain.value = Math.pow(10, Number(params.nz ?? -48) / 20) * 0.16;
+        lpNoiseSource.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(lpAudioCtx.destination);
+        lpNodes.push(noiseFilter, noiseGain);
+
+        lpOscillator.start();
+        lpNoiseSource.start();
+        lpAudioCtx.resume().catch(function(){});
+        audioEl.addEventListener('playing', function() {
+          if (lpAudioCtx && lpAudioCtx.state === 'suspended') lpAudioCtx.resume().catch(function(){});
+        });
+        console.log('[TL3-LP] realtime vinyl DSP attached', {
+          version:meta.version, sampleRate:meta.fs, seed:seed,
+          highpass:highpass.frequency.value, lowpass:lowpass.frequency.value
+        });
+      } catch (error) {
+        console.warn('[TL3-LP] realtime DSP setup failed; original audio remains available:', error);
+        try { if (lpMediaSource) lpMediaSource.disconnect(); } catch(_){}
+        for (const node of lpNodes) { try { node.disconnect(); } catch(_){} }
+        lpNodes = [];
+        if (lpOscillator) { try { lpOscillator.stop(); } catch(_){} lpOscillator = null; }
+        if (lpNoiseSource) { try { lpNoiseSource.stop(); } catch(_){} lpNoiseSource = null; }
+        lpMediaSource = null;
+        if (lpAudioCtx) { try { lpAudioCtx.close(); } catch(_){} lpAudioCtx = null; }
+      }
+    }
+
+    audioEl._tl3Confirm = function() {
+      if (segmentTimer) { clearInterval(segmentTimer); segmentTimer = null; }
+      const played = pendingMediaStart >= 0 ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
+      pendingMediaStart = -1;
+      return confirmPending(played);
+    };
+    audioEl._tl3Stop = function() {
+      stopped = true;
+      if (segmentTimer) { clearTimeout(segmentTimer); segmentTimer = null; }
+      const played = pendingMediaStart ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
+      pendingMediaStart = -1;
+      confirmPending(played);
+      try { if (lpMediaSource) lpMediaSource.disconnect(); } catch(_){}
+      for (const node of lpNodes) { try { node.disconnect(); } catch(_){} }
+      lpNodes = [];
+      if (lpOscillator) { try { lpOscillator.stop(); } catch(_){} lpOscillator = null; }
+      if (lpNoiseSource) { try { lpNoiseSource.stop(); } catch(_){} lpNoiseSource = null; }
+      if (lpAudioCtx) { try { lpAudioCtx.close(); } catch(_){} lpAudioCtx = null; }
+    };
+    audioEl._tl3SegmentStop = audioEl._tl3Stop;
 
     return new Promise(async (resolve, reject) => {
       try {
@@ -62,8 +203,9 @@
           } catch (e) {
             onError(e); reject(e); return;
           }
-          onReady({ ms, msUrl });
-          
+          attachLpRealtime(header.lp_meta || null);
+          onReady({ ms, msUrl, header:header, sessionId:sessionId });
+          resolve({ sessionId:sessionId, header:header, mediaSource:ms });
           // 세그먼트 루프 시작
           _next();
         });
@@ -93,7 +235,7 @@
 
           try {
             // 3. 세그먼트 요청
-            const segUrl = API + '/api/v1/tl3/segment/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(opts.sessionId || '');
+            const segUrl = API + '/api/v1/tl3/segment/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(sessionId);
             const sr = await fetch(segUrl, { headers: authHeaders() });
             if (sr.status === 416) {
               try { if (ms.readyState === 'open') ms.endOfStream(); } catch(e){}
@@ -120,7 +262,7 @@
             }
 
             // 5. 라이센스 키 요청
-            const cr = await fetch(API + '/api/v1/tl3/code/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(opts.sessionId || ''), { headers: authHeaders() });
+            const cr = await fetch(API + '/api/v1/tl3/code/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(sessionId), { headers: authHeaders() });
             if (!cr.ok) { onError(new Error('code ' + cr.status)); return; }
             const codeData = await cr.json();
             const lic = unhex(codeData.lic_n || '');
@@ -140,11 +282,21 @@
               try { sb.appendBuffer(plain); } catch(e) { sb.removeEventListener('updateend', h); res(); }
             });
 
-            onSegment({ index: n - 1, seconds: durationMs / 1000, remaining: codeData.wallet_tl ?? codeData.remaining_tl });
-            
-            // 8. 다음 세그먼트로
-            n++;
-            setTimeout(() => { if (!stopped) _next(); }, durationMs);
+            onSegment({ index: n - 1, seconds: durationMs / 1000, remaining: codeData.wallet_tl ?? codeData.remaining_tl, wallet_tl:codeData.wallet_tl ?? codeData.remaining_tl, asset_remaining_tl:codeData.asset_remaining_tl });
+            pendingMediaStart = audioEl.currentTime;
+            pendingDurationMs = durationMs;
+            segmentIndexPending = n - 1;
+            // 실제 재생시간을 서버에 확정하고 미사용 예약분은 환급한다.
+            segmentTimer = setInterval(async function() {
+              const playedSeconds = Math.max(0, audioEl.currentTime - pendingMediaStart);
+              if (playedSeconds + 0.025 < durationMs / 1000) return;
+              clearInterval(segmentTimer);
+              segmentTimer = null;
+              pendingMediaStart = -1;
+              await confirmPending(Math.min(durationMs / 1000, playedSeconds));
+              n++;
+              if (!stopped) _next();
+            }, 50);
             
           } catch (e) {
             console.error('[TL3v4] _next error:', e);

@@ -298,72 +298,39 @@ $('lpCheck').addEventListener('change', function(){
 });
 async function buildLpFlac(){
   if(!window._lpLicense || !window._lpLicense.lp_enabled) return null;
-  if(!file){ return null; }
-  if(!window.TL3_LP || !window.TL3_LP_FLAC){ return null; }
-  try{
-    var s = $('lpPreviewStatus');
-    if(s) s.textContent = 'LP 처리 중...';
-
-    // 1. MP3 → PCM 디코딩
+  if(!file) throw new Error('원본 음원이 없습니다.');
+  if(!window.TL3_LP) throw new Error('LP DSP 모듈을 불러오지 못했습니다.');
+  var status = $('lpPreviewStatus');
+  var ac = null;
+  try {
+    if(status) status.textContent = 'LP 재생 파라미터 분석 중...';
     var buf = await file.arrayBuffer();
-    var ac = new (window.AudioContext||window.webkitAudioContext)();
+    var AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if(!AudioContextCtor) throw new Error('이 브라우저는 Web Audio를 지원하지 않습니다.');
+    ac = new AudioContextCtor();
     var audio = await ac.decodeAudioData(buf.slice(0));
     var fs = audio.sampleRate;
     var n = audio.length;
-    var L0 = audio.getChannelData(0).slice(0, n);
-    var R0 = (audio.numberOfChannels > 1 ? audio.getChannelData(1) : audio.getChannelData(0)).slice(0, n);
-    var Lorig = new Float32Array(L0);
-    var Rorig = new Float32Array(R0);
-
-    // 2. LP 파라미터 생성
-    var seed = window._lpLicense.lp_seed || 7;
-    var an = window.TL3_LP.analyze(L0, R0, fs);
-    var g = window.TL3_LP.calcG(an, seed);
-
-    // 3. LP 처리 (PCM)
-    var lp = window.TL3_LP.render(Lorig, Rorig, fs, g, seed);
-    if(s) s.textContent = 'LP Opus 인코딩 준비...';
-
-    // 4. AudioBuffer 생성
-    var lpBuf = ac.createBuffer(2, n, fs);
-    lpBuf.getChannelData(0).set(lp.L);
-    lpBuf.getChannelData(1).set(lp.R);
-
-    // 5. Opus 인코딩 (WebCodecs)
-    var supported = await window.TL3_LP_FLAC.isSupported();
-    if(!supported){
-      throw new Error('이 브라우저는 Opus 인코딩을 지원하지 않습니다 (Chrome 94+ 필요)');
-    }
-    if(s) s.textContent = 'Opus 인코딩 중... (0%)';
-
-    var opusResult = await window.TL3_LP_FLAC.encode(lpBuf, {
-      bitrate: 700000,
-      onProgress: function(p){
-        if(s) s.textContent = 'Opus 인코딩 중... (' + (p.pct || 0) + '%)';
-      }
-    });
-
-    // 6. 결과 저장
+    var L = audio.getChannelData(0);
+    var R = audio.numberOfChannels > 1 ? audio.getChannelData(1) : L;
+    var seed = Number(window._lpLicense.lp_seed || 7);
+    var analysis = window.TL3_LP.analyze(L, R, fs);
+    var g = window.TL3_LP.calcG(analysis, seed);
     window._lpLicense.lp_g = g;
     window._lpLicense.lp_fs = fs;
     window._lpLicense.lp_n = n;
-    window._lpOpus = opusResult;
-
-    if(s) s.textContent = '✅ Opus 인코딩 완료 (' + Math.round(opusResult.size/1024) + ' KB)';
-    console.log('[LP-OPUS]', {
-      original_samples: n,
-      fs: fs,
-      opus_bytes: opusResult.size,
-      ratio: (opusResult.size / (n*2*2) * 100).toFixed(2) + '%'
-    });
-    ac.close();
-    return opusResult;
-  }catch(e){
-    console.error('[LP-OPUS] 인코딩 실패:', e);
-    var s2 = $('lpPreviewStatus');
-    if(s2) s2.textContent = '⚠️ Opus 인코딩 실패: ' + e.message;
+    window._lpLicense.lp_version = 'lp-v1-runtime';
     window._lpOpus = null;
-    return null;
+    if(status) status.textContent = '✓ LP 실시간 재생 설정 완료';
+    console.log('[LP-RUNTIME] parameters ready', {sampleRate:fs,samples:n,seed:seed,params:g});
+    return {sampleRate:fs,samples:n,seed:seed,params:g};
+  } catch(e) {
+    console.error('[LP-RUNTIME] 분석 실패:', e);
+    if(status) status.textContent = 'LP 설정 실패: ' + e.message;
+    window._lpOpus = null;
+    throw e;
+  } finally {
+    if(ac && ac.state !== 'closed') { try { await ac.close(); } catch(_){} }
   }
 }
 
@@ -395,15 +362,15 @@ $('lpContinueBtn').onclick=async function(){
     };
     // ★ 차분 생성
     var btn = $('lpContinueBtn');
-    if(btn){ btn.disabled = true; btn.textContent = 'Opus 인코딩 중...'; }
+    if(btn){ btn.disabled = true; btn.textContent = 'LP 재생 설정 분석 중...'; }
     
     try {
-      await buildLpFlac(); // Opus 인코딩 실행
+      await buildLpFlac(); // LP 재생 파라미터만 계산하고 오디오 파일은 생성하지 않음
       if(btn){ btn.disabled = false; btn.textContent = 'TL3 등록하러 가기 →'; }
       step(3); // ★ panel3 (TL3 등록)으로 이동
     } catch(e) {
       if(btn){ btn.disabled = false; btn.textContent = '다시 시도'; }
-      var _e2 = $('error2lp'); if(_e2){ _e2.textContent = '인코딩 실패: ' + e.message; _e2.style.display='block'; }
+      var _e2 = $('error2lp'); if(_e2){ _e2.textContent = 'LP 설정 실패: ' + e.message; _e2.style.display='block'; }
     }
   } else {
     window._lpLicense = {
