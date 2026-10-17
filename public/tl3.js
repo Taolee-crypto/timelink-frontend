@@ -833,6 +833,19 @@
 
         async function _next(){
           if(stopped) return;
+          // TL3_BUFFER_CONTROL: 재생 위치 기준 버퍼 제어
+          if (audioEl && !audioEl.paused) {
+            var buf = audioEl.buffered;
+            if (buf.length > 0) {
+              var bufEnd = buf.end(buf.length - 1);
+              var cur = audioEl.currentTime;
+              // 현재 재생 위치보다 15초 이상 앞서 있으면 1초 대기 후 재시도
+              if (bufEnd - cur > 15) {
+                setTimeout(_next, 1000);
+                return;
+              }
+            }
+          }
           // TL3_FINAL_STOP_FIX: MediaSource가 닫혔으면 즉시 중단
           if(!ms || ms.readyState === 'closed') return;
           // TL3_PAUSE_FIX: 일시정지 상태면 루프 중단
