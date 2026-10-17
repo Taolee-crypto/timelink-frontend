@@ -821,16 +821,18 @@
         // TL3_PAUSE_FIX: pause/play 이벤트 처리
         audioEl.addEventListener('pause', () => {
           console.log('[TL3.playStream] pause event');
+          stopped = true; // TL3_HARD_STOP_FIX: 일시정지 시 루프 강제 중단
         });
         audioEl.addEventListener('play', () => {
           console.log('[TL3.playStream] play event');
+          stopped = false; // TL3_HARD_STOP_FIX: 재생 시 루프 재개
         });
         }
 
         async function _next(){
           if(stopped) return;
           // TL3_PAUSE_FIX: 일시정지 상태면 루프 중단
-          if (audioEl && audioEl.paused && !audioEl.ended && audioEl.currentTime > 0) {
+          if (stopped || (audioEl && audioEl.paused && !audioEl.ended && audioEl.currentTime > 0)) {
             console.log('[TL3.playStream] Paused - _next stop');
             return;
           }
