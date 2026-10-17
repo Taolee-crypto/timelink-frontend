@@ -51,7 +51,7 @@
     let sb = null, n = 1;
     let stopped = false;
     let lpAudioCtx = null, lpMediaSource = null, lpProcessor = null, lpNoiseSource = null;
-    let segmentTimer = null, pendingMediaStart = 0, pendingDurationMs = 0, confirmBusy = false;
+    let segmentTimer = null, pendingMediaStart = -1, pendingDurationMs = 0, confirmBusy = false;
     let segmentIndexPending = -1;
 
     async function confirmPending(playedSeconds) {
@@ -125,15 +125,15 @@
 
     audioEl._tl3Confirm = function() {
       if (segmentTimer) { clearTimeout(segmentTimer); segmentTimer = null; }
-      const played = pendingMediaStart ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
-      pendingMediaStart = 0;
+      const played = pendingMediaStart >= 0 ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
+      pendingMediaStart = -1;
       return confirmPending(played);
     };
     audioEl._tl3Stop = function() {
       stopped = true;
       if (segmentTimer) { clearTimeout(segmentTimer); segmentTimer = null; }
       const played = pendingMediaStart ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
-      pendingMediaStart = 0;
+      pendingMediaStart = -1;
       confirmPending(played);
       try { if (lpMediaSource) lpMediaSource.disconnect(); } catch(_){}
       try { if (lpProcessor) { lpProcessor.onaudioprocess = null; lpProcessor.disconnect(); } } catch(_){}
@@ -238,7 +238,7 @@
               if (playedSeconds + 0.025 < durationMs / 1000) return;
               clearInterval(segmentTimer);
               segmentTimer = null;
-              pendingMediaStart = 0;
+              pendingMediaStart = -1;
               await confirmPending(Math.min(durationMs / 1000, playedSeconds));
               n++;
               if (!stopped) _next();
