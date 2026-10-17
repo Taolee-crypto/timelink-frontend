@@ -427,31 +427,9 @@ window.addDebugLog = function(msg) {
 <script>
 const API = 'https://api.timelink.digital';
 
-// ★ SHARE_ID 선언 및 정석 리다이렉트 처리
-var SHARE_ID = new URLSearchParams(location.search).get('id');
+// ★ SHARE_ID 단순 선언 (리다이렉트 제거)
+const SHARE_ID = new URLSearchParams(location.search).get('id');
 window.SHARE_ID = SHARE_ID;
-
-// file_id(숫자)로 접근한 경우, share_id로 변환하여 페이지를 새로고침(리다이렉트)
-if (SHARE_ID && /^\d+$/.test(String(SHARE_ID))) {
-  (async function() {
-    try {
-      const res = await fetch(API + '/api/v1/tl3/file-meta/' + SHARE_ID, {
-        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('tl_token') || '') }
-      });
-      const meta = await res.json();
-      if (meta && meta.ok && meta.share_id) {
-        // 주소를 share_id로 완전히 교체하고 새로고침!
-        location.replace('track?id=' + encodeURIComponent(meta.share_id));
-        return; // 리다이렉트 되므로 아래 코드 실행 안 함
-      } else {
-        console.warn('[TRACK] 유효하지 않은 파일 ID');
-      }
-    } catch(e) {
-      console.warn('[TRACK] ID 변환 실패:', e);
-    }
-  })();
-}
-
 const _VALID_SHARE_ID = SHARE_ID && /^sh_/.test(SHARE_ID);
 let _share = null, _myLiked = false, _myFollowing = false;
 let _myFileTL = 0;  // 공통 사용자 지갑 TL
