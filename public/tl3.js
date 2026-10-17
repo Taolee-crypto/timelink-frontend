@@ -70,25 +70,27 @@
       };
     }
 
-    async function confirmPending(playedSeconds) {
-      if (confirmBusy || segmentIndexPending < 0) return;
+    async function confirmPending(playedSeconds, nextSegment) {
+      if (confirmBusy || segmentIndexPending < 0) return null;
       confirmBusy = true;
       const index = segmentIndexPending;
       const played = Math.max(0, Math.min(pendingDurationMs / 1000, Number(playedSeconds) || 0));
       try {
+        const body = {session_id:sessionId, played_seconds:played};
+        if (Number.isInteger(nextSegment)) body.next_segment = nextSegment;
         const response = await fetch(API + '/api/v1/tl3/segment/confirm/' + encodeURIComponent(fidStr), {
           method: 'POST',
           headers: Object.assign({'Content-Type':'application/json'}, authHeaders()),
-          body: JSON.stringify({session_id:sessionId, played_seconds:played})
+          body: JSON.stringify(body)
         });
         const data = await response.json().catch(function(){ return {}; });
         if (!response.ok || !data.ok) throw new Error(data.error || ('confirm ' + response.status));
         if (index === segmentIndexPending) segmentIndexPending = -1;
         if (data.wallet_tl !== undefined) onSegment({index:index, seconds:played, remaining:data.wallet_tl, wallet_tl:data.wallet_tl, asset_remaining_tl:data.asset_remaining_tl});
-        return true;
+        return data;
       } catch (error) {
         console.warn('[TL3v4] segment confirm failed; server expiry refund remains available:', error);
-        return false;
+        return null;
       } finally { confirmBusy = false; }
     }
 
@@ -259,7 +261,7 @@
         if (audioEl.readyState >= 3) playOnce();
         else audioEl.addEventListener('canplay', playOnce, { once: true });
 
-        async function _next() {
+        async function _next(prelicensedCode) {
           if (stopped || !sb || ms.readyState === 'closed') {
             console.warn('[TL3v4] segment loop not started:', {stopped, sourceBuffer:!!sb, mediaSourceState:ms.readyState});
             return;
@@ -305,22 +307,24 @@
             }
 
             // 5. 라이센스 키 요청
-            const codeUrl = API + '/api/v1/tl3/code/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(sessionId);
-            let cr = null;
-            // The previous segment is settled asynchronously at the handoff.
-            // Retry the temporary single-pending reservation conflict while that
-            // settlement completes; ciphertext is already prefetched.
-            for (let attempt = 0; attempt < 40; attempt++) {
-              cr = await fetch(codeUrl, { headers: authHeaders() });
-              if (cr.status !== 409 || attempt === 39) break;
-              console.log('[TL3v4] waiting for previous segment settlement', {
-                nextSegment:n, attempt:attempt + 1
-              });
-              await new Promise(resolve => setTimeout(resolve, 75));
+            let codeData = prelicensedCode || null;
+            if (!codeData) {
+              const codeUrl = API + '/api/v1/tl3/code/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(sessionId);
+              let cr = null;
+              for (let attempt = 0; attempt < 40; attempt++) {
+                cr = await fetch(codeUrl, { headers: authHeaders() });
+                if (cr.status !== 409 || attempt === 39) break;
+                console.log('[TL3v4] waiting for previous segment settlement', {
+                  nextSegment:n, attempt:attempt + 1
+                });
+                await new Promise(resolve => setTimeout(resolve, 75));
+              }
+              console.log('[TL3v4] code response', n, cr.status);
+              if (!cr.ok) { onError(new Error('code ' + cr.status)); return; }
+              codeData = await cr.json();
+            } else {
+              console.log('[TL3v4] next license reserved atomically with settlement', n);
             }
-            console.log('[TL3v4] code response', n, cr.status);
-            if (!cr.ok) { onError(new Error('code ' + cr.status)); return; }
-            const codeData = await cr.json();
             const lic = unhex(codeData.lic_n || '');
 
             // 6. 복호화
@@ -398,8 +402,8 @@
               // 다음 조각의 라이선스 예약·복호화·append에 더 긴 선행 시간을 준다.
               // 서버의 단일 pending 정산 왕복이 재생 경계까지 밀려오지 않도록
               // 1초 조각 기준 약 0.85초 전에 다음 조각 준비를 시작한다.
-              const advanceLeadSeconds = 0.85;
-              const advanceAt = Math.max(0.08, segmentSeconds - advanceLeadSeconds);
+              const advanceLeadSeconds = 0.95;
+              const advanceAt = Math.max(0.05, segmentSeconds - advanceLeadSeconds);
               if (playedSeconds < advanceAt) return;
               clearInterval(segmentTimer);
               segmentTimer = null;
@@ -408,19 +412,22 @@
                 segment:n, playedSeconds, segmentSeconds, advanceAt,
                 currentTime:audioEl.currentTime, paused:audioEl.paused
               });
-              // Finish the current segment's TL settlement before requesting
-              // the next license. This removes the old race in which /code
-              // repeatedly collided with the still-pending /confirm request.
-              // The handoff starts with about 850ms of the current MSE segment
-              // still buffered, giving the next license/decrypt/append time
-              // to complete while the current audio continues playing.
-              const settled = await confirmPending(segmentSeconds);
+              // The server settles this segment and reserves the next license
+              // in one request/transaction sequence. No second /code round-trip
+              // is needed at the segment boundary.
+              const nextIndex = n < header.mp3.N ? n : null;
+              const settled = await confirmPending(segmentSeconds, nextIndex);
               if (stopped) return;
               if (!settled) {
-                console.warn('[TL3v4] settlement did not complete; next license will use bounded conflict retry');
+                onError(new Error('TL3 segment settlement failed; playback stopped to protect TL balance.'));
+                return;
               }
               n++;
-              await _next();
+              if (settled.next_error) {
+                onError(new Error(settled.next_error));
+                return;
+              }
+              await _next(settled.next_license || null);
             }, 50);
             
           } catch (e) {
