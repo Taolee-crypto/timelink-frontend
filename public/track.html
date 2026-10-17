@@ -1512,9 +1512,9 @@ function playTrack(){
   const fileUrl = _share.stream_url || _share.file_url;
   if(!fileUrl){ alert('재생 파일이 없습니다'); return; }
 
-  _tlCurrentTL = _tlFree ? 0 : _assetTL;
-  _tlMaxTL = _tlFree ? 0 : _assetInitialTL;
-  _tlElapsed = 0;
+  window._tlCurrentTL = _tlFree ? 0 : (window._assetTL || 0);
+  window._tlMaxTL = _tlFree ? 0 : (window._assetInitialTL || 0);
+  window._tlElapsed = 0;
 
   document.getElementById('playerTitle').textContent = _share.title || '';
   document.getElementById('playerArtist').textContent = _share.artist || '';
@@ -1580,31 +1580,37 @@ function playTrack(){
 }
 
 function startTLTimer(){
-  if(_tlInterval) clearInterval(_tlInterval);
-  _tlInterval = setInterval(async ()=>{
-    if(!_tlPlaying) return;
-    _tlElapsed++;
-    var isTl3 = isSegmentBilledTL3(_share);
-    if(!_tlFree && !isTl3) _tlCurrentTL = Math.max(0, _tlCurrentTL - 1);
-    document.getElementById('playerTime').textContent = fmtTime(_tlElapsed);
-    document.getElementById('playerTLVal').textContent = _tlFree ? 'FREE' : _tlCurrentTL.toLocaleString() + ' TL';
-    const pct = _tlMaxTL > 0 ? (_tlCurrentTL / _tlMaxTL * 100) : 0;
-    document.getElementById('playerTLBar').style.width = pct + '%';
+  if(window._tlInterval) clearInterval(window._tlInterval);
+  window._tlInterval = setInterval(() => {
+    if(!window._tlPlaying) return;
     
-    // 5초마다 서버에 TL 소비 기록
-    if(!_tlFree && !isTl3 && _tlElapsed % 5 === 0){
-      try{
-        await fetch(API+'/api/shares/'+SHARE_ID+'/consume',{
-          method:'POST',
-          headers:{'Authorization':'Bearer '+getTok(),'Content-Type':'application/json'},
-          body:JSON.stringify({seconds:5, user_id: localStorage.getItem('tl_user') ? JSON.parse(localStorage.getItem('tl_user')).id : 0})
-        });
-        // 서버에서 최신 TL 정보 다시 가져오기
-        await updateMyTLFromServer();
-      } catch(e){}
+    // 1. 경과 시간 증가
+    window._tlElapsed = (window._tlElapsed || 0) + 1;
+    
+    // 2. 남은 TL 계산 (최대 TL - 경과 시간)
+    var maxTL = window._tlMaxTL || 0;
+    var currentTL = Math.max(0, maxTL - window._tlElapsed);
+    
+    // 3. UI 업데이트 (하단 플레이어)
+    var timeStr = fmtTime(window._tlElapsed);
+    var playerTimeEl = document.getElementById('playerTime');
+    if (playerTimeEl) playerTimeEl.textContent = timeStr;
+    
+    var playerTLValEl = document.getElementById('playerTLVal');
+    if (playerTLValEl) {
+      playerTLValEl.textContent = Math.round(currentTL).toLocaleString() + ' TL';
     }
     
-    if(!_tlFree && !isTl3 && _tlCurrentTL <= 0){ stopPlay(); alert('TL이 소진됐습니다. 충전 후 다시 재생하세요'); }
+    // 4. TL 게이지 바 업데이트 (아날로그 느낌)
+    var pct = maxTL > 0 ? (currentTL / maxTL * 100) : 0;
+    var barEl = document.getElementById('playerTLBar');
+    if (barEl) barEl.style.width = pct + '%';
+    
+    // 5. TL 소진 시 정지
+    if (currentTL <= 0 && maxTL > 0) {
+      stopPlay();
+      alert('TL이 소진되었습니다.');
+    }
   }, 1000);
 }
 
