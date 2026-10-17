@@ -277,6 +277,12 @@
 
     async function _next(){
       if(stopped) return;
+          // 안전한 중단 패치
+          if (window._tl3_force_stopped) return;
+          if (typeof _tlAudio !== 'undefined' && _tlAudio && _tlAudio.paused && !_tlAudio.ended && _tlAudio.currentTime > 0) {
+            console.log('[TL3.playStream] Paused - _next stop');
+            return;
+          }
       if(n > N){
         try { if(ms.readyState === 'open') ms.endOfStream(); } catch(e){}
         return;
@@ -735,6 +741,19 @@
   }
 
   async function playStream(fileId, audioEl, opts){
+    // _tl3_stop_fix_installed
+    if (typeof _tlAudio !== 'undefined' && _tlAudio && !_tlAudio._originalPause) {
+        _tlAudio._originalPause = _tlAudio.pause;
+        _tlAudio.pause = function() {
+            window._tl3_force_stopped = true;
+            return _tlAudio._originalPause.apply(this, arguments);
+        };
+        _tlAudio._originalPlay = _tlAudio.play;
+        _tlAudio.play = function() {
+            window._tl3_force_stopped = false;
+            return _tlAudio._originalPlay.apply(this, arguments);
+        };
+    }
     // ★ LP 자동 감지: lp_meta 있으면 playFileLP로 위임
     try {
       if(!opts || !opts._noLp){
@@ -820,8 +839,7 @@
           playOnce();
         } else {
           audioEl.addEventListener('canplay', playOnce, { once: true });
-        // TL3_PAUSE_FIX: pause/play 이벤트 처리
-        audioEl.addEventListener('pause', () => {
+                audioEl.addEventListener('pause', () => {
           console.log('[TL3.playStream] pause event');
           stopped = true; // TL3_HARD_STOP_FIX: 일시정지 시 루프 강제 중단
         });
@@ -848,8 +866,7 @@
           }
           // TL3_FINAL_STOP_FIX: MediaSource가 닫혔으면 즉시 중단
           if(!ms || ms.readyState === 'closed') return;
-          // TL3_PAUSE_FIX: 일시정지 상태면 루프 중단
-          if (stopped || (audioEl && audioEl.paused && !audioEl.ended && audioEl.currentTime > 0)) {
+                    if (stopped || (audioEl && audioEl.paused && !audioEl.ended && audioEl.currentTime > 0)) {
             console.log('[TL3.playStream] Paused - _next stop');
             return;
           }
