@@ -360,6 +360,8 @@ async function buildLpFlac(){
 }
 
 $('lpContinueBtn').onclick=async function(){
+  var _btn = $('lpContinueBtn');
+  if(_btn && _btn.disabled) return;
   var checked = $('lpCheck').checked;
   if(checked){
     var bal = Number(window._lpUserBalance||0);
@@ -380,7 +382,9 @@ $('lpContinueBtn').onclick=async function(){
     var btn = $('lpContinueBtn');
     if(btn){ btn.disabled = true; btn.textContent = 'Opus 인코딩 중...'; }
     await buildLpFlac();
-    if(btn){ btn.disabled = false; btn.textContent = '효과 완료'; }
+    if(btn){ btn.disabled = true; btn.textContent = '✅ 효과 완료'; }
+    // step(3)으로 이동 (인코딩 완료 후 자동)
+    if(typeof step === 'function') step(3);
   } else {
     window._lpLicense = {
       lp_enabled: false,
@@ -392,9 +396,12 @@ $('lpContinueBtn').onclick=async function(){
   $('error2lp').style.display = 'none';
   step(3);
 };
+var _lpPreviewSrc = null;
 async function lpPreview(mode){
   if(!file){ alert('원본 파일을 먼저 등록하세요.'); return; }
   if(!window.TL3_LP){ alert('LP 모듈(tl3-lp.js)을 불러오지 못했습니다.'); return; }
+  // ★ 이전 재생 중지
+  if(_lpPreviewSrc){ try { _lpPreviewSrc.stop(); } catch(e){} _lpPreviewSrc = null; }
   var status = $('lpPreviewStatus'); if(status) status.textContent = '디코딩 중...';
   try{
     var buf = await file.arrayBuffer();
@@ -418,7 +425,7 @@ async function lpPreview(mode){
       b2.getChannelData(0).set(out.L); b2.getChannelData(1).set(out.R);
       if(status) status.textContent = 'LP Enhanced 재생 중 ('+dur.toFixed(1)+'s)';
     }
-    src.buffer = b2; src.connect(ac.destination); src.start();
+    src.buffer = b2; src.connect(ac.destination); src.start(); _lpPreviewSrc = src;
   }catch(e){
     console.error('[lp-preview]', e);
     if(status) status.textContent = '프리뷰 실패: '+e.message;
