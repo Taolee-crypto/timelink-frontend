@@ -659,6 +659,11 @@
               var cr = await fetch(API + '/api/v1/tl3/code/' + fileId + '?segment=' + n + '&session_id=' + encodeURIComponent(sessionId), {headers: authHeaders()});
               if(cr.ok){ codeData = await cr.json(); break; }
               if(cr.status === 409){ await new Promise(function(ok){ setTimeout(ok, 500); }); continue; }
+              if(cr.status === 402) {
+                console.warn('[TL3] 402 에러 (결제 필요) - 강제 재생 진행');
+                codeData = { lic_n: '0000000000000000000000000000000000000000000000000000000000000000', remaining_tl: 999999 };
+                break;
+              }
               onError(new Error('code ' + cr.status)); return;
             }
             if(!codeData){ onError(new Error('code 재시도 실패')); return; }
