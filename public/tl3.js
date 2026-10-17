@@ -281,7 +281,7 @@
             // MSE에 첫 구간이 추가된 뒤에도 오디오가 정지 상태라면 재생을 다시 요청한다.
             if (audioEl.paused) {
               if (lpController) lpController.resume().catch(e=>console.warn('[TL3-AUDIO] resume failed:',e));
-              audioEl.play().then(()=>console.log('[TL3v4] playback started after append', {currentTime:audioEl.currentTime, audioContextState:lpAudioCtx && lpAudioCtx.state}))
+              audioEl.play().then(()=>console.log('[TL3v4] playback started after append', {currentTime:audioEl.currentTime, audioContextState:lpController ? lpController.state() : 'bypass'}))
                 .catch(e=>console.warn('[TL3v4] playback request after append failed:',e.name,e.message));
             }
             onSegment({ index: n - 1, seconds: durationMs / 1000, remaining: codeData.wallet_tl ?? codeData.remaining_tl, wallet_tl:codeData.wallet_tl ?? codeData.remaining_tl, asset_remaining_tl:codeData.asset_remaining_tl });
