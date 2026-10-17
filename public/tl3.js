@@ -54,6 +54,23 @@
     let segmentTimer = null, pendingMediaStart = -1, pendingDurationMs = 0, confirmBusy = false;
     let segmentIndexPending = -1;
 
+    let prefetchedSegment = null;
+
+    // Ciphertext는 재생 중 미리 받아 둔다. 라이선스(code) 요청과 TL 예약은
+    // 직전 구간의 confirm 이후에만 실행해 서버의 단일 pending 규칙을 지킨다.
+    async function fetchSegmentPayload(segmentNo) {
+      const segUrl = API + '/api/v1/tl3/segment/' + fidStr + '?segment=' + (segmentNo-1) + '&session_id=' + encodeURIComponent(sessionId);
+      const response = await fetch(segUrl, { headers: authHeaders() });
+      console.log('[TL3v4] segment response', segmentNo, response.status, response.headers.get('X-TL3-Segment-Duration-Ms'));
+      if (response.status === 416) return { status:416 };
+      if (!response.ok) throw new Error('segment ' + response.status);
+      return {
+        status:response.status,
+        ciphertext:new Uint8Array(await response.arrayBuffer()),
+        durationMs:Number(response.headers.get('X-TL3-Segment-Duration-Ms') || 1000)
+      };
+    }
+
     async function confirmPending(playedSeconds) {
       if (confirmBusy || segmentIndexPending < 0) return;
       confirmBusy = true;
@@ -258,18 +275,17 @@
           }
 
           try {
-            // 3. 세그먼트 요청
-            const segUrl = API + '/api/v1/tl3/segment/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(sessionId);
-            const sr = await fetch(segUrl, { headers: authHeaders() });
-            console.log('[TL3v4] segment response', n, sr.status, sr.headers.get('X-TL3-Segment-Duration-Ms'));
-            if (sr.status === 416) {
+            // 3. 세그먼트 암호문은 이전 구간 재생 중 미리 받아 둔 값을 우선 사용한다.
+            const payload = (prefetchedSegment && prefetchedSegment.segment === n)
+              ? await prefetchedSegment.promise
+              : await fetchSegmentPayload(n);
+            if (prefetchedSegment && prefetchedSegment.segment === n) prefetchedSegment = null;
+            if (payload.status === 416) {
               try { if (ms.readyState === 'open') ms.endOfStream(); } catch(e){}
               return;
             }
-            if (!sr.ok) { onError(new Error('segment ' + sr.status)); return; }
-            
-            const ciphertext = new Uint8Array(await sr.arrayBuffer());
-            const durationMs = Number(sr.headers.get('X-TL3-Segment-Duration-Ms') || 1000);
+            const ciphertext = payload.ciphertext;
+            const durationMs = payload.durationMs;
 
             // 4. 스파인 검증 (T_n)
             let Tprev;
@@ -330,6 +346,19 @@
                 rej(e);
               }
             });
+
+            // 다음 암호문만 선행 수신한다. TL 라이선스 예약은 confirm 뒤에 한다.
+            if (n < header.mp3.N && !prefetchedSegment) {
+              const nextSegment = n + 1;
+              prefetchedSegment = {
+                segment:nextSegment,
+                promise:fetchSegmentPayload(nextSegment).catch(error => {
+                  if (prefetchedSegment && prefetchedSegment.segment === nextSegment) prefetchedSegment = null;
+                  throw error;
+                })
+              };
+              console.log('[TL3v4] prefetch started', nextSegment);
+            }
 
             console.log('[TL3v4] append complete', n, {
               durationMs, currentTime:audioEl.currentTime, paused:audioEl.paused,
