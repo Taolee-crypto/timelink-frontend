@@ -137,9 +137,8 @@
       const played = pendingMediaStart >= 0 ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
       pendingMediaStart = -1;
       confirmPending(played);
-      // Keep the single MediaElementAudioSourceNode alive for this audio element.
+      // Keep the single MediaElementAudioSourceNode and its graph alive for reuse.
       // Browsers do not allow creating a second source node for the same element.
-      if (lpController) lpController.resume();
     };
     audioEl._tl3SegmentStop = audioEl._tl3Stop;
 
