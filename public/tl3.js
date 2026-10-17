@@ -163,8 +163,15 @@
           highpass:highpass.frequency.value, lowpass:lowpass.frequency.value
         });
       } catch (error) {
-        console.warn('[TL3-LP] realtime DSP setup failed; original audio remains available:', error);
-        try { if (lpMediaSource) lpMediaSource.disconnect(); } catch(_){}
+        console.warn('[TL3-LP] realtime DSP setup failed; falling back to direct audio:', error);
+        // createMediaElementSource disconnects the element's native audio path.
+        // Always reconnect it directly if DSP setup fails, otherwise Track is silent.
+        try {
+          if (lpMediaSource) {
+            lpMediaSource.disconnect();
+            lpMediaSource.connect(lpAudioCtx.destination);
+          }
+        } catch(_) {}
         for (const node of lpNodes) { try { node.disconnect(); } catch(_){} }
         lpNodes = [];
         if (lpOscillator) { try { lpOscillator.stop(); } catch(_){} lpOscillator = null; }
@@ -182,8 +189,8 @@
     };
     audioEl._tl3Stop = function() {
       stopped = true;
-      if (segmentTimer) { clearTimeout(segmentTimer); segmentTimer = null; }
-      const played = pendingMediaStart ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
+      if (segmentTimer) { clearInterval(segmentTimer); segmentTimer = null; }
+      const played = pendingMediaStart >= 0 ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
       pendingMediaStart = -1;
       confirmPending(played);
       try { if (lpMediaSource) lpMediaSource.disconnect(); } catch(_){}
