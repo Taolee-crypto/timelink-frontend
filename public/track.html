@@ -410,31 +410,7 @@ html, body { height: auto; overflow-y: auto; overflow-x: hidden; }
 <script src="/tl3-config.js"></script>
 <script>
 const API = 'https://api.timelink.digital';
-const _rawId = new URLSearchParams(location.search).get('id');
-const _isNumericId = /^\d+$/.test(String(_rawId));
-const SHARE_ID = _rawId;  // 초기값 (숫자면 나중에 변환)
-window.SHARE_ID = SHARE_ID;
 
-// 숫자 ID(file_id)로 접근 시 share_id로 변환하는 로직
-if (_isNumericId) {
-  (async function() {
-    try {
-      var res = await fetch(API + '/api/v1/tl3/file-meta/' + _rawId, {
-        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('tl_token') || '') }
-      });
-      var meta = await res.json();
-      if (meta && meta.ok && meta.share_id) {
-        window.SHARE_ID = meta.share_id;
-        console.log('[TRACK] file_id -> share_id 변환:', _rawId, '->', meta.share_id);
-        // URL도 변경 (선택)
-        history.replaceState(null, '', 'track?id=' + encodeURIComponent(meta.share_id));
-        // 이미 loadTrack이 실행됐다면 재호출
-        if (typeof loadTrack === 'function') loadTrack();
-      }
-    } catch(e) {
-      console.warn('[TRACK] share_id 변환 실패:', e);
-    }
-  })();
 }
 const _VALID_SHARE_ID = SHARE_ID && /^sh_/.test(SHARE_ID);
 let _share = null, _myLiked = false, _myFollowing = false;
