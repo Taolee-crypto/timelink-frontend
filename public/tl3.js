@@ -275,7 +275,7 @@
             const lic = unhex(codeData.lic_n || '');
 
             // 6. 복호화
-            const k_n = await sha256(Tprev, lic, enc('K' + n));
+            const k_n = await sha256(Tprev, lic, enc(String(n) + 'K'));
             const key = await crypto.subtle.importKey('raw', k_n, { name: 'AES-GCM' }, false, ['decrypt']);
             const plain = new Uint8Array(await crypto.subtle.decrypt(
               { name: 'AES-GCM', iv: ivFor(n), tagLength: 128 }, key, ciphertext
