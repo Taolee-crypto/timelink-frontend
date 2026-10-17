@@ -25,8 +25,9 @@
     const onSegment = opts.onSegment || function(){};
     const onError = opts.onError || function(){};
     const onReady = opts.onReady || function(){};
+    const sessionId = String(opts.sessionId || genSid());
 
-    console.log('[TL3v4] START fileId=', fileId);
+    console.log('[TL3v4] START fileId=', fileId, 'sessionId=', sessionId);
 
     // 1. 헤더 로드 (V4)
     const fileUrlStr = String(fileId);
@@ -49,10 +50,96 @@
     const msUrl = URL.createObjectURL(ms);
     let sb = null, n = 1;
     let stopped = false;
-    
-    // LP Opus 버퍼 (Web Audio API용)
-    let lpAudioCtx = null;
-    let lpBufferSource = null;
+    let lpAudioCtx = null, lpMediaSource = null, lpProcessor = null, lpNoiseSource = null;
+    let segmentTimer = null, pendingStartedAt = 0, pendingDurationMs = 0, confirmBusy = false;
+    let segmentIndexPending = -1;
+
+    async function confirmPending(playedSeconds) {
+      if (confirmBusy || segmentIndexPending < 0) return;
+      confirmBusy = true;
+      const index = segmentIndexPending;
+      const played = Math.max(0, Math.min(pendingDurationMs / 1000, Number(playedSeconds) || 0));
+      try {
+        const response = await fetch(API + '/api/v1/tl3/segment/confirm/' + encodeURIComponent(fidStr), {
+          method: 'POST',
+          headers: Object.assign({'Content-Type':'application/json'}, authHeaders()),
+          body: JSON.stringify({session_id:sessionId, played_seconds:played})
+        });
+        const data = await response.json().catch(function(){ return {}; });
+        if (!response.ok || !data.ok) throw new Error(data.error || ('confirm ' + response.status));
+        if (index === segmentIndexPending) segmentIndexPending = -1;
+        if (data.wallet_tl !== undefined) onSegment({index:index, seconds:played, remaining:data.wallet_tl, wallet_tl:data.wallet_tl, asset_remaining_tl:data.asset_remaining_tl});
+      } catch (error) {
+        console.warn('[TL3v4] segment confirm failed; server expiry refund remains available:', error);
+      } finally { confirmBusy = false; }
+    }
+
+    function attachLpRealtime(meta) {
+      if (!meta || meta.enabled !== true) return;
+      if (!global.TL3_LP || typeof global.TL3_LP.render !== 'function') {
+        console.warn('[TL3-LP] DSP module unavailable; playing original audio.');
+        return;
+      }
+      const params = meta.g;
+      if (!params || typeof params !== 'object') {
+        console.warn('[TL3-LP] LP parameters missing; playing original audio.');
+        return;
+      }
+      try {
+        const AudioContextCtor = global.AudioContext || global.webkitAudioContext;
+        if (!AudioContextCtor) return;
+        lpAudioCtx = new AudioContextCtor();
+        lpMediaSource = lpAudioCtx.createMediaElementSource(audioEl);
+        lpProcessor = lpAudioCtx.createScriptProcessor(4096, 2, 2);
+        const seed = Number(meta.seed || 7);
+        let block = 0;
+        lpProcessor.onaudioprocess = function(event) {
+          const input = event.inputBuffer;
+          const output = event.outputBuffer;
+          const left = input.getChannelData(0);
+          const right = input.numberOfChannels > 1 ? input.getChannelData(1) : left;
+          const outL = output.getChannelData(0);
+          const outR = output.numberOfChannels > 1 ? output.getChannelData(1) : outL;
+          try {
+            const rendered = global.TL3_LP.render(left, right, lpAudioCtx.sampleRate, params, (seed + block++) | 0);
+            outL.set(rendered.L);
+            if (output.numberOfChannels > 1) outR.set(rendered.R);
+          } catch (error) {
+            outL.set(left);
+            if (output.numberOfChannels > 1) outR.set(right);
+            console.warn('[TL3-LP] realtime DSP block bypassed:', error);
+          }
+        };
+        lpMediaSource.connect(lpProcessor);
+        lpProcessor.connect(lpAudioCtx.destination);
+        lpAudioCtx.resume().catch(function(){});
+        console.log('[TL3-LP] realtime DSP attached', {version:meta.version, sampleRate:meta.fs, seed:seed});
+      } catch (error) {
+        console.warn('[TL3-LP] realtime DSP setup failed; original audio remains available:', error);
+        try { if (lpMediaSource) lpMediaSource.disconnect(); } catch(_){}
+        try { if (lpProcessor) lpProcessor.disconnect(); } catch(_){}
+        lpMediaSource = null; lpProcessor = null;
+        if (lpAudioCtx) { try { lpAudioCtx.close(); } catch(_){} lpAudioCtx = null; }
+      }
+    }
+
+    audioEl._tl3Confirm = function() {
+      if (segmentTimer) { clearTimeout(segmentTimer); segmentTimer = null; }
+      const played = pendingStartedAt ? (Date.now() - pendingStartedAt) / 1000 : 0;
+      pendingStartedAt = 0;
+      return confirmPending(played);
+    };
+    audioEl._tl3Stop = function() {
+      stopped = true;
+      if (segmentTimer) { clearTimeout(segmentTimer); segmentTimer = null; }
+      const played = pendingStartedAt ? (Date.now() - pendingStartedAt) / 1000 : 0;
+      pendingStartedAt = 0;
+      confirmPending(played);
+      try { if (lpMediaSource) lpMediaSource.disconnect(); } catch(_){}
+      try { if (lpProcessor) { lpProcessor.onaudioprocess = null; lpProcessor.disconnect(); } } catch(_){}
+      if (lpAudioCtx) { try { lpAudioCtx.close(); } catch(_){} lpAudioCtx = null; }
+    };
+    audioEl._tl3SegmentStop = audioEl._tl3Stop;
 
     return new Promise(async (resolve, reject) => {
       try {
@@ -62,8 +149,9 @@
           } catch (e) {
             onError(e); reject(e); return;
           }
-          onReady({ ms, msUrl });
-          
+          attachLpRealtime(header.lp_meta || null);
+          onReady({ ms, msUrl, header:header, sessionId:sessionId });
+          resolve({ sessionId:sessionId, header:header, mediaSource:ms });
           // 세그먼트 루프 시작
           _next();
         });
@@ -93,7 +181,7 @@
 
           try {
             // 3. 세그먼트 요청
-            const segUrl = API + '/api/v1/tl3/segment/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(opts.sessionId || '');
+            const segUrl = API + '/api/v1/tl3/segment/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(sessionId);
             const sr = await fetch(segUrl, { headers: authHeaders() });
             if (sr.status === 416) {
               try { if (ms.readyState === 'open') ms.endOfStream(); } catch(e){}
@@ -120,7 +208,7 @@
             }
 
             // 5. 라이센스 키 요청
-            const cr = await fetch(API + '/api/v1/tl3/code/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(opts.sessionId || ''), { headers: authHeaders() });
+            const cr = await fetch(API + '/api/v1/tl3/code/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(sessionId), { headers: authHeaders() });
             if (!cr.ok) { onError(new Error('code ' + cr.status)); return; }
             const codeData = await cr.json();
             const lic = unhex(codeData.lic_n || '');
@@ -140,11 +228,18 @@
               try { sb.appendBuffer(plain); } catch(e) { sb.removeEventListener('updateend', h); res(); }
             });
 
-            onSegment({ index: n - 1, seconds: durationMs / 1000, remaining: codeData.wallet_tl ?? codeData.remaining_tl });
-            
-            // 8. 다음 세그먼트로
-            n++;
-            setTimeout(() => { if (!stopped) _next(); }, durationMs);
+            onSegment({ index: n - 1, seconds: durationMs / 1000, remaining: codeData.wallet_tl ?? codeData.remaining_tl, wallet_tl:codeData.wallet_tl ?? codeData.remaining_tl, asset_remaining_tl:codeData.asset_remaining_tl });
+            pendingStartedAt = Date.now();
+            pendingDurationMs = durationMs;
+            segmentIndexPending = n - 1;
+            // 실제 재생시간을 서버에 확정하고 미사용 예약분은 환급한다.
+            segmentTimer = setTimeout(async function() {
+              segmentTimer = null;
+              pendingStartedAt = 0;
+              await confirmPending(durationMs / 1000);
+              n++;
+              if (!stopped) _next();
+            }, Math.max(1, durationMs));
             
           } catch (e) {
             console.error('[TL3v4] _next error:', e);
