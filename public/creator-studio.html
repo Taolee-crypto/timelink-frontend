@@ -393,32 +393,9 @@ $('lpContinueBtn').onclick=async function(){
     await buildLpFlac();
     if(btn){ btn.disabled = true; btn.textContent = 'TL3 제조 중...'; }
     
-    // ★ Opus 인코딩 완료 → 바로 TL3 제조
-    try {
-      if(!share || !share.file_id) throw new Error('원본 자산 ID 없음 (재등록 필요)');
-      if(!window.TimeLinkTL3 || typeof window.TimeLinkTL3.manufacture !== 'function') 
-        throw new Error('TL3 제조 엔진 로드 실패');
-      
-      var fileId = Number(share.file_id);
-      var result = await window.TimeLinkTL3.manufacture({
-        api: API, token: token, fileId: fileId, shareId: 'tl3_' + fileId,
-        title: $('title').value.trim(),
-        artist: $('artist').value.trim(),
-        priceTl: 0,
-        rightsConfirmed: true,
-        lpLicense: window._lpLicense || null,
-        lpOpus: window._lpOpus || null
-      });
-      
-      // 완료 처리
-      finish(true, result.release);
-      if(result.spineError) $('doneText').innerHTML += '<br><span style="color:#F5A623">Spine v4 봉인 보류: ' + esc(result.spineError) + '</span>';
-    } catch(err) {
-      console.error('[TL3 제조]', err);
-      var _e2 = $('error2lp');
-      if(_e2){ _e2.textContent = 'TL3 제조 실패: ' + err.message; _e2.style.display='block'; }
-      if(btn){ btn.disabled = false; btn.textContent = '다시 시도'; }
-    }
+    // ★ Opus 인코딩 완료 → panel3 (TL3 등록)으로 이동
+    if(btn){ btn.disabled = false; btn.textContent = '음질 개선 완료'; }
+    if(typeof step === 'function') step(3);
   } else {
     window._lpLicense = {
       lp_enabled: false,
