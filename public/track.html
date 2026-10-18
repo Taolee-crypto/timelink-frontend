@@ -399,7 +399,7 @@ html, body { height: auto; overflow-y: auto; overflow-x: hidden; }
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <button id="playerPlayBtn" onclick="togglePlay()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:22px">▶</button>
-      <button onclick="stopPlay()" style="background:rgba(0,113,227,.2);border:1px solid rgba(0,113,227,.4);border-radius:8px;color:#0071E3;cursor:pointer;font-size:11px;padding:5px 10px">■ 정지</button>
+      <button type="button" id="playerStopBtn" onclick="window.stopPlay()" style="background:rgba(0,113,227,.2);border:1px solid rgba(0,113,227,.4);border-radius:8px;color:#0071E3;cursor:pointer;font-size:11px;padding:5px 10px">■ 정지</button>
     </div>
   </div>
 </div>
@@ -1650,23 +1650,33 @@ function togglePlay(){
 }
 
 function stopPlay(){
-  console.log('[PLAY] stopPlay 호출됨! (스택 확인)', new Error().stack);
-  // STOP_FIX_V1: MediaSource 파괴 전에 tl3.js 세션을 정지시켜야 함
-  const audio = _tlAudio;
+  // 정지 상태를 먼저 확정해 pause 이벤트나 진행 중인 재생 콜백이 UI를 되살리지 못하게 한다.
+  const audio = _tlAudio || window._tlAudio || null;
+  _tlPlaying = false;
+  window._tlPlaying = false;
+  window._tlPlayBusy = false;
+
+  if(_tlInterval){ clearInterval(_tlInterval); _tlInterval = null; }
+  if(window._tlInterval){ clearInterval(window._tlInterval); window._tlInterval = null; }
+
+  // TL3 세션 종료는 단 한 번만 호출한다. 이 함수가 LP 오디오 그래프와
+  // 세그먼트 타이머도 함께 정지시킨다.
+  if(audio && typeof audio._tl3Stop === 'function'){
+    try { audio._tl3Stop(); console.log('[PLAY] TL3 session stopped'); }
+    catch(e){ console.warn('[PLAY] TL3 stop failed:', e); }
+  }
+
+  // 세션 정지 플래그를 세운 뒤 오디오 출력과 MediaSource 연결을 해제한다.
   if(audio){
-    // ★ tl3.js의 _next가 appendBuffer 시도하지 않도록 세션 정지
-    // _tl3SegmentStop은 _tl3Stop의 별칭이므로 종료/정산은 한 번만 요청한다.
-    if(audio._tl3Stop) { try { audio._tl3Stop(); console.log('[PLAY] _tl3Stop 호출'); } catch(e){} }
     try { audio.pause(); } catch(e){}
     try { audio.removeAttribute('src'); audio.load(); } catch(e){}
   }
+
   _tlAudio = null;
   window._tlAudio = null;
-  window._tlPlaying = false;
   window._tlPlayBusy = false;
-  if(_tlInterval){ clearInterval(_tlInterval); _tlInterval = null; }
-  _tlPlaying = false;
   if(window._hidePlayLoading) window._hidePlayLoading(false);
+
   const playBtn = document.getElementById('playerPlayBtn');
   if(playBtn) playBtn.textContent = '▶';
   const coverBtn = document.getElementById('coverPlayBtn');
@@ -1676,6 +1686,8 @@ function stopPlay(){
   const bar = document.getElementById('tlPlayerBar');
   if(bar) bar.style.display = 'none';
 }
+// 인라인 onclick에서 항상 접근할 수 있도록 전역 함수로 명시한다.
+window.stopPlay = stopPlay;
 
 async function downloadTL(){
   // ⭐ 네이티브 다운로드 (fetch/blob 우회)
