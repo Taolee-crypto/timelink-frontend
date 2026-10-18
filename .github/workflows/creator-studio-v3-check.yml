@@ -91,18 +91,19 @@ jobs:
           assert "const nextSegment = n < header.mp3.N ? n : undefined;" in player
           assert "schedulePayloadPrefetch(segmentNo + ahead)" in player
 
-          # The player loads its local LP module before TL3 and falls back to native output.
+          # TL3 keeps the native media-element timing path while applying LP
+          # through the established WebAudio node chain and a hard-mute gate.
           audio_module = Path("public/tl3-audio.js").read_text(encoding="utf-8")
-          worklet = Path("public/tl3-lp-worklet.js").read_text(encoding="utf-8")
           player_lp = (
               "TL3Audio.attach" in player
               and "/tl3-audio.js" in track
-              and "reference-lp-v1" in audio_module
-              and "tl3-lp-worklet.js" in audio_module
-              and "registerProcessor('tl3-reference-lp'" in worklet
+              and "native-webaudio-lp-v1" in audio_module
+              and "createMediaElementSource(audioEl)" in audio_module
+              and "createWaveShaper()" in audio_module
+              and "masterGain" in audio_module
               and "native audio passthrough active." in player
           )
-          assert player_lp, "Track must load the local player LP engine with native output fallback."
-          mode = "player-owned realtime LP DSP with native fallback"
+          assert player_lp, "Track must load the native WebAudio LP graph with a safe media fallback."
+          mode = "native WebAudio LP graph with hard-mute lifecycle"
           print(f"Validated LP metadata-only publishing, Track playback mode ({mode}) and TL3 segment sessions.")
           PY
