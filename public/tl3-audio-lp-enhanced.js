@@ -50,6 +50,7 @@
         if (wanted) {
           disconnect(source);
           source.connect(processor);
+          processor.connect(master);
           mode = 'stateful-audioworklet';
         } else {
           disconnect(source);
