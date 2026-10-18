@@ -190,7 +190,16 @@
           console.log('[TL3v4] MediaSource sourceopen');
           try {
             sb = ms.addSourceBuffer('audio/mpeg');
-            console.log('[TL3v4] SourceBuffer ready:', sb.type);
+            // MP3 is delivered as independently decrypted frame-aligned chunks.
+            // Sequence mode makes MSE place each appended chunk directly after
+            // the preceding chunk, avoiding timestamp gaps at chunk boundaries.
+            try {
+              sb.mode = 'sequence';
+              console.log('[TL3v4] SourceBuffer ready:', sb.type, 'mode=', sb.mode);
+            } catch (modeError) {
+              console.warn('[TL3v4] sequence mode unavailable; using browser default:', modeError);
+              console.log('[TL3v4] SourceBuffer ready:', sb.type, 'mode=', sb.mode);
+            }
           } catch (e) {
             onError(e); reject(e); return;
           }
