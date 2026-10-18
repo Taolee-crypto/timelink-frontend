@@ -1538,23 +1538,9 @@ function playTrack(){
   } else if(window.TL3 && TL3.playStream){
     console.log('[PLAY] TL3.playStream 시작:', SHARE_ID);
     
-    // ★ 오디오가 멈추면 즉시 강제 재생 (끊김 방지)
-    _tlAudio.addEventListener('pause', function() {
-      if (_tlPlaying && !_tlAudio.ended) {
-        console.log('[AUDIO] 강제 재생 재개');
-        _tlAudio.play().catch(function(){});
-      }
-    });
-    _tlAudio.addEventListener('waiting', function() {
-      if (_tlPlaying) {
-        _tlAudio.play().catch(function(){});
-      }
-    });
-    _tlAudio.addEventListener('stalled', function() {
-      if (_tlPlaying) {
-        _tlAudio.play().catch(function(){});
-      }
-    });
+    // TL3의 pause/waiting/stalled는 세그먼트 경계와 버퍼 대기 중에도 발생한다.
+    // 이 이벤트에서 play()를 강제 호출하면 MSE 버퍼링과 충돌해 재생/정지가 반복된다.
+    // MediaSource가 데이터를 받으면 브라우저가 재생을 자동으로 이어가므로 별도 강제 재생은 하지 않는다.
 
     TL3.playStream(SHARE_ID, _tlAudio, {
       onSegment: function(info){
