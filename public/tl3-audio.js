@@ -3,7 +3,7 @@
   'use strict';
 
   const Ctor = global.AudioContext || global.webkitAudioContext;
-  const WORKLET_URL = '/tl3-lp-worklet.js?v=reference-lp-20261018';
+  const WORKLET_URL = '/tl3-lp-worklet.js?v=source-rms-20261018a';
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, Number(value) || 0));
@@ -125,6 +125,11 @@
             durationMs: meta.duration_ms ?? 0
           }
         });
+        processor.port.onmessage = function (event) {
+          if (event.data && event.data.type === 'audio-levels') {
+            console.info('[TL3-AUDIO] source/output RMS', event.data);
+          }
+        };
         source.connect(processor);
         processor.connect(masterGain);
       } catch (workletError) {
