@@ -26,16 +26,22 @@
     if (!AudioContextCtor) throw new Error('Web Audio API is not supported');
     if (audioEl._tl3AudioController) {
       const old = audioEl._tl3AudioController;
-      if (old.profile && old.profile.seed === resolvedProfile(meta).seed) return old;
-      await old.destroy();
+      if (typeof old.updateProfile === 'function') {
+        await old.updateProfile(meta);
+        return old;
+      }
+      // Keep the existing MediaElementSourceNode alive. Recreating it for the
+      // same media element is rejected by browsers, even after context close.
+      throw new Error('Existing TL3 audio controller cannot be safely reconfigured');
     }
-    const profile = resolvedProfile(meta);
+    let profile = resolvedProfile(meta);
     const ctx = new AudioContextCtor();
     const source = ctx.createMediaElementSource(audioEl);
     const master = ctx.createGain();
     master.gain.value = 1;
     master.connect(ctx.destination);
     let processor = null;
+    let workletReady = false;
     let destroyed = false;
     let enabled = false;
     let mode = 'native-passthrough';
@@ -76,20 +82,25 @@
     try {
       if (!ctx.audioWorklet || typeof global.AudioWorkletNode !== 'function') throw new Error('AudioWorklet is not supported');
       await ctx.audioWorklet.addModule('/tl3-lp-worklet.js?v=lp-enhanced-stateful-20261018');
-      processor = new global.AudioWorkletNode(ctx, 'tl3-reference-lp', {
-        numberOfInputs:1, numberOfOutputs:1, outputChannelCount:[2],
-        channelCount:2, channelCountMode:'explicit', channelInterpretation:'speakers',
-        processorOptions:{g:profile.g,seed:profile.seed,durationMs:Number(meta.duration_ms || meta.durationMs || 0)}
-      });
-      processor.port.onmessage = function(event) {
-        const d = event.data || {};
-        if (d.type === 'audio-levels') {
-          audioEl._tl3LpLevels = d;
-          if (d.inputRms === 0) console.warn('[LP-ENHANCED] processor receives silent input', d);
-        }
+      workletReady = true;
+      const createProcessor = function(p) {
+        const node = new global.AudioWorkletNode(ctx, 'tl3-reference-lp', {
+          numberOfInputs:1, numberOfOutputs:1, outputChannelCount:[2],
+          channelCount:2, channelCountMode:'explicit', channelInterpretation:'speakers',
+          processorOptions:{g:p.g,seed:p.seed,durationMs:Number(p.duration_ms || p.durationMs || 0)}
+        });
+        node.port.onmessage = function(event) {
+          const d = event.data || {};
+          if (d.type === 'audio-levels') {
+            audioEl._tl3LpLevels = d;
+            if (d.inputRms === 0) console.warn('[LP-ENHANCED] processor receives silent input', d);
+          }
+        };
+        node.connect(master);
+        return node;
       };
-      processor.connect(master);
-      source.connect(master); // safe native sound until the listener opts in
+      processor = createProcessor(profile);
+      source.connect(master); // native sound is the default until the listener opts in
     } catch (error) {
       console.warn('[LP-ENHANCED] Worklet unavailable; LP toggle remains unavailable and native audio is retained.', error);
       disconnect(processor);
@@ -103,6 +114,56 @@
       enabled:enabled,
       mode:mode,
       profile:profile,
+      available:!!processor,
+      updateProfile:async function(nextMeta) {
+        if (destroyed) return false;
+        const nextProfile = resolvedProfile(nextMeta);
+        routeBusy = routeBusy.then(async function() {
+          if (destroyed) return false;
+          // A new asset starts in native mode; the listener may opt in again.
+          disconnect(source);
+          if (processor) {
+            disconnect(processor);
+            if (processor.port) processor.port.onmessage = null;
+          }
+          enabled = false;
+          mode = 'native-passthrough';
+          source.connect(master);
+          profile = nextProfile;
+          controller.profile = nextProfile;
+          if (!workletReady) {
+            processor = null;
+            controller.available = false;
+            return false;
+          }
+          try {
+            processor = new global.AudioWorkletNode(ctx, 'tl3-reference-lp', {
+              numberOfInputs:1, numberOfOutputs:1, outputChannelCount:[2],
+              channelCount:2, channelCountMode:'explicit', channelInterpretation:'speakers',
+              processorOptions:{g:profile.g,seed:profile.seed,durationMs:Number(profile.duration_ms || profile.durationMs || 0)}
+            });
+            processor.port.onmessage = function(event) {
+              const d = event.data || {};
+              if (d.type === 'audio-levels') {
+                audioEl._tl3LpLevels = d;
+                if (d.inputRms === 0) console.warn('[LP-ENHANCED] processor receives silent input', d);
+              }
+            };
+            processor.connect(master);
+            controller.available = true;
+            controller.enabled = false;
+            controller.mode = mode;
+            if (ctx.state === 'suspended' && !audioEl.paused) await ctx.resume().catch(function(){});
+            return true;
+          } catch (error) {
+            processor = null;
+            controller.available = false;
+            console.warn('[LP-ENHANCED] profile refresh failed; native playback retained.', error);
+            return false;
+          }
+        });
+        return routeBusy;
+      },
       setEnabled:async function(next){const ok=await setEnabled(next);controller.enabled=enabled;controller.mode=mode;return ok;},
       resume:resume,
       stop:stop,
