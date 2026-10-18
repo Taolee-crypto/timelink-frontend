@@ -132,7 +132,7 @@
           try{sb.mode='sequence';}catch(_){}
           onReady({mediaSource:ms,header:h,sessionId});
           audio.src=url;audio.load();
-          await pump();
+          pump().catch(e=>{console.error('[TL3v4] pipeline failed',e);onError(e);});
           resolve({sessionId,header:h,mediaSource:ms,version:4});
         }catch(e){reject(e);}
       },{once:true});
