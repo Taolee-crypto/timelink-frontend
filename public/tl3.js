@@ -61,16 +61,18 @@
       const segUrl = API + '/api/v1/tl3/segment/' + fidStr + '?segment=' + (segmentNo-1) + '&session_id=' + encodeURIComponent(sessionId);
       const startedAt = performance.now();
       const response = await fetch(segUrl, { headers: authHeaders() });
-      const elapsedMs = Math.round(performance.now() - startedAt);
+      const headersMs = Math.round(performance.now() - startedAt);
       console.log('[TL3v4] segment response', segmentNo, response.status, {
-        elapsedMs: elapsedMs,
+        headersMs: headersMs,
         durationMs: response.headers.get('X-TL3-Segment-Duration-Ms')
       });
       if (response.status === 416) return { status:416 };
       if (!response.ok) throw new Error('segment ' + response.status);
       const ciphertext = new Uint8Array(await response.arrayBuffer());
+      const elapsedMs = Math.round(performance.now() - startedAt);
       console.log('[TL3v4] segment payload ready', segmentNo, {
         elapsedMs: elapsedMs,
+        bodyMs: Math.max(0, elapsedMs - headersMs),
         bytes: ciphertext.byteLength
       });
       return {
