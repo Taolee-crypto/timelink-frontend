@@ -21,7 +21,7 @@
     return buffer;
   }
 
-  function legacyFallback(ctx, source, meta) {
+  function legacyFallback(ctx, source, meta, masterGain) {
     const g = meta.g || {};
     const hp = ctx.createBiquadFilter();
     hp.type = 'highpass';
@@ -61,7 +61,7 @@
     lp.connect(shaper);
     shaper.connect(delay);
     delay.connect(output);
-    output.connect(ctx.destination);
+    output.connect(masterGain || ctx.destination);
     lfo.start();
     return {
       nodes: [hp, lp, shaper, delay, lfo, depth, output],
@@ -79,6 +79,11 @@
     }
 
     const ctx = new Ctor();
+    // A dedicated output gate silences LP noise synchronously on stop,
+    // before AudioContext suspension completes.
+    const masterGain = ctx.createGain();
+    masterGain.gain.value = 1;
+    masterGain.connect(ctx.destination);
     let source = null;
     let processor = null;
     let fallbackNodes = [];
@@ -86,14 +91,19 @@
     let mode = 'reference-worklet';
 
     function resume() {
+      if (destroyed) return Promise.resolve();
+      // Restore the output only as part of an explicit playback resume.
+      masterGain.gain.setValueAtTime(1, ctx.currentTime);
       if (ctx.state === 'suspended') return ctx.resume().catch(function () {});
       return Promise.resolve();
     }
 
-    // Stop all audible DSP output without destroying the MediaElementAudioSourceNode.
-    // The same media element may be reused for a later playback session.
+    // Hard-mute first, then suspend. This guarantees immediate silence even
+    // if the browser delays AudioContext.suspend(). Keep the source node alive
+    // because MediaElementAudioSourceNode cannot be recreated for this element.
     function stop() {
       if (destroyed) return Promise.resolve();
+      try { masterGain.gain.cancelScheduledValues(ctx.currentTime); masterGain.gain.setValueAtTime(0, ctx.currentTime); } catch (_) { masterGain.gain.value = 0; }
       if (ctx.state === 'running') return ctx.suspend().catch(function () {});
       return Promise.resolve();
     }
@@ -116,11 +126,11 @@
           }
         });
         source.connect(processor);
-        processor.connect(ctx.destination);
+        processor.connect(masterGain);
       } catch (workletError) {
         console.warn('[TL3-AUDIO] reference worklet unavailable; using compatibility DSP:', workletError);
         mode = 'legacy-fallback';
-        const fallback = legacyFallback(ctx, source, meta);
+        const fallback = legacyFallback(ctx, source, meta, masterGain);
         fallbackNodes = fallback.nodes;
       }
 
@@ -147,6 +157,7 @@
           try { if (processor) processor.disconnect(); } catch (_) {}
           fallbackNodes.forEach(function (node) { try { if (node.stop) node.stop(); } catch (_) {} try { node.disconnect(); } catch (_) {} });
           try { if (source) source.disconnect(); } catch (_) {}
+          try { masterGain.gain.setValueAtTime(0, ctx.currentTime); } catch (_) { masterGain.gain.value = 0; }
           // Keep the source/context alive for replay; a media element may own
           // only one MediaElementAudioSourceNode during its lifetime.
         }
