@@ -1,109 +1,37 @@
-name: TL3 Creator and Track validation
+name: Creator and Track LP Enhanced validation (compatibility entry)
 
 on:
   pull_request:
     branches: [main]
     paths:
-      - "public/creator-studio.html"
+      - "public/creator.html"
       - "public/track.html"
       - "public/tl3.js"
-      - "public/tl3-audio.js"
+      - "public/tl3-audio-lp-enhanced.js"
       - "public/tl3-lp-worklet.js"
-      - "public/tl3-lp.js"
-      - "public/tl3-manufacture.js"
+      - "scripts/validate-creator-track-lp.py"
       - ".github/workflows/creator-studio-v3-check.yml"
   push:
     branches: [main]
     paths:
-      - "public/creator-studio.html"
+      - "public/creator.html"
       - "public/track.html"
       - "public/tl3.js"
-      - "public/tl3-audio.js"
+      - "public/tl3-audio-lp-enhanced.js"
       - "public/tl3-lp-worklet.js"
-      - "public/tl3-lp.js"
-      - "public/tl3-manufacture.js"
+      - "scripts/validate-creator-track-lp.py"
       - ".github/workflows/creator-studio-v3-check.yml"
 
 jobs:
-  tl3-lp-runtime:
+  creator-track-lp:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Check TL3 JavaScript syntax
-        run: |
-          node --check public/tl3.js
-          node --check public/tl3-audio.js
-          node --check public/tl3-lp-worklet.js
-          node --check public/tl3-lp.js
-          node --check public/tl3-manufacture.js
-      - name: Check Creator and Track inline JavaScript
-        run: |
-          python - <<'PY'
-          from html.parser import HTMLParser
-          from pathlib import Path
-          import subprocess, tempfile
-
-          class Scripts(HTMLParser):
-              def __init__(self):
-                  super().__init__()
-                  self.inline = []
-                  self.active = False
-                  self.parts = []
-              def handle_starttag(self, tag, attrs):
-                  if tag == "script" and not any(k.lower() == "src" for k, _ in attrs):
-                      self.active = True
-                      self.parts = []
-              def handle_data(self, data):
-                  if self.active:
-                      self.parts.append(data)
-              def handle_endtag(self, tag):
-                  if tag == "script" and self.active:
-                      self.inline.append("".join(self.parts))
-                      self.active = False
-
-          for page in ("public/creator-studio.html", "public/track.html"):
-              parser = Scripts()
-              parser.feed(Path(page).read_text(encoding="utf-8"))
-              for source in parser.inline:
-                  if not source.strip():
-                      continue
-                  with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8") as f:
-                      f.write(source)
-                      f.flush()
-                      subprocess.run(["node", "--check", f.name], check=True)
-              print(f"Validated inline scripts: {page}")
-
-          creator = Path("public/creator-studio.html").read_text(encoding="utf-8")
-          track = Path("public/track.html").read_text(encoding="utf-8")
-          manufacture = Path("public/tl3-manufacture.js").read_text(encoding="utf-8")
-          player = Path("public/tl3.js").read_text(encoding="utf-8")
-          assert "lp-v1-runtime" in creator
-          assert "TL3_LP_FLAC.encode" not in creator
-          assert "lp_opus_b64" not in manufacture
-          assert "/tl3-lp.js" in track
-          assert "segment/confirm/" in player
-          assert "genSid()" in player
-          assert "const advanceLeadSeconds = 0.85;" in player
-          assert "confirmPending(playedSeconds, nextSegment)" in player
-          assert "const nextSegment = n < header.mp3.N ? n : undefined;" in player
-          assert "schedulePayloadPrefetch(segmentNo + ahead)" in player
-
-          # TL3 keeps the native media-element timing path while applying LP
-          # through the established WebAudio node chain and a hard-mute gate.
-          audio_module = Path("public/tl3-audio.js").read_text(encoding="utf-8")
-          player_lp = (
-              "TL3Audio.attach" in player
-              and "/tl3-audio.js" in track
-              and "native-webaudio-lp-v1" in audio_module
-              and "createMediaElementSource(audioEl)" in audio_module
-              and "createWaveShaper()" in audio_module
-              and "masterGain" in audio_module
-              and "native audio passthrough active." in player
-          )
-          assert player_lp, "Track must load the native WebAudio LP graph with a safe media fallback."
-          mode = "native WebAudio LP graph with hard-mute lifecycle"
-          print(f"Validated LP metadata-only publishing, Track playback mode ({mode}) and TL3 segment sessions.")
-          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run the new Creator and Track validation
+        run: python scripts/validate-creator-track-lp.py
