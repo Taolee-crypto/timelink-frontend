@@ -47,15 +47,16 @@ track = ROOT / "public/track.html"
 player = ROOT / "public/tl3.js"
 audio = ROOT / "public/tl3-audio-lp-enhanced.js"
 worklet = ROOT / "public/tl3-lp-worklet.js"
+manufacture = ROOT / "public/tl3-manufacture.js"
 
-for required in (creator, track, player, audio, worklet):
+for required in (creator, track, player, audio, worklet, manufacture):
     if not required.is_file():
         raise FileNotFoundError(f"Required current TimeLink file is missing: {required.relative_to(ROOT)}")
 
 for page in (creator, track):
     check_inline(page)
 
-for source in (player, audio, worklet):
+for source in (player, audio, worklet, manufacture):
     check_js(source.read_text(encoding="utf-8"), str(source.relative_to(ROOT)))
 
 creator_text = creator.read_text(encoding="utf-8")
@@ -63,6 +64,9 @@ track_text = track.read_text(encoding="utf-8")
 player_text = player.read_text(encoding="utf-8")
 audio_text = audio.read_text(encoding="utf-8")
 
+assert "tl3-manufacture.js" in creator_text, "Creator must load the shared TL3 manufacturing pipeline."
+assert "api/v1/tl3/header/" in manufacture.read_text(encoding="utf-8"), "Creator must verify the Track-playable public header before completion."
+assert "api/v1/tl3/spine/releases" not in manufacture.read_text(encoding="utf-8"), "Unpublished Spine archive must not block the production v3 Creator-to-Track path."
 assert "lp-v1" in creator_text, "Creator must preserve LP license metadata."
 assert "LP Enhanced" in track_text and "setTL3LpEnhanced" in track_text, "Track LP Enhanced toggle is missing."
 assert "tl3-audio-lp-enhanced.js" in track_text, "Track must load the independent LP Enhanced connector."
