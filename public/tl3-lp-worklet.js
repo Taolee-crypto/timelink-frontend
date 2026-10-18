@@ -130,7 +130,7 @@
         // character without resetting phase at each one-second TL3 segment.
         const t = this.frame / sampleRate;
         const delaySeconds = this.wowBase
-          + g.Gp * 0.00070 * Math.sin(2 * Math.PI * 0.55 * t)
+          + (g.Gp * 0.012 / (2 * Math.PI * 0.55)) * Math.sin(2 * Math.PI * 0.55 * t)
           + 0.00010 * Math.sin(2 * Math.PI * this.wowRate * t + this.wowPhase);
         const delaySamples = clamp(delaySeconds * sampleRate, 1, this.wowDelay[0].length - 3);
         const readAt = (this.wowWrite - delaySamples + this.wowDelay[0].length) % this.wowDelay[0].length;
