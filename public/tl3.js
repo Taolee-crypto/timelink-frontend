@@ -313,7 +313,7 @@
               }
             });
 
-remove old single prefetch            console.log('[TL3v4] append complete', n, {
+            console.log('[TL3v4] append complete', n, {
               durationMs, currentTime:audioEl.currentTime, paused:audioEl.paused,
               readyState:audioEl.readyState, networkState:audioEl.networkState,
               buffered:Array.from({length:sb.buffered.length},(_,i)=>[sb.buffered.start(i),sb.buffered.end(i)]),
