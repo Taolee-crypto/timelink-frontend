@@ -126,6 +126,10 @@
       // 이게 없으면 409 → null → prefetchedLicenses가 null을 반환해 무의미.
       const promise = (async function() {
         for (let attempt = 0; attempt < 40; attempt++) {
+          if (stopped) {
+            console.log('[TL3v5] prefetch aborted (stopped)', segmentNo);
+            throw new Error('stopped');
+          }
           const response = await fetch(url, { headers: authHeaders() });
           if (response.status === 409) {
             if (attempt === 0 || attempt === 10 || attempt === 20 || attempt === 30) {
@@ -464,6 +468,10 @@
               const codeUrl = API + '/api/v1/tl3/code/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(sessionId);
               let cr = null;
               for (let attempt = 0; attempt < 40; attempt++) {
+                if (stopped) {
+                  console.log('[TL3v4] code retry aborted (stopped)', n);
+                  return;
+                }
                 cr = await fetch(codeUrl, { headers: authHeaders() });
                 if (cr.status !== 409 || attempt === 39) break;
                 console.log('[TL3v4] waiting for previous segment settlement', {
