@@ -84,6 +84,9 @@
     const onReady = opts.onReady || function(){};
     const sessionId = String(opts.sessionId || genSid());
     console.log('[TL3v4] START fileId=', fileId, 'sessionId=', sessionId);
+    const lpToggleAtStart = document.getElementById('lpEnhancedToggle');
+    if (lpToggleAtStart) { lpToggleAtStart.checked = false; lpToggleAtStart.disabled = true; }
+    global.setTL3LpEnhanced = function(){ return false; };
 
     // 1. 헤더 로드 (V4)
     const fileUrlStr = String(fileId);
@@ -186,19 +189,33 @@
     }
 
     async function attachLpRealtime(meta, durationMs) {
-      // LP Enhanced is a licensed per-release treatment. Never apply a
-      // synthetic default profile to a track whose TL3 header has no LP license.
-      if (!meta || meta.enabled !== true) {
-        if (lpController && typeof lpController.stop === 'function') {
-          try { await lpController.stop(); } catch (_) {}
+      const toggle = document.getElementById('lpEnhancedToggle');
+      const licensed = !!(meta && meta.enabled === true);
+      if (toggle) { toggle.checked = false; toggle.disabled = !licensed; }
+      audioEl._tl3LpToggle = async function(enabled) {
+        if (!licensed || !lpController || typeof lpController.setEnabled !== 'function') {
+          if (toggle) toggle.checked = false;
+          return false;
+        }
+        const ok = await lpController.setEnabled(!!enabled);
+        if (!ok && toggle) toggle.checked = false;
+        return ok;
+      };
+      global.setTL3LpEnhanced = function(enabled) {
+        return audioEl._tl3LpToggle ? audioEl._tl3LpToggle(enabled) : false;
+      };
+      if (!licensed) {
+        if (lpController && typeof lpController.destroy === 'function') {
+          try { await lpController.destroy(); } catch (_) {}
         }
         lpController = null;
-        console.info('[TL3-AUDIO] LP license absent; clean native playback.');
+        audioEl._tl3LpToggle = null;
+        console.info('[TL3-AUDIO] no LP license; native playback only.');
         return;
       }
       try {
-        if (lpController && lpController.enabled) {
-          await lpController.resume();
+        if (lpController && lpController.licensed) {
+          await lpController.setEnabled(false);
           return;
         }
         if (global.TL3Audio && typeof global.TL3Audio.attach === 'function') {
@@ -206,23 +223,25 @@
           const profile = Object.assign({}, base, meta);
           profile.g = Object.assign({}, base.g || {}, meta.g || {});
           profile.enabled = true;
+          profile.seed = Number(meta.seed || 7);
           profile.duration_ms = Number(durationMs || profile.duration_ms || 0);
           lpController = await global.TL3Audio.attach(audioEl, profile);
-          if (lpController && lpController.enabled) {
-            console.log('[TL3-AUDIO] licensed LP Enhanced profile attached.', {
-              version: global.TL3Audio.version || 'LP-Enhanced',
-              mode: lpController.mode || 'unknown',
-              profile: profile.version || 'licensed-lp',
-              state: lpController.state()
+          if (toggle) toggle.disabled = !lpController || !lpController.licensed ||
+            lpController.mode !== 'stateful-audioworklet';
+          if (lpController && lpController.licensed) {
+            console.log('[TL3-AUDIO] licensed connector ready; user toggle controls DSP.', {
+              mode:lpController.mode,profile:profile.version||'licensed-lp',seed:profile.seed
             });
             return;
           }
         }
       } catch (error) {
-        console.warn('[TL3-AUDIO] LP initialization failed; native output retained.', error);
+        console.warn('[TL3-AUDIO] LP connector unavailable; native playback retained.', error);
       }
+      if (toggle) { toggle.checked = false; toggle.disabled = true; }
+      audioEl._tl3LpToggle = null;
+      global.setTL3LpEnhanced = function(){return false;};
       lpController = null;
-      console.info('[TL3-AUDIO] LP processing unavailable; native audio passthrough active.');
     }
     audioEl._tl3Confirm = function() {
       if (segmentTimer) { clearInterval(segmentTimer); segmentTimer = null; }
