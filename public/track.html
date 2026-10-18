@@ -1338,42 +1338,44 @@ function closeChargeModal(){
   document.getElementById('chargeModal').classList.remove('open'); 
 }
 
-async function chargeTL(){
-  // 공용 지갑 잔액과 이 곡에 별도로 충전된 잔액을 각각 조회한다.
-  await Promise.all([updateMyTLFromServer(),updateTrackTLFromServer()]);
+function renderTrackChargeBalances(){
+  const walletEl=document.getElementById('chargeWalletBalance');
+  if(walletEl) walletEl.textContent=Number(_myFileTL||0).toLocaleString()+' TL';
+  const trackEl=document.getElementById('chargeTrackBalance');
+  if(trackEl) trackEl.textContent=Number(_trackTL||0).toLocaleString()+' TL';
 
+  const have=Number(_trackTL)||0;
+  const need=Math.max(0,1-have);
+  const box=document.getElementById('tlShortageBox');
+  if(box){
+    box.style.display=need>0?'block':'none';
+    const req=document.getElementById('shortageReq');
+    const haveEl=document.getElementById('shortageHave');
+    const needEl=document.getElementById('shortageNeed');
+    if(req) req.textContent='재생 1초당 1 TL';
+    if(haveEl) haveEl.textContent=have.toLocaleString()+' TL';
+    if(needEl) needEl.textContent=need.toLocaleString()+' TL';
+  }
+}
+
+function chargeTL(){
+  // 네트워크 조회를 기다리지 않고 기존 충전 모달부터 즉시 연다.
   const modal=document.getElementById('chargeModal');
+  if(!modal){ console.error('[TRACK charge] chargeModal not found'); return; }
   const title=document.getElementById('chargeTargetTitle');
   if(title) title.textContent=_share?.title||'';
-  const walletEl=document.getElementById('chargeWalletBalance');
-  if(walletEl) walletEl.textContent=_myFileTL.toLocaleString()+' TL';
-  const trackEl=document.getElementById('chargeTrackBalance');
-  if(trackEl) trackEl.textContent=_trackTL.toLocaleString()+' TL';
-
-  // 곡별 잔액 기준으로 부족 상태를 표시한다.
-  var required = 1;
-  var have = Number(_trackTL)||0;
-  var need = Math.max(0, required-have);
-  var box = document.getElementById('tlShortageBox');
-  if(box){
-    if(need>0){
-      box.style.display='block';
-      document.getElementById('shortageReq').textContent='재생 1초당 1 TL';
-      document.getElementById('shortageHave').textContent=have.toLocaleString()+' TL';
-      document.getElementById('shortageNeed').textContent=need.toLocaleString()+' TL';
-    } else {
-      box.style.display='none';
-    }
-  }
-
-  // 10000 패키지 기본 선택
   document.querySelectorAll('.charge-pkg').forEach(function(p){
     p.classList.remove('active');
     if(p.dataset.amount==='10000') p.classList.add('active');
   });
-  _chargeAmount = 10000;
+  _chargeAmount=10000;
+  renderTrackChargeBalances();
+  modal.classList.add('open');
 
-  if(modal) modal.classList.add('open');
+  // 잔액은 모달이 열린 뒤 각각 조회한다. 한쪽 조회 실패가 모달을 닫거나
+  // 다른 쪽 잔액 표시를 막지 않도록 개별적으로 처리한다.
+  updateMyTLFromServer().then(renderTrackChargeBalances).catch(e=>console.warn('[TRACK wallet sync]',e));
+  updateTrackTLFromServer().then(renderTrackChargeBalances).catch(e=>console.warn('[TRACK file TL sync]',e));
 }
 
 // ⭐ Toss 충전 (shareplace.html#charge 새 창)
