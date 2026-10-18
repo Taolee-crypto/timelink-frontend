@@ -46,24 +46,23 @@ creator = ROOT / "public/creator.html"
 track = ROOT / "public/track.html"
 player = ROOT / "public/tl3.js"
 v4_player = ROOT / "public/tl3-v4-player.js"
-audio = ROOT / "public/tl3-audio-lp-enhanced.js"
+lp_chain = ROOT / "public/tl3-lp-chain.js"
 worklet = ROOT / "public/tl3-lp-worklet.js"
 manufacture = ROOT / "public/tl3-manufacture.js"
 
-for required in (creator, track, player, v4_player, audio, worklet, manufacture):
+for required in (creator, track, player, v4_player, lp_chain, worklet, manufacture):
     if not required.is_file():
         raise FileNotFoundError(f"Required current TimeLink file is missing: {required.relative_to(ROOT)}")
 
 for page in (creator, track):
     check_inline(page)
 
-for source in (player, v4_player, audio, worklet, manufacture):
+for source in (player, v4_player, lp_chain, worklet, manufacture):
     check_js(source.read_text(encoding="utf-8"), str(source.relative_to(ROOT)))
 
 creator_text = creator.read_text(encoding="utf-8")
 track_text = track.read_text(encoding="utf-8")
 player_text = player.read_text(encoding="utf-8")
-audio_text = audio.read_text(encoding="utf-8")
 
 assert "tl3-manufacture.js" in creator_text, "Creator must load the shared TL3 manufacturing pipeline."
 manufacture_text = manufacture.read_text(encoding="utf-8")
@@ -75,9 +74,10 @@ assert "api/v1/tl3/spine/header/" in v4_player_text, "Track v4 player must consu
 assert "segment/confirm/" in v4_player_text, "Track v4 player must settle metered playback segments."
 assert "lp-v1" in creator_text, "Creator must preserve LP license metadata."
 assert "LP Enhanced" in track_text and "setTL3LpEnhanced" in track_text, "Track LP Enhanced toggle is missing."
-assert "tl3-audio-lp-enhanced.js" in track_text, "Track must load the independent LP Enhanced connector."
-assert "TL3Audio.attach" in player_text and "setTL3LpEnhanced" in player_text, "TL3 player/controller bridge is missing."
+lp_chain_text = lp_chain.read_text(encoding="utf-8")
+assert "tl3-lp-chain.js" in track_text, "Track must load the shared Love Connect LP engine."
+assert "TL3LPChain.create" in v4_player_text and "setTL3LpEnhanced" in v4_player_text, "TL3 v4 player must connect the Creator LP profile to the Track LP engine."
 assert "segment/confirm/" in player_text, "Existing TL3 segment confirmation path must remain present."
-assert "createMediaElementSource" in audio_text and "AudioWorkletNode" in audio_text, "LP Enhanced WebAudio routing is incomplete."
+assert "createMediaElementSource" in lp_chain_text and "AudioWorkletNode" in lp_chain_text, "Love Connect WebAudio routing is incomplete."
 
 print("Creator → Track LP Enhanced validation passed.")
