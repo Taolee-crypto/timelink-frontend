@@ -53,21 +53,53 @@
     let segmentTimer = null, pendingMediaStart = -1, pendingDurationMs = 0, confirmBusy = false;
     let segmentIndexPending = -1;
 
-    let prefetchedSegment = null;
+    const prefetchedPayloads = new Map();
 
     // Ciphertext는 재생 중 미리 받아 둔다. 라이선스(code) 요청과 TL 예약은
     // 직전 구간의 confirm 이후에만 실행해 서버의 단일 pending 규칙을 지킨다.
     async function fetchSegmentPayload(segmentNo) {
       const segUrl = API + '/api/v1/tl3/segment/' + fidStr + '?segment=' + (segmentNo-1) + '&session_id=' + encodeURIComponent(sessionId);
+      const startedAt = performance.now();
       const response = await fetch(segUrl, { headers: authHeaders() });
-      console.log('[TL3v4] segment response', segmentNo, response.status, response.headers.get('X-TL3-Segment-Duration-Ms'));
+      const elapsedMs = Math.round(performance.now() - startedAt);
+      console.log('[TL3v4] segment response', segmentNo, response.status, {
+        elapsedMs: elapsedMs,
+        durationMs: response.headers.get('X-TL3-Segment-Duration-Ms')
+      });
       if (response.status === 416) return { status:416 };
       if (!response.ok) throw new Error('segment ' + response.status);
+      const ciphertext = new Uint8Array(await response.arrayBuffer());
+      console.log('[TL3v4] segment payload ready', segmentNo, {
+        elapsedMs: elapsedMs,
+        bytes: ciphertext.byteLength
+      });
       return {
         status:response.status,
-        ciphertext:new Uint8Array(await response.arrayBuffer()),
+        ciphertext:ciphertext,
         durationMs:Number(response.headers.get('X-TL3-Segment-Duration-Ms') || 1000)
       };
+    }
+
+    function schedulePayloadPrefetch(segmentNo) {
+      if (segmentNo < 1 || segmentNo > Number(header.mp3.N || 0) || prefetchedPayloads.has(segmentNo)) return;
+      const promise = fetchSegmentPayload(segmentNo).catch(function(error) {
+        console.warn('[TL3v4] ciphertext prefetch failed; demand retry will follow', segmentNo, error);
+        return { retry:true };
+      });
+      prefetchedPayloads.set(segmentNo, promise);
+      console.log('[TL3v4] ciphertext prefetch queued', segmentNo);
+    }
+
+    async function takeSegmentPayload(segmentNo) {
+      const pending = prefetchedPayloads.get(segmentNo);
+      let payload = pending ? await pending : await fetchSegmentPayload(segmentNo);
+      if (pending) prefetchedPayloads.delete(segmentNo);
+      if (payload && payload.retry) payload = await fetchSegmentPayload(segmentNo);
+      // Fetch a rolling three-segment ciphertext window while the current
+      // segment is being licensed, decrypted and appended. Ciphertext fetches
+      // do not reserve a TL license or deduct TL.
+      for (let ahead = 1; ahead <= 3; ahead++) schedulePayloadPrefetch(segmentNo + ahead);
+      return payload;
     }
 
     async function confirmPending(playedSeconds, nextSegment) {
@@ -94,26 +126,25 @@
       } finally { confirmBusy = false; }
     }
 
-    function attachLpRealtime(meta) {
-      // The player owns LP processing. The module is local, so no network
-      // request is made when playback starts. Missing metadata/module or any
-      // initialization failure leaves the native output path untouched.
+    async function attachLpRealtime(meta, durationMs) {
+      // The player's AudioWorklet runs the same stateful LP stages as the
+      // creator-side reference renderer. DSP state persists across TL3 chunks.
       try {
         if (lpController && lpController.enabled) {
-          lpController.resume();
+          await lpController.resume();
           return;
         }
         if (global.TL3Audio && typeof global.TL3Audio.attach === 'function') {
-          // LP is a player feature: use per-track metadata when available,
-          // otherwise run the lightweight profile bundled with the player.
-          const profile = meta && meta.enabled === true && meta.g
-            ? meta
-            : global.TL3Audio.defaultProfile;
-          lpController = global.TL3Audio.attach(audioEl, profile);
+          const base = global.TL3Audio.defaultProfile || { enabled:true, g:{} };
+          const profile = Object.assign({}, base, meta && meta.enabled === true ? meta : {});
+          profile.enabled = true;
+          profile.duration_ms = Number(durationMs || profile.duration_ms || 0);
+          lpController = await global.TL3Audio.attach(audioEl, profile);
           if (lpController && lpController.enabled) {
-            console.log('[TL3-AUDIO] player LP engine active.', {
-              version: global.TL3Audio.version || 'embedded',
-              profile: profile.version || 'player-default',
+            console.log('[TL3-AUDIO] player reference LP engine active.', {
+              version: global.TL3Audio.version || 'reference-lp',
+              mode: lpController.mode || 'unknown',
+              profile: profile.version || 'player-reference',
               state: lpController.state()
             });
             return;
@@ -152,7 +183,7 @@
           } catch (e) {
             onError(e); reject(e); return;
           }
-          attachLpRealtime(header.lp_meta || null);
+          await attachLpRealtime(header.lp_meta || null, header.duration_ms);
           onReady({ ms, msUrl, header:header, sessionId:sessionId });
           resolve({ sessionId:sessionId, header:header, mediaSource:ms });
           // 세그먼트 루프 시작
@@ -199,11 +230,7 @@
 
           try {
             // 3. 세그먼트 암호문은 이전 구간 재생 중 미리 받아 둔 값을 우선 사용한다.
-            let payload = (prefetchedSegment && prefetchedSegment.segment === n)
-              ? await prefetchedSegment.promise
-              : await fetchSegmentPayload(n);
-            if (prefetchedSegment && prefetchedSegment.segment === n) prefetchedSegment = null;
-            if (payload && payload.retry) payload = await fetchSegmentPayload(n);
+            const payload = await takeSegmentPayload(n);
             if (payload.status === 416) {
               try { if (ms.readyState === 'open') ms.endOfStream(); } catch(e){}
               return;
@@ -285,21 +312,7 @@
               }
             });
 
-            // 다음 암호문만 선행 수신한다. TL 라이선스 예약은 confirm 뒤에 한다.
-            if (n < header.mp3.N && !prefetchedSegment) {
-              const nextSegment = n + 1;
-              prefetchedSegment = {
-                segment:nextSegment,
-                promise:fetchSegmentPayload(nextSegment).catch(error => {
-                  console.warn('[TL3v4] ciphertext prefetch failed; retrying on demand', nextSegment, error);
-                  if (prefetchedSegment && prefetchedSegment.segment === nextSegment) prefetchedSegment = null;
-                  return {retry:true};
-                })
-              };
-              console.log('[TL3v4] prefetch started', nextSegment);
-            }
-
-            console.log('[TL3v4] append complete', n, {
+remove old single prefetch            console.log('[TL3v4] append complete', n, {
               durationMs, currentTime:audioEl.currentTime, paused:audioEl.paused,
               readyState:audioEl.readyState, networkState:audioEl.networkState,
               buffered:Array.from({length:sb.buffered.length},(_,i)=>[sb.buffered.start(i),sb.buffered.end(i)]),
@@ -331,9 +344,10 @@
                 segment:n, playedSeconds, segmentSeconds, advanceAt,
                 currentTime:audioEl.currentTime, paused:audioEl.paused
               });
-              // 확정 요청에는 실제 재생된 시간만 전달한다.
-              // 다음 세그먼트 라이선스는 기존 /code 경로에서 별도로 예약한다.
-              const settled = await confirmPending(playedSeconds);
+              // 확정·환급과 다음 구간 TL 예약/라이선스 발급을 한 요청으로 묶는다.
+              // 마지막 구간에는 다음 라이선스를 요청하지 않는다.
+              const nextSegment = n < header.mp3.N ? n : undefined;
+              const settled = await confirmPending(playedSeconds, nextSegment);
               if (stopped) return;
               if (!settled) {
                 onError(new Error('TL3 segment settlement failed; playback stopped to protect TL balance.'));
