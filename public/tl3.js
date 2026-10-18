@@ -122,16 +122,30 @@
     function scheduleLicensePrefetch(segmentNo) {
       if (segmentNo < 1 || segmentNo > Number(header.mp3.N || 0) || prefetchedLicenses.has(segmentNo)) return;
       const url = API + '/api/v1/tl3/code/' + fidStr + '?segment=' + (segmentNo - 1) + '&session_id=' + encodeURIComponent(sessionId);
-      const promise = fetch(url, {headers:authHeaders()}).then(async function(response) {
-        const data = await response.json().catch(function(){ return {}; });
-        if (!response.ok || !data.ok) throw new Error(data.error || ('prefetch license ' + response.status));
-        console.log('[TL3v5] next segment TL reserved before handoff', {
-          segment:segmentNo, cost:data.cost, wallet_tl:data.wallet_tl,
-          prefetched:!!data.prefetched, duplicate:!!data.duplicate
-        });
-        return data;
-      }).catch(function(error) {
-        console.warn('[TL3v5] next-segment reservation will fall back to settlement handoff', segmentNo, error);
+      // 2026-10-19: 409(이전 세그먼트 정산 전)이면 최대 40회 재시도 (75ms 간격).
+      // 이게 없으면 409 → null → prefetchedLicenses가 null을 반환해 무의미.
+      const promise = (async function() {
+        for (let attempt = 0; attempt < 40; attempt++) {
+          const response = await fetch(url, { headers: authHeaders() });
+          if (response.status === 409) {
+            if (attempt === 0 || attempt === 10 || attempt === 20 || attempt === 30) {
+              console.log('[TL3v5] prefetch waiting for settlement', { segmentNo, attempt: attempt + 1 });
+            }
+            await new Promise(function(r){ setTimeout(r, 75); });
+            continue;
+          }
+          const data = await response.json().catch(function(){ return {}; });
+          if (!response.ok || !data.ok) throw new Error(data.error || ('prefetch license ' + response.status));
+          console.log('[TL3v5] next segment TL reserved before handoff', {
+            segment: segmentNo, cost: data.cost, wallet_tl: data.wallet_tl,
+            prefetched: !!data.prefetched, duplicate: !!data.duplicate,
+            attempts: attempt + 1
+          });
+          return data;
+        }
+        throw new Error('prefetch license 409 timeout after 40 attempts (3s)');
+      })().catch(function(error) {
+        console.warn('[TL3v5] prefetch failed permanently; will fall back to code API', segmentNo, error && error.message);
         return null;
       });
       prefetchedLicenses.set(segmentNo, promise);
@@ -559,9 +573,7 @@
                 .catch(e=>console.warn('[TL3v4] playback request after append failed:',e.name,e.message));
             }
             onSegment({ index: n - 1, seconds: durationMs / 1000, remaining: codeData.wallet_tl ?? codeData.remaining_tl, wallet_tl:codeData.wallet_tl ?? codeData.remaining_tl, asset_remaining_tl:codeData.asset_remaining_tl });
-            // Start the next TL reservation while this segment is audible.
-            // Settlement of the current segment remains pending until its real end.
-            if (n < Number(header.mp3.N || 0)) scheduleLicensePrefetch(n + 1);
+            // 2026-10-19: confirm 완료 전에 prefetch하면 409. background confirm 내부에서 호출.
             // 실제 재생시간을 서버에 확정하고 미사용 예약분은 환급한다.
             segmentTimer = setInterval(async function() {
               const playedSeconds = Math.max(0, audioEl.currentTime - pendingMediaStart);
