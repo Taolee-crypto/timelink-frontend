@@ -540,7 +540,7 @@
               // Settle only after the playhead has traversed this segment's
               // actual MSE timeline range. Early confirmation refunds the
               // unheard tail while the already-appended audio continues playing.
-              const advanceAt = Math.max(0.3, segmentSeconds * 0.6);  // 2026-10-18: 60%에서 다음 세그먼트 준비
+              const advanceAt = Math.max(0.15, segmentSeconds * 0.20);  // 2026-10-18: 20%에서 다음 세그먼트 준비 (confirm 지연 대응)
               if (playedSeconds + 0.001 < advanceAt) return;
               clearInterval(segmentTimer);
               segmentTimer = null;
