@@ -63,9 +63,9 @@
       this.hpL = freshBiquad(); this.hpR = freshBiquad();
       this.sideLP = freshBiquad();
       this.channels = [this.makeChannel(0), this.makeChannel(1)];
-      this.wowRate = 5 + 3 * prng(this.seed * 131 + 1)();
-      this.wowPhase = prng(this.seed * 131 + 1)() * 6.283;
-      this.wowPhase2 = prng(this.seed * 131 + 7919 + 1)() * 6.283;
+      const wowRandom = prng(this.seed * 131 + 1);
+      this.wowRate = 5 + 3 * wowRandom();
+      this.wowPhase = wowRandom() * 6.283;
       this.wowDelay = [new Float32Array(Math.ceil(sampleRate * 0.04) + 8), new Float32Array(Math.ceil(sampleRate * 0.04) + 8)];
       this.wowWrite = 0;
       this.wowBase = 0.012;
