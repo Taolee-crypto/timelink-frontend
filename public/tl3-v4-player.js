@@ -131,7 +131,8 @@
           sb=ms.addSourceBuffer('audio/mpeg');
           try{sb.mode='sequence';}catch(_){}
           onReady({mediaSource:ms,header:h,sessionId});
-          audio.src=url;audio.load();
+          // The MediaSource URL is assigned once below; reloading here would reset
+          // the SourceBuffer immediately after sourceopen.
           pump().catch(e=>{console.error('[TL3v4] pipeline failed',e);onError(e);});
           resolve({sessionId,header:h,mediaSource:ms,version:4});
         }catch(e){reject(e);}
