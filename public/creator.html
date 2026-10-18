@@ -271,13 +271,10 @@ function preview(){
 }
 $('uploadBtn').onclick=async()=>{
  clearErr('error');const title=$('title').value.trim(),artist=$('artist').value.trim();if(!title||!artist||!file){err('error','제목, 아티스트, MP3 파일을 모두 입력해야 합니다.');return;}
- const b=$('uploadBtn');b.disabled=true;b.textContent='음원 발행 여부 확인 중…';
+ const b=$('uploadBtn');b.disabled=true;b.textContent='원본 권리 및 메타데이터 확인 중…';
  try{
-   const fd=new FormData();fd.append('file',file,file.name);fd.append('trackId','track_'+Date.now()+'_'+Math.random().toString(36).slice(2,7));fd.append('title',title);fd.append('artist',artist);
-   const ur=await fetch(API+'/api/upload',{method:'POST',headers:auth(),body:fd});const ud=await ur.json();
-   if(ur.status===409&&ud.code==='PUBLISHED_RELEASE')throw new Error(ud.message||'이미 발행된 음원과 일치합니다. 권리를 확인해 주세요.');
-   if(!ur.ok||!ud.ok)throw new Error(ud.error||ud.message||'음원 업로드 실패');
-   upload=ud;
+   // 원본 MP3는 브라우저 메모리에만 둔다. 서버에는 TL3 v4 암호화 컨테이너만 전달한다.
+   upload={url:'',stream_url:'',source_local:true};
    if(cover){const cf=new FormData();cf.append('file',cover,'cover_'+Date.now()+'.jpg');cf.append('trackId','cover_'+Date.now());const cr=await fetch(API+'/api/upload',{method:'POST',headers:auth(),body:cf});const cd=await cr.json();if(cd.ok)upload.cover_url=cd.url;}
    preview();step(2);
  }catch(e){err('error',e.message);b.disabled=false;b.textContent='음원 등록하고 계속 →';}
