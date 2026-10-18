@@ -411,11 +411,15 @@
               }
             }
 
-            // 7. 재생 구간의 시작 시각은 appendBuffer 전에 기록한다.
-            // appendBuffer 완료 후 기록하면 첫 구간이 이미 재생된 뒤일 수 있어
-            // currentTime이 멈춘 상태에서 다음 세그먼트 전환을 기다리게 된다.
+            // 7. MSE sequence mode appends this segment after the end of the
+            // existing buffered timeline. The append request time is NOT the
+            // segment's playback start: using currentTime here settles a segment
+            // while the previous segment is still playing and undercharges it.
             if (stopped || !sb) return;
-            pendingMediaStart = audioEl.currentTime;
+            const bufferedEnd = sb.buffered.length
+              ? sb.buffered.end(sb.buffered.length - 1)
+              : Math.max(0, audioEl.currentTime || 0);
+            pendingMediaStart = Math.max(0, bufferedEnd);
             pendingDurationMs = durationMs;
             segmentIndexPending = n - 1;
 
@@ -472,11 +476,11 @@
               // playing. The MSE stream can become unbuffered slightly before
               // its nominal 1-second boundary, so a late handoff always clicks.
               const segmentSeconds = durationMs / 1000;
-              // 1초 세그먼트는 재생 0.15초 후 다음 구간 준비를 시작한다.
-              // 즉, 세그먼트 종료 약 0.85초 전에 정산·다음 라이선스를 준비한다.
-              const advanceLeadSeconds = 0.85;
-              const advanceAt = Math.max(0.05, segmentSeconds - advanceLeadSeconds);
-              if (playedSeconds < advanceAt) return;
+              // Settle only after the playhead has traversed this segment's
+              // actual MSE timeline range. Early confirmation refunds the
+              // unheard tail while the already-appended audio continues playing.
+              const advanceAt = segmentSeconds;
+              if (playedSeconds + 0.001 < advanceAt) return;
               clearInterval(segmentTimer);
               segmentTimer = null;
               pendingMediaStart = -1;
