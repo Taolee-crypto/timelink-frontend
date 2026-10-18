@@ -114,6 +114,28 @@
     let segmentIndexPending = -1;
 
     const prefetchedPayloads = new Map();
+    const prefetchedLicenses = new Map();
+
+    // Reserve the next segment while the current segment remains pending.
+    // The server keeps both reservations independently and promotes the next
+    // reservation only after the current segment has been settled.
+    function scheduleLicensePrefetch(segmentNo) {
+      if (segmentNo < 1 || segmentNo > Number(header.mp3.N || 0) || prefetchedLicenses.has(segmentNo)) return;
+      const url = API + '/api/v1/tl3/code/' + fidStr + '?segment=' + (segmentNo - 1) + '&session_id=' + encodeURIComponent(sessionId);
+      const promise = fetch(url, {headers:authHeaders()}).then(async function(response) {
+        const data = await response.json().catch(function(){ return {}; });
+        if (!response.ok || !data.ok) throw new Error(data.error || ('prefetch license ' + response.status));
+        console.log('[TL3v5] next segment TL reserved before handoff', {
+          segment:segmentNo, cost:data.cost, wallet_tl:data.wallet_tl,
+          prefetched:!!data.prefetched, duplicate:!!data.duplicate
+        });
+        return data;
+      }).catch(function(error) {
+        console.warn('[TL3v5] next-segment reservation will fall back to settlement handoff', segmentNo, error);
+        return null;
+      });
+      prefetchedLicenses.set(segmentNo, promise);
+    }
 
     // Ciphertext는 현재 구간 처리와 겹쳐 최대 세 구간 앞까지 미리 받는다.
     // 암호문 선행 수신은 TL 예약을 하지 않으며, 다음 라이선스는 confirm 요청에서 원자적으로 예약한다.
@@ -469,6 +491,9 @@
                 .catch(e=>console.warn('[TL3v4] playback request after append failed:',e.name,e.message));
             }
             onSegment({ index: n - 1, seconds: durationMs / 1000, remaining: codeData.wallet_tl ?? codeData.remaining_tl, wallet_tl:codeData.wallet_tl ?? codeData.remaining_tl, asset_remaining_tl:codeData.asset_remaining_tl });
+            // Start the next TL reservation while this segment is audible.
+            // Settlement of the current segment remains pending until its real end.
+            if (n < Number(header.mp3.N || 0)) scheduleLicensePrefetch(n + 1);
             // 실제 재생시간을 서버에 확정하고 미사용 예약분은 환급한다.
             segmentTimer = setInterval(async function() {
               const playedSeconds = Math.max(0, audioEl.currentTime - pendingMediaStart);
