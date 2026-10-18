@@ -476,7 +476,7 @@
             const appendedEnd = sb.buffered.length
               ? sb.buffered.end(sb.buffered.length - 1)
               : pendingMediaStart;
-            const actualPlayableMs = Math.max(0, (appendedEnd - pendingMediaStart) * 1000);
+            const actualPlayableMs = Math.max(0, Math.min(durationMs, (appendedEnd - pendingMediaStart) * 1000));
             if (actualPlayableMs > 0) pendingDurationMs = actualPlayableMs;
 
             const sbRanges = Array.from({length:sb.buffered.length},(_,i)=>[sb.buffered.start(i),sb.buffered.end(i)]);
