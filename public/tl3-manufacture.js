@@ -26,11 +26,20 @@
     const fileId = Number(o.fileId || 0);
     const shareId = String(o.shareId || ('tl3_' + fileId));
     const sourceFile = o.file;
+    const lpLicense = o.lpLicense || null;
     if (!(sourceFile instanceof File)) throw new Error('Creator의 로컬 MP3 원본이 없습니다.');
     if (!api || !token || !Number.isSafeInteger(fileId) || fileId <= 0) {
       throw new Error('TL3 제조에 필요한 API, 로그인 토큰, file_id가 없습니다.');
     }
     if (o.rightsConfirmed !== true) throw new Error('저작권 또는 적법한 이용 권한 확인이 필요합니다.');
+    // LP DSP parameters must be completed in Creator before sealing. Track only executes this profile.
+    if (lpLicense && lpLicense.lp_enabled === true &&
+        (!lpLicense.lp_g || typeof lpLicense.lp_g !== 'object' ||
+         !Number.isFinite(Number(lpLicense.lp_fs)) || Number(lpLicense.lp_fs) <= 0 ||
+         !Number.isFinite(Number(lpLicense.lp_n)) || Number(lpLicense.lp_n) <= 0 ||
+         !lpLicense.lp_version)) {
+      throw new Error('Creator의 LP 효과 분석이 완성되지 않았습니다. LP 설정 분석을 다시 실행해 주세요.');
+    }
     // The original MP3 is sent directly from the browser and is never stored as a source object.
     const metadata = {
       file_id: fileId,
@@ -38,7 +47,7 @@
       title: String(o.title || ''),
       artist: String(o.artist || ''),
       rights_confirmed: true,
-      lp_license: o.lpLicense || null
+      lp_license: lpLicense
     };
     const form = new FormData();
     form.append('file', sourceFile, sourceFile.name || 'source.mp3');
@@ -82,7 +91,9 @@
       verification: { track_ready: true, file_id: fileId, segments: Number(release.segment_count), duration_ms: Number(release.duration_ms || 0) },
       file_id: fileId, share_id: String(release.share_id || shareId),
       version: 4,
-      lp: lpLicense ? { enabled: lpLicense.lp_enabled === true, runtime: true, opus_bytes: 0 } : { enabled: false }
+      lp: lpLicense && lpLicense.lp_enabled === true
+        ? { enabled: true, runtime: true, version: lpLicense.lp_version, sample_rate: Number(lpLicense.lp_fs), samples: Number(lpLicense.lp_n), opus_bytes: 0 }
+        : { enabled: false }
     };
   }
   global.TimeLinkTL3 = Object.freeze({ manufacture: manufacture });
