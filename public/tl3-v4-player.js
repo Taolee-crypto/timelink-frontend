@@ -100,9 +100,14 @@
     async function pump(){
       if(appendBusy||stopped)return;
       appendBusy=true;
+      const settlements=new Map();
       try{
         while(next<N&&!stopped){
-          const n=next+1,seg=await fetchSegment(n);
+          const n=next+1;
+          // Keep exactly one metered prefetch reservation ahead. The next
+          // reservation is not requested until the previous segment settles.
+          if(n>=3 && settlements.has(n-2)) await settlements.get(n-2);
+          const seg=await fetchSegment(n);
           await new Promise((resolve,reject)=>{
             const cleanup=()=>{sb.removeEventListener('updateend',end);sb.removeEventListener('error',fail);};
             const end=()=>{cleanup();resolve();},fail=()=>{cleanup();reject(new Error('TL3 v4 appendBuffer failed @'+n));};
@@ -110,11 +115,13 @@
             try{sb.appendBuffer(seg.plain);}catch(e){cleanup();reject(e);}
           });
           next++;
-          settle(n).catch(e=>{console.error('[TL3v4] settlement failed',n,e);onError(e);});
           if(audio.paused&&n===1){try{await audio.play();}catch(e){console.warn('[TL3v4] play request rejected',e);}}
-          if(next<N)fetchSegment(next+1).catch(e=>{console.error('[TL3v4] prefetch failed',e);});
+          if(n>=2 && settlements.has(n-1)) await settlements.get(n-1);
+          if(n<N) await fetchSegment(n+1);
+          settlements.set(n,settle(n).catch(e=>{console.error('[TL3v4] settlement failed',n,e);onError(e);throw e;}));
         }
         if(next===N&&!stopped&&ms.readyState==='open'){try{ms.endOfStream();}catch(_){}}
+        if(N>0&&settlements.has(N)) await settlements.get(N);
       }catch(e){onError(e);throw e;}
       finally{appendBusy=false;}
     }
