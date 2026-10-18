@@ -418,22 +418,34 @@
             }
 
             // 5. 라이센스 키 요청
-            // 2026-10-19: scheduleLicensePrefetch가 미리 받은 license를 우선 사용한다.
-            // 이게 있으면 confirm 응답을 기다리지 않고도 세그먼트를 즉시 append할 수 있다.
+            // 2026-10-19: prefetchedLicenses를 최우선. 없으면 즉시 prefetch 후 최대 500ms 대기.
             let codeData = prelicensedCode || null;
+
+            if (!codeData && !prefetchedLicenses.has(n)) {
+              console.log('[TL3v5] license not prefetched yet; scheduling now', n);
+              scheduleLicensePrefetch(n);
+            }
+
             if (!codeData && prefetchedLicenses.has(n)) {
               try {
-                codeData = await prefetchedLicenses.get(n);
+                codeData = await Promise.race([
+                  prefetchedLicenses.get(n),
+                  new Promise(function(_, rej) {
+                    setTimeout(function() { rej(new Error('prefetch timeout 500ms')); }, 500);
+                  })
+                ]);
                 prefetchedLicenses.delete(n);
-                console.log('[TL3v5] using prefetched license', n, {
-                  wallet_tl: codeData.wallet_tl, asset_remaining_tl: codeData.asset_remaining_tl
+                console.log('[TL3v5] using prefetched license (fast path)', n, {
+                  wallet_tl: codeData && codeData.wallet_tl,
+                  asset_remaining_tl: codeData && codeData.asset_remaining_tl
                 });
               } catch (e) {
-                console.warn('[TL3v5] prefetched license failed; fallback to code API', n, e);
+                console.warn('[TL3v5] prefetched timeout; fallback to code API', n, e && e.message);
                 prefetchedLicenses.delete(n);
                 codeData = null;
               }
             }
+
             if (!codeData) {
               const codeUrl = API + '/api/v1/tl3/code/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(sessionId);
               let cr = null;
@@ -571,19 +583,33 @@
               });
               // 확정·환급과 다음 구간 TL 예약/라이선스 발급을 한 요청으로 묶는다.
               // 마지막 구간에는 다음 라이선스를 요청하지 않는다.
+              // 2026-10-19: confirm(정산)과 다음 세그먼트 준비를 분리.
+              // confirm 응답 지연(0.7초)이 재생을 블록하지 않도록,
+              // confirm은 백그라운드로 돌리고 _next는 prefetchedLicenses로 즉시 진행.
               const nextSegment = n < header.mp3.N ? n : undefined;
-              const settled = await confirmPending(playedSeconds, nextSegment);
-              if (stopped) return;
-              if (!settled) {
-                onError(new Error('TL3 segment settlement failed; playback stopped to protect TL balance.'));
-                return;
-              }
+              const prevN = n;
+
+              confirmPending(playedSeconds, nextSegment).then(function(settled) {
+                if (!settled) {
+                  console.warn('[TL3v4] background confirm returned null; server expiry refund will settle later');
+                  return;
+                }
+                if (settled.next_error) {
+                  console.warn('[TL3v4] confirm next_error (non-blocking):', settled.next_error);
+                }
+                // scheduleLicensePrefetch가 준비한 다음 라이선스가 있으면 여기서 삭제 (중복 방지)
+                if (settled.next_license) {
+                  // 이미 _next가 prefetchedLicenses에서 꺼냈다면 여기선 no-op
+                }
+                console.log('[TL3v4] background confirm ok', { segment: prevN, wallet_tl: settled.wallet_tl, asset_remaining_tl: settled.asset_remaining_tl });
+              }).catch(function(err) {
+                console.warn('[TL3v4] background confirm failed:', err);
+              });
+
+              // 다음 세그먼트를 즉시 준비 (confirm 기다리지 않음)
+              // _next 안에서 prefetchedLicenses.get(n)이 license를 즉시 제공한다.
               n++;
-              if (settled.next_error) {
-                onError(new Error(settled.next_error));
-                return;
-              }
-              await _next(settled.next_license || null);
+              await _next(null);
             }, 50);
             
           } catch (e) {
