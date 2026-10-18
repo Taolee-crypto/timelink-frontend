@@ -55,8 +55,8 @@
 
     const prefetchedPayloads = new Map();
 
-    // Ciphertext는 재생 중 미리 받아 둔다. 라이선스(code) 요청과 TL 예약은
-    // 직전 구간의 confirm 이후에만 실행해 서버의 단일 pending 규칙을 지킨다.
+    // Ciphertext는 현재 구간 처리와 겹쳐 최대 세 구간 앞까지 미리 받는다.
+    // 암호문 선행 수신은 TL 예약을 하지 않으며, 다음 라이선스는 confirm 요청에서 원자적으로 예약한다.
     async function fetchSegmentPayload(segmentNo) {
       const segUrl = API + '/api/v1/tl3/segment/' + fidStr + '?segment=' + (segmentNo-1) + '&session_id=' + encodeURIComponent(sessionId);
       const startedAt = performance.now();
