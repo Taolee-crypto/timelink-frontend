@@ -137,6 +137,7 @@
         if (global.TL3Audio && typeof global.TL3Audio.attach === 'function') {
           const base = global.TL3Audio.defaultProfile || { enabled:true, g:{} };
           const profile = Object.assign({}, base, meta && meta.enabled === true ? meta : {});
+          profile.g = Object.assign({}, base.g || {}, meta && meta.enabled === true && meta.g || {});
           profile.enabled = true;
           profile.duration_ms = Number(durationMs || profile.duration_ms || 0);
           lpController = await global.TL3Audio.attach(audioEl, profile);
