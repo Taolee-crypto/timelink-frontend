@@ -74,7 +74,7 @@
     bar.innerHTML = '<div class="tl-title">' + title.toUpperCase() + '</div>'
       + '<div class="tl-search"><span style="color:rgba(255,255,255,.35);font-size:14px">🔍</span>'
       + '<input type="text" placeholder="파일명, 아티스트, 태그 검색..." id="tl-topbar-search"></div>'
-      + '<button class="tl-upload" onclick="location.href=\'/creator-studio.html\'">📤 내 파일 업로드</button>'
+      + '<button class="tl-upload" onclick="location.href=\'//creator\'">📤 내 파일 업로드</button>'
       + '<div class="tl-balance">'
       +   '<span style="color:rgba(255,255,255,.5)">⏱</span>'
       +   '<span class="tl-bal-tl">' + totalTL().toLocaleString() + ' TL</span>'
