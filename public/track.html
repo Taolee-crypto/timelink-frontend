@@ -1508,20 +1508,51 @@ function playTrack(){
   document.getElementById('tlPlayerBar').style.display = 'block';
   document.getElementById('playerPlayBtn').textContent = '⏸';
 
-  if(_tlAudio){ _tlAudio.pause(); _tlAudio = null; }
+  if(_tlAudio){
+    try { if(_tlAudio._tl3Stop) _tlAudio._tl3Stop(); } catch(e){}
+    try { _tlAudio.pause(); _tlAudio.removeAttribute('src'); _tlAudio.load(); } catch(e){}
+    _tlAudio = null;
+  }
   _tlAudio = new Audio();
   window._tlAudio = _tlAudio;  // ← PLAY LOCK 호환
   _tlAudio.preload = 'auto';
   _tlAudio.onerror = function(){
     var src = _tlAudio && _tlAudio.src || '';
-    // 조용히 로그만 (실제 재생은 계속 시도)
     console.warn('[audio error]', src.slice(0, 100), _tlAudio && _tlAudio.error);
-    // blob/tl3/stream URL은 무시
+    // MSE의 일시적 버퍼 이벤트는 error로 취급하지 않는다.
     if(src.startsWith('blob:') || src.includes('.tl3') || src.includes('/api/stream/') || src.includes('agent.timelink.digital')) return;
-    // ★ MediaSource 버퍼링 중에는 중단하지 않음 (강제 중지 방지)
-    // if(!src){ stopPlay(); }
   };
-  
+
+  // 실제 오디오 요소의 상태를 기준으로 재생 UI를 동기화한다.
+  const playerAudio = _tlAudio;
+  playerAudio.addEventListener('playing', function(){
+    if(_tlAudio !== playerAudio) return;
+    _tlPlaying = true;
+    const btn = document.getElementById('playerPlayBtn');
+    if(btn) btn.textContent = '⏸';
+    startTLTimer();
+    if(window._hidePlayLoading) window._hidePlayLoading(true);
+  });
+  playerAudio.addEventListener('pause', function(){
+    if(_tlAudio !== playerAudio || playerAudio.ended) return;
+    _tlPlaying = false;
+    const btn = document.getElementById('playerPlayBtn');
+    if(btn) btn.textContent = '▶';
+    if(_tlInterval){ clearInterval(_tlInterval); _tlInterval = null; }
+  });
+  playerAudio.addEventListener('ended', function(){
+    if(_tlAudio !== playerAudio) return;
+    _tlPlaying = false;
+    if(_tlInterval){ clearInterval(_tlInterval); _tlInterval = null; }
+    _tlElapsed = Number.isFinite(playerAudio.duration) ? playerAudio.duration : playerAudio.currentTime;
+    const timeEl = document.getElementById('playerTime');
+    if(timeEl) timeEl.textContent = fmtTime(_tlElapsed);
+    const btn = document.getElementById('playerPlayBtn');
+    if(btn) btn.textContent = '▶';
+    // 곡 종료 시 LP 노이즈와 AudioContext를 정지한다.
+    if(playerAudio._tl3Stop){ try { playerAudio._tl3Stop(); } catch(e){} }
+    if(window._hidePlayLoading) window._hidePlayLoading(false);
+  });
 
   // ⭐ MP3는 그냥 재생, TL3는 디코딩 후 재생
   if(_tlFree){
@@ -1555,10 +1586,9 @@ function playTrack(){
         alert('재생을 중지했습니다: '+(err&&err.message?err.message:err));
       }
     }).then(function(result){
+      // sourceopen은 실제 오디오 출력 시작을 뜻하지 않는다.
+      // 재생 UI와 타이머는 HTMLAudioElement의 'playing' 이벤트에서 시작한다.
       console.log('[PLAY] TL3 스트림 연결됨:', result && result.sessionId);
-      _tlPlaying = true;
-      startTLTimer();
-      if(window._hidePlayLoading) window._hidePlayLoading(true);
     }).catch(function(e){
       console.error('[PLAY] TL3 스트림 시작 실패:', e);
       if(window._hidePlayLoading) window._hidePlayLoading(false);
@@ -1573,41 +1603,32 @@ function playTrack(){
 
 function startTLTimer(){
   if(window._tlInterval) clearInterval(window._tlInterval);
-  window._tlInterval = setInterval(() => {
-    if(!window._tlPlaying) return;
-    
-    // 1. 경과 시간 증가
-    window._tlElapsed = (window._tlElapsed || 0) + 1;
-    
-    // 2. 남은 TL 계산 (최대 TL - 경과 시간)
-    var maxTL = window._tlMaxTL || 0;
-    var currentTL = Math.max(0, maxTL - window._tlElapsed);
-    
-    // 3. UI 업데이트 (하단 플레이어)
-    var timeStr = fmtTime(window._tlElapsed);
-    var playerTimeEl = document.getElementById('playerTime');
-    if (playerTimeEl) playerTimeEl.textContent = timeStr;
-    
-    var playerTLValEl = document.getElementById('playerTLVal');
-    if (playerTLValEl) {
-      playerTLValEl.textContent = Math.round(currentTL).toLocaleString() + ' TL';
+  const update = function(){
+    const audio = _tlAudio;
+    if(!audio) return;
+    // 버퍼링 중에는 currentTime이 멈춘다. 실제 재생 위치만 표시한다.
+    const seconds = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+    window._tlElapsed = seconds;
+    const timeEl = document.getElementById('playerTime');
+    if(timeEl) timeEl.textContent = fmtTime(seconds);
+
+    // TL 잔액은 서버의 세그먼트 정산 응답만 신뢰한다.
+    // 클라이언트 초 단위 추정으로 잔액을 차감하거나 재생을 중단하지 않는다.
+    if(_tlFree){
+      const valueEl = document.getElementById('playerTLVal');
+      if(valueEl) valueEl.textContent = 'FREE';
+    } else {
+      updatePlayerTLDisplay();
     }
-    
-    // 4. TL 게이지 바 업데이트 (아날로그 느낌)
-    var pct = maxTL > 0 ? (currentTL / maxTL * 100) : 0;
-    var barEl = document.getElementById('playerTLBar');
-    if (barEl) barEl.style.width = pct + '%';
-    
-    // 5. TL 소진 시 정지
-    if (currentTL <= 0 && maxTL > 0) {
-      stopPlay();
-      alert('TL이 소진되었습니다.');
-    }
-  }, 1000);
+  };
+  update();
+  window._tlInterval = setInterval(update, 250);
 }
 
 function togglePlay(){
   if(!_tlAudio) return;
+  // 종료된 MediaSource 세션은 재사용할 수 없으므로 새 TL3 세션으로 처음부터 재생한다.
+  if(_tlAudio.ended){ playTrack(); return; }
   if(_tlPlaying){
     _tlAudio.pause();
     _tlPlaying = false;
@@ -1628,9 +1649,8 @@ function stopPlay(){
   const audio = _tlAudio;
   if(audio){
     // ★ tl3.js의 _next가 appendBuffer 시도하지 않도록 세션 정지
+    // _tl3SegmentStop은 _tl3Stop의 별칭이므로 종료/정산은 한 번만 요청한다.
     if(audio._tl3Stop) { try { audio._tl3Stop(); console.log('[PLAY] _tl3Stop 호출'); } catch(e){} }
-    if(audio._tl3Confirm) { try { audio._tl3Confirm().catch(function(){}); } catch(e){} }
-    if(audio._tl3SegmentStop) { try { audio._tl3SegmentStop(); } catch(e){} }
     try { audio.pause(); } catch(e){}
     try { audio.removeAttribute('src'); audio.load(); } catch(e){}
   }
