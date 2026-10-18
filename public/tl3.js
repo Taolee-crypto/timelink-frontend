@@ -166,13 +166,21 @@
       return confirmPending(played);
     };
     audioEl._tl3Stop = function() {
+      if (stopped) return;
       stopped = true;
       if (segmentTimer) { clearInterval(segmentTimer); segmentTimer = null; }
       const played = pendingMediaStart >= 0 ? Math.max(0, audioEl.currentTime - pendingMediaStart) : 0;
       pendingMediaStart = -1;
+      try { audioEl.pause(); } catch (_) {}
+      // Stop the LP AudioContext as well as the media element. Suspending the
+      // context silences the AudioWorklet/fallback DSP immediately, while
+      // preserving the single MediaElementAudioSourceNode for replay.
+      if (lpController && typeof lpController.stop === 'function') {
+        lpController.stop().catch(function (error) {
+          console.warn('[TL3-AUDIO] stop/suspend failed:', error);
+        });
+      }
       confirmPending(played);
-      // Keep the single MediaElementAudioSourceNode and its graph alive for reuse.
-      // Browsers do not allow creating a second source node for the same element.
     };
     audioEl._tl3SegmentStop = audioEl._tl3Stop;
 
