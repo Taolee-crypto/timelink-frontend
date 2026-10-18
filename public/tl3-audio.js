@@ -91,7 +91,7 @@
     let mode = 'reference-worklet';
 
     function resume() {
-      if (destroyed) return Promise.resolve();
+      if (destroyed || audioEl.paused) return Promise.resolve();
       // Restore the output only as part of an explicit playback resume.
       masterGain.gain.setValueAtTime(1, ctx.currentTime);
       if (ctx.state === 'suspended') return ctx.resume().catch(function () {});
