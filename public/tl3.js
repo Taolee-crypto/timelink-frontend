@@ -332,12 +332,23 @@
               }
             });
 
+            const sbRanges = Array.from({length:sb.buffered.length},(_,i)=>[sb.buffered.start(i),sb.buffered.end(i)]);
+            const audioRanges = Array.from({length:audioEl.buffered.length},(_,i)=>[audioEl.buffered.start(i),audioEl.buffered.end(i)]);
+            const mp3Header = Array.from(plain.slice(0,16),b=>b.toString(16).padStart(2,'0')).join('');
             console.log('[TL3v4] append complete', n, {
               durationMs, currentTime:audioEl.currentTime, paused:audioEl.paused,
               readyState:audioEl.readyState, networkState:audioEl.networkState,
-              buffered:Array.from({length:sb.buffered.length},(_,i)=>[sb.buffered.start(i),sb.buffered.end(i)]),
+              sourceBufferRanges:sbRanges, audioElementRanges:audioRanges,
+              appendedBytes:plain.length, mp3PrefixHex:mp3Header,
+              mediaSourceState:ms.readyState,
+              audioError:audioEl.error ? {code:audioEl.error.code,message:audioEl.error.message} : null,
               audioContextState:lpController ? lpController.state() : 'bypass'
             });
+            console.log('[TL3v4][APPEND_RANGE]', JSON.stringify({
+              segment:n, sourceBuffer:sbRanges, audio:audioRanges,
+              currentTime:audioEl.currentTime, readyState:audioEl.readyState,
+              bytes:plain.length, mp3PrefixHex:mp3Header
+            }));
             // MSE에 첫 구간이 추가된 뒤에도 오디오가 정지 상태라면 재생을 다시 요청한다.
             if (audioEl.paused) {
               if (lpController) lpController.resume().catch(e=>console.warn('[TL3-AUDIO] resume failed:',e));
