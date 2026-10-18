@@ -418,7 +418,22 @@
             }
 
             // 5. 라이센스 키 요청
+            // 2026-10-19: scheduleLicensePrefetch가 미리 받은 license를 우선 사용한다.
+            // 이게 있으면 confirm 응답을 기다리지 않고도 세그먼트를 즉시 append할 수 있다.
             let codeData = prelicensedCode || null;
+            if (!codeData && prefetchedLicenses.has(n)) {
+              try {
+                codeData = await prefetchedLicenses.get(n);
+                prefetchedLicenses.delete(n);
+                console.log('[TL3v5] using prefetched license', n, {
+                  wallet_tl: codeData.wallet_tl, asset_remaining_tl: codeData.asset_remaining_tl
+                });
+              } catch (e) {
+                console.warn('[TL3v5] prefetched license failed; fallback to code API', n, e);
+                prefetchedLicenses.delete(n);
+                codeData = null;
+              }
+            }
             if (!codeData) {
               const codeUrl = API + '/api/v1/tl3/code/' + fidStr + '?segment=' + (n-1) + '&session_id=' + encodeURIComponent(sessionId);
               let cr = null;
