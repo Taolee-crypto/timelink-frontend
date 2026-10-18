@@ -70,6 +70,10 @@
   }
 
   async function attach(audioEl, meta) {
+    if (audioEl && audioEl._tl3AudioController && audioEl._tl3AudioController.enabled) {
+      await audioEl._tl3AudioController.resume();
+      return audioEl._tl3AudioController;
+    }
     if (!meta || meta.enabled !== true || !Ctor) {
       return { enabled: false, mode: 'bypass', resume: function () { return Promise.resolve(); }, destroy: function () {}, state: function () { return 'bypass'; } };
     }
@@ -122,7 +126,7 @@
         parameters: meta.g || {}
       });
 
-      return {
+      const controller = {
         enabled: true,
         mode: mode,
         resume: resume,
@@ -134,10 +138,12 @@
           try { if (processor) processor.disconnect(); } catch (_) {}
           fallbackNodes.forEach(function (node) { try { if (node.stop) node.stop(); } catch (_) {} try { node.disconnect(); } catch (_) {} });
           try { if (source) source.disconnect(); } catch (_) {}
-          // The media element owns one MediaElementAudioSourceNode for its
-          // lifetime. Do not close the context during normal TL3 stop/replay.
+          // Keep the source/context alive for replay; a media element may own
+          // only one MediaElementAudioSourceNode during its lifetime.
         }
       };
+      audioEl._tl3AudioController = controller;
+      return controller;
     } catch (error) {
       console.warn('[TL3-AUDIO] LP setup failed; restoring direct media output.', error);
       try { if (source) { source.disconnect(); source.connect(ctx.destination); } } catch (_) {}
