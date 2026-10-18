@@ -71,6 +71,10 @@
       this.wowBase = 0.012;
       this.noiseAmp = Math.pow(10, this.g.nz / 20);
       this.gain = 1;
+      this.diagFrames = 0;
+      this.diagInputSq = 0;
+      this.diagOutputSq = 0;
+      this.diagInputPeak = 0;
       this.port.onmessage = (event) => {
         if (event.data && event.data.type === 'profile') this.port.postMessage({ type: 'profile-ack' });
       };
@@ -155,6 +159,24 @@
         this.gain += (target < this.gain ? 0.35 : 0.002) * (target - this.gain);
         outL[i] = clamp(a * this.gain, -0.999, 0.999);
         outR[i] = clamp(b * this.gain, -0.999, 0.999);
+        const inputPeak = Math.max(Math.abs(inL[i]), Math.abs(inR[i]));
+        this.diagInputSq += (inL[i] * inL[i] + inR[i] * inR[i]) * 0.5;
+        this.diagOutputSq += (outL[i] * outL[i] + outR[i] * outR[i]) * 0.5;
+        if (inputPeak > this.diagInputPeak) this.diagInputPeak = inputPeak;
+      }
+      this.diagFrames += outL.length;
+      if (this.diagFrames >= sampleRate) {
+        const frames = this.diagFrames;
+        this.port.postMessage({
+          type: 'audio-levels',
+          inputRms: Math.sqrt(this.diagInputSq / frames),
+          outputRms: Math.sqrt(this.diagOutputSq / frames),
+          inputPeak: this.diagInputPeak
+        });
+        this.diagFrames = 0;
+        this.diagInputSq = 0;
+        this.diagOutputSq = 0;
+        this.diagInputPeak = 0;
       }
       return true;
     }
