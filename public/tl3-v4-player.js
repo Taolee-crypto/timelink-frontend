@@ -60,7 +60,7 @@
     };
     const ms=new MediaSource(),url=URL.createObjectURL(ms);
     let sb=null,stopped=false,next=0,appendBusy=false;
-    const cache=new Map(),settled=new Set(),settlementTasks=[];
+    const cache=new Map(),settled=new Set(),settling=new Map(),settlementTasks=[];
     let pocDirty=false,pocSyncPromise=null;
     async function syncPoc(){
       if(!pocDirty)return;
@@ -102,22 +102,31 @@
       })();
       cache.set(n,p);return p;
     };
-    const settle=async n=>{
-      if(settled.has(n))return;
-      const seg=await cache.get(n);
-      const start=starts[n-1]/1000;
-      const end=(starts[n-1]+seg.duration)/1000;
-      await waitForPlayback(audio,end,()=>stopped);
-      // On stop, settle only the portion that actually reached the audio clock.
-      // The backend refunds the rest and releases any unplayed prefetched segment.
-      const played=Math.max(0,Math.min(seg.duration/1000,(Number(audio.currentTime)||0)-start));
-      const d=await json(API+'/api/v1/tl3/segment/confirm/'+encodeURIComponent(data.file_id),{
-        method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
-        body:JSON.stringify({session_id:sessionId,played_seconds:played,next_segment:(!stopped&&n<N)?n:undefined})
-      });
-      settled.add(n);pocDirty=true;
-      onSegment({index:n-1,seconds:played,remaining:d.wallet_tl,wallet_tl:d.wallet_tl,asset_remaining_tl:d.asset_remaining_tl});
-      if(stopped||n===N)await syncPoc();
+    const settle=n=>{
+      if(settled.has(n))return Promise.resolve();
+      // A segment can reach both the normal pump path and the stop path.
+      // Share one in-flight confirmation so the backend never receives two
+      // confirmations for the same pending reservation.
+      if(settling.has(n))return settling.get(n);
+      const task=(async()=>{
+        const seg=await cache.get(n);
+        const start=starts[n-1]/1000;
+        const end=(starts[n-1]+seg.duration)/1000;
+        await waitForPlayback(audio,end,()=>stopped);
+        // On stop, settle only the portion that actually reached the audio clock.
+        // The backend refunds the rest and releases any unplayed prefetched segment.
+        const played=Math.max(0,Math.min(seg.duration/1000,(Number(audio.currentTime)||0)-start));
+        const d=await json(API+'/api/v1/tl3/segment/confirm/'+encodeURIComponent(data.file_id),{
+          method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
+          body:JSON.stringify({session_id:sessionId,played_seconds:played,next_segment:(!stopped&&n<N)?n:undefined})
+        });
+        settled.add(n);pocDirty=true;
+        onSegment({index:n-1,seconds:played,remaining:d.wallet_tl,wallet_tl:d.wallet_tl,asset_remaining_tl:d.asset_remaining_tl});
+        if(stopped||n===N)await syncPoc();
+      })();
+      settling.set(n,task);
+      task.then(()=>{if(settling.get(n)===task)settling.delete(n);},()=>{if(settling.get(n)===task)settling.delete(n);});
+      return task;
     };
     async function pump(){
       if(appendBusy||stopped)return;
