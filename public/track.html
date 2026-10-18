@@ -1608,6 +1608,15 @@ function startTLTimer(){
 
 function togglePlay(){
   if(!_tlAudio) return;
+
+  // TL3 startup owns the first play() request until playStream resolves.
+  // A second click during that window must not issue another play() call;
+  // doing so can race with MediaSource/stop handling and reject on pause().
+  if(window._loadingPlay && !_tlPlaying){
+    console.log('[PLAY] startup in progress; duplicate play/pause request ignored');
+    return;
+  }
+
   if(_tlPlaying){
     _tlAudio.pause();
     _tlPlaying = false;
@@ -1618,7 +1627,15 @@ function togglePlay(){
       _tlPlaying = true;
       document.getElementById('playerPlayBtn').textContent = '⏸';
       startTLTimer();
-    }).catch(e=>{ alert('재생 실패: '+e.message); });
+    }).catch(e=>{
+      // A pause/stop can legitimately interrupt a pending play() promise.
+      // Do not present that expected lifecycle race as a playback failure.
+      if(e && e.name === 'AbortError'){
+        console.warn('[PLAY] play request superseded by pause/stop');
+        return;
+      }
+      alert('재생 실패: '+e.message);
+    });
   }
 }
 
