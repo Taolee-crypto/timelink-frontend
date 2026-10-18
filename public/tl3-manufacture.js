@@ -42,18 +42,32 @@
     if (lpLicense) releaseBody.lp_license = lpLicense;
     const release = await postJson(api + '/api/v1/tl3/releases', token, releaseBody);
     if (Number(release.file_id) !== fileId) throw new Error('서버가 반환한 TL3 file_id가 원본 자산과 일치하지 않습니다.');
-    let spine = null, spineError = null;
-    try {
-      spine = await postJson(api + '/api/v1/tl3/spine/releases', token, {
-        file_id: fileId, share_id: String(release.share_id || shareId), rights_confirmed: true
-      });
-      if (Number(spine.file_id) !== fileId) throw new Error('Spine file_id 불일치');
-    } catch (error) {
-      spineError = error.message || 'Spine v4 제조 실패';
+    if (String(release.status || '') !== 'released' || Number(release.segment_count || 0) < 1) {
+      throw new Error('TL3 제조는 완료됐지만 공개 등록 상태 또는 세그먼트 정보가 유효하지 않습니다.');
     }
-    return { ok: true, release: release, spine: spine, spineError: spineError,
+
+    // Creator completion is gated by the exact public header consumed by Track.
+    // Spine v4 remains a separate, unpublished integrity archive and is not part
+    // of the production v3 playback path; do not let that archive block a valid release.
+    const verifyResponse = await fetch(api + '/api/v1/tl3/header/' + encodeURIComponent(fileId), {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const playable = await verifyResponse.json().catch(function () { return {}; });
+    if (!verifyResponse.ok || !playable.ok) {
+      throw new Error(playable.error || ('Track 공개 헤더 확인 실패 (HTTP ' + verifyResponse.status + ')'));
+    }
+    if (Number(playable.file_id) !== fileId ||
+        Number(playable.mp3 && playable.mp3.N || 0) !== Number(release.segment_count) ||
+        !Array.isArray(playable.mp3_tokens) ||
+        playable.mp3_tokens.length < Number(release.segment_count) + 1) {
+      throw new Error('Track 재생 헤더의 file_id, 세그먼트 수 또는 토큰 체인이 일치하지 않습니다.');
+    }
+    return {
+      ok: true, release: release,
+      verification: { track_ready: true, file_id: fileId, segments: Number(release.segment_count), duration_ms: Number(release.duration_ms || 0) },
       file_id: fileId, share_id: String(release.share_id || shareId),
-      lp: lpLicense ? { enabled: lpLicense.lp_enabled === true, runtime: true, opus_bytes: 0 } : { enabled: false } };
+      lp: lpLicense ? { enabled: lpLicense.lp_enabled === true, runtime: true, opus_bytes: 0 } : { enabled: false }
+    };
   }
   global.TimeLinkTL3 = Object.freeze({ manufacture: manufacture });
 })(window);
