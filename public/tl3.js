@@ -215,6 +215,30 @@
       const toggle = document.getElementById('lpEnhancedToggle');
       const licensed = !!(meta && meta.enabled === true);
       if (toggle) { toggle.checked = false; toggle.disabled = !licensed; }
+      // LP-CHAIN_PRIORITY: 플레이어 LP 체인 우선. 실패 시 아래 TL3Audio.attach로 폴백.
+      if (licensed && global.TL3LPChain) {
+        try {
+          lpController = await global.TL3LPChain.create(audioEl, meta, durationMs);
+          if (lpController && lpController.available()) {
+            if (toggle) toggle.disabled = false;
+            audioEl._tl3LpToggle = async function(enabled) {
+              const ok = await lpController.setEnabled(!!enabled);
+              if (!ok && toggle) toggle.checked = false;
+              return ok;
+            };
+            global.setTL3LpEnhanced = function(enabled) {
+              return audioEl._tl3LpToggle ? audioEl._tl3LpToggle(enabled) : false;
+            };
+            console.info('[LP-CHAIN] external chain attached; remote scheduler untouched', {
+              mode: lpController.mode(), seed: meta.seed || 7
+            });
+            return;
+          }
+          console.warn('[LP-CHAIN] chain unavailable; falling back to legacy TL3Audio.attach');
+        } catch (e) {
+          console.warn('[LP-CHAIN] chain create failed; falling back:', e);
+        }
+      }
       audioEl._tl3LpToggle = async function(enabled) {
         if (!licensed || !lpController || typeof lpController.setEnabled !== 'function') {
           if (toggle) toggle.checked = false;
