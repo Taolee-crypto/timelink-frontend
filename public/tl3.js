@@ -19,6 +19,63 @@
   function getTok() { return localStorage.getItem('tl_token') || ''; }
   function authHeaders() { return { 'Authorization': 'Bearer ' + getTok() }; }
 
+  // MP3 files with a Xing/Info first frame may carry encoder delay metadata.
+  // Browsers discard that non-audio frame and trim encoder delay from decoded
+  // samples, while MSE sequence mode otherwise advances by every coded frame.
+  // Offset the initial coded timeline so later TL3 chunks meet the audible
+  // timeline instead of leaving a small decoder stall at the first boundary.
+  function mp3InitialTimelineOffset(bytes) {
+    try {
+      let start = 0;
+      if (bytes.length >= 10 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) {
+        const size = ((bytes[6] & 0x7f) << 21) | ((bytes[7] & 0x7f) << 14) |
+          ((bytes[8] & 0x7f) << 7) | (bytes[9] & 0x7f);
+        start = 10 + size + ((bytes[5] & 0x10) ? 10 : 0);
+      }
+      for (let i = start; i + 4 <= bytes.length; i++) {
+        if (bytes[i] !== 0xff || (bytes[i + 1] & 0xe0) !== 0xe0) continue;
+        const version = (bytes[i + 1] >> 3) & 3;
+        const layer = (bytes[i + 1] >> 1) & 3;
+        const bitrateIndex = (bytes[i + 2] >> 4) & 15;
+        const sampleIndex = (bytes[i + 2] >> 2) & 3;
+        if (layer !== 1 || version === 1 || bitrateIndex === 0 || bitrateIndex === 15 || sampleIndex === 3) continue;
+        const rates = [44100, 48000, 32000];
+        const sampleRate = rates[sampleIndex] / (version === 3 ? 1 : version === 2 ? 2 : 4);
+        const bitrate = (version === 3
+          ? [0,32,40,48,56,64,80,96,112,128,160,192,224,256,320,0]
+          : [0,8,16,24,32,40,48,56,64,80,96,112,128,144,160,0])[bitrateIndex];
+        const frameLength = Math.floor((version === 3 ? 144000 : 72000) * bitrate / sampleRate) +
+          ((bytes[i + 2] >> 1) & 1);
+        const frameEnd = Math.min(bytes.length, i + frameLength);
+        let marker = -1;
+        for (let p = i + 4; p + 4 <= frameEnd; p++) {
+          if ((bytes[p] === 0x58 && bytes[p+1] === 0x69 && bytes[p+2] === 0x6e && bytes[p+3] === 0x67) ||
+              (bytes[p] === 0x49 && bytes[p+1] === 0x6e && bytes[p+2] === 0x66 && bytes[p+3] === 0x6f)) {
+            marker = p; break;
+          }
+        }
+        if (marker < 0 || marker + 8 > frameEnd) return 0;
+        const flags = ((bytes[marker+4] << 24) | (bytes[marker+5] << 16) |
+          (bytes[marker+6] << 8) | bytes[marker+7]) >>> 0;
+        let tag = marker + 8;
+        if (flags & 1) tag += 4;
+        if (flags & 2) tag += 4;
+        if (flags & 4) tag += 100;
+        if (flags & 8) tag += 4;
+        let delaySamples = 0;
+        // LAME-compatible encoder tags (including Lavc) store 12-bit delay
+        // in the first 12 bits of bytes 21..22 after the encoder identifier.
+        if (tag + 24 <= frameEnd) {
+          delaySamples = (bytes[tag+21] << 4) | (bytes[tag+22] >> 4);
+        }
+        const samplesPerFrame = version === 3 ? 1152 : 576;
+        const offset = (samplesPerFrame + delaySamples) / sampleRate;
+        return Number.isFinite(offset) && offset > 0 && offset < 0.1 ? offset : 0;
+      }
+    } catch (_) {}
+    return 0;
+  }
+
   // ── V4 Player ──
   async function playStream(fileId, audioEl, opts) {
     opts = opts || {};
@@ -301,6 +358,23 @@
               { name: 'AES-GCM', iv: ivFor(n), tagLength: 128 }, key, ciphertext
             ));
             console.log('[TL3v4] segment decrypted', n, 'bytes=', plain.length);
+
+            // The first Xing/Info frame is metadata, not audible programme audio.
+            // Account for it and the encoder delay once, before the first append.
+            if (n === 1) {
+              const initialOffset = mp3InitialTimelineOffset(plain);
+              if (initialOffset > 0 && !sb.updating) {
+                try {
+                  sb.timestampOffset = -initialOffset;
+                  console.log('[TL3v4] MP3 encoder delay aligned:', {
+                    offsetSeconds: initialOffset,
+                    timestampOffset: sb.timestampOffset
+                  });
+                } catch (offsetError) {
+                  console.warn('[TL3v4] MP3 initial timestamp alignment unavailable:', offsetError);
+                }
+              }
+            }
 
             // 7. 재생 구간의 시작 시각은 appendBuffer 전에 기록한다.
             // appendBuffer 완료 후 기록하면 첫 구간이 이미 재생된 뒤일 수 있어
