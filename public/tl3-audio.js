@@ -70,7 +70,7 @@
   }
 
   async function attach(audioEl, meta) {
-    if (audioEl && audioEl._tl3AudioController && audioEl._tl3AudioController.enabled) {
+    if (audioEl && audioEl._tl3AudioController) {
       await audioEl._tl3AudioController.resume();
       return audioEl._tl3AudioController;
     }
@@ -149,13 +149,15 @@
       try { if (source) { source.disconnect(); source.connect(ctx.destination); } } catch (_) {}
       audioEl.addEventListener('playing', resume);
       await resume();
-      return {
+      const controller = {
         enabled: false,
         mode: 'native-passthrough',
         resume: resume,
         state: function () { return ctx.state; },
         destroy: function () {}
       };
+      audioEl._tl3AudioController = controller;
+      return controller;
     }
   }
 
