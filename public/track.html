@@ -1216,8 +1216,8 @@ function handlePlayClick(){
     console.log('[PLAY] 이미 로딩 중, 스킵');
     return;
   }
+  // Keep the startup lock until hideLoading() runs after stream readiness or failure.
   window._loadingPlay = true;
-  setTimeout(function(){ window._loadingPlay = false; }, 3000);
   
   const requiredTL = Number(_assetInitialTL||0);
   
@@ -1633,6 +1633,12 @@ function startTLTimer(){
 
 function togglePlay(){
   if(!_tlAudio) return;
+  // TL3 startup owns the first play() request until playStream resolves.
+  // A second click during that window must not issue another play() call.
+  if(window._loadingPlay && !_tlPlaying){
+    console.log('[PLAY] startup in progress; duplicate play/pause request ignored');
+    return;
+  }
   // 종료된 MediaSource 세션은 재사용할 수 없으므로 새 TL3 세션으로 처음부터 재생한다.
   if(_tlAudio.ended){ playTrack(); return; }
   if(_tlPlaying){
@@ -1645,7 +1651,13 @@ function togglePlay(){
       _tlPlaying = true;
       document.getElementById('playerPlayBtn').textContent = '⏸';
       startTLTimer();
-    }).catch(e=>{ alert('재생 실패: '+e.message); });
+    }).catch(e=>{
+      if(e && e.name === 'AbortError'){
+        console.warn('[PLAY] play request superseded by pause/stop');
+        return;
+      }
+      alert('재생 실패: '+e.message);
+    });
   }
 }
 
