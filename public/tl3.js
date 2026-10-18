@@ -239,6 +239,16 @@
       }
       confirmPending(played);
     };
+    // Pause/resume suspends only the LP graph; it does not terminate the TL3
+    // session or its segment settlement state.
+    audioEl._tl3Suspend = function() {
+      if (lpController && typeof lpController.stop === 'function') return lpController.stop();
+      return Promise.resolve();
+    };
+    audioEl._tl3Resume = function() {
+      if (lpController && typeof lpController.resume === 'function') return lpController.resume();
+      return Promise.resolve();
+    };
     audioEl._tl3SegmentStop = audioEl._tl3Stop;
 
     return new Promise(async (resolve, reject) => {
