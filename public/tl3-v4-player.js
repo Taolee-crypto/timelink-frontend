@@ -29,23 +29,6 @@
       const timer=setInterval(()=>{check();if(stopped()||audio.currentTime>=target-0.04||audio.ended){clearInterval(timer);done();}},200);
     });
   }
-  async function syncPoc(){
-    if(!pocDirty)return;
-    if(pocSyncPromise)return pocSyncPromise;
-    pocDirty=false;
-    pocSyncPromise=(async()=>{
-      const r=await fetch(API+'/api/eco/activity',{
-        method:'POST',
-        headers:Object.assign({'Content-Type':'application/json'},auth()),
-        body:JSON.stringify({mode:'listen'})
-      });
-      const d=await r.json().catch(()=>({}));
-      if(!r.ok||d.ok===false)throw new Error(d.error||('POC refresh HTTP '+r.status));
-      console.log('[TL3v4] POC refreshed',d.poc_index);
-      return d;
-    })().catch(e=>{pocDirty=true;console.warn('[TL3v4] POC refresh deferred',e);}).finally(()=>{pocSyncPromise=null;});
-    return pocSyncPromise;
-  }
   async function playStream(id,audio,opts){
     opts=opts||{};
     const onSegment=opts.onSegment||function(){};
@@ -79,6 +62,23 @@
     let sb=null,stopped=false,next=0,appendBusy=false;
     const cache=new Map(),settled=new Set(),settlementTasks=[];
     let pocDirty=false,pocSyncPromise=null;
+    async function syncPoc(){
+      if(!pocDirty)return;
+      if(pocSyncPromise)return pocSyncPromise;
+      pocDirty=false;
+      pocSyncPromise=(async()=>{
+        const r=await fetch(API+'/api/eco/activity',{
+          method:'POST',
+          headers:Object.assign({'Content-Type':'application/json'},auth()),
+          body:JSON.stringify({mode:'listen'})
+        });
+        const d=await r.json().catch(()=>({}));
+        if(!r.ok||d.ok===false)throw new Error(d.error||('POC refresh HTTP '+r.status));
+        console.log('[TL3v4] POC refreshed',d.poc_index);
+        return d;
+      })().catch(e=>{pocDirty=true;console.warn('[TL3v4] POC refresh deferred',e);}).finally(()=>{pocSyncPromise=null;});
+      return pocSyncPromise;
+    }
     const starts=[];
     let t=0;for(let i=0;i<N;i++){starts.push(t);t+=durations[i]||1000;}
     const fetchSegment=async n=>{
