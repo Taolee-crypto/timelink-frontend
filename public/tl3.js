@@ -214,10 +214,6 @@
         return;
       }
       try {
-        if (lpController && lpController.licensed) {
-          await lpController.setEnabled(false);
-          return;
-        }
         if (global.TL3Audio && typeof global.TL3Audio.attach === 'function') {
           const base = global.TL3Audio.defaultProfile || { enabled:true, g:{} };
           const profile = Object.assign({}, base, meta);
@@ -226,8 +222,10 @@
           profile.seed = Number(meta.seed || 7);
           profile.duration_ms = Number(durationMs || profile.duration_ms || 0);
           lpController = await global.TL3Audio.attach(audioEl, profile);
+          // Native passthrough is the intentional default. The toggle must
+          // remain available whenever the licensed Worklet is ready.
           if (toggle) toggle.disabled = !lpController || !lpController.licensed ||
-            lpController.mode !== 'stateful-audioworklet';
+            lpController.available !== true;
           if (lpController && lpController.licensed) {
             console.log('[TL3-AUDIO] licensed connector ready; user toggle controls DSP.', {
               mode:lpController.mode,profile:profile.version||'licensed-lp',seed:profile.seed
