@@ -446,8 +446,8 @@ body{font-family:Pretendard,Inter,-apple-system,BlinkMacSystemFont,"Noto Sans KR
 <script src="/offline-store.js"></script>
   <script src="/offline-fetcher.js"></script>
   <script src="/tl3-lp.js?v=lp-runtime-20261018-v4"></script>
-<script src="/tl3-lp-chain.js?v=chain-20261018-fix8"></script>
-  <script src="/tl3.js?v=track-lifecycle-20261019-fix8"></script>
+<script src="/tl3-lp-chain.js?v=chain-20261018-fix9"></script>
+  <script src="/tl3.js?v=track-lifecycle-20261019-fix9"></script>
 
 
 <script src="/tl3-config.js"></script>
@@ -575,6 +575,10 @@ async function loadTrack(){
     loadComments();
     renderCopyright(s);
     if(s.user_id) checkFollowStatus(s.user_id);
+    // 2026-10-19: 곡별 충전된 TL을 즉시 조회 (chargeModal 열기 전에도 표시)
+    updateTrackTLFromServer().catch(function(e) {
+      console.warn('[TRACK trackTL init]', e);
+    });
 
   // ★ duration이 없으면 서버에서 가져와서 표시 갱신 (2026-10-19: "계산 중..." 강제 해결)
   (async function(){
@@ -1407,6 +1411,11 @@ function chargeTL(){
   if(!modal){ console.error('[TRACK charge] chargeModal not found'); return; }
   const title=document.getElementById('chargeTargetTitle');
   if(title) title.textContent=_share?.title||'';
+  // 2026-10-19: 모달 열 때 곡별 TL을 서버에서 갱신
+  updateTrackTLFromServer().then(function(tl) {
+    renderTrackChargeBalances();
+    console.log('[TRACK charge] track TL loaded:', tl);
+  }).catch(function(e) { console.warn('[TRACK charge] track TL load failed:', e); });
   document.querySelectorAll('.charge-pkg').forEach(function(p){
     p.classList.remove('active');
     if(p.dataset.amount==='10000') p.classList.add('active');
