@@ -139,5 +139,15 @@
       return result;
     });
   }
-  global.TL3V4Player=Object.freeze({playStream:playStream,version:'TL3-SPINE-1'});
+  async function playStreamOrLegacy(id,audio,opts){
+    const rawId=String(id).split('/').pop().split('?')[0];
+    const probe=await fetch(API+'/api/v1/tl3/spine/header/'+encodeURIComponent(rawId),{headers:auth()});
+    if(probe.status===404){
+      if(global.TL3&&typeof global.TL3.playStream==='function')return global.TL3.playStream(id,audio,opts);
+      throw new Error('TL3 v4 자산을 찾을 수 없고 기존 플레이어도 없습니다.');
+    }
+    if(!probe.ok){const d=await probe.json().catch(()=>({}));throw new Error(d.error||('TL3 v4 header HTTP '+probe.status));}
+    return playStream(id,audio,opts);
+  }
+  global.TL3V4Player=Object.freeze({playStream:playStream,playStreamOrLegacy:playStreamOrLegacy,version:'TL3-SPINE-1'});
 })(window);
