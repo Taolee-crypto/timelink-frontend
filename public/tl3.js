@@ -201,6 +201,11 @@
         });
         const data = await response.json().catch(function(){ return {}; });
         if (!response.ok || !data.ok) throw new Error(data.error || ('confirm ' + response.status));
+        console.log('[TL3v4] confirm response:', {
+          ok: data.ok, next_license: !!data.next_license,
+          next_error: data.next_error, segment: data.segment,
+          wallet_tl: data.wallet_tl, asset_remaining_tl: data.asset_remaining_tl
+        });
         if (index === segmentIndexPending) segmentIndexPending = -1;
         if (Number.isInteger(nextSegment)) prefetchedLicenses.delete(nextSegment + 1);
         if (data.wallet_tl !== undefined) onSegment({index:index, seconds:played, remaining:data.wallet_tl, wallet_tl:data.wallet_tl, asset_remaining_tl:data.asset_remaining_tl});
