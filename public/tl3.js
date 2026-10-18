@@ -447,7 +447,7 @@
               const initialOffset = mp3InitialTimelineOffset(plain);
               if (initialOffset > 0 && !sb.updating) {
                 try {
-                  sb.timestampOffset = -initialOffset;
+                  // sb.timestampOffset = -initialOffset;  // 2026-10-18: sequence 모드에서 브라우저가 이미 처리
                   console.log('[TL3v4] MP3 encoder delay aligned:', {
                     offsetSeconds: initialOffset,
                     timestampOffset: sb.timestampOffset
@@ -540,7 +540,7 @@
               // Settle only after the playhead has traversed this segment's
               // actual MSE timeline range. Early confirmation refunds the
               // unheard tail while the already-appended audio continues playing.
-              const advanceAt = segmentSeconds;
+              const advanceAt = Math.max(0.3, segmentSeconds * 0.6);  // 2026-10-18: 60%에서 다음 세그먼트 준비
               if (playedSeconds + 0.001 < advanceAt) return;
               clearInterval(segmentTimer);
               segmentTimer = null;
