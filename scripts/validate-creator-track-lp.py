@@ -68,6 +68,9 @@ assert "tl3-manufacture.js" in creator_text, "Creator must load the shared TL3 m
 manufacture_text = manufacture.read_text(encoding="utf-8")
 v4_player_text = v4_player.read_text(encoding="utf-8")
 assert "api/v1/tl3/spine/releases" in manufacture_text, "Creator must manufacture the published TL3 Spine v4 container."
+assert "const lpLicense = o.lpLicense || null;" in manufacture_text, "Manufacturer must bind the Creator LP profile before use."
+assert "Creator의 LP 효과 분석이 완성되지 않았습니다." in manufacture_text, "Manufacturer must reject incomplete Creator-side LP profiles."
+assert "lp: lpLicense && lpLicense.lp_enabled === true" in manufacture_text, "Manufacture result must use the scoped LP profile."
 assert "api/v1/tl3/spine/header/" in manufacture_text, "Creator must verify the Track-playable v4 header before completion."
 assert "api/v1/tl3/spine/" in manufacture_text and "/verify" in manufacture_text, "Creator must verify the v4 Spine integrity chain."
 assert "api/v1/tl3/spine/header/" in v4_player_text, "Track v4 player must consume the published Spine header."
