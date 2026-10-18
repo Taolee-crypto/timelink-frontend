@@ -90,6 +90,14 @@
       return Promise.resolve();
     }
 
+    // Stop all audible DSP output without destroying the MediaElementAudioSourceNode.
+    // The same media element may be reused for a later playback session.
+    function stop() {
+      if (destroyed) return Promise.resolve();
+      if (ctx.state === 'running') return ctx.suspend().catch(function () {});
+      return Promise.resolve();
+    }
+
     try {
       source = ctx.createMediaElementSource(audioEl);
       try {
@@ -130,6 +138,7 @@
         enabled: true,
         mode: mode,
         resume: resume,
+        stop: stop,
         state: function () { return ctx.state; },
         destroy: function () {
           if (destroyed) return;
