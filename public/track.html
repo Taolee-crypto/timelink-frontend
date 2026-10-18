@@ -1650,7 +1650,9 @@ function togglePlay(){
 }
 
 function stopPlay(){
+
   // 정지 상태를 먼저 확정해 pause 이벤트나 진행 중인 재생 콜백이 UI를 되살리지 못하게 한다.
+  // Stop state first so media events cannot restore the playing UI.
   const audio = _tlAudio || window._tlAudio || null;
   _tlPlaying = false;
   window._tlPlaying = false;
@@ -1661,12 +1663,16 @@ function stopPlay(){
 
   // TL3 세션 종료는 단 한 번만 호출한다. 이 함수가 LP 오디오 그래프와
   // 세그먼트 타이머도 함께 정지시킨다.
+  // _tl3SegmentStop aliases _tl3Stop and _tl3Confirm settles the same pending
+  // segment; call only _tl3Stop to avoid duplicate settlement requests.
+
   if(audio && typeof audio._tl3Stop === 'function'){
     try { audio._tl3Stop(); console.log('[PLAY] TL3 session stopped'); }
     catch(e){ console.warn('[PLAY] TL3 stop failed:', e); }
   }
 
   // 세션 정지 플래그를 세운 뒤 오디오 출력과 MediaSource 연결을 해제한다.
+
   if(audio){
     try { audio.pause(); } catch(e){}
     try { audio.removeAttribute('src'); audio.load(); } catch(e){}
@@ -1686,7 +1692,10 @@ function stopPlay(){
   const bar = document.getElementById('tlPlayerBar');
   if(bar) bar.style.display = 'none';
 }
+
 // 인라인 onclick에서 항상 접근할 수 있도록 전역 함수로 명시한다.
+// Inline HTML handlers always resolve this explicit global entry point.
+
 window.stopPlay = stopPlay;
 
 async function downloadTL(){
