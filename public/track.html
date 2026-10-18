@@ -562,6 +562,8 @@ async function loadTrack(){
     // TL3 V3 재생은 사용자 지갑에서 초 단위로 정산한다.
     // 존재하지 않는 legacy asset-TL API에 의존하지 않고 트랙 메타의 기준량을 표시한다.
     _assetInitialTL=Number(s.file_tl||0);
+    // 2026-10-19: file_tl이 0이면 duration_sec/duration으로 fallback
+    if(!_assetInitialTL) _assetInitialTL=Number(s.duration_sec||s.duration||0);
     _assetTL=_assetInitialTL;
     _share=s;
     _myLiked=stats.my_like||false;
@@ -574,30 +576,35 @@ async function loadTrack(){
     renderCopyright(s);
     if(s.user_id) checkFollowStatus(s.user_id);
 
-  // ★ duration이 없으면 서버에서 가져와서 표시 갱신
-  if(!s.duration && !s.duration_sec){
-    (async function(){
-      try {
-        var fileId = s.file_id || s.id;
-        if(!fileId) return;
-        var res = await fetch(API + '/api/v1/tl3/file-meta/' + fileId, {headers:{'Authorization':'Bearer '+getTok()}});
-        var meta = await res.json();
-        if(meta && meta.ok && meta.duration_sec){
-          var dur = Math.round(meta.duration_sec);
-          var reqEl = document.getElementById('reqTLText');
-          var durEl = document.getElementById('durText');
-          if(reqEl) reqEl.textContent = dur.toLocaleString() + ' TL';
-          if(durEl) durEl.textContent = '/ ' + fmtTime(dur);
-        }
-      } catch(e) { console.warn('[duration fetch]', e); }
-    })();
-  } else {
-    var reqEl = document.getElementById('reqTLText');
-    if(reqEl && reqEl.textContent === '...') {
-      var dur = Math.round(s.duration || s.duration_sec || 0);
-      if(dur > 0) reqEl.textContent = dur.toLocaleString() + ' TL';
-    }
-  }
+  // ★ duration이 없으면 서버에서 가져와서 표시 갱신 (2026-10-19: "계산 중..." 강제 해결)
+  (async function(){
+    try {
+      var reqEl = document.getElementById('reqTLText');
+      var durEl = document.getElementById('durText');
+      // "계산 중..." 또는 "..." 이면 무조건 file-meta API 호출
+      var needsFetch = !reqEl || reqEl.textContent.indexOf('계산') >= 0 || reqEl.textContent === '...';
+      var hasDur = Number(s.duration || s.duration_sec || 0) > 0;
+      if(hasDur && !needsFetch){
+        if(reqEl) reqEl.textContent = Math.round(s.duration || s.duration_sec).toLocaleString() + ' TL';
+        return;
+      }
+      if(!needsFetch && !hasDur) return;
+      var fileId = s.file_id || s.id;
+      if(!fileId) return;
+      var res = await fetch(API + '/api/v1/tl3/file-meta/' + fileId, {headers:{'Authorization':'Bearer '+getTok()}});
+      var meta = await res.json();
+      if(meta && meta.ok && meta.duration_sec){
+        var dur = Math.round(meta.duration_sec);
+        if(reqEl) reqEl.textContent = dur.toLocaleString() + ' TL';
+        if(durEl) durEl.textContent = '/ ' + fmtTime(dur);
+        // _assetInitialTL도 갱신
+        _assetInitialTL = dur;
+        _assetTL = dur;
+      } else if(reqEl) {
+        reqEl.textContent = '정보 없음';
+      }
+    } catch(e) { console.warn('[duration fetch]', e); }
+  })();
   } catch(e){ 
     console.error('Load error:', e);
     document.getElementById('mainWrap').innerHTML='<div class="loading">불러오기 실패: ' + e.message + '</div>'; 
