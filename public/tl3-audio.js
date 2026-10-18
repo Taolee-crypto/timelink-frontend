@@ -1,9 +1,9 @@
-/*! tl3-audio.js — TimeLink 경량 LP 재생 모듈
- * 기존 TL3 MSE/복호화 엔진과 분리된 실시간 LP DSP 출력부
- * 입력: header.lp_meta (enabled, g, seed)
- */
+/*! tl3-audio.js — TL3 player-owned reference LP runtime */
 (function (global) {
   'use strict';
+
+  const Ctor = global.AudioContext || global.webkitAudioContext;
+  const WORKLET_URL = '/tl3-lp-worklet.js?v=reference-lp-20261018';
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, Number(value) || 0));
@@ -21,196 +21,156 @@
     return buffer;
   }
 
-  function attach(audioEl, meta) {
-    const Ctor = global.AudioContext || global.webkitAudioContext;
-    let ctx = null;
-    let source = null;
-    const nodes = [];
-    let oscillator = null;
-    let noiseSource = null;
-    let destroyed = false;
-    let direct = false;
+  function legacyFallback(ctx, source, meta) {
+    const g = meta.g || {};
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 30 + 20 * clamp(g.Gd ?? 0.5, 0, 1);
+    hp.Q.value = 0.7071;
 
-    function passthrough() {
-      try {
-        if (source && ctx) {
-          source.disconnect();
-          source.connect(ctx.destination);
-          direct = true;
-        }
-      } catch (_) {}
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = clamp(16000 - 7000 * clamp(g.Gw ?? 0.5, 0, 1) - 4000 * clamp(g.Gi ?? 0.5, 0, 1), 9000, 18000);
+    lp.Q.value = 0.7071;
+
+    const shaper = ctx.createWaveShaper();
+    const amount = 1 + 2.5 * clamp(g.Gt ?? 0.2, 0, 1);
+    const curve = new Float32Array(2048);
+    const norm = Math.tanh(amount) || 1;
+    for (let i = 0; i < curve.length; i++) {
+      const x = i * 2 / (curve.length - 1) - 1;
+      curve[i] = Math.tanh(amount * x) / norm;
+    }
+    shaper.curve = curve;
+    shaper.oversample = '2x';
+
+    const delay = ctx.createDelay(0.04);
+    delay.delayTime.value = 0.012;
+    const lfo = ctx.createOscillator();
+    const depth = ctx.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.55;
+    depth.gain.value = 0.00025 + 0.001 * clamp(g.Gp ?? 0.2, 0, 1);
+    lfo.connect(depth);
+    depth.connect(delay.delayTime);
+
+    const output = ctx.createGain();
+    output.gain.value = 0.96;
+    source.connect(hp);
+    hp.connect(lp);
+    lp.connect(shaper);
+    shaper.connect(delay);
+    delay.connect(output);
+    output.connect(ctx.destination);
+    lfo.start();
+    return {
+      nodes: [hp, lp, shaper, delay, lfo, depth, output],
+      mode: 'legacy-fallback'
+    };
+  }
+
+  async function attach(audioEl, meta) {
+    if (audioEl && audioEl._tl3AudioController) {
+      await audioEl._tl3AudioController.resume();
+      return audioEl._tl3AudioController;
+    }
+    if (!meta || meta.enabled !== true || !Ctor) {
+      return { enabled: false, mode: 'bypass', resume: function () { return Promise.resolve(); }, destroy: function () {}, state: function () { return 'bypass'; } };
     }
 
+    const ctx = new Ctor();
+    let source = null;
+    let processor = null;
+    let fallbackNodes = [];
+    let destroyed = false;
+    let mode = 'reference-worklet';
+
     function resume() {
-      if (ctx && ctx.state === 'suspended') return ctx.resume().catch(function () {});
+      if (ctx.state === 'suspended') return ctx.resume().catch(function () {});
       return Promise.resolve();
     }
 
-    function param(key, fallback) {
-      const value = Number(meta && meta.g && meta.g[key]);
-      return Number.isFinite(value) ? value : fallback;
-    }
-
-    function destroy() {
-      if (destroyed) return;
-      destroyed = true;
-      try { if (oscillator) oscillator.stop(); } catch (_) {}
-      try { if (noiseSource) noiseSource.stop(); } catch (_) {}
-      try { if (source) source.disconnect(); } catch (_) {}
-      nodes.forEach(function (node) { try { node.disconnect(); } catch (_) {} });
-      if (ctx) {
-        const closing = ctx.close();
-        if (closing && closing.catch) closing.catch(function () {});
-      }
-      oscillator = null;
-      noiseSource = null;
-      source = null;
-      ctx = null;
-    }
-
-    if (!meta || meta.enabled !== true || !meta.g || !Ctor) {
-      return { resume: resume, destroy: destroy, enabled: false, state: function () { return 'bypass'; } };
-    }
-
     try {
-      const p = meta.g;
-      ctx = new Ctor();
       source = ctx.createMediaElementSource(audioEl);
-
-      // 1) LP tone: 단순한 2단 필터 체인
-      const highpass = ctx.createBiquadFilter();
-      highpass.type = 'highpass';
-      highpass.frequency.value = 30 + 20 * clamp(param('Gd', 0.5), 0, 1);
-      highpass.Q.value = 0.707;
-
-      const lowpass = ctx.createBiquadFilter();
-      lowpass.type = 'lowpass';
-      lowpass.frequency.value = clamp(
-        16000 - 7000 * clamp(param('Gw', 0.5), 0, 1) - 4000 * clamp(param('Gi', 0.5), 0, 1),
-        9000, 18000
-      );
-      lowpass.Q.value = 0.707;
-
-      // 2) 약한 아날로그 포화. 커브는 연결 시 한 번만 계산한다.
-      const shaper = ctx.createWaveShaper();
-      const amount = 1 + 2.5 * clamp(param('Gt', 0.2), 0, 1);
-      const curve = new Float32Array(1024);
-      const norm = Math.tanh(amount) || 1;
-      for (let i = 0; i < curve.length; i++) {
-        const x = (i * 2 / (curve.length - 1)) - 1;
-        curve[i] = Math.tanh(amount * x) / norm;
-      }
-      shaper.curve = curve;
-      shaper.oversample = 'none';
-
-      const output = ctx.createGain();
-      output.gain.value = 0.96;
-      source.connect(highpass);
-      highpass.connect(lowpass);
-      lowpass.connect(shaper);
-      shaper.connect(output);
-      output.connect(ctx.destination);
-      nodes.push(highpass, lowpass, shaper, output);
-
-      // 3) 미세한 wow. 별도 오디오 버퍼나 프레임 복사는 사용하지 않는다.
-      const delay = ctx.createDelay(0.04);
-      delay.delayTime.value = 0.012;
-      oscillator = ctx.createOscillator();
-      oscillator.type = 'sine';
-      oscillator.frequency.value = 0.55;
-      const wowDepth = ctx.createGain();
-      wowDepth.gain.value = 0.00025 + 0.001 * clamp(param('Gp', 0.2), 0, 1);
-      oscillator.connect(wowDepth);
-      wowDepth.connect(delay.delayTime);
-      output.disconnect();
-      shaper.disconnect();
-      shaper.connect(delay);
-      delay.connect(output);
-      // output.disconnect() above also removed the speaker connection.
-      // Restore the final route after inserting the wow delay stage.
-      output.connect(ctx.destination);
-      nodes.push(delay, wowDepth);
-      oscillator.start();
-
-      // 4) LP 표면 노이즈는 아주 작은 단일 루프 버퍼로만 생성한다.
-      //    값이 없거나 사실상 꺼진 경우에는 노이즈 경로 자체를 만들지 않는다.
-      const noiseDb = param('nz', -48);
-      if (Number.isFinite(noiseDb) && noiseDb > -90) {
-        noiseSource = ctx.createBufferSource();
-        noiseSource.buffer = makeNoiseBuffer(ctx, meta.seed);
-        noiseSource.loop = true;
-        const noiseFilter = ctx.createBiquadFilter();
-        noiseFilter.type = 'lowpass';
-        noiseFilter.frequency.value = 7500;
-        const noiseGain = ctx.createGain();
-        noiseGain.gain.value = Math.pow(10, clamp(noiseDb, -90, -24) / 20) * 0.16;
-        noiseSource.connect(noiseFilter);
-        noiseFilter.connect(noiseGain);
-        noiseGain.connect(ctx.destination);
-        nodes.push(noiseFilter, noiseGain);
-        noiseSource.start();
+      try {
+        if (!ctx.audioWorklet || typeof global.AudioWorkletNode !== 'function') {
+          throw new Error('AudioWorklet is not supported in this browser');
+        }
+        await ctx.audioWorklet.addModule(WORKLET_URL);
+        processor = new global.AudioWorkletNode(ctx, 'tl3-reference-lp', {
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          outputChannelCount: [2],
+          processorOptions: {
+            g: meta.g || {},
+            seed: meta.seed ?? 7,
+            durationMs: meta.duration_ms ?? 0
+          }
+        });
+        source.connect(processor);
+        processor.connect(ctx.destination);
+      } catch (workletError) {
+        console.warn('[TL3-AUDIO] reference worklet unavailable; using compatibility DSP:', workletError);
+        mode = 'legacy-fallback';
+        const fallback = legacyFallback(ctx, source, meta);
+        fallbackNodes = fallback.nodes;
       }
 
       audioEl.addEventListener('playing', resume);
-      resume();
-      console.log('[TL3-AUDIO] lightweight LP module attached', {
-        version: meta.version || 'lp-meta',
+      await resume();
+      console.log('[TL3-AUDIO] LP engine attached', {
+        version: 'reference-lp-v1',
+        mode: mode,
         sampleRate: ctx.sampleRate,
-        filterHz: [highpass.frequency.value, lowpass.frequency.value],
-        noise: !!noiseSource
+        profile: meta.version || 'track-reference',
+        parameters: meta.g || {}
       });
 
-      return {
-        resume: resume,
-        destroy: function () {
-          audioEl.removeEventListener('playing', resume);
-          destroy();
-        },
+      const controller = {
         enabled: true,
-        state: function () { return ctx ? ctx.state : 'closed'; }
-      };
-    } catch (error) {
-      console.warn('[TL3-AUDIO] LP setup failed; switching to direct audio', error);
-      passthrough();
-      // 실패한 그래프를 정리하되 createMediaElementSource의 네이티브 경로는 보존한다.
-      try { if (oscillator) oscillator.stop(); } catch (_) {}
-      try { if (noiseSource) noiseSource.stop(); } catch (_) {}
-      nodes.forEach(function (node) { try { node.disconnect(); } catch (_) {} });
-      if (source && ctx) {
-        try { source.disconnect(); source.connect(ctx.destination); } catch (_) {}
-      }
-      // Keep the context alive in direct mode; closing it would silence the media element.
-      audioEl.addEventListener('playing', resume);
-      resume();
-      return {
+        mode: mode,
         resume: resume,
+        state: function () { return ctx.state; },
         destroy: function () {
+          if (destroyed) return;
+          destroyed = true;
           audioEl.removeEventListener('playing', resume);
-          if (source) { try { source.disconnect(); } catch (_) {} }
-          source = null;
-          if (ctx) {
-            const closing = ctx.close();
-            if (closing && closing.catch) closing.catch(function () {});
-          }
-          ctx = null;
-        },
-        enabled: false,
-        state: function () { return direct ? 'direct' : 'bypass'; }
+          try { if (processor) processor.disconnect(); } catch (_) {}
+          fallbackNodes.forEach(function (node) { try { if (node.stop) node.stop(); } catch (_) {} try { node.disconnect(); } catch (_) {} });
+          try { if (source) source.disconnect(); } catch (_) {}
+          // Keep the source/context alive for replay; a media element may own
+          // only one MediaElementAudioSourceNode during its lifetime.
+        }
       };
+      audioEl._tl3AudioController = controller;
+      return controller;
+    } catch (error) {
+      console.warn('[TL3-AUDIO] LP setup failed; restoring direct media output.', error);
+      try { if (source) { source.disconnect(); source.connect(ctx.destination); } } catch (_) {}
+      audioEl.addEventListener('playing', resume);
+      await resume();
+      const controller = {
+        enabled: false,
+        mode: 'native-passthrough',
+        resume: resume,
+        state: function () { return ctx.state; },
+        destroy: function () {}
+      };
+      audioEl._tl3AudioController = controller;
+      return controller;
     }
   }
 
-  // Player-resident fallback profile: no LP payload or network fetch is
-  // required in a TL3 asset. Track metadata may override these parameters.
   const defaultProfile = {
     enabled: true,
-    version: 'player-default-lp-v1',
+    version: 'player-reference-lp-v1',
     seed: 7,
-    g: { Gd: 0.5, Gw: 0.5, Gi: 0.5, Gt: 0.2, Gp: 0.2, nz: -60 }
+    g: { Gd: 0.5, Gw: 0.5, Gv: 0.4, Gp: 0.2, Gs: 0.45, Gi: 0.5, Gt: 0.2, Gm: 1, nz: -48 }
   };
+
   global.TL3Audio = {
     attach: attach,
     defaultProfile: defaultProfile,
-    version: 'audio-lite-v1'
+    version: 'reference-lp-v1'
   };
 })(window);

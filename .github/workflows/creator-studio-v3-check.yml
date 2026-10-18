@@ -8,6 +8,7 @@ on:
       - "public/track.html"
       - "public/tl3.js"
       - "public/tl3-audio.js"
+      - "public/tl3-lp-worklet.js"
       - "public/tl3-lp.js"
       - "public/tl3-manufacture.js"
       - ".github/workflows/creator-studio-v3-check.yml"
@@ -18,6 +19,7 @@ on:
       - "public/track.html"
       - "public/tl3.js"
       - "public/tl3-audio.js"
+      - "public/tl3-lp-worklet.js"
       - "public/tl3-lp.js"
       - "public/tl3-manufacture.js"
       - ".github/workflows/creator-studio-v3-check.yml"
@@ -34,6 +36,7 @@ jobs:
         run: |
           node --check public/tl3.js
           node --check public/tl3-audio.js
+          node --check public/tl3-lp-worklet.js
           node --check public/tl3-lp.js
           node --check public/tl3-manufacture.js
       - name: Check Creator and Track inline JavaScript
@@ -84,13 +87,19 @@ jobs:
           assert "segment/confirm/" in player
           assert "genSid()" in player
           assert "const advanceLeadSeconds = 0.85;" in player
+          assert "confirmPending(playedSeconds, nextSegment)" in player
+          assert "const nextSegment = n < header.mp3.N ? n : undefined;" in player
+          assert "schedulePayloadPrefetch(segmentNo + ahead)" in player
 
           # The player loads its local LP module before TL3 and falls back to native output.
           audio_module = Path("public/tl3-audio.js").read_text(encoding="utf-8")
+          worklet = Path("public/tl3-lp-worklet.js").read_text(encoding="utf-8")
           player_lp = (
               "TL3Audio.attach" in player
               and "/tl3-audio.js" in track
-              and "lightweight LP module attached" in audio_module
+              and "reference-lp-v1" in audio_module
+              and "tl3-lp-worklet.js" in audio_module
+              and "registerProcessor('tl3-reference-lp'" in worklet
               and "native audio passthrough active." in player
           )
           assert player_lp, "Track must load the local player LP engine with native output fallback."
