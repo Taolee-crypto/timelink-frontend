@@ -186,8 +186,16 @@
     }
 
     async function attachLpRealtime(meta, durationMs) {
-      // The player's AudioWorklet runs the same stateful LP stages as the
-      // creator-side reference renderer. DSP state persists across TL3 chunks.
+      // LP Enhanced is a licensed per-release treatment. Never apply a
+      // synthetic default profile to a track whose TL3 header has no LP license.
+      if (!meta || meta.enabled !== true) {
+        if (lpController && typeof lpController.stop === 'function') {
+          try { await lpController.stop(); } catch (_) {}
+        }
+        lpController = null;
+        console.info('[TL3-AUDIO] LP license absent; clean native playback.');
+        return;
+      }
       try {
         if (lpController && lpController.enabled) {
           await lpController.resume();
@@ -195,16 +203,16 @@
         }
         if (global.TL3Audio && typeof global.TL3Audio.attach === 'function') {
           const base = global.TL3Audio.defaultProfile || { enabled:true, g:{} };
-          const profile = Object.assign({}, base, meta && meta.enabled === true ? meta : {});
-          profile.g = Object.assign({}, base.g || {}, meta && meta.enabled === true && meta.g || {});
+          const profile = Object.assign({}, base, meta);
+          profile.g = Object.assign({}, base.g || {}, meta.g || {});
           profile.enabled = true;
           profile.duration_ms = Number(durationMs || profile.duration_ms || 0);
           lpController = await global.TL3Audio.attach(audioEl, profile);
           if (lpController && lpController.enabled) {
-            console.log('[TL3-AUDIO] player reference LP engine active.', {
-              version: global.TL3Audio.version || 'reference-lp',
+            console.log('[TL3-AUDIO] licensed LP Enhanced profile attached.', {
+              version: global.TL3Audio.version || 'LP-Enhanced',
               mode: lpController.mode || 'unknown',
-              profile: profile.version || 'player-reference',
+              profile: profile.version || 'licensed-lp',
               state: lpController.state()
             });
             return;
@@ -214,7 +222,7 @@
         console.warn('[TL3-AUDIO] LP initialization failed; native output retained.', error);
       }
       lpController = null;
-      console.info('[TL3-AUDIO] native audio passthrough active.');
+      console.info('[TL3-AUDIO] LP processing unavailable; native audio passthrough active.');
     }
     audioEl._tl3Confirm = function() {
       if (segmentTimer) { clearInterval(segmentTimer); segmentTimer = null; }
