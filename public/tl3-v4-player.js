@@ -29,6 +29,23 @@
       const timer=setInterval(()=>{check();if(stopped()||audio.currentTime>=target-0.04||audio.ended){clearInterval(timer);done();}},200);
     });
   }
+  async function syncPoc(){
+    if(!pocDirty)return;
+    if(pocSyncPromise)return pocSyncPromise;
+    pocDirty=false;
+    pocSyncPromise=(async()=>{
+      const r=await fetch(API+'/api/eco/activity',{
+        method:'POST',
+        headers:Object.assign({'Content-Type':'application/json'},auth()),
+        body:JSON.stringify({mode:'listen'})
+      });
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok||d.ok===false)throw new Error(d.error||('POC refresh HTTP '+r.status));
+      console.log('[TL3v4] POC refreshed',d.poc_index);
+      return d;
+    })().catch(e=>{pocDirty=true;console.warn('[TL3v4] POC refresh deferred',e);}).finally(()=>{pocSyncPromise=null;});
+    return pocSyncPromise;
+  }
   async function playStream(id,audio,opts){
     opts=opts||{};
     const onSegment=opts.onSegment||function(){};
@@ -60,7 +77,8 @@
     };
     const ms=new MediaSource(),url=URL.createObjectURL(ms);
     let sb=null,stopped=false,next=0,appendBusy=false;
-    const cache=new Map(),settled=new Set();
+    const cache=new Map(),settled=new Set(),settlementTasks=[];
+    let pocDirty=false,pocSyncPromise=null;
     const starts=[];
     let t=0;for(let i=0;i<N;i++){starts.push(t);t+=durations[i]||1000;}
     const fetchSegment=async n=>{
@@ -85,17 +103,21 @@
       cache.set(n,p);return p;
     };
     const settle=async n=>{
-      if(settled.has(n)||stopped)return;
+      if(settled.has(n))return;
       const seg=await cache.get(n);
+      const start=starts[n-1]/1000;
       const end=(starts[n-1]+seg.duration)/1000;
       await waitForPlayback(audio,end,()=>stopped);
-      if(stopped)return;
+      // On stop, settle only the portion that actually reached the audio clock.
+      // The backend refunds the rest and releases any unplayed prefetched segment.
+      const played=Math.max(0,Math.min(seg.duration/1000,(Number(audio.currentTime)||0)-start));
       const d=await json(API+'/api/v1/tl3/segment/confirm/'+encodeURIComponent(data.file_id),{
         method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
-        body:JSON.stringify({session_id:sessionId,played_seconds:seg.duration/1000,next_segment:n<N?n:undefined})
+        body:JSON.stringify({session_id:sessionId,played_seconds:played,next_segment:(!stopped&&n<N)?n:undefined})
       });
-      settled.add(n);
-      onSegment({index:n-1,seconds:seg.duration/1000,remaining:d.wallet_tl,wallet_tl:d.wallet_tl,asset_remaining_tl:d.asset_remaining_tl});
+      settled.add(n);pocDirty=true;
+      onSegment({index:n-1,seconds:played,remaining:d.wallet_tl,wallet_tl:d.wallet_tl,asset_remaining_tl:d.asset_remaining_tl});
+      if(stopped||n===N)await syncPoc();
     };
     async function pump(){
       if(appendBusy||stopped)return;
@@ -108,6 +130,11 @@
           // reservation is not requested until the previous segment settles.
           if(n>=3 && settlements.has(n-2)) await settlements.get(n-2);
           const seg=await fetchSegment(n);
+          if(stopped){
+            if(n===1)await settle(n);
+            else if(settlements.has(n-1))await settlements.get(n-1);
+            break;
+          }
           await new Promise((resolve,reject)=>{
             const cleanup=()=>{sb.removeEventListener('updateend',end);sb.removeEventListener('error',fail);};
             const end=()=>{cleanup();resolve();},fail=()=>{cleanup();reject(new Error('TL3 v4 appendBuffer failed @'+n));};
@@ -117,11 +144,17 @@
           next++;
           if(audio.paused&&n===1){try{await audio.play();}catch(e){console.warn('[TL3v4] play request rejected',e);}}
           if(n>=2 && settlements.has(n-1)) await settlements.get(n-1);
+          if(stopped){
+            try{await settle(n);}catch(e){console.warn('[TL3v4] stopped segment refund',n,e);}
+            break;
+          }
           if(n<N) await fetchSegment(n+1);
-          settlements.set(n,settle(n).catch(e=>{console.error('[TL3v4] settlement failed',n,e);onError(e);throw e;}));
+          const task=settle(n).catch(e=>{console.error('[TL3v4] settlement failed',n,e);onError(e);throw e;});
+          settlements.set(n,task);settlementTasks.push(task);
         }
         if(next===N&&!stopped&&ms.readyState==='open'){try{ms.endOfStream();}catch(_){}}
         if(N>0&&settlements.has(N)) await settlements.get(N);
+        await syncPoc();
       }catch(e){onError(e);throw e;}
       finally{appendBusy=false;}
     }
@@ -139,7 +172,7 @@
       },{once:true});
       audio.src=url;audio.load();
     }).then(result=>{
-      audio._tl3Stop=function(){if(stopped)return;stopped=true;try{audio.pause();}catch(_){};if(lpController&&lpController.stop)lpController.stop().catch(()=>{});try{if(ms.readyState==='open')ms.endOfStream();}catch(_){};};
+      audio._tl3Stop=function(){if(stopped)return;stopped=true;try{audio.pause();}catch(_){};if(lpController&&lpController.stop)lpController.stop().catch(()=>{});try{if(ms.readyState==='open')ms.endOfStream();}catch(_){};Promise.allSettled(settlementTasks).then(()=>syncPoc());};
       audio._tl3Confirm=audio._tl3Stop;
       audio._tl3Suspend=function(){return lpController&&lpController.suspend?lpController.suspend():Promise.resolve();};
       audio._tl3Resume=function(){return lpController&&lpController.resume?lpController.resume():Promise.resolve();};
