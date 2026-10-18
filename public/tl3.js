@@ -468,6 +468,17 @@
               }
             });
 
+            // Settle against the timeline that MSE actually made playable.
+            // The first Xing/Info frame and encoder-delay timestampOffset can
+            // make the audible range shorter than the encoded-frame duration.
+            // Waiting for the nominal duration then stalls forever at the
+            // first buffer boundary (typically after about one second).
+            const appendedEnd = sb.buffered.length
+              ? sb.buffered.end(sb.buffered.length - 1)
+              : pendingMediaStart;
+            const actualPlayableMs = Math.max(0, (appendedEnd - pendingMediaStart) * 1000);
+            if (actualPlayableMs > 0) pendingDurationMs = actualPlayableMs;
+
             const sbRanges = Array.from({length:sb.buffered.length},(_,i)=>[sb.buffered.start(i),sb.buffered.end(i)]);
             const audioRanges = Array.from({length:audioEl.buffered.length},(_,i)=>[audioEl.buffered.start(i),audioEl.buffered.end(i)]);
             const mp3Header = Array.from(plain.slice(0,16),b=>b.toString(16).padStart(2,'0')).join('');
@@ -501,7 +512,7 @@
               // Prepare the next licensed segment while this segment is still
               // playing. The MSE stream can become unbuffered slightly before
               // its nominal 1-second boundary, so a late handoff always clicks.
-              const segmentSeconds = durationMs / 1000;
+              const segmentSeconds = pendingDurationMs / 1000;
               // Settle only after the playhead has traversed this segment's
               // actual MSE timeline range. Early confirmation refunds the
               // unheard tail while the already-appended audio continues playing.
@@ -511,7 +522,7 @@
               segmentTimer = null;
               pendingMediaStart = -1;
               console.log('[TL3v4] segment playback threshold reached', {
-                segment:n, playedSeconds, segmentSeconds, advanceAt,
+                segment:n, playedSeconds, segmentSeconds, encodedDurationMs:durationMs,
                 currentTime:audioEl.currentTime, paused:audioEl.paused
               });
               // 확정·환급과 다음 구간 TL 예약/라이선스 발급을 한 요청으로 묶는다.
