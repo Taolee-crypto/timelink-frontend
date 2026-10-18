@@ -84,13 +84,20 @@
     const fetchSegment=async n=>{
       if(cache.has(n))return cache.get(n);
       const p=(async()=>{
-        const q='?segment='+(n-1)+'&session_id='+encodeURIComponent(sessionId);
-        const [resp,license]=await Promise.all([
-          fetch(API+'/api/v1/tl3/segment/'+encodeURIComponent(data.file_id)+q,{headers:auth()}),
-          json(API+'/api/v1/tl3/code/'+encodeURIComponent(data.file_id)+q,{headers:auth()})
-        ]);
-        if(!resp.ok)throw new Error('TL3 v4 segment '+n+' HTTP '+resp.status);
-        const cipher=new Uint8Array(await resp.arrayBuffer());
+        const traceStart=performance.now(),q='?segment='+(n-1)+'&session_id='+encodeURIComponent(sessionId);
+        const segmentStart=performance.now(),codeStart=performance.now();
+        const segmentPromise=fetch(API+'/api/v1/tl3/segment/'+encodeURIComponent(data.file_id)+q,{headers:auth()}).then(async resp=>{
+          const headers={status:resp.status,bytes:Number(resp.headers.get('content-length')||0)};
+          if(!resp.ok)throw new Error('TL3 v4 segment '+n+' HTTP '+resp.status);
+          const cipher=new Uint8Array(await resp.arrayBuffer());headers.bytes=cipher.byteLength;
+          headers.ms=Math.round(performance.now()-segmentStart);return {cipher,headers};
+        });
+        const codePromise=json(API+'/api/v1/tl3/code/'+encodeURIComponent(data.file_id)+q,{headers:auth()}).then(license=>{
+          console.info('[TL3v4][TRACE] code',n,{ms:Math.round(performance.now()-codeStart),cost:license.cost,prefetched:!!license.prefetched,duplicate:!!license.duplicate});
+          return license;
+        });
+        const [{cipher,headers:segment},license]=await Promise.all([segmentPromise,codePromise]);
+        const decryptStart=performance.now();
         const previous=unhex(tokens[n-1]);
         const lic=unhex(String(license.lic_n||''));
         if(previous.length!==32||lic.length!==32)throw new Error('TL3 v4 license/token 길이가 올바르지 않습니다.');
@@ -98,6 +105,7 @@
         const aad={profile:'TL3-SPINE-1',fid:h.fid,file_id:Number(h.file_id),share_id:String(h.share_id),index:index,start_ms:startMs,end_ms:endMs,previous:hex(previous),rights_digest:h.rights_digest};
         const key=await deriveKey(lic,previous,index);
         const plain=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:ivFor(unhex(h.nonce_prefix),index),additionalData:enc(JSON.stringify(aad)),tagLength:128},key,cipher));
+        console.info('[TL3v4][TRACE] segment-ready',n,{segment,parallel_ms:Math.round(performance.now()-traceStart),decrypt_ms:Math.round(performance.now()-decryptStart),plain_bytes:plain.byteLength});
         return {plain,duration:durations[n-1]||1000,license};
       })();
       cache.set(n,p);return p;
@@ -144,9 +152,10 @@
             else if(settlements.has(n-1))await settlements.get(n-1);
             break;
           }
+          const appendStart=performance.now();
           await new Promise((resolve,reject)=>{
             const cleanup=()=>{sb.removeEventListener('updateend',end);sb.removeEventListener('error',fail);};
-            const end=()=>{cleanup();resolve();},fail=()=>{cleanup();reject(new Error('TL3 v4 appendBuffer failed @'+n));};
+            const end=()=>{cleanup();const ranges=[];for(let i=0;i<sb.buffered.length;i++)ranges.push([Number(sb.buffered.start(i).toFixed(2)),Number(sb.buffered.end(i).toFixed(2))]);console.info('[TL3v4][TRACE] append',n,{ms:Math.round(performance.now()-appendStart),audio_time:Number(audio.currentTime.toFixed(2)),ready_state:audio.readyState,buffered:ranges});resolve();},fail=()=>{cleanup();reject(new Error('TL3 v4 appendBuffer failed @'+n));};
             sb.addEventListener('updateend',end,{once:true});sb.addEventListener('error',fail,{once:true});
             try{sb.appendBuffer(seg.plain);}catch(e){cleanup();reject(e);}
           });
@@ -172,6 +181,7 @@
         try{
           sb=ms.addSourceBuffer('audio/mpeg');
           try{sb.mode='sequence';}catch(_){}
+          for(const ev of ['waiting','stalled','playing','pause','ended','error'])audio.addEventListener(ev,()=>{const ranges=[];for(let i=0;i<audio.buffered.length;i++)ranges.push([Number(audio.buffered.start(i).toFixed(2)),Number(audio.buffered.end(i).toFixed(2))]);console.info('[TL3v4][TRACE] audio-'+ev,{time:Number(audio.currentTime.toFixed(2)),ready_state:audio.readyState,network_state:audio.networkState,buffered:ranges});});
           onReady({mediaSource:ms,header:h,sessionId});
           // The MediaSource URL is assigned once below; reloading here would reset
           // the SourceBuffer immediately after sourceopen.
