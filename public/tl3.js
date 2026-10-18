@@ -202,6 +202,7 @@
         const data = await response.json().catch(function(){ return {}; });
         if (!response.ok || !data.ok) throw new Error(data.error || ('confirm ' + response.status));
         if (index === segmentIndexPending) segmentIndexPending = -1;
+        if (Number.isInteger(nextSegment)) prefetchedLicenses.delete(nextSegment + 1);
         if (data.wallet_tl !== undefined) onSegment({index:index, seconds:played, remaining:data.wallet_tl, wallet_tl:data.wallet_tl, asset_remaining_tl:data.asset_remaining_tl});
         return data;
       } catch (error) {
