@@ -15,13 +15,19 @@
   }
   async function fetchRetry(url,opts,label){
     let lastError;
-    for(let attempt=0;attempt<4;attempt++){
+    const retryable=[408,429,500,502,503,504];
+    const maxAttempts=6;
+    for(let attempt=0;attempt<maxAttempts;attempt++){
       try{
         const response=await fetch(url,opts||{headers:auth()});
-        if(response.ok||![408,429,500,502,503,504].includes(response.status))return response;
+        if(response.ok||!retryable.includes(response.status))return response;
         lastError=new Error((label||'TL3 request')+' HTTP '+response.status);
       }catch(error){lastError=error;}
-      if(attempt<3)await new Promise(resolve=>setTimeout(resolve,350*Math.pow(2,attempt)));
+      if(attempt<maxAttempts-1){
+        const delay=Math.min(8000,500*Math.pow(2,attempt))+Math.floor(Math.random()*250);
+        console.warn('[TL3v4] transient request failure; retrying',{label:label||'TL3 request',attempt:attempt+1,next_delay_ms:delay,error:String(lastError&&lastError.message||lastError)});
+        await new Promise(resolve=>setTimeout(resolve,delay));
+      }
     }
     throw lastError||new Error((label||'TL3 request')+' failed');
   }
@@ -196,7 +202,7 @@
       try{
         // The release license is derived per asset, not per segment. Obtain it once,
         // then download/decrypt audio segments ahead without serial code-issuance waits.
-        const initialCount=Math.min(N,5);
+        const initialCount=Math.min(N,2);
         const initial=await Promise.all(Array.from({length:initialCount},(_,i)=>fetchSegment(i+1)));
         for(let i=0;i<initial.length;i++){
           if(stopped)break;
@@ -212,11 +218,11 @@
           });
           settlementTasks.push(chain);
         }
-        // Keep a rolling ten-segment decode/download window. SourceBuffer appends
-        // stay ordered; confirmations run independently in the background.
-        for(let first=initialCount+1;first<=N;first+=5){
+        // Keep a small rolling two-segment download window to reduce concurrent D1 reads.
+        // SourceBuffer appends stay ordered; confirmations run independently in the background.
+        for(let first=initialCount+1;first<=N;first+=2){
           if(stopped)break;
-          const count=Math.min(5,N-first+1);
+          const count=Math.min(2,N-first+1);
           const batch=await Promise.all(Array.from({length:count},(_,i)=>fetchSegment(first+i)));
           for(let i=0;i<batch.length;i++){
             if(stopped)break;
