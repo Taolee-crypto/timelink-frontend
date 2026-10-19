@@ -554,6 +554,31 @@ async function loadShares(){
 
 // ⭐ 모든 TL3 곡카드의 잔여 TL은 동일한 자산 잔액 API로 조회한다.
 // 숫자형 file_id(구형 목록)와 sh_ 형식 share_id(신형 목록)를 API에서 함께 해석한다.
+function updateShareCardTL(shareId, balance){
+  var key=String(shareId);
+  var share=_allShares.find(function(s){ return String(s.id)===key; });
+  var card=document.getElementById('card-'+key);
+  if(!share || !card) return;
+  var required=Math.max(0,Number(share.file_tl)||0);
+  var remaining=Math.max(0,Number(balance)||0);
+  var color=remaining>=required?'var(--teal)':'var(--orange)';
+  var gridPrice=card.querySelector('.fc-price');
+  if(gridPrice){
+    gridPrice.textContent='⚡ '+required.toLocaleString()+'/'+remaining.toLocaleString();
+    gridPrice.style.color=color;
+  }
+  var listPrice=card.querySelector('.fl-price');
+  if(listPrice){
+    listPrice.textContent='⚡ 필요 '+required.toLocaleString()+' / 보유 '+remaining.toLocaleString()+' TL';
+    listPrice.style.color=color;
+  }
+  var playButton=card.querySelector('.fc-play, .fl-play');
+  if(playButton && !playButton.classList.contains('playing')){
+    playButton.classList.toggle('playable',remaining>0);
+    playButton.classList.toggle('need-charge',remaining<=0);
+  }
+}
+
 async function loadMyTL(){
   var tl3Songs = _allShares.filter(function(s){ return contentKind(s) === 'tl3'; });
   if (!tl3Songs.length) return;
@@ -857,6 +882,7 @@ function tlPlay(shareId,title,artist,coverUrl,fileUrl,fileTL,duration,shareObj){
       if(info && info.remaining !== undefined){
         _tlCurrentTL=Math.max(0,Number(info.remaining)||0);
         _myFileTL[String(_expectedShareId)]=_tlCurrentTL;
+        updateShareCardTL(_expectedShareId,_tlCurrentTL);
         tlUpdateUI();
       }
     }})
@@ -899,7 +925,7 @@ function tlStartTimer(){
     // 레거시 Share consume을 함께 호출하면 세그먼트 과금과 중복 차감될 수 있다.
     if(!isTl3) _tlCurrentTL=Math.max(0,_tlCurrentTL-1);
     if(!isFree && !isTl3 && _tlElapsed%5===0&&_tlShareId){
-      fetch(API_BASE+'/api/shares/'+_tlShareId+'/consume',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},body:JSON.stringify({seconds:5,user_id:_user?_user.id:null})}).then(function(r){return r.json();}).then(function(d){ if(d.ok&&d.user_tl!==undefined){ _tlCurrentTL=d.user_tl; _myFileTL[String(_tlShareId)]=d.user_tl; if(d.wallet_tl!==undefined){ _user.tl=Number(d.wallet_tl||0); var el=document.getElementById('tbTL'); if(el) el.textContent=Number(_user.tl).toLocaleString()+' TL'; } } else if(d.need_charge){ tlStop(); if(confirm('곡의 TL이 부족합니다.\n지금 충전하시겠습니까?\n\n필요: '+d.required+' TL\n곡 잔액: '+d.current+' TL\n지갑: '+d.wallet+' TL')){ chargeTL(_tlShareId, document.getElementById('tlTitle').textContent); } } }).catch(function(){});
+      fetch(API_BASE+'/api/shares/'+_tlShareId+'/consume',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},body:JSON.stringify({seconds:5,user_id:_user?_user.id:null})}).then(function(r){return r.json();}).then(function(d){ if(d.ok&&d.user_tl!==undefined){ _tlCurrentTL=d.user_tl; _myFileTL[String(_tlShareId)]=d.user_tl; updateShareCardTL(_tlShareId,d.user_tl); if(d.wallet_tl!==undefined){ _user.tl=Number(d.wallet_tl||0); var el=document.getElementById('tbTL'); if(el) el.textContent=Number(_user.tl).toLocaleString()+' TL'; } } else if(d.need_charge){ tlStop(); if(confirm('곡의 TL이 부족합니다.\n지금 충전하시겠습니까?\n\n필요: '+d.required+' TL\n곡 잔액: '+d.current+' TL\n지갑: '+d.wallet+' TL')){ chargeTL(_tlShareId, document.getElementById('tlTitle').textContent); } } }).catch(function(){});
     }
     tlUpdateUI();
     if(!isFree && !isTl3 && _tlCurrentTL<=0){ tlStop(); document.getElementById('tlWarning').style.display='block'; }
