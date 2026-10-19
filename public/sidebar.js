@@ -149,11 +149,18 @@
     main.style.transform = 'none';
   }
 
+  // Display TL as whole units only; retain fractional precision in wallet data.
+  function formatTLBalance(value) {
+    var amount = Number(value);
+    if (!Number.isFinite(amount)) amount = 0;
+    return Math.floor(Math.max(0, amount)).toLocaleString('ko-KR') + ' TL';
+  }
+
   var user = {};
   try { user = JSON.parse(localStorage.getItem('tl_user') || '{}'); } catch (e) {}
   var balance = document.getElementById('tlGlobalBalance');
   var amount = user.tl_balance != null ? user.tl_balance : user.tl;
-  if (balance && amount != null) balance.textContent = Number(amount).toLocaleString() + ' TL';
+  if (balance && amount != null) balance.textContent = formatTLBalance(amount);
 
   if (token) {
     fetch(API + '/api/admin/settings/__sidebar_access__', {
@@ -210,7 +217,7 @@
       var bal = Number(d.tl_balance);
       if(isFinite(bal)){
         var el = document.getElementById('tlGlobalBalance');
-        if(el) el.textContent = bal.toLocaleString() + ' TL';
+        if(el) el.textContent = formatTLBalance(bal);
         try {
           var u = JSON.parse(localStorage.getItem('tl_user') || '{}');
           u.tl_balance = bal;
@@ -222,7 +229,7 @@
   window.addEventListener('tl-balance-updated', function(e){
     if(e.detail && isFinite(e.detail.tl)){
       var el = document.getElementById('tlGlobalBalance');
-      if(el) el.textContent = Number(e.detail.tl).toLocaleString() + ' TL';
+      if(el) el.textContent = formatTLBalance(e.detail.tl);
     }
   });
   fetchServerBalance();
