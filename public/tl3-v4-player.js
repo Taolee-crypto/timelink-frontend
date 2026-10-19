@@ -7,6 +7,7 @@
   const hex=b=>Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('');
   const token=()=>localStorage.getItem('tl_token')||'';
   const auth=()=>({'Authorization':'Bearer '+token()});
+  let registeredCredentialKey='',registrationPromise=null;
   const sid=()=>{const b=crypto.getRandomValues(new Uint8Array(24));return 'tl3v4_'+Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('');};
   function ivFor(prefix,n){const iv=new Uint8Array(12);iv.set(prefix,0);new DataView(iv.buffer).setBigUint64(4,BigInt(n),false);return iv;}
   async function deriveKey(license,previous,n){
@@ -47,10 +48,15 @@
   }
   async function unwrapPlayerSessionLicense(fileId,shareId,sessionId){
     const credential=await playerCredential();
-    await json(API+'/api/v1/tl3/player/register',{
-      method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
-      body:JSON.stringify({player_id:credential.playerId,public_key:credential.publicKey})
-    });
+    const registrationKey=token()+'|'+credential.playerId;
+    if(registeredCredentialKey!==registrationKey||!registrationPromise){
+      registeredCredentialKey=registrationKey;
+      registrationPromise=json(API+'/api/v1/tl3/player/register',{
+        method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
+        body:JSON.stringify({player_id:credential.playerId,public_key:credential.publicKey})
+      }).catch(error=>{registrationPromise=null;throw error;});
+    }
+    await registrationPromise;
     const envelope=await json(API+'/api/v1/tl3/player/session-license/'+encodeURIComponent(fileId),{
       method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
       body:JSON.stringify({player_id:credential.playerId,session_id:sessionId})
