@@ -90,7 +90,7 @@
     const ms=new MediaSource(),url=URL.createObjectURL(ms);
     let sb=null,stopped=false,next=0,appendBusy=false;
     const cache=new Map();
-    let licensePromise=null,chargePromise=null,charged=false;
+    let licensePromise=null;
     const starts=[];
     let t=0;for(let i=0;i<N;i++){starts.push(t);t+=durations[i]||1000;}
     const getSessionLicense=()=>{
