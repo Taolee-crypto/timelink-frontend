@@ -149,7 +149,7 @@
     }
     let playbackStarted=false;
     let bufferedDurationMs=0;
-    const START_BUFFER_MS=8000;
+    const START_BUFFER_MS=2000;
     async function startAudiblePlayback(){
       if(playbackStarted||stopped)return;
       playbackStarted=true;
@@ -196,36 +196,75 @@
         throw e;
       }finally{appendBusy=false;}
     }
-    async function chargeOnce(){
-      if(charged)return;
-      if(chargePromise)return chargePromise;
-      chargePromise=(async()=>{
-        const response=await fetchRetry(API+'/api/v1/tl3/play/charge/'+encodeURIComponent(data.file_id),{
+    // Bill only audible media-time progress. Pauses, buffering and seeks do not accrue TL.
+    let billableMs=0,lastAudibleTime=null,lastMeteredSeconds=0,meterQueuedSeconds=0;
+    let meterTimer=null,meterQueue=Promise.resolve(),meterFailed=false;
+    function sampleAudiblePlayback(){
+      if(stopped||meterFailed)return;
+      const active=!audio.paused&&!audio.seeking&&!audio.ended&&!audio.muted&&audio.volume>0&&audio.readyState>=2;
+      if(!active){lastAudibleTime=null;return;}
+      const now=Number(audio.currentTime);
+      if(!Number.isFinite(now)){lastAudibleTime=null;return;}
+      if(lastAudibleTime!==null){
+        const delta=(now-lastAudibleTime)*1000;
+        // Ignore seeks, clock jumps and discontinuities; count only normal forward playback.
+        if(delta>0&&delta<=1500)billableMs+=delta;
+      }
+      lastAudibleTime=now;
+      const completed=Math.floor(billableMs/1000);
+      if(completed>meterQueuedSeconds)queuePlaybackMeter(completed);
+    }
+    function queuePlaybackMeter(targetSeconds){
+      if(targetSeconds<=meterQueuedSeconds||meterFailed)return;
+      meterQueuedSeconds=targetSeconds;
+      meterQueue=meterQueue.then(async()=>{
+        if(meterFailed)return;
+        const response=await fetchRetry(API+'/api/v1/tl3/play/meter/'+encodeURIComponent(data.file_id),{
           method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
-          body:JSON.stringify({session_id:sessionId})
-        },'TL3 full-track charge');
+          body:JSON.stringify({session_id:sessionId,played_ms:Math.floor(billableMs)})
+        },'TL3 playback-time meter');
         const d=await response.json().catch(()=>({}));
-        if(!response.ok||!d.ok)throw new Error(d.error||('TL3 full-track charge HTTP '+response.status));
-        charged=true;
-        console.info('[TL3v4] one-time full-track charge confirmed',d);
-        if(typeof opts.onCharge==='function')opts.onCharge(d);
-        return d;
-      })();
-      try{return await chargePromise;}
-      catch(e){chargePromise=null;haltChargeFailure(e);throw e;}
+        if(response.status===402&&d.stop){
+          if(typeof opts.onMeter==='function')opts.onMeter(d);
+          meterFailed=true;
+          try{audio.pause();}catch(_){}
+          const error=new Error(d.error||'보유 TL이 부족하여 재생을 중지합니다.');
+          if(typeof opts.onInsufficient==='function')opts.onInsufficient(d);
+          else onError(error);
+          return;
+        }
+        if(!response.ok||!d.ok)throw new Error(d.error||('TL3 playback meter HTTP '+response.status));
+        lastMeteredSeconds=Number(d.billed_seconds||0);
+        if(typeof opts.onMeter==='function')opts.onMeter(d);
+        console.info('[TL3v4] playback-time charge',d);
+        if(d.stop){
+          meterFailed=true;
+          try{audio.pause();}catch(_){}
+          const error=new Error('보유 TL이 부족하여 재생을 중지합니다.');
+          if(typeof opts.onInsufficient==='function')opts.onInsufficient(d);
+          else onError(error);
+        }
+      }).catch(error=>{
+        meterFailed=true;
+        console.error('[TL3v4] playback-time settlement failed',error);
+        haltChargeFailure(error);
+      });
+    }
+    function startMeterSampling(){
+      lastAudibleTime=Number(audio.currentTime)||0;
+      if(meterTimer===null)meterTimer=setInterval(sampleAudiblePlayback,250);
+    }
+    audio.addEventListener('playing',startMeterSampling);
+    for(const ev of ['pause','waiting','stalled','seeking','seeked']){
+      audio.addEventListener(ev,()=>{lastAudibleTime=null;});
     }
     function haltChargeFailure(error){
       stopped=true;
+      if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}
       try{audio.pause();}catch(_){}
       if(lpController&&lpController.stop)lpController.stop().catch(()=>{});
       onError(error);
     }
-    const maybeChargeOnAudiblePlayback=()=>{
-      if(charged||chargePromise||audio.paused||audio.muted||audio.volume<=0||audio.readyState<3||audio.currentTime<0.05)return;
-      chargeOnce().catch(e=>console.error('[TL3v4] full-track charge failed',e));
-    };
-    audio.addEventListener('playing',maybeChargeOnAudiblePlayback);
-    audio.addEventListener('timeupdate',maybeChargeOnAudiblePlayback);
     return new Promise((resolve,reject)=>{
       ms.addEventListener('sourceopen',async()=>{
         try{
@@ -241,7 +280,7 @@
       },{once:true});
       audio.src=url;audio.load();
     }).then(result=>{
-      audio._tl3Stop=function(){if(stopped)return;stopped=true;try{audio.pause();}catch(_){};if(lpController&&lpController.stop)lpController.stop().catch(()=>{});try{if(ms.readyState==='open')ms.endOfStream();}catch(_){}};
+      audio._tl3Stop=function(){if(stopped)return;sampleAudiblePlayback();if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}stopped=true;try{audio.pause();}catch(_){};if(lpController&&lpController.stop)lpController.stop().catch(()=>{});try{if(ms.readyState==='open')ms.endOfStream();}catch(_){}};
       audio._tl3Confirm=audio._tl3Stop;
       audio._tl3Suspend=function(){return lpController&&lpController.suspend?lpController.suspend():Promise.resolve();};
       audio._tl3Resume=function(){return lpController&&lpController.resume?lpController.resume():Promise.resolve();};
