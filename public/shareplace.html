@@ -561,21 +561,17 @@ function updateShareCardTL(shareId, balance){
   if(!share || !card) return;
   var required=Math.max(0,Number(share.file_tl)||0);
   var remaining=Math.max(0,Number(balance)||0);
-  var color=remaining>=required?'var(--teal)':'var(--orange)';
+  var plays=required>0?Math.floor((remaining+1e-9)/required):0;
+  var color=plays>0?'var(--teal)':'var(--orange)';
+  var label=required>0?'⚡ '+required.toLocaleString()+' TL/회 · '+plays.toLocaleString()+'회 가능':'⚡ 재생 정보 확인 중';
   var gridPrice=card.querySelector('.fc-price');
-  if(gridPrice){
-    gridPrice.textContent='⚡ '+required.toLocaleString()+'/'+remaining.toLocaleString();
-    gridPrice.style.color=color;
-  }
+  if(gridPrice){ gridPrice.textContent=label; gridPrice.style.color=color; }
   var listPrice=card.querySelector('.fl-price');
-  if(listPrice){
-    listPrice.textContent='⚡ 필요 '+required.toLocaleString()+' / 보유 '+remaining.toLocaleString()+' TL';
-    listPrice.style.color=color;
-  }
+  if(listPrice){ listPrice.textContent=label; listPrice.style.color=color; }
   var playButton=card.querySelector('.fc-play, .fl-play');
   if(playButton && !playButton.classList.contains('playing')){
-    playButton.classList.toggle('playable',remaining>0);
-    playButton.classList.toggle('need-charge',remaining<=0);
+    playButton.classList.toggle('playable',plays>0);
+    playButton.classList.toggle('need-charge',plays<=0);
   }
 }
 
@@ -680,8 +676,10 @@ function renderGridView(list,g){
     var hasUrl=!!(s.stream_url||s.preview_url);
     var kind=contentKind(s), isTl3=kind==='tl3';
     var myTL=_myFileTL[String(s.id)]||0;
+    var requiredTL=Math.max(0,Number(s.file_tl)||0);
+    var playableCount=requiredTL>0?Math.floor((myTL+1e-9)/requiredTL):0;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
-    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':myTL>0?'playable':'need-charge');
+    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':playableCount>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     var dur=s.duration?(Math.floor(s.duration/60)+':'+String(s.duration%60).padStart(2,'0')):'--:--';
     return '<div class="file-card" id="card-'+s.id+'" onclick="openShareAsset(\''+s.id+'\')" style="cursor:pointer">'+
@@ -697,7 +695,7 @@ function renderGridView(list,g){
         '</div>'+
         '<div class="fc-artist">'+escH(s.artist||s.username||'')+'</div>'+
         '<div class="fc-meta">'+
-          '<span class="fc-price" style="color:'+(myTL>=Number(s.file_tl||0)?'var(--teal)':'var(--orange)')+'">⚡ '+Number(s.file_tl||0).toLocaleString()+'/'+myTL.toLocaleString()+'</span>'+
+          '<span class="fc-price" style="color:'+(playableCount>0?'var(--teal)':'var(--orange)')+'">⚡ '+(requiredTL>0?requiredTL.toLocaleString()+' TL/회 · '+playableCount.toLocaleString()+'회 가능':'재생 정보 확인 중')+'</span>'+
           (_tlShareId===s.id && _tlPlaying && _tlElapsed>0 ? '<span style="color:var(--orange);font-size:10px;margin-left:4px">▶️'+_tlElapsed+'초</span>' : '')+
         '</div>'+
       '</div>'+
@@ -726,8 +724,10 @@ function renderListView(list,g){
     var hasUrl=!!(s.stream_url||s.preview_url);
     var kind=contentKind(s), isMp3=kind==='mp3', isTl3=kind==='tl3';
     var myTL=_myFileTL[String(s.id)]||0;
+    var requiredTL=Math.max(0,Number(s.file_tl)||0);
+    var playableCount=requiredTL>0?Math.floor((myTL+1e-9)/requiredTL):0;
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
-    var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':myTL>0?'playable':'need-charge');
+    var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':playableCount>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     return '<div class="fl-item" id="card-'+s.id+'" onclick="openShareAsset(\''+s.id+'\')" style="cursor:pointer">'+
       '<button class="'+btnClass+'" data-sid="'+s.id+'" onclick="tlPlayCard(this);event.stopPropagation()" style="flex-shrink:0">'+
@@ -740,9 +740,9 @@ function renderListView(list,g){
       '<span>'+new Date(s.created_at||0).toLocaleDateString('ko-KR')+'</span></div></div>'+
       '<div class="fl-type-badge '+tc+'">'+({tl3:'TL3',tl4:'TL4',tld:'TLD',tlj:'TLJ'}[kind]||typeLabel(ftype))+'</div>'+
       '<div class="fl-right"><div class="fl-pulse">🔥 '+Number(s.pulse||0).toLocaleString()+'</div>'+
-      '<div class="fl-price" style="color:'+(myTL>=Number(s.file_tl||0)?'var(--teal)':'var(--orange)')+'">⚡ 필요 '+Number(s.file_tl||0).toLocaleString()+' / 보유 '+myTL.toLocaleString()+' TL</div>'+
+      '<div class="fl-price" style="color:'+(playableCount>0?'var(--teal)':'var(--orange)')+'">⚡ '+(requiredTL>0?requiredTL.toLocaleString()+' TL/회 · '+playableCount.toLocaleString()+'회 가능':'재생 정보 확인 중')+'</div>'+
       (_tlShareId===s.id && _tlPlaying && _tlElapsed>0 ? '<div style="font-size:11px;color:var(--orange);margin-top:2px">▶️ '+_tlElapsed+'초 재생 ('+_tlElapsed+' TL)</div>' : '')+
-      '<div class="fl-actions"><button class="fl-btn fl-btn-charge" onclick="chargeTL(\''+s.id+'\',\''+escH(s.title)+'\')">TL 충전</button></div></div></div>';
+      '<div class="fl-actions"><button class="fl-btn fl-btn-charge" onclick="event.stopPropagation();chargeTL(\''+s.id+'\',\''+escH(s.title)+'\')">TL 충전</button></div></div></div>';
   }).join('');
 }
 
@@ -986,6 +986,11 @@ function _escHandler(e){ if(e.key==='Escape') tlStop(); }
 // ==================== TL CHARGING ====================
 async function chargeTL(shareId,title){
   if(!_user){ alert('로그인이 필요합니다.'); return; }
+  var target=_allShares.find(function(item){ return String(item.id)===String(shareId); });
+  if(target && contentKind(target)==='tl3'){
+    location.href='track.html?id='+encodeURIComponent(String(target.share_id||target.id))+'&charge=1';
+    return;
+  }
   var amtStr=prompt('⚡ "'+title+'" TL 충전\n현재 잔액: '+getTotalTL().toLocaleString()+' TL\n충전할 TL을 입력하세요:','100');
   if(!amtStr) return;
   var amt=parseInt(amtStr);
