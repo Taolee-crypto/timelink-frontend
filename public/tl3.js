@@ -70,9 +70,6 @@
     const appendQueue = [];
     let appendBusy = false;
     let nextAppend = 1;
-    const settlementQueue = [];
-    let settleBusy = false;
-    let nextSettle = 1;
     const segmentDurations = new Map();
     const settledSet = new Set();
 
@@ -190,49 +187,17 @@
           appendQueue.shift();
           nextAppend++;
           schedulePrefetch(nextAppend, 5);
-          if (audioEl.paused) {
+          if (nextAppend <= N) {
+            schedulePrefetch(nextAppend, 5);
+            enqueueAppend(nextAppend);
+          } else {
+            // Do not start playback until every segment is fetched, decrypted and appended.
+            try { if (ms.readyState === 'open') ms.endOfStream(); } catch (_) {}
             if (lpController) lpController.resume().catch(() => {});
-            audioEl.play().catch(() => {});
+            audioEl.play().catch(err => { onError(new Error('오디오 재생 시작 실패: ' + (err.message || err))); });
           }
-          settlementQueue.push(n);
-          processSettlementQueue();
         }
       } finally { appendBusy = false; }
-    }
-
-    async function processSettlementQueue() {
-      if (settleBusy) return;
-      settleBusy = true;
-      try {
-        while (settlementQueue.length > 0 && !stopped) {
-          const n = settlementQueue[0];
-          if (nextSettle !== n) { settlementQueue.shift(); continue; }
-          if (settledSet.has(n)) { settlementQueue.shift(); nextSettle++; continue; }
-          try {
-            const durMs = segmentDurations.get(n) || 1000;
-            const body = {
-              session_id: sessionId,
-              played_seconds: durMs / 1000,
-              next_segment: (n < N) ? n : undefined
-            };
-            const res = await fetch(API + '/api/v1/tl3/segment/confirm/' + encodeURIComponent(fidStr), {
-              method: 'POST',
-              headers: Object.assign({'Content-Type':'application/json'}, authHeaders()),
-              body: JSON.stringify(body)
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.ok) {
-              console.warn('[TL3v6] settle failed', n, data.error || res.status);
-            } else {
-              console.log('[TL3v6] settled', n, { wallet_tl: data.wallet_tl, asset_remaining_tl: data.asset_remaining_tl });
-              settledSet.add(n);
-              onSegment({ index: n - 1, seconds: durMs / 1000, remaining: data.wallet_tl, wallet_tl: data.wallet_tl, asset_remaining_tl: data.asset_remaining_tl });
-            }
-          } catch (e) { console.warn('[TL3v6] settle error', n, e); }
-          settlementQueue.shift();
-          nextSettle++;
-        }
-      } finally { settleBusy = false; }
     }
 
     return new Promise((resolve, reject) => {
@@ -251,6 +216,26 @@
       audioEl.src = msUrl;
       audioEl.load();
 
+      let chargePromise = null;
+      let charged = false;
+      audioEl.addEventListener('playing', function onActualPlaybackStart() {
+        if (charged || chargePromise) return;
+        chargePromise = (async function(){
+          const res = await fetch(API + '/api/v1/tl3/play/charge/' + encodeURIComponent(fidStr), {
+            method: 'POST',
+            headers: Object.assign({'Content-Type':'application/json'}, authHeaders()),
+            body: JSON.stringify({session_id: sessionId})
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok) throw new Error(data.error || ('TL3 charge ' + res.status));
+          charged = true;
+          if (typeof opts.onCharge === 'function') opts.onCharge(data);
+          console.log('[TL3v6] one-time full-track charge', data);
+        })().catch(function(error){
+          try { audioEl.pause(); } catch (_) {}
+          onError(error);
+        });
+      }, { once: true });
       ['playing','waiting','stalled','ended'].forEach(name => {
         audioEl.addEventListener(name, () => {
           console.log('[TL3v6] audio event:', name, { t: audioEl.currentTime, paused: audioEl.paused, bufEnd: sb && sb.buffered.length ? sb.buffered.end(sb.buffered.length-1) : 0 });
