@@ -75,6 +75,13 @@ assert "duration_ms: durationMs" in manufacture_text, "Creator must attach the m
 assert "const lpLicense = o.lpLicense || null;" in manufacture_text, "Manufacturer must bind the Creator LP profile before use."
 assert "Creator의 LP 효과 분석이 완성되지 않았습니다." in manufacture_text, "Manufacturer must reject incomplete Creator-side LP profiles."
 assert "lp: lpLicense && lpLicense.lp_enabled === true" in manufacture_text, "Manufacture result must use the scoped LP profile."
+# V5 Creator validation is performed by the V5 resolve and verify endpoints below.
+# Spine header validation belongs to the legacy V4 Player, not the V5 manufacturer.
+assert "api/v1/tl3/spine/header/" in v4_player_text, "Track v4 player must consume the published Spine header."
+# Current billing policy: exactly 1 TL per audible second, proportionally
+# settled by cumulative audible milliseconds. Partial playback is flushed at
+# pause/buffering/seek/end/stop boundaries without rounding the final fraction up.
+
 assert "api/v1/tl3/v5/resolve/" in manufacture_text, "Creator must verify the Track-playable V5 asset metadata before completion."
 assert "api/v1/tl3/v5/verify/" in manufacture_text, "Creator must verify the V5 container integrity before completion."
 assert "api/v1/tl3/spine/releases" not in manufacture_text, "V5 Creator must not manufacture a Spine v4 container."
@@ -85,9 +92,12 @@ assert "api/v1/tl3/v5/container/" in v5_player_text, "Track V5 player must fetch
 # Current billing policy: exactly 1 TL per audible second, settled in
 # cumulative one-second increments; the final partial second is settled when
 # the audio element emits "ended".
+
 assert "play/meter/" in v4_player_text, "Track v4 player must use the audible-time meter."
 assert "play/meter/" in v5_player_text and "played_ms" in v5_player_text, "Track V5 player must use the same audible-time TL meter."
 assert "queuePlaybackMeter" in v4_player_text and "played_ms" in v4_player_text, "Track v4 player must send cumulative audible milliseconds."
+assert "const completedMs=Math.floor(billableMs/1000)*1000;" in v4_player_text, "Track v4 player must meter each completed audible second."
+assert "const flushMs=Math.floor(billableMs);" in v4_player_text, "Track v4 player must flush partial audible milliseconds at playback boundaries."
 assert "audio._tl3End=async function()" in v4_player_text, "Track v4 player must await final full-track settlement."
 assert "audio._tl3End=async function()" in v5_player_text, "Track V5 player must await final full-track settlement."
 # Track now uses a strict one-segment-at-a-time pump. This is a bounded
@@ -97,7 +107,8 @@ assert "for(let first=1;first<=N;first++)" in v4_player_text, "Track v4 player m
 assert "for(let attempt=0;attempt<3&&!segment;attempt++)" in v4_player_text, "Track v4 player must retry transient segment failures without unbounded parallel prefetch."
 assert "let meterTimer=null,meterQueue=Promise.resolve(),meterFailed=false,audibleActive=false;" in v4_player_text, "Meter must track actual audible playback state."
 assert "sampleAudiblePlayback();" in v4_player_text and "audio.addEventListener('waiting'" in v4_player_text, "Meter must capture elapsed media time before pause/buffering transitions."
-assert "const finalSeconds=Math.ceil(totalMs/1000);" in v4_player_text, "Completed tracks must settle the exact required whole-TL amount."
+assert "const finalMs=Math.floor(totalMs);" in v4_player_text, "Completed tracks must settle the exact authored duration in milliseconds."
+assert "const finalSeconds=Math.ceil(totalMs/1000);" not in v4_player_text, "Completed tracks must not round unplayed fractional time up."
 assert "segment/confirm/" not in v4_player_text, "Track v4 player must not use retired segment metering."
 assert "play/preflight/" in track_text, "Track must check that at least 1 TL is available before playback."
 assert "TL3V5Player.canPlay" in track_text and "TL3V5Player.playStream" in track_text, "Track must detect and route V5 assets to the V5 Player."

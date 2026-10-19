@@ -300,7 +300,7 @@
       }finally{appendBusy=false;}
     }
     // Bill only audible media-time progress. Pauses, buffering and seeks do not accrue TL.
-    let billableMs=0,lastAudibleTime=null,lastMeteredSeconds=0,meterQueuedSeconds=0;
+    let billableMs=0,lastAudibleTime=null,lastMeteredSeconds=0,meterQueuedMs=0;
     let meterTimer=null,meterQueue=Promise.resolve(),meterFailed=false,audibleActive=false;
     function sampleAudiblePlayback(forceEnd){
       if(stopped||meterFailed)return;
@@ -318,12 +318,12 @@
         if(delta>0)billableMs+=delta;
       }
       lastAudibleTime=now;
-      const completed=Math.floor(billableMs/1000);
-      if(completed>meterQueuedSeconds)queuePlaybackMeter(completed);
+      const completedMs=Math.floor(billableMs/1000)*1000;
+      if(completedMs>meterQueuedMs)queuePlaybackMeter(completedMs);
     }
-    function queuePlaybackMeter(targetSeconds){
-      if(targetSeconds<=meterQueuedSeconds||meterFailed)return;
-      meterQueuedSeconds=targetSeconds;
+    function queuePlaybackMeter(targetMs){
+      if(targetMs<=meterQueuedMs||meterFailed)return;
+      meterQueuedMs=targetMs;
       const playedMsForRequest=Math.floor(billableMs);
       meterQueue=meterQueue.then(async()=>{
         if(meterFailed)return;
@@ -374,6 +374,10 @@
     for(const ev of ['pause','stalled','seeking','ended']){
       audio.addEventListener(ev,()=>{
         sampleAudiblePlayback();
+        // Settle the final audible fraction at every playback boundary.
+        // The server meters milliseconds proportionally (1000 ms = 1 TL).
+        const flushMs=Math.floor(billableMs);
+        if(flushMs>meterQueuedMs)queuePlaybackMeter(flushMs);
         audibleActive=false;
         lastAudibleTime=null;
       });
@@ -423,8 +427,8 @@
           // Clamp to the canonical segment-duration sum so final billing equals
           // the track's required TL exactly, including its final partial second.
           billableMs=totalMs;
-          const finalSeconds=Math.ceil(totalMs/1000);
-          if(finalSeconds>meterQueuedSeconds)queuePlaybackMeter(finalSeconds);
+          const finalMs=Math.floor(totalMs);
+          if(finalMs>meterQueuedMs)queuePlaybackMeter(finalMs);
         }
         // Stop LP processing immediately at the media ended boundary. Do not
         // leave worklet/reverb tails running while the final TL request settles.
@@ -436,7 +440,7 @@
         await meterQueue;
         return lastMeteredSeconds;
       };
-      audio._tl3Stop=function(){if(stopped)return;sampleAudiblePlayback();if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}stopped=true;try{audio.pause();}catch(_){};if(lpController&&lpController.stop)lpController.stop().catch(()=>{});try{if(ms.readyState==='open')ms.endOfStream();}catch(_){}};
+      audio._tl3Stop=function(){if(stopped)return;sampleAudiblePlayback(true);const finalMs=Math.floor(billableMs);if(finalMs>meterQueuedMs)queuePlaybackMeter(finalMs);if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}stopped=true;try{audio.pause();}catch(_){};if(lpController&&lpController.stop)lpController.stop().catch(()=>{});try{if(ms.readyState==='open')ms.endOfStream();}catch(_){}};
       audio._tl3Confirm=audio._tl3Stop;
       audio._tl3Suspend=function(){return lpController&&lpController.suspend?lpController.suspend():Promise.resolve();};
       audio._tl3Resume=function(){return lpController&&lpController.resume?lpController.resume():Promise.resolve();};

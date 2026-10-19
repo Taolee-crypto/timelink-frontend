@@ -1610,6 +1610,9 @@ function copyLink(){ navigator.clipboard.writeText(location.href).then(()=>{ let
 let _tlAudio=null, _tlPlaying=false, _tlInterval=null, _tlCurrentTL=0, _tlMaxTL=0, _tlElapsed=0, _tlFree=false;
 let _tlSessionSettledSeconds=0;
 let _tlSettledSegments=new Set();
+// 재생이 실제 시작된 직후 이번 1회를 표시상 먼저 예약한다.
+// 첫 서버 정산 응답이 오면 실제 곡별 잔액 기준 표시로 전환한다.
+let _tlPlayCountReserved=false;
 
 // 화면에는 TL 소수점을 숨기되, 서버 정산과 내부 계산값은 원래 정밀도를 유지한다.
 function formatTLInteger(value, mode){
@@ -1624,7 +1627,8 @@ function updatePlayerTLDisplay(){
   var required=songRequiredTL();
   if(assetVal) assetVal.textContent=_tlFree?'FREE':formatTLInteger(required,'ceil');
   if(spentVal) spentVal.textContent=_tlFree?'0 TL':formatTLInteger(_tlSessionSettledSeconds);
-  if(trackBalanceVal) trackBalanceVal.textContent=_tlFree?'FREE':(required>0?Math.floor((Math.max(0,Number(_tlCurrentTL)||0)+1e-9)/required)+'회':'—');
+  var wholePlays=required>0?Math.floor((Math.max(0,Number(_tlCurrentTL)||0)+1e-9)/required):0;
+  if(trackBalanceVal) trackBalanceVal.textContent=_tlFree?'FREE':(required>0?Math.max(0,wholePlays-(_tlPlayCountReserved?1:0))+'회':'—');
   if(walletVal) walletVal.textContent=formatTLInteger(_myFileTL);
   var pageWallet=document.getElementById('myTLDisplay');
   if(pageWallet) pageWallet.textContent='💰 내 지갑 TL: '+formatTLInteger(_myFileTL);
@@ -1644,7 +1648,10 @@ async function playTrack(){
   
   if(_tlPlaying){ togglePlay(); return; }
 
-  // 서버가 전체 곡 가격과 현재 잔액을 확인한다. 여기서는 예약·차감하지 않는다.
+  // 새 재생 세션을 시작한다. 실제 소리가 시작되기 전에는 횟수를 예약하지 않는다.
+  _tlPlayCountReserved=false;
+  updatePlayerTLDisplay();
+  // 서버가 전체 곡 가격과 현재 잔액을 확인한다. 여기서는 잔액을 예약·차감하지 않는다.
   if(!_tlFree){
     try{
       const pre=await fetch(API+'/api/v1/tl3/play/preflight/'+encodeURIComponent(SHARE_ID),{
@@ -1716,6 +1723,7 @@ async function playTrack(){
       playerAudio._tl3Resume().catch(function(error){ console.warn('[TL3-AUDIO] resume after pause failed:', error); });
     }
     _tlPlaying = true;
+    if(!_tlFree){ _tlPlayCountReserved=true; updatePlayerTLDisplay(); }
     const btn = document.getElementById('playerPlayBtn');
     if(btn) btn.textContent = '⏸';
     startTLTimer();
@@ -1742,6 +1750,8 @@ async function playTrack(){
     if(btn) btn.textContent = '▶';
     // 곡을 끝까지 들은 경우 마지막 1초의 정산을 먼저 확정한 뒤 오디오를 정지한다.
     if(playerAudio._tl3End){ try { await playerAudio._tl3End(); } catch(e){ console.warn('[TRACK TL] final meter flush failed:',e); } }
+    _tlPlayCountReserved=false;
+    updatePlayerTLDisplay();
     if(playerAudio._tl3Stop){ try { playerAudio._tl3Stop(); } catch(e){} }
     // 곡 종료 후 플레이어를 대기 위치(처음)로 자동 복귀시킨다.
     // 종료된 TL3 MediaSource 세션은 재사용하지 않고, 다시 재생하면 새 세션을 연다.
@@ -1817,7 +1827,15 @@ async function playTrack(){
         if(!_share || String(_share.id)!==String(SHARE_ID)) return;
         _myFileTL=Math.max(0,Number(info.wallet_tl)||0);
         _tlSessionSettledSeconds=Math.max(0,Number(info.billed_seconds||info.charged_tl)||0);
-        _tlCurrentTL=Math.max(0,Number(info.asset_tl ?? (songRequiredTL()-_tlSessionSettledSeconds))||0);
+        if(info.asset_tl!==undefined && info.asset_tl!==null){
+          _tlCurrentTL=Math.max(0,Number(info.asset_tl)||0);
+        } else {
+          // asset_tl이 없는 응답은 이번 정산 차감분만 기존 곡 잔액에서 뺀다.
+          // 전체 필요 TL에서 세션 누적 초를 빼면 재생 가능 횟수가 0으로 오표시된다.
+          const delta=Math.max(0,Number(info.delta_tl)||0);
+          _tlCurrentTL=Math.max(0,Number(_tlCurrentTL||0)-delta);
+        }
+        if(Number(info.delta_tl||0)>0 || Number(info.billed_seconds||0)>0) _tlPlayCountReserved=false;
         _trackTL=_tlCurrentTL;
         updatePlayerTLDisplay();
         console.log('[TRACK TL] elapsed playback settlement:',info.delta_tl,'TL; total:',_tlSessionSettledSeconds,'wallet:',_myFileTL);
@@ -1916,6 +1934,8 @@ function stopPlay(){
   // Stop state first so media events cannot restore the playing UI.
   const audio = _tlAudio || window._tlAudio || null;
   _tlPlaying = false;
+  _tlPlayCountReserved=false;
+  updatePlayerTLDisplay();
   window._tlPlaying = false;
   window._tlPlayBusy = false;
 
