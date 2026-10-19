@@ -308,6 +308,10 @@
     for(const ev of ['pause','stalled','seeking','ended']){
       audio.addEventListener(ev,()=>{
         sampleAudiblePlayback();
+        // Settle the final audible fraction at every playback boundary.
+        // The server meters milliseconds proportionally (1000 ms = 1 TL).
+        const flushMs=Math.floor(billableMs);
+        if(flushMs>meterQueuedMs)queuePlaybackMeter(flushMs);
         audibleActive=false;
         lastAudibleTime=null;
       });
