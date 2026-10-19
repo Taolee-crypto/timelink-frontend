@@ -126,7 +126,7 @@
         const played=Math.max(0,Math.min(seg.duration/1000,(Number(audio.currentTime)||0)-start));
         const d=await json(API+'/api/v1/tl3/segment/confirm/'+encodeURIComponent(data.file_id),{
           method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
-          body:JSON.stringify({session_id:sessionId,played_seconds:played,next_segment:(!stopped&&n<N)?n:undefined})
+          body:JSON.stringify({session_id:sessionId,segment_index:n-1,played_seconds:played,next_segment:(!stopped&&n<N)?n:undefined})
         });
         settled.add(n);pocDirty=true;
         onSegment({index:n-1,seconds:played,remaining:d.wallet_tl,wallet_tl:d.wallet_tl,asset_remaining_tl:d.asset_remaining_tl});
