@@ -154,10 +154,9 @@
     }
     let playbackStarted=false;
     let bufferedDurationMs=0;
-    // Build a real safety buffer before opening the audio output. One segment
-    // is not enough when each segment request can take longer than its media
-    // duration on the D1-backed delivery path.
-    const START_BUFFER_MS=5000;
+    // Start promptly after the first playable segment; keep larger batches
+    // flowing behind playback so startup does not wait for several seconds.
+    const START_BUFFER_MS=800;
     async function startAudiblePlayback(){
       if(playbackStarted||stopped)return;
       playbackStarted=true;
@@ -180,9 +179,9 @@
         // while audio is playing. Do not wait for all 100+ segments before sound.
         for(let first=1;first<=N;){
           if(stopped)return;
-          // Fetch and append in bounded groups. A five-second startup buffer
-          // prevents the player from outrunning the next D1 segment response.
-          const batchSize=4;
+          // The first segment is enough to begin promptly. Once playback starts,
+          // fetch four segments at a time to keep the buffer ahead of playback.
+          const batchSize=first===1?1:4;
           const count=Math.min(batchSize,N-first+1);
           const batch=await Promise.all(Array.from({length:count},(_,i)=>fetchSegment(first+i)));
           if(stopped)return;
@@ -192,7 +191,7 @@
             await appendSegment(segmentNumber,batch[i]);
             bufferedDurationMs+=Number(batch[i].duration)||Number(durations[segmentNumber-1])||1000;
           }
-          if(!playbackStarted&&bufferedDurationMs>=START_BUFFER_MS){
+          if(!playbackStarted&&(first===1||bufferedDurationMs>=START_BUFFER_MS)){
             await startAudiblePlayback();
           }
           first+=count;
