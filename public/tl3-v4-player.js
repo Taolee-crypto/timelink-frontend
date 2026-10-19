@@ -140,12 +140,6 @@
         throw new Error('오디오 재생을 시작하지 못했습니다: '+(e&&e.message||e));
       }
     }
-    let pipelineErrorReported=false;
-    async function reportPipelineError(error){
-      if(pipelineErrorReported)return;
-      pipelineErrorReported=true;
-      onError(error);
-    }
     async function pump(){
       if(appendBusy||stopped)return;
       appendBusy=true;
