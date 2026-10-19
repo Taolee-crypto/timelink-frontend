@@ -220,7 +220,7 @@
         if(delta>0)billableMs+=delta;
       }
       lastAudibleTime=now;
-      const completed=Math.floor((billableMs+0.001)/1000);
+      const completed=Math.floor(billableMs/1000);
       if(completed>meterQueuedSeconds)queuePlaybackMeter(completed);
     }
     function queuePlaybackMeter(targetSeconds){
