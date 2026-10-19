@@ -156,7 +156,10 @@
     let bufferedDurationMs=0;
     // Start promptly after the first playable segment; keep larger batches
     // flowing behind playback so startup does not wait for several seconds.
-    const START_BUFFER_MS=800;
+    // Do not start the audible clock on a single short segment.
+    // Build a real safety buffer first so D1/Worker latency cannot immediately
+    // drain the MSE queue and make Track appear to stop after its first seconds.
+    const START_BUFFER_MS=3000;
     async function startAudiblePlayback(){
       if(playbackStarted||stopped)return;
       playbackStarted=true;
@@ -191,7 +194,10 @@
             await appendSegment(segmentNumber,batch[i]);
             bufferedDurationMs+=Number(batch[i].duration)||Number(durations[segmentNumber-1])||1000;
           }
-          if(!playbackStarted&&(first===1||bufferedDurationMs>=START_BUFFER_MS)){
+          if(!playbackStarted&&bufferedDurationMs>=Math.min(
+            START_BUFFER_MS,
+            Number(h.duration_ms)||durations.reduce((sum,value)=>sum+(Number(value)||0),0)
+          )){
             await startAudiblePlayback();
           }
           first+=count;
