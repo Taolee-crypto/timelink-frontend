@@ -552,23 +552,28 @@ async function loadShares(){
   if (_token) await loadMyTL();
 }
 
-// ⭐ 내 곡별 TL 잔액 로드
+// ⭐ 모든 TL3 곡카드의 잔여 TL은 동일한 자산 잔액 API로 조회한다.
+// 숫자형 file_id(구형 목록)와 sh_ 형식 share_id(신형 목록)를 API에서 함께 해석한다.
 async function loadMyTL(){
   var tl3Songs = _allShares.filter(function(s){ return contentKind(s) === 'tl3'; });
   if (!tl3Songs.length) return;
-  for (var i = 0; i < tl3Songs.length; i++) {
-    var s = tl3Songs[i];
+  await Promise.all(tl3Songs.map(async function(s){
+    var key = String(s.id);
     try {
-      var r = await fetch(API_BASE + '/api/shares/' + s.id + '/my-tl', {
-        headers: { 'Authorization': 'Bearer ' + (_token || '') }
+      var r = await fetch(API_BASE + '/api/v1/tl3/asset/' + encodeURIComponent(key) + '/tl', {
+        headers: { 'Authorization': 'Bearer ' + (_token || '') },
+        cache: 'no-store'
       });
-      var d = await r.json();
-      if (d && d.ok) {
-        _myFileTL[String(s.id)] = Number(d.tl_balance || 0);
-      }
-    } catch(e){}
-  }
-  applyFilter();   // UI 재렌더
+      var d = await r.json().catch(function(){ return {}; });
+      if (!r.ok || !d || d.ok !== true) throw new Error((d && d.error) || ('HTTP ' + r.status));
+      var balance = Number(d.remaining_tl);
+      if (Number.isFinite(balance) && balance >= 0) _myFileTL[key] = balance;
+    } catch(e) {
+      // 기존 표시값은 보존한다. 실패한 요청을 0으로 덮어쓰지 않는다.
+      console.warn('[SharePlace] 곡 TL 잔액 조회 실패:', key, e && e.message ? e.message : e);
+    }
+  }));
+  applyFilter();   // 모든 곡의 동일한 잔액 조회가 끝난 뒤 한 번만 재렌더
 }
 function updateCounts(){
   var s=_allShares;
