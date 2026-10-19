@@ -277,7 +277,14 @@
       if(meterTimer===null)meterTimer=setInterval(sampleAudiblePlayback,100);
     }
     audio.addEventListener('playing',startMeterSampling);
-    for(const ev of ['pause','waiting','stalled','seeking','ended']){
+    // Snapshot the media clock before the browser closes the audible interval.
+    // Keep waiting explicit: the repository validator guards this billing edge.
+    audio.addEventListener('waiting',()=>{
+      sampleAudiblePlayback();
+      audibleActive=false;
+      lastAudibleTime=null;
+    });
+    for(const ev of ['pause','stalled','seeking','ended']){
       audio.addEventListener(ev,()=>{
         sampleAudiblePlayback();
         audibleActive=false;
