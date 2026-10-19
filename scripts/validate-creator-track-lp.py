@@ -89,5 +89,6 @@ assert "await playerAudio._tl3End()" in track_text, "Track must finish final met
 assert "lpEnhancedToggle" in track_text and "setTL3LpEnhanced" in v4_player_text, "Track LP Enhanced checkbox must control the active audio chain."
 assert "segment/confirm/" not in player_text, "Legacy TL3 player must not use retired segment metering."
 assert "createMediaElementSource" in lp_chain_text and "AudioWorkletNode" in lp_chain_text, "Love Connect WebAudio routing is incomplete."
+assert "restoring native audio" in lp_chain_text and "processor.disconnect()" in lp_chain_text, "LP toggle must restore a single native route if DSP routing fails."
 
 print("Creator → Track LP Enhanced validation passed.")
