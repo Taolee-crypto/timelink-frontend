@@ -130,6 +130,17 @@
       })();
       cache.set(n,p);return p;
     };
+    // A successful confirmation must also prove that the next segment has
+    // been reserved. Otherwise the audio buffer could continue playing while
+    // the backend has no pending TL reservation for the next segment.
+    function haltForMeteringError(error){
+      sessionClosed=true;
+      stopped=true;
+      try{audio.pause();}catch(_){}
+      if(lpController&&lpController.stop)lpController.stop().catch(()=>{});
+      try{if(ms.readyState==='open')ms.endOfStream();}catch(_){}
+      if(error)onError(error);
+    }
     const settle=n=>{
       if(settled.has(n))return Promise.resolve();
       // A segment can reach both the normal pump path and the stop path.
@@ -153,6 +164,15 @@
         settled.add(n);pocDirty=true;
         if(!advance)sessionClosed=true;
         onSegment({index:n-1,seconds:played,remaining:d.wallet_tl,wallet_tl:d.wallet_tl,asset_remaining_tl:d.asset_remaining_tl});
+        // The backend settles this segment and reserves the next one in the
+        // same response. Never let playback cross the boundary unless that
+        // reservation is explicitly confirmed.
+        if(advance&&(!d.next_license||d.next_error)){
+          const detail=d.next_error||'다음 세그먼트 TL 예약 응답이 없습니다.';
+          const error=new Error('TL3 다음 구간 예약 확인 실패: '+detail);
+          console.error('[TL3v4] next reservation missing after settlement',n,d);
+          haltForMeteringError(error);
+        }
       })();
       settling.set(n,task);
       task.then(()=>{if(settling.get(n)===task)settling.delete(n);},()=>{if(settling.get(n)===task)settling.delete(n);});
@@ -186,7 +206,10 @@
         // Metering remains strictly ordered, but it no longer blocks audio buffering.
         let chain=Promise.resolve();
         for(let n=1;n<=N;n++){
-          chain=chain.then(()=>sessionClosed?undefined:settle(n)).catch(e=>{sessionClosed=true;console.error('[TL3v4] settlement failed',n,e);onError(e);});
+          chain=chain.then(()=>sessionClosed?undefined:settle(n)).catch(e=>{
+            console.error('[TL3v4] settlement failed',n,e);
+            haltForMeteringError(e);
+          });
           settlementTasks.push(chain);
         }
         // Keep a rolling ten-segment decode/download window. SourceBuffer appends
