@@ -428,8 +428,9 @@ body{font-family:Pretendard,Inter,-apple-system,BlinkMacSystemFont,"Noto Sans KR
   <div style="display:flex;align-items:center;gap:14px;width:100%;max-width:100%;margin:0 auto;box-sizing:border-box">
     <div style="min-width:0;flex:1"><div id="playerTitle" style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">-</div><div id="playerArtist" style="font-size:11px;color:rgba(255,255,255,.4)">-</div></div>
     <div style="flex:1;min-width:0;max-width:260px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;color:rgba(255,255,255,.4)">음원 잔여 TL</span><span id="playerTLVal" style="font-size:11px;font-weight:700;color:#64D2FF">0 TL</span></div>
-      <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px"><div id="playerTLBar" style="height:100%;background:linear-gradient(90deg,#0071E3,#64D2FF);border-radius:2px;width:100%"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;color:rgba(255,255,255,.4)">곡 1회 필요 TL</span><span id="playerTLVal" style="font-size:11px;font-weight:700;color:#64D2FF">0 TL</span></div>
+      <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px"><div id="playerTLBar" style="height:100%;background:linear-gradient(90deg,#0071E3,#64D2FF);border-radius:2px;width:0%"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-size:9px;color:rgba(255,255,255,.35)">이번 재생 차감</span><span id="playerSpentTLVal" style="font-size:10px;color:#64D2FF">0 TL</span></div>
       <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-size:9px;color:rgba(255,255,255,.35)">내 지갑 TL</span><span id="playerWalletVal" style="font-size:10px;color:#F5A623">0 TL</span></div><div style="display:flex;justify-content:space-between;margin-top:3px"><span id="playerTime" style="font-size:9px;color:rgba(255,255,255,.3)">0:00</span><span id="playerDur" style="font-size:9px;color:rgba(255,255,255,.3)">-</span></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
@@ -563,11 +564,9 @@ async function loadTrack(){
     
     // 공통 사용자 지갑과 음원 자체 TL 풀을 각각 서버에서 조회
     _myFileTL=Number(walletData.wallet?.tl_total||0);
-    // TL3 V3 재생은 사용자 지갑에서 초 단위로 정산한다.
-    // 존재하지 않는 legacy asset-TL API에 의존하지 않고 트랙 메타의 기준량을 표시한다.
-    _assetInitialTL=Number(s.file_tl||0);
-    // 2026-10-19: file_tl이 0이면 duration_sec/duration으로 fallback
-    if(!_assetInitialTL) _assetInitialTL=Number(s.duration_sec||s.duration||0);
+    // 1곡 필요 TL은 자산의 잔여량이 아니라 실제 재생시간(초)을 기준으로 산정한다.
+    // duration 메타가 없을 때만 기존 file_tl 값을 보조값으로 사용한다.
+    _assetInitialTL=Number(s.duration_sec||s.duration||s.file_tl||0);
     _assetTL=_assetInitialTL;
     _share=s;
     _myLiked=stats.my_like||false;
@@ -593,7 +592,7 @@ async function loadTrack(){
       var needsFetch = !reqEl || reqEl.textContent.indexOf('계산') >= 0 || reqEl.textContent === '...';
       var hasDur = Number(s.duration || s.duration_sec || 0) > 0;
       if(hasDur && !needsFetch){
-        if(reqEl) reqEl.textContent = Math.round(s.duration || s.duration_sec).toLocaleString() + ' TL';
+        if(reqEl) reqEl.textContent = Math.ceil(Number(s.duration || s.duration_sec)).toLocaleString('ko-KR') + ' TL';
         return;
       }
       if(!needsFetch && !hasDur) return;
@@ -602,7 +601,7 @@ async function loadTrack(){
       var res = await fetch(API + '/api/v1/tl3/file-meta/' + fileId, {headers:{'Authorization':'Bearer '+getTok()}});
       var meta = await res.json();
       if(meta && meta.ok && meta.duration_sec){
-        var dur = Math.round(meta.duration_sec);
+        var dur = Math.ceil(Number(meta.duration_sec));
         if(reqEl) reqEl.textContent = dur.toLocaleString() + ' TL';
         if(durEl) durEl.textContent = '/ ' + fmtTime(dur);
         // _assetInitialTL도 갱신
@@ -650,7 +649,7 @@ function renderPage(s, stats, myFileTL, requiredTL){
         <div class="track-artist">${escH(s.artist||'')}${s.album?' · <span style="color:var(--t3)">'+escH(s.album)+'</span>':''}</div>
         <div class="track-uploader">가수: ${escH(s.artist||'—')} · 작곡: ${escH(s.composer || s.asset_composer || '—')} · 작사: ${escH(s.lyricist || s.asset_lyricist || '—')} · 공유: ${s.created_at ? new Date(s.created_at).toLocaleDateString('ko-KR') : '—'}</div>
         <div class="track-tl required">${isFree ? '🎵 무료 MP3 · TLC 보상' : '⚡ 재생에 필요한 TL량: '}<span id="reqTLText" style="color:#F5A623;font-weight:700">계산 중...</span><span id="durText" style="font-size:12px;color:var(--t3);font-weight:400">/ ${fmtTime(s.duration)}</span></div>
-        <div class="track-tl my" id="myTLDisplay">${isFree ? '💎 POC → TLC 보상 대상' : '💰 내 지갑 TL: '+myFileTL.toLocaleString()+' TL'}</div>
+        <div class="track-tl my" id="myTLDisplay">${isFree ? '💎 POC → TLC 보상 대상' : '💰 내 지갑 TL: '+formatTLInteger(myFileTL)}</div>
       </div>
 
       <div class="actions">
@@ -1328,7 +1327,7 @@ async function updateTrackTLFromServer(){
     if(!r.ok || d.ok!==true) throw new Error(d.error||'곡별 TL 조회 실패');
     _trackTL=Number(d.tl_balance||0);
     const el=document.getElementById('chargeTrackBalance');
-    if(el) el.textContent=_trackTL.toLocaleString()+' TL';
+    if(el) el.textContent=formatTLInteger(_trackTL);
     return _trackTL;
   }catch(e){
     console.warn('[TRACK file TL sync]',e);
@@ -1370,11 +1369,11 @@ async function doDirectCharge(){
     if(Number.isFinite(Number(d.user_tl))) _myFileTL=Number(d.user_tl);
     updatePlayerTLDisplay();
     const trackEl=document.getElementById('chargeTrackBalance');
-    if(trackEl) trackEl.textContent=_trackTL.toLocaleString()+' TL';
+    if(trackEl) trackEl.textContent=formatTLInteger(_trackTL);
     const walletEl=document.getElementById('chargeWalletBalance');
-    if(walletEl) walletEl.textContent=_myFileTL.toLocaleString()+' TL';
+    if(walletEl) walletEl.textContent=formatTLInteger(_myFileTL);
     closeChargeModal();
-    alert('이 곡에 '+Number(d.amount||_chargeAmount).toLocaleString()+' TL을 충전했습니다.');
+    alert('이 곡에 '+formatTLInteger(d.amount||_chargeAmount)+'을 충전했습니다.');
   } catch(e){ alert(e.message||'곡별 충전 오류'); }
   finally { if(btn) btn.disabled=false; }
 }
@@ -1569,14 +1568,26 @@ function copyLink(){ navigator.clipboard.writeText(location.href).then(()=>{ let
 
 // ==================== TL PLAYER ====================
 let _tlAudio=null, _tlPlaying=false, _tlInterval=null, _tlCurrentTL=0, _tlMaxTL=0, _tlElapsed=0, _tlFree=false;
+let _tlSessionSettledSeconds=0;
+let _tlSettledSegments=new Set();
+
+// 화면에는 TL 소수점을 숨기되, 서버 정산과 내부 계산값은 원래 정밀도를 유지한다.
+function formatTLInteger(value, mode){
+  const n=Math.max(0,Number(value)||0);
+  const shown=mode==='ceil'?Math.ceil(n-1e-9):Math.floor(n+1e-9);
+  return shown.toLocaleString('ko-KR')+' TL';
+}
+function songRequiredTL(){ return Math.ceil(Math.max(0,Number(_assetInitialTL||0))-1e-9); }
 
 function updatePlayerTLDisplay(){
-  var assetVal=document.getElementById('playerTLVal'),walletVal=document.getElementById('playerWalletVal'),bar=document.getElementById('playerTLBar');
-  if(assetVal) assetVal.textContent=Number(_assetTL||0).toLocaleString()+' TL';
-  if(walletVal) walletVal.textContent=Number(_myFileTL||0).toLocaleString()+' TL';
+  var assetVal=document.getElementById('playerTLVal'),spentVal=document.getElementById('playerSpentTLVal'),walletVal=document.getElementById('playerWalletVal'),bar=document.getElementById('playerTLBar');
+  var required=songRequiredTL();
+  if(assetVal) assetVal.textContent=_tlFree?'FREE':formatTLInteger(required,'ceil');
+  if(spentVal) spentVal.textContent=_tlFree?'0 TL':formatTLInteger(_tlSessionSettledSeconds);
+  if(walletVal) walletVal.textContent=formatTLInteger(_myFileTL);
   var pageWallet=document.getElementById('myTLDisplay');
-  if(pageWallet) pageWallet.textContent='💰 내 지갑 TL: '+Number(_myFileTL||0).toLocaleString()+' TL';
-  if(bar) bar.style.width=(_assetInitialTL>0?Math.max(0,Math.min(100,_assetTL/_assetInitialTL*100)):0)+'%';
+  if(pageWallet) pageWallet.textContent='💰 내 지갑 TL: '+formatTLInteger(_myFileTL);
+  if(bar) bar.style.width=(required>0?Math.max(0,Math.min(100,_tlSessionSettledSeconds/required*100)):0)+'%';
 }
 
 function playTrack(){
@@ -1591,14 +1602,15 @@ function playTrack(){
   const fileUrl = _share.stream_url || _share.file_url;
   if(!fileUrl){ alert('재생 파일이 없습니다'); return; }
 
-  window._tlCurrentTL = _tlFree ? 0 : (window._assetTL || 0);
-  window._tlMaxTL = _tlFree ? 0 : (window._assetInitialTL || 0);
+  window._tlCurrentTL = _tlFree ? 0 : songRequiredTL();
+  window._tlMaxTL = _tlFree ? 0 : songRequiredTL();
   window._tlElapsed = 0;
+  _tlSessionSettledSeconds=0;
+  _tlSettledSegments=new Set();
 
   document.getElementById('playerTitle').textContent = _share.title || '';
   document.getElementById('playerArtist').textContent = _share.artist || '';
-  document.getElementById('playerTLVal').textContent = _tlFree ? 'FREE' : _tlCurrentTL.toLocaleString() + ' TL';
-  document.getElementById('playerWalletVal').textContent = _myFileTL.toLocaleString()+' TL';
+  updatePlayerTLDisplay();
   document.getElementById('playerDur').textContent = fmtTime(_share.duration||0);
   document.getElementById('playerTime').textContent = '0:00';
   document.getElementById('tlPlayerBar').style.display = 'block';
@@ -1683,7 +1695,11 @@ function playTrack(){
       onSegment: function(info){
         if(!_share || String(_share.id)!==String(SHARE_ID)) return;
         if(info && info.remaining !== undefined){_myFileTL=Math.max(0,Number(info.wallet_tl??info.remaining)||0);}
-        if(info && info.asset_remaining_tl !== undefined){_assetTL=Math.max(0,Number(info.asset_remaining_tl)||0);_tlCurrentTL=_assetTL;}
+        // 서버가 확정한 재생 구간만 누적한다. 미확정 오디오 시계값으로 차감액을 추정하지 않는다.
+        if(info && Number.isFinite(Number(info.index)) && !_tlSettledSegments.has(Number(info.index))){
+          _tlSettledSegments.add(Number(info.index));
+          _tlSessionSettledSeconds+=Math.max(0,Number(info.seconds)||0);
+        }
         updatePlayerTLDisplay();
       },
       onError:function(err){
@@ -1723,6 +1739,7 @@ function startTLTimer(){
     if(_tlFree){
       const valueEl = document.getElementById('playerTLVal');
       if(valueEl) valueEl.textContent = 'FREE';
+      var spentEl=document.getElementById('playerSpentTLVal'); if(spentEl) spentEl.textContent='0 TL';
     } else {
       updatePlayerTLDisplay();
     }
