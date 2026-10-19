@@ -61,6 +61,7 @@
     const ms=new MediaSource(),url=URL.createObjectURL(ms);
     let sb=null,stopped=false,next=0,appendBusy=false;
     const cache=new Map(),settled=new Set(),settling=new Map(),settlementTasks=[];
+    let licensePromise=null,sessionClosed=false;
     let pocDirty=false,pocSyncPromise=null;
     async function syncPoc(){
       if(!pocDirty)return;
@@ -81,19 +82,26 @@
     }
     const starts=[];
     let t=0;for(let i=0;i<N;i++){starts.push(t);t+=durations[i]||1000;}
+    const getSessionLicense=()=>{
+      if(!licensePromise){
+        const q='?segment=0&session_id='+encodeURIComponent(sessionId);
+        licensePromise=json(API+'/api/v1/tl3/code/'+encodeURIComponent(data.file_id)+q,{headers:auth()});
+      }
+      return licensePromise;
+    };
     const fetchSegment=async n=>{
       if(cache.has(n))return cache.get(n);
       const p=(async()=>{
         const traceStart=performance.now(),q='?segment='+(n-1)+'&session_id='+encodeURIComponent(sessionId);
-        const segmentStart=performance.now(),codeStart=performance.now();
+        const segmentStart=performance.now();
         const segmentPromise=fetch(API+'/api/v1/tl3/segment/'+encodeURIComponent(data.file_id)+q,{headers:auth()}).then(async resp=>{
           const headers={status:resp.status,bytes:Number(resp.headers.get('content-length')||0)};
           if(!resp.ok)throw new Error('TL3 v4 segment '+n+' HTTP '+resp.status);
           const cipher=new Uint8Array(await resp.arrayBuffer());headers.bytes=cipher.byteLength;
           headers.ms=Math.round(performance.now()-segmentStart);return {cipher,headers};
         });
-        const codePromise=json(API+'/api/v1/tl3/code/'+encodeURIComponent(data.file_id)+q,{headers:auth()}).then(license=>{
-          console.info('[TL3v4][TRACE] code',n,{ms:Math.round(performance.now()-codeStart),cost:license.cost,prefetched:!!license.prefetched,duplicate:!!license.duplicate});
+        const codePromise=getSessionLicense().then(license=>{
+          if(n===1)console.info('[TL3v4][TRACE] session-license',{segment:1,cost:license.cost});
           return license;
         });
         const [{cipher,headers:segment},license]=await Promise.all([segmentPromise,codePromise]);
@@ -117,61 +125,71 @@
       // confirmations for the same pending reservation.
       if(settling.has(n))return settling.get(n);
       const task=(async()=>{
-        const seg=await cache.get(n);
+        if(sessionClosed)return;
+        const duration=durations[n-1]||1000;
         const start=starts[n-1]/1000;
-        const end=(starts[n-1]+seg.duration)/1000;
-        await waitForPlayback(audio,end,()=>stopped);
+        const end=(starts[n-1]+duration)/1000;
+        await waitForPlayback(audio,end,()=>stopped||sessionClosed);
         // On stop, settle only the portion that actually reached the audio clock.
         // The backend refunds the rest and releases any unplayed prefetched segment.
-        const played=Math.max(0,Math.min(seg.duration/1000,(Number(audio.currentTime)||0)-start));
+        const played=Math.max(0,Math.min(duration/1000,(Number(audio.currentTime)||0)-start));
+        const advance=played>=duration/1000-0.04&&n<N;
         const d=await json(API+'/api/v1/tl3/segment/confirm/'+encodeURIComponent(data.file_id),{
           method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
-          body:JSON.stringify({session_id:sessionId,segment_index:n-1,played_seconds:played,next_segment:(!stopped&&n<N)?n:undefined})
+          body:JSON.stringify({session_id:sessionId,segment_index:n-1,played_seconds:played,next_segment:advance?n:undefined})
         });
         settled.add(n);pocDirty=true;
+        if(!advance)sessionClosed=true;
         onSegment({index:n-1,seconds:played,remaining:d.wallet_tl,wallet_tl:d.wallet_tl,asset_remaining_tl:d.asset_remaining_tl});
-        if(stopped||n===N)await syncPoc();
       })();
       settling.set(n,task);
       task.then(()=>{if(settling.get(n)===task)settling.delete(n);},()=>{if(settling.get(n)===task)settling.delete(n);});
       return task;
     };
+    async function appendSegment(n,seg){
+      if(stopped)return;
+      const appendStart=performance.now();
+      await new Promise((resolve,reject)=>{
+        const cleanup=()=>{sb.removeEventListener('updateend',end);sb.removeEventListener('error',fail);};
+        const end=()=>{cleanup();const ranges=[];for(let i=0;i<sb.buffered.length;i++)ranges.push([Number(sb.buffered.start(i).toFixed(2)),Number(sb.buffered.end(i).toFixed(2))]);console.info('[TL3v4][TRACE] append',n,{ms:Math.round(performance.now()-appendStart),audio_time:Number(audio.currentTime.toFixed(2)),ready_state:audio.readyState,buffered:ranges});resolve();},fail=()=>{cleanup();reject(new Error('TL3 v4 appendBuffer failed @'+n));};
+        sb.addEventListener('updateend',end,{once:true});sb.addEventListener('error',fail,{once:true});
+        try{sb.appendBuffer(seg.plain);}catch(e){cleanup();reject(e);}
+      });
+      next=n;
+      cache.delete(n);
+    }
     async function pump(){
       if(appendBusy||stopped)return;
       appendBusy=true;
-      const settlements=new Map();
       try{
-        while(next<N&&!stopped){
-          const n=next+1;
-          // Keep exactly one metered prefetch reservation ahead. The next
-          // reservation is not requested until the previous segment settles.
-          if(n>=3 && settlements.has(n-2)) await settlements.get(n-2);
-          const seg=await fetchSegment(n);
-          if(stopped){
-            if(n===1)await settle(n);
-            else if(settlements.has(n-1))await settlements.get(n-1);
-            break;
+        // The release license is derived per asset, not per segment. Obtain it once,
+        // then download/decrypt audio segments ahead without serial code-issuance waits.
+        const initialCount=Math.min(N,10);
+        const initial=await Promise.all(Array.from({length:initialCount},(_,i)=>fetchSegment(i+1)));
+        for(let i=0;i<initial.length;i++){
+          if(stopped)break;
+          await appendSegment(i+1,initial[i]);
+        }
+        if(!stopped&&audio.paused&&initialCount>0){try{await audio.play();}catch(e){console.warn('[TL3v4] play request rejected',e);}}
+        // Metering remains strictly ordered, but it no longer blocks audio buffering.
+        let chain=Promise.resolve();
+        for(let n=1;n<=N;n++){
+          chain=chain.then(()=>sessionClosed?undefined:settle(n)).catch(e=>{sessionClosed=true;console.error('[TL3v4] settlement failed',n,e);onError(e);});
+          settlementTasks.push(chain);
+        }
+        // Keep a rolling ten-segment decode/download window. SourceBuffer appends
+        // stay ordered; confirmations run independently in the background.
+        for(let first=initialCount+1;first<=N;first+=10){
+          if(stopped)break;
+          const count=Math.min(10,N-first+1);
+          const batch=await Promise.all(Array.from({length:count},(_,i)=>fetchSegment(first+i)));
+          for(let i=0;i<batch.length;i++){
+            if(stopped)break;
+            await appendSegment(first+i,batch[i]);
           }
-          const appendStart=performance.now();
-          await new Promise((resolve,reject)=>{
-            const cleanup=()=>{sb.removeEventListener('updateend',end);sb.removeEventListener('error',fail);};
-            const end=()=>{cleanup();const ranges=[];for(let i=0;i<sb.buffered.length;i++)ranges.push([Number(sb.buffered.start(i).toFixed(2)),Number(sb.buffered.end(i).toFixed(2))]);console.info('[TL3v4][TRACE] append',n,{ms:Math.round(performance.now()-appendStart),audio_time:Number(audio.currentTime.toFixed(2)),ready_state:audio.readyState,buffered:ranges});resolve();},fail=()=>{cleanup();reject(new Error('TL3 v4 appendBuffer failed @'+n));};
-            sb.addEventListener('updateend',end,{once:true});sb.addEventListener('error',fail,{once:true});
-            try{sb.appendBuffer(seg.plain);}catch(e){cleanup();reject(e);}
-          });
-          next++;
-          if(audio.paused&&n===1){try{await audio.play();}catch(e){console.warn('[TL3v4] play request rejected',e);}}
-          if(n>=2 && settlements.has(n-1)) await settlements.get(n-1);
-          if(stopped){
-            try{await settle(n);}catch(e){console.warn('[TL3v4] stopped segment refund',n,e);}
-            break;
-          }
-          if(n<N) await fetchSegment(n+1);
-          const task=settle(n).catch(e=>{console.error('[TL3v4] settlement failed',n,e);onError(e);throw e;});
-          settlements.set(n,task);settlementTasks.push(task);
         }
         if(next===N&&!stopped&&ms.readyState==='open'){try{ms.endOfStream();}catch(_){}}
-        if(N>0&&settlements.has(N)) await settlements.get(N);
+        await Promise.allSettled(settlementTasks);
         await syncPoc();
       }catch(e){onError(e);throw e;}
       finally{appendBusy=false;}
