@@ -207,8 +207,10 @@
       if(!Number.isFinite(now)){lastAudibleTime=null;return;}
       if(lastAudibleTime!==null){
         const delta=(now-lastAudibleTime)*1000;
-        // Ignore seeks, clock jumps and discontinuities; count only normal forward playback.
-        if(delta>0&&delta<=1500)billableMs+=delta;
+        // Media currentTime advances only while the audio timeline plays.
+        // Seeking/stalling events reset the sample baseline; do not discard valid
+        // playback merely because a throttled browser timer ran late.
+        if(delta>0)billableMs+=delta;
       }
       lastAudibleTime=now;
       const completed=Math.floor(billableMs/1000);
@@ -253,7 +255,7 @@
     }
     function startMeterSampling(){
       lastAudibleTime=Number(audio.currentTime)||0;
-      if(meterTimer===null)meterTimer=setInterval(sampleAudiblePlayback,250);
+      if(meterTimer===null)meterTimer=setInterval(sampleAudiblePlayback,100);
     }
     audio.addEventListener('playing',startMeterSampling);
     for(const ev of ['pause','waiting','stalled','seeking','seeked']){
