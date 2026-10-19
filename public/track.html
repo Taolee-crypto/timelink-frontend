@@ -354,7 +354,14 @@ body{font-family:Pretendard,Inter,-apple-system,BlinkMacSystemFont,"Noto Sans KR
       <div style="background:rgba(0,113,227,.08);border:1px solid rgba(0,113,227,.2);border-radius:10px;padding:12px;margin-bottom:10px;font-size:13px;color:var(--t2)">
         <div>이 곡: <strong id="chargeTargetTitle" style="color:var(--t1)"></strong></div>
         <div style="margin-top:7px">내 지갑: <strong id="chargeWalletBalance">0 TL</strong></div>
-        <div style="margin-top:4px">이 곡에 충전된 TL: <strong id="chargeTrackBalance" style="color:var(--teal)">—</strong></div>
+        <div style="margin-top:4px">1회 재생 필요 TL: <strong id="chargeUnitTL" style="color:var(--teal)">—</strong></div>
+        <div style="margin-top:4px">남은 완전 재생 횟수: <strong id="chargeTrackBalance" style="color:var(--teal)">—</strong></div>
+      </div>
+      <div style="margin:12px 0;padding:12px;border:1px solid var(--bd);border-radius:10px">
+        <label for="trackChargeCount" style="display:block;font-size:12px;color:var(--t2);margin-bottom:8px">충전할 재생 횟수</label>
+        <input id="trackChargeCount" type="number" min="1" step="1" value="1" oninput="updateTrackChargeQuote()" style="width:100%;padding:11px;border-radius:8px;border:1px solid var(--bd2);background:rgba(0,0,0,.25);color:var(--t1);font-size:16px">
+        <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px"><span style="color:var(--t3)">충전할 TL</span><strong id="trackChargeTotal" style="color:var(--teal)">—</strong></div>
+        <div id="trackChargeLimit" style="font-size:11px;color:var(--t3);margin-top:6px">내 지갑 잔액 범위에서 선택할 수 있습니다.</div>
       </div>
       <button id="directChargeBtn" style="width:100%;padding:13px;border-radius:12px;border:1px solid rgba(100,210,255,.3);background:rgba(100,210,255,.15);color:var(--teal);font-size:14px;font-weight:700;cursor:pointer">
         ⚡ 보유 TL로 직접 충전
@@ -431,7 +438,7 @@ body{font-family:Pretendard,Inter,-apple-system,BlinkMacSystemFont,"Noto Sans KR
       <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;color:rgba(255,255,255,.4)">곡 1회 필요 TL</span><span id="playerTLVal" style="font-size:11px;font-weight:700;color:#64D2FF">0 TL</span></div>
       <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px"><div id="playerTLBar" style="height:100%;background:linear-gradient(90deg,#0071E3,#64D2FF);border-radius:2px;width:0%"></div></div>
       <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-size:9px;color:rgba(255,255,255,.35)">이번 재생 차감</span><span id="playerSpentTLVal" style="font-size:10px;color:#64D2FF">0 TL</span></div>
-      <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-size:9px;color:rgba(255,255,255,.35)">이 곡 보유 TL</span><span id="playerAssetTLVal" style="font-size:10px;color:#C4B5FD">0 TL</span></div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-size:9px;color:rgba(255,255,255,.35)">남은 재생 횟수</span><span id="playerAssetTLVal" style="font-size:10px;color:#C4B5FD">0회</span></div>
       <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-size:9px;color:rgba(255,255,255,.35)">내 지갑 TL</span><span id="playerWalletVal" style="font-size:10px;color:#F5A623">0 TL</span></div><div style="display:flex;justify-content:space-between;margin-top:3px"><span id="playerTime" style="font-size:9px;color:rgba(255,255,255,.3)">0:00</span><span id="playerDur" style="font-size:9px;color:rgba(255,255,255,.3)">-</span></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
@@ -468,6 +475,7 @@ let _myFileTL = 0;  // 공통 사용자 지갑 TL
 let _trackTL = 0;   // 현재 곡에 충전된 사용자별 TL
 let _assetTL = 0, _assetInitialTL = 0;
 let _chargeAmount = 10000;
+let _trackChargeCount = 1;
 
 function getTok(){ return localStorage.getItem('tl_token')||''; }
 
@@ -575,6 +583,7 @@ async function loadTrack(){
     
     document.title = (s.title||'곡') + ' - TimeLink';
     renderPage(s, stats, _myFileTL, requiredTL);
+    if(new URLSearchParams(location.search).get('charge')==='1') setTimeout(function(){ chargeTL(); },250);
     loadComments();
     renderCopyright(s);
     if(s.user_id) checkFollowStatus(s.user_id);
@@ -1354,16 +1363,21 @@ function updateUIAfterCharge(newBalance){
   }
 }
 
-async function doDirectCharge(){
+async async function doDirectCharge(){
   if(!getTok()){ alert('로그인이 필요합니다'); return; }
   if(!window.SHARE_ID){ alert('곡 정보를 확인할 수 없습니다.'); return; }
+  const unit=songRequiredTL();
+  const count=Math.floor(Number(document.getElementById('trackChargeCount')?.value)||0);
+  const amount=unit*count;
+  if(unit<=0 || count<1 || !Number.isSafeInteger(amount)){ alert('곡의 1회 재생 필요 TL을 확인할 수 없습니다.'); return; }
+  if(amount>Number(_myFileTL||0)){ alert('지갑 잔액이 부족합니다. 선택한 재생 횟수를 줄이거나 지갑을 충전해 주세요.'); return; }
   const btn=document.getElementById('directChargeBtn');
   if(btn) btn.disabled=true;
   try {
     const r=await fetch(API+'/api/shares/'+encodeURIComponent(window.SHARE_ID)+'/charge',{
       method:'POST',
       headers:{'Authorization':'Bearer '+getTok(),'Content-Type':'application/json'},
-      body:JSON.stringify({amount:_chargeAmount,source:'direct'})
+      body:JSON.stringify({amount:amount,source:'direct'})
     });
     const d=await r.json();
     if(!r.ok || d.ok!==true) throw new Error(d.error||'곡별 충전에 실패했습니다.');
@@ -1371,12 +1385,9 @@ async function doDirectCharge(){
     _tlCurrentTL=_trackTL;
     if(Number.isFinite(Number(d.user_tl))) _myFileTL=Number(d.user_tl);
     updatePlayerTLDisplay();
-    const trackEl=document.getElementById('chargeTrackBalance');
-    if(trackEl) trackEl.textContent=formatTLInteger(_trackTL);
-    const walletEl=document.getElementById('chargeWalletBalance');
-    if(walletEl) walletEl.textContent=formatTLInteger(_myFileTL);
+    renderTrackChargeBalances();
     closeChargeModal();
-    alert('이 곡에 '+formatTLInteger(d.amount||_chargeAmount)+'을 충전했습니다.');
+    alert('이 곡에 '+count+'회분 ('+formatTLInteger(d.amount||amount)+')을 충전했습니다.');
   } catch(e){ alert(e.message||'곡별 충전 오류'); }
   finally { if(btn) btn.disabled=false; }
 }
@@ -1394,21 +1405,41 @@ function closeChargeModal(){
 function renderTrackChargeBalances(){
   const walletEl=document.getElementById('chargeWalletBalance');
   if(walletEl) walletEl.textContent=Number(_myFileTL||0).toLocaleString()+' TL';
-  const trackEl=document.getElementById('chargeTrackBalance');
-  if(trackEl) trackEl.textContent=Number(_trackTL||0).toLocaleString()+' TL';
-
+  const unit=songRequiredTL();
   const have=Number(_trackTL)||0;
-  const need=Math.max(0,1-have);
+  const plays=unit>0?Math.floor((have+1e-9)/unit):0;
+  const unitEl=document.getElementById('chargeUnitTL');
+  if(unitEl) unitEl.textContent=unit>0?formatTLInteger(unit)+' TL':'확인 중';
+  const trackEl=document.getElementById('chargeTrackBalance');
+  if(trackEl) trackEl.textContent=plays.toLocaleString()+'회';
   const box=document.getElementById('tlShortageBox');
   if(box){
-    box.style.display=need>0?'block':'none';
+    const shortage=Math.max(0,unit-have);
+    box.style.display=unit>0&&shortage>0?'block':'none';
     const req=document.getElementById('shortageReq');
     const haveEl=document.getElementById('shortageHave');
     const needEl=document.getElementById('shortageNeed');
-    if(req) req.textContent='1초 = 1 TL';
-    if(haveEl) haveEl.textContent=have.toLocaleString()+' TL';
-    if(needEl) needEl.textContent=need.toLocaleString()+' TL';
+    if(req) req.textContent=formatTLInteger(unit)+' TL / 1회';
+    if(haveEl) haveEl.textContent=plays.toLocaleString()+'회 가능';
+    if(needEl) needEl.textContent=formatTLInteger(shortage)+' TL 부족';
   }
+  updateTrackChargeQuote();
+}
+function updateTrackChargeQuote(){
+  const unit=songRequiredTL();
+  const wallet=Math.max(0,Number(_myFileTL)||0);
+  const max=unit>0?Math.floor((wallet+1e-9)/unit):0;
+  const input=document.getElementById('trackChargeCount');
+  const totalEl=document.getElementById('trackChargeTotal');
+  const limitEl=document.getElementById('trackChargeLimit');
+  const button=document.getElementById('directChargeBtn');
+  let count=input?Math.max(1,Math.floor(Number(input.value)||1)):1;
+  if(max>0) count=Math.min(count,max);
+  if(input){ input.max=String(max); input.value=String(count); }
+  const amount=count*unit;
+  if(totalEl) totalEl.textContent=unit>0?formatTLInteger(amount)+' TL':'—';
+  if(limitEl) limitEl.textContent=max>0?'최대 '+max.toLocaleString()+'회까지 충전할 수 있습니다.':'지갑 잔액으로 충전할 수 있는 완전 재생분이 없습니다.';
+  if(button) button.disabled=unit<=0||max<1||amount>wallet;
 }
 
 function chargeTL(){
@@ -1432,6 +1463,9 @@ function chargeTL(){
     if(p.dataset.amount==='10000') p.classList.add('active');
   });
   _chargeAmount=10000;
+  _trackChargeCount=1;
+  var countInput=document.getElementById('trackChargeCount');
+  if(countInput) countInput.value='1';
   renderTrackChargeBalances();
   modal.classList.add('open');
 
@@ -1587,7 +1621,7 @@ function updatePlayerTLDisplay(){
   var required=songRequiredTL();
   if(assetVal) assetVal.textContent=_tlFree?'FREE':formatTLInteger(required,'ceil');
   if(spentVal) spentVal.textContent=_tlFree?'0 TL':formatTLInteger(_tlSessionSettledSeconds);
-  if(trackBalanceVal) trackBalanceVal.textContent=_tlFree?'FREE':formatTLInteger(_tlCurrentTL);
+  if(trackBalanceVal) trackBalanceVal.textContent=_tlFree?'FREE':(required>0?Math.floor((Math.max(0,Number(_tlCurrentTL)||0)+1e-9)/required)+'회':'—');
   if(walletVal) walletVal.textContent=formatTLInteger(_myFileTL);
   var pageWallet=document.getElementById('myTLDisplay');
   if(pageWallet) pageWallet.textContent='💰 내 지갑 TL: '+formatTLInteger(_myFileTL);
