@@ -112,14 +112,27 @@
       try {
         source.disconnect();
         if (wanted) {
-          if (!processor) return Promise.resolve(false);
+          if (!processor) {
+            source.connect(master);
+            try { master.gain.setValueAtTime(1, ctx.currentTime); } catch (_) { master.gain.value = 1; }
+            return Promise.resolve(false);
+          }
+          // Rebuild a single clean route on every toggle; never leave duplicate
+          // processor-to-master connections behind.
+          try { processor.disconnect(); } catch (_) {}
           source.connect(processor);
           processor.connect(master);
         } else {
+          if (processor) { try { processor.disconnect(); } catch (_) {} }
           source.connect(master);
         }
       } catch (e) {
-        console.warn('[LP-CHAIN] route change failed:', e);
+        console.warn('[LP-CHAIN] route change failed; restoring native audio:', e);
+        try { source.disconnect(); } catch (_) {}
+        try { if (processor) processor.disconnect(); } catch (_) {}
+        try { source.connect(master); } catch (_) {}
+        enabled = false;
+        try { master.gain.setValueAtTime(1, ctx.currentTime); } catch (_) { master.gain.value = 1; }
         return Promise.resolve(false);
       }
 
