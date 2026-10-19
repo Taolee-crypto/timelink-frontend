@@ -141,7 +141,6 @@
         settled.add(n);pocDirty=true;
         if(!advance)sessionClosed=true;
         onSegment({index:n-1,seconds:played,remaining:d.wallet_tl,wallet_tl:d.wallet_tl,asset_remaining_tl:d.asset_remaining_tl});
-        if(stopped||n===N)await syncPoc();
       })();
       settling.set(n,task);
       task.then(()=>{if(settling.get(n)===task)settling.delete(n);},()=>{if(settling.get(n)===task)settling.delete(n);});
