@@ -51,18 +51,42 @@
     const durations=(h.segment_durations_ms||[]).map(Number);
     const lpMeta=h.lp_meta||null;
     const lpToggle=document.getElementById('lpEnhancedToggle');
+    const lpControl=document.getElementById('lpEnhancedControl');
     let lpController=null;
     if(lpToggle){lpToggle.checked=false;lpToggle.disabled=true;}
-    // 2026-10-19 AUDIO-SAFETY:
-    // Do not insert MediaElementAudioSourceNode into the default TL3 playback path.
-    // The previous implementation rerouted every track through WebAudio even when
-    // LP enhancement was OFF; a suspended/broken context could produce silent playback.
-    // Keep native HTMLAudioElement -> browser output until LP is explicitly reworked.
-    if(lpToggle){lpToggle.checked=false;lpToggle.disabled=true;}
+    // LP is opt-in and only available for assets carrying an enabled LP profile.
+    // Keep the native audio route untouched when the asset has no LP licence.
     global.setTL3LpEnhanced=async function(enabled){
-      if(enabled && lpToggle) lpToggle.checked=false;
-      return false;
+      if(!lpToggle||!lpController||!lpController.available())return false;
+      const ok=await lpController.setEnabled(!!enabled);
+      lpToggle.checked=!!ok&&!!enabled&&lpController.enabled();
+      if(lpControl)lpControl.title=lpToggle.checked
+        ? 'LP Enhanced 실시간 처리가 적용 중입니다'
+        : 'LP Enhanced 실시간 처리가 꺼져 있습니다';
+      console.info('[LP-CHAIN] toggle', {requested:!!enabled,applied:lpToggle.checked,mode:lpController.mode()});
+      return lpToggle.checked===!!enabled;
     };
+    if(lpMeta&&lpMeta.enabled===true&&global.TL3LPChain&&typeof global.TL3LPChain.create==='function'){
+      try{
+        lpController=await global.TL3LPChain.create(audio,lpMeta,Number(h.duration_ms||0));
+        const available=!!(lpController&&lpController.available&&lpController.available());
+        if(lpToggle){
+          lpToggle.checked=false;
+          lpToggle.disabled=!available;
+          if(lpControl)lpControl.title=available
+            ? '체크하면 이 곡에 LP Enhanced 실시간 음질 처리를 적용합니다'
+            : '이 브라우저에서 LP Enhanced 오디오 처리를 사용할 수 없습니다';
+        }
+        console.info('[LP-CHAIN] asset profile', {licensed:true,available,mode:lpController&&lpController.mode&&lpController.mode()});
+      }catch(error){
+        lpController=null;
+        if(lpToggle){lpToggle.checked=false;lpToggle.disabled=true;}
+        console.warn('[LP-CHAIN] initialization failed; native audio remains active',error);
+      }
+    }else{
+      if(lpToggle){lpToggle.checked=false;lpToggle.disabled=true;}
+      if(lpControl)lpControl.title='이 TL3 자산에는 LP Enhanced 라이선스가 없습니다';
+    }
     const ms=new MediaSource(),url=URL.createObjectURL(ms);
     let sb=null,stopped=false,next=0,appendBusy=false;
     const cache=new Map();
