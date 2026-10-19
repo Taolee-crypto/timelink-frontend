@@ -219,7 +219,7 @@
       let chargePromise = null;
       let charged = false;
       audioEl.addEventListener('playing', function onActualPlaybackStart() {
-        if (charged || chargePromise) return;
+        if (charged || chargePromise || audioEl.muted || audioEl.volume <= 0 || audioEl.readyState < 3) return;
         chargePromise = (async function(){
           const res = await fetch(API + '/api/v1/tl3/play/charge/' + encodeURIComponent(fidStr), {
             method: 'POST',
