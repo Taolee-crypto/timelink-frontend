@@ -123,12 +123,35 @@
       pipelineErrorReported=true;
       onError(error);
     }
+    let playbackStarted=false;
+    let bufferedDurationMs=0;
+    const START_BUFFER_MS=8000;
+    async function startAudiblePlayback(){
+      if(playbackStarted||stopped)return;
+      playbackStarted=true;
+      try{
+        await audio.play();
+        console.info('[TL3v4] playback started with initial buffer',{
+          buffered_ms:bufferedDurationMs,
+          total_segments:N
+        });
+      }catch(e){
+        playbackStarted=false;
+        throw new Error('오디오 재생을 시작하지 못했습니다: '+(e&&e.message||e));
+      }
+    }
+    let pipelineErrorReported=false;
+    async function reportPipelineError(error){
+      if(pipelineErrorReported)return;
+      pipelineErrorReported=true;
+      onError(error);
+    }
     async function pump(){
       if(appendBusy||stopped)return;
       appendBusy=true;
       try{
-        // Keep the V4 full-track buffer policy; cancellation is a control state,
-        // not a playback failure and must never recursively call stopPlay().
+        // Start after a safe initial buffer; keep appending the remaining track
+        // while audio is playing. Do not wait for all 100+ segments before sound.
         const batchSize=2;
         for(let first=1;first<=N;first+=batchSize){
           if(stopped)return;
@@ -137,15 +160,18 @@
           if(stopped)return;
           for(let i=0;i<batch.length;i++){
             if(stopped)return;
-            await appendSegment(first+i,batch[i]);
+            const segmentNumber=first+i;
+            await appendSegment(segmentNumber,batch[i]);
+            bufferedDurationMs+=Number(batch[i].duration)||Number(durations[segmentNumber-1])||1000;
+          }
+          if(!playbackStarted&&bufferedDurationMs>=START_BUFFER_MS){
+            await startAudiblePlayback();
           }
         }
         if(stopped)return;
         if(next!==N)throw new Error('TL3 전체 음원 버퍼 구성이 완료되지 않았습니다.');
+        if(!playbackStarted)await startAudiblePlayback();
         if(ms.readyState==='open')ms.endOfStream();
-        if(stopped)return;
-        try{await audio.play();}
-        catch(e){throw new Error('오디오 재생을 시작하지 못했습니다: '+(e&&e.message||e));}
       }catch(e){
         if(stopped)return;
         await reportPipelineError(e);
