@@ -217,11 +217,12 @@
     function queuePlaybackMeter(targetSeconds){
       if(targetSeconds<=meterQueuedSeconds||meterFailed)return;
       meterQueuedSeconds=targetSeconds;
+      const playedMsForRequest=Math.floor(billableMs);
       meterQueue=meterQueue.then(async()=>{
         if(meterFailed)return;
         const response=await fetchRetry(API+'/api/v1/tl3/play/meter/'+encodeURIComponent(data.file_id),{
           method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
-          body:JSON.stringify({session_id:sessionId,played_ms:Math.floor(billableMs)})
+          body:JSON.stringify({session_id:sessionId,played_ms:playedMsForRequest})
         },'TL3 playback-time meter');
         const d=await response.json().catch(()=>({}));
         if(response.status===402&&d.stop){
