@@ -13,8 +13,20 @@
     const material=await crypto.subtle.importKey('raw',license,'HKDF',false,['deriveKey']);
     return crypto.subtle.deriveKey({name:'HKDF',hash:'SHA-256',salt:previous,info:enc('timelink:tl3:spine:v1:segment:'+n)},material,{name:'AES-GCM',length:256},false,['decrypt']);
   }
+  async function fetchRetry(url,opts,label){
+    let lastError;
+    for(let attempt=0;attempt<4;attempt++){
+      try{
+        const response=await fetch(url,opts||{headers:auth()});
+        if(response.ok||![408,429,500,502,503,504].includes(response.status))return response;
+        lastError=new Error((label||'TL3 request')+' HTTP '+response.status);
+      }catch(error){lastError=error;}
+      if(attempt<3)await new Promise(resolve=>setTimeout(resolve,350*Math.pow(2,attempt)));
+    }
+    throw lastError||new Error((label||'TL3 request')+' failed');
+  }
   async function json(url,opts){
-    const r=await fetch(url,opts||{headers:auth()});
+    const r=await fetchRetry(url,opts,'TL3 API');
     const d=await r.json().catch(()=>({}));
     if(!r.ok||d.ok===false)throw new Error(d.error||('HTTP '+r.status));
     return d;
@@ -94,7 +106,7 @@
       const p=(async()=>{
         const traceStart=performance.now(),q='?segment='+(n-1)+'&session_id='+encodeURIComponent(sessionId);
         const segmentStart=performance.now();
-        const segmentPromise=fetch(API+'/api/v1/tl3/segment/'+encodeURIComponent(data.file_id)+q,{headers:auth()}).then(async resp=>{
+        const segmentPromise=fetchRetry(API+'/api/v1/tl3/segment/'+encodeURIComponent(data.file_id)+q,{headers:auth()},'TL3 segment '+n).then(async resp=>{
           const headers={status:resp.status,bytes:Number(resp.headers.get('content-length')||0)};
           if(!resp.ok)throw new Error('TL3 v4 segment '+n+' HTTP '+resp.status);
           const cipher=new Uint8Array(await resp.arrayBuffer());headers.bytes=cipher.byteLength;
@@ -164,7 +176,7 @@
       try{
         // The release license is derived per asset, not per segment. Obtain it once,
         // then download/decrypt audio segments ahead without serial code-issuance waits.
-        const initialCount=Math.min(N,10);
+        const initialCount=Math.min(N,5);
         const initial=await Promise.all(Array.from({length:initialCount},(_,i)=>fetchSegment(i+1)));
         for(let i=0;i<initial.length;i++){
           if(stopped)break;
@@ -179,9 +191,9 @@
         }
         // Keep a rolling ten-segment decode/download window. SourceBuffer appends
         // stay ordered; confirmations run independently in the background.
-        for(let first=initialCount+1;first<=N;first+=10){
+        for(let first=initialCount+1;first<=N;first+=5){
           if(stopped)break;
-          const count=Math.min(10,N-first+1);
+          const count=Math.min(5,N-first+1);
           const batch=await Promise.all(Array.from({length:count},(_,i)=>fetchSegment(first+i)));
           for(let i=0;i<batch.length;i++){
             if(stopped)break;
