@@ -218,8 +218,8 @@
 
       let chargePromise = null;
       let charged = false;
-      audioEl.addEventListener('playing', function onActualPlaybackStart() {
-        if (charged || chargePromise || audioEl.muted || audioEl.volume <= 0 || audioEl.readyState < 3) return;
+      const maybeChargeOnAudiblePlayback = function(){
+        if (charged || chargePromise || audioEl.paused || audioEl.muted || audioEl.volume <= 0 || audioEl.readyState < 3 || audioEl.currentTime < 0.05) return;
         chargePromise = (async function(){
           const res = await fetch(API + '/api/v1/tl3/play/charge/' + encodeURIComponent(fidStr), {
             method: 'POST',
@@ -235,7 +235,9 @@
           try { audioEl.pause(); } catch (_) {}
           onError(error);
         });
-      }, { once: true });
+      };
+      audioEl.addEventListener('playing', maybeChargeOnAudiblePlayback);
+      audioEl.addEventListener('timeupdate', maybeChargeOnAudiblePlayback);
       ['playing','waiting','stalled','ended'].forEach(name => {
         audioEl.addEventListener(name, () => {
           console.log('[TL3v6] audio event:', name, { t: audioEl.currentTime, paused: audioEl.paused, bufEnd: sb && sb.buffered.length ? sb.buffered.end(sb.buffered.length-1) : 0 });
