@@ -1,6 +1,6 @@
-/*! tl3.js — TimeLink TL3 v6 Player (2026-10-19 완전 새로 작성)
- * 병렬 파이프라인: 세그먼트 미리 여러 개 fetch + decrypt, append는 연속
- * confirm(정산)은 백그라운드 queue, 재생 블로킹 안 함
+/*! tl3.js — TimeLink TL3 v7 Player (2026-10-19)
+ * 전체 세그먼트 사전 로드·복호화·append 완료 후 재생 시작
+ * 실제 오디오 재생 시계가 움직인 뒤 1회 재생 TL 전액 차감
  */
 (function (global) {
   'use strict';
@@ -277,6 +277,6 @@
       const r = await fetch(API + '/api/v1/tl3/header/' + id, { headers: authHeaders() });
       return await r.json();
     },
-    version: 'v6-parallel-pipeline-2026-10-19'
+    version: 'v7-full-track-prebuffer-2026-10-19'
   };
 })(window);
