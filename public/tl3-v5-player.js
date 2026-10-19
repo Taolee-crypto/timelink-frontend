@@ -150,11 +150,11 @@
     };
     const blobUrl=URL.createObjectURL(new Blob([decoded.mp3],{type:'audio/mpeg'}));
     let stopped=false,meterTimer=null,billableMs=0,lastTime=null,meterQueued=0,lastBilled=0,meterQueue=Promise.resolve(),meterFailed=false;
-    function sample(){
-      if(stopped||meterFailed||audio.paused||audio.seeking||audio.ended||audio.muted||audio.volume<=0){lastTime=null;return;}
+    function sample(force){
+      if(stopped||meterFailed||audio.seeking||audio.ended&&!force||audio.muted||audio.volume<=0||audio.paused&&!force){lastTime=null;return;}
       const now=Number(audio.currentTime);
       if(!Number.isFinite(now)){lastTime=null;return;}
-      if(lastTime!==null){const delta=(now-lastTime)*1000;if(delta>0)billableMs+=Math.min(delta,1000);}
+      if(lastTime!==null){const delta=(now-lastTime)*1000;if(delta>0)billableMs+=delta;}
       lastTime=now;
       const target=Math.floor(billableMs/1000);
       if(target>meterQueued)queueMeter(target,false);
@@ -178,7 +178,7 @@
       }).catch(e=>{meterFailed=true;try{audio.pause();}catch(_){};onError(e);});
     }
     const onPlaying=()=>{lastTime=Number(audio.currentTime)||0;if(meterTimer===null)meterTimer=setInterval(sample,100);};
-    const onPause=()=>{sample();lastTime=null;};
+    const onPause=()=>{sample(true);lastTime=null;};
     const onEnded=()=>{billableMs=totalMs;queueMeter(Math.ceil(totalMs/1000),true);};
     audio.addEventListener('playing',onPlaying);
     audio.addEventListener('pause',onPause);
@@ -197,7 +197,7 @@
     });
     try{await audio.play();}catch(e){throw new Error('음원 재생을 시작하지 못했습니다: '+(e&&e.message||e));}
     audio._tl3End=async function(){
-      sample();
+      sample(true);
       if(audio.ended){billableMs=totalMs;queueMeter(Math.ceil(totalMs/1000),true);}
       if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}
       await meterQueue;
