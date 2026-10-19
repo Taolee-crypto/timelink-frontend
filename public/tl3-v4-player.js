@@ -199,9 +199,9 @@
     // Bill only audible media-time progress. Pauses, buffering and seeks do not accrue TL.
     let billableMs=0,lastAudibleTime=null,lastMeteredSeconds=0,meterQueuedSeconds=0;
     let meterTimer=null,meterQueue=Promise.resolve(),meterFailed=false;
-    function sampleAudiblePlayback(){
+    function sampleAudiblePlayback(forceEnd){
       if(stopped||meterFailed)return;
-      const active=!audio.paused&&!audio.seeking&&!audio.ended&&!audio.muted&&audio.volume>0&&audio.readyState>=2;
+      const active=(!audio.paused||!!forceEnd)&&!audio.seeking&&(!audio.ended||!!forceEnd)&&!audio.muted&&audio.volume>0&&audio.readyState>=2;
       if(!active){lastAudibleTime=null;return;}
       const now=Number(audio.currentTime);
       if(!Number.isFinite(now)){lastAudibleTime=null;return;}
@@ -280,6 +280,7 @@
       },{once:true});
       audio.src=url;audio.load();
     }).then(result=>{
+      audio._tl3End=function(){sampleAudiblePlayback(true);const totalMs=Number(h.duration_ms)||durations.reduce((sum,value)=>sum+(Number(value)||0),0);if(totalMs>0&&Math.abs(Number(audio.currentTime||0)*1000-totalMs)<=300&&billableMs>=totalMs-300){billableMs=totalMs;queuePlaybackMeter(Math.ceil(totalMs/1000));}};
       audio._tl3Stop=function(){if(stopped)return;sampleAudiblePlayback();if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}stopped=true;try{audio.pause();}catch(_){};if(lpController&&lpController.stop)lpController.stop().catch(()=>{});try{if(ms.readyState==='open')ms.endOfStream();}catch(_){}};
       audio._tl3Confirm=audio._tl3Stop;
       audio._tl3Suspend=function(){return lpController&&lpController.suspend?lpController.suspend():Promise.resolve();};
