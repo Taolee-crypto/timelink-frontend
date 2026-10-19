@@ -63,6 +63,7 @@ for source in (player, v4_player, lp_chain, worklet, manufacture):
 creator_text = creator.read_text(encoding="utf-8")
 track_text = track.read_text(encoding="utf-8")
 player_text = player.read_text(encoding="utf-8")
+lp_chain_text = lp_chain.read_text(encoding="utf-8")
 
 assert "tl3-manufacture.js" in creator_text, "Creator must load the shared TL3 manufacturing pipeline."
 manufacture_text = manufacture.read_text(encoding="utf-8")
