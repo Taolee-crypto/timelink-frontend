@@ -58,8 +58,10 @@
     // Keep the native audio route untouched when the asset has no LP licence.
     global.setTL3LpEnhanced=async function(enabled){
       if(!lpToggle||!lpController||!lpController.available())return false;
-      const ok=await lpController.setEnabled(!!enabled);
-      lpToggle.checked=!!ok&&!!enabled&&lpController.enabled();
+      let ok=false;
+      try { ok=await lpController.setEnabled(!!enabled); }
+      catch(error) { console.warn('[LP-CHAIN] toggle failed; native audio is retained',error); }
+      lpToggle.checked=!!(ok&&enabled&&lpController.enabled());
       if(lpControl)lpControl.title=lpToggle.checked
         ? 'LP Enhanced 실시간 처리가 적용 중입니다'
         : 'LP Enhanced 실시간 처리가 꺼져 있습니다';
