@@ -117,30 +117,40 @@
       next=n;
       cache.delete(n);
     }
+    let pipelineErrorReported=false;
+    async function reportPipelineError(error){
+      if(pipelineErrorReported)return;
+      pipelineErrorReported=true;
+      onError(error);
+    }
     async function pump(){
       if(appendBusy||stopped)return;
       appendBusy=true;
       try{
-        // Complete download, decryption and append of the entire track before playback.
-        // This removes segment-boundary network/license waits from audible playback.
+        // Keep the V4 full-track buffer policy; cancellation is a control state,
+        // not a playback failure and must never recursively call stopPlay().
         const batchSize=2;
         for(let first=1;first<=N;first+=batchSize){
-          if(stopped)throw new Error('재생이 취소되었습니다.');
+          if(stopped)return;
           const count=Math.min(batchSize,N-first+1);
           const batch=await Promise.all(Array.from({length:count},(_,i)=>fetchSegment(first+i)));
+          if(stopped)return;
           for(let i=0;i<batch.length;i++){
-            if(stopped)throw new Error('재생이 취소되었습니다.');
+            if(stopped)return;
             await appendSegment(first+i,batch[i]);
           }
         }
+        if(stopped)return;
         if(next!==N)throw new Error('TL3 전체 음원 버퍼 구성이 완료되지 않았습니다.');
         if(ms.readyState==='open')ms.endOfStream();
-        if(!stopped){
-          try{await audio.play();}
-          catch(e){throw new Error('오디오 재생을 시작하지 못했습니다: '+(e&&e.message||e));}
-        }
-      }catch(e){onError(e);throw e;}
-      finally{appendBusy=false;}
+        if(stopped)return;
+        try{await audio.play();}
+        catch(e){throw new Error('오디오 재생을 시작하지 못했습니다: '+(e&&e.message||e));}
+      }catch(e){
+        if(stopped)return;
+        await reportPipelineError(e);
+        throw e;
+      }finally{appendBusy=false;}
     }
     async function chargeOnce(){
       if(charged)return;
@@ -181,7 +191,7 @@
           onReady({mediaSource:ms,header:h,sessionId});
           // The MediaSource URL is assigned once below; reloading here would reset
           // the SourceBuffer immediately after sourceopen.
-          pump().catch(e=>{console.error('[TL3v4] pipeline failed',e);onError(e);});
+          pump().catch(e=>{if(!stopped)console.error('[TL3v4] pipeline failed',e);});
           resolve({sessionId,header:h,mediaSource:ms,version:4});
         }catch(e){reject(e);}
       },{once:true});
