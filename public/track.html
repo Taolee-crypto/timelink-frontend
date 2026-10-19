@@ -1611,6 +1611,7 @@ async function playTrack(){
       const quote=await pre.json().catch(()=>({}));
       if(!pre.ok||!quote.ok) throw new Error(quote.error||'재생 사전 확인 실패');
       _myFileTL=Number(quote.wallet_tl||0);
+      if(quote.asset_tl!==undefined) _tlCurrentTL=Math.max(0,Number(quote.asset_tl)||0);
       _tlMaxTL=Number(quote.required_tl||songRequiredTL());
       if(Number(quote.duration_ms)>0){
         _assetInitialTL=Number(quote.duration_ms)/1000;
@@ -1735,13 +1736,14 @@ async function playTrack(){
         if(!_share || String(_share.id)!==String(SHARE_ID)) return;
         _myFileTL=Math.max(0,Number(info.wallet_tl)||0);
         _tlSessionSettledSeconds=Math.max(0,Number(info.billed_seconds||info.charged_tl)||0);
-        _tlCurrentTL=Math.max(0,songRequiredTL()-_tlSessionSettledSeconds);
+        _tlCurrentTL=Math.max(0,Number(info.asset_tl ?? (songRequiredTL()-_tlSessionSettledSeconds))||0);
         updatePlayerTLDisplay();
         console.log('[TRACK TL] elapsed playback settlement:',info.delta_tl,'TL; total:',_tlSessionSettledSeconds,'wallet:',_myFileTL);
       },
       onInsufficient: function(info){
         if(!_share || String(_share.id)!==String(SHARE_ID)) return;
         _myFileTL=Math.max(0,Number(info.wallet_tl)||0);
+        if(info.asset_tl!==undefined) _tlCurrentTL=Math.max(0,Number(info.asset_tl)||0);
         updatePlayerTLDisplay();
         stopPlay();
         alert('보유 TL이 부족하여 재생을 중지했습니다. 실제 재생된 시간만 정산했습니다.');
