@@ -558,22 +558,23 @@ async function loadMyTL(){
   var tl3Songs = _allShares.filter(function(s){ return contentKind(s) === 'tl3'; });
   if (!tl3Songs.length) return;
   await Promise.all(tl3Songs.map(async function(s){
+    // 카드에 표시할 값은 음원 전체 TL 풀이 아니라 로그인 사용자가 해당 곡에 보유한 TL이다.
     var key = String(s.id);
     try {
-      var r = await fetch(API_BASE + '/api/v1/tl3/asset/' + encodeURIComponent(key) + '/tl', {
+      var r = await fetch(API_BASE + '/api/shares/' + encodeURIComponent(key) + '/my-tl', {
         headers: { 'Authorization': 'Bearer ' + (_token || '') },
         cache: 'no-store'
       });
       var d = await r.json().catch(function(){ return {}; });
       if (!r.ok || !d || d.ok !== true) throw new Error((d && d.error) || ('HTTP ' + r.status));
-      var balance = Number(d.remaining_tl);
+      var balance = Number(d.tl_balance);
       if (Number.isFinite(balance) && balance >= 0) _myFileTL[key] = balance;
     } catch(e) {
-      // 기존 표시값은 보존한다. 실패한 요청을 0으로 덮어쓰지 않는다.
-      console.warn('[SharePlace] 곡 TL 잔액 조회 실패:', key, e && e.message ? e.message : e);
+      // 실패 응답을 0으로 덮어쓰지 않는다.
+      console.warn('[SharePlace] 곡별 보유 TL 조회 실패:', key, e && e.message ? e.message : e);
     }
   }));
-  applyFilter();   // 모든 곡의 동일한 잔액 조회가 끝난 뒤 한 번만 재렌더
+  applyFilter();
 }
 function updateCounts(){
   var s=_allShares;
