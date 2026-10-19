@@ -431,6 +431,7 @@ body{font-family:Pretendard,Inter,-apple-system,BlinkMacSystemFont,"Noto Sans KR
       <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;color:rgba(255,255,255,.4)">곡 1회 필요 TL</span><span id="playerTLVal" style="font-size:11px;font-weight:700;color:#64D2FF">0 TL</span></div>
       <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px"><div id="playerTLBar" style="height:100%;background:linear-gradient(90deg,#0071E3,#64D2FF);border-radius:2px;width:0%"></div></div>
       <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-size:9px;color:rgba(255,255,255,.35)">이번 재생 차감</span><span id="playerSpentTLVal" style="font-size:10px;color:#64D2FF">0 TL</span></div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-size:9px;color:rgba(255,255,255,.35)">이 곡 보유 TL</span><span id="playerAssetTLVal" style="font-size:10px;color:#C4B5FD">0 TL</span></div>
       <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-size:9px;color:rgba(255,255,255,.35)">내 지갑 TL</span><span id="playerWalletVal" style="font-size:10px;color:#F5A623">0 TL</span></div><div style="display:flex;justify-content:space-between;margin-top:3px"><span id="playerTime" style="font-size:9px;color:rgba(255,255,255,.3)">0:00</span><span id="playerDur" style="font-size:9px;color:rgba(255,255,255,.3)">-</span></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
@@ -1579,10 +1580,11 @@ function formatTLInteger(value, mode){
 function songRequiredTL(){ return Math.ceil(Math.max(0,Number(_assetInitialTL||0))-1e-9); }
 
 function updatePlayerTLDisplay(){
-  var assetVal=document.getElementById('playerTLVal'),spentVal=document.getElementById('playerSpentTLVal'),walletVal=document.getElementById('playerWalletVal'),bar=document.getElementById('playerTLBar');
+  var assetVal=document.getElementById('playerTLVal'),spentVal=document.getElementById('playerSpentTLVal'),trackBalanceVal=document.getElementById('playerAssetTLVal'),walletVal=document.getElementById('playerWalletVal'),bar=document.getElementById('playerTLBar');
   var required=songRequiredTL();
   if(assetVal) assetVal.textContent=_tlFree?'FREE':formatTLInteger(required,'ceil');
   if(spentVal) spentVal.textContent=_tlFree?'0 TL':formatTLInteger(_tlSessionSettledSeconds);
+  if(trackBalanceVal) trackBalanceVal.textContent=_tlFree?'FREE':formatTLInteger(_tlCurrentTL);
   if(walletVal) walletVal.textContent=formatTLInteger(_myFileTL);
   var pageWallet=document.getElementById('myTLDisplay');
   if(pageWallet) pageWallet.textContent='💰 내 지갑 TL: '+formatTLInteger(_myFileTL);
@@ -1619,7 +1621,7 @@ async function playTrack(){
       }
       if(!quote.can_play){
         updatePlayerTLDisplay();
-        alert('재생을 시작하려면 최소 1 TL이 필요합니다. 현재 잔액은 '+formatTLInteger(_myFileTL)+'입니다.');
+        alert('이 곡의 보유 TL이 부족합니다. 현재 곡 잔액은 '+formatTLInteger(_tlCurrentTL)+'입니다. 지갑에서 이 곡으로 충전해 주세요.');
         chargeTL();
         return;
       }
@@ -1633,7 +1635,7 @@ async function playTrack(){
   const fileUrl = _share.stream_url || _share.file_url;
   if(!fileUrl){ alert('재생 파일이 없습니다'); return; }
 
-  window._tlCurrentTL = _tlFree ? 0 : songRequiredTL();
+  window._tlCurrentTL = _tlFree ? 0 : Math.max(0,Number(_tlCurrentTL)||0);
   window._tlMaxTL = _tlFree ? 0 : songRequiredTL();
   window._tlElapsed = 0;
   _tlSessionSettledSeconds=0;
@@ -1737,13 +1739,14 @@ async function playTrack(){
         _myFileTL=Math.max(0,Number(info.wallet_tl)||0);
         _tlSessionSettledSeconds=Math.max(0,Number(info.billed_seconds||info.charged_tl)||0);
         _tlCurrentTL=Math.max(0,Number(info.asset_tl ?? (songRequiredTL()-_tlSessionSettledSeconds))||0);
+        _trackTL=_tlCurrentTL;
         updatePlayerTLDisplay();
         console.log('[TRACK TL] elapsed playback settlement:',info.delta_tl,'TL; total:',_tlSessionSettledSeconds,'wallet:',_myFileTL);
       },
       onInsufficient: function(info){
         if(!_share || String(_share.id)!==String(SHARE_ID)) return;
         _myFileTL=Math.max(0,Number(info.wallet_tl)||0);
-        if(info.asset_tl!==undefined) _tlCurrentTL=Math.max(0,Number(info.asset_tl)||0);
+        if(info.asset_tl!==undefined){ _tlCurrentTL=Math.max(0,Number(info.asset_tl)||0); _trackTL=_tlCurrentTL; }
         updatePlayerTLDisplay();
         stopPlay();
         alert('보유 TL이 부족하여 재생을 중지했습니다. 실제 재생된 시간만 정산했습니다.');
