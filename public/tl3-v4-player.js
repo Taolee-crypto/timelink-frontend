@@ -176,7 +176,7 @@
           if(stopped)return;
           // Start as soon as the first complete segment is appended; thereafter
           // fetch in larger groups so the buffer stays ahead of playback.
-          const batchSize=first===1?1:4;
+          const batchSize=first===1?1:2;
           const count=Math.min(batchSize,N-first+1);
           const batch=await Promise.all(Array.from({length:count},(_,i)=>fetchSegment(first+i)));
           if(stopped)return;
@@ -288,14 +288,28 @@
       },{once:true});
       audio.src=url;audio.load();
     }).then(result=>{
+      let finalizingPlayback=false;
       audio._tl3End=async function(){
+        if(finalizingPlayback){
+          await meterQueue;
+          return lastMeteredSeconds;
+        }
+        finalizingPlayback=true;
+        // Capture the final audible timeline before stopping the LP audio graph.
         sampleAudiblePlayback(true);
         const totalMs=Number(h.duration_ms)||durations.reduce((sum,value)=>sum+(Number(value)||0),0);
-        // The ended event is authoritative: a completed track consumes exactly
-        // ceil(duration seconds) TL, including its final partial second.
+        // The ended event is authoritative: the completed track is billed
+        // exactly ceil(duration seconds) TL, including its final partial second.
         if(totalMs>0&&audio.ended){
           billableMs=totalMs;
           queuePlaybackMeter(Math.ceil(totalMs/1000));
+        }
+        // Stop LP processing immediately at the media ended boundary. Do not
+        // leave worklet/reverb tails running while the final TL request settles.
+        if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}
+        lastAudibleTime=null;
+        if(lpController&&lpController.stop){
+          try{await lpController.stop();}catch(error){console.warn('[LP-CHAIN] stop at track end failed',error);}
         }
         await meterQueue;
         return lastMeteredSeconds;
