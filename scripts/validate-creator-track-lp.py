@@ -75,15 +75,18 @@ assert "lp: lpLicense && lpLicense.lp_enabled === true" in manufacture_text, "Ma
 assert "api/v1/tl3/spine/header/" in manufacture_text, "Creator must verify the Track-playable v4 header before completion."
 assert "api/v1/tl3/spine/" in manufacture_text and "/verify" in manufacture_text, "Creator must verify the v4 Spine integrity chain."
 assert "api/v1/tl3/spine/header/" in v4_player_text, "Track v4 player must consume the published Spine header."
-# Current billing policy: full-track price (1 TL/second) is charged once after
-# audible playback starts. Segment confirmation/refund is intentionally retired.
-assert "play/charge/" in v4_player_text, "Track v4 player must charge the complete track once."
-assert "chargeOnce" in v4_player_text and "session_id" in v4_player_text, "Track v4 player must use an idempotent playback session."
-assert "entire track" in v4_player_text, "Track v4 player must prebuffer the complete track before playback."
+# Current billing policy: exactly 1 TL per audible second, settled in
+# cumulative one-second increments; the final partial second is settled when
+# the audio element emits "ended".
+assert "play/meter/" in v4_player_text, "Track v4 player must use the audible-time meter."
+assert "queuePlaybackMeter" in v4_player_text and "played_ms" in v4_player_text, "Track v4 player must send cumulative audible milliseconds."
+assert "audio._tl3End=async function()" in v4_player_text, "Track v4 player must await final full-track settlement."
+assert "first===1?1:4" in v4_player_text, "Track v4 player must start after the first segment and prefetch ahead."
 assert "segment/confirm/" not in v4_player_text, "Track v4 player must not use retired segment metering."
-assert "play/preflight/" in track_text, "Track must check full-track price and wallet balance before playback."
-assert "onCharge: function(info)" in track_text, "Track must update the wallet display after full-track charge."
-assert "play/charge/" in player_text, "Legacy TL3 player must use full-track one-time charging."
+assert "play/preflight/" in track_text, "Track must check that at least 1 TL is available before playback."
+assert "onMeter: function(info)" in track_text, "Track must update the wallet display after each one-second settlement."
+assert "await playerAudio._tl3End()" in track_text, "Track must finish final meter settlement before stopping the player."
+assert "lpEnhancedToggle" in track_text and "setTL3LpEnhanced" in v4_player_text, "Track LP Enhanced checkbox must control the active audio chain."
 assert "segment/confirm/" not in player_text, "Legacy TL3 player must not use retired segment metering."
 assert "createMediaElementSource" in lp_chain_text and "AudioWorkletNode" in lp_chain_text, "Love Connect WebAudio routing is incomplete."
 
