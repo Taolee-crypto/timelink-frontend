@@ -203,22 +203,24 @@
     }
     // Bill only audible media-time progress. Pauses, buffering and seeks do not accrue TL.
     let billableMs=0,lastAudibleTime=null,lastMeteredSeconds=0,meterQueuedSeconds=0;
-    let meterTimer=null,meterQueue=Promise.resolve(),meterFailed=false;
+    let meterTimer=null,meterQueue=Promise.resolve(),meterFailed=false,audibleActive=false;
     function sampleAudiblePlayback(forceEnd){
       if(stopped||meterFailed)return;
-      const active=(!audio.paused||!!forceEnd)&&!audio.seeking&&(!audio.ended||!!forceEnd)&&!audio.muted&&audio.volume>0&&audio.readyState>=2;
+      // Keep the last audible state through pause/waiting/stalled events long
+      // enough to sample the final media-time movement before closing the gate.
+      const active=(audibleActive||!!forceEnd)&&!audio.seeking&&(!audio.ended||!!forceEnd)&&!audio.muted&&audio.volume>0;
       if(!active){lastAudibleTime=null;return;}
       const now=Number(audio.currentTime);
       if(!Number.isFinite(now)){lastAudibleTime=null;return;}
       if(lastAudibleTime!==null){
         const delta=(now-lastAudibleTime)*1000;
-        // Media currentTime advances only while the audio timeline plays.
-        // Seeking/stalling events reset the sample baseline; do not discard valid
-        // playback merely because a throttled browser timer ran late.
+        // currentTime is the authoritative media clock. Sampling before every
+        // state transition prevents the last fraction of a second being lost
+        // when readyState drops or the browser fires waiting/pause.
         if(delta>0)billableMs+=delta;
       }
       lastAudibleTime=now;
-      const completed=Math.floor(billableMs/1000);
+      const completed=Math.floor((billableMs+0.001)/1000);
       if(completed>meterQueuedSeconds)queuePlaybackMeter(completed);
     }
     function queuePlaybackMeter(targetSeconds){
@@ -259,13 +261,24 @@
       });
     }
     function startMeterSampling(){
+      audibleActive=true;
       lastAudibleTime=Number(audio.currentTime)||0;
       if(meterTimer===null)meterTimer=setInterval(sampleAudiblePlayback,100);
     }
     audio.addEventListener('playing',startMeterSampling);
-    for(const ev of ['pause','waiting','stalled','seeking','seeked']){
-      audio.addEventListener(ev,()=>{lastAudibleTime=null;});
+    for(const ev of ['pause','waiting','stalled','seeking','ended']){
+      audio.addEventListener(ev,()=>{
+        sampleAudiblePlayback();
+        audibleActive=false;
+        lastAudibleTime=null;
+      });
     }
+    audio.addEventListener('seeked',()=>{
+      // Seeking itself is not billable. Resume metering only after playback
+      // has actually restarted and emitted "playing".
+      audibleActive=false;
+      lastAudibleTime=null;
+    });
     function haltChargeFailure(error){
       stopped=true;
       if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}
@@ -301,8 +314,12 @@
         // The ended event is authoritative: the completed track is billed
         // exactly ceil(duration seconds) TL, including its final partial second.
         if(totalMs>0&&audio.ended){
+          // An ended media element has completed the entire authored timeline.
+          // Clamp to the canonical segment-duration sum so final billing equals
+          // the track's required TL exactly, including its final partial second.
           billableMs=totalMs;
-          queuePlaybackMeter(Math.ceil(totalMs/1000));
+          const finalSeconds=Math.ceil(totalMs/1000);
+          if(finalSeconds>meterQueuedSeconds)queuePlaybackMeter(finalSeconds);
         }
         // Stop LP processing immediately at the media ended boundary. Do not
         // leave worklet/reverb tails running while the final TL request settles.
