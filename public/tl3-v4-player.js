@@ -7,11 +7,67 @@
   const hex=b=>Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('');
   const token=()=>localStorage.getItem('tl_token')||'';
   const auth=()=>({'Authorization':'Bearer '+token()});
-  const sid=()=>'tl3v4_'+Date.now()+'_'+Math.random().toString(36).slice(2,10);
+  const sid=()=>{const b=crypto.getRandomValues(new Uint8Array(24));return 'tl3v4_'+Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('');};
   function ivFor(prefix,n){const iv=new Uint8Array(12);iv.set(prefix,0);new DataView(iv.buffer).setBigUint64(4,BigInt(n),false);return iv;}
   async function deriveKey(license,previous,n){
     const material=await crypto.subtle.importKey('raw',license,'HKDF',false,['deriveKey']);
     return crypto.subtle.deriveKey({name:'HKDF',hash:'SHA-256',salt:previous,info:enc('timelink:tl3:spine:v1:segment:'+n)},material,{name:'AES-GCM',length:256},false,['decrypt']);
+  }
+  const b64urlBytes=s=>{
+    const normalized=String(s||'').replace(/-/g,'+').replace(/_/g,'/');
+    const raw=atob(normalized+'='.repeat((4-normalized.length%4)%4));
+    const out=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out;
+  };
+  function playerDb(){
+    return new Promise((resolve,reject)=>{
+      const req=indexedDB.open('timelink-player-keys-v1',1);
+      req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('credentials'))req.result.createObjectStore('credentials');};
+      req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('Player key storage unavailable'));
+    });
+  }
+  async function playerCredential(){
+    const db=await playerDb();
+    const existing=await new Promise((resolve,reject)=>{
+      const req=db.transaction('credentials','readonly').objectStore('credentials').get('primary');
+      req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);
+    });
+    if(existing&&existing.privateKey&&existing.playerId&&existing.publicKey){db.close();return existing;}
+    const pair=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveBits']);
+    const privateJwk=await crypto.subtle.exportKey('jwk',pair.privateKey);
+    const privateKey=await crypto.subtle.importKey('jwk',privateJwk,{name:'ECDH',namedCurve:'P-256'},false,['deriveBits']);
+    const publicKey=await crypto.subtle.exportKey('jwk',pair.publicKey);
+    const random=crypto.getRandomValues(new Uint8Array(24));
+    const playerId=Array.from(random).map(x=>x.toString(16).padStart(2,'0')).join('');
+    const credential={playerId,privateKey,publicKey:{kty:'EC',crv:'P-256',x:publicKey.x,y:publicKey.y}};
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction('credentials','readwrite');tx.objectStore('credentials').put(credential,'primary');
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+    });
+    db.close();return credential;
+  }
+  async function unwrapPlayerSessionLicense(fileId,shareId,sessionId){
+    const credential=await playerCredential();
+    await json(API+'/api/v1/tl3/player/register',{
+      method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
+      body:JSON.stringify({player_id:credential.playerId,public_key:credential.publicKey})
+    });
+    const envelope=await json(API+'/api/v1/tl3/player/session-license/'+encodeURIComponent(fileId),{
+      method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
+      body:JSON.stringify({player_id:credential.playerId,session_id:sessionId})
+    });
+    const serverPublic=await crypto.subtle.importKey('jwk',envelope.ephemeral_public_key,{name:'ECDH',namedCurve:'P-256'},false,[]);
+    const shared=new Uint8Array(await crypto.subtle.deriveBits({name:'ECDH',public:serverPublic},credential.privateKey,256));
+    const infoText=['timelink:tl3:player-session:v1',envelope.user_id,credential.playerId,fileId,String(shareId),envelope.session_id,envelope.expires_at].join(':');
+    const material=await crypto.subtle.importKey('raw',shared,'HKDF',false,['deriveKey']);
+    const wrapKey=await crypto.subtle.deriveKey(
+      {name:'HKDF',hash:'SHA-256',salt:b64urlBytes(envelope.salt),info:enc(infoText)},
+      material,{name:'AES-GCM',length:256},false,['decrypt']
+    );
+    const license=await crypto.subtle.decrypt({
+      name:'AES-GCM',iv:b64urlBytes(envelope.nonce),
+      additionalData:enc(infoText+':'+envelope.aad_thumbprint),tagLength:128
+    },wrapKey,b64urlBytes(envelope.wrapped_license));
+    return {lic_n:hex(new Uint8Array(license)),session_id:envelope.session_id,player_id:credential.playerId};
   }
   async function fetchRetry(url,opts,label){
     let lastError;
@@ -102,8 +158,7 @@
     let t=0;for(let i=0;i<N;i++){starts.push(t);t+=durations[i]||1000;}
     const getSessionLicense=()=>{
       if(!licensePromise){
-        const q='?segment=0&session_id='+encodeURIComponent(sessionId);
-        licensePromise=json(API+'/api/v1/tl3/code/'+encodeURIComponent(data.file_id)+q,{headers:auth()});
+        licensePromise=unwrapPlayerSessionLicense(data.file_id,h.share_id,sessionId);
       }
       return licensePromise;
     };
