@@ -6,6 +6,18 @@
 (function (global) {
   'use strict';
   const AudioContextCtor = global.AudioContext || global.webkitAudioContext;
+  // Prime a reusable context synchronously from the user's Play click.
+  // Creating it only after async API requests can leave WebAudio suspended.
+  let sharedContext = null;
+  function unlock() {
+    if (!AudioContextCtor) return Promise.resolve(false);
+    try {
+      if (!sharedContext || sharedContext.state === 'closed') sharedContext = new AudioContextCtor();
+      return sharedContext.state === 'suspended'
+        ? sharedContext.resume().then(() => true)
+        : Promise.resolve(true);
+    } catch (error) { return Promise.reject(error); }
+  }
   const DEFAULT = {
     enabled: true, version: 'lp-v1-runtime', seed: 7,
     g: { Gd:.5, Gw:.5, Gv:.4, Gp:.2, Gs:.45, Gi:.5, Gt:.2, Gm:1, nz:-48 }
@@ -29,7 +41,7 @@
     const profile = resolved(meta);
     profile.duration_ms = Number(durationMs || profile.duration_ms || 0);
 
-    const ctx = new AudioContextCtor();
+    const ctx = (sharedContext && sharedContext.state !== 'closed') ? sharedContext : (sharedContext = new AudioContextCtor());
     const source = ctx.createMediaElementSource(audioEl);
     const master = ctx.createGain();
     master.gain.value = 1;
@@ -156,7 +168,8 @@
         try { source.disconnect(); } catch (_) {}
         try { if (processor) processor.disconnect(); } catch (_) {}
         try { master.disconnect(); } catch (_) {}
-        try { if (ctx.state !== 'closed') await ctx.close(); } catch (_) {}
+        // Keep the shared context alive for the next track.
+        if (ctx !== sharedContext) { try { if (ctx.state !== 'closed') await ctx.close(); } catch (_) {} }
         if (audioEl._tl3LpChain === controller) audioEl._tl3LpChain = null;
       }
     };
@@ -179,5 +192,5 @@
     };
   }
 
-  global.TL3LPChain = { create, defaultProfile: DEFAULT, version: 'lp-chain-2026-10-18' };
+  global.TL3LPChain = { create, unlock, defaultProfile: DEFAULT, version: 'lp-chain-2026-10-19-unlocked' };
 })(window);
