@@ -564,11 +564,9 @@ async function loadTrack(){
     
     // 공통 사용자 지갑과 음원 자체 TL 풀을 각각 서버에서 조회
     _myFileTL=Number(walletData.wallet?.tl_total||0);
-    // TL3 V3 재생은 사용자 지갑에서 초 단위로 정산한다.
-    // 존재하지 않는 legacy asset-TL API에 의존하지 않고 트랙 메타의 기준량을 표시한다.
-    _assetInitialTL=Number(s.file_tl||0);
-    // 2026-10-19: file_tl이 0이면 duration_sec/duration으로 fallback
-    if(!_assetInitialTL) _assetInitialTL=Number(s.duration_sec||s.duration||0);
+    // 1곡 필요 TL은 자산의 잔여량이 아니라 실제 재생시간(초)을 기준으로 산정한다.
+    // duration 메타가 없을 때만 기존 file_tl 값을 보조값으로 사용한다.
+    _assetInitialTL=Number(s.duration_sec||s.duration||s.file_tl||0);
     _assetTL=_assetInitialTL;
     _share=s;
     _myLiked=stats.my_like||false;
@@ -594,7 +592,7 @@ async function loadTrack(){
       var needsFetch = !reqEl || reqEl.textContent.indexOf('계산') >= 0 || reqEl.textContent === '...';
       var hasDur = Number(s.duration || s.duration_sec || 0) > 0;
       if(hasDur && !needsFetch){
-        if(reqEl) reqEl.textContent = Math.round(s.duration || s.duration_sec).toLocaleString() + ' TL';
+        if(reqEl) reqEl.textContent = Math.ceil(Number(s.duration || s.duration_sec)).toLocaleString('ko-KR') + ' TL';
         return;
       }
       if(!needsFetch && !hasDur) return;
@@ -603,7 +601,7 @@ async function loadTrack(){
       var res = await fetch(API + '/api/v1/tl3/file-meta/' + fileId, {headers:{'Authorization':'Bearer '+getTok()}});
       var meta = await res.json();
       if(meta && meta.ok && meta.duration_sec){
-        var dur = Math.round(meta.duration_sec);
+        var dur = Math.ceil(Number(meta.duration_sec));
         if(reqEl) reqEl.textContent = dur.toLocaleString() + ' TL';
         if(durEl) durEl.textContent = '/ ' + fmtTime(dur);
         // _assetInitialTL도 갱신
@@ -651,7 +649,7 @@ function renderPage(s, stats, myFileTL, requiredTL){
         <div class="track-artist">${escH(s.artist||'')}${s.album?' · <span style="color:var(--t3)">'+escH(s.album)+'</span>':''}</div>
         <div class="track-uploader">가수: ${escH(s.artist||'—')} · 작곡: ${escH(s.composer || s.asset_composer || '—')} · 작사: ${escH(s.lyricist || s.asset_lyricist || '—')} · 공유: ${s.created_at ? new Date(s.created_at).toLocaleDateString('ko-KR') : '—'}</div>
         <div class="track-tl required">${isFree ? '🎵 무료 MP3 · TLC 보상' : '⚡ 재생에 필요한 TL량: '}<span id="reqTLText" style="color:#F5A623;font-weight:700">계산 중...</span><span id="durText" style="font-size:12px;color:var(--t3);font-weight:400">/ ${fmtTime(s.duration)}</span></div>
-        <div class="track-tl my" id="myTLDisplay">${isFree ? '💎 POC → TLC 보상 대상' : '💰 내 지갑 TL: '+myFileTL.toLocaleString()+' TL'}</div>
+        <div class="track-tl my" id="myTLDisplay">${isFree ? '💎 POC → TLC 보상 대상' : '💰 내 지갑 TL: '+formatTLInteger(myFileTL')}</div>
       </div>
 
       <div class="actions">
@@ -1329,7 +1327,7 @@ async function updateTrackTLFromServer(){
     if(!r.ok || d.ok!==true) throw new Error(d.error||'곡별 TL 조회 실패');
     _trackTL=Number(d.tl_balance||0);
     const el=document.getElementById('chargeTrackBalance');
-    if(el) el.textContent=_trackTL.toLocaleString()+' TL';
+    if(el) el.textContent=formatTLInteger(_trackTL);
     return _trackTL;
   }catch(e){
     console.warn('[TRACK file TL sync]',e);
@@ -1371,11 +1369,11 @@ async function doDirectCharge(){
     if(Number.isFinite(Number(d.user_tl))) _myFileTL=Number(d.user_tl);
     updatePlayerTLDisplay();
     const trackEl=document.getElementById('chargeTrackBalance');
-    if(trackEl) trackEl.textContent=_trackTL.toLocaleString()+' TL';
+    if(trackEl) trackEl.textContent=formatTLInteger(_trackTL);
     const walletEl=document.getElementById('chargeWalletBalance');
-    if(walletEl) walletEl.textContent=_myFileTL.toLocaleString()+' TL';
+    if(walletEl) walletEl.textContent=formatTLInteger(_myFileTL);
     closeChargeModal();
-    alert('이 곡에 '+Number(d.amount||_chargeAmount).toLocaleString()+' TL을 충전했습니다.');
+    alert('이 곡에 '+formatTLInteger(d.amount||_chargeAmount)+'을 충전했습니다.');
   } catch(e){ alert(e.message||'곡별 충전 오류'); }
   finally { if(btn) btn.disabled=false; }
 }
