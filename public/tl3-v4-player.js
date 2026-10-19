@@ -61,6 +61,11 @@
       method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
       body:JSON.stringify({player_id:credential.playerId,session_id:sessionId})
     });
+    if(envelope.version!==1||envelope.algorithm!=='ECDH-P256/HKDF-SHA256/AES-256-GCM'||
+       String(envelope.session_id)!==String(sessionId)||Number(envelope.file_id)!==Number(fileId)||
+       envelope.player_id!==credential.playerId||Number(envelope.expires_at)<=Math.floor(Date.now()/1000)){
+      throw new Error('TimeLink Player 세션 라이선스의 기기·자산·세션 검증에 실패했습니다.');
+    }
     const serverPublic=await crypto.subtle.importKey('jwk',envelope.ephemeral_public_key,{name:'ECDH',namedCurve:'P-256'},false,[]);
     const shared=new Uint8Array(await crypto.subtle.deriveBits({name:'ECDH',public:serverPublic},credential.privateKey,256));
     const infoText=['timelink:tl3:player-session:v1',envelope.user_id,credential.playerId,fileId,String(shareId),envelope.session_id,envelope.expires_at].join(':');
