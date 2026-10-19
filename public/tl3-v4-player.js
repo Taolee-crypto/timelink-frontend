@@ -16,7 +16,10 @@
   async function fetchRetry(url,opts,label){
     let lastError;
     const retryable=[408,429,500,502,503,504];
-    const maxAttempts=6;
+    // Segment delivery can briefly fail while the D1-backed Worker is busy.
+    // Keep retrying transient failures long enough for the playback buffer to
+    // absorb a short outage; non-transient HTTP errors still fail immediately.
+    const maxAttempts=10;
     for(let attempt=0;attempt<maxAttempts;attempt++){
       try{
         const response=await fetch(url,opts||{headers:auth()});
@@ -24,7 +27,7 @@
         lastError=new Error((label||'TL3 request')+' HTTP '+response.status);
       }catch(error){lastError=error;}
       if(attempt<maxAttempts-1){
-        const delay=Math.min(8000,500*Math.pow(2,attempt))+Math.floor(Math.random()*250);
+        const delay=Math.min(10000,500*Math.pow(2,Math.min(attempt,4)))+Math.floor(Math.random()*250);
         console.warn('[TL3v4] transient request failure; retrying',{label:label||'TL3 request',attempt:attempt+1,next_delay_ms:delay,error:String(lastError&&lastError.message||lastError)});
         await new Promise(resolve=>setTimeout(resolve,delay));
       }
@@ -151,7 +154,10 @@
     }
     let playbackStarted=false;
     let bufferedDurationMs=0;
-    const START_BUFFER_MS=1000;
+    // Build a real safety buffer before opening the audio output. One segment
+    // is not enough when each segment request can take longer than its media
+    // duration on the D1-backed delivery path.
+    const START_BUFFER_MS=5000;
     async function startAudiblePlayback(){
       if(playbackStarted||stopped)return;
       playbackStarted=true;
@@ -174,9 +180,9 @@
         // while audio is playing. Do not wait for all 100+ segments before sound.
         for(let first=1;first<=N;){
           if(stopped)return;
-          // Start as soon as the first complete segment is appended; thereafter
-          // fetch in larger groups so the buffer stays ahead of playback.
-          const batchSize=first===1?1:2;
+          // Fetch and append in bounded groups. A five-second startup buffer
+          // prevents the player from outrunning the next D1 segment response.
+          const batchSize=4;
           const count=Math.min(batchSize,N-first+1);
           const batch=await Promise.all(Array.from({length:count},(_,i)=>fetchSegment(first+i)));
           if(stopped)return;
@@ -186,7 +192,7 @@
             await appendSegment(segmentNumber,batch[i]);
             bufferedDurationMs+=Number(batch[i].duration)||Number(durations[segmentNumber-1])||1000;
           }
-          if(!playbackStarted&&(first===1||bufferedDurationMs>=START_BUFFER_MS)){
+          if(!playbackStarted&&bufferedDurationMs>=START_BUFFER_MS){
             await startAudiblePlayback();
           }
           first+=count;
