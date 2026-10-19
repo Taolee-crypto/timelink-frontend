@@ -21,7 +21,7 @@
     // Network-level failures (including opaque CORS/network TypeErrors) are
     // retried because fetch cannot expose the upstream status in that case.
     // Explicit authorization/metadata errors remain non-retryable.
-    const maxAttempts=10;
+    const maxAttempts=6;
     for(let attempt=0;attempt<maxAttempts;attempt++){
       try{
         const response=await fetch(url,opts||{headers:auth()});
@@ -134,7 +134,15 @@
         console.info('[TL3v4][TRACE] segment-ready',n,{segment,parallel_ms:Math.round(performance.now()-traceStart),decrypt_ms:Math.round(performance.now()-decryptStart),plain_bytes:plain.byteLength});
         return {plain,duration:durations[n-1]||1000,license};
       })();
-      cache.set(n,p);return p;
+      cache.set(n,p);
+      // A rejected promise must never remain cached. Otherwise every later
+      // request for this segment receives the same already-rejected promise
+      // and cannot recover even after the Worker/D1 edge becomes healthy.
+      p.catch(error=>{
+        if(cache.get(n)===p)cache.delete(n);
+        console.warn('[TL3v4] failed segment cache released',{segment:n,error:String(error&&error.message||error)});
+      });
+      return p;
     };
     async function appendSegment(n,seg){
       if(stopped)return;
@@ -182,27 +190,38 @@
       try{
         // Start after a safe initial buffer; keep appending the remaining track
         // while audio is playing. Do not wait for all 100+ segments before sound.
-        for(let first=1;first<=N;){
+        for(let first=1;first<=N;first++){
           if(stopped)return;
-          // The first segment is enough to begin promptly. Once playback starts,
-          // fetch four segments at a time to keep the buffer ahead of playback.
-          const batchSize=first===1?1:2;
-          const count=Math.min(batchSize,N-first+1);
-          const batch=await Promise.all(Array.from({length:count},(_,i)=>fetchSegment(first+i)));
-          if(stopped)return;
-          for(let i=0;i<batch.length;i++){
+          // Fetch and append in strict sequence. Parallel Promise.all batches
+          // made one failed request discard its successful sibling and reject
+          // the whole pipeline before the next retry could be attempted.
+          let segment=null,lastSegmentError=null;
+          for(let attempt=0;attempt<3&&!segment;attempt++){
             if(stopped)return;
-            const segmentNumber=first+i;
-            await appendSegment(segmentNumber,batch[i]);
-            bufferedDurationMs+=Number(batch[i].duration)||Number(durations[segmentNumber-1])||1000;
+            try{
+              segment=await fetchSegment(first);
+            }catch(error){
+              lastSegmentError=error;
+              const message=String(error&&error.message||error);
+              const transient=/Failed to fetch|NetworkError|Load failed|HTTP (408|429|500|502|503|504)/i.test(message);
+              if(!transient||attempt===2)throw error;
+              const delay=(attempt+1)*1500;
+              console.warn('[TL3v4] segment recovery wait',{
+                segment:first,attempt:attempt+1,next_delay_ms:delay,error:message
+              });
+              await new Promise(resolve=>setTimeout(resolve,delay));
+            }
           }
+          if(stopped)return;
+          if(!segment)throw lastSegmentError||new Error('TL3 세그먼트 '+first+' 복구 실패');
+          await appendSegment(first,segment);
+          bufferedDurationMs+=Number(segment.duration)||Number(durations[first-1])||1000;
           if(!playbackStarted&&bufferedDurationMs>=Math.min(
             START_BUFFER_MS,
             Number(h.duration_ms)||durations.reduce((sum,value)=>sum+(Number(value)||0),0)
           )){
             await startAudiblePlayback();
           }
-          first+=count;
         }
         if(stopped)return;
         if(next!==N)throw new Error('TL3 전체 음원 버퍼 구성이 완료되지 않았습니다.');

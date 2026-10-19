@@ -81,7 +81,11 @@ assert "api/v1/tl3/spine/header/" in v4_player_text, "Track v4 player must consu
 assert "play/meter/" in v4_player_text, "Track v4 player must use the audible-time meter."
 assert "queuePlaybackMeter" in v4_player_text and "played_ms" in v4_player_text, "Track v4 player must send cumulative audible milliseconds."
 assert "audio._tl3End=async function()" in v4_player_text, "Track v4 player must await final full-track settlement."
-assert "first===1?1:2" in v4_player_text, "Track v4 player must start after the first segment and use bounded prefetch."
+# Track now uses a strict one-segment-at-a-time pump. This is a bounded
+# prefetch window of 1 and avoids Promise.all batch failures dropping a good
+# segment when its sibling request transiently fails.
+assert "for(let first=1;first<=N;first++)" in v4_player_text, "Track v4 player must fetch and append segments in order with a bounded prefetch window."
+assert "for(let attempt=0;attempt<3&&!segment;attempt++)" in v4_player_text, "Track v4 player must retry transient segment failures without unbounded parallel prefetch."
 assert "let meterTimer=null,meterQueue=Promise.resolve(),meterFailed=false,audibleActive=false;" in v4_player_text, "Meter must track actual audible playback state."
 assert "sampleAudiblePlayback();" in v4_player_text and "audio.addEventListener('waiting'" in v4_player_text, "Meter must capture elapsed media time before pause/buffering transitions."
 assert "const finalSeconds=Math.ceil(totalMs/1000);" in v4_player_text, "Completed tracks must settle the exact required whole-TL amount."
