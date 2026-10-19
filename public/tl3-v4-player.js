@@ -149,7 +149,7 @@
     }
     let playbackStarted=false;
     let bufferedDurationMs=0;
-    const START_BUFFER_MS=2000;
+    const START_BUFFER_MS=1000;
     async function startAudiblePlayback(){
       if(playbackStarted||stopped)return;
       playbackStarted=true;
@@ -170,9 +170,11 @@
       try{
         // Start after a safe initial buffer; keep appending the remaining track
         // while audio is playing. Do not wait for all 100+ segments before sound.
-        const batchSize=2;
-        for(let first=1;first<=N;first+=batchSize){
+        for(let first=1;first<=N;){
           if(stopped)return;
+          // Start as soon as the first complete segment is appended; thereafter
+          // fetch in larger groups so the buffer stays ahead of playback.
+          const batchSize=first===1?1:4;
           const count=Math.min(batchSize,N-first+1);
           const batch=await Promise.all(Array.from({length:count},(_,i)=>fetchSegment(first+i)));
           if(stopped)return;
@@ -182,9 +184,10 @@
             await appendSegment(segmentNumber,batch[i]);
             bufferedDurationMs+=Number(batch[i].duration)||Number(durations[segmentNumber-1])||1000;
           }
-          if(!playbackStarted&&bufferedDurationMs>=START_BUFFER_MS){
+          if(!playbackStarted&&(first===1||bufferedDurationMs>=START_BUFFER_MS)){
             await startAudiblePlayback();
           }
+          first+=count;
         }
         if(stopped)return;
         if(next!==N)throw new Error('TL3 전체 음원 버퍼 구성이 완료되지 않았습니다.');
@@ -283,7 +286,18 @@
       },{once:true});
       audio.src=url;audio.load();
     }).then(result=>{
-      audio._tl3End=function(){sampleAudiblePlayback(true);const totalMs=Number(h.duration_ms)||durations.reduce((sum,value)=>sum+(Number(value)||0),0);if(totalMs>0&&Math.abs(Number(audio.currentTime||0)*1000-totalMs)<=300&&billableMs>=totalMs-300){billableMs=totalMs;queuePlaybackMeter(Math.ceil(totalMs/1000));}};
+      audio._tl3End=async function(){
+        sampleAudiblePlayback(true);
+        const totalMs=Number(h.duration_ms)||durations.reduce((sum,value)=>sum+(Number(value)||0),0);
+        // The ended event is authoritative: a completed track consumes exactly
+        // ceil(duration seconds) TL, including its final partial second.
+        if(totalMs>0&&audio.ended){
+          billableMs=totalMs;
+          queuePlaybackMeter(Math.ceil(totalMs/1000));
+        }
+        await meterQueue;
+        return lastMeteredSeconds;
+      };
       audio._tl3Stop=function(){if(stopped)return;sampleAudiblePlayback();if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}stopped=true;try{audio.pause();}catch(_){};if(lpController&&lpController.stop)lpController.stop().catch(()=>{});try{if(ms.readyState==='open')ms.endOfStream();}catch(_){}};
       audio._tl3Confirm=audio._tl3Stop;
       audio._tl3Suspend=function(){return lpController&&lpController.suspend?lpController.suspend():Promise.resolve();};
