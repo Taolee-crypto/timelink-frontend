@@ -168,9 +168,12 @@
       if(lpController&&lpController.stop)lpController.stop().catch(()=>{});
       onError(error);
     }
-    audio.addEventListener('playing',()=>{
-      if(!charged&&!audio.muted&&audio.volume>0&&audio.readyState>=3)chargeOnce().catch(e=>console.error('[TL3v4] full-track charge failed',e));
-    },{once:true});
+    const maybeChargeOnAudiblePlayback=()=>{
+      if(charged||chargePromise||audio.paused||audio.muted||audio.volume<=0||audio.readyState<3||audio.currentTime<0.05)return;
+      chargeOnce().catch(e=>console.error('[TL3v4] full-track charge failed',e));
+    };
+    audio.addEventListener('playing',maybeChargeOnAudiblePlayback);
+    audio.addEventListener('timeupdate',maybeChargeOnAudiblePlayback);
     return new Promise((resolve,reject)=>{
       ms.addEventListener('sourceopen',async()=>{
         try{
