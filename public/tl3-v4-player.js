@@ -19,7 +19,7 @@
     // Segment delivery can briefly fail while the D1-backed Worker is busy.
     // Keep retrying transient failures long enough for the playback buffer to
     // absorb a short outage; non-transient HTTP errors still fail immediately.
-    const maxAttempts=10;
+    const maxAttempts=5;
     for(let attempt=0;attempt<maxAttempts;attempt++){
       try{
         const response=await fetch(url,opts||{headers:auth()});
@@ -27,7 +27,7 @@
         lastError=new Error((label||'TL3 request')+' HTTP '+response.status);
       }catch(error){lastError=error;}
       if(attempt<maxAttempts-1){
-        const delay=Math.min(10000,500*Math.pow(2,Math.min(attempt,4)))+Math.floor(Math.random()*250);
+        const delay=Math.min(2000,300*Math.pow(2,attempt))+Math.floor(Math.random()*150);
         console.warn('[TL3v4] transient request failure; retrying',{label:label||'TL3 request',attempt:attempt+1,next_delay_ms:delay,error:String(lastError&&lastError.message||lastError)});
         await new Promise(resolve=>setTimeout(resolve,delay));
       }
@@ -181,7 +181,7 @@
           if(stopped)return;
           // The first segment is enough to begin promptly. Once playback starts,
           // fetch four segments at a time to keep the buffer ahead of playback.
-          const batchSize=first===1?1:4;
+          const batchSize=first===1?1:2;
           const count=Math.min(batchSize,N-first+1);
           const batch=await Promise.all(Array.from({length:count},(_,i)=>fetchSegment(first+i)));
           if(stopped)return;
