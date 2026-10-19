@@ -37,16 +37,6 @@
     if(!r.ok||d.ok===false)throw new Error(d.error||('HTTP '+r.status));
     return d;
   }
-  function waitForPlayback(audio,target,stopped){
-    return new Promise(resolve=>{
-      if(stopped()||audio.currentTime>=target-0.04){resolve();return;}
-      const done=()=>{audio.removeEventListener('timeupdate',check);audio.removeEventListener('ended',check);resolve();};
-      const check=()=>{if(stopped()||audio.currentTime>=target-0.04||audio.ended)done();};
-      audio.addEventListener('timeupdate',check);
-      audio.addEventListener('ended',check);
-      const timer=setInterval(()=>{check();if(stopped()||audio.currentTime>=target-0.04||audio.ended){clearInterval(timer);done();}},200);
-    });
-  }
   async function playStream(id,audio,opts){
     opts=opts||{};
     const onError=opts.onError||function(){};
@@ -158,10 +148,12 @@
       if(charged)return;
       if(chargePromise)return chargePromise;
       chargePromise=(async()=>{
-        const d=await json(API+'/api/v1/tl3/play/charge/'+encodeURIComponent(data.file_id),{
+        const response=await fetchRetry(API+'/api/v1/tl3/play/charge/'+encodeURIComponent(data.file_id),{
           method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
           body:JSON.stringify({session_id:sessionId})
-        });
+        },'TL3 full-track charge');
+        const d=await response.json().catch(()=>({}));
+        if(!response.ok||!d.ok)throw new Error(d.error||('TL3 full-track charge HTTP '+response.status));
         charged=true;
         console.info('[TL3v4] one-time full-track charge confirmed',d);
         if(typeof opts.onCharge==='function')opts.onCharge(d);
