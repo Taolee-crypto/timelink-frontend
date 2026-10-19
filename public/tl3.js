@@ -41,21 +41,10 @@
     } catch (e) { onError(e); throw e; }
     console.log('[TL3v6] header loaded', { N: header.mp3.N, lp_opus: header.lp_opus });
 
-    let lpController = null;
-    const lpMeta = header.lp_meta || null;
-    const lpLicensed = !!(lpMeta && lpMeta.enabled === true);
-    if (lpLicensed && global.TL3LPChain) {
-      try {
-        lpController = await global.TL3LPChain.create(audioEl, lpMeta, header.duration_ms);
-        if (lpController && lpController.available() && lpToggle) lpToggle.disabled = false;
-      } catch (e) { console.warn('[TL3v6] LP chain create failed:', e); }
-    }
-    global.setTL3LpEnhanced = async function(enabled) {
-      if (!lpController || typeof lpController.setEnabled !== 'function') return false;
-      const ok = await lpController.setEnabled(!!enabled);
-      if (lpToggle && !ok) lpToggle.checked = false;
-      return ok;
-    };
+    // AUDIO-SAFETY: keep native HTMLAudioElement output. Do not route
+    // ordinary TL3 playback through a WebAudio context until LP is repaired.
+    const lpController = null;
+    global.setTL3LpEnhanced = function(){ return false; };
 
     const ms = new MediaSource();
     const msUrl = URL.createObjectURL(ms);
