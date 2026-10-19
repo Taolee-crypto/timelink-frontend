@@ -74,13 +74,16 @@ assert "lp: lpLicense && lpLicense.lp_enabled === true" in manufacture_text, "Ma
 assert "api/v1/tl3/spine/header/" in manufacture_text, "Creator must verify the Track-playable v4 header before completion."
 assert "api/v1/tl3/spine/" in manufacture_text and "/verify" in manufacture_text, "Creator must verify the v4 Spine integrity chain."
 assert "api/v1/tl3/spine/header/" in v4_player_text, "Track v4 player must consume the published Spine header."
-assert "segment/confirm/" in v4_player_text, "Track v4 player must settle metered playback segments."
-assert "lp-v1" in creator_text, "Creator must preserve LP license metadata."
-assert "LP Enhanced" in track_text and "setTL3LpEnhanced" in track_text, "Track LP Enhanced toggle is missing."
-lp_chain_text = lp_chain.read_text(encoding="utf-8")
-assert "tl3-lp-chain.js" in track_text, "Track must load the shared Love Connect LP engine."
-assert "TL3LPChain.create" in v4_player_text and "setTL3LpEnhanced" in v4_player_text, "TL3 v4 player must connect the Creator LP profile to the Track LP engine."
-assert "segment/confirm/" in player_text, "Existing TL3 segment confirmation path must remain present."
+# Current billing policy: full-track price (1 TL/second) is charged once after
+# audible playback starts. Segment confirmation/refund is intentionally retired.
+assert "play/charge/" in v4_player_text, "Track v4 player must charge the complete track once."
+assert "chargeOnce" in v4_player_text and "session_id" in v4_player_text, "Track v4 player must use an idempotent playback session."
+assert "entire track" in v4_player_text, "Track v4 player must prebuffer the complete track before playback."
+assert "segment/confirm/" not in v4_player_text, "Track v4 player must not use retired segment metering."
+assert "play/preflight/" in track_text, "Track must check full-track price and wallet balance before playback."
+assert "onCharge: function(info)" in track_text, "Track must update the wallet display after full-track charge."
+assert "play/charge/" in player_text, "Legacy TL3 player must use full-track one-time charging."
+assert "segment/confirm/" not in player_text, "Legacy TL3 player must not use retired segment metering."
 assert "createMediaElementSource" in lp_chain_text and "AudioWorkletNode" in lp_chain_text, "Love Connect WebAudio routing is incomplete."
 
 print("Creator → Track LP Enhanced validation passed.")
