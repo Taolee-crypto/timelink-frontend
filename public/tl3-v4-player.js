@@ -16,10 +16,12 @@
   async function fetchRetry(url,opts,label){
     let lastError;
     const retryable=[408,429,500,502,503,504];
-    // Segment delivery can briefly fail while the D1-backed Worker is busy.
-    // Keep retrying transient failures long enough for the playback buffer to
-    // absorb a short outage; non-transient HTTP errors still fail immediately.
-    const maxAttempts=5;
+    // Segment delivery can briefly fail at the Worker/D1 edge. A single
+    // failed future segment must not tear down an already audible track.
+    // Network-level failures (including opaque CORS/network TypeErrors) are
+    // retried because fetch cannot expose the upstream status in that case.
+    // Explicit authorization/metadata errors remain non-retryable.
+    const maxAttempts=10;
     for(let attempt=0;attempt<maxAttempts;attempt++){
       try{
         const response=await fetch(url,opts||{headers:auth()});
@@ -27,7 +29,7 @@
         lastError=new Error((label||'TL3 request')+' HTTP '+response.status);
       }catch(error){lastError=error;}
       if(attempt<maxAttempts-1){
-        const delay=Math.min(2000,300*Math.pow(2,attempt))+Math.floor(Math.random()*150);
+        const delay=Math.min(2500,500*Math.pow(2,attempt))+Math.floor(Math.random()*250);
         console.warn('[TL3v4] transient request failure; retrying',{label:label||'TL3 request',attempt:attempt+1,next_delay_ms:delay,error:String(lastError&&lastError.message||lastError)});
         await new Promise(resolve=>setTimeout(resolve,delay));
       }
