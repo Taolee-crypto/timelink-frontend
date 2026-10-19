@@ -45,6 +45,7 @@
     const sourceFile = o.file;
     const lpLicense = o.lpLicense || null;
     if (!(sourceFile instanceof File)) throw new Error('Creator의 로컬 MP3 원본이 없습니다.');
+    if (sourceFile.size > 24 * 1024 * 1024) throw new Error('TL3 V5 1차 버전은 MP3 원본 24MB 이하를 지원합니다. 대용량 음원은 스트리밍 컨테이너 빌더 적용 후 지원합니다.');
     if (!/\.mp3$/i.test(sourceFile.name || '') && sourceFile.type !== 'audio/mpeg') {
       throw new Error('TL3 V5에는 MP3 원본만 등록할 수 있습니다.');
     }
