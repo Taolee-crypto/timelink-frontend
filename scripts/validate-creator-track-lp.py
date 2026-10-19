@@ -46,18 +46,19 @@ creator = ROOT / "public/creator.html"
 track = ROOT / "public/track.html"
 player = ROOT / "public/tl3.js"
 v4_player = ROOT / "public/tl3-v4-player.js"
+v5_player = ROOT / "public/tl3-v5-player.js"
 lp_chain = ROOT / "public/tl3-lp-chain.js"
 worklet = ROOT / "public/tl3-lp-worklet.js"
 manufacture = ROOT / "public/tl3-manufacture.js"
 
-for required in (creator, track, player, v4_player, lp_chain, worklet, manufacture):
+for required in (creator, track, player, v4_player, v5_player, lp_chain, worklet, manufacture):
     if not required.is_file():
         raise FileNotFoundError(f"Required current TimeLink file is missing: {required.relative_to(ROOT)}")
 
 for page in (creator, track):
     check_inline(page)
 
-for source in (player, v4_player, lp_chain, worklet, manufacture):
+for source in (player, v4_player, v5_player, lp_chain, worklet, manufacture):
     check_js(source.read_text(encoding="utf-8"), str(source.relative_to(ROOT)))
 
 creator_text = creator.read_text(encoding="utf-8")
@@ -68,19 +69,27 @@ lp_chain_text = lp_chain.read_text(encoding="utf-8")
 assert "tl3-manufacture.js" in creator_text, "Creator must load the shared TL3 manufacturing pipeline."
 manufacture_text = manufacture.read_text(encoding="utf-8")
 v4_player_text = v4_player.read_text(encoding="utf-8")
-assert "api/v1/tl3/spine/releases" in manufacture_text, "Creator must manufacture the published TL3 Spine v4 container."
+v5_player_text = v5_player.read_text(encoding="utf-8")
+assert "api/v1/tl3/v5/manufacture" in manufacture_text, "Creator must manufacture the encrypted TL3 V5 container."
+assert "duration_ms: durationMs" in manufacture_text, "Creator must attach the measured MP3 duration to the V5 manifest."
 assert "const lpLicense = o.lpLicense || null;" in manufacture_text, "Manufacturer must bind the Creator LP profile before use."
 assert "Creator의 LP 효과 분석이 완성되지 않았습니다." in manufacture_text, "Manufacturer must reject incomplete Creator-side LP profiles."
 assert "lp: lpLicense && lpLicense.lp_enabled === true" in manufacture_text, "Manufacture result must use the scoped LP profile."
-assert "api/v1/tl3/spine/header/" in manufacture_text, "Creator must verify the Track-playable v4 header before completion."
-assert "api/v1/tl3/spine/" in manufacture_text and "/verify" in manufacture_text, "Creator must verify the v4 Spine integrity chain."
-assert "api/v1/tl3/spine/header/" in v4_player_text, "Track v4 player must consume the published Spine header."
+assert "api/v1/tl3/v5/resolve/" in manufacture_text, "Creator must verify the Track-playable V5 asset metadata before completion."
+assert "api/v1/tl3/v5/verify/" in manufacture_text, "Creator must verify the V5 container integrity before completion."
+assert "api/v1/tl3/spine/releases" not in manufacture_text, "V5 Creator must not manufacture a Spine v4 container."
+assert "api/v1/tl3/spine/header/" in v4_player_text, "Legacy Track v4 player must consume the published Spine header."
+assert "TL3-V5" in v5_player_text and "decryptContainer" in v5_player_text, "Track V5 player must authenticate and decrypt the complete V5 container."
+assert "api/v1/tl3/v5/session-license/" in v5_player_text, "Track V5 player must obtain a Player-bound session license."
+assert "api/v1/tl3/v5/container/" in v5_player_text, "Track V5 player must fetch the encrypted container only for an active session."
 # Current billing policy: exactly 1 TL per audible second, settled in
 # cumulative one-second increments; the final partial second is settled when
 # the audio element emits "ended".
 assert "play/meter/" in v4_player_text, "Track v4 player must use the audible-time meter."
+assert "play/meter/" in v5_player_text and "played_ms" in v5_player_text, "Track V5 player must use the same audible-time TL meter."
 assert "queuePlaybackMeter" in v4_player_text and "played_ms" in v4_player_text, "Track v4 player must send cumulative audible milliseconds."
 assert "audio._tl3End=async function()" in v4_player_text, "Track v4 player must await final full-track settlement."
+assert "audio._tl3End=async function()" in v5_player_text, "Track V5 player must await final full-track settlement."
 # Track now uses a strict one-segment-at-a-time pump. This is a bounded
 # prefetch window of 1 and avoids Promise.all batch failures dropping a good
 # segment when its sibling request transiently fails.
@@ -91,6 +100,8 @@ assert "sampleAudiblePlayback();" in v4_player_text and "audio.addEventListener(
 assert "const finalSeconds=Math.ceil(totalMs/1000);" in v4_player_text, "Completed tracks must settle the exact required whole-TL amount."
 assert "segment/confirm/" not in v4_player_text, "Track v4 player must not use retired segment metering."
 assert "play/preflight/" in track_text, "Track must check that at least 1 TL is available before playback."
+assert "TL3V5Player.canPlay" in track_text and "TL3V5Player.playStream" in track_text, "Track must detect and route V5 assets to the V5 Player."
+assert "TL3V4Player.playStream" in track_text, "Track must preserve the V4 playback fallback."
 assert "onMeter: function(info)" in track_text, "Track must update the wallet display after each one-second settlement."
 assert "await playerAudio._tl3End()" in track_text, "Track must finish final meter settlement before stopping the player."
 assert "lpEnhancedToggle" in track_text and "setTL3LpEnhanced" in v4_player_text, "Track LP Enhanced checkbox must control the active audio chain."
