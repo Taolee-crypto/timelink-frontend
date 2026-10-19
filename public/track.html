@@ -428,8 +428,9 @@ body{font-family:Pretendard,Inter,-apple-system,BlinkMacSystemFont,"Noto Sans KR
   <div style="display:flex;align-items:center;gap:14px;width:100%;max-width:100%;margin:0 auto;box-sizing:border-box">
     <div style="min-width:0;flex:1"><div id="playerTitle" style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">-</div><div id="playerArtist" style="font-size:11px;color:rgba(255,255,255,.4)">-</div></div>
     <div style="flex:1;min-width:0;max-width:260px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;color:rgba(255,255,255,.4)">음원 잔여 TL</span><span id="playerTLVal" style="font-size:11px;font-weight:700;color:#64D2FF">0 TL</span></div>
-      <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px"><div id="playerTLBar" style="height:100%;background:linear-gradient(90deg,#0071E3,#64D2FF);border-radius:2px;width:100%"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;color:rgba(255,255,255,.4)">곡 1회 필요 TL</span><span id="playerTLVal" style="font-size:11px;font-weight:700;color:#64D2FF">0 TL</span></div>
+      <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px"><div id="playerTLBar" style="height:100%;background:linear-gradient(90deg,#0071E3,#64D2FF);border-radius:2px;width:0%"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-size:9px;color:rgba(255,255,255,.35)">이번 재생 차감</span><span id="playerSpentTLVal" style="font-size:10px;color:#64D2FF">0 TL</span></div>
       <div style="display:flex;justify-content:space-between;margin-top:3px"><span style="font-size:9px;color:rgba(255,255,255,.35)">내 지갑 TL</span><span id="playerWalletVal" style="font-size:10px;color:#F5A623">0 TL</span></div><div style="display:flex;justify-content:space-between;margin-top:3px"><span id="playerTime" style="font-size:9px;color:rgba(255,255,255,.3)">0:00</span><span id="playerDur" style="font-size:9px;color:rgba(255,255,255,.3)">-</span></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
@@ -1569,14 +1570,26 @@ function copyLink(){ navigator.clipboard.writeText(location.href).then(()=>{ let
 
 // ==================== TL PLAYER ====================
 let _tlAudio=null, _tlPlaying=false, _tlInterval=null, _tlCurrentTL=0, _tlMaxTL=0, _tlElapsed=0, _tlFree=false;
+let _tlSessionSettledSeconds=0;
+let _tlSettledSegments=new Set();
+
+// 화면에는 TL 소수점을 숨기되, 서버 정산과 내부 계산값은 원래 정밀도를 유지한다.
+function formatTLInteger(value, mode){
+  const n=Math.max(0,Number(value)||0);
+  const shown=mode==='ceil'?Math.ceil(n-1e-9):Math.floor(n+1e-9);
+  return shown.toLocaleString('ko-KR')+' TL';
+}
+function songRequiredTL(){ return Math.ceil(Math.max(0,Number(_assetInitialTL||0))-1e-9); }
 
 function updatePlayerTLDisplay(){
-  var assetVal=document.getElementById('playerTLVal'),walletVal=document.getElementById('playerWalletVal'),bar=document.getElementById('playerTLBar');
-  if(assetVal) assetVal.textContent=Number(_assetTL||0).toLocaleString()+' TL';
-  if(walletVal) walletVal.textContent=Number(_myFileTL||0).toLocaleString()+' TL';
+  var assetVal=document.getElementById('playerTLVal'),spentVal=document.getElementById('playerSpentTLVal'),walletVal=document.getElementById('playerWalletVal'),bar=document.getElementById('playerTLBar');
+  var required=songRequiredTL();
+  if(assetVal) assetVal.textContent=_tlFree?'FREE':formatTLInteger(required,'ceil');
+  if(spentVal) spentVal.textContent=_tlFree?'0 TL':formatTLInteger(_tlSessionSettledSeconds);
+  if(walletVal) walletVal.textContent=formatTLInteger(_myFileTL);
   var pageWallet=document.getElementById('myTLDisplay');
-  if(pageWallet) pageWallet.textContent='💰 내 지갑 TL: '+Number(_myFileTL||0).toLocaleString()+' TL';
-  if(bar) bar.style.width=(_assetInitialTL>0?Math.max(0,Math.min(100,_assetTL/_assetInitialTL*100)):0)+'%';
+  if(pageWallet) pageWallet.textContent='💰 내 지갑 TL: '+formatTLInteger(_myFileTL);
+  if(bar) bar.style.width=(required>0?Math.max(0,Math.min(100,_tlSessionSettledSeconds/required*100)):0)+'%';
 }
 
 function playTrack(){
@@ -1591,14 +1604,15 @@ function playTrack(){
   const fileUrl = _share.stream_url || _share.file_url;
   if(!fileUrl){ alert('재생 파일이 없습니다'); return; }
 
-  window._tlCurrentTL = _tlFree ? 0 : (window._assetTL || 0);
-  window._tlMaxTL = _tlFree ? 0 : (window._assetInitialTL || 0);
+  window._tlCurrentTL = _tlFree ? 0 : songRequiredTL();
+  window._tlMaxTL = _tlFree ? 0 : songRequiredTL();
   window._tlElapsed = 0;
+  _tlSessionSettledSeconds=0;
+  _tlSettledSegments=new Set();
 
   document.getElementById('playerTitle').textContent = _share.title || '';
   document.getElementById('playerArtist').textContent = _share.artist || '';
-  document.getElementById('playerTLVal').textContent = _tlFree ? 'FREE' : _tlCurrentTL.toLocaleString() + ' TL';
-  document.getElementById('playerWalletVal').textContent = _myFileTL.toLocaleString()+' TL';
+  updatePlayerTLDisplay();
   document.getElementById('playerDur').textContent = fmtTime(_share.duration||0);
   document.getElementById('playerTime').textContent = '0:00';
   document.getElementById('tlPlayerBar').style.display = 'block';
@@ -1683,7 +1697,11 @@ function playTrack(){
       onSegment: function(info){
         if(!_share || String(_share.id)!==String(SHARE_ID)) return;
         if(info && info.remaining !== undefined){_myFileTL=Math.max(0,Number(info.wallet_tl??info.remaining)||0);}
-        if(info && info.asset_remaining_tl !== undefined){_assetTL=Math.max(0,Number(info.asset_remaining_tl)||0);_tlCurrentTL=_assetTL;}
+        // 서버가 확정한 재생 구간만 누적한다. 미확정 오디오 시계값으로 차감액을 추정하지 않는다.
+        if(info && Number.isFinite(Number(info.index)) && !_tlSettledSegments.has(Number(info.index))){
+          _tlSettledSegments.add(Number(info.index));
+          _tlSessionSettledSeconds+=Math.max(0,Number(info.seconds)||0);
+        }
         updatePlayerTLDisplay();
       },
       onError:function(err){
@@ -1723,6 +1741,7 @@ function startTLTimer(){
     if(_tlFree){
       const valueEl = document.getElementById('playerTLVal');
       if(valueEl) valueEl.textContent = 'FREE';
+      var spentEl=document.getElementById('playerSpentTLVal'); if(spentEl) spentEl.textContent='0 TL';
     } else {
       updatePlayerTLDisplay();
     }
