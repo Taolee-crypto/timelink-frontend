@@ -75,11 +75,13 @@ assert "lp: lpLicense && lpLicense.lp_enabled === true" in manufacture_text, "Ma
 assert "api/v1/tl3/spine/header/" in manufacture_text, "Creator must verify the Track-playable v4 header before completion."
 assert "api/v1/tl3/spine/" in manufacture_text and "/verify" in manufacture_text, "Creator must verify the v4 Spine integrity chain."
 assert "api/v1/tl3/spine/header/" in v4_player_text, "Track v4 player must consume the published Spine header."
-# Current billing policy: exactly 1 TL per audible second, settled in
-# cumulative one-second increments; the final partial second is settled when
-# the audio element emits "ended".
+# Current billing policy: exactly 1 TL per audible second, proportionally
+# settled by cumulative audible milliseconds. Partial playback is flushed at
+# pause/buffering/seek/end/stop boundaries without rounding the final fraction up.
 assert "play/meter/" in v4_player_text, "Track v4 player must use the audible-time meter."
 assert "queuePlaybackMeter" in v4_player_text and "played_ms" in v4_player_text, "Track v4 player must send cumulative audible milliseconds."
+assert "const completedMs=Math.floor(billableMs/1000)*1000;" in v4_player_text, "Track v4 player must meter each completed audible second."
+assert "const flushMs=Math.floor(billableMs);" in v4_player_text, "Track v4 player must flush partial audible milliseconds at playback boundaries."
 assert "audio._tl3End=async function()" in v4_player_text, "Track v4 player must await final full-track settlement."
 # Track now uses a strict one-segment-at-a-time pump. This is a bounded
 # prefetch window of 1 and avoids Promise.all batch failures dropping a good
@@ -88,7 +90,8 @@ assert "for(let first=1;first<=N;first++)" in v4_player_text, "Track v4 player m
 assert "for(let attempt=0;attempt<3&&!segment;attempt++)" in v4_player_text, "Track v4 player must retry transient segment failures without unbounded parallel prefetch."
 assert "let meterTimer=null,meterQueue=Promise.resolve(),meterFailed=false,audibleActive=false;" in v4_player_text, "Meter must track actual audible playback state."
 assert "sampleAudiblePlayback();" in v4_player_text and "audio.addEventListener('waiting'" in v4_player_text, "Meter must capture elapsed media time before pause/buffering transitions."
-assert "const finalSeconds=Math.ceil(totalMs/1000);" in v4_player_text, "Completed tracks must settle the exact required whole-TL amount."
+assert "const finalMs=Math.floor(totalMs);" in v4_player_text, "Completed tracks must settle the exact authored duration in milliseconds."
+assert "const finalSeconds=Math.ceil(totalMs/1000);" not in v4_player_text, "Completed tracks must not round unplayed fractional time up."
 assert "segment/confirm/" not in v4_player_text, "Track v4 player must not use retired segment metering."
 assert "play/preflight/" in track_text, "Track must check that at least 1 TL is available before playback."
 assert "onMeter: function(info)" in track_text, "Track must update the wallet display after each one-second settlement."
