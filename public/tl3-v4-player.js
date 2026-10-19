@@ -78,9 +78,8 @@
     };
     const ms=new MediaSource(),url=URL.createObjectURL(ms);
     let sb=null,stopped=false,next=0,appendBusy=false;
-    const cache=new Map(),settled=new Set(),settling=new Map(),settlementTasks=[];
-    let licensePromise=null,sessionClosed=false;
-    let pocDirty=false,pocSyncPromise=null;
+    const cache=new Map();
+    let licensePromise=null,chargePromise=null,charged=false;
     async function syncPoc(){
       if(!pocDirty)return;
       if(pocSyncPromise)return pocSyncPromise;
@@ -136,54 +135,6 @@
       })();
       cache.set(n,p);return p;
     };
-    // A successful confirmation must also prove that the next segment has
-    // been reserved. Otherwise the audio buffer could continue playing while
-    // the backend has no pending TL reservation for the next segment.
-    function haltForMeteringError(error){
-      sessionClosed=true;
-      stopped=true;
-      try{audio.pause();}catch(_){}
-      if(lpController&&lpController.stop)lpController.stop().catch(()=>{});
-      try{if(ms.readyState==='open')ms.endOfStream();}catch(_){}
-      if(error)onError(error);
-    }
-    const settle=n=>{
-      if(settled.has(n))return Promise.resolve();
-      // A segment can reach both the normal pump path and the stop path.
-      // Share one in-flight confirmation so the backend never receives two
-      // confirmations for the same pending reservation.
-      if(settling.has(n))return settling.get(n);
-      const task=(async()=>{
-        if(sessionClosed)return;
-        const duration=durations[n-1]||1000;
-        const start=starts[n-1]/1000;
-        const end=(starts[n-1]+duration)/1000;
-        await waitForPlayback(audio,end,()=>stopped||sessionClosed);
-        // On stop, settle only the portion that actually reached the audio clock.
-        // The backend refunds the rest and releases any unplayed prefetched segment.
-        const played=Math.max(0,Math.min(duration/1000,(Number(audio.currentTime)||0)-start));
-        const advance=played>=duration/1000-0.04&&n<N;
-        const d=await json(API+'/api/v1/tl3/segment/confirm/'+encodeURIComponent(data.file_id),{
-          method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
-          body:JSON.stringify({session_id:sessionId,segment_index:n-1,played_seconds:played,next_segment:advance?n:undefined})
-        });
-        settled.add(n);pocDirty=true;
-        if(!advance)sessionClosed=true;
-        onSegment({index:n-1,seconds:played,remaining:d.wallet_tl,wallet_tl:d.wallet_tl,asset_remaining_tl:d.asset_remaining_tl});
-        // The backend settles this segment and reserves the next one in the
-        // same response. Never let playback cross the boundary unless that
-        // reservation is explicitly confirmed.
-        if(advance&&(!d.next_license||d.next_error)){
-          const detail=d.next_error||'다음 세그먼트 TL 예약 응답이 없습니다.';
-          const error=new Error('TL3 다음 구간 예약 확인 실패: '+detail);
-          console.error('[TL3v4] next reservation missing after settlement',n,d);
-          haltForMeteringError(error);
-        }
-      })();
-      settling.set(n,task);
-      task.then(()=>{if(settling.get(n)===task)settling.delete(n);},()=>{if(settling.get(n)===task)settling.delete(n);});
-      return task;
-    };
     async function appendSegment(n,seg){
       if(stopped)return;
       const appendStart=performance.now();
@@ -200,41 +151,52 @@
       if(appendBusy||stopped)return;
       appendBusy=true;
       try{
-        // The release license is derived per asset, not per segment. Obtain it once,
-        // then download/decrypt audio segments ahead without serial code-issuance waits.
-        const initialCount=Math.min(N,2);
-        const initial=await Promise.all(Array.from({length:initialCount},(_,i)=>fetchSegment(i+1)));
-        for(let i=0;i<initial.length;i++){
-          if(stopped)break;
-          await appendSegment(i+1,initial[i]);
-        }
-        if(!stopped&&audio.paused&&initialCount>0){try{await audio.play();}catch(e){console.warn('[TL3v4] play request rejected',e);}}
-        // Metering remains strictly ordered, but it no longer blocks audio buffering.
-        let chain=Promise.resolve();
-        for(let n=1;n<=N;n++){
-          chain=chain.then(()=>sessionClosed?undefined:settle(n)).catch(e=>{
-            console.error('[TL3v4] settlement failed',n,e);
-            haltForMeteringError(e);
-          });
-          settlementTasks.push(chain);
-        }
-        // Keep a small rolling two-segment download window to reduce concurrent D1 reads.
-        // SourceBuffer appends stay ordered; confirmations run independently in the background.
-        for(let first=initialCount+1;first<=N;first+=2){
-          if(stopped)break;
-          const count=Math.min(2,N-first+1);
+        // Complete download, decryption and append of the entire track before playback.
+        // This removes segment-boundary network/license waits from audible playback.
+        const batchSize=2;
+        for(let first=1;first<=N;first+=batchSize){
+          if(stopped)throw new Error('재생이 취소되었습니다.');
+          const count=Math.min(batchSize,N-first+1);
           const batch=await Promise.all(Array.from({length:count},(_,i)=>fetchSegment(first+i)));
           for(let i=0;i<batch.length;i++){
-            if(stopped)break;
+            if(stopped)throw new Error('재생이 취소되었습니다.');
             await appendSegment(first+i,batch[i]);
           }
         }
-        if(next===N&&!stopped&&ms.readyState==='open'){try{ms.endOfStream();}catch(_){}}
-        await Promise.allSettled(settlementTasks);
-        await syncPoc();
+        if(next!==N)throw new Error('TL3 전체 음원 버퍼 구성이 완료되지 않았습니다.');
+        if(ms.readyState==='open')ms.endOfStream();
+        if(!stopped){
+          try{await audio.play();}
+          catch(e){throw new Error('오디오 재생을 시작하지 못했습니다: '+(e&&e.message||e));}
+        }
       }catch(e){onError(e);throw e;}
       finally{appendBusy=false;}
     }
+    async function chargeOnce(){
+      if(charged)return;
+      if(chargePromise)return chargePromise;
+      chargePromise=(async()=>{
+        const d=await json(API+'/api/v1/tl3/play/charge/'+encodeURIComponent(data.file_id),{
+          method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
+          body:JSON.stringify({session_id:sessionId})
+        });
+        charged=true;
+        console.info('[TL3v4] one-time full-track charge confirmed',d);
+        if(typeof opts.onCharge==='function')opts.onCharge(d);
+        return d;
+      })();
+      try{return await chargePromise;}
+      catch(e){chargePromise=null;haltChargeFailure(e);throw e;}
+    }
+    function haltChargeFailure(error){
+      stopped=true;
+      try{audio.pause();}catch(_){}
+      if(lpController&&lpController.stop)lpController.stop().catch(()=>{});
+      onError(error);
+    }
+    audio.addEventListener('playing',()=>{
+      if(!charged)chargeOnce().catch(e=>console.error('[TL3v4] full-track charge failed',e));
+    },{once:true});
     return new Promise((resolve,reject)=>{
       ms.addEventListener('sourceopen',async()=>{
         try{
@@ -250,7 +212,7 @@
       },{once:true});
       audio.src=url;audio.load();
     }).then(result=>{
-      audio._tl3Stop=function(){if(stopped)return;stopped=true;try{audio.pause();}catch(_){};if(lpController&&lpController.stop)lpController.stop().catch(()=>{});try{if(ms.readyState==='open')ms.endOfStream();}catch(_){};Promise.allSettled(settlementTasks).then(()=>syncPoc());};
+      audio._tl3Stop=function(){if(stopped)return;stopped=true;try{audio.pause();}catch(_){};if(lpController&&lpController.stop)lpController.stop().catch(()=>{});try{if(ms.readyState==='open')ms.endOfStream();}catch(_){}};
       audio._tl3Confirm=audio._tl3Stop;
       audio._tl3Suspend=function(){return lpController&&lpController.suspend?lpController.suspend():Promise.resolve();};
       audio._tl3Resume=function(){return lpController&&lpController.resume?lpController.resume():Promise.resolve();};
