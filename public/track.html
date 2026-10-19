@@ -1700,6 +1700,15 @@ async function playTrack(){
     // 곡을 끝까지 들은 경우 마지막 1초의 정산을 먼저 확정한 뒤 오디오를 정지한다.
     if(playerAudio._tl3End){ try { await playerAudio._tl3End(); } catch(e){ console.warn('[TRACK TL] final meter flush failed:',e); } }
     if(playerAudio._tl3Stop){ try { playerAudio._tl3Stop(); } catch(e){} }
+    // 곡 종료 후 플레이어를 대기 위치(처음)로 자동 복귀시킨다.
+    // 종료된 TL3 MediaSource 세션은 재사용하지 않고, 다시 재생하면 새 세션을 연다.
+    playerAudio._tl3Completed = true;
+    try { playerAudio.currentTime = 0; } catch(e) {
+      console.warn('[TRACK] ended position reset deferred:', e);
+    }
+    _tlElapsed = 0;
+    const resetTimeEl = document.getElementById('playerTime');
+    if(resetTimeEl) resetTimeEl.textContent = '0:00';
     if(window._hidePlayLoading) window._hidePlayLoading(false);
   });
 
@@ -1792,8 +1801,9 @@ function togglePlay(){
     console.log('[PLAY] startup in progress; duplicate play/pause request ignored');
     return;
   }
-  // 종료된 MediaSource 세션은 재사용할 수 없으므로 새 TL3 세션으로 처음부터 재생한다.
-  if(_tlAudio.ended){ playTrack(); return; }
+  // 곡 종료 후 처음 위치로 복귀한 플레이어는 종료된 세션을 재사용하지 않는다.
+  // 다시 누르면 새 재생 세션을 열어 처음부터 정상 정산한다.
+  if(_tlAudio._tl3Completed || _tlAudio.ended){ playTrack(); return; }
   if(_tlPlaying){
     _tlAudio.pause();
     _tlPlaying = false;
