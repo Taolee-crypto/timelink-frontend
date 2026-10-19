@@ -448,7 +448,7 @@ body{font-family:Pretendard,Inter,-apple-system,BlinkMacSystemFont,"Noto Sans KR
   <script src="/offline-fetcher.js"></script>
   <script src="/tl3-lp.js?v=lp-runtime-20261018-v4"></script>
 <script src="/tl3-lp-chain.js?v=audio-unlock-20261019"></script>
-  <script src="/tl3-v4-player.js?v=lp-toggle-restored-20261019"></script>
+  <script src="/tl3-v4-player.js?v=elapsed-meter-start-2s-20261019"></script>
 
 
 <script src="/tl3-config.js"></script>
@@ -1618,7 +1618,7 @@ async function playTrack(){
       }
       if(!quote.can_play){
         updatePlayerTLDisplay();
-        alert('이 곡의 1회 재생에는 '+formatTLInteger(_tlMaxTL,'ceil')+'이 필요합니다. 현재 잔액은 '+formatTLInteger(_myFileTL)+'입니다.');
+        alert('재생을 시작하려면 최소 1 TL이 필요합니다. 현재 잔액은 '+formatTLInteger(_myFileTL)+'입니다.');
         chargeTL();
         return;
       }
@@ -1722,14 +1722,20 @@ async function playTrack(){
     // MediaSource가 데이터를 받으면 브라우저가 재생을 자동으로 이어가므로 별도 강제 재생은 하지 않는다.
 
     TL3V4Player.playStream(SHARE_ID, _tlAudio, {
-      onCharge: function(info){
+      onMeter: function(info){
         if(!_share || String(_share.id)!==String(SHARE_ID)) return;
         _myFileTL=Math.max(0,Number(info.wallet_tl)||0);
-        // 1회 재생이 시작되면 곡 전체 TL이 한 번에 소비된다.
-        _tlSessionSettledSeconds=Math.max(0,Number(info.charged_tl)||songRequiredTL());
-        _tlCurrentTL=0;
+        _tlSessionSettledSeconds=Math.max(0,Number(info.billed_seconds||info.charged_tl)||0);
+        _tlCurrentTL=Math.max(0,songRequiredTL()-_tlSessionSettledSeconds);
         updatePlayerTLDisplay();
-        console.log('[TRACK TL] full-track charge:',info.charged_tl,'wallet:',_myFileTL);
+        console.log('[TRACK TL] elapsed playback settlement:',info.delta_tl,'TL; total:',_tlSessionSettledSeconds,'wallet:',_myFileTL);
+      },
+      onInsufficient: function(info){
+        if(!_share || String(_share.id)!==String(SHARE_ID)) return;
+        _myFileTL=Math.max(0,Number(info.wallet_tl)||0);
+        updatePlayerTLDisplay();
+        stopPlay();
+        alert('보유 TL이 부족하여 재생을 중지했습니다. 실제 재생된 시간만 정산했습니다.');
       },
       onError:function(err){
         console.error('[TRACK TL3]',err);
