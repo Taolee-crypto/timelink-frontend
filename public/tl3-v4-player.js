@@ -53,17 +53,15 @@
     const lpToggle=document.getElementById('lpEnhancedToggle');
     let lpController=null;
     if(lpToggle){lpToggle.checked=false;lpToggle.disabled=true;}
-    if(lpMeta&&lpMeta.enabled&&global.TL3LPChain){
-      try{
-        lpController=await global.TL3LPChain.create(audio,lpMeta,h.duration_ms);
-        if(lpController&&lpController.available()&&lpToggle)lpToggle.disabled=false;
-      }catch(e){console.warn('[TL3v4] LP Connect runtime unavailable',e);}
-    }
+    // 2026-10-19 AUDIO-SAFETY:
+    // Do not insert MediaElementAudioSourceNode into the default TL3 playback path.
+    // The previous implementation rerouted every track through WebAudio even when
+    // LP enhancement was OFF; a suspended/broken context could produce silent playback.
+    // Keep native HTMLAudioElement -> browser output until LP is explicitly reworked.
+    if(lpToggle){lpToggle.checked=false;lpToggle.disabled=true;}
     global.setTL3LpEnhanced=async function(enabled){
-      if(!lpController||typeof lpController.setEnabled!=='function')return false;
-      const ok=await lpController.setEnabled(!!enabled);
-      if(lpToggle&&!ok)lpToggle.checked=false;
-      return ok;
+      if(enabled && lpToggle) lpToggle.checked=false;
+      return false;
     };
     const ms=new MediaSource(),url=URL.createObjectURL(ms);
     let sb=null,stopped=false,next=0,appendBusy=false;
