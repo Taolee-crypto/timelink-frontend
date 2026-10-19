@@ -177,7 +177,7 @@
       onError(error);
     }
     audio.addEventListener('playing',()=>{
-      if(!charged)chargeOnce().catch(e=>console.error('[TL3v4] full-track charge failed',e));
+      if(!charged&&!audio.muted&&audio.volume>0&&audio.readyState>=3)chargeOnce().catch(e=>console.error('[TL3v4] full-track charge failed',e));
     },{once:true});
     return new Promise((resolve,reject)=>{
       ms.addEventListener('sourceopen',async()=>{
