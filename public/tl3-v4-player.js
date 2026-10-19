@@ -33,13 +33,13 @@
       req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);
     });
     if(existing&&existing.privateKey&&existing.playerId&&existing.publicKey){db.close();return existing;}
-    const pair=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveBits']);
-    const privateJwk=await crypto.subtle.exportKey('jwk',pair.privateKey);
-    const privateKey=await crypto.subtle.importKey('jwk',privateJwk,{name:'ECDH',namedCurve:'P-256'},false,['deriveBits']);
+    // WebCrypto keeps the private key non-extractable from its creation.
+    // ECDH public keys remain exportable so only the public half is registered.
+    const pair=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},false,['deriveBits']);
     const publicKey=await crypto.subtle.exportKey('jwk',pair.publicKey);
     const random=crypto.getRandomValues(new Uint8Array(24));
     const playerId=Array.from(random).map(x=>x.toString(16).padStart(2,'0')).join('');
-    const credential={playerId,privateKey,publicKey:{kty:'EC',crv:'P-256',x:publicKey.x,y:publicKey.y}};
+    const credential={playerId,privateKey:pair.privateKey,publicKey:{kty:'EC',crv:'P-256',x:publicKey.x,y:publicKey.y}};
     await new Promise((resolve,reject)=>{
       const tx=db.transaction('credentials','readwrite');tx.objectStore('credentials').put(credential,'primary');
       tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
