@@ -448,8 +448,8 @@ body{font-family:Pretendard,Inter,-apple-system,BlinkMacSystemFont,"Noto Sans KR
   <script src="/offline-fetcher.js"></script>
   <script src="/tl3-lp.js?v=lp-runtime-20261018-v4"></script>
 <script src="/tl3-lp-chain.js?v=v6-parallel-20261019"></script>
-  <script src="/tl3.js?v=v6-parallel-20261019"></script>
-  <script src="/tl3-v4-player.js?v=spine-v4-20261019-buffer5retry"></script>
+  <script src="/tl3.js?v=v6-fullcharge-20261019a"></script>
+  <script src="/tl3-v4-player.js?v=fullcharge-20261019a"></script>
 
 
 <script src="/tl3-config.js"></script>
@@ -1590,7 +1590,7 @@ function updatePlayerTLDisplay(){
   if(bar) bar.style.width=(required>0?Math.max(0,Math.min(100,_tlSessionSettledSeconds/required*100)):0)+'%';
 }
 
-function playTrack(){
+async function playTrack(){
   if(!_share){ alert('곡 정보를 불러오는 중입니다'); return; }
   if(contentKind(_share)!=='tl3'){ alert('검증된 TL3 음악 자산만 재생할 수 있습니다.'); return; }
   const requiredTL = Number(_assetInitialTL||0);
@@ -1598,6 +1598,29 @@ function playTrack(){
   
   if(!_tlFree && _myFileTL < 1){alert('사용자 지갑 TL 또는 음원 잔여 TL이 부족합니다.');chargeTL();return;}
   if(_tlPlaying){ togglePlay(); return; }
+
+  // 서버가 전체 곡 가격과 현재 잔액을 확인한다. 여기서는 예약·차감하지 않는다.
+  if(!_tlFree){
+    try{
+      const pre=await fetch(API+'/api/v1/tl3/play/preflight/'+encodeURIComponent(SHARE_ID),{
+        method:'POST',headers:{'Authorization':'Bearer '+getTok()}
+      });
+      const quote=await pre.json().catch(()=>({}));
+      if(!pre.ok||!quote.ok) throw new Error(quote.error||'재생 사전 확인 실패');
+      _myFileTL=Number(quote.wallet_tl||0);
+      _tlMaxTL=Number(quote.required_tl||songRequiredTL());
+      if(!quote.can_play){
+        updatePlayerTLDisplay();
+        alert('이 곡의 1회 재생에는 '+formatTLInteger(_tlMaxTL,'ceil')+'이 필요합니다. 현재 잔액은 '+formatTLInteger(_myFileTL)+'입니다.');
+        chargeTL();
+        return;
+      }
+      updatePlayerTLDisplay();
+    }catch(e){
+      alert('재생 가능 여부를 확인하지 못했습니다: '+(e.message||e));
+      return;
+    }
+  }
 
   const fileUrl = _share.stream_url || _share.file_url;
   if(!fileUrl){ alert('재생 파일이 없습니다'); return; }
@@ -1692,15 +1715,14 @@ function playTrack(){
     // MediaSource가 데이터를 받으면 브라우저가 재생을 자동으로 이어가므로 별도 강제 재생은 하지 않는다.
 
     (window.TL3V4Player && TL3V4Player.playStreamOrLegacy ? TL3V4Player.playStreamOrLegacy : TL3.playStream)(SHARE_ID, _tlAudio, {
-      onSegment: function(info){
+      onCharge: function(info){
         if(!_share || String(_share.id)!==String(SHARE_ID)) return;
-        if(info && info.remaining !== undefined){_myFileTL=Math.max(0,Number(info.wallet_tl??info.remaining)||0);}
-        // 서버가 확정한 재생 구간만 누적한다. 미확정 오디오 시계값으로 차감액을 추정하지 않는다.
-        if(info && Number.isFinite(Number(info.index)) && !_tlSettledSegments.has(Number(info.index))){
-          _tlSettledSegments.add(Number(info.index));
-          _tlSessionSettledSeconds+=Math.max(0,Number(info.seconds)||0);
-        }
+        _myFileTL=Math.max(0,Number(info.wallet_tl)||0);
+        // 1회 재생이 시작되면 곡 전체 TL이 한 번에 소비된다.
+        _tlSessionSettledSeconds=Math.max(0,Number(info.charged_tl)||songRequiredTL());
+        _tlCurrentTL=0;
         updatePlayerTLDisplay();
+        console.log('[TRACK TL] full-track charge:',info.charged_tl,'wallet:',_myFileTL);
       },
       onError:function(err){
         console.error('[TRACK TL3]',err);
