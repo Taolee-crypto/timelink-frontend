@@ -1189,6 +1189,18 @@ async function useScore(){
         alert("⚠️ TL이 부족합니다\\n\\n필요: " + (d.required||1000) + " TL\\n보유: " + (d.balance||0) + " TL");
         closeScoreModal();
         chargeTL();
+        // Insufficient balance is a normal preflight outcome, not a loading failure.
+        // Release the startup lock and restore the play controls so the user can retry after charging.
+        if(window._hidePlayLoading) window._hidePlayLoading(false);
+        else {
+          window._loadingPlay = false;
+          var retryPlayBtn=document.getElementById('playBtn');
+          var retryCoverBtn=document.getElementById('coverPlayBtn');
+          var retryPlayerBtn=document.getElementById('playerPlayBtn');
+          if(retryPlayBtn){retryPlayBtn.disabled=false;retryPlayBtn.textContent='▶ 재생';}
+          if(retryCoverBtn){retryCoverBtn.disabled=false;retryCoverBtn.textContent='▶';}
+          if(retryPlayerBtn) retryPlayerBtn.textContent='▶';
+        }
         return;
       }
       throw new Error(d.error || "사용 실패");
