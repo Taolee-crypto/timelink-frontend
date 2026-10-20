@@ -159,15 +159,24 @@
     // interval and on timeupdate so throttled browser timers cannot suppress
     // whole-second settlements. Pause/buffering boundaries flush only the
     // media time elapsed before the boundary; seeking never bills a time jump.
+    let lastProgressSeconds=-1;
+    function publishProgress(complete){
+      const elapsedMs=Math.min(totalMs,Math.max(0,billableMs));
+      const seconds=complete?Math.ceil(totalMs/1000):Math.floor((elapsedMs+1e-6)/1000);
+      if(seconds===lastProgressSeconds)return;
+      lastProgressSeconds=seconds;
+      if(opts.onProgress)opts.onProgress({played_ms:elapsedMs,billed_seconds:seconds,complete:!!complete});
+    }
     function sample(force){
       if(stopped||meterFailed||audio.seeking||audio.ended&&!force||audio.muted||audio.volume<=0||audio.paused&&!force){lastTime=null;return;}
       const now=Number(audio.currentTime);
       if(!Number.isFinite(now)){lastTime=null;return;}
       if(lastTime!==null){
         const delta=(now-lastTime)*1000;
-        if(delta>0)billableMs+=delta;
+        if(delta>0)billableMs=Math.min(totalMs,billableMs+delta);
       }
       lastTime=now;
+      publishProgress(false);
       const target=Math.floor((billableMs+1e-6)/1000);
       if(target>meterQueued)queueMeter(target,false);
     }
@@ -194,7 +203,7 @@
     const onSeeking=()=>{lastTime=null;};
     const onSeeked=()=>{lastTime=Number(audio.currentTime)||0;};
     const onTimeUpdate=()=>sample(false);
-    const onEnded=()=>{sample(true);billableMs=Math.max(billableMs,totalMs);queueMeter(Math.ceil(totalMs/1000),true);};
+    const onEnded=()=>{sample(true);billableMs=totalMs;publishProgress(true);queueMeter(Math.ceil(totalMs/1000),true);};
     audio.addEventListener('playing',onPlaying);
     audio.addEventListener('pause',onPause);
     audio.addEventListener('waiting',onPause);
@@ -215,7 +224,7 @@
     try{await audio.play();}catch(e){throw new Error('음원 재생을 시작하지 못했습니다: '+(e&&e.message||e));}
     audio._tl3End=async function(){
       sample(true);
-      if(audio.ended){billableMs=totalMs;queueMeter(Math.ceil(totalMs/1000),true);}
+      if(audio.ended){billableMs=totalMs;publishProgress(true);queueMeter(Math.ceil(totalMs/1000),true);}
       if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}
       await meterQueue;
       return lastBilled;
