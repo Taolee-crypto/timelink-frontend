@@ -155,13 +155,20 @@
     };
     const blobUrl=URL.createObjectURL(new Blob([decoded.mp3],{type:'audio/mpeg'}));
     let stopped=false,meterTimer=null,billableMs=0,lastTime=null,meterQueued=0,lastBilled=0,meterQueue=Promise.resolve(),meterFailed=false;
+    // The media clock is the billing source. Sample it both on a short
+    // interval and on timeupdate so throttled browser timers cannot suppress
+    // whole-second settlements. Pause/buffering boundaries flush only the
+    // media time elapsed before the boundary; seeking never bills a time jump.
     function sample(force){
       if(stopped||meterFailed||audio.seeking||audio.ended&&!force||audio.muted||audio.volume<=0||audio.paused&&!force){lastTime=null;return;}
       const now=Number(audio.currentTime);
       if(!Number.isFinite(now)){lastTime=null;return;}
-      if(lastTime!==null){const delta=(now-lastTime)*1000;if(delta>0)billableMs+=delta;}
+      if(lastTime!==null){
+        const delta=(now-lastTime)*1000;
+        if(delta>0)billableMs+=delta;
+      }
       lastTime=now;
-      const target=Math.floor(billableMs/1000);
+      const target=Math.floor((billableMs+1e-6)/1000);
       if(target>meterQueued)queueMeter(target,false);
     }
     function queueMeter(target,complete){
@@ -184,12 +191,17 @@
     }
     const onPlaying=()=>{lastTime=Number(audio.currentTime)||0;if(meterTimer===null)meterTimer=setInterval(sample,100);};
     const onPause=()=>{sample(true);lastTime=null;};
-    const onEnded=()=>{billableMs=totalMs;queueMeter(Math.ceil(totalMs/1000),true);};
+    const onSeeking=()=>{lastTime=null;};
+    const onSeeked=()=>{lastTime=Number(audio.currentTime)||0;};
+    const onTimeUpdate=()=>sample(false);
+    const onEnded=()=>{sample(true);billableMs=Math.max(billableMs,totalMs);queueMeter(Math.ceil(totalMs/1000),true);};
     audio.addEventListener('playing',onPlaying);
     audio.addEventListener('pause',onPause);
     audio.addEventListener('waiting',onPause);
     audio.addEventListener('stalled',onPause);
-    audio.addEventListener('seeking',onPause);
+    audio.addEventListener('seeking',onSeeking);
+    audio.addEventListener('seeked',onSeeked);
+    audio.addEventListener('timeupdate',onTimeUpdate);
     audio.addEventListener('ended',onEnded);
     audio.preload='auto';
     audio.src=blobUrl;
@@ -213,7 +225,7 @@
       if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}
       try{audio.pause();}catch(_){}
       if(lpController&&lpController.stop)lpController.stop().catch(()=>{});
-      try{audio.removeEventListener('playing',onPlaying);audio.removeEventListener('pause',onPause);audio.removeEventListener('waiting',onPause);audio.removeEventListener('stalled',onPause);audio.removeEventListener('seeking',onPause);audio.removeEventListener('ended',onEnded);}catch(_){}
+      try{audio.removeEventListener('playing',onPlaying);audio.removeEventListener('pause',onPause);audio.removeEventListener('waiting',onPause);audio.removeEventListener('stalled',onPause);audio.removeEventListener('seeking',onSeeking);audio.removeEventListener('seeked',onSeeked);audio.removeEventListener('timeupdate',onTimeUpdate);audio.removeEventListener('ended',onEnded);}catch(_){}
       try{audio.removeAttribute('src');audio.load();}catch(_){}
       URL.revokeObjectURL(blobUrl);
     };
