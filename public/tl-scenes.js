@@ -25,10 +25,6 @@
 
   document.body.setAttribute('data-tl-scene',scene);
   var css=document.createElement('link');
-  css.rel='stylesheet';css.href='/tl-scene.css?v=20261020a';
+  css.rel='stylesheet';css.href='/tl-scene.css?v=20261020c';
   document.head.appendChild(css);
-  var layer=document.createElement('div');
-  layer.className='tl-scene-backdrop';
-  layer.setAttribute('aria-hidden','true');
-  document.body.insertBefore(layer,document.body.firstChild);
 })();
