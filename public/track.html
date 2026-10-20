@@ -457,8 +457,6 @@ body{font-family:Pretendard,Inter,-apple-system,BlinkMacSystemFont,"Noto Sans KR
   <script src="/tl3-lp.js?v=lp-runtime-20261018-v4"></script>
 <script src="/tl3-lp-chain.js?v=audio-unlock-20261019"></script>
   <script src="/tl3-v5-player.js?v=tl3-v5-20261019a"></script>
-  <script src="/tl3-v4-player.js?v=segment-recovery-seq-20261019"></script>
-
 
 <script src="/tl3-config.js"></script>
 <script>
@@ -1672,44 +1670,21 @@ async function playTrack(){
   // 새 재생 세션을 시작한다. 실제 소리가 시작되기 전에는 횟수를 예약하지 않는다.
   _tlPlayCountReserved=false;
   updatePlayerTLDisplay();
-  // V5 자산 여부를 먼저 판별한다. V5는 file_id 기준의 전용 사전 확인을
-  // TL3V5Player 내부에서 수행하므로 기존 V4 preflight를 선행 호출하지 않는다.
+  // TL3 유료 자산은 V5만 허용한다. V5 판별 실패 시 V4로 우회하지 않는다.
   let _useTl3V5 = false;
-  if(!_tlFree && window.TL3V5Player && typeof TL3V5Player.canPlay === 'function'){
-    try { _useTl3V5 = await TL3V5Player.canPlay(RAW_SHARE_ID || SHARE_ID); }
-    catch(e){
-      console.error('[PLAY] TL3 V5 판별 실패:',e);
-      alert('TL3 자산 버전을 확인하지 못했습니다: '+(e.message||e));
+  if(!_tlFree){
+    if(!window.TL3V5Player || typeof TL3V5Player.canPlay !== 'function'){
+      alert('TL3 V5 플레이어를 불러오지 못했습니다.');
       stopPlay();
       return;
     }
-  }
-
-  // V4 자산에만 기존 share_id 기반 사전 확인을 적용한다.
-  // V5는 전용 Player가 file_id 기준으로 잔액과 재생 가능 여부를 확인한다.
-  if(!_tlFree && !_useTl3V5){
-    try{
-      const pre=await fetch(API+'/api/v1/tl3/play/preflight/'+encodeURIComponent(SHARE_ID),{
-        method:'POST',headers:{'Authorization':'Bearer '+getTok()}
-      });
-      const quote=await pre.json().catch(()=>({}));
-      if(!pre.ok||!quote.ok) throw new Error(quote.error||'재생 사전 확인 실패');
-      _myFileTL=Number(quote.wallet_tl||0);
-      if(quote.asset_tl!==undefined) _tlCurrentTL=Math.max(0,Number(quote.asset_tl)||0);
-      _tlMaxTL=Number(quote.required_tl||songRequiredTL());
-      if(Number(quote.duration_ms)>0){
-        _assetInitialTL=Number(quote.duration_ms)/1000;
-        _assetTL=_assetInitialTL;
-      }
-      if(!quote.can_play){
-        updatePlayerTLDisplay();
-        alert('필요한 재생 TL이 부족합니다. 먼저 충전해주십시오.\n필요 TL: '+formatTLInteger(_tlMaxTL)+' / 보유 TL: '+formatTLInteger(_tlCurrentTL));
-        chargeTL();
-        return;
-      }
-      updatePlayerTLDisplay();
-    }catch(e){
-      alert('재생 가능 여부를 확인하지 못했습니다: '+(e.message||e));
+    try {
+      _useTl3V5 = await TL3V5Player.canPlay(RAW_SHARE_ID || SHARE_ID);
+      if(!_useTl3V5) throw new Error('공개된 TL3 V5 자산이 없습니다. Creator에서 V5로 다시 자산화해 주세요.');
+    } catch(e){
+      console.error('[PLAY] TL3 V5 판별 실패:',e);
+      alert('TL3 V5 자산 확인 실패: '+(e.message||e));
+      stopPlay();
       return;
     }
   }
@@ -1848,56 +1823,8 @@ async function playTrack(){
       alert('TL3 V5 재생 실패: '+(e&&e.message?e.message:e));
       stopPlay();
     });
-  } else if(window.TL3V4Player && typeof TL3V4Player.playStream === 'function'){
-    console.log('[PLAY] TL3 Spine V4 시작:', SHARE_ID);
-    
-    // TL3의 pause/waiting/stalled는 세그먼트 경계와 버퍼 대기 중에도 발생한다.
-    // 이 이벤트에서 play()를 강제 호출하면 MSE 버퍼링과 충돌해 재생/정지가 반복된다.
-    // MediaSource가 데이터를 받으면 브라우저가 재생을 자동으로 이어가므로 별도 강제 재생은 하지 않는다.
-
-    TL3V4Player.playStream(SHARE_ID, _tlAudio, {
-      onMeter: function(info){
-        if(!_share || String(_share.id)!==String(SHARE_ID)) return;
-        _myFileTL=Math.max(0,Number(info.wallet_tl)||0);
-        _tlSessionSettledSeconds=Math.max(0,Number(info.billed_seconds||info.charged_tl)||0);
-        if(info.asset_tl!==undefined && info.asset_tl!==null){
-          _tlCurrentTL=Math.max(0,Number(info.asset_tl)||0);
-        } else {
-          // asset_tl이 없는 응답은 이번 정산 차감분만 기존 곡 잔액에서 뺀다.
-          // 전체 필요 TL에서 세션 누적 초를 빼면 재생 가능 횟수가 0으로 오표시된다.
-          const delta=Math.max(0,Number(info.delta_tl)||0);
-          _tlCurrentTL=Math.max(0,Number(_tlCurrentTL||0)-delta);
-        }
-        if(Number(info.delta_tl||0)>0 || Number(info.billed_seconds||0)>0) _tlPlayCountReserved=false;
-        _trackTL=_tlCurrentTL;
-        updatePlayerTLDisplay();
-        console.log('[TRACK TL] elapsed playback settlement:',info.delta_tl,'TL; total:',_tlSessionSettledSeconds,'wallet:',_myFileTL);
-      },
-      onInsufficient: function(info){
-        if(!_share || String(_share.id)!==String(SHARE_ID)) return;
-        _myFileTL=Math.max(0,Number(info.wallet_tl)||0);
-        if(info.asset_tl!==undefined){ _tlCurrentTL=Math.max(0,Number(info.asset_tl)||0); _trackTL=_tlCurrentTL; }
-        updatePlayerTLDisplay();
-        stopPlay();
-        alert('보유 TL이 부족하여 재생을 중지했습니다. 실제 재생된 시간만 정산했습니다.');
-      },
-      onError:function(err){
-        console.error('[TRACK TL3]',err);
-        stopPlay();
-        alert('재생을 중지했습니다: '+(err&&err.message?err.message:err));
-      }
-    }).then(function(result){
-      // sourceopen은 실제 오디오 출력 시작을 뜻하지 않는다.
-      // 재생 UI와 타이머는 HTMLAudioElement의 'playing' 이벤트에서 시작한다.
-      console.log('[PLAY] TL3 스트림 연결됨:', result && result.sessionId);
-    }).catch(function(e){
-      console.error('[PLAY] TL3 스트림 시작 실패:', e);
-      if(window._hidePlayLoading) window._hidePlayLoading(false);
-      alert('TL3 재생 실패: ' + (e && e.message ? e.message : e));
-      stopPlay();
-    });
   } else {
-    alert('TL3 모듈 로드 실패');
+    alert('V5 전용 플레이어를 불러오지 못했습니다.');
     stopPlay();
 }
 }

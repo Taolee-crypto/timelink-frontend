@@ -78,16 +78,28 @@
   }
   async function resolve(id){
     const raw=String(id).split('/').pop().split('?')[0];
-    // Legacy Creator links use tl3_<file_id>; do not normalize this into a
-    // numeric share_id lookup. Resolve that legacy form explicitly by file_id.
+    // Creator links use tl3_<file_id>. Resolve the canonical file_id first,
+    // then retry the exact persisted share_id for releases created by builds
+    // that stored the prefixed identifier as their primary lookup key.
     const legacyFileId=/^tl3_(\d+)$/.exec(raw);
-    const lookupId=legacyFileId?legacyFileId[1]:raw;
-    const lookupBy=legacyFileId?'file_id':'share_id';
-    return request(API+'/api/v1/tl3/v5/resolve/'+encodeURIComponent(lookupId)+'?by='+lookupBy,{headers:auth()});
+    if(legacyFileId){
+      try{
+        return await request(API+'/api/v1/tl3/v5/resolve/'+encodeURIComponent(legacyFileId[1])+'?by=file_id',{headers:auth()});
+      }catch(fileLookupError){
+        if(!fileLookupError||fileLookupError.status!==404)throw fileLookupError;
+        return request(API+'/api/v1/tl3/v5/resolve/'+encodeURIComponent(raw)+'?by=share_id',{headers:auth()});
+      }
+    }
+    return request(API+'/api/v1/tl3/v5/resolve/'+encodeURIComponent(raw)+'?by=share_id',{headers:auth()});
   }
   async function canPlay(id){
     try{const r=await resolve(id);return Number(r.version)===5;}
-    catch(e){if(e&&e.status===404)return false;throw e;}
+    catch(e){
+      // A tl3_<file_id> URL is an explicit Creator/V5 link. Never silently
+      // downgrade it to the legacy V4 player when its V5 release is missing.
+      if(e&&e.status===404&&!/^tl3_(\d+)$/.test(String(id).split('/').pop().split('?')[0]))return false;
+      throw e;
+    }
   }
   async function decryptContainer(container,contentKey,fileId,shareId){
     if(container.byteLength<32||container[0]!==0x54||container[1]!==0x4c||container[2]!==0x4e||container[3]!==0x4b||container[4]!==5)
