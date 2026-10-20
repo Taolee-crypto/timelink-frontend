@@ -121,6 +121,35 @@
 
   document.body.insertAdjacentHTML('afterbegin', html);
   document.body.classList.add('tl-global-shell');
+  // Page-specific visual identity: classify asset formats first, then service routes.
+  var sceneHint = '';
+  try {
+    var params = new URLSearchParams(location.search);
+    sceneHint = [params.get('type'), params.get('format'), params.get('file_type'), params.get('asset_type')].filter(Boolean).join(' ').toUpperCase();
+  } catch (e) {}
+  var scene = '';
+  if (/TLJ/.test(sceneHint)) scene = 'art';
+  else if (/TL4/.test(sceneHint)) scene = 'video';
+  else if (/TLD/.test(sceneHint)) scene = 'office';
+  else if (/TL3/.test(sceneHint)) scene = 'music';
+  else if (/tlj|art|gallery/.test(pathName)) scene = 'art';
+  else if (/tl4|video|player-host/.test(pathName)) scene = 'video';
+  else if (/tld|document|download|terms|privacy|policy/.test(pathName)) scene = 'office';
+  else if (/cafe-world|my-car-world/.test(pathName)) scene = 'community';
+  else if (/advertiser|ads/.test(pathName)) scene = 'campaign';
+  else if (/wallet|dashboard/.test(pathName)) scene = 'office';
+  else scene = 'music';
+
+  document.body.setAttribute('data-tl-scene', scene);
+  var sceneCss = document.createElement('link');
+  sceneCss.rel = 'stylesheet';
+  sceneCss.href = '/tl-scene.css?v=20261020a';
+  document.head.appendChild(sceneCss);
+  var sceneBackdrop = document.createElement('div');
+  sceneBackdrop.className = 'tl-scene-backdrop';
+  sceneBackdrop.setAttribute('aria-hidden', 'true');
+  document.body.insertBefore(sceneBackdrop, document.body.firstChild);
+
 
   var oldSidebar = document.querySelector('.body > .sidebar, .layout > .sidebar, .app > .sidebar, .app > .tl-sidebar');
   if (oldSidebar) oldSidebar.remove();
