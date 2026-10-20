@@ -54,6 +54,19 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
  #tlPlayerBar{padding:10px 12px}
 }
 @media(prefers-reduced-motion:reduce){.play-overlay,.btn-play,.btn-icon,.comment-submit{transition:none!important}}
+
+/* TRACK_LRC_KARAOKE_V1 */
+.tl-lyric-line{padding:5px 8px;border-radius:7px;color:rgba(245,245,247,.58);transition:color .18s,background .18s;font-size:14px;line-height:1.8}
+.tl-lyric-line.is-active{color:#fff;background:rgba(139,92,246,.18);font-weight:800;text-shadow:0 0 18px rgba(167,139,250,.22)}
+.tl-lyric-editor{display:grid;gap:12px;padding:20px}
+.tl-lyric-editor label{display:grid;gap:6px;color:rgba(245,245,247,.66);font-size:12px}
+.tl-lyric-editor input,.tl-lyric-editor textarea{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:#111;color:#f5f5f7;font:13px Pretendard, sans-serif}
+.tl-lyric-editor textarea{resize:vertical;min-height:76px;line-height:1.65}
+.tl-lyric-editor .tl-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tl-edit-actions{display:flex;gap:9px;padding:0 20px 20px}
+.tl-edit-actions button{flex:1;padding:12px;border-radius:9px;font-weight:700;cursor:pointer}
+#editTrackInfoBtn{margin-left:auto;padding:6px 11px;border:1px solid rgba(139,92,246,.35);border-radius:8px;background:rgba(139,92,246,.1);color:#c4b5fd;font-size:11px;cursor:pointer}
+@media(max-width:600px){.tl-lyric-editor .tl-edit-grid{grid-template-columns:1fr}}
 </style>
 
 <style id="track-v4-player-layout">
@@ -218,6 +231,36 @@ body{font-family:Pretendard,Inter,-apple-system,BlinkMacSystemFont,"Noto Sans KR
 
 <div class="main" id="mainWrap">
   <div class="loading" id="loadingEl"><div class="spinner"></div> 불러오는 중...</div>
+</div>
+
+<!-- TRACK_LRC_EDITOR_V1: 창작자 곡 정보 및 싱크 가사 편집 -->
+<div class="modal-overlay" id="trackInfoModal">
+  <div class="modal" style="max-width:640px;max-height:88vh;overflow:auto">
+    <div class="modal-hdr"><span class="modal-title">🎵 곡 정보 수정</span><button class="modal-close" onclick="closeTrackInfoEditor()">✕</button></div>
+    <div class="tl-lyric-editor">
+      <div style="font-size:11px;color:rgba(245,245,247,.45)">곡명은 최초 등록 정보로 유지됩니다. 아래 항목은 창작자 본인이 수정할 수 있으며 TL은 차감되지 않습니다.</div>
+      <label>곡명 (변경 불가)<input id="editTrackTitle" disabled></label>
+      <div class="tl-edit-grid">
+        <label>가수 / 아티스트<input id="editTrackArtist" maxlength="200"></label>
+        <label>앨범<input id="editTrackAlbum" maxlength="200"></label>
+        <label>작곡<input id="editTrackComposer" maxlength="500"></label>
+        <label>작사<input id="editTrackLyricist" maxlength="500"></label>
+        <label>프로듀서<input id="editTrackProducer" maxlength="500"></label>
+        <label>편곡<input id="editTrackArranger" maxlength="500"></label>
+        <label>장르<input id="editTrackCategory" maxlength="100"></label>
+      </div>
+      <label>가사<textarea id="editTrackLyrics" rows="6" maxlength="20000" placeholder="가사 전체를 입력하세요."></textarea></label>
+      <label>노래방 싱크 가사 (LRC 형식)
+        <textarea id="editTrackTimedLyrics" rows="7" maxlength="30000" placeholder="[00:12.00]첫 번째 가사\n[00:16.50]두 번째 가사\n[00:21.20]세 번째 가사"></textarea>
+      </label>
+      <div style="font-size:11px;color:rgba(245,245,247,.42);line-height:1.6">각 줄 앞에 [분:초.소수점] 시간을 입력합니다. 예: [01:23.45] 가사 한 줄. 음악 재생 위치에 따라 해당 구절이 자동 강조됩니다.</div>
+      <div id="trackInfoEditError" style="display:none;color:#ff6b6b;font-size:12px"></div>
+    </div>
+    <div class="tl-edit-actions">
+      <button onclick="closeTrackInfoEditor()" style="border:1px solid rgba(255,255,255,.14);background:transparent;color:#ddd">취소</button>
+      <button id="saveTrackInfoBtn" onclick="saveTrackInfo()" style="border:0;background:linear-gradient(135deg,#8b5cf6,#7042d8);color:#fff">저장</button>
+    </div>
+  </div>
 </div>
 
 <!-- 충전 모달 -->
@@ -544,6 +587,44 @@ async function openCoverEdit(){
 }
 function escH(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtTime(s){ const m=Math.floor((s||0)/60),sec=Math.floor((s||0)%60); return m+':'+(sec<10?'0':'')+sec; }
+function parseLrcLyrics(value){
+  const out=[]; const lines=String(value||'').split(/\\r?\\n/);
+  for(const line of lines){ const m=line.match(/^\\s*\\[(\\d{1,3}):(\\d{2})(?:[.](\\d{1,3}))?\\]\\s*(.*)$/); if(!m) continue; const fraction=m[3]||'0'; const seconds=Number(m[1])*60+Number(m[2])+Number('0.'+fraction); out.push({time:seconds,text:m[4]||''}); }
+  return out.filter(x=>x.text.trim()).sort((a,b)=>a.time-b.time);
+}
+function renderSyncedLyrics(s,currentTime){
+  const wrap=document.getElementById('lyricsWrap'),box=document.getElementById('lyricsBox'); if(!wrap||!box)return;
+  const timed=parseLrcLyrics(s&&s.lyrics_timed); const plain=String(s&&s.lyrics||'');
+  if(timed.length){
+    wrap.style.display='block'; let active=-1; for(let i=0;i<timed.length;i++){if(timed[i].time<=Number(currentTime||0))active=i;else break;}
+    box.innerHTML=timed.map((line,i)=>'<div class="tl-lyric-line'+(i===active?' is-active':'')+'" data-lyric-index="'+i+'">'+escH(line.text)+'</div>').join('');
+    if(active>=0&&active!==window._tlActiveLyricIndex){window._tlActiveLyricIndex=active;const el=box.querySelector('[data-lyric-index="'+active+'"]');if(el){const target=el.offsetTop-box.offsetTop-box.clientHeight/2+el.clientHeight/2;if(box.scrollHeight>box.clientHeight)box.scrollTo({top:Math.max(0,target),behavior:'smooth'});}}
+  }else if(plain){wrap.style.display='block';box.textContent=plain;window._tlActiveLyricIndex=-1;}
+  else{wrap.style.display='none';box.textContent='';window._tlActiveLyricIndex=-1;}
+}
+function openTrackInfoEditor(){
+  if(!_share||String(_currentUserId)!==String(_share.user_id)){alert('본인의 곡 정보만 수정할 수 있습니다.');return;}
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v==null?'':String(v);};
+  set('editTrackTitle',_share.title);set('editTrackArtist',_share.artist);set('editTrackAlbum',_share.album);set('editTrackComposer',_share.composer);set('editTrackLyricist',_share.lyricist);set('editTrackProducer',_share.producer);set('editTrackArranger',_share.arranger);set('editTrackCategory',_share.category);set('editTrackLyrics',_share.lyrics);set('editTrackTimedLyrics',_share.lyrics_timed);
+  const err=document.getElementById('trackInfoEditError');if(err)err.style.display='none';
+  document.getElementById('trackInfoModal').classList.add('show');
+}
+function closeTrackInfoEditor(){document.getElementById('trackInfoModal')?.classList.remove('show');}
+async function saveTrackInfo(){
+  if(!_share||String(_currentUserId)!==String(_share.user_id)){alert('본인의 곡 정보만 수정할 수 있습니다.');return;}
+  const val=id=>document.getElementById(id)?.value||'';
+  const payload={artist:val('editTrackArtist').trim(),album:val('editTrackAlbum').trim(),composer:val('editTrackComposer').trim(),lyricist:val('editTrackLyricist').trim(),producer:val('editTrackProducer').trim(),arranger:val('editTrackArranger').trim(),category:val('editTrackCategory').trim(),lyrics:val('editTrackLyrics'),lyrics_timed:val('editTrackTimedLyrics')};
+  const timed=parseLrcLyrics(payload.lyrics_timed);
+  if(payload.lyrics_timed.trim()&&!timed.length){const err=document.getElementById('trackInfoEditError');err.textContent='싱크 가사 형식이 올바르지 않습니다. [00:12.00] 가사 형식으로 입력해 주세요.';err.style.display='block';return;}
+  const btn=document.getElementById('saveTrackInfoBtn');if(btn){btn.disabled=true;btn.textContent='저장 중...';}
+  try{
+    const res=await fetch(API+'/api/shares/'+encodeURIComponent(SHARE_ID),{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getTok()},body:JSON.stringify(payload)});
+    const data=await res.json().catch(()=>({}));if(!res.ok||data.ok===false)throw new Error(data.error||'곡 정보 저장에 실패했습니다.');
+    _share=Object.assign({},_share,payload);renderCopyright(_share);closeTrackInfoEditor();alert('곡 정보가 저장되었습니다.');
+  }catch(e){const err=document.getElementById('trackInfoEditError');if(err){err.textContent=e.message||'저장 실패';err.style.display='block';}else alert(e.message||'저장 실패');}
+  finally{if(btn){btn.disabled=false;btn.textContent='저장';}}
+}
+
 function typeEmoji(t){ return t==='audio'?'🎵':t==='video'?'🎬':t==='image'?'🖼️':'📄'; }
 
 async function loadTrack(){
@@ -1840,6 +1921,7 @@ function startTLTimer(){
     window._tlElapsed = seconds;
     const timeEl = document.getElementById('playerTime');
     if(timeEl) timeEl.textContent = fmtTime(seconds);
+    if(_share) renderSyncedLyrics(_share, seconds);
 
     // TL 잔액은 서버의 실제 재생 시간 정산 응답만 신뢰한다.
     // 클라이언트 초 단위 추정으로 잔액을 차감하거나 재생을 중단하지 않는다.
@@ -1958,12 +2040,12 @@ async function downloadTL(){
 
 // CERT_UI_TRACK_V1: 증명서 상태 UI (인증/미인증)
 async function renderCopyright(s){
-  const items=[{label:'곡명',value:s.title},{label:'아티스트',value:s.artist},{label:'앨범',value:s.album},{label:'장르',value:s.category},{label:'작곡',value:s.composer},{label:'작사',value:s.lyricist}].filter(i=>i.value);
+  const items=[{label:'곡명',value:s.title},{label:'아티스트',value:s.artist},{label:'앨범',value:s.album},{label:'장르',value:s.category},{label:'작곡',value:s.composer},{label:'작사',value:s.lyricist},{label:'프로듀서',value:s.producer},{label:'편곡',value:s.arranger}].filter(i=>i.value);
   const section=document.getElementById('copyrightSection');
   const grid=document.getElementById('copyrightGrid');
   if(grid) grid.innerHTML=items.map(i=>'<div class="copyright-item"><div class="copyright-label">'+i.label+'</div><div class="copyright-value">'+escH(i.value)+'</div></div>').join('');
-  if(s.lyrics){ const lw=document.getElementById('lyricsWrap'); const lb=document.getElementById('lyricsBox'); if(lw) lw.style.display='block'; if(lb) lb.textContent=s.lyrics; }
-  if(section) section.style.display='block';
+  if(section){ section.style.display='block'; const heading=section.querySelector('.section-label'); if(heading && String(_currentUserId)===String(s.user_id)){ let edit=document.getElementById('editTrackInfoBtn'); if(!edit){ edit=document.createElement('button'); edit.id='editTrackInfoBtn'; edit.type='button'; edit.textContent='✎ 곡 정보 수정'; edit.onclick=openTrackInfoEditor; heading.style.display='flex'; heading.style.alignItems='center'; heading.appendChild(edit); } } }
+  renderSyncedLyrics(s, _tlAudio && Number(_tlAudio.currentTime||0) || 0);
 
   // ★ LP Enhanced 배지 (lp_meta 확인)
   try {
