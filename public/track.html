@@ -1672,8 +1672,22 @@ async function playTrack(){
   // 새 재생 세션을 시작한다. 실제 소리가 시작되기 전에는 횟수를 예약하지 않는다.
   _tlPlayCountReserved=false;
   updatePlayerTLDisplay();
-  // 서버가 전체 곡 가격과 현재 잔액을 확인한다. 여기서는 잔액을 예약·차감하지 않는다.
-  if(!_tlFree){
+  // V5 자산 여부를 먼저 판별한다. V5는 file_id 기준의 전용 사전 확인을
+  // TL3V5Player 내부에서 수행하므로 기존 V4 preflight를 선행 호출하지 않는다.
+  let _useTl3V5 = false;
+  if(!_tlFree && window.TL3V5Player && typeof TL3V5Player.canPlay === 'function'){
+    try { _useTl3V5 = await TL3V5Player.canPlay(RAW_SHARE_ID || SHARE_ID); }
+    catch(e){
+      console.error('[PLAY] TL3 V5 판별 실패:',e);
+      alert('TL3 자산 버전을 확인하지 못했습니다: '+(e.message||e));
+      stopPlay();
+      return;
+    }
+  }
+
+  // V4 자산에만 기존 share_id 기반 사전 확인을 적용한다.
+  // V5는 전용 Player가 file_id 기준으로 잔액과 재생 가능 여부를 확인한다.
+  if(!_tlFree && !_useTl3V5){
     try{
       const pre=await fetch(API+'/api/v1/tl3/play/preflight/'+encodeURIComponent(SHARE_ID),{
         method:'POST',headers:{'Authorization':'Bearer '+getTok()}
@@ -1784,13 +1798,6 @@ async function playTrack(){
     if(resetTimeEl) resetTimeEl.textContent = '0:00';
     if(window._hidePlayLoading) window._hidePlayLoading(false);
   });
-
-  // V5가 확인되면 새 컨테이너 Player를 우선 사용하고, 기존 V4 자산은 기존 Player로 유지한다.
-  let _useTl3V5 = false;
-  if(!_tlFree && window.TL3V5Player && typeof TL3V5Player.canPlay === 'function'){
-    try { _useTl3V5 = await TL3V5Player.canPlay(RAW_SHARE_ID || SHARE_ID); }
-    catch(e){ console.error('[PLAY] TL3 V5 판별 실패:',e); alert('TL3 자산 버전을 확인하지 못했습니다: '+(e.message||e)); stopPlay(); return; }
-  }
 
   // ⭐ MP3는 그냥 재생, TL3는 버전에 맞는 전용 Player로 재생
   if(_tlFree){
