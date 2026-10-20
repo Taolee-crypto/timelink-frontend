@@ -133,6 +133,19 @@
     const response=await fetch(API+'/api/v1/tl3/v5/container/'+encodeURIComponent(fileId)+'?session_id='+encodeURIComponent(sessionId),{headers:auth(),cache:'no-store'});
     if(!response.ok)throw new Error('TL3 V5 컨테이너 다운로드 실패 (HTTP '+response.status+')');
     const container=new Uint8Array(await response.arrayBuffer());
+    // Bind the downloaded file container to the immutable server-side V5 release
+    // manifest before handing it to the existing authenticated decryptor.
+    const expectedContainerHash=String(data.container_sha256||'').toLowerCase();
+    if(!/^[a-f0-9]{64}$/.test(expectedContainerHash)){
+      contentKey.fill(0);
+      throw new Error('TL3 V5 파일 컨테이너의 인증 지문이 없습니다.');
+    }
+    const actualContainerHash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes(container))))
+      .map(v=>v.toString(16).padStart(2,'0')).join('');
+    if(actualContainerHash!==expectedContainerHash){
+      contentKey.fill(0);
+      throw new Error('TL3 V5 파일 컨테이너의 서버 인증 지문이 일치하지 않습니다.');
+    }
     const decoded=await decryptContainer(container,contentKey,fileId,shareId);
     contentKey.fill(0);
     const manifest=decoded.manifest,totalMs=Number(manifest.duration_ms);
