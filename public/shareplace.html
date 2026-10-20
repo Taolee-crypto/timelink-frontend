@@ -524,7 +524,11 @@ function isSegmentBilledTL3(s){
   var ck=String(s&&s.content_kind||'').toLowerCase();
   var rm=String(s&&s.release_mode||'').toLowerCase();
   var su=String(s&&s.stream_url||'').toLowerCase();
-  return rm==='tl3'||ck==='tl3'||ft==='audio/tl3'||/\.tl3(\?|$)/.test(su);
+  // Match backend shareKind(): explicit MP3 remains free; TL-priced assets
+  // with incomplete legacy metadata must still use the TL3 meter, never
+  // the legacy /api/shares/:id/consume wallet-debit path.
+  if(ft==='audio/mpeg'||ft==='audio/mp3'||ck==='mp3'||rm.indexOf('free_mp3')===0) return false;
+  return rm==='tl3'||ck==='tl3'||ft==='audio/tl3'||/\.tl3(\?|$)/.test(su)||Number(s&&s.file_tl||0)>0;
 }
 function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
