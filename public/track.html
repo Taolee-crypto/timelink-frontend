@@ -1807,10 +1807,15 @@ async function playTrack(){
   } else if(_useTl3V5 && window.TL3V5Player && typeof TL3V5Player.playStream === 'function'){
     console.log('[PLAY] TL3 V5 whole-container Player 시작:', SHARE_ID);
     TL3V5Player.playStream(RAW_SHARE_ID || SHARE_ID, _tlAudio, {
+      onProgress: function(progress){
+        if(!_share || String(_share.id)!==String(SHARE_ID)) return;
+        _tlSessionSettledSeconds=Math.max(_tlSessionSettledSeconds,Number(progress.billed_seconds)||0);
+        updatePlayerTLDisplay();
+      },
       onMeter: function(info){
         if(!_share || String(_share.id)!==String(SHARE_ID)) return;
         _myFileTL=Math.max(0,Number(info.wallet_tl)||0);
-        _tlSessionSettledSeconds=Math.max(0,Number(info.billed_seconds||info.charged_tl)||0);
+        _tlSessionSettledSeconds=Math.max(_tlSessionSettledSeconds,Number(info.billed_seconds||info.charged_tl)||0);
         _tlCurrentTL=Math.max(0,Number(info.asset_tl ?? (songRequiredTL()-_tlSessionSettledSeconds))||0);
         _trackTL=_tlCurrentTL;
         updatePlayerTLDisplay();
