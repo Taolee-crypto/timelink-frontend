@@ -599,12 +599,21 @@ async function loadTrack(){
       var durEl = document.getElementById('durText');
       // "계산 중..." 또는 "..." 이면 무조건 file-meta API 호출
       var needsFetch = !reqEl || reqEl.textContent.indexOf('계산') >= 0 || reqEl.textContent === '...';
-      var hasDur = Number(s.duration || s.duration_sec || 0) > 0;
-      if(hasDur && !needsFetch){
-        if(reqEl) reqEl.textContent = Math.ceil(Number(s.duration || s.duration_sec)).toLocaleString('ko-KR') + ' TL';
+      var sourceDuration = Number(s.duration || s.duration_sec || 0);
+      var hasDur = sourceDuration > 0;
+      // Track detail API duration is authoritative when present; do not force a legacy file-meta lookup.
+      // V5 assets are not necessarily present in tl3_releases, so that fallback can return 404.
+      if(hasDur){
+        var dur = Math.ceil(sourceDuration);
+        if(reqEl) reqEl.textContent = dur.toLocaleString('ko-KR') + ' TL';
+        if(durEl) durEl.textContent = '/ ' + fmtTime(dur);
+        _assetInitialTL = dur;
+        _assetTL = dur;
+        updatePlayerTLDisplay();
+        renderTrackChargeBalances();
         return;
       }
-      if(!needsFetch && !hasDur) return;
+      if(!needsFetch) return;
       var fileId = s.file_id || s.id;
       if(!fileId) return;
       var res = await fetch(API + '/api/v1/tl3/file-meta/' + fileId, {headers:{'Authorization':'Bearer '+getTok()}});
