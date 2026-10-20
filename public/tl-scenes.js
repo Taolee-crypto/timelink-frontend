@@ -25,6 +25,7 @@
 
   document.body.setAttribute('data-tl-scene',scene);
   var css=document.createElement('link');
+  css.rel='stylesheet';css.href='/tl-scene.css?v=20261020b';
   css.rel='stylesheet';css.href='/tl-scene.css?v=20261020h';
   document.head.appendChild(css);
 })();
