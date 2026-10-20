@@ -72,28 +72,28 @@
   }
 
   var html = `<style id="tl-global-sidebar-css">
-    body.tl-global-shell{box-sizing:border-box;width:100%;padding-left:256px!important;min-height:100vh;overflow-x:hidden;background:#F5F7FC!important;color:#1E293B!important}
+    body.tl-global-shell{box-sizing:border-box;width:100%;padding-left:256px!important;min-height:100vh;overflow-x:hidden;background-color:#F5F7FC!important;color:#1E293B!important}
     body.tl-global-shell .layout,body.tl-global-shell .app{box-sizing:border-box;width:100%;max-width:none;min-width:0}
     body.tl-global-shell .body{box-sizing:border-box;width:100%;min-width:0;flex:1 1 auto}
-    body.tl-global-shell .main{box-sizing:border-box;width:auto!important;max-width:none;min-width:0;flex:1 1 auto;margin:0!important;transform:none!important;background:#F5F7FC!important;color:#1E293B!important}
+    body.tl-global-shell .main{box-sizing:border-box;width:auto!important;max-width:none;min-width:0;flex:1 1 auto;margin:0!important;transform:none!important;background:transparent!important;color:#1E293B!important}
     body.tl-global-shell .quick-bar{max-width:100%;box-sizing:border-box}
     body.tl-global-shell .quick-bar>*{min-width:0;max-width:100%}
-    body.tl-global-shell .tl-global-sidebar{position:fixed!important;z-index:10000!important;inset:0 auto 0 0!important;width:256px!important;height:100vh;box-sizing:border-box;display:flex;flex-direction:column;margin:0!important;padding:20px 15px 15px!important;background:#FFFFFF!important;border:0!important;border-right:1px solid #E8ECF3!important;color:#25324B!important;font-family:Inter,Pretendard,sans-serif;overflow:hidden!important;transform:none}
+    body.tl-global-shell .tl-global-sidebar{position:fixed!important;z-index:10000!important;inset:0 auto 0 0!important;width:256px!important;height:100vh;box-sizing:border-box;display:flex;flex-direction:column;margin:0!important;padding:20px 15px 15px!important;background:linear-gradient(180deg,rgba(255,255,255,.97) 0%,rgba(248,249,255,.94) 100%)!important;border:0!important;border-right:1px solid rgba(111,91,160,.13)!important;color:#25324B!important;font-family:Inter,Pretendard,sans-serif;box-shadow:10px 0 34px rgba(42,50,82,.035);overflow:hidden!important;transform:none}
     body.tl-global-shell .tl-global-sidebar *{box-sizing:border-box}
     body.tl-global-shell .tl-global-brand{display:flex;align-items:center;gap:11px;flex:0 0 auto;padding:4px 10px 19px!important;margin:0 0 7px!important;color:#263B70!important;font-size:21px;font-weight:800;letter-spacing:-.04em;text-decoration:none;border-bottom:1px solid #EDF0F5}
     body.tl-global-shell .tl-global-mark{width:35px;height:35px;display:grid;place-items:center;flex:0 0 35px;border-radius:11px;background:linear-gradient(140deg,#8B5CF6 0%,#7048D8 62%,#F59E0B 100%);color:#FFFFFF;font-weight:900;box-shadow:0 5px 13px rgba(139,92,246,.18)}
     body.tl-global-shell .tl-global-links{display:block!important;flex:1 1 auto;min-height:0;width:100%;margin:0!important;padding:8px 0 12px!important;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
-    body.tl-global-shell .tl-global-section{display:block;padding:16px 11px 7px!important;margin:0!important;color:#8993A5!important;font-size:10px;font-weight:800;letter-spacing:.13em;line-height:1.4;text-transform:uppercase}
-    body.tl-global-shell .tl-global-link{display:flex!important;align-items:center;gap:10px;min-height:38px;width:auto;margin:2px 0!important;padding:7px 10px!important;border:1px solid transparent;border-radius:9px;color:#596579!important;font-size:12.5px;font-weight:550;line-height:1.3;text-decoration:none!important;white-space:normal;position:relative;transition:background .18s ease,color .18s ease,border-color .18s ease}
-    body.tl-global-shell .tl-global-link:hover{background:#F5F3FF!important;color:#263B70!important}
-    body.tl-global-shell .tl-global-link.is-active{background:#F1ECFF!important;border-color:#E5DBFF!important;color:#6741C7!important;font-weight:700}
+    body.tl-global-shell .tl-global-section{display:block;padding:16px 11px 7px!important;margin:0!important;color:#9299AA!important;font-size:9px;font-weight:750;letter-spacing:.16em;line-height:1.5;text-transform:uppercase}
+    body.tl-global-shell .tl-global-link{display:flex!important;align-items:center;gap:10px;min-height:38px;width:auto;margin:2px 0!important;padding:7px 10px!important;border:1px solid transparent;border-radius:11px;color:#536078!important;font-size:12.5px;font-weight:560;letter-spacing:-.012em;line-height:1.35;text-decoration:none!important;white-space:normal;position:relative;transition:background .22s ease,color .22s ease,border-color .22s ease,transform .22s ease}
+    body.tl-global-shell .tl-global-link:hover{background:linear-gradient(100deg,rgba(139,92,246,.085),rgba(245,166,35,.045))!important;color:#263B70!important;border-color:rgba(139,92,246,.09);transform:translateX(2px)}
+    body.tl-global-shell .tl-global-link.is-active{background:linear-gradient(105deg,rgba(139,92,246,.13),rgba(255,255,255,.68) 82%)!important;border-color:rgba(139,92,246,.17)!important;color:#6844C5!important;font-weight:700;box-shadow:inset 2px 0 0 #8B5CF6,0 3px 10px rgba(92,70,150,.045)}
     body.tl-global-shell .tl-global-icon{display:grid;place-items:center;width:22px;height:22px;flex:0 0 22px;padding:0!important;margin:0!important;background:transparent;font-size:16px;line-height:1;opacity:1}
     body.tl-global-shell .tl-global-link[data-tone="navy"] .tl-global-icon{color:#263B70}
     body.tl-global-shell .tl-global-link[data-tone="purple"] .tl-global-icon{color:#8B5CF6}
     body.tl-global-shell .tl-global-link[data-tone="orange"] .tl-global-icon{color:#E88A16}
     body.tl-global-shell .tl-global-link[data-tone="red"] .tl-global-icon{color:#E65361}
     body.tl-global-shell .tl-global-link[data-tone="teal"] .tl-global-icon{color:#159C96}
-    body.tl-global-shell .tl-global-balance{flex:0 0 auto;margin:10px 0 0;padding:14px;border:1px solid #E9DFFF;border-radius:14px;background:linear-gradient(135deg,#F5F0FF 0%,#FFF8EE 100%)}
+    body.tl-global-shell .tl-global-balance{flex:0 0 auto;margin:10px 0 0;padding:14px;border:1px solid #E9DFFF;border-radius:14px;background:linear-gradient(135deg,rgba(245,240,255,.92) 0%,rgba(255,249,239,.94) 100%)}
     body.tl-global-shell .tl-global-balance small{display:block;color:#7B6B99;font-size:9px;letter-spacing:.13em;font-weight:800}
     body.tl-global-shell .tl-global-balance strong{display:block;margin:7px 0;color:#263B70;font:750 20px Manrope,Inter,sans-serif}
     body.tl-global-shell .tl-global-balance a{display:inline-block;font-size:11px;color:#D97706;font-weight:700;text-decoration:none}
