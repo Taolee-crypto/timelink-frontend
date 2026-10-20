@@ -78,7 +78,12 @@
   }
   async function resolve(id){
     const raw=String(id).split('/').pop().split('?')[0];
-    return request(API+'/api/v1/tl3/v5/resolve/'+encodeURIComponent(raw)+'?by=share_id',{headers:auth()});
+    // Legacy Creator links use tl3_<file_id>; do not normalize this into a
+    // numeric share_id lookup. Resolve that legacy form explicitly by file_id.
+    const legacyFileId=/^tl3_(\\d+)$/.exec(raw);
+    const lookupId=legacyFileId?legacyFileId[1]:raw;
+    const lookupBy=legacyFileId?'file_id':'share_id';
+    return request(API+'/api/v1/tl3/v5/resolve/'+encodeURIComponent(lookupId)+'?by='+lookupBy,{headers:auth()});
   }
   async function canPlay(id){
     try{const r=await resolve(id);return Number(r.version)===5;}
