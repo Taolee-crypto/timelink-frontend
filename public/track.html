@@ -2513,8 +2513,10 @@ async function generateAutoLyricSync(){
       let sum=0;for(let c=0;c<channels.length;c++)sum+=channels[c][i];
       mono[i]=sum/channels.length;
     }
-    say('3/4 한국어 보컬을 인식하고 단어별 시간을 추출합니다. 곡 길이와 PC 성능에 따라 시간이 걸립니다...');
-    const inferenceOptions={language:'korean',task:'transcribe',return_timestamps:'word',chunk_length_s:30,stride_length_s:5};
+    say('3/4 한국어 보컬을 인식하고 구간별 시간 정보를 추출합니다. 곡 길이와 PC 성능에 따라 시간이 걸립니다...');
+    // This ONNX Whisper export has no cross-attention; word timestamps therefore fail.
+    // Use supported chunk timestamps and estimate line positions within each timestamped chunk.
+    const inferenceOptions={language:'korean',task:'transcribe',return_timestamps:true,chunk_length_s:30,stride_length_s:5};
     let result;
     try{
       result=await transcriber(mono,inferenceOptions);
@@ -2527,11 +2529,20 @@ async function generateAutoLyricSync(){
       result=await transcriber(mono,inferenceOptions);
     }
     const chunks=Array.isArray(result&&result.chunks)?result.chunks:[];
-    const tokens=chunks.map(x=>{
-      const ts=x.timestamp||[];
-      return {text:String(x.text||''),norm:String(x.text||'').normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,''),start:ts[0]==null?NaN:Number(ts[0]),end:ts[1]==null?NaN:Number(ts[1])};
-    }).filter(x=>x.norm&&Number.isFinite(x.start));
-    if(!tokens.length)throw new Error('단어별 시간 정보를 얻지 못했습니다. 다른 브라우저 또는 음원 형식으로 다시 시도해 주세요.');
+    // Convert timestamped text chunks into character anchors, avoiding unsupported cross-attention.
+    const tokens=[];
+    for(const chunk of chunks){
+      const ts=chunk.timestamp||[];
+      const start=ts[0]==null?NaN:Number(ts[0]);
+      const end=ts[1]==null?NaN:Number(ts[1]);
+      const normalized=String(chunk.text||'').normalize('NFC').toLowerCase().replace(/[^\\p{L}\\p{N}]/gu,'');
+      if(!normalized||!Number.isFinite(start))continue;
+      const safeEnd=Number.isFinite(end)&&end>start?end:start+Math.max(1,normalized.length*.12);
+      for(let k=0;k<normalized.length;k++){
+        tokens.push({norm:normalized[k],start:start+(safeEnd-start)*(k/normalized.length)});
+      }
+    }
+    if(!tokens.length)throw new Error('음성 인식 구간의 시간 정보를 얻지 못했습니다. 다른 브라우저 또는 음원 형식으로 다시 시도해 주세요.');
     const levenshtein=(a,b)=>{
       const prev=new Array(b.length+1);for(let j=0;j<=b.length;j++)prev[j]=j;
       for(let i=1;i<=a.length;i++){let diagonal=prev[0];prev[0]=i;for(let j=1;j<=b.length;j++){const old=prev[j];prev[j]=Math.min(prev[j]+1,prev[j-1]+1,diagonal+(a[i-1]===b[j-1]?0:1));diagonal=old;}}
@@ -2548,10 +2559,10 @@ async function generateAutoLyricSync(){
       const maxStart=Math.min(tokens.length-1,cursor+Math.max(12,Math.ceil(target.length*2.2)));
       for(let start=cursor;start<=maxStart;start++){
         let candidate='';
-        const maxEnd=Math.min(tokens.length,start+Math.max(3,Math.ceil(target.length/2.5)+5));
+        const maxEnd=Math.min(tokens.length,start+Math.max(8,Math.ceil(target.length*1.75)+8));
         for(let end=start;end<maxEnd;end++){
           candidate+=joined[end];
-          if(candidate.length>target.length*1.65+8)break;
+          if(candidate.length>target.length*1.75+8)break;
           if(candidate.length<Math.max(2,target.length*.48))continue;
           const score=1-levenshtein(target,candidate)/Math.max(target.length,candidate.length);
           if(!best||score>best.score)best={start,end,score,time:tokens[start].start};
