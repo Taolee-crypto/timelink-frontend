@@ -20,7 +20,7 @@
   else if (/cafe-world|my-car-world/.test(path)) scene='community';
   else if (/advertiser|ads|b2b/.test(path)) scene='campaign';
   else if (/wallet|dashboard/.test(path)) scene='office';
-  else if (/cafe-channel|incar-channel|cafe-radio|cafe-studio|incar-studio|incar|dj-center|dj-console|dj-guide|radio|chart|renewal\/music|renewal\\/shareplace|shareplace|track|tl3-player|creator/.test(path)) scene='music';
+  else if (/cafe-channel|incar-channel|cafe-radio|cafe-studio|incar-studio|incar|dj-center|dj-console|dj-guide|radio|chart|renewal\/music|renewal\/shareplace|shareplace|track|tl3-player|creator/.test(path)) scene='music';
   else scene='community';
 
   document.body.setAttribute('data-tl-scene',scene);
