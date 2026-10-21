@@ -2198,9 +2198,16 @@ var ADMIN_API = 'https://api.timelink.digital';
     var r = await fetch(ADMIN_API+'/api/admin/revenue',{
       headers:{'Authorization':'Bearer '+token}
     });
-    var d = await r.json();
-    if(!d.ok) throw new Error(d.error||'오류');
-    var rv = d.revenue;
+    var contentType=r.headers.get('content-type')||'';
+    if(!r.ok){
+      if(r.status===404)throw new Error('재무현황 API(/api/admin/revenue)가 서버에 등록되지 않았습니다. 백엔드 연결이 필요합니다.');
+      if(r.status===401||r.status===403)throw new Error('관리자 인증이 만료되었거나 접근 권한이 없습니다.');
+      throw new Error('재무현황 서버 응답 오류 (HTTP '+r.status+')');
+    }
+    if(!contentType.includes('application/json'))throw new Error('재무현황 API가 JSON이 아닌 응답을 반환했습니다.');
+    var d=await r.json();
+    if(!d||d.ok!==true||!d.revenue)throw new Error((d&&d.error)||'재무현황 응답 형식이 올바르지 않습니다.');
+    var rv=d.revenue;
 
     function fmtKRW(n){ return Number(n||0).toLocaleString()+'원'; }
     function fmtTL(n){ return Number(n||0).toLocaleString()+' TL'; }
@@ -2281,8 +2288,15 @@ var ADMIN_API = 'https://api.timelink.digital';
     }
 
   }catch(e){
-    toast('재무 데이터 로드 실패: '+e.message,'r');
-    console.error('[revenue]',e);
+    var message='재무 데이터를 표시할 수 없습니다: '+e.message;
+    var summary=g('revSummaryBody');
+    if(summary)summary.innerHTML='<tr><td colspan="3" style="padding:22px;color:var(--rose);text-align:center">'+esc(message)+'</td></tr>';
+    var pay=g('revPayBody');
+    if(pay)pay.innerHTML='<tr><td colspan="6" style="padding:18px;text-align:center">결제 내역을 확인할 수 없습니다.</td></tr>';
+    var chart=g('revBarChart');if(chart)chart.textContent='일별 매출 데이터를 확인할 수 없습니다.';
+    var labels=g('revChartLabels');if(labels)labels.textContent='';
+    toast(message,'r');
+    console.error('[revenue]',e.message);
   }
 }
 
