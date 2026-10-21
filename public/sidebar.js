@@ -15,8 +15,10 @@
   var currentLang = '';
   try { currentLang = localStorage.getItem('tl_lang') || ''; } catch (e) {}
   if (!currentLang) currentLang = (navigator.language || navigator.userLanguage || 'ko').toLowerCase();
-  currentLang = String(currentLang).toLowerCase().indexOf('ko') === 0 ? 'ko' : 'en';
-  function label(en, ko) { return currentLang === 'ko' ? ko : en; }
+  currentLang = String(currentLang).toLowerCase();
+  if(currentLang.indexOf('ja')===0)currentLang='ja';else if(currentLang.indexOf('zh')===0)currentLang='zh';else if(currentLang.indexOf('th')===0)currentLang='th';else if(currentLang.indexOf('vi')===0)currentLang='vi';else if(currentLang.indexOf('ko')===0)currentLang='ko';else currentLang='en';
+  var NAV_LABELS={"홈":{"ja":"ホーム","zh":"首页","th":"หน้าหลัก","vi":"Trang chủ"},"디지털 자산":{"ja":"デジタル資産","zh":"数字资产","th":"สินทรัพย์ดิจิทัล","vi":"Tài sản số"},"창작 센터":{"ja":"クリエイターセンター","zh":"创作者中心","th":"ศูนย์ครีเอเตอร์","vi":"Trung tâm sáng tạo"},"TL 방송국":{"ja":"TL放送局","zh":"TL 电台","th":"สถานี TL","vi":"Đài phát thanh TL"},"커뮤니케이션":{"ja":"コミュニケーション","zh":"交流","th":"การสื่อสาร","vi":"Giao tiếp"},"광고":{"ja":"広告","zh":"广告","th":"โฆษณา","vi":"Quảng cáo"},"TL 경제":{"ja":"TLエコノミー","zh":"TL 经济","th":"เศรษฐกิจ TL","vi":"Kinh tế TL"},"마이":{"ja":"マイページ","zh":"我的","th":"ของฉัน","vi":"Của tôi"},"대시보드":{"ja":"ダッシュボード","zh":"仪表盘","th":"แดชบอร์ด","vi":"Bảng điều khiển"},"공유플레이스":{"ja":"共有プレイス","zh":"共享空间","th":"SharePlace","vi":"SharePlace"},"크리에이터 스튜디오":{"ja":"クリエイタースタジオ","zh":"创作者工作室","th":"สตูดิโอครีเอเตอร์","vi":"Studio nhà sáng tạo"},"카페 채널":{"ja":"カフェチャンネル","zh":"咖啡馆频道","th":"ช่องคาเฟ่","vi":"Kênh quán cà phê"},"인카 채널":{"ja":"車載チャンネル","zh":"车载频道","th":"ช่องในรถ","vi":"Kênh trên xe"},"DJ 센터":{"ja":"DJセンター","zh":"DJ 中心","th":"ศูนย์ DJ","vi":"Trung tâm DJ"},"카페 월드":{"ja":"カフェワールド","zh":"咖啡馆世界","th":"โลกคาเฟ่","vi":"Thế giới quán cà phê"},"마이카 월드":{"ja":"マイカーワールド","zh":"我的汽车世界","th":"โลก My Car","vi":"Thế giới xe của tôi"},"스폰서 센터":{"ja":"スポンサーセンター","zh":"赞助商中心","th":"ศูนย์ผู้สนับสนุน","vi":"Trung tâm nhà tài trợ"},"광고 시청":{"ja":"広告視聴","zh":"观看广告","th":"รับชมโฆษณา","vi":"Xem quảng cáo"},"지갑":{"ja":"ウォレット","zh":"钱包","th":"กระเป๋าเงิน","vi":"Ví"},"내 라이브러리":{"ja":"マイライブラリ","zh":"我的资料库","th":"คลังของฉัน","vi":"Thư viện của tôi"},"TLC 채굴":{"ja":"TLCマイニング","zh":"TLC 挖矿","th":"ขุด TLC","vi":"Đào TLC"},"미션":{"ja":"ミッション","zh":"任务","th":"ภารกิจ","vi":"Nhiệm vụ"},"마이 카페":{"ja":"マイカフェ","zh":"我的咖啡馆","th":"คาเฟ่ของฉัน","vi":"Quán cà phê của tôi"},"관리자":{"ja":"管理者","zh":"管理员","th":"ผู้ดูแลระบบ","vi":"Quản trị viên"},"관리자 콘솔":{"ja":"管理コンソール","zh":"管理控制台","th":"คอนโซลผู้ดูแล","vi":"Bảng điều khiển quản trị"},"내 TL 잔액":{"ja":"TL残高","zh":"我的 TL 余额","th":"ยอดคงเหลือ TL","vi":"Số dư TL"},"TL 충전":{"ja":"TLチャージ","zh":"充值 TL","th":"เติม TL","vi":"Nạp TL"},"메뉴 열기":{"ja":"メニューを開く","zh":"打开菜单","th":"เปิดเมนู","vi":"Mở menu"},"메뉴 닫기":{"ja":"メニューを閉じる","zh":"关闭菜单","th":"ปิดเมนู","vi":"Đóng menu"}};
+  function label(en, ko) { return currentLang==='ko'?ko:(currentLang==='en'?en:((NAV_LABELS[ko]&&NAV_LABELS[ko][currentLang])||en)); }
 
   // Approved information architecture: nine clear destinations.
   // Existing route targets are preserved; only their navigation grouping changes.
@@ -185,7 +187,7 @@
   function formatTLBalance(value) {
     var amount = Number(value);
     if (!Number.isFinite(amount)) amount = 0;
-    return Math.floor(Math.max(0, amount)).toLocaleString('ko-KR') + ' TL';
+    return Math.floor(Math.max(0, amount)).toLocaleString(currentLang==='zh'?'zh-CN':currentLang) + ' TL';
   }
 
   var user = {};
@@ -228,6 +230,7 @@
   scrim.setAttribute('aria-label', label('Close navigation', '메뉴 닫기'));
   document.body.appendChild(scrim);
   document.body.appendChild(toggle);
+  window.addEventListener('tl-language-changed',function(){location.reload();});
   function closeNav() {
     document.body.classList.remove('tl-global-nav-open');
     toggle.setAttribute('aria-expanded', 'false');
