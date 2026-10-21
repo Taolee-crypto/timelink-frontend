@@ -1435,6 +1435,7 @@ async function updateTrackTLFromServer(){
     });
     const d=await r.json();
     if(!r.ok || d.ok!==true) throw new Error(d.error||'곡별 TL 조회 실패');
+    localStorage.removeItem(pendingKey);
     _trackTL=Number(d.tl_balance||0);
     _tlCurrentTL=_trackTL;
     updatePlayerTLDisplay();
@@ -1475,10 +1476,13 @@ async function doDirectCharge(){
   const btn=document.getElementById('directChargeBtn');
   if(btn) btn.disabled=true;
   try {
+    const pendingKey='tl_charge_pending_'+String(window.SHARE_ID)+'_'+String(amount);
+    let idempotencyKey=localStorage.getItem(pendingKey);
+    if(!idempotencyKey){idempotencyKey=(crypto.randomUUID?crypto.randomUUID():(Date.now()+'_'+Math.random().toString(36).slice(2)));localStorage.setItem(pendingKey,idempotencyKey);}
     const r=await fetch(API+'/api/shares/'+encodeURIComponent(window.SHARE_ID)+'/charge',{
       method:'POST',
-      headers:{'Authorization':'Bearer '+getTok(),'Content-Type':'application/json'},
-      body:JSON.stringify({amount:amount,source:'direct'})
+      headers:{'Authorization':'Bearer '+getTok(),'Content-Type':'application/json','Idempotency-Key':idempotencyKey},
+      body:JSON.stringify({amount:amount,source:'direct',idempotency_key:idempotencyKey})
     });
     const d=await r.json();
     if(!r.ok || d.ok!==true) throw new Error(d.error||'곡별 충전에 실패했습니다.');
