@@ -146,6 +146,10 @@ var T={
 
 /* ── 회원가입 ── */
 
+'signup.meta.title':{ko:'회원가입 — TimeLink',en:'Sign Up — TimeLink',ja:'新規登録 — TimeLink',zh:'注册 — TimeLink',th:'สมัครสมาชิก — TimeLink',vi:'Đăng ký — TimeLink'},
+'signup.meta.description':{ko:'TimeLink 계정을 만들고 42,500 TL 보너스를 받으세요.',en:'Create a TimeLink account and receive a 42,500 TL welcome bonus.',ja:'TimeLinkアカウントを作成して42,500 TLのボーナスを受け取りましょう。',zh:'创建TimeLink账户，即可获得42,500 TL奖励。',th:'สร้างบัญชี TimeLink และรับโบนัสต้อนรับ 42,500 TL',vi:'Tạo tài khoản TimeLink và nhận thưởng chào mừng 42.500 TL.'},
+'signup.consent.age.html':{ko:'<strong>[필수]</strong> 만 14세 이상이며 <a href="terms.html" target="_blank" onclick="event.stopPropagation()">이용약관</a>에 동의합니다.',en:'<strong>[Required]</strong> I confirm that I am at least 14 years old and agree to the <a href="terms.html" target="_blank" onclick="event.stopPropagation()">Terms of Service</a>.',ja:'<strong>[必須]</strong> 満14歳以上であり、<a href="terms.html" target="_blank" onclick="event.stopPropagation()">利用規約</a>に同意します。',zh:'<strong>[必填]</strong> 我确认已年满14周岁，并同意<a href="terms.html" target="_blank" onclick="event.stopPropagation()">服务条款</a>。',th:'<strong>[จำเป็น]</strong> ข้าพเจ้ามีอายุอย่างน้อย 14 ปี และยอมรับ<a href="terms.html" target="_blank" onclick="event.stopPropagation()">ข้อกำหนดการใช้บริการ</a>',vi:'<strong>[Bắt buộc]</strong> Tôi xác nhận mình từ đủ 14 tuổi và đồng ý với <a href="terms.html" target="_blank" onclick="event.stopPropagation()">Điều khoản dịch vụ</a>.'},
+'signup.consent.privacy.html':{ko:'<strong>[필수]</strong> <a href="privacy.html" target="_blank" onclick="event.stopPropagation()">개인정보 처리방침</a>에 동의합니다.',en:'<strong>[Required]</strong> I agree to the <a href="privacy.html" target="_blank" onclick="event.stopPropagation()">Privacy Policy</a>.',ja:'<strong>[必須]</strong> <a href="privacy.html" target="_blank" onclick="event.stopPropagation()">プライバシーポリシー</a>に同意します。',zh:'<strong>[必填]</strong> 我同意<a href="privacy.html" target="_blank" onclick="event.stopPropagation()">隐私政策</a>。',th:'<strong>[จำเป็น]</strong> ข้าพเจ้ายอมรับ<a href="privacy.html" target="_blank" onclick="event.stopPropagation()">นโยบายความเป็นส่วนตัว</a>',vi:'<strong>[Bắt buộc]</strong> Tôi đồng ý với <a href="privacy.html" target="_blank" onclick="event.stopPropagation()">Chính sách quyền riêng tư</a>.'},
 'signup.bonus.label':{ko:'가입 즉시 지급되는 TL',en:'TL credited when you join',ja:'登録時に付与されるTL',zh:'注册后立即发放的TL',th:'สมัครแล้วรับ TL ทันที',vi:'TL được cộng ngay khi đăng ký'},
 'signup.bonus.base':{ko:'기본 TL',en:'Base TL',ja:'基本TL',zh:'基础TL',th:'TL พื้นฐาน',vi:'TL cơ bản'},
 'signup.bonus.signup':{ko:'가입 보너스',en:'Sign-up bonus',ja:'登録ボーナス',zh:'注册奖励',th:'โบนัสสมัครสมาชิก',vi:'Thưởng đăng ký'},
@@ -789,18 +793,20 @@ function injectSwitcher(){
     'border:1px solid rgba(255,255,255,.18);border-radius:22px',
     'padding:4px;box-shadow:0 4px 20px rgba(0,0,0,.38)'
   ].join(';');
-  ['en','ko'].forEach(function(l){
+  var switcherLangs=document.body.classList.contains('signup-page')?LANGS:['en','ko'];
+  var shortLabels={en:'EN',ko:'KR',ja:'JP',zh:'中文',th:'TH',vi:'VI'};
+  switcherLangs.forEach(function(l){
     var btn=document.createElement('button');
     btn.className='tl-lang-btn'+(l===_lang?' tl-lang-active':'');
     btn.dataset.lang=l;
-    btn.textContent=l==='en'?'EN':'KR';
+    btn.textContent=shortLabels[l]||LABELS[l];
     btn.title=LABELS[l];
     btn.setAttribute('aria-pressed',l===_lang?'true':'false');
     btn.style.cssText=[
       'background:'+(l===_lang?'rgba(139,108,240,.95)':'transparent'),
       'border:1px solid '+(l===_lang?'rgba(255,255,255,.24)':'transparent'),
       'cursor:pointer;font:700 11px/1 Inter,Pretendard,sans-serif',
-      'min-width:36px;padding:8px 10px;border-radius:18px',
+      'min-width:32px;padding:8px 7px;border-radius:18px',
       'opacity:'+(l===_lang?'1':'0.58'),
       'transition:all .2s;color:#fff'
     ].join(';');
