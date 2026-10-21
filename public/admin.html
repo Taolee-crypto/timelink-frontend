@@ -1686,6 +1686,25 @@ function renderUsers(){
   });
 }
 
+async function toggleMemberAccess(id, suspended){
+  var member=_users.find(function(u){return Number(u.id)===Number(id);});
+  if(!member){toast('회원을 찾을 수 없습니다','r');return;}
+  if(member.role==='admin'){toast('관리자 계정은 정지할 수 없습니다','r');return;}
+  if(!confirm((member.email||'회원')+' 계정을 '+(suspended?'이용 정지':'정지 해제')+'하시겠습니까?'))return;
+  try{
+    var token=localStorage.getItem('tl_token');
+    if(!token){toast('관리자 로그인이 필요합니다','r');return;}
+    var response=await fetch('https://api.timelink.digital/api/admin/members/'+encodeURIComponent(id)+'/access',{
+      method:'PATCH',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({suspended:suspended})
+    });
+    var data=await response.json().catch(function(){return {};});
+    if(!response.ok||!data.ok)throw new Error(data.error||'계정 상태 변경 실패');
+    toast(suspended?'회원 이용정지 완료':'회원 정지 해제 완료','g');
+    await loadUsers();
+  }catch(err){toast('회원 상태 변경 실패: '+err.message,'r');}
+}
+
 function renderTLUsers(){
   var tb=g('tl-users-tbody');
   if(!_users.length){tb.innerHTML='<tr><td colspan="6"><div class="empty">유저 탭 또는 SQL로 먼저 조회하세요</div></td></tr>';return;}
