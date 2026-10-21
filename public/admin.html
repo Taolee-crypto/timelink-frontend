@@ -248,6 +248,7 @@ html,body{background:#0A0A0A;color:#F5F5F7}
  .admin-language-slot .tl-lang-btn{flex:1 1 auto;min-width:32px!important;padding:8px 4px!important}
 }
 </style>
+<style id="admin-member-actions-style">.admin-member-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.admin-member-actions label{display:inline-flex;align-items:center;gap:7px;font-size:12px}.admin-member-actions input,#users-tbody input[type=checkbox]{width:16px;height:16px;accent-color:var(--g)}#ut-selected-count{font-size:11px;color:var(--t2)}#ut-delete-selected:disabled{opacity:.4;cursor:not-allowed}#panel-users .tbox{overflow-x:auto}#panel-users table{min-width:980px}@media(max-width:760px){.admin-member-actions{width:100%}}</style>
 </head>
 <body>
 
@@ -670,14 +671,14 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
   </div>
   <div class="tbox">
     <div class="tbox-top">
-      <div class="tbox-title" id="ut-title">전체 유저</div>
+      <div class="tbox-title" id="ut-title">전체 유저</div><div class="admin-member-actions"><label><input type="checkbox" id="ut-select-all" onchange="toggleAllMemberSelection(this.checked)"> 전체 선택</label><span id="ut-selected-count">0명 선택</span><button type="button" class="btn btn-r btn-xs" id="ut-delete-selected" onclick="requestBulkMemberDeletion()" disabled>선택 회원 완전 삭제</button></div>
       <div class="tbox-tools">
         <input class="s-input" placeholder="이메일/이름 검색..." oninput="filterUsers(this.value)">
         <button class="btn btn-g btn-xs" onclick="loadUsers()">↻</button>
       </div>
     </div>
     <table>
-      <thead><tr><th>ID</th><th>유형</th><th>이메일</th><th>유저명</th><th>TL</th><th>TL_P</th><th>TLC</th><th>빠른충전</th></tr></thead>
+      <thead><tr><th>선택</th><th>ID</th><th>유형</th><th>이메일</th><th>유저명</th><th>TL</th><th>TL_P</th><th>TLC</th><th>빠른충전</th><th>계정 관리</th><th>삭제</th></tr></thead>
       <tbody id="users-tbody"></tbody>
     </table>
   </div>
@@ -1679,6 +1680,39 @@ function setUserTab(tab){
   renderUsers();
 }
 
+var _selectedMemberIds=new Set(),_visibleMemberIds=[];
+function syncMemberSelectionUI(){
+  var eligible=_visibleMemberIds.filter(function(id){return _users.some(function(u){return Number(u.id)===id&&u.role!=='admin';});});
+  var all=g('ut-select-all');
+  if(all){all.checked=eligible.length>0&&eligible.every(function(id){return _selectedMemberIds.has(id);});all.indeterminate=eligible.some(function(id){return _selectedMemberIds.has(id);})&&!all.checked;all.disabled=!eligible.length;}
+  g('ut-selected-count').textContent=_selectedMemberIds.size+'명 선택';
+  g('ut-delete-selected').disabled=!_selectedMemberIds.size;
+  document.querySelectorAll('#users-tbody input[data-member-id]').forEach(function(input){input.checked=_selectedMemberIds.has(Number(input.dataset.memberId));});
+}
+function toggleMemberSelection(id,checked){
+  var u=_users.find(function(x){return Number(x.id)===Number(id);});
+  if(!u||u.role==='admin')return;
+  if(checked)_selectedMemberIds.add(Number(id));else _selectedMemberIds.delete(Number(id));
+  syncMemberSelectionUI();
+}
+function toggleAllMemberSelection(checked){
+  _visibleMemberIds.forEach(function(id){var u=_users.find(function(x){return Number(x.id)===id;});if(u&&u.role!=='admin'){if(checked)_selectedMemberIds.add(id);else _selectedMemberIds.delete(id);}});
+  syncMemberSelectionUI();
+}
+async function requestMemberDeletion(id){
+  var u=_users.find(function(x){return Number(x.id)===Number(id);});
+  if(!u||u.role==='admin'){toast('관리자 계정은 삭제할 수 없습니다','r');return;}
+  if(!confirm((u.email||'회원 #'+id)+' 삭제 사전 검토를 진행하시겠습니까? 실제 삭제는 실행되지 않습니다.'))return;
+  try{
+    var r=await fetch(API+'/api/admin/members/'+encodeURIComponent(id)+'/deletion-preview',{headers:{Authorization:'Bearer '+getAdminToken()}});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok)throw new Error(d.error||'검토 실패');
+    alert('삭제 대상: '+(u.email||id)+'\\n'+(d.reason||'안전성 검증 전 삭제 잠금')+'\\n실제 삭제는 실행되지 않았습니다.');
+  }catch(e){toast('삭제 검토 실패: '+e.message,'r');}
+}
+function requestBulkMemberDeletion(){
+  alert('선택 회원 '+_selectedMemberIds.size+'명의 완전 삭제는 안전성 검증 전 잠겨 있습니다.\\n기존 회원·TL 원장 데이터는 삭제되지 않았습니다.');
+}
 function renderUsers(){
   var filtered = _userFilter ? _users.filter(function(u){
     return (u.email||'').toLowerCase().includes(_userFilter)||(u.username||'').toLowerCase().includes(_userFilter);
@@ -1692,12 +1726,15 @@ function renderUsers(){
     '전체 '+counts.all+' · 일반 '+counts.normal+' · 크리에이터 '+counts.creator+' · 사업자 '+counts.biz+' · 광고주 '+counts.advertiser;
 
   var tb = g('users-tbody');
+  _visibleMemberIds=list.map(function(u){return Number(u.id);});
+  _selectedMemberIds.forEach(function(id){if(!_users.some(function(u){return Number(u.id)===id&&u.role!=='admin';}))_selectedMemberIds.delete(id);});
+  syncMemberSelectionUI();
   if(!list.length){
-    tb.innerHTML='<tr><td colspan="8"><div class="empty">'+( _users.length ? '해당 유형 없음' : '/api/users 없음')+'</div></td></tr>';
+    tb.innerHTML='<tr><td colspan="11"><div class="empty">'+( _users.length ? '해당 유형 없음' : '/api/users 없음')+'</div></td></tr>';
     return;
   }
   paginate('users-tbody', list, function(u){
-    return '<tr>'+
+    return '<tr>'+\n      '<td><input type="checkbox" data-member-id="'+Number(u.id)+'" '+(u.role==='admin'?'disabled':'')+' '+(_selectedMemberIds.has(Number(u.id))?'checked':'')+' onchange="toggleMemberSelection('+Number(u.id)+',this.checked)"></td>'+
       '<td class="td-mono" style="color:var(--t4)">'+u.id+'</td>'+
       '<td>'+getUserTypeBadge(u)+'</td>'+
       '<td style="font-size:11px">'+esc(u.email||'-')+'</td>'+
@@ -1711,7 +1748,7 @@ function renderUsers(){
         '<button class="btn btn-r btn-xs" onclick="quickCharge(\''+esc(u.email)+'\',-10000)">-1만</button>'+
       '</div></td>'+
     '<td><button class="btn btn-xs '+(Number(u.is_active)===0?'btn-g':'btn-a')+'" onclick="toggleMemberAccess('+Number(u.id)+','+(Number(u.is_active)!==0)+')">'+(Number(u.is_active)===0?'정지 해제':'이용 정지')+'</button></td>'+ 
-    '</tr>';
+    '<td><button type="button" class="btn btn-r btn-xs" '+(u.role==='admin'?'disabled':'onclick="requestMemberDeletion('+Number(u.id)+')"')+'>삭제</button></td>'+\n    '</tr>';
   });
 }
 
