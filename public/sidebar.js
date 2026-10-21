@@ -247,11 +247,11 @@
   async function fetchServerBalance() {
     if (!token) return;
     try {
-      var r = await fetch(API + '/api/v1/users/me/wallet', {
+      var r = await fetch(API + '/api/eco/wallet', {
         headers: {'Authorization': 'Bearer ' + token}
       });
       var d = await r.json();
-      var bal = Number(d.tl_balance);
+      var bal = r.ok && d && d.wallet ? Number(d.wallet.tl_total) : NaN;
       if (isFinite(bal)) {
         var el = document.getElementById('tlGlobalBalance');
         if (el) el.textContent = formatTLBalance(bal);
