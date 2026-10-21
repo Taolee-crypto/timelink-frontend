@@ -326,32 +326,38 @@ body{background:#0A0A0A;font-family:var(--fn)}
  .do-header,.do-footer{padding:10px 14px}
 }
 
-/* SHAREPLACE CATEGORY BAR THEME NORMALIZATION */
-.cat-bar{
-  background:var(--bg-root) !important;
-  border-bottom:1px solid var(--bd) !important;
+/* SHAREPLACE CATEGORY BAR — enforce the shared dark/purple theme */
+html body .app .main .cat-bar{
+  background:#0A0A0A !important;
+  background-image:none !important;
+  border-bottom:1px solid rgba(255,255,255,.08) !important;
   box-shadow:none !important;
 }
-.cat-bar .cat-tab{
-  background:rgba(255,255,255,.03);
-  border-color:var(--bd);
-  color:var(--t2);
-  text-shadow:none;
+html body .app .main .cat-bar .cat-tab,
+html body .app .main .cat-bar .cat-tab:hover{
+  background:rgba(255,255,255,.03) !important;
+  border:1px solid rgba(255,255,255,.08) !important;
+  color:rgba(255,255,255,.72) !important;
+  text-shadow:none !important;
+  box-shadow:none !important;
 }
-.cat-bar .cat-tab:hover{
-  background:rgba(255,255,255,.07);
-  border-color:var(--bd2);
-  color:var(--t1);
+html body .app .main .cat-bar .cat-tab.active,
+html body .app .main .cat-bar .cat-tab.active:hover{
+  background:rgba(139,92,246,.18) !important;
+  border-color:rgba(139,92,246,.42) !important;
+  color:#B99AFF !important;
 }
-.cat-bar .cat-tab.active{
-  background:rgba(139,92,246,.15);
-  border-color:rgba(139,92,246,.35);
-  color:var(--purple);
-  box-shadow:none;
+html body .app .main .cat-bar .cat-tab.active.video,
+html body .app .main .cat-bar .cat-tab.active.image,
+html body .app .main .cat-bar .cat-tab.active.doc,
+html body .app .main .cat-bar .cat-tab.active.etc{
+  background:rgba(139,92,246,.18) !important;
+  border-color:rgba(139,92,246,.42) !important;
+  color:#B99AFF !important;
 }
-.cat-bar .cat-tab.active .cat-count{
-  background:rgba(139,92,246,.16);
-  color:var(--purple);
+html body .app .main .cat-bar .cat-tab .cat-count{
+  background:rgba(255,255,255,.08) !important;
+  color:inherit !important;
 }
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
@@ -563,12 +569,23 @@ function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 
 async function loadShares(){
   var sc=document.getElementById('sortCount');
-  if(sc) sc.textContent='로딩 중...';
+  if(sc) sc.textContent='불러오는 중...';
+  // 네트워크가 응답하지 않을 때 무한 로딩으로 남지 않도록 각 요청에 시간 제한을 둔다.
+  async function fetchWithTimeout(url,options){
+    var controller=new AbortController();
+    var timeout=setTimeout(function(){controller.abort();},15000);
+    try{
+      var requestOptions=Object.assign({},options||{},{signal:controller.signal});
+      return await fetch(url,requestOptions);
+    }finally{
+      clearTimeout(timeout);
+    }
+  }
   try{
     var headers=_token ? {'Authorization':'Bearer '+_token} : {};
-    var r=await fetch(API_BASE+'/api/shares',{headers:headers});
+    var r=await fetchWithTimeout(API_BASE+'/api/shares',{headers:headers});
     if(!r.ok && (r.status===404 || r.status===405)){
-      r=await fetch(API_BASE+'/api/v1/shareplace',{headers:headers});
+      r=await fetchWithTimeout(API_BASE+'/api/v1/shareplace',{headers:headers});
     }
     if(!r.ok) throw new Error('HTTP '+r.status);
     var d=await r.json();
@@ -576,13 +593,18 @@ async function loadShares(){
     _allShares=incoming.filter(isPublishedTLAsset);
     updateCounts();
     applyFilter();
+    // 빈 목록에서도 카운터가 초기 문구에 머물지 않도록 명시적으로 갱신한다.
+    if(!_allShares.length && sc) sc.textContent='총 0개 파일';
   }catch(e){
     _allShares=[];
-    if(sc) sc.innerHTML='연결 오류 <button onclick="loadShares()" style="margin-left:8px;padding:3px 10px;border-radius:6px;border:1px solid var(--purple);background:transparent;color:var(--purple);font-size:11px;cursor:pointer">🔄 재시도</button>';
+    if(sc) sc.innerHTML=(e&&e.name==='AbortError'?'요청 시간 초과':'연결 오류')+' <button onclick="loadShares()" style="margin-left:8px;padding:3px 10px;border-radius:6px;border:1px solid var(--purple);background:transparent;color:var(--purple);font-size:11px;cursor:pointer">🔄 재시도</button>';
     applyFilter();
   }
-  // ⭐ 로그인 유저라면 각 곡의 내 TL 잔액 로드
-  if (_token) await loadMyTL();
+  // TL 잔액 조회 실패가 자산 목록 표시를 막지 않도록 별도로 처리한다.
+  if(_token){
+    try{ await loadMyTL(); }
+    catch(e){ console.warn('[SharePlace] 내 TL 잔액 조회 실패',e); }
+  }
 }
 
 // ⭐ 모든 TL3 곡카드의 잔여 TL은 동일한 자산 잔액 API로 조회한다.
