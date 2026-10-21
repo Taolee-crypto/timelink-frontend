@@ -1220,14 +1220,13 @@ var _shares=[], _users=[], _shareFilter='', _shareTypeFilter='', _userFilter='';
 
 // ─ Login: authenticate with the account service, then verify the admin role on the server ─
 async function verifyAdminToken(token){
-  var r = await fetch(API+'/api/admin/sql', {
-    method:'POST', mode:'cors',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-    body:JSON.stringify({sql:'SELECT 1 AS admin_ok'})
+  var r = await fetch(API+'/api/admin/session', {
+    method:'GET', mode:'cors',
+    headers:{'Authorization':'Bearer '+token}
   });
   if(!r.ok) return false;
-  var d = await r.json();
-  return !!(d && d.ok);
+  var d=await r.json().catch(function(){return {};});
+  return d.ok===true && d.role==='admin';
 }
 async function login(){
   var e=v('lEmail'), p=g('lPw').value;
@@ -1247,7 +1246,7 @@ async function login(){
     });
     var d = await r.json().catch(function(){return {};});
     if(!r.ok || !d.token){
-      err.textContent=d.error || '이메일 또는 비밀번호를 확인하세요.';
+      err.textContent=d.detail || d.error || '이메일 또는 비밀번호를 확인하세요.';
       err.style.display='block'; return;
     }
     if(!(await verifyAdminToken(d.token))){
