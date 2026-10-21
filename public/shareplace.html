@@ -1002,9 +1002,13 @@ async function chargeTL(shareId,title){
   if(!amt||amt<=0){ alert('올바른 숫자를 입력하세요.'); return; }
   if(getTotalTL()<amt){ alert('TL 잔액이 부족합니다.\n현재 잔액: '+getTotalTL().toLocaleString()+' TL'); return; }
   try{
-    var r=await fetch(API_BASE+'/api/shares/'+shareId+'/charge',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},body:JSON.stringify({amount:amt,user_id:_user.id,email:_user.email})});
+    var pendingKey='tl_charge_pending_'+String(shareId)+'_'+String(amt);
+    var idempotencyKey=localStorage.getItem(pendingKey);
+    if(!idempotencyKey){idempotencyKey=(crypto.randomUUID?crypto.randomUUID():(Date.now()+'_'+Math.random().toString(36).slice(2)));localStorage.setItem(pendingKey,idempotencyKey);}
+    var r=await fetch(API_BASE+'/api/shares/'+shareId+'/charge',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||''),'Idempotency-Key':idempotencyKey},body:JSON.stringify({amount:amt,user_id:_user.id,email:_user.email,idempotency_key:idempotencyKey})});
     var d=await r.json();
     if(!r.ok) throw new Error(d.error||'충전 실패');
+    localStorage.removeItem(pendingKey);
     _myFileTL[String(shareId)]=Number(d.tl_balance||(_myFileTL[String(shareId)]||0)+amt);
     // 백엔드에서 실제 차감된 지갑 잔액으로 즉시 동기화한다.
     _user.tl=Number(d.user_tl||0);
