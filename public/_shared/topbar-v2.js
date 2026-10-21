@@ -103,14 +103,14 @@
   // 서버에서 최신 잔액 조회
   async function fetchBalance(){
     try {
-      var r = await fetch('https://api.timelink.digital/api/v1/users/me/wallet', {
+      var r = await fetch('https://api.timelink.digital/api/eco/wallet', {
         headers: { 'Authorization': 'Bearer ' + _token }
       });
       var d = await r.json();
-      var bal = Number(d.tl_balance);
+      var bal = r.ok && d && d.wallet ? Number(d.wallet.tl_total) : NaN;
       if(isFinite(bal)){
         var el = document.getElementById('tl-topbar-tl');
-        if(el) el.textContent = (window.TLi18n&&window.TLi18n.formatNumber?window.TLi18n.formatNumber(bal,{maximumFractionDigits:0}):bal.toLocaleString()) + ' TL';
+        if(el) el.textContent = (window.TLi18n&&window.TLi18n.formatNumber?window.TLi18n.formatNumber(Math.floor(Math.max(0,bal)),{maximumFractionDigits:0}):Math.floor(Math.max(0,bal)).toLocaleString()) + ' TL';
         // 로컬 캐시 갱신
         _user.tl_balance = bal;
         localStorage.setItem('tl_user', JSON.stringify(_user));
