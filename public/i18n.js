@@ -470,6 +470,17 @@ Object.assign(T,{
   "creator.error.engine":{ko:"공통 TL3 제조 엔진을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.",en:"Could not load the shared TL3 manufacturing engine. Refresh and try again.",ja:"共通TL3製造エンジンを読み込めませんでした。再読み込みしてお試しください。",zh:"无法加载通用 TL3 制作引擎。请刷新页面后重试。",th:"ไม่สามารถโหลดเอนจินสร้าง TL3 ส่วนกลางได้ โปรดรีเฟรชแล้วลองอีกครั้ง",vi:"Không thể tải công cụ tạo TL3 dùng chung. Vui lòng tải lại trang và thử lại."},
 });
 
+Object.assign(T,{
+  "creator.release.title":{ko:"TL3 등록 및 공유",en:"Register and share TL3",ja:"TL3の登録と共有",zh:"登记并分享 TL3",th:"ลงทะเบียนและแชร์ TL3",vi:"Đăng ký và chia sẻ TL3"},
+  "creator.release.desc":{ko:"음원은 디지털 자산으로 변환되어 모든 사람과 공유됩니다. 공유 후에는 변환을 되돌릴 수 없으며, 이후 보상은 플랫폼 정산 체계를 통해 지급됩니다.",en:"Your audio is converted into a digital asset and shared. This conversion cannot be reversed; subsequent rewards are paid through the platform's settlement system.",ja:"音源はデジタル資産に変換され、すべての人と共有されます。共有後は変換を元に戻せません。その後の報酬はプラットフォームの精算システムを通じて支払われます。",zh:"音频将转换为数字资产并与所有人分享。分享后无法撤销转换，后续奖励将通过平台结算系统支付。",th:"เสียงจะถูกแปลงเป็นสินทรัพย์ดิจิทัลและแชร์กับทุกคน หลังแชร์แล้วไม่สามารถย้อนกลับการแปลงได้ รางวัลหลังจากนั้นจะจ่ายผ่านระบบชำระบัญชีของแพลตฟอร์ม",vi:"Âm thanh được chuyển thành tài sản số và chia sẻ với mọi người. Sau khi chia sẻ, không thể hoàn tác chuyển đổi; các khoản thưởng tiếp theo được chi trả qua hệ thống quyết toán của nền tảng."},
+  "creator.irreversible":{ko:"TL3 불가역 변환",en:"Irreversible TL3 conversion",ja:"TL3への不可逆変換",zh:"TL3 不可逆转换",th:"การแปลง TL3 แบบย้อนกลับไม่ได้",vi:"Chuyển đổi TL3 không thể đảo ngược"},
+  "creator.irreversible.desc":{ko:"이 단계에서 원본이 TL3로 제조되며, 제조된 자산은 MP3로 되돌릴 수 없습니다.",en:"At this stage, the original is processed into TL3. The resulting asset cannot be converted back to MP3.",ja:"この段階でオリジナルをTL3に変換します。変換後の資産をMP3に戻すことはできません。",zh:"在此步骤中，原始文件将制作为 TL3。生成的资产无法还原为 MP3。",th:"ในขั้นตอนนี้ ต้นฉบับจะถูกผลิตเป็น TL3 และไม่สามารถแปลงสินทรัพย์ที่ผลิตแล้วกลับเป็น MP3 ได้",vi:"Ở bước này, bản gốc được tạo thành TL3. Tài sản đã tạo không thể chuyển ngược lại thành MP3."},
+  "creator.release.button":{ko:"TL3 등록하고 공유하기",en:"Register and share TL3",ja:"TL3を登録して共有",zh:"登记并分享 TL3",th:"ลงทะเบียนและแชร์ TL3",vi:"Đăng ký và chia sẻ TL3"},
+  "creator.done.title":{ko:"TL3 자산 등록 완료",en:"TL3 asset registered",ja:"TL3資産の登録完了",zh:"TL3 资产登记完成",th:"ลงทะเบียนสินทรัพย์ TL3 แล้ว",vi:"Đã đăng ký tài sản TL3"},
+  "creator.done.new":{ko:"새 음악 올리기",en:"Register new music",ja:"新しい音楽を登録",zh:"上传新音乐",th:"ลงทะเบียนเพลงใหม่",vi:"Đăng ký nhạc mới"},
+  "creator.done.view":{ko:"SharePlace에서 확인하기",en:"View in SharePlace",ja:"SharePlaceで確認",zh:"前往 SharePlace 查看",th:"ดูใน SharePlace",vi:"Xem trong SharePlace"},
+});
+
 var _lang=detectLang();
 
 /* ── 번역 함수 ── */
