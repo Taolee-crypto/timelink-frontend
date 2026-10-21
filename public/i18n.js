@@ -2043,6 +2043,45 @@ Object.assign(AUTO_KO_ALL.vi,{
 "📺 광고TL(TL_A)은 플랫폼 내 소비 전용입니다":undefined
 });
 
+
+/* Wallet page labels and mining states. */
+Object.assign(AUTO_KO_ALL.ko,{
+"TL 입력":"Enter TL amount",
+"TLC 입력":"Enter TLC amount",
+"❌ 채굴 가능한 TLC가 없습니다":"❌ No TLC available to mine",
+"채굴 실패":"Mining failed"
+});
+Object.assign(AUTO_KO_ALL.en,{
+"TL 입력":"TL数量を入力",
+"TLC 입력":"TLC数量を入力",
+"❌ 채굴 가능한 TLC가 없습니다":"❌ 採掘可能なTLCはありません",
+"채굴 실패":"マイニングに失敗しました"
+});
+Object.assign(AUTO_KO_ALL.ja,{
+"TL 입력":"输入 TL 数量",
+"TLC 입력":"输入 TLC 数量",
+"❌ 채굴 가능한 TLC가 없습니다":"❌ 没有可挖取的TLC",
+"채굴 실패":"挖矿失败"
+});
+Object.assign(AUTO_KO_ALL.zh,{
+"TL 입력":"กรอกจำนวน TL",
+"TLC 입력":"กรอกจำนวน TLC",
+"❌ 채굴 가능한 TLC가 없습니다":"❌ ไม่มี TLC ที่สามารถขุดได้",
+"채굴 실패":"ขุดไม่สำเร็จ"
+});
+Object.assign(AUTO_KO_ALL.th,{
+"TL 입력":"Nhập số TL",
+"TLC 입력":"Nhập số TLC",
+"❌ 채굴 가능한 TLC가 없습니다":"❌ Không có TLC khả dụng để khai thác",
+"채굴 실패":"Khai thác thất bại"
+});
+Object.assign(AUTO_KO_ALL.vi,{
+"TL 입력":undefined,
+"TLC 입력":undefined,
+"❌ 채굴 가능한 TLC가 없습니다":undefined,
+"채굴 실패":undefined
+});
+
 var AUTO_TEXT=new WeakMap(),AUTO_ATTR=new WeakMap();
 function applyAutoText(){
  var walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{acceptNode:function(n){var p=n.parentElement;return !p||/^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA|CODE|PRE)$/i.test(p.tagName)||p.closest('[data-i18n],[data-i18n-html]')||!n.nodeValue.trim()?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT;}});
