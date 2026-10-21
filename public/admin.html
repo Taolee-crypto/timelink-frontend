@@ -2456,15 +2456,27 @@ async function saveFooterSettings(){
   if(sess && Date.now()-parseInt(sess)<MAX){
     var token=localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'';
     if(token){
-      verifyAdminToken(token).then(function(ok){
-        if(ok){hide('loginWrap');loadAll();startClock();}
-        else {localStorage.removeItem('tl_adm');g('loginWrap').style.display='flex';}
-      }).catch(function(){localStorage.removeItem('tl_adm');g('loginWrap').style.display='flex';});
+      verifyAdminToken(token).then(function(result){
+        if(result && result.ok===true){
+          hide('loginWrap');
+          loadAll();
+          startClock();
+        } else {
+          localStorage.removeItem('tl_adm');
+          g('loginWrap').style.display='flex';
+          var errorEl=g('lErr');
+          if(errorEl && result && result.message){
+            errorEl.textContent=result.message;
+            errorEl.style.display='block';
+          }
+        }
+      }).catch(function(error){
+        console.error('[admin-session-restore]',error);
+        localStorage.removeItem('tl_adm');
+        g('loginWrap').style.display='flex';
+      });
     } else {localStorage.removeItem('tl_adm');}
   } else if(sess){localStorage.removeItem('tl_adm');}
-  document.addEventListener('keydown',function(e){
-    if(e.key==='Enter'&&g('loginWrap').style.display!=='none') login();
-  });
 })();
 
 // ═══════════════════════════════════════
