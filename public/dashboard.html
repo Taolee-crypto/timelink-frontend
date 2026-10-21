@@ -273,6 +273,11 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
 </head>
 <body>
 
+<div id="tl-development-warning" role="alert" style="margin:12px 18px 0;padding:13px 16px;border:1px solid rgba(245,166,35,.45);border-radius:12px;background:rgba(245,166,35,.09);color:#F5C16C;font-size:13px;line-height:1.65">
+  <strong style="display:block;margin-bottom:3px">개발 진행 및 TL 초기화 안내</strong>
+  TimeLink은 현재 개발 중입니다. 서비스 안정화와 경제 시스템 재정비 과정에서 일반 사용자의 기존 보유 TL은 모두 초기화될 예정이며, 초기화된 TL은 복구되지 않습니다. 이용에 참고해 주시기 바랍니다.
+</div>
+
 <div class="tl-toast-box" id="toast-box"></div>
 
 <!-- TOPBAR -->
@@ -701,11 +706,12 @@ function switchTab(name){
 // ═══════════════════════════════════════════
 async function loadShares(){
   try{
-    var r = await fetch(API + '/api/shares');
+    var r = await fetch(API + '/api/shares/my', {
+      headers: {'Authorization':'Bearer ' + (localStorage.getItem('tl_token') || '')}
+    });
     var d = await r.json();
-    var shares = Array.isArray(d) ? d : (d.shares || []);
-
-    var myFiles = shares.filter(function(s){ return String(s.user_id) === String(_user.id); });
+    if(!r.ok) throw new Error(d.error || '내 자산 목록 조회 실패');
+    var myFiles = Array.isArray(d.shares) ? d.shares : [];
 
     g('homeFiles').textContent = myFiles.length;
     g('cntFiles').textContent = myFiles.length;
