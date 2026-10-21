@@ -343,8 +343,6 @@ var T={
 'toast.cr.upload.success':{ko:'업로드 완료!',en:'Uploaded!',ja:'完了！',zh:'已上传！',th:'อัปโหลดแล้ว!',vi:'Đã tải lên!'},
 'toast.cr.upload.fail':{ko:'업로드 실패',en:'Upload failed',ja:'失敗',zh:'失败',th:'ล้มเหลว',vi:'Thất bại'},
 'toast.cr.delete.confirm':{ko:'을 삭제하시겠습니까?',en:'Delete?',ja:'削除？',zh:'删除？',th:'ลบ?',vi:'Xóa?'},
-};
-
 'global.search.placeholder':{ko:'파일명, 아티스트, 태그 검색...',en:'Search assets, artists, or tags...',ja:'ファイル名・アーティスト・タグを検索...',zh:'搜索文件名、艺人或标签...',th:'ค้นหาชื่อไฟล์ ศิลปิน หรือแท็ก...',vi:'Tìm tên tệp, nghệ sĩ hoặc thẻ...'},
 'global.upload':{ko:'📤 내 파일 업로드',en:'📤 Upload asset',ja:'📤 デジタル資産を共有',zh:'📤 分享数字资产',th:'📤 แชร์สินทรัพย์ดิจิทัล',vi:'📤 Chia sẻ tài sản số'},
 'global.logout':{ko:'↩ 로그아웃',en:'↩ Log out',ja:'↩ ログアウト',zh:'↩ 退出登录',th:'↩ ออกจากระบบ',vi:'↩ Đăng xuất'},
@@ -363,6 +361,8 @@ var T={
 'global.footer.company':{ko:'씨엠피 주식회사 · 대표이사 이문웅 · 사업자등록번호 491-86-02547',en:'CMP Inc. · CEO Moonwoong Lee · Business Registration No. 491-86-02547',ja:'CMP株式会社 · 代表取締役 イ・ムンウン · 事業者登録番号 491-86-02547',zh:'CMP株式会社 · 首席执行官 李文雄 · 企业注册号 491-86-02547',th:'บริษัท CMP · กรรมการผู้จัดการ มุนอุง อี · เลขทะเบียนธุรกิจ 491-86-02547',vi:'Công ty CMP · Tổng giám đốc Moonwoong Lee · Mã đăng ký kinh doanh 491-86-02547'},
 'global.footer.address':{ko:'서울특별시 영등포구 국제금융로8길 27-8, 4층',en:'4F, 27-8 Gukjegeumyung-ro 8-gil, Yeongdeungpo-gu, Seoul, Korea',ja:'大韓民国ソウル特別市永登浦区国際金融路8キル27-8、4階',zh:'韩国首尔特别市永登浦区国际金融路8街27-8号4层',th:'ชั้น 4, 27-8 ถนนกุกเจกึมยุงโร 8-กิล เขตยองดึงโพ กรุงโซล ประเทศเกาหลี',vi:'Tầng 4, 27-8 Gukjegeumyung-ro 8-gil, Yeongdeungpo-gu, Seoul, Hàn Quốc'},
 'global.footer.copyright':{ko:'ⓒ 2026 씨엠피 주식회사. All rights reserved.',en:'ⓒ 2026 CMP Inc. All rights reserved.',ja:'ⓒ 2026 CMP株式会社。無断転載を禁じます。',zh:'ⓒ 2026 CMP株式会社。保留所有权利。',th:'ⓒ 2026 บริษัท CMP สงวนลิขสิทธิ์',vi:'ⓒ 2026 Công ty CMP. Bảo lưu mọi quyền.'},
+};
+
 /* ── 언어 감지 ── */
 function detectLang(){
   var saved=localStorage.getItem('tl_lang');
