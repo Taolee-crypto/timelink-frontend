@@ -19,33 +19,33 @@
           <div style="width:28px;height:28px;background:linear-gradient(135deg,#0071E3,#64D2FF);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff">TL</div>
           <span style="font-size:13px;font-weight:700;letter-spacing:.08em">TIMELINK</span>
         </div>
-        <p style="font-size:11px;color:rgba(255,255,255,.3);line-height:1.7;max-width:200px">디지털 자산 권리·공유 플랫폼 · 1 TL = 1원</p>
+        <p data-i18n="global.footer.description" style="font-size:11px;color:rgba(255,255,255,.3);line-height:1.7;max-width:200px">디지털 자산 권리·공유 플랫폼 · 1 TL = 1원</p>
       </div>
       <div>
-        <div style="font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">서비스</div>
+        <div data-i18n="global.footer.services" style="font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">서비스</div>
         <a href="shareplace.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px">SharePlace</a>
         <a href="chart.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px">TL CHART</a>
-        <a href="radio.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px">TL방송국</a>
-        <a href="ads.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px">광고 센터</a>
+        <a href="radio.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px" data-i18n="global.footer.radio">TL방송국</a>
+        <a href="ads.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px" data-i18n="global.footer.ads">광고 센터</a>
       </div>
       <div>
-        <div style="font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">크리에이터</div>
-        <a href="creator.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px">크리에이터 센터</a>
-        <a href="creator-policy.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px">크리에이터 정책</a>
-        <a href="dj-guide.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px">DJ 가이드</a>
-        <a href="advertiser.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px">광고주 센터</a>
+        <div data-i18n="global.footer.creator" style="font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">크리에이터</div>
+        <a href="creator.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px" data-i18n="global.footer.creator.center">크리에이터 센터</a>
+        <a href="creator-policy.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px" data-i18n="global.footer.creator.policy">크리에이터 정책</a>
+        <a href="dj-guide.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px" data-i18n="global.footer.dj.guide">DJ 가이드</a>
+        <a href="advertiser.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px" data-i18n="global.footer.advertiser">광고주 센터</a>
       </div>
       <div>
-        <div style="font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">법적 정보</div>
-        <a href="terms.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px">이용약관</a>
-        <a href="privacy.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px">개인정보처리방침</a>
+        <div data-i18n="global.footer.legal" style="font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">법적 정보</div>
+        <a href="terms.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px" data-i18n="global.footer.terms">이용약관</a>
+        <a href="privacy.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px" data-i18n="global.footer.privacy">개인정보처리방침</a>
         <a href="creator-policy.html" style="font-size:12px;color:rgba(255,255,255,.5);text-decoration:none;display:block;margin-bottom:8px">크리에이터 정책</a>
       </div>
     </div>
     <div style="padding-top:20px;border-top:1px solid rgba(255,255,255,.06)">
-      <div style="font-size:11px;color:rgba(255,255,255,.25);line-height:1.8;margin-bottom:4px">씨엠피 주식회사 · 대표이사 이문웅 · 사업자등록번호 491-86-02547</div>
-      <div style="font-size:11px;color:rgba(255,255,255,.2);margin-bottom:4px">서울특별시 영등포구 국제금융로8길 27-8, 4층</div>
-      <div style="font-size:11px;color:rgba(255,255,255,.2)">ⓒ 2026 씨엠피 주식회사. All rights reserved.</div>
+      <div data-i18n="global.footer.company" style="font-size:11px;color:rgba(255,255,255,.25);line-height:1.8;margin-bottom:4px">씨엠피 주식회사 · 대표이사 이문웅 · 사업자등록번호 491-86-02547</div>
+      <div data-i18n="global.footer.address" style="font-size:11px;color:rgba(255,255,255,.2);margin-bottom:4px">서울특별시 영등포구 국제금융로8길 27-8, 4층</div>
+      <div data-i18n="global.footer.copyright" style="font-size:11px;color:rgba(255,255,255,.2)">ⓒ 2026 씨엠피 주식회사. All rights reserved.</div>
     </div>
   </div>
 </footer>
