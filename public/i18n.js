@@ -345,6 +345,24 @@ var T={
 'toast.cr.delete.confirm':{ko:'을 삭제하시겠습니까?',en:'Delete?',ja:'削除？',zh:'删除？',th:'ลบ?',vi:'Xóa?'},
 };
 
+'global.search.placeholder':{ko:'파일명, 아티스트, 태그 검색...',en:'Search assets, artists, or tags...',ja:'ファイル名・アーティスト・タグを検索...',zh:'搜索文件名、艺人或标签...',th:'ค้นหาชื่อไฟล์ ศิลปิน หรือแท็ก...',vi:'Tìm tên tệp, nghệ sĩ hoặc thẻ...'},
+'global.upload':{ko:'📤 내 파일 업로드',en:'📤 Upload asset',ja:'📤 デジタル資産を共有',zh:'📤 分享数字资产',th:'📤 แชร์สินทรัพย์ดิจิทัล',vi:'📤 Chia sẻ tài sản số'},
+'global.logout':{ko:'↩ 로그아웃',en:'↩ Log out',ja:'↩ ログアウト',zh:'↩ 退出登录',th:'↩ ออกจากระบบ',vi:'↩ Đăng xuất'},
+'global.footer.description':{ko:'디지털 자산 권리·공유 플랫폼 · 1 TL = 1원',en:'Digital asset rights and sharing platform · 1 TL = KRW 1',ja:'デジタル資産の権利・共有プラットフォーム · 1 TL = 1ウォン',zh:'数字资产权利与共享平台 · 1 TL = 1韩元',th:'แพลตฟอร์มสิทธิและการแบ่งปันสินทรัพย์ดิจิทัล · 1 TL = 1 วอน',vi:'Nền tảng quyền và chia sẻ tài sản số · 1 TL = 1 won'},
+'global.footer.services':{ko:'서비스',en:'Services',ja:'サービス',zh:'服务',th:'บริการ',vi:'Dịch vụ'},
+'global.footer.creator':{ko:'크리에이터',en:'Creators',ja:'クリエイター',zh:'创作者',th:'ครีเอเตอร์',vi:'Nhà sáng tạo'},
+'global.footer.legal':{ko:'법적 정보',en:'Legal',ja:'法的情報',zh:'法律信息',th:'ข้อมูลทางกฎหมาย',vi:'Thông tin pháp lý'},
+'global.footer.radio':{ko:'TL방송국',en:'TimeLink Radio',ja:'TimeLinkラジオ',zh:'TimeLink 电台',th:'TimeLink Radio',vi:'TimeLink Radio'},
+'global.footer.ads':{ko:'광고 센터',en:'Advertising',ja:'広告センター',zh:'广告中心',th:'ศูนย์โฆษณา',vi:'Trung tâm quảng cáo'},
+'global.footer.creator.center':{ko:'크리에이터 센터',en:'Creator Studio',ja:'クリエイタースタジオ',zh:'创作者中心',th:'สตูดิโอครีเอเตอร์',vi:'Trung tâm nhà sáng tạo'},
+'global.footer.creator.policy':{ko:'크리에이터 정책',en:'Creator Policy',ja:'クリエイターポリシー',zh:'创作者政策',th:'นโยบายครีเอเตอร์',vi:'Chính sách nhà sáng tạo'},
+'global.footer.dj.guide':{ko:'DJ 가이드',en:'DJ Guide',ja:'DJガイド',zh:'DJ 指南',th:'คู่มือ DJ',vi:'Hướng dẫn DJ'},
+'global.footer.advertiser':{ko:'광고주 센터',en:'Advertiser Center',ja:'広告主センター',zh:'广告主中心',th:'ศูนย์ผู้ลงโฆษณา',vi:'Trung tâm nhà quảng cáo'},
+'global.footer.terms':{ko:'이용약관',en:'Terms of Service',ja:'利用規約',zh:'服务条款',th:'ข้อกำหนดการใช้บริการ',vi:'Điều khoản dịch vụ'},
+'global.footer.privacy':{ko:'개인정보처리방침',en:'Privacy Policy',ja:'プライバシーポリシー',zh:'隐私政策',th:'นโยบายความเป็นส่วนตัว',vi:'Chính sách quyền riêng tư'},
+'global.footer.company':{ko:'씨엠피 주식회사 · 대표이사 이문웅 · 사업자등록번호 491-86-02547',en:'CMP Inc. · CEO Moonwoong Lee · Business Registration No. 491-86-02547',ja:'CMP株式会社 · 代表取締役 イ・ムンウン · 事業者登録番号 491-86-02547',zh:'CMP株式会社 · 首席执行官 李文雄 · 企业注册号 491-86-02547',th:'บริษัท CMP · กรรมการผู้จัดการ มุนอุง อี · เลขทะเบียนธุรกิจ 491-86-02547',vi:'Công ty CMP · Tổng giám đốc Moonwoong Lee · Mã đăng ký kinh doanh 491-86-02547'},
+'global.footer.address':{ko:'서울특별시 영등포구 국제금융로8길 27-8, 4층',en:'4F, 27-8 Gukjegeumyung-ro 8-gil, Yeongdeungpo-gu, Seoul, Korea',ja:'大韓民国ソウル特別市永登浦区国際金融路8キル27-8、4階',zh:'韩国首尔特别市永登浦区国际金融路8街27-8号4层',th:'ชั้น 4, 27-8 ถนนกุกเจกึมยุงโร 8-กิล เขตยองดึงโพ กรุงโซล ประเทศเกาหลี',vi:'Tầng 4, 27-8 Gukjegeumyung-ro 8-gil, Yeongdeungpo-gu, Seoul, Hàn Quốc'},
+'global.footer.copyright':{ko:'ⓒ 2026 씨엠피 주식회사. All rights reserved.',en:'ⓒ 2026 CMP Inc. All rights reserved.',ja:'ⓒ 2026 CMP株式会社。無断転載を禁じます。',zh:'ⓒ 2026 CMP株式会社。保留所有权利。',th:'ⓒ 2026 บริษัท CMP สงวนลิขสิทธิ์',vi:'ⓒ 2026 Công ty CMP. Bảo lưu mọi quyền.'},
 /* ── 언어 감지 ── */
 function detectLang(){
   var saved=localStorage.getItem('tl_lang');
@@ -364,7 +382,7 @@ var _lang=detectLang();
 function t(key,fallback){
   var row=T[key];
   if(!row) return fallback||key;
-  return row[_lang]||row['en']||row['ko']||fallback||key;
+  return row[_lang]||fallback||row['ko']||key;
 }
 
 /* Exact-copy fallback for legacy pages that have not yet been annotated with data-i18n. */
@@ -793,7 +811,7 @@ function injectSwitcher(){
     'border:1px solid rgba(255,255,255,.18);border-radius:22px',
     'padding:4px;box-shadow:0 4px 20px rgba(0,0,0,.38)'
   ].join(';');
-  var switcherLangs=document.body.classList.contains('signup-page')?LANGS:['en','ko'];
+  var switcherLangs=LANGS;
   var shortLabels={en:'EN',ko:'KR',ja:'JP',zh:'中文',th:'TH',vi:'VI'};
   switcherLangs.forEach(function(l){
     var btn=document.createElement('button');
@@ -856,6 +874,8 @@ if(document.readyState==='loading'){
 
 window.TLi18n={
   t:t,
+  formatNumber:function(value,options){return new Intl.NumberFormat(_lang==='zh'?'zh-CN':_lang,{maximumFractionDigits:options&&options.maximumFractionDigits!=null?options.maximumFractionDigits:2}).format(Number(value)||0);},
+  formatDate:function(value,options){var d=value instanceof Date?value:new Date(value);return isNaN(d.getTime())?'':new Intl.DateTimeFormat(_lang==='zh'?'zh-CN':_lang,{dateStyle:(options&&options.dateStyle)||'medium',timeZone:(options&&options.timeZone)||undefined}).format(d);},
   setLang:setLang,
   applyAll:applyAll,
   createLangSwitcher:createLangSwitcher,
