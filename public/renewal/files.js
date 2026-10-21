@@ -30,7 +30,8 @@
       var symbol=isAudio(a)?'♫':(/video|tl4/i.test(a.file_type||'')?'▣':(/image|tlj/i.test(a.file_type||'')?'▧':'▤'));
       var source=a.kind==='share'?'TL 공유 자산':(a.kind==='cloud'?'개인 클라우드 원본':'기존 Creator 파일');
       var type=String(a.file_type||a.category||'디지털 파일').toUpperCase();
-      return '<article class="asset-row"><div class="asset-art">'+symbol+'</div><div class="asset-main"><div class="asset-title">'+esc(a.title||'이름 없는 파일')+'</div><div class="asset-subtitle">'+esc(a.artist||a.genre||'아티스트 정보 없음')+' · '+esc(source)+'</div><div class="asset-tags"><span class="asset-tag">'+esc(type)+'</span>'+statusTag(a)+'</div></div><div class="asset-date">'+esc(dateLabel(a.created_at))+'</div></article>';
+      var removeButton=a.kind==='cloud'?'':'<button type="button" class="asset-delete" data-delete-id="'+esc(a.id)+'" data-delete-kind="'+esc(a.kind)+'" data-delete-title="'+esc(a.title||'이름 없는 파일')+'" style="flex:0 0 auto;border:1px solid rgba(255,90,90,.35);background:rgba(255,90,90,.08);color:#ff8585;border-radius:8px;padding:8px 11px;cursor:pointer">삭제</button>';
+      return '<article class="asset-row"><div class="asset-art">'+symbol+'</div><div class="asset-main"><div class="asset-title">'+esc(a.title||'이름 없는 파일')+'</div><div class="asset-subtitle">'+esc(a.artist||a.genre||'아티스트 정보 없음')+' · '+esc(source)+'</div><div class="asset-tags"><span class="asset-tag">'+esc(type)+'</span>'+statusTag(a)+'</div></div><div class="asset-date">'+esc(dateLabel(a.created_at))+'</div>'+removeButton+'</article>';
     }).join('');
     $('emptyState').hidden=rows.length!==0;
     $('assetList').hidden=rows.length===0;
@@ -81,6 +82,18 @@
     $('legacyCount').textContent=String(files.length);
     render();
   }
+  async function deleteAsset(id,kind,title){
+    if(kind==='cloud')return;
+    if(!confirm('"'+title+'" 자산을 목록에서 삭제하시겠습니까?\\n\\n삭제 후 복구할 수 없습니다.'))return;
+    try{
+      var endpoint=API+'/api/shares/'+encodeURIComponent(id)+(kind==='legacy'?'?kind=legacy':'');
+      var r=await fetch(endpoint,{method:'DELETE',headers:authHeaders()});
+      var d=await r.json().catch(function(){return {};});
+      if(!r.ok||d.ok===false)throw new Error(d.error||('삭제 실패 ('+r.status+')'));
+      await loadAssets();
+      alert('삭제했습니다.');
+    }catch(err){alert(err.message||'삭제에 실패했습니다.');}
+  }
   async function loadCloudObjects(){
     var r=await fetch(API+'/api/storage/objects?limit=200',{headers:authHeaders()});
     if(!r.ok){$('cloudCount').textContent='—';return;}
@@ -107,6 +120,11 @@
       $('providerGrid').innerHTML='<div class="loading-state">저장소 상태 조회 실패</div>';
     }
   }
+  $('assetList').addEventListener('click',function(e){
+    var btn=e.target.closest('[data-delete-id]');
+    if(!btn)return;
+    deleteAsset(btn.getAttribute('data-delete-id'),btn.getAttribute('data-delete-kind'),btn.getAttribute('data-delete-title'));
+  });
   $('searchInput').addEventListener('input',render);
   document.querySelectorAll('[data-filter]').forEach(function(btn){btn.addEventListener('click',function(){
     currentFilter=btn.getAttribute('data-filter');
