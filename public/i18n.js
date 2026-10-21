@@ -509,7 +509,6 @@ Object.assign(T,{
 });
 
 Object.assign(T,{
-Object.assign(T,{
 'signup.meta.title':{ko:'회원가입 — TimeLink',en:'Sign up — TimeLink',ja:'新規登録 — TimeLink',zh:'注册 — TimeLink',th:'สมัครสมาชิก — TimeLink',vi:'Đăng ký — TimeLink'},
 'signup.meta.description':{ko:'TimeLink 계정을 만들고 42,500 TL 보너스를 받으세요.',en:'Create a TimeLink account and receive a 42,500 TL bonus.',ja:'TimeLinkアカウントを作成して42,500 TLのボーナスを受け取りましょう。',zh:'创建 TimeLink 账户，领取 42,500 TL 奖励。',th:'สร้างบัญชี TimeLink และรับโบนัส 42,500 TL',vi:'Tạo tài khoản TimeLink và nhận thưởng 42.500 TL'},
 'signup.patent':{ko:'특허 출원 10-2025-0167813',en:'Patent Application 10-2025-0167813',ja:'特許出願 10-2025-0167813',zh:'专利申请 10-2025-0167813',th:'คำขอรับสิทธิบัตร 10-2025-0167813',vi:'Đơn đăng ký sáng chế 10-2025-0167813'},
