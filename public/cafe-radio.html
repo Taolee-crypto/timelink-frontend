@@ -230,7 +230,10 @@ var _user = null, _token = null;
 var _rates = { normal: 1.0, cafe: 0.5, preview: 0, dj_self: 0 };
 var _liveDjs = [];
 var _myContracts = [];      // 카페 주인 계약 목록
-var _isCafeOwner = false;   // 카페 주인 여부
+var _isCafeOwner = false;   // 대표자 여부
+var _isCafeStaff = false;
+var _canOperateCafe = false;
+var _channelId = new URLSearchParams(location.search).get('channel_id') || '';
 var _playing = null;        // 현재 재생 중인 DJ
 var _preview = false;       // 미리듣기 여부
 var _chargeTimer = null;
@@ -289,30 +292,39 @@ window.addEventListener('message', function(e){
 async function checkCafeOwner(){
   if(!_user || !_token) return false;
   try {
-    var r = await fetch(API+'/api/cafe/my-channels', {
-      headers:{'Authorization':'Bearer '+_token}
-    });
+    if(_channelId){
+      var access=await fetch(API+'/api/cafe/staff/access/'+encodeURIComponent(_channelId),{headers:{'Authorization':'Bearer '+_token}});
+      var ad=await access.json();
+      if(!access.ok||!ad.ok||!ad.can_operate){
+        toast(ad.error||'대표자가 승인한 카페 직원만 이 방송을 운영할 수 있습니다.','e');
+        return false;
+      }
+      _isCafeOwner=ad.role==='owner';
+      _isCafeStaff=ad.role==='staff';
+      _canOperateCafe=true;
+      return true;
+    }
+    var r = await fetch(API+'/api/cafe/my-channels', {headers:{'Authorization':'Bearer '+_token}});
     var d = await r.json();
     if(!r.ok || !d.ok) return false;
     var channels = d.channels || [];
-    // 내가 소유한 카페 채널이 있으면 카페 주인
-    _isCafeOwner = channels.some(function(ch){
-      return Number(ch.owner_id) === Number(_user.id);
-    });
-    return _isCafeOwner;
+    _isCafeOwner = channels.some(function(ch){return Number(ch.owner_id)===Number(_user.id);});
+    _canOperateCafe=_isCafeOwner;
+    return _canOperateCafe;
   } catch(e) { return false; }
 }
 
 // ── 계약 목록 로드 (카페 주인) ──
 async function loadMyContracts(){
-  if(!_isCafeOwner) return;
+  if(!_canOperateCafe) return;
   try {
-    var r = await fetch(API+'/api/dj-cafe/my-contracts', {
-      headers:{'Authorization':'Bearer '+_token}
-    });
-    var d = await r.json();
-    _myContracts = (d.contracts || []).filter(function(c){ return c.status === 'active'; });
-  } catch(e) { _myContracts = []; }
+    var url=_channelId
+      ? API+'/api/cafe/channels/'+encodeURIComponent(_channelId)+'/broadcast'
+      : API+'/api/dj-cafe/my-contracts';
+    var r=await fetch(url,{headers:{'Authorization':'Bearer '+_token}});
+    var d=await r.json();
+    _myContracts=(d.contracts||[]).filter(function(c){return c.status==='active';});
+  } catch(e) { _myContracts=[]; }
 }
 
 // ── 요율 로드 ──
@@ -447,10 +459,11 @@ function listenDj(djId){
   if(!dj) return;
 
   var isContracted = _myContracts.some(function(c){ return Number(c.dj_id) === Number(djId); });
-  var role = isContracted ? 'cafe' : 'normal';
+  var role = (isContracted && _canOperateCafe) ? 'cafe' : 'normal';
+  var cafeChannelId = role==='cafe' ? (_channelId || String((_myContracts.find(function(c){return Number(c.dj_id)===Number(djId);})||{}).cafe_channel_id||'')) : '';
 
-  sessionStorage.setItem('tl_player_args', JSON.stringify({dj_id: djId, role: role, ts: Date.now()}));
-  var url = '/player-host.html?dj_id=' + djId + '&role=' + role;
+  sessionStorage.setItem('tl_player_args', JSON.stringify({dj_id:djId,role:role,cafe_channel_id:cafeChannelId,ts:Date.now()}));
+  var url = '/player-host.html?dj_id=' + djId + '&role=' + role + (cafeChannelId?'&cafe_channel_id='+encodeURIComponent(cafeChannelId):'');
   var w = window.open(url, 'tl_live_player',
     'width=380,height=660,menubar=no,toolbar=no,location=no,status=no,resizable=yes');
   if(!w){ toast('팝업이 차단되었습니다. 브라우저 설정을 확인하세요.', 'e'); return; }
@@ -628,7 +641,7 @@ async function init(){
   // 30초마다 DJ 목록 갱신
   setInterval(loadLiveDjs, 30000);
   // 60초마다 계약 갱신
-  if(_isCafeOwner) setInterval(loadMyContracts, 60000);
+  if(_canOperateCafe) setInterval(loadMyContracts, 60000);
 }
 
 init();
