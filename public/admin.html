@@ -526,6 +526,11 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
     <!-- ══ 재무 현황 패널 ══ -->
     <div class="panel" id="panel-revenue">
       <div style="max-width:1100px;margin:0 auto">
+        <section class="tbox" style="padding:18px;margin-bottom:18px">
+          <div class="tbox-top"><div class="tbox-title">🔍 재무 원장 연결 검사</div><button class="btn btn-g btn-xs" onclick="loadFinanceSourceAudit()">↻ 원장 검사</button></div>
+          <p style="font-size:12px;color:var(--t2);margin:12px 0">실제 데이터베이스의 결제·정산·TL 원장 구조와 TL 소수점 정밀도를 확인합니다. 원장 데이터는 변경하지 않습니다.</p>
+          <div id="financeSourceAudit" role="status" style="font-size:12px;color:var(--t2);overflow-wrap:anywhere">원장 검사 대기 중</div>
+        </section>
 
         <!-- KPI 카드 -->
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px" id="revKpiGrid">
@@ -1377,7 +1382,7 @@ function go(id,el){
   if(id==='rights-review') loadPendingTL3();
   if(id==='notice') initNoticePanel();
   if(id==='footer') initFooterPanel();
-  if(id==='revenue') loadRevenue();
+  if(id==='revenue'){loadFinanceSourceAudit();loadRevenue();}
   if(id==='realtime') loadRealtime();
   if(id==='payout') loadPayout();
   if(id==='tl-flow') loadTLFlow();
@@ -2215,6 +2220,25 @@ async function formatAllTL(){
   renderTLUsers();
 }
 
+async function loadFinanceSourceAudit(){
+  var target=g('financeSourceAudit');
+  if(!target)return;
+  target.textContent='원장 연결 상태 확인 중...';
+  try{
+    var r=await fetch(API+'/api/admin/finance/source-audit',{headers:{Authorization:'Bearer '+getAdminToken()}});
+    var d=(r.headers.get('content-type')||'').includes('application/json')?await r.json():null;
+    if(!r.ok||!d||d.ok!==true||!Array.isArray(d.sources))throw new Error((d&&d.error)||('원장 검사 API HTTP '+r.status));
+    var present=d.sources.filter(function(x){return x.exists;});
+    var absent=d.sources.filter(function(x){return !x.exists;});
+    var lines=['검사 시각: '+(d.as_of||'—'),'확인된 원천 테이블: '+present.length+'개 / 검사 대상 '+d.sources.length+'개',
+      '확인된 테이블: '+(present.map(function(x){return x.name;}).join(', ')||'없음'),
+      '없는 테이블: '+(absent.map(function(x){return x.name;}).join(', ')||'없음'),
+      '자산 정밀도: '+((d.assets||[]).map(function(x){return x.asset_code+' '+x.decimals+'자리';}).join(', ')||'확인 불가'),
+      d.verified_financial_totals?'재무 집계 검증 완료':'재무 집계는 아직 검증되지 않았습니다.'];
+    target.textContent=lines.join('\n');
+    target.style.whiteSpace='pre-wrap';
+  }catch(e){target.textContent='원장 검사 실패: '+e.message;console.error('[finance-audit]',e.message);}
+}
 async function loadRevenue(){
   var API = 'https://api.timelink.digital';
 var ADMIN_API = 'https://api.timelink.digital';
