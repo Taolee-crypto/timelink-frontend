@@ -1285,50 +1285,46 @@ var _shares=[], _users=[], _shareFilter='', _shareTypeFilter='', _userFilter='';
 
 // ─ Login: authenticate with the account service, then verify the admin role on the server ─
 async function verifyAdminToken(token){
-  var r = await fetch(API+'/api/admin/session', {
-    method:'GET', mode:'cors',
-    headers:{'Authorization':'Bearer '+token}
-  });
-  if(!r.ok) return false;
-  var d=await r.json().catch(function(){return {};});
-  return d.ok===true && d.role==='admin';
+  var r=await fetch(API+'/api/admin/session',{method:'GET',mode:'cors',headers:{Authorization:'Bearer '+token}});
+  var data={};
+  if((r.headers.get('content-type')||'').includes('application/json')){
+    try{data=await r.json();}catch(ignore){}
+  }
+  if(r.ok&&data.ok===true&&data.role==='admin')return {ok:true};
+  if(r.status===401||r.status===403)return {ok:false,message:'계정 로그인은 성공했지만 서버에서 관리자 권한을 확인하지 못했습니다. 계정의 관리자 역할을 확인하세요. (HTTP '+r.status+')'};
+  if(r.status===404)return {ok:false,message:'관리자 세션 확인 API가 배포되지 않았습니다. (HTTP 404)'};
+  return {ok:false,message:'관리자 인증 서버 응답 오류 (HTTP '+r.status+'). 잠시 후 다시 시도하세요.'};
 }
 async function login(){
-  var e=v('lEmail'), p=g('lPw').value;
-  var err=g('lErr');
+  var e=v('lEmail'),p=g('lPw').value,err=g('lErr');
   err.style.display='none';
-  if(!e || !p){
-    err.textContent='이메일과 비밀번호를 입력하세요.';
-    err.style.display='block'; return;
-  }
+  if(!e||!p){err.textContent='이메일과 비밀번호를 입력하세요.';err.style.display='block';return;}
   var btn=document.querySelector('#loginWrap .l-btn');
-  if(btn) btn.disabled=true;
-  try {
-    var r = await fetch(API+'/api/auth/login', {
-      method:'POST', mode:'cors',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({email:e, password:p})
-    });
-    var d = await r.json().catch(function(){return {};});
-    if(!r.ok || !d.token){
-      err.textContent=d.detail || d.error || '이메일 또는 비밀번호를 확인하세요.';
-      err.style.display='block'; return;
+  if(btn)btn.disabled=true;
+  try{
+    var r=await fetch(API+'/api/auth/login',{method:'POST',mode:'cors',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e.trim(),password:p})});
+    var d={};
+    if((r.headers.get('content-type')||'').includes('application/json')){
+      try{d=await r.json();}catch(ignore){}
     }
-    if(!(await verifyAdminToken(d.token))){
-      err.textContent='로그인은 확인됐지만 관리자 권한이 없습니다. 관리자 계정(role=admin)으로 로그인하세요.';
-      err.style.display='block'; return;
+    var token=d.token||d.access_token;
+    if(!r.ok||!token){
+      err.textContent=(d.detail||d.error)||(r.status===401?'이메일 또는 비밀번호를 확인하세요.':'계정 로그인 서버 오류 (HTTP '+r.status+')');
+      err.style.display='block';return;
     }
-    localStorage.setItem('tl_token', d.token);
-    if(d.user) localStorage.setItem('tl_user', JSON.stringify(d.user));
-    localStorage.setItem('tl_adm', Date.now());
+    var verified=await verifyAdminToken(token);
+    if(!verified.ok){err.textContent=verified.message;err.style.display='block';return;}
+    localStorage.setItem('tl_token',token);
+    if(d.user)localStorage.setItem('tl_user',JSON.stringify(d.user));
+    localStorage.setItem('tl_adm',String(Date.now()));
     hide('loginWrap');
-    loadAll(); startClock();
-  } catch(err2) {
-    err.textContent='서버 연결에 실패했습니다. 잠시 후 다시 시도하세요.';
+    loadAll();startClock();
+  }catch(error){
+    console.error('[admin-login]',error);
+    err.textContent='인증 서버에 연결할 수 없습니다. 네트워크 또는 서버 상태를 확인하세요.';
     err.style.display='block';
-  } finally {
-    if(btn) btn.disabled=false;
-  }
+  }finally{if(btn)btn.disabled=false;}
 }
 function logout(){
   localStorage.removeItem('tl_adm');
