@@ -2460,8 +2460,14 @@ async function loadRealtime(){
 // ═══════════════════════════════════════
 async function loadPayout(){
   try{
-    var d = await api('/api/admin/creators/payouts');
-    if(!d.ok) return;
+    var response=await fetch(API+'/api/admin/creators/payouts',{headers:{Authorization:'Bearer '+getAdminToken()}});
+    var payload=null;
+    if((response.headers.get('content-type')||'').includes('application/json')){
+      try{payload=await response.json();}catch(parseError){throw new Error('정산 API 응답 형식 오류');}
+    }
+    if(!response.ok)throw new Error((payload&&payload.error)||(response.status===404?'크리에이터 정산 API가 연결되지 않았습니다.':'정산 조회 오류 (HTTP '+response.status+')'));
+    var d=payload;
+    if(!d||d.ok!==true||!Array.isArray(d.creators)||!Array.isArray(d.requests))throw new Error('정산 원장 응답이 불완전합니다.');
     var s = d.summary || {};
     g('po-unpaid').textContent = Math.max(0, Number(s?.unpaid_tl||0)).toLocaleString()+' TL';
     g('po-creators').textContent = '크리에이터 '+(s?.creator_count||0)+'명';
@@ -2493,10 +2499,18 @@ async function loadPayout(){
       '</tr>';
     }).join('') || '<tr><td colspan="6"><div class="empty">정산 이력 없음</div></td></tr>';
     g('sb-payout-cnt').textContent = d.creators?.length||0;
-  }catch(e){ toast('정산 로드 실패: '+e.message,'r'); }
+  }catch(e){
+    ['po-unpaid','po-req-cnt','po-total-earned'].forEach(function(id){var el=g(id);if(el)el.textContent='확인 불가';});
+    var creators=g('po-creators');if(creators)creators.textContent='크리에이터 집계 대기';
+    var tbody=g('po-creators-tbody');if(tbody)tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--rose)">'+esc(e.message)+'</td></tr>';
+    var requests=g('po-requests-tbody');if(requests)requests.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--t3)">정산 이력을 확인할 수 없습니다.</td></tr>';
+    console.error('[payout]',e.message);
+  }
 }
 
 function openPayoutModal(userId, username, unpaidTL){
+  toast('정산 원장과 지급 API 검증 전에는 관리자 지급을 실행할 수 없습니다.','r');
+  return;
   g('po-modal-user').value = userId;
   g('po-modal-username').textContent = username + ' (미지급: '+Number(unpaidTL).toLocaleString()+' TL)';
   g('po-modal-tl').value = unpaidTL;
@@ -2505,6 +2519,8 @@ function openPayoutModal(userId, username, unpaidTL){
 }
 
 async function submitPayout(){
+  toast('정산 원장 검증 전에는 지급 실행이 잠겨 있습니다.','r');
+  return;
   var userId = g('po-modal-user').value;
   var tl = Number(g('po-modal-tl').value||0);
   var krw = Number(g('po-modal-krw').value||0);
