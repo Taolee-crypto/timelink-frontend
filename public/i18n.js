@@ -146,6 +146,7 @@ var T={
 
 /* ── 회원가입 ── */
 
+
 'signup.meta.title':{ko:'회원가입 — TimeLink',en:'Sign Up — TimeLink',ja:'新規登録 — TimeLink',zh:'注册 — TimeLink',th:'สมัครสมาชิก — TimeLink',vi:'Đăng ký — TimeLink'},
 'signup.meta.description':{ko:'TimeLink 계정을 만들고 42,500 TL 보너스를 받으세요.',en:'Create a TimeLink account and receive a 42,500 TL welcome bonus.',ja:'TimeLinkアカウントを作成して42,500 TLのボーナスを受け取りましょう。',zh:'创建TimeLink账户，即可获得42,500 TL奖励。',th:'สร้างบัญชี TimeLink และรับโบนัสต้อนรับ 42,500 TL',vi:'Tạo tài khoản TimeLink và nhận thưởng chào mừng 42.500 TL.'},
 'signup.consent.age.html':{ko:'<strong>[필수]</strong> 만 14세 이상이며 <a href="terms.html" target="_blank" onclick="event.stopPropagation()">이용약관</a>에 동의합니다.',en:'<strong>[Required]</strong> I confirm that I am at least 14 years old and agree to the <a href="terms.html" target="_blank" onclick="event.stopPropagation()">Terms of Service</a>.',ja:'<strong>[必須]</strong> 満14歳以上であり、<a href="terms.html" target="_blank" onclick="event.stopPropagation()">利用規約</a>に同意します。',zh:'<strong>[必填]</strong> 我确认已年满14周岁，并同意<a href="terms.html" target="_blank" onclick="event.stopPropagation()">服务条款</a>。',th:'<strong>[จำเป็น]</strong> ข้าพเจ้ามีอายุอย่างน้อย 14 ปี และยอมรับ<a href="terms.html" target="_blank" onclick="event.stopPropagation()">ข้อกำหนดการใช้บริการ</a>',vi:'<strong>[Bắt buộc]</strong> Tôi xác nhận mình từ đủ 14 tuổi và đồng ý với <a href="terms.html" target="_blank" onclick="event.stopPropagation()">Điều khoản dịch vụ</a>.'},
@@ -361,6 +362,46 @@ var T={
 'global.footer.address':{ko:'서울특별시 영등포구 국제금융로8길 27-8, 4층',en:'4F, 27-8 Gukjegeumyung-ro 8-gil, Yeongdeungpo-gu, Seoul, Korea',ja:'大韓民国ソウル特別市永登浦区国際金融路8キル27-8、4階',zh:'韩国首尔特别市永登浦区国际金融路8街27-8号4层',th:'ชั้น 4, 27-8 ถนนกุกเจกึมยุงโร 8-กิล เขตยองดึงโพ กรุงโซล ประเทศเกาหลี',vi:'Tầng 4, 27-8 Gukjegeumyung-ro 8-gil, Yeongdeungpo-gu, Seoul, Hàn Quốc'},
 'global.footer.copyright':{ko:'ⓒ 2026 씨엠피 주식회사. All rights reserved.',en:'ⓒ 2026 CMP Inc. All rights reserved.',ja:'ⓒ 2026 CMP株式会社。無断転載を禁じます。',zh:'ⓒ 2026 CMP株式会社。保留所有权利。',th:'ⓒ 2026 บริษัท CMP สงวนลิขสิทธิ์',vi:'ⓒ 2026 Công ty CMP. Bảo lưu mọi quyền.'},
 };
+
+Object.assign(T,{
+'signup.meta.title':{ko:'회원가입 — TimeLink',en:'Sign up — TimeLink',ja:'新規登録 — TimeLink',zh:'注册 — TimeLink',th:'สมัครสมาชิก — TimeLink',vi:'Đăng ký — TimeLink'},
+'signup.meta.description':{ko:'TimeLink 계정을 만들고 42,500 TL 보너스를 받으세요.',en:'Create a TimeLink account and receive a 42,500 TL bonus.',ja:'TimeLinkアカウントを作成して42,500 TLのボーナスを受け取りましょう。',zh:'创建 TimeLink 账户，领取 42,500 TL 奖励。',th:'สร้างบัญชี TimeLink และรับโบนัส 42,500 TL',vi:'Tạo tài khoản TimeLink và nhận thưởng 42.500 TL'},
+'signup.patent':{ko:'특허 출원 10-2025-0167813',en:'Patent Application 10-2025-0167813',ja:'特許出願 10-2025-0167813',zh:'专利申请 10-2025-0167813',th:'คำขอรับสิทธิบัตร 10-2025-0167813',vi:'Đơn đăng ký sáng chế 10-2025-0167813'},
+'ch.meta.title':{ko:'TL방송국 — 카페 채널 개설',en:'TimeLink Radio — Open a Cafe Channel',ja:'TimeLinkラジオ — カフェチャンネル開設',zh:'TimeLink 电台 — 开设咖啡馆频道',th:'TimeLink Radio — เปิดช่องคาเฟ่',vi:'TimeLink Radio — Mở kênh quán cà phê'},
+'ch.hero.title':{ko:'나만의 카페 전용 AI 라디오 채널',en:'Your own AI radio channel for your cafe',ja:'カフェ専用のAIラジオチャンネル',zh:'专属咖啡馆 AI 电台频道',th:'ช่องวิทยุ AI สำหรับคาเฟ่ของคุณ',vi:'Kênh radio AI dành riêng cho quán cà phê'},
+'ch.hero.sub':{ko:'24시간 자동 AI 큐레이션, 고객 곡 신청, 사연 방송까지. 카페만을 위한 특별한 음악 채널을 개설하세요.',en:'24/7 AI music curation, customer song requests, and listener messages. Create a music channel just for your cafe.',ja:'24時間のAI自動選曲、お客様からのリクエストやメッセージ放送まで。カフェ専用の音楽チャンネルを開設しましょう。',zh:'全天候 AI 自动选曲、顾客点歌和留言广播。创建专属于您咖啡馆的音乐频道。',th:'คัดสรรเพลงด้วย AI ตลอด 24 ชั่วโมง รับคำขอเพลงและข้อความจากลูกค้า เปิดช่องเพลงพิเศษสำหรับคาเฟ่ของคุณ',vi:'Tuyển chọn nhạc bằng AI 24/7, nhận yêu cầu bài hát và lời nhắn từ khách. Tạo kênh âm nhạc riêng cho quán của bạn'},
+'ch.biz.notice':{ko:'현재는 사업자등록번호의 형식만 확인합니다. 국세청 사업자 상태·상호 조회는 연동되지 않았으며, 공식 실시간 인증이 완료된 상태가 아닙니다.',en:'Only the format of the business registration number is checked. National Tax Service status and business-name lookup are not connected; official real-time verification has not been completed.',ja:'現在は事業者登録番号の形式のみ確認します。国税庁の事業者状態・商号照会は未連携で、公式なリアルタイム認証は完了していません。',zh:'目前仅检查营业执照号码格式。尚未连接韩国国税厅的企业状态及名称查询，因此不代表已完成官方实时认证。',th:'ขณะนี้ตรวจสอบเฉพาะรูปแบบเลขทะเบียนธุรกิจ ยังไม่ได้เชื่อมต่อเพื่อตรวจสอบสถานะกับกรมสรรพากรเกาหลี จึงยังไม่มีการยืนยันอย่างเป็นทางการแบบเรียลไทม์',vi:'Hiện chỉ kiểm tra định dạng mã đăng ký kinh doanh. Chưa kết nối tra cứu trạng thái với Cơ quan Thuế Hàn Quốc nên chưa có xác minh chính thức theo thời gian thực.'},
+'ch.placeholder.cafe':{ko:'카페 이름 입력',en:'Enter cafe name',ja:'カフェ名を入力',zh:'输入咖啡馆名称',th:'กรอกชื่อคาเฟ่',vi:'Nhập tên quán'},
+'ch.placeholder.channel':{ko:'영문 소문자, 숫자 (예: mycafe01)',en:'Lowercase letters and numbers (e.g. mycafe01)',ja:'半角小文字・数字（例：mycafe01）',zh:'小写英文字母和数字（例如 mycafe01）',th:'ตัวพิมพ์เล็กและตัวเลข (เช่น mycafe01)',vi:'Chữ thường và số (ví dụ: mycafe01)'},
+'ch.placeholder.desc':{ko:'카페 분위기와 음악 스타일을 소개해주세요',en:'Describe your cafe’s atmosphere and music style',ja:'カフェの雰囲気や音楽スタイルを紹介してください',zh:'请介绍咖啡馆的氛围和音乐风格',th:'แนะนำบรรยากาศและสไตล์เพลงของคาเฟ่',vi:'Giới thiệu không khí và phong cách âm nhạc của quán'},
+'ch.placeholder.address':{ko:'주소 입력 후 검색',en:'Enter an address, then search',ja:'住所を入力して検索',zh:'输入地址后搜索',th:'กรอกที่อยู่แล้วค้นหา',vi:'Nhập địa chỉ rồi tìm kiếm'},
+'ch.placeholder.detail':{ko:'층, 호수 등',en:'Floor, suite, etc.',ja:'階・部屋番号など',zh:'楼层、房号等',th:'ชั้น ห้อง ฯลฯ',vi:'Tầng, số phòng...'},
+'ch.placeholder.search':{ko:'곡명, 아티스트 검색...',en:'Search title or artist...',ja:'曲名・アーティストを検索...',zh:'搜索歌曲名或艺人...',th:'ค้นหาชื่อเพลงหรือศิลปิน...',vi:'Tìm tên bài hát hoặc nghệ sĩ...'},
+'ch.biz.notice.title':{ko:'사업자등록번호 안내',en:'Business registration number notice',ja:'事業者登録番号について',zh:'营业执照号码说明',th:'คำแนะนำเกี่ยวกับเลขทะเบียนธุรกิจ',vi:'Thông tin về mã đăng ký kinh doanh'},
+'ch.map.hint':{ko:'주소를 입력하면 지도가 표시됩니다',en:'The map appears after you enter an address',ja:'住所を入力すると地図が表示されます',zh:'输入地址后将显示地图',th:'แผนที่จะแสดงเมื่อกรอกที่อยู่',vi:'Bản đồ sẽ hiển thị sau khi nhập địa chỉ'},
+'ch.image.upload':{ko:'클릭하여 이미지 업로드',en:'Click to upload images',ja:'クリックして画像をアップロード',zh:'点击上传图片',th:'คลิกเพื่ออัปโหลดรูปภาพ',vi:'Nhấp để tải ảnh lên'},
+'ch.image.limit':{ko:'최대 5장 • JPG, PNG',en:'Up to 5 images • JPG, PNG',ja:'最大5枚 • JPG、PNG',zh:'最多5张 • JPG、PNG',th:'สูงสุด 5 รูป • JPG, PNG',vi:'Tối đa 5 ảnh • JPG, PNG'},
+'ch.loading.songs':{ko:'곡 목록 로딩 중...',en:'Loading tracks...',ja:'曲を読み込み中...',zh:'正在加载歌曲列表...',th:'กำลังโหลดรายการเพลง...',vi:'Đang tải danh sách bài hát...'},
+'ch.schedule.hint':{ko:'시간대별로 AI가 선곡할 음악 분위기를 설정합니다',en:'Set the music mood for AI selections at different times of day',ja:'時間帯ごとにAIが選曲する音楽の雰囲気を設定します',zh:'设置 AI 在不同时段选择的音乐氛围',th:'ตั้งค่าแนวเพลงที่ AI จะเลือกในแต่ละช่วงเวลา',vi:'Thiết lập phong cách nhạc AI chọn theo từng khung giờ'},
+'ch.payment.month':{ko:'월정액 (30일)',en:'Monthly (30 days)',ja:'月額（30日）',zh:'月付（30天）',th:'รายเดือน (30 วัน)',vi:'Hàng tháng (30 ngày)'},
+'ch.processing':{ko:'⏳ 처리 중...',en:'⏳ Processing...',ja:'⏳ 処理中...',zh:'⏳ 正在处理...',th:'⏳ กำลังดำเนินการ...',vi:'⏳ Đang xử lý...'},
+'ch.toast.required':{ko:'필수 항목을 모두 입력해주세요.',en:'Please complete all required fields.',ja:'必須項目をすべて入力してください。',zh:'请填写所有必填项目。',th:'กรุณากรอกข้อมูลที่จำเป็นให้ครบ',vi:'Vui lòng điền tất cả các mục bắt buộc'},
+'ch.toast.no.cafe':{ko:'카페명을 입력해주세요.',en:'Enter the cafe name.',ja:'カフェ名を入力してください。',zh:'请输入咖啡馆名称。',th:'กรุณากรอกชื่อคาเฟ่',vi:'Vui lòng nhập tên quán'},
+'ch.toast.biz.format':{ko:'사업자등록번호 숫자 10자리를 입력해주세요.',en:'Enter the 10 digits of the business registration number.',ja:'事業者登録番号の数字10桁を入力してください。',zh:'请输入 10 位营业执照号码。',th:'กรอกเลขทะเบียนธุรกิจ 10 หลัก',vi:'Nhập 10 chữ số của mã đăng ký kinh doanh'},
+'ch.toast.address.required':{ko:'주소 검색으로 카페 주소를 입력해주세요.',en:'Please enter the cafe address using address search.',ja:'住所検索でカフェの住所を入力してください。',zh:'请使用地址搜索填写咖啡馆地址。',th:'กรุณากรอกที่อยู่คาเฟ่ผ่านการค้นหาที่อยู่',vi:'Vui lòng nhập địa chỉ quán bằng chức năng tìm địa chỉ'},
+'ch.toast.created':{ko:'🎉 카페 채널이 개설되었습니다!',en:'🎉 Your cafe channel has been created!',ja:'🎉 カフェチャンネルが開設されました！',zh:'🎉 咖啡馆频道已开通！',th:'🎉 สร้างช่องคาเฟ่แล้ว!',vi:'🎉 Kênh quán cà phê đã được tạo!'},
+'ch.toast.failed':{ko:'채널 개설 실패',en:'Channel creation failed',ja:'チャンネル開設に失敗しました',zh:'频道开通失败',th:'สร้างช่องไม่สำเร็จ',vi:'Tạo kênh thất bại'},
+'ch.count.suffix':{ko:'곡 선택됨',en:'selected',ja:'曲選択中',zh:'首已选',th:'เพลงที่เลือก',vi:'bài đã chọn'},
+'ch.time.suffix':{ko:'시',en:'h',ja:'時',zh:'点',th:'น.',vi:'giờ'},
+'ch.time.early':{ko:'이른 아침',en:'Early morning',ja:'早朝',zh:'清晨',th:'เช้าตรู่',vi:'Sáng sớm'},
+'ch.time.morning':{ko:'오전',en:'Morning',ja:'午前',zh:'上午',th:'ช่วงเช้า',vi:'Buổi sáng'},
+'ch.time.lunch':{ko:'점심',en:'Lunch',ja:'昼',zh:'午餐',th:'มื้อกลางวัน',vi:'Buổi trưa'},
+'ch.time.afternoon':{ko:'오후',en:'Afternoon',ja:'午後',zh:'下午',th:'ช่วงบ่าย',vi:'Buổi chiều'},
+'ch.time.evening':{ko:'저녁',en:'Evening',ja:'夕方',zh:'傍晚',th:'ช่วงเย็น',vi:'Buổi tối'},
+'ch.time.night':{ko:'밤',en:'Night',ja:'夜',zh:'夜间',th:'กลางคืน',vi:'Ban đêm'},
+'ch.time.late':{ko:'심야',en:'Late night',ja:'深夜',zh:'深夜',th:'ดึก',vi:'Đêm muộn'},
+'ch.time.dawn':{ko:'새벽',en:'Dawn',ja:'明け方',zh:'凌晨',th:'รุ่งสาง',vi:'Rạng sáng'}
+});
 
 /* ── 언어 감지 ── */
 function detectLang(){
@@ -831,6 +872,8 @@ function applyAll(){
   document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){
     var v=t(el.getAttribute('data-i18n-placeholder')); if(el.placeholder!==v) el.placeholder=v;
   });
+  // data-i18n-content (meta tags)
+  document.querySelectorAll('[data-i18n-content]').forEach(function(el){var v=t(el.getAttribute('data-i18n-content'));if(el.content!==v)el.content=v;});
   // data-i18n-title
   document.querySelectorAll('[data-i18n-title]').forEach(function(el){
     var v=t(el.getAttribute('data-i18n-title')); if(el.title!==v) el.title=v;
