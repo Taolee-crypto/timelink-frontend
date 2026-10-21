@@ -39,7 +39,7 @@
       }
     }
 
-    var msg = ok + '개 삭제 완료' + (fail ? ' / ' + fail + '개 실패' : '');
+    var msg = ok + '개 삭제 완료' + (fail ? ' / ' + fail + '개 실패 (실패 항목: ' + failedIds.join(', ') + ')' : '');
     if(typeof global.toast === 'function'){
       global.toast(msg, ok ? 'success' : 'error');
     } else {
@@ -51,8 +51,9 @@
       global._contentSelectedIds = [];
     }
 
-    // 새로고침
-    setTimeout(function(){ location.reload(); }, 800);
+    // 성공/실패 여부와 관계없이 최신 보관함을 다시 불러온다.
+    if(typeof global.loadShares === 'function') await global.loadShares();
+    if(failedIds.length) console.warn('[삭제 재시도 필요] 실패한 자산 ID:', failedIds);
   };
 
   console.log('[bulk-delete] deleteSelected 등록됨');
