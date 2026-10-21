@@ -200,8 +200,7 @@ var T={
 'signup.error.verify.failed':{ko:'인증 실패',en:'Verification failed',ja:'認証に失敗しました',zh:'验证失败',th:'ยืนยันไม่สำเร็จ',vi:'Xác minh thất bại'},
 'signup.error.retry':{ko:'가입 실패. 잠시 후 다시 시도해주세요.',en:'Sign-up failed. Please try again shortly.',ja:'登録に失敗しました。しばらくしてから再試行してください。',zh:'注册失败，请稍后重试。',th:'สมัครไม่สำเร็จ กรุณาลองอีกครั้งในภายหลัง',vi:'Đăng ký thất bại. Vui lòng thử lại sau.'},
 'signup.error.code.invalid':{ko:'인증 실패. 코드를 확인해주세요.',en:'Verification failed. Please check the code.',ja:'認証に失敗しました。コードを確認してください。',zh:'验证失败，请检查验证码。',th:'ยืนยันไม่สำเร็จ กรุณาตรวจสอบรหัส',vi:'Xác minh thất bại. Vui lòng kiểm tra mã.'},
-'signup.error.resend':{ko:'재발송 실패.',en:'Could not resend the code.',ja:'コードを再送信できませんでした。',zh:'验证码重新发送失败。',th:'ส่งรหัสอีกครั้งไม่สำเร็จ',vi:'Không thể gửi lại mã.'}
-
+'signup.error.resend':{ko:'재발송 실패.',en:'Could not resend the code.',ja:'コードを再送信できませんでした。',zh:'验证码重新发送失败。',th:'ส่งรหัสอีกครั้งไม่สำเร็จ',vi:'Không thể gửi lại mã.'},
 'signup.title':        {ko:'TimeLink 시작하기',en:'Get started',ja:'TimeLink を始める',zh:'开始使用',th:'เริ่มต้น',vi:'Bắt đầu'},
 'signup.sub':          {ko:'이메일로 가입하고 TL을 받으세요',en:'Sign up and get TL',ja:'登録してTLをもらおう',zh:'注册并获得TL',th:'สมัครและรับ TL',vi:'Đăng ký và nhận TL'},
 'signup.email':        {ko:'이메일 주소',en:'Email address',ja:'メールアドレス',zh:'邮箱地址',th:'ที่อยู่อีเมล',vi:'Địa chỉ email'},
