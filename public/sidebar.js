@@ -187,7 +187,7 @@
   function formatTLBalance(value) {
     var amount = Number(value);
     if (!Number.isFinite(amount)) amount = 0;
-    return Math.floor(Math.max(0, amount)).toLocaleString('ko-KR') + ' TL';
+    return Math.floor(Math.max(0, amount)).toLocaleString(currentLang==='zh'?'zh-CN':currentLang) + ' TL';
   }
 
   var user = {};
