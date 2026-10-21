@@ -264,7 +264,14 @@ window.addEventListener('message', function(e){
   var nt = Number(e.data.new_tl);
   if(!isFinite(nt)) return;
   if(_user){
-    _user.tl_p = Math.max(0, (_user.tl_p||0) - Number(e.data.charged||0));
+    if(e.data.wallet && typeof e.data.wallet === 'object'){
+      _user.tl_a = Number(e.data.wallet.tl_a||0);
+      _user.tl_b = Number(e.data.wallet.tl_b||0);
+      _user.tl_p = Number(e.data.wallet.tl_p||0);
+    } else {
+      // 구버전 플레이어 호환: 전체 차감액을 TL_P에서 빼지 않고 서버 잔액으로 총액만 동기화
+      _user.tl = nt;
+    }
     _user.tl = (_user.tl_p||0) + (_user.tl_a||0) + (_user.tl_b||0);
     localStorage.setItem('tl_user', JSON.stringify(_user));
   }
