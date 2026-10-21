@@ -789,6 +789,7 @@ var _incarAutoTimer = null;  // 30분 자동 갱신
 var _incarQueueTimer = null; // 큐 선제 갱신
 var _speed = 0, _distance = 0, _poc = 0, _pocMult = 1.0;
 var _pocInterval = null, _gpsWatch = null;
+var _gpsVerified = false;
 var _useA = true, _audA, _audB, _crossfading = false;
 var _myFileTL = {};          // 곡별 충전 TL { share_id: balance }
 var _curShareId = null;      // 현재 재생 중인 share id
@@ -862,8 +863,8 @@ function startDrive(){
   _plate = g('plateInput').value.trim();
   if(!_plate){ toast((TLi18n&&TLi18n.t?TLi18n.t('toast.plate.required'):'required'),'e'); return; }
   localStorage.setItem('tl_car_plate', _plate);
-  _pocMult = 2.5;
-  g('pocBadge').textContent = '×2.5 주행 보너스 🔥';
+  _pocMult = 1.0;
+  g('pocBadge').textContent = '×1.0 기본';
   g('hudPlate').textContent = _plate;
   launchDrive();
   toast((TLi18n&&TLi18n.t?TLi18n.t('toast.incar.start'):'start'),'s');
@@ -871,7 +872,7 @@ function startDrive(){
 
 function startDriveGuest(){
   _plate = localStorage.getItem('tl_car_plate') || '';
-  _pocMult = _plate ? 2.5 : 1.0;  // 저장된 번호판 있으면 2.5x
+  _pocMult = 1.0; // 번호판 문자열만으로 차량 내부 인증 또는 보너스를 부여하지 않는다.
   g('pocBadge').textContent = _plate ? '×2.5 주행 보너스 🔥' : '×1.0 기본';
   g('hudPlate').textContent = _plate || '미등록';
   launchDrive();
@@ -902,7 +903,8 @@ function launchDrive(){
 var _lastPos = null;
 function initGPS(){
   if(!navigator.geolocation){
-    g('gpsStatus').textContent = 'GPS 미지원';
+    _gpsVerified = false;
+    g('gpsStatus').textContent = 'GPS 미지원 · 기여 기록 중지';
     simulateSpeed(); return;
   }
 
@@ -910,9 +912,10 @@ function initGPS(){
   if(navigator.permissions && navigator.permissions.query){
     navigator.permissions.query({name:'geolocation'}).then(function(status){
       if(status.state === 'denied'){
-        // 이미 차단된 경우 요청 없이 바로 시뮬레이션
-        g('gpsStatus').textContent = '🚗 시뮬';
-        g('gpsStatus').title = 'GPS 권한이 차단됨. 브라우저 주소창 왼쪽 자물쇠 아이콘에서 재설정하세요.';
+        // GPS가 차단된 경우 주행 속도를 만들어내지 않는다.
+        _gpsVerified = false;
+        g('gpsStatus').textContent = 'GPS 권한 필요';
+        g('gpsStatus').title = '브라우저 위치 권한을 허용해야 기여 기록을 진행할 수 있습니다.';
         simulateSpeed();
         return;
       }
@@ -928,6 +931,7 @@ function _startGPSWatch(){
   g('gpsStatus').textContent = 'GPS 연결 중';
   _gpsWatch = navigator.geolocation.watchPosition(
     function(pos){
+      _gpsVerified = true;
       g('gpsStatus').textContent = 'GPS ✓';
       var spd = pos.coords.speed ? pos.coords.speed * 3.6 : 0;
       updateSpeed(spd);
@@ -941,8 +945,8 @@ function _startGPSWatch(){
       _lastPos = pos.coords;
     },
     function(err){
-      var msg = err.code === 1 ? '🚗 시뮬 (GPS 거부)' : 'GPS 오류';
-      g('gpsStatus').textContent = msg;
+      _gpsVerified = false;
+      g('gpsStatus').textContent = err.code === 1 ? 'GPS 권한 필요' : 'GPS 연결 오류';
       if(err.code === 1){
         g('gpsStatus').title = '브라우저 주소창 자물쇠 아이콘 → 위치 → 허용';
       }
@@ -952,18 +956,11 @@ function _startGPSWatch(){
   );
 }
 
-// Simulate speed for demo when GPS unavailable - 고정 속도로 변경
+// GPS가 없거나 권한이 거부되면 가상 주행 속도를 표시하지 않는다.
 function simulateSpeed(){
-  updateSpeed(30); return;
-  updateSpeed(30); // GPS 없을 때 30km/h 고정 (끊김 방지)
-  return;
-  var phase = 0;
-  setInterval(function(){
-    phase += 0.03;
-    var spd = Math.max(0, Math.sin(phase)*60+40+Math.random()*10);
-    if(phase > Math.PI*4) spd = 0;
-    updateSpeed(spd);
-  }, 1000);
+  _gpsVerified = false;
+  _pocMult = 1.0;
+  updateSpeed(0);
 }
 
 function updateSpeed(spd){
@@ -980,13 +977,9 @@ function updateSpeed(spd){
   g('speedStatus').textContent = moving ? '주행 중' : '정차 중';
   g('speedStatus').className = 'speed-status '+(moving?'moving':'stopped');
 
-  // POC mult: 번호판 등록시 항상 2.5배 (차량 인증 = 차 안에 있음)
-  if(_plate){
-    _pocMult = 2.5;
-    g('pocBadge').textContent = '×2.5 차량 인카 🔥';
-    g('pocBadge').style.borderColor = 'rgba(46,204,113,.3)';
-    g('pocBadge').style.color = 'var(--green)';
-  }
+  // 번호판 입력은 차량 내부 인증 수단이 아니므로 POC 배율을 올리지 않는다.
+  _pocMult = 1.0;
+  g('pocBadge').textContent = '×1.0 기본';
 }
 
 // Audio
@@ -1285,10 +1278,13 @@ function startPoc(){
   _pocReportSec=0; _pocReportTL=0;
 
   _pocInterval = setInterval(function(){
-    _poc += _pocMult*(1/60);
-    if(g('pocBig')) g('pocBig').textContent = _poc.toFixed(1);
-    localStorage.setItem('tl_poc_today', _poc.toFixed(1));
-    _pocReportSec++;
+    // 위치 신호가 확인된 구간만 인카 POC 기여 시간으로 집계한다.
+    if(_gpsVerified){
+      _poc += _pocMult*(1/60);
+      if(g('pocBig')) g('pocBig').textContent = _poc.toFixed(1);
+      localStorage.setItem('tl_poc_today', _poc.toFixed(1));
+      _pocReportSec++;
+    }
 
     // TL 차감
     if(!_user) return;
@@ -1297,7 +1293,7 @@ function startPoc(){
     if(_user._tlFrac >= 1.0){
       var whole = Math.floor(_user._tlFrac);
       _user._tlFrac -= whole;
-      _pocReportTL += whole;
+      if(_gpsVerified) _pocReportTL += whole;
 
       if(_curShareId && _myFileTL[_curShareId]>0){
         // 곡별 충전 TL 차감
