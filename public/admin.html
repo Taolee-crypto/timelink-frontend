@@ -2485,6 +2485,23 @@ async function refreshAdminOperations(){
 }
 async function loadRealtime(){
   try{
+    var token=localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'';
+    var response=await fetch(API+'/api/admin/realtime',{headers:{Authorization:'Bearer '+token}});
+    if(!response.ok){
+      if(response.status===404)throw new Error('실시간 현황 API(/api/admin/realtime)가 백엔드에 없습니다.');
+      throw new Error('실시간 현황 서버 오류 (HTTP '+response.status+')');
+    }
+    if(!(response.headers.get('content-type')||'').includes('application/json'))throw new Error('실시간 현황 응답이 JSON이 아닙니다.');
+    var d=await response.json();
+    if(!d||d.ok!==true||!d.users||!d.shares||!d.today)throw new Error('실시간 현황 응답 데이터가 불완전합니다.');
+    g('rt-users').textContent = Number(d.users.total).toLocaleString();
+    g('rt-tl').textContent = 'TL ' + Number(d.users.total_tl).toLocaleString();
+    g('rt-tracks').textContent = Number(d.shares.total).toLocaleString();
+    g('rt-pulse').textContent = 'Pulse ' + Number(d.shares.total_pulse).toLocaleString();
+    g('rt-today-pay').textContent = d.today.payments + '건';
+    g('rt-today-krw').textContent = Number(d.today.revenue_krw).toLocaleString() + ' 원';
+    g('rt-cafe').textContent = d.cafe_channels + '개';
+
     var d = await api('/api/admin/realtime');
     if(!d||!d.ok)throw new Error((d&&d.error)||'실시간 API 연결 실패');
     function showMetric(value,suffix){return value===null||value===undefined?'집계 대기':Number(value).toLocaleString()+(suffix||'');}
@@ -2495,6 +2512,7 @@ async function loadRealtime(){
     g('rt-today-pay').textContent = showMetric(d.today.payments,'건');
     g('rt-today-krw').textContent = showMetric(d.today.revenue_krw,' 원');
     g('rt-cafe').textContent = showMetric(d.cafe_channels,'개');
+
     // 상위 트랙
     var tb = g('rt-top-tracks');
     tb.innerHTML = (d.top_tracks||[]).map(function(t,i){
@@ -2507,7 +2525,12 @@ async function loadRealtime(){
       ['유저 TL 합계', showMetric(d.users.total_tl,' TL')],
       ['오늘 매출', showMetric(d.today.revenue_krw,' 원')],
     ].map(function(r){ return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bd);font-size:13px"><span style="color:var(--t3)">'+r[0]+'</span><span style="font-weight:600;font-family:var(--mono)">'+r[1]+'</span></div>'; });
-  }catch(e){ toast('실시간 로드 실패: '+e.message,'r'); }
+  }catch(e){
+    ['rt-users','rt-tl','rt-tracks','rt-pulse','rt-today-pay','rt-today-krw','rt-cafe'].forEach(function(id){var el=g(id);if(el)el.textContent='확인 불가';});
+    var tracks=g('rt-top-tracks');if(tracks)tracks.innerHTML='<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--rose)">'+esc(e.message)+'</td></tr>';
+    var summary=g('rt-tl-summary');if(summary)summary.textContent='실시간 TL 데이터를 확인할 수 없습니다.';
+    console.error('[realtime]',e.message);
+  }
 }
 
 // ═══════════════════════════════════════
