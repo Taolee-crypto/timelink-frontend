@@ -556,20 +556,8 @@ Object.assign(T,{
   "ch.addr.detail":{ko:"상세 주소",en:"Address details",ja:"詳細住所",zh:"详细地址",th:"รายละเอียดที่อยู่",vi:"Địa chỉ chi tiết"},
   "ch.select.all":{ko:"전체 선택",en:"Select all",ja:"すべて選択",zh:"全选",th:"เลือกทั้งหมด",vi:"Chọn tất cả"},
   "ch.reset":{ko:"초기화",en:"Reset",ja:"リセット",zh:"重置",th:"รีเซ็ต",vi:"Đặt lại"},
-  "ch.benefits":{ko:"카페 채널 혜택",en:"Cafe Channel Benefits",ja:"カフェチャンネルの特典",zh:"咖啡馆频道权益",th:"สิทธิประโยชน์ของช่องคาเฟ่",vi:"Quyền lợi kênh quán cà phê"},
-
-/* ── 언어 감지 ── */
-function detectLang(){
-  var saved=localStorage.getItem('tl_lang');
-  if(saved&&LANGS.includes(saved)) return saved;
-  var br=(navigator.language||navigator.userLanguage||'ko').toLowerCase();
-  if(br.startsWith('ja')) return 'ja';
-  if(br.startsWith('zh')) return 'zh';
-  if(br.startsWith('th')) return 'th';
-  if(br.startsWith('vi')) return 'vi';
-  if(br.startsWith('ko')) return 'ko';
-  return 'en';
-}
+  "ch.benefits":{ko:"카페 채널 혜택",en:"Cafe Channel Benefits",ja:"カフェチャンネルの特典",zh:"咖啡馆频道权益",th:"สิทธิประโยชน์ของช่องคาเฟ่",vi:"Quyền lợi kênh quán cà phê"}
+});
 
 /* Six-language login and Creator Center translations */
 Object.assign(T,{
