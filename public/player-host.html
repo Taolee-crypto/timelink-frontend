@@ -86,11 +86,13 @@ var _audioEl = null;
 var qs = new URLSearchParams(location.search);
 var djId = Number(qs.get('dj_id') || 0);
 var role = qs.get('role') || 'normal';
+var cafeChannelId = qs.get('cafe_channel_id') || '';
 if(!djId){
   try {
     var _args = JSON.parse(sessionStorage.getItem('tl_player_args') || '{}');
     djId = Number(_args.dj_id || 0);
     role = _args.role || 'normal';
+    cafeChannelId = cafeChannelId || _args.cafe_channel_id || '';
   } catch(e){}
 }
 
@@ -219,11 +221,17 @@ function startCharging(){
       var r = await fetch(API + '/api/dj-cafe/charge', {
         method: 'POST',
         headers: {'Content-Type':'application/json','Authorization':'Bearer '+_token},
-        body: JSON.stringify({ dj_id: djId, share_id: _trackId || 'stream', seconds: 1, role: role })
+        body: JSON.stringify({ dj_id: djId, share_id: _trackId || 'stream', seconds: 1, role: role, cafe_channel_id: cafeChannelId })
       });
       if(r.status === 402){
         var d = await r.json();
         g('status').textContent = '\u26a0\ufe0f TL 부족: ' + d.current + ' / ' + d.required;
+        stopAll();
+        return;
+      }
+      if(!r.ok){
+        var denied = await r.json().catch(function(){return {};});
+        g('status').textContent = denied.error || '카페 방송 권한을 확인할 수 없어 재생을 중지했습니다.';
         stopAll();
         return;
       }
@@ -237,6 +245,7 @@ function startCharging(){
             window.opener.postMessage({
               type: 'tl-charged',
               new_tl: d.new_tl,
+              charged_to_user_id: d.charged_to_user_id || null,
               charged: d.charged,
               wallet: d.wallet || null,
               dj_revenue: d.dj_revenue,
