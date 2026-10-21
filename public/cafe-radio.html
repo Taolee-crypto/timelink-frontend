@@ -308,7 +308,9 @@ async function checkCafeOwner(){
     var d = await r.json();
     if(!r.ok || !d.ok) return false;
     var channels = d.channels || [];
-    _isCafeOwner = channels.some(function(ch){return Number(ch.owner_id)===Number(_user.id);});
+    var owned=channels.find(function(ch){return Number(ch.owner_id)===Number(_user.id);});
+    _isCafeOwner=!!owned;
+    if(owned&&!_channelId)_channelId=String(owned.channel_id||'');
     _canOperateCafe=_isCafeOwner;
     return _canOperateCafe;
   } catch(e) { return false; }
@@ -548,7 +550,7 @@ async function contractDj(djId){
   if(!_isCafeOwner){ toast('카페 주인만 계약 가능합니다', 'e'); return; }
   if(!confirm('이 DJ와 계약하시겠습니까?\n\n카페 요율(×0.5)로 초당 차감됩니다.')) return;
   try {
-    var myCafeId = _myContracts[0] ? _myContracts[0].cafe_channel_id : '';
+    var myCafeId = _channelId || (_myContracts[0] ? _myContracts[0].cafe_channel_id : '');
     var r = await fetch(API+'/api/dj-cafe/apply', {
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
