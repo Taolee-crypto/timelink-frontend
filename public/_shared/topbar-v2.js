@@ -110,7 +110,7 @@
       var bal = Number(d.tl_balance);
       if(isFinite(bal)){
         var el = document.getElementById('tl-topbar-tl');
-        if(el) el.textContent = bal.toLocaleString() + ' TL';
+        if(el) el.textContent = (window.TLi18n&&window.TLi18n.formatNumber?window.TLi18n.formatNumber(bal,{maximumFractionDigits:0}):bal.toLocaleString()) + ' TL';
         // 로컬 캐시 갱신
         _user.tl_balance = bal;
         localStorage.setItem('tl_user', JSON.stringify(_user));
