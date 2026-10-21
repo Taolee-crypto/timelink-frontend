@@ -1041,13 +1041,17 @@ async function onTrackClick(s){
 // ── 지갑 자동 충전 ──
 async function autoCharge(shareId, amount){
   try{
+    var pendingKey='tl_charge_pending_'+String(shareId)+'_'+String(amount);
+    var idempotencyKey=localStorage.getItem(pendingKey);
+    if(!idempotencyKey){idempotencyKey=(crypto.randomUUID?crypto.randomUUID():(Date.now()+'_'+Math.random().toString(36).slice(2)));localStorage.setItem(pendingKey,idempotencyKey);}
     var r = await fetch(API+'/api/shares/'+shareId+'/charge',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
-      body: JSON.stringify({amount:amount, user_id:_user.id, email:_user.email})
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||''),'Idempotency-Key':idempotencyKey},
+      body: JSON.stringify({amount:amount, user_id:_user.id, email:_user.email,idempotency_key:idempotencyKey})
     });
     var d = await r.json();
     if(!r.ok) throw new Error(d.error||'충전실패');
+    localStorage.removeItem(pendingKey);
     _user.tl =((_user&&_user.tl)||0)-amount;
     localStorage.setItem('tl_user',JSON.stringify(_user));
     _myFileTL[String(shareId)] = (_myFileTL[String(shareId)]||0)+amount;
