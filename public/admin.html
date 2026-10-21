@@ -249,7 +249,18 @@ html,body{background:#0A0A0A;color:#F5F5F7}
 }
 </style>
 <style id="admin-member-actions-style">.admin-member-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.admin-member-actions label{display:inline-flex;align-items:center;gap:7px;font-size:12px}.admin-member-actions input,#users-tbody input[type=checkbox]{width:16px;height:16px;accent-color:var(--g)}#ut-selected-count{font-size:11px;color:var(--t2)}#ut-delete-selected:disabled{opacity:.4;cursor:not-allowed}#panel-users .tbox{overflow-x:auto}#panel-users table{min-width:980px}@media(max-width:760px){.admin-member-actions{width:100%}}</style>
-</head>
+<style id="admin-center-ops-style">
+.admin-ops-intro{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:18px;padding:20px;background:var(--bg3);border:1px solid var(--bd);border-radius:12px}
+.admin-ops-intro h2{font-size:21px;margin:6px 0}.admin-ops-intro p{font-size:12px;color:var(--t2)}
+.admin-ops-eyebrow{font:700 10px var(--mono);letter-spacing:.12em;color:var(--g)}
+.admin-ops-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.admin-ops-grid button{background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:18px;text-align:left;color:var(--t1);cursor:pointer;display:flex;flex-direction:column;gap:9px;font-size:21px;min-width:0}
+.admin-ops-grid button:hover,.admin-ops-grid button:focus-visible{border-color:var(--g);outline:1px solid var(--g)}
+.admin-ops-grid strong{font-size:14px}.admin-ops-grid small{font-size:11px;color:var(--t2);line-height:1.5}
+.admin-ops-health{padding:12px 16px;border:1px solid var(--bd);border-radius:9px;color:var(--t2);font-size:12px;margin-bottom:18px;overflow-wrap:anywhere}
+@media(max-width:900px){.admin-ops-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.admin-ops-grid{grid-template-columns:minmax(0,1fr)}.admin-ops-intro{padding:14px}}
+</style></head>
 <body>
 
 <!-- LOGIN -->
@@ -328,6 +339,20 @@ html,body{background:#0A0A0A;color:#F5F5F7}
 
     <!-- 대시보드 -->
     <div class="panel on" id="panel-dashboard">
+      <section class="admin-ops-intro">
+        <div><div class="admin-ops-eyebrow">TIMELINK ADMIN CENTER</div><h2>오늘의 운영 상황</h2><p>자주 사용하는 업무를 바로 열고, 연결 상태를 확인하세요.</p></div>
+        <button class="btn btn-g" onclick="refreshAdminOperations()">↻ 운영 현황 새로고침</button>
+      </section>
+      <div class="admin-ops-grid">
+        <button onclick="go('users',document.querySelector('[onclick*=\u0022go(\\'users\\'\u0022]'))">👥<strong>회원 관리</strong><small>회원 조회 · 이용 정지 · 삭제 검토</small></button>
+        <button onclick="go('shares',null)">🎵<strong>콘텐츠 관리</strong><small>공유 파일 · 음원 확인</small></button>
+        <button onclick="go('realtime',null)">📡<strong>실시간 현황</strong><small>회원 · 콘텐츠 · 방송 상태</small></button>
+        <button onclick="go('revenue',null)">💰<strong>재무 현황</strong><small>검증된 결제·TL 데이터</small></button>
+        <button onclick="go('payout',null)">🧾<strong>크리에이터 정산</strong><small>정산 데이터 연결 상태</small></button>
+        <button onclick="go('tl-flow',null)">⚙️<strong>TL 경제</strong><small>경제 흐름 · 보상 관리</small></button>
+      </div>
+      <div class="admin-ops-health" id="adminOpsHealth" role="status">API 연결 상태를 확인하려면 새로고침을 누르세요.</div>
+
       <div class="stat-row">
         <div class="stat" style="--ac:var(--g)">
           <div class="stat-val" id="st-shares">—</div>
@@ -2390,17 +2415,31 @@ async function saveFooterSettings(){
 // ═══════════════════════════════════════
 // P1: 실시간 현황
 // ═══════════════════════════════════════
+async function refreshAdminOperations(){
+  var el=g('adminOpsHealth');
+  if(!el)return;
+  el.textContent='관리자 API 연결 상태 확인 중...';
+  var token=getAdminToken();
+  var endpoints=[['실시간','/api/admin/realtime'],['재무','/api/admin/revenue'],['크리에이터 정산','/api/admin/creators/payouts']];
+  var result=await Promise.all(endpoints.map(async function(item){
+    try{var r=await fetch(API+item[1],{headers:{Authorization:'Bearer '+token}});
+      return item[0]+': '+(r.ok?'연결됨':r.status===503?'원장 검증 대기':r.status===404?'API 미연결':'HTTP '+r.status);
+    }catch(e){return item[0]+': 네트워크 오류';}
+  }));
+  el.textContent=result.join('  |  ');
+}
 async function loadRealtime(){
   try{
     var d = await api('/api/admin/realtime');
-    if(!d.ok) return;
-    g('rt-users').textContent = Number(d.users.total).toLocaleString();
-    g('rt-tl').textContent = 'TL ' + Number(d.users.total_tl).toLocaleString();
-    g('rt-tracks').textContent = Number(d.shares.total).toLocaleString();
-    g('rt-pulse').textContent = 'Pulse ' + Number(d.shares.total_pulse).toLocaleString();
-    g('rt-today-pay').textContent = d.today.payments + '건';
-    g('rt-today-krw').textContent = Number(d.today.revenue_krw).toLocaleString() + ' 원';
-    g('rt-cafe').textContent = d.cafe_channels + '개';
+    if(!d||!d.ok)throw new Error((d&&d.error)||'실시간 API 연결 실패');
+    function showMetric(value,suffix){return value===null||value===undefined?'집계 대기':Number(value).toLocaleString()+(suffix||'');}
+    g('rt-users').textContent = showMetric(d.users.total);
+    g('rt-tl').textContent = 'TL '+showMetric(d.users.total_tl);
+    g('rt-tracks').textContent = showMetric(d.shares.total);
+    g('rt-pulse').textContent = 'Pulse '+showMetric(d.shares.total_pulse);
+    g('rt-today-pay').textContent = showMetric(d.today.payments,'건');
+    g('rt-today-krw').textContent = showMetric(d.today.revenue_krw,' 원');
+    g('rt-cafe').textContent = showMetric(d.cafe_channels,'개');
     // 상위 트랙
     var tb = g('rt-top-tracks');
     tb.innerHTML = (d.top_tracks||[]).map(function(t,i){
@@ -2409,9 +2448,9 @@ async function loadRealtime(){
     // TL 요약
     var tls = g('rt-tl-summary');
     tls.innerHTML = [
-      ['파일 TL 합계', Number(d.shares.total_file_tl).toLocaleString()+' TL'],
-      ['유저 TL 합계', Number(d.users.total_tl).toLocaleString()+' TL'],
-      ['오늘 매출', Number(d.today.revenue_krw).toLocaleString()+' 원'],
+      ['파일 TL 합계', showMetric(d.shares.total_file_tl,' TL')],
+      ['유저 TL 합계', showMetric(d.users.total_tl,' TL')],
+      ['오늘 매출', showMetric(d.today.revenue_krw,' 원')],
     ].map(function(r){ return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bd);font-size:13px"><span style="color:var(--t3)">'+r[0]+'</span><span style="font-weight:600;font-family:var(--mono)">'+r[1]+'</span></div>'; });
   }catch(e){ toast('실시간 로드 실패: '+e.message,'r'); }
 }
