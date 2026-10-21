@@ -1227,13 +1227,17 @@ async function safeJumpTo(idx){
     toast('⚡ '+amt.toLocaleString()+' TL 자동 충전 중...','w');
     try{
       var tk = localStorage.getItem('tl_token')||'';
+      var pendingKey='tl_charge_pending_'+String(sid)+'_'+String(amt);
+      var idempotencyKey=localStorage.getItem(pendingKey);
+      if(!idempotencyKey){idempotencyKey=(crypto.randomUUID?crypto.randomUUID():(Date.now()+'_'+Math.random().toString(36).slice(2)));localStorage.setItem(pendingKey,idempotencyKey);}
       var r = await fetch(API_BASE+'/api/shares/'+sid+'/charge',{
         method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
-        body: JSON.stringify({amount:amt, user_id:_user.id, email:_user.email})
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk,'Idempotency-Key':idempotencyKey},
+        body: JSON.stringify({amount:amt, user_id:_user.id, email:_user.email,idempotency_key:idempotencyKey})
       });
       var d = await r.json();
       if(!r.ok) throw new Error(d.error||'충전실패');
+      localStorage.removeItem(pendingKey);
       _user.tl =((_user&&_user.tl)||0)- amt;
       localStorage.setItem('tl_user',JSON.stringify(_user));
       _myFileTL[sid] = (_myFileTL[sid]||0) + amt;
