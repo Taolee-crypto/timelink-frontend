@@ -2248,10 +2248,13 @@ var ADMIN_API = 'https://api.timelink.digital';
       headers:{'Authorization':'Bearer '+token}
     });
     var contentType=r.headers.get('content-type')||'';
+    var errorPayload=null;
+    if(!r.ok&&contentType.includes('application/json')){try{errorPayload=await r.json();}catch(ignore){}}
     if(!r.ok){
       if(r.status===404)throw new Error('재무현황 API(/api/admin/revenue)가 서버에 등록되지 않았습니다. 백엔드 연결이 필요합니다.');
       if(r.status===401||r.status===403)throw new Error('관리자 인증이 만료되었거나 접근 권한이 없습니다.');
-      throw new Error('재무현황 서버 응답 오류 (HTTP '+r.status+')');
+      if(r.status===503&&errorPayload&&errorPayload.code==='FINANCIAL_SOURCE_NOT_VERIFIED')throw new Error('재무 집계 검증 대기 — 원장 연결 검사에서 데이터 구조를 먼저 확인하세요.');
+      throw new Error((errorPayload&&errorPayload.error)||('재무현황 서버 응답 오류 (HTTP '+r.status+')'));
     }
     if(!contentType.includes('application/json'))throw new Error('재무현황 API가 JSON이 아닌 응답을 반환했습니다.');
     var d=await r.json();
@@ -2337,6 +2340,8 @@ var ADMIN_API = 'https://api.timelink.digital';
     }
 
   }catch(e){
+    ['rv-total-krw','rv-tl-sold','rv-ad-tl','rv-tl-consumed','rv-tl-distributed','rv-tlc-mined'].forEach(function(id){var el=g(id);if(el)el.textContent='확인 불가';});
+    var today=g('rv-today-krw');if(today)today.textContent='매출 집계 대기';
     var message='재무 데이터를 표시할 수 없습니다: '+e.message;
     var summary=g('revSummaryBody');
     if(summary)summary.innerHTML='<tr><td colspan="3" style="padding:22px;color:var(--rose);text-align:center">'+esc(message)+'</td></tr>';
