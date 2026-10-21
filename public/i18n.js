@@ -519,6 +519,16 @@ Object.assign(T,{
 'ch.time.dawn':{ko:'새벽',en:'Dawn',ja:'明け方',zh:'凌晨',th:'รุ่งสาง',vi:'Rạng sáng'}
 });
 
+Object.assign(T,{
+  "ch.biz.no":{ko:"사업자등록번호",en:"Business registration number",ja:"事業者登録番号",zh:"营业执照号码",th:"เลขทะเบียนธุรกิจ",vi:"Mã đăng ký kinh doanh"},
+  "ch.intro":{ko:"소개글",en:"Introduction",ja:"紹介文",zh:"简介",th:"คำแนะนำร้าน",vi:"Giới thiệu"},
+  "ch.addr":{ko:"도로명 주소",en:"Street address",ja:"道路名住所",zh:"道路地址",th:"ที่อยู่ตามถนน",vi:"Địa chỉ đường"},
+  "ch.addr.detail":{ko:"상세 주소",en:"Address details",ja:"詳細住所",zh:"详细地址",th:"รายละเอียดที่อยู่",vi:"Địa chỉ chi tiết"},
+  "ch.select.all":{ko:"전체 선택",en:"Select all",ja:"すべて選択",zh:"全选",th:"เลือกทั้งหมด",vi:"Chọn tất cả"},
+  "ch.reset":{ko:"초기화",en:"Reset",ja:"リセット",zh:"重置",th:"รีเซ็ต",vi:"Đặt lại"},
+  "ch.benefits":{ko:"카페 채널 혜택",en:"Cafe Channel Benefits",ja:"カフェチャンネルの特典",zh:"咖啡馆频道权益",th:"สิทธิประโยชน์ของช่องคาเฟ่",vi:"Quyền lợi kênh quán cà phê"},
+});
+
 var _lang=detectLang();
 
 /* ── 번역 함수 ── */
