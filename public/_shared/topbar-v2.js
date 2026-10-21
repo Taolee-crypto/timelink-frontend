@@ -73,8 +73,8 @@
     bar.className = 'tl-topbar';
     bar.innerHTML = '<div class="tl-title">' + title.toUpperCase() + '</div>'
       + '<div class="tl-search"><span style="color:rgba(255,255,255,.35);font-size:14px">🔍</span>'
-      + '<input type="text" placeholder="파일명, 아티스트, 태그 검색..." id="tl-topbar-search"></div>'
-      + '<button class="tl-upload" onclick="location.href=\'/creator\'">📤 내 파일 업로드</button>'
+      + '<input type="text" placeholder="파일명, 아티스트, 태그 검색..." data-i18n-placeholder="global.search.placeholder" id="tl-topbar-search"></div>'
+      + '<button class="tl-upload" data-i18n="global.upload" onclick="location.href=\'/creator\'">📤 내 파일 업로드</button>'
       + '<div class="tl-balance">'
       +   '<span style="color:rgba(255,255,255,.5)">⏱</span>'
       +   '<span class="tl-bal-tl">' + totalTL().toLocaleString() + ' TL</span>'
@@ -83,8 +83,12 @@
       +   '<div class="tl-lang-sw">'
       +     '<button class="tl-lang-btn" data-lang="ko" onclick="tlTopbarSetLang(\'ko\')">KR</button>'
       +     '<button class="tl-lang-btn" data-lang="en" onclick="tlTopbarSetLang(\'en\')">EN</button>'
+      +     '<button class="tl-lang-btn" data-lang="ja" onclick="tlTopbarSetLang(\'ja\')">JP</button>'
+      +     '<button class="tl-lang-btn" data-lang="zh" onclick="tlTopbarSetLang(\'zh\')">中文</button>'
+      +     '<button class="tl-lang-btn" data-lang="th" onclick="tlTopbarSetLang(\'th\')">TH</button>'
+      +     '<button class="tl-lang-btn" data-lang="vi" onclick="tlTopbarSetLang(\'vi\')">VI</button>'
       +   '</div>'
-      +   '<button class="tl-logout" onclick="doLogout()">↩ 로그아웃</button>'
+      +   '<button class="tl-logout" data-i18n="global.logout" onclick="doLogout()">↩ 로그아웃</button>'
       + '</div>';
     var search = bar.querySelector('#tl-topbar-search');
     search.addEventListener('keydown', function(e){
