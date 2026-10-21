@@ -146,7 +146,7 @@ var T={
 
 /* ── 회원가입 ── */
 
-Object.assign(T,{
+
 'signup.meta.title':{ko:'회원가입 — TimeLink',en:'Sign Up — TimeLink',ja:'新規登録 — TimeLink',zh:'注册 — TimeLink',th:'สมัครสมาชิก — TimeLink',vi:'Đăng ký — TimeLink'},
 'signup.meta.description':{ko:'TimeLink 계정을 만들고 42,500 TL 보너스를 받으세요.',en:'Create a TimeLink account and receive a 42,500 TL welcome bonus.',ja:'TimeLinkアカウントを作成して42,500 TLのボーナスを受け取りましょう。',zh:'创建TimeLink账户，即可获得42,500 TL奖励。',th:'สร้างบัญชี TimeLink และรับโบนัสต้อนรับ 42,500 TL',vi:'Tạo tài khoản TimeLink và nhận thưởng chào mừng 42.500 TL.'},
 'signup.consent.age.html':{ko:'<strong>[필수]</strong> 만 14세 이상이며 <a href="terms.html" target="_blank" onclick="event.stopPropagation()">이용약관</a>에 동의합니다.',en:'<strong>[Required]</strong> I confirm that I am at least 14 years old and agree to the <a href="terms.html" target="_blank" onclick="event.stopPropagation()">Terms of Service</a>.',ja:'<strong>[必須]</strong> 満14歳以上であり、<a href="terms.html" target="_blank" onclick="event.stopPropagation()">利用規約</a>に同意します。',zh:'<strong>[必填]</strong> 我确认已年满14周岁，并同意<a href="terms.html" target="_blank" onclick="event.stopPropagation()">服务条款</a>。',th:'<strong>[จำเป็น]</strong> ข้าพเจ้ามีอายุอย่างน้อย 14 ปี และยอมรับ<a href="terms.html" target="_blank" onclick="event.stopPropagation()">ข้อกำหนดการใช้บริการ</a>',vi:'<strong>[Bắt buộc]</strong> Tôi xác nhận mình từ đủ 14 tuổi và đồng ý với <a href="terms.html" target="_blank" onclick="event.stopPropagation()">Điều khoản dịch vụ</a>.'},
@@ -346,6 +346,7 @@ Object.assign(T,{
 'toast.cr.delete.confirm':{ko:'을 삭제하시겠습니까?',en:'Delete?',ja:'削除？',zh:'删除？',th:'ลบ?',vi:'Xóa?'},
 };
 
+Object.assign(T,{
 'signup.meta.title':{ko:'회원가입 — TimeLink',en:'Sign up — TimeLink',ja:'新規登録 — TimeLink',zh:'注册 — TimeLink',th:'สมัครสมาชิก — TimeLink',vi:'Đăng ký — TimeLink'},
 'signup.meta.description':{ko:'TimeLink 계정을 만들고 42,500 TL 보너스를 받으세요.',en:'Create a TimeLink account and receive a 42,500 TL bonus.',ja:'TimeLinkアカウントを作成して42,500 TLのボーナスを受け取りましょう。',zh:'创建 TimeLink 账户，领取 42,500 TL 奖励。',th:'สร้างบัญชี TimeLink และรับโบนัส 42,500 TL',vi:'Tạo tài khoản TimeLink và nhận thưởng 42.500 TL'},
 'signup.patent':{ko:'특허 출원 10-2025-0167813',en:'Patent Application 10-2025-0167813',ja:'特許出願 10-2025-0167813',zh:'专利申请 10-2025-0167813',th:'คำขอรับสิทธิบัตร 10-2025-0167813',vi:'Đơn đăng ký sáng chế 10-2025-0167813'},
