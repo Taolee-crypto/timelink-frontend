@@ -4,7 +4,7 @@
   if(!window.__TL_I18N_LOADING__ && !window.TLi18n){
     window.__TL_I18N_LOADING__ = true;
     var i18nScript = document.createElement('script');
-    i18nScript.src = '/i18n.js?v=20261015';
+    i18nScript.src = '/i18n.js?v=20261021-global-six-language';
     i18nScript.async = false;
     document.head.appendChild(i18nScript);
   }
@@ -50,7 +50,7 @@
     + '.tl-topbar .tl-bal-tlc{color:#8B5CF6;font-weight:700}'
     + '.tl-topbar .tl-sep{width:1px;height:16px;background:rgba(255,255,255,.15)}'
     + '.tl-topbar .tl-logout{margin-left:8px;padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.6);font-size:11px;cursor:pointer}';
-    + '.tl-topbar .tl-lang-sw{display:flex;gap:2px;margin-left:8px;padding:3px;background:rgba(255,255,255,.05);border-radius:8px}'
+    + '.tl-topbar .tl-lang-sw{display:grid;grid-template-columns:repeat(3,minmax(28px,1fr));gap:2px;margin-left:8px;padding:3px;background:rgba(255,255,255,.05);border-radius:8px;flex:0 0 auto}'
     + '.tl-topbar .tl-lang-btn{padding:4px 10px;border:0;border-radius:6px;background:transparent;color:rgba(255,255,255,.5);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}'
     + '.tl-topbar .tl-lang-btn:hover{color:#fff;background:rgba(255,255,255,.08)}'
     + '.tl-topbar .tl-lang-btn.active{color:#fff;background:rgba(139,92,246,.3)}'
@@ -73,8 +73,8 @@
     bar.className = 'tl-topbar';
     bar.innerHTML = '<div class="tl-title">' + title.toUpperCase() + '</div>'
       + '<div class="tl-search"><span style="color:rgba(255,255,255,.35);font-size:14px">🔍</span>'
-      + '<input type="text" placeholder="파일명, 아티스트, 태그 검색..." id="tl-topbar-search"></div>'
-      + '<button class="tl-upload" onclick="location.href=\'/creator\'">📤 내 파일 업로드</button>'
+      + '<input type="text" placeholder="파일명, 아티스트, 태그 검색..." data-i18n-placeholder="global.search.placeholder" id="tl-topbar-search"></div>'
+      + '<button class="tl-upload" data-i18n="global.upload" onclick="location.href=\'/creator\'">📤 내 파일 업로드</button>'
       + '<div class="tl-balance">'
       +   '<span style="color:rgba(255,255,255,.5)">⏱</span>'
       +   '<span class="tl-bal-tl">' + totalTL().toLocaleString() + ' TL</span>'
@@ -83,8 +83,12 @@
       +   '<div class="tl-lang-sw">'
       +     '<button class="tl-lang-btn" data-lang="ko" onclick="tlTopbarSetLang(\'ko\')">KR</button>'
       +     '<button class="tl-lang-btn" data-lang="en" onclick="tlTopbarSetLang(\'en\')">EN</button>'
+      +     '<button class="tl-lang-btn" data-lang="ja" onclick="tlTopbarSetLang(\'ja\')">JP</button>'
+      +     '<button class="tl-lang-btn" data-lang="zh" onclick="tlTopbarSetLang(\'zh\')">中文</button>'
+      +     '<button class="tl-lang-btn" data-lang="th" onclick="tlTopbarSetLang(\'th\')">TH</button>'
+      +     '<button class="tl-lang-btn" data-lang="vi" onclick="tlTopbarSetLang(\'vi\')">VI</button>'
       +   '</div>'
-      +   '<button class="tl-logout" onclick="doLogout()">↩ 로그아웃</button>'
+      +   '<button class="tl-logout" data-i18n="global.logout" onclick="doLogout()">↩ 로그아웃</button>'
       + '</div>';
     var search = bar.querySelector('#tl-topbar-search');
     search.addEventListener('keydown', function(e){
@@ -106,7 +110,7 @@
       var bal = Number(d.tl_balance);
       if(isFinite(bal)){
         var el = document.getElementById('tl-topbar-tl');
-        if(el) el.textContent = bal.toLocaleString() + ' TL';
+        if(el) el.textContent = (window.TLi18n&&window.TLi18n.formatNumber?window.TLi18n.formatNumber(bal,{maximumFractionDigits:0}):bal.toLocaleString()) + ' TL';
         // 로컬 캐시 갱신
         _user.tl_balance = bal;
         localStorage.setItem('tl_user', JSON.stringify(_user));
