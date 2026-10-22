@@ -648,7 +648,8 @@ async function loadTrack(){
     }
     
     // 공통 사용자 지갑과 음원 자체 TL 풀을 각각 서버에서 조회
-    _myFileTL=Number(walletData.wallet?.tl_total||0);
+    _myFileTL=Number(walletData.wallet?.tl_total);
+    if(!walletData.wallet || walletData.wallet.tl_total == null || !Number.isFinite(_myFileTL)) throw new Error('V5 경제원장 잔액 필드가 없습니다. 0TL로 표시하지 않습니다.');
     // 1곡 필요 TL은 자산의 잔여량이 아니라 실제 재생시간(초)을 기준으로 산정한다.
     // duration 메타가 없을 때만 기존 file_tl 값을 보조값으로 사용한다.
     _assetInitialTL=Number(s.duration_sec||s.duration||s.file_tl||0);
@@ -1418,8 +1419,8 @@ function handlePlayClick(){
 function renderV5Wallet(wallet){
   if(!wallet)return;
   var p=Number(wallet.tl_p||0),a=Number(wallet.tl_a||0),b=Number(wallet.tl_b||0);
-  var total=Number(wallet.tl_total||0);
-  if(!Number.isFinite(total))total=p+a+b;
+  var total=Number(wallet.tl_total);
+  if(!Number.isFinite(total)){console.error('[V5 wallet] Missing tl_total',wallet);return;}
   _myFileTL=total;
   // V5 지갑 원장 잔액을 TRACK·플레이어·공통 사이드바에 동시 반영한다.
   window.__tlV5WalletBalance=total;
@@ -1435,7 +1436,8 @@ async function updateMyTLFromServer(){
     const wr=await fetch(API+'/api/eco/wallet',{headers:h});
     const w=await wr.json();
     if(!wr.ok) throw new Error(w.error||'TL 조회 실패');
-    _myFileTL=Number(w.wallet?.tl_total||0);
+    _myFileTL=Number(w.wallet?.tl_total);
+    if(!w.wallet || w.wallet.tl_total == null || !Number.isFinite(_myFileTL)) throw new Error('V5 경제원장 잔액 필드 누락');
     updateUIAfterCharge(_myFileTL);
     renderV5Wallet(w.wallet);
     updatePlayerTLDisplay();
