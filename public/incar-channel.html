@@ -150,6 +150,18 @@ button[type=submit],.btn-primary{background:linear-gradient(135deg,#9B75FA,#7042
 @media(max-width:700px){.topbar{padding:0 14px;height:auto;min-height:54px;flex-wrap:wrap;gap:9px}.hero{padding:30px 16px 22px}.hero-title{font-size:clamp(25px,8vw,34px)}.hero-sub{font-size:13px}.price-highlight{padding:15px 17px;gap:10px}.price-main{font-size:28px}.content{grid-template-columns:minmax(0,1fr);padding:0 14px 44px;gap:13px}.section{padding:17px}.form-row{grid-template-columns:minmax(0,1fr)}.theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.poc-banner{padding:12px 14px;flex-wrap:wrap}.poc-rate-box{margin-left:0}.plate-wrap{flex-wrap:wrap}.plate-preview{min-width:0;flex:1}}
 @media(max-width:380px){.theme-grid{grid-template-columns:minmax(0,1fr)}.price-highlight{width:100%;justify-content:center}.tb-user{display:none}}
 @media(prefers-reduced-motion:reduce){.theme-card,.form-input{transition:none!important}}
+
+/* In-car three-step registration: retain all existing inputs and API wiring */
+.incar-wizard{max-width:900px;margin:0 auto 22px;padding:0 28px}
+.incar-progress{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.incar-step{padding:14px 12px;border:1px solid var(--bd2);border-radius:12px;background:#17171b;color:var(--t3);font-size:12px;text-align:center}
+.incar-step.active{border-color:var(--mint);color:var(--t1);background:var(--mint2)}
+.incar-step.done{color:var(--mint)}
+.incar-actions{max-width:900px;margin:0 auto 72px;padding:0 28px;display:flex;gap:12px;justify-content:space-between}
+.incar-actions button{border-radius:12px;padding:14px 26px;font:inherit;font-weight:700;cursor:pointer;border:1px solid var(--bd2);color:var(--t1);background:#17171b}
+.incar-actions #incarNext{margin-left:auto;background:var(--mint);color:#111}
+.content .section.wizard-hidden{display:none!important}
+@media(max-width:700px){.incar-wizard,.incar-actions{padding:0 16px}.incar-step{font-size:11px;padding:12px 5px}}
 </style>
 <script src="/_shared/topbar-v2.js?v=20261016b"></script><!-- TL_TOPBAR_UNIFY -->
   <link rel="stylesheet" href="/wallet-design-system.css?v=20261020">
@@ -194,7 +206,7 @@ button[type=submit],.btn-primary{background:linear-gradient(135deg,#9B75FA,#7042
   </div>
 </div>
 
-<div class="content">
+<nav class="incar-wizard" aria-label="가입 단계"><div class="incar-progress"><div class="incar-step active" data-step="1">01 · 채널과 차량</div><div class="incar-step" data-step="2">02 · 방송 취향</div><div class="incar-step" data-step="3">03 · 결제 및 개설</div></div></nav><div class="content">
 
   <!-- 채널 기본 정보 -->
   <div class="section full-col">
@@ -379,6 +391,7 @@ button[type=submit],.btn-primary{background:linear-gradient(135deg,#9B75FA,#7042
   </div>
 
 </div>
+<div class="incar-actions"><button type="button" id="incarPrev" onclick="incarMove(-1)" hidden>← 이전</button><button type="button" id="incarNext" onclick="incarMove(1)">다음 단계 →</button></div>
 
 <script>
 var API = 'https://api.timelink.digital';
@@ -547,6 +560,27 @@ function aiPick(){
   toast(TLi18n.t('toast.ai.selected').replace('{0}',_selected.size),'s');
 }
 
+
+var incarStep=1;
+function incarShowStep(){
+  var sections=document.querySelectorAll('.content > .section');
+  sections.forEach(function(el,i){var group=i<2?1:i<5?2:3;el.classList.toggle('wizard-hidden',group!==incarStep);});
+  document.querySelectorAll('.incar-step').forEach(function(el,i){el.classList.toggle('active',i+1===incarStep);el.classList.toggle('done',i+1<incarStep);el.setAttribute('aria-current',i+1===incarStep?'step':'false');});
+  g('incarPrev').hidden=incarStep===1;
+  g('incarNext').hidden=incarStep===3;
+  if(incarStep===3) updateBalance();
+}
+function incarMove(direction){
+  if(direction>0&&incarStep===1){
+    if(!g('channelName').value.trim()){toast('채널명을 입력해 주세요.','e');g('channelName').focus();return;}
+    var id=g('channelId').value.trim();
+    if(!/^[a-z0-9_]{3,20}$/.test(id)){toast('채널 ID는 영문 소문자·숫자·밑줄 3~20자로 입력해 주세요.','e');g('channelId').focus();return;}
+  }
+  incarStep=Math.max(1,Math.min(3,incarStep+direction));incarShowStep();
+  document.querySelector('.incar-wizard').scrollIntoView({behavior:'smooth',block:'start'});
+}
+window.addEventListener('tl-language-changed',function(){/* Existing i18n remains authoritative for field labels. */});
+
 // Submit
 async function submitChannel(){
   var name = g('channelName').value.trim();
@@ -607,6 +641,7 @@ window.addEventListener('load', function(){
   loadShares();
   renderThemes();
   renderSchedule();
+  incarShowStep();
 });
 </script>
 <script src="/notice-popup.js"></script>
