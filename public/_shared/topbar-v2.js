@@ -135,7 +135,8 @@
     } else {
       document.body.appendChild(bar);
     }
-  }
+      fetchBalance();
+  
 
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', inject);
