@@ -576,14 +576,13 @@ async function saveTrackCoverFile(f){
       alert('❌ 커버 변경 실패: ' + (e.message || e));
     }
 }
-async function generateTrackAutoCover(){
+
+function trackCoverQueries(title){
+ const base=/(자유|날개|하늘|비행)/.test(title)?'freedom sky birds':/(사랑|연인)/.test(title)?'romantic sunset':/(비|눈물)/.test(title)?'rain window':/(바다|파도)/.test(title)?'ocean waves':/(밤|별|달)/.test(title)?'night stars':/(봄|꽃)/.test(title)?'spring flowers':title+' music atmosphere';
+ return [base,base+' cinematic landscape',base+' minimal fine art',base+' dreamy nature',base+' abstract mood'];
+}
+async function renderTrackCoverPhoto(photo){
  const title=String(_share.title||'').trim(),artist=String(_share.artist||'').trim();
- if(!title||!artist)throw new Error('곡명과 가수명이 필요합니다.');
- const query=/(자유|날개|하늘|비행)/.test(title)?'freedom sky birds':/(사랑|연인)/.test(title)?'romantic sunset':/(비|눈물)/.test(title)?'rain window':/(바다|파도)/.test(title)?'ocean waves':/(밤|별|달)/.test(title)?'night stars':/(봄|꽃)/.test(title)?'spring flowers':title+' music atmosphere';
- const response=await fetch(API+'/api/unsplash/search?q='+encodeURIComponent(query));
- if(!response.ok)throw new Error('Unsplash 사진 검색 실패 ('+response.status+')');
- const data=await response.json(),photo=(data.photos||[]).find(p=>p.url);
- if(!photo)throw new Error('검색된 사진이 없습니다.');
  const image=new Image();image.crossOrigin='anonymous';image.src=photo.url;await image.decode();
  const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=1000;
  const ctx=canvas.getContext('2d'),scale=Math.max(1000/image.naturalWidth,1000/image.naturalHeight);
@@ -596,15 +595,67 @@ async function generateTrackAutoCover(){
  if(!blob)throw new Error('커버 제작 실패');
  return new File([blob],'timelink-track-auto-cover.jpg',{type:'image/jpeg'});
 }
+async function openTrackCoverPicker(){
+ const title=String(_share.title||'').trim(),artist=String(_share.artist||'').trim();
+ if(!title||!artist){alert('곡명과 가수명이 필요합니다.');return;}
+ const overlay=document.createElement('div');
+ overlay.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
+ overlay.innerHTML='<section role="dialog" aria-modal="true" aria-label="앨범 커버 사진 선택" style="background:#18151f;color:#fff;border:1px solid #50435f;border-radius:18px;padding:22px;width:min(720px,100%);max-height:90vh;overflow:auto"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><strong style="font-size:19px">앨범 커버 사진 선택</strong><button type="button" data-close style="background:#37313e;color:white;border:0;border-radius:8px;padding:9px 13px">닫기</button></div><p style="color:#c7bdce;font-size:13px">사진을 고른 뒤 곡명과 가수명이 적용된 자켓을 미리 확인하세요. 저장 전에는 기존 자켓이 바뀌지 않습니다.</p><div data-grid style="display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:10px;margin:14px 0"></div><p data-status style="font-size:13px;color:#c7bdce" role="status"></p><div data-preview style="display:none;text-align:center;margin:12px auto"></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" data-more style="background:#393342;color:white;border:0;border-radius:9px;padding:11px 15px">다른 사진 5장 보기 ↻</button><button type="button" data-save disabled style="background:#7743da;color:white;border:0;border-radius:9px;padding:11px 15px;opacity:.6">이 자켓으로 저장</button></div><small style="display:block;color:#b3a9b9;margin-top:12px">사진 제공: Unsplash · 사진가 정보는 선택한 사진 아래 표시됩니다.</small></section>';
+ document.body.appendChild(overlay);
+ const grid=overlay.querySelector('[data-grid]'),status=overlay.querySelector('[data-status]'),preview=overlay.querySelector('[data-preview]'),more=overlay.querySelector('[data-more]'),save=overlay.querySelector('[data-save]');
+ let batch=0,chosenFile=null,alive=true;const seen=new Set();
+ function close(){alive=false;overlay.remove();}
+ overlay.querySelector('[data-close]').onclick=close;
+ overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
+ async function loadMore(){
+  more.disabled=true;status.textContent='Unsplash 사진 검색 중...';grid.innerHTML='';preview.style.display='none';chosenFile=null;save.disabled=true;save.style.opacity='.6';
+  try{
+   const queries=trackCoverQueries(title);
+   let photos=[];
+   for(let tries=0;tries<queries.length;tries++){
+    const query=queries[(batch+tries)%queries.length];
+    const response=await fetch(API+'/api/unsplash/search?q='+encodeURIComponent(query),{cache:'no-store'});
+    if(!response.ok)throw new Error('사진 검색 실패 ('+response.status+')');
+    const data=await response.json();
+    photos=(data.photos||[]).filter(p=>p.url&&!seen.has(p.id||p.url));
+    if(photos.length)break;
+   }
+   batch++;
+   if(!alive)return;
+   if(!photos.length){status.textContent='새로운 사진이 없습니다. 잠시 후 다시 시도하거나 직접 업로드하세요.';return;}
+   photos.forEach(photo=>{
+    seen.add(photo.id||photo.url);
+    const btn=document.createElement('button');btn.type='button';btn.style.cssText='background:#26212e;border:2px solid transparent;border-radius:11px;padding:4px;color:white;cursor:pointer;text-align:left;min-width:0';
+    const img=document.createElement('img');img.src=photo.thumb||photo.url;img.alt=photo.alt||'커버 후보 사진';img.style.cssText='display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px';
+    const credit=document.createElement('span');credit.textContent=photo.author||'Unsplash';credit.style.cssText='display:block;padding:5px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    btn.append(img,credit);grid.append(btn);
+    btn.onclick=async()=>{
+     grid.querySelectorAll('button').forEach(x=>x.style.borderColor='transparent');btn.style.borderColor='#a58aff';
+     status.textContent='선택한 사진으로 커버 미리보기 제작 중...';save.disabled=true;chosenFile=null;
+     try{
+      const file=await renderTrackCoverPhoto(photo);
+      if(!alive)return;
+      chosenFile=file;
+      const url=URL.createObjectURL(file);preview.innerHTML='';
+      const picture=document.createElement('img');picture.src=url;picture.alt='곡명과 가수명이 들어간 최종 앨범 커버';picture.style.cssText='width:min(290px,100%);aspect-ratio:1;object-fit:contain;border-radius:12px;display:block;margin:auto';
+      picture.onload=()=>URL.revokeObjectURL(url);preview.append(picture);
+      if(photo.author_url){const creditLink=document.createElement('a');creditLink.href=photo.author_url;creditLink.target='_blank';creditLink.rel='noopener noreferrer';creditLink.textContent='사진: '+(photo.author||'Unsplash');creditLink.style.cssText='display:block;color:#c5b0ff;margin-top:8px';preview.append(creditLink);}
+      preview.style.display='block';save.disabled=false;save.style.opacity='1';status.textContent='미리보기를 확인한 뒤 저장하세요.';
+     }catch(e){status.textContent='사진 제작 실패: '+e.message;}
+    };
+   });
+   status.textContent='사진 '+photos.length+'장을 찾았습니다. 마음에 드는 사진을 선택하세요.';
+  }catch(e){if(alive)status.textContent='검색 실패: '+e.message;}finally{if(alive)more.disabled=false;}
+ }
+ more.onclick=loadMore;
+ save.onclick=async()=>{if(!chosenFile)return;save.disabled=true;status.textContent='커버 저장 중...';try{await saveTrackCoverFile(chosenFile);close();}catch(e){status.textContent='저장 실패: '+e.message;save.disabled=false;}};
+ loadMore();
+}
 async function openCoverEdit(){
  if(!_share||!_share.id){alert('곡 정보가 없습니다');return;}
  if(String(_currentUserId)!==String(_share.user_id)){alert('본인의 곡만 커버를 변경할 수 있습니다');return;}
- if(confirm('자동 커버를 생성하시겠습니까?\\n확인: 곡명·가수명 자동 커버\\n취소: 직접 사진 업로드')){
-  try{
-   const f=await generateTrackAutoCover();
-   if(confirm('새 자동 커버를 저장하시겠습니까?'))await saveTrackCoverFile(f);
-  }catch(e){alert('자동 커버 실패: '+(e.message||e));}
- }else{
+ if(confirm('자동 커버 사진을 선택하시겠습니까?\n확인: Unsplash 사진 선택\n취소: 직접 사진 업로드'))await openTrackCoverPicker();
+ else{
   const input=document.createElement('input');input.type='file';input.accept='image/*';
   input.onchange=()=>saveTrackCoverFile(input.files[0]);input.click();
  }
