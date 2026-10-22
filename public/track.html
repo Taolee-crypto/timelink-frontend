@@ -13,7 +13,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script><!-- JSPDF_PDF_V1 -->
 <script src="https://cdn.jsdelivr.net/npm/svg2pdf.js@2.2.3/dist/svg2pdf.umd.min.js"></script><!-- SVG2PDF_V1 -->
 <title>TimeLink — Track / LP Enhanced</title>
-<link rel="stylesheet" href="/_track_new.css?v=20261022-coverfit">
+<link rel="stylesheet" href="/_track_new.css?v=20261022-cert-height">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <link rel="stylesheet" href="/dropdown-fix.css"><!-- SELECT_FIX_V1 -->
 
@@ -2202,7 +2202,7 @@ async function renderCopyright(s){
 
     if(meta.certified){
       // 🏅 인증됨 → 멋진 증명서 카드
-      certDiv.innerHTML = buildCertCard(meta);
+      certDiv.innerHTML = buildCertCard(meta, s);
     } else {
       // ⚠️ 미인증 → 공지 + 신청 유도
       certDiv.innerHTML = buildUncertifiedNotice(meta, s);
@@ -2213,7 +2213,11 @@ async function renderCopyright(s){
 }
 
 // 🏅 인증된 증명서 카드
-function buildCertCard(meta){
+function buildCertCard(meta, s){
+  s=s||{};
+  const fields=[['곡명',s.title],['가수',s.artist],['앨범',s.album],['장르',s.category||s.genre||meta.asset_genre],['작곡',s.composer||meta.asset_composer],['작사',s.lyricist||meta.asset_lyricist],['편곡',s.arranger],['프로듀서',s.producer]].filter(x=>String(x[1]||'').trim());
+  const infoHtml=fields.map(x=>'<div class="cert-track-field"><span>'+escH(x[0])+'</span><strong>'+escH(String(x[1]))+'</strong></div>').join('');
+
   var issueDate = meta.cert_issued_at ? new Date(meta.cert_issued_at).toLocaleDateString('ko-KR') : '—';
   var hashShort = meta.cert_hash ? meta.cert_hash.slice(0, 16) + '...' : '—';
   return '<div style="margin:24px 0;padding:24px;background:linear-gradient(135deg,rgba(255,215,0,.08),rgba(255,159,10,.04));border:2px solid rgba(255,215,0,.35);border-radius:20px;position:relative;overflow:hidden">'
@@ -2228,6 +2232,7 @@ function buildCertCard(meta){
     + '<div style="margin-left:auto;padding:6px 14px;background:rgba(48,209,88,.15);border:1px solid rgba(48,209,88,.4);border-radius:20px;font-size:11px;font-weight:700;color:#30D158">✓ VERIFIED</div>'
     + '</div>'
 
+    + '<div class="cert-track-fields">' + infoHtml + '</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px;background:rgba(0,0,0,.25);border-radius:12px;margin-bottom:14px">'
     + '<div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">증명서 번호</div><div style="font-size:13px;font-weight:700;color:#FFD700;font-family:monospace">' + escH(meta.cert_no || '') + '</div></div>'
     + '<div><div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:4px">자산 ID</div><div style="font-size:13px;font-weight:700;font-family:monospace">' + escH(meta.asset_id || '') + '</div></div>'
