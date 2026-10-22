@@ -533,19 +533,9 @@ var _currentUserId = (function(){
 })();
 
 // ⭐ 커버 이미지 변경
-async function openCoverEdit(){
-  if(!_share || !_share.id){ alert('곡 정보가 없습니다'); return; }
-  if(String(_currentUserId) !== String(_share.user_id)){
-    alert('본인의 곡만 커버를 변경할 수 있습니다');
-    return;
-  }
-  var input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.onchange = async function(){
-    var f = input.files[0];
-    if(!f) return;
-    if(f.size > 5 * 1024 * 1024){ alert('이미지는 5MB 이하만 가능합니다'); return; }
+async function saveTrackCoverFile(f){
+ if(!f)return;
+ if(f.size > 5 * 1024 * 1024){ alert('이미지는 5MB 이하만 가능합니다'); return; }
 
     try{
       // 1) 서버 업로드
@@ -585,8 +575,39 @@ async function openCoverEdit(){
     }catch(e){
       alert('❌ 커버 변경 실패: ' + (e.message || e));
     }
-  };
-  input.click();
+}
+async function generateTrackAutoCover(){
+ const title=String(_share.title||'').trim(),artist=String(_share.artist||'').trim();
+ if(!title||!artist)throw new Error('곡명과 가수명이 필요합니다.');
+ const query=/(자유|날개|하늘|비행)/.test(title)?'freedom sky birds':/(사랑|연인)/.test(title)?'romantic sunset':/(비|눈물)/.test(title)?'rain window':/(바다|파도)/.test(title)?'ocean waves':/(밤|별|달)/.test(title)?'night stars':/(봄|꽃)/.test(title)?'spring flowers':title+' music atmosphere';
+ const response=await fetch(API+'/api/unsplash/search?q='+encodeURIComponent(query));
+ if(!response.ok)throw new Error('Unsplash 사진 검색 실패 ('+response.status+')');
+ const data=await response.json(),photo=(data.photos||[]).find(p=>p.url);
+ if(!photo)throw new Error('검색된 사진이 없습니다.');
+ const image=new Image();image.crossOrigin='anonymous';image.src=photo.url;await image.decode();
+ const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=1000;
+ const ctx=canvas.getContext('2d'),scale=Math.max(1000/image.naturalWidth,1000/image.naturalHeight);
+ ctx.drawImage(image,(1000-image.naturalWidth*scale)/2,(1000-image.naturalHeight*scale)/2,image.naturalWidth*scale,image.naturalHeight*scale);
+ const shade=ctx.createLinearGradient(0,400,0,1000);shade.addColorStop(0,'rgba(0,0,0,0)');shade.addColorStop(1,'rgba(0,0,0,.88)');ctx.fillStyle=shade;ctx.fillRect(0,400,1000,600);
+ ctx.textBaseline='alphabetic';ctx.shadowColor='rgba(0,0,0,.65)';ctx.shadowBlur=14;
+ function line(t,y,size,color){ctx.fillStyle=color;ctx.font='800 '+size+'px "Noto Serif KR","Noto Sans KR",serif';while(ctx.measureText(t).width>860&&size>25){size-=2;ctx.font='800 '+size+'px "Noto Serif KR","Noto Sans KR",serif';}ctx.fillText(t,70,y,860);}
+ line(title,790,82,'#ffffff');line(artist,875,42,'#f0edf5');
+ const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.88));
+ if(!blob)throw new Error('커버 제작 실패');
+ return new File([blob],'timelink-track-auto-cover.jpg',{type:'image/jpeg'});
+}
+async function openCoverEdit(){
+ if(!_share||!_share.id){alert('곡 정보가 없습니다');return;}
+ if(String(_currentUserId)!==String(_share.user_id)){alert('본인의 곡만 커버를 변경할 수 있습니다');return;}
+ if(confirm('자동 커버를 생성하시겠습니까?\\n확인: 곡명·가수명 자동 커버\\n취소: 직접 사진 업로드')){
+  try{
+   const f=await generateTrackAutoCover();
+   if(confirm('새 자동 커버를 저장하시겠습니까?'))await saveTrackCoverFile(f);
+  }catch(e){alert('자동 커버 실패: '+(e.message||e));}
+ }else{
+  const input=document.createElement('input');input.type='file';input.accept='image/*';
+  input.onchange=()=>saveTrackCoverFile(input.files[0]);input.click();
+ }
 }
 function escH(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtTime(s){ const m=Math.floor((s||0)/60),sec=Math.floor((s||0)%60); return m+':'+(sec<10?'0':'')+sec; }
