@@ -267,7 +267,8 @@
       });
       if (!r.ok) throw new Error('V5 wallet HTTP ' + r.status);
       var d = await r.json();
-      var n = Number(d && d.wallet && d.wallet.tl_total);
+      if (!d || !d.wallet || d.wallet.tl_total == null) throw new Error('Missing V5 wallet tl_total');
+      var n = Number(d.wallet.tl_total);
       if (!d || !d.wallet || !Number.isFinite(n)) throw new Error('Invalid V5 wallet response');
       applyV5Balance(n);
       window.dispatchEvent(new CustomEvent('tl-v5-wallet-loaded',{detail:{tl:n,wallet:d.wallet}}));
