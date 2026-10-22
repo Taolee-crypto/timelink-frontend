@@ -863,7 +863,7 @@ function renderPage(s, stats, myFileTL, requiredTL){
           <button class="btn-icon" id="plBtn">📋</button>
           <button class="btn-icon" id="shareBtn">🔗</button>
         </div>
-        ${hasUrl && !isFree ? '<button class="btn-dl" id="dlBtn">⬇ .tl3 다운로드</button>' : ''}
+        ${hasUrl && !isFree ? '<button class="btn-dl" id="dlBtn" disabled title="창작권 인증 확인 중">🔒 인증 확인 중</button>' : ''}
         <button class="btn-score" id="scoreBtn">🎼 악보 보기</button>
       </div>
 
@@ -2166,19 +2166,27 @@ function stopPlay(){
 window.stopPlay = stopPlay;
 
 async function downloadTL(){
-  // ⭐ 네이티브 다운로드 (fetch/blob 우회)
+  const btn=document.getElementById('dlBtn');
+  if(!btn || btn.disabled){alert('창작권 인증된 음원만 TL3 다운로드할 수 있습니다.');return;}
+  if(!getTok()){alert('로그인이 필요합니다.');return;}
+  btn.disabled=true;
   try{
-    var url = API + '/api/v1/tl3/file/' + SHARE_ID;
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = ((_share && _share.title) || 'track') + '.tl3';
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(function(){
-      try { document.body.removeChild(a); } catch(e){}
-    }, 200);
-  }catch(e){ alert('다운로드 오류: ' + e.message); }
+    const response=await fetch(API+'/api/v1/tl3/file/'+encodeURIComponent(SHARE_ID),{
+      headers:{Authorization:'Bearer '+getTok()},cache:'no-store'
+    });
+    if(!response.ok){
+      const data=await response.json().catch(()=>({}));
+      throw new Error(data.error||('다운로드 불가 (HTTP '+response.status+')'));
+    }
+    const blob=await response.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=((_share&&_share.title)||'track')+'.tl3';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }catch(e){alert('TL3 다운로드 오류: '+e.message);}
+  finally{if(btn && btn.textContent.includes('다운로드')&&!btn.textContent.includes('인증 후'))btn.disabled=false;}
 }
 
 // CERT_UI_TRACK_V1: 증명서 상태 UI (인증/미인증)
@@ -2232,6 +2240,12 @@ async function renderCopyright(s){
     var certDiv = document.getElementById('certStatusDiv');
     if(!certDiv) return;
 
+    const downloadButton=document.getElementById('dlBtn');
+    if(downloadButton){
+      downloadButton.disabled=!meta.certified;
+      downloadButton.textContent=meta.certified?'⬇ .tl3 다운로드':'🔒 창작권 인증 후 다운로드';
+      downloadButton.title=meta.certified?'창작권 인증 완료':'창작권 인증된 음원만 다운로드할 수 있습니다';
+    }
     if(meta.certified){
       // 🏅 인증됨 → 멋진 증명서 카드
       certDiv.innerHTML = buildCertCard(meta, s);
