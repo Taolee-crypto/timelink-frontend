@@ -33,10 +33,10 @@
       ['/creator.html', '✧', 'Creator Studio', '크리에이터 스튜디오', 'purple']
     ]],
     ['TL BROADCAST', 'TL 방송국', [
-      ['/cafe-channel.html', '▣', 'Cafe Channel', '카페 채널', 'orange'],
-      ['/incar-channel.html', '◇', 'In-car Channel', '인카 채널', 'orange'],
-      ['/tilo.html', '◉', 'TL Central Broadcast · TILO', 'TL 중앙방송 · TILO', 'orange'],
-      ['/dj-center.html', '♫', 'DJ Center', 'DJ 센터', 'orange']
+      ['/tilo.html', '◉', 'TL Central Broadcast Center', 'TL 중앙방송센터', 'orange'],
+      ['/dj-center.html', '♫', 'DJ Center', 'DJ센터', 'orange'],
+      ['/cafe-channel.html', '▣', 'Cafe Broadcast', '카페방송', 'orange'],
+      ['/incar-channel.html', '◇', 'In-car Broadcast', '인카방송', 'orange']
     ]],
     ['COMMUNICATION', '커뮤니케이션', [
       ['/cafe-world.html', '▤', 'Cafe World', '카페 월드', 'teal'],
