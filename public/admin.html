@@ -347,6 +347,7 @@ html,body{background:#0A0A0A;color:#F5F5F7}
   <img id="signupHeroPreview" src="/images/timelink-signup-hero.jpg" alt="회원가입 배경 미리보기" style="width:100%;max-width:920px;aspect-ratio:16/9;object-fit:cover;border-radius:12px;border:1px solid #353452">
   <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
     <button type="button" id="signupHeroSave" style="background:#8051e9;color:#fff;border:0;border-radius:10px;padding:12px 18px;cursor:pointer">배경 이미지 저장</button>
+    <button type="button" id="signupHeroMakeDefault" style="background:#173c35;color:#d7fff0;border:1px solid #368674;border-radius:10px;padding:12px 18px;cursor:pointer">현재 이미지를 기본 이미지로 지정</button>
     <button type="button" id="signupHeroReset" style="background:#292943;color:#fff;border:1px solid #4b4b65;border-radius:10px;padding:12px 18px;cursor:pointer">기본 이미지로 복원</button>
   </div>
   <p id="signupHeroStatus" role="status" style="font-size:12px;color:#cfc9ec;margin-top:10px"></p>
@@ -355,11 +356,11 @@ html,body{background:#0A0A0A;color:#F5F5F7}
 (function(){
   var API_ROOT=typeof ADMIN_API!=='undefined'?ADMIN_API:'https://api.timelink.digital';
   var file=document.getElementById('signupHeroFile'),preview=document.getElementById('signupHeroPreview'),status=document.getElementById('signupHeroStatus');
-  var selected=null;
+  var selected=null,currentImage=null;
   function token(){return localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'';}
   function message(t){status.textContent=t;}
   async function current(){
-    try{var r=await fetch(API_ROOT+'/api/settings/signup_hero',{cache:'no-store'});var j=await r.json();if(j.ok&&j.value){var v=JSON.parse(j.value);if(v.image)preview.src=v.image;}}catch(e){message('현재 배경을 불러오지 못했습니다.');}
+    try{var r=await fetch(API_ROOT+'/api/settings/signup_hero',{cache:'no-store'});var j=await r.json();if(j.ok&&j.value){var v=JSON.parse(j.value);if(v.image){currentImage=v.image;preview.src=v.image;}}}catch(e){message('현재 배경을 불러오지 못했습니다.');}
   }
   file.addEventListener('change',async function(){
     var f=file.files&&file.files[0];if(!f)return;
@@ -374,14 +375,16 @@ html,body{background:#0A0A0A;color:#F5F5F7}
       preview.src=selected;message('미리보기 준비 완료. 저장을 누르면 실제 사이트에 반영됩니다.');
     }catch(e){message('이미지 처리 실패: '+e.message);}
   });
-  async function save(value){
+  async function save(value,key){
+    key=key||'signup_hero';
     if(!token()){message('관리자 로그인이 필요합니다.');return;}
-    var r=await fetch(API_ROOT+'/api/admin/settings/signup_hero',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token()},body:JSON.stringify({value:JSON.stringify(value)})});
+    var r=await fetch(API_ROOT+'/api/admin/settings/'+key,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token()},body:JSON.stringify({value:JSON.stringify(value)})});
     var j=await r.json();if(!r.ok||j.error)throw Error(j.error||'HTTP '+r.status);
     message('저장 완료. 회원가입 페이지를 새로고침하면 반영됩니다.');
   }
-  document.getElementById('signupHeroSave').addEventListener('click',async function(){if(!selected){message('먼저 이미지를 선택하세요.');return;}try{await save({image:selected});}catch(e){message('저장 실패: '+e.message);}});
-  document.getElementById('signupHeroReset').addEventListener('click',async function(){try{await save({image:''});selected=null;preview.src='/images/timelink-signup-hero.jpg';}catch(e){message('복원 실패: '+e.message);}});
+  document.getElementById('signupHeroSave').addEventListener('click',async function(){if(!selected){message('먼저 이미지를 선택하세요.');return;}try{await save({image:selected});currentImage=selected;selected=null;}catch(e){message('저장 실패: '+e.message);}});
+  document.getElementById('signupHeroMakeDefault').addEventListener('click',async function(){try{var image=currentImage;if(!image){message('먼저 배경 이미지를 저장하세요.');return;}await save({image:image},'signup_hero_default');message('현재 적용된 이미지를 기본 이미지로 지정했습니다.');}catch(e){message('기본 이미지 지정 실패: '+e.message);}});
+  document.getElementById('signupHeroReset').addEventListener('click',async function(){try{var r=await fetch(API_ROOT+'/api/settings/signup_hero_default',{cache:'no-store'}),j=await r.json();var v=j.ok&&j.value?JSON.parse(j.value):null;var image=v&&v.image||'';await save({image:image});currentImage=image;selected=null;preview.src=image||'/images/timelink-signup-hero.jpg';message('기본 이미지로 복원했습니다.');}catch(e){message('복원 실패: '+e.message);}});
   current();
 })();
 </script>
