@@ -190,11 +190,25 @@
     return Math.floor(Math.max(0, amount)).toLocaleString(currentLang==='zh'?'zh-CN':currentLang) + ' TL';
   }
 
-  var user = {};
-  try { user = JSON.parse(localStorage.getItem('tl_user') || '{}'); } catch (e) {}
+  // V5: the authenticated economic wallet is the single balance source.
+  // Never show stale tl_user balance as if it were the current ledger.
   var balance = document.getElementById('tlGlobalBalance');
-  var amount = user.tl_balance != null ? user.tl_balance : user.tl;
-  if (balance && amount != null) balance.textContent = formatTLBalance(amount);
+  function applyV5Balance(value) {
+    var n = Number(value);
+    if (!Number.isFinite(n) || n < 0) return;
+    window.__tlV5WalletBalance = n;
+    var sidebarBalance = document.getElementById('tlGlobalBalance');
+    if (sidebarBalance) sidebarBalance.textContent = formatTLBalance(n);
+    var trackBalance = document.getElementById('myTLDisplay');
+    if (trackBalance) trackBalance.textContent = '💰 내 지갑 TL: ' + formatTLBalance(n);
+    var playerBalance = document.getElementById('playerWalletVal');
+    if (playerBalance) playerBalance.textContent = formatTLBalance(n);
+  }
+  if (Number.isFinite(Number(window.__tlV5WalletBalance)) && window.__tlV5WalletBalance != null) {
+    applyV5Balance(window.__tlV5WalletBalance);
+  } else if (balance) {
+    balance.textContent = token ? '조회 중...' : '— TL';
+  }
 
   if (token) {
     fetch(API + '/api/admin/settings/__sidebar_access__', {
@@ -248,26 +262,26 @@
     if (!token) return;
     try {
       var r = await fetch(API + '/api/eco/wallet', {
-        headers: {'Authorization': 'Bearer ' + token}
+        headers: {'Authorization': 'Bearer ' + token, 'Accept':'application/json'},
+        cache: 'no-store'
       });
+      if (!r.ok) throw new Error('V5 wallet HTTP ' + r.status);
       var d = await r.json();
-      var bal = r.ok && d && d.wallet ? Number(d.wallet.tl_total) : NaN;
-      if (isFinite(bal)) {
-        var el = document.getElementById('tlGlobalBalance');
-        if (el) el.textContent = formatTLBalance(bal);
-        try {
-          var u = JSON.parse(localStorage.getItem('tl_user') || '{}');
-          u.tl_balance = bal;
-          localStorage.setItem('tl_user', JSON.stringify(u));
-        } catch (e) {}
-      }
-    } catch (e) {}
-  }
-  window.addEventListener('tl-balance-updated', function (e) {
-    if (e.detail && isFinite(e.detail.tl)) {
-      var el = document.getElementById('tlGlobalBalance');
-      if (el) el.textContent = formatTLBalance(e.detail.tl);
+      var n = Number(d && d.wallet && d.wallet.tl_total);
+      if (!d || !d.wallet || !Number.isFinite(n)) throw new Error('Invalid V5 wallet response');
+      applyV5Balance(n);
+      window.dispatchEvent(new CustomEvent('tl-v5-wallet-loaded',{detail:{tl:n,wallet:d.wallet}}));
+    } catch (e) {
+      console.warn('[V5 sidebar wallet]', e);
     }
+  }
+  window.addEventListener('tl-balance-updated', function(e) {
+    if (e.detail && e.detail.tl != null) applyV5Balance(e.detail.tl);
+  });
+  window.addEventListener('pageshow', fetchServerBalance);
+  window.addEventListener('focus', fetchServerBalance);
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) fetchServerBalance();
   });
   fetchServerBalance();
 })();
