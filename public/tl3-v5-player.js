@@ -164,9 +164,20 @@
     let lpController=null;
     const lpToggle=document.getElementById('lpEnhancedToggle'),lpControl=document.getElementById('lpEnhancedControl');
     if(lpToggle){lpToggle.checked=false;lpToggle.disabled=true;}
-    if(manifest.lp_meta&&manifest.lp_meta.enabled===true&&global.TL3LPChain&&typeof global.TL3LPChain.create==='function'){
+    // Accept legacy Creator LP license fields embedded in already-sealed V5 assets.
+    const rawLp=manifest.lp_meta;
+    const lpMeta=rawLp&&typeof rawLp==='object'?{
+      ...rawLp,
+      enabled:rawLp.enabled===true||rawLp.lp_enabled===true,
+      seed:rawLp.seed??rawLp.lp_seed,
+      g:rawLp.g??rawLp.lp_g,
+      fs:rawLp.fs??rawLp.lp_fs,
+      n:rawLp.n??rawLp.lp_n,
+      version:rawLp.version??rawLp.lp_version
+    }:null;
+    if(lpMeta&&lpMeta.enabled===true&&global.TL3LPChain&&typeof global.TL3LPChain.create==='function'){
       try{
-        lpController=await global.TL3LPChain.create(audio,manifest.lp_meta,totalMs);
+        lpController=await global.TL3LPChain.create(audio,lpMeta,totalMs);
         const available=!!(lpController&&lpController.available&&lpController.available());
         if(lpToggle){lpToggle.checked=false;lpToggle.disabled=!available;}
         if(lpControl)lpControl.title=available?'체크하면 이 곡에 LP Enhanced 실시간 음질 처리를 적용합니다':'이 브라우저에서 LP Enhanced 오디오 처리를 사용할 수 없습니다';
