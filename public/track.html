@@ -245,12 +245,20 @@ body{font-family:Pretendard,Inter,-apple-system,BlinkMacSystemFont,"Noto Sans KR
 .cert-uncertified>.cert-benefits>div:nth-child(2){gap:3px!important;font-size:11px!important}
 .cert-uncertified>.cert-action{padding:10px!important;flex-shrink:0}
 .rp-two-col>#certStatusDiv>div:not(.cert-uncertified){margin:0!important;box-sizing:border-box}
+/* Verified certificate: preserve EVERY field and control; scale its content to fit. */
+.rp-two-col>#certStatusDiv>.cert-verified{height:100%!important;min-height:0!important;max-height:100%!important;padding:14px!important;margin:0!important;box-sizing:border-box;overflow:hidden!important;position:relative}
+.cert-verified>.cert-verified-content{position:relative;z-index:1;transform-origin:top left}
+.cert-verified .cert-track-fields{margin:8px 0!important;padding:10px!important;gap:6px!important}
+.cert-verified .cert-track-field{gap:1px}
+
 @media(max-width:720px){
 .rp-two-col>#lyricsWrap .lyrics-box{height:400px!important;max-height:400px!important}
 .rp-two-col>#certStatusDiv{height:400px!important;min-height:400px!important;max-height:400px!important}
 }
 </style>
-
+<script>
+window.addEventListener('resize',()=>requestAnimationFrame(()=>{if(typeof fitTrackCertificate==='function')fitTrackCertificate();}));
+</script>
 </head>
 <body>
 
@@ -2227,6 +2235,7 @@ async function renderCopyright(s){
     if(meta.certified){
       // 🏅 인증됨 → 멋진 증명서 카드
       certDiv.innerHTML = buildCertCard(meta, s);
+      requestAnimationFrame(fitTrackCertificate);
     } else {
       // ⚠️ 미인증 → 공지 + 신청 유도
       certDiv.innerHTML = buildUncertifiedNotice(meta, s);
@@ -2242,6 +2251,33 @@ function certTrackFieldsHtml(s,meta){
   const fields=[['곡명',s.title],['가수',s.artist],['앨범',s.album],['장르',s.category||s.genre||meta.asset_genre],['작곡',s.composer||s.asset_composer||meta.asset_composer],['작사',s.lyricist||s.asset_lyricist||meta.asset_lyricist],['편곡',s.arranger],['프로듀서',s.producer]];
   return '<div class="cert-track-fields">'+fields.map(([label,value])=>'<div class="cert-track-field"><span>'+escH(label)+'</span><strong>'+escH(String(value||'—'))+'</strong></div>').join('')+'</div>';
 }
+
+// Scale the complete issued certificate, including all metadata and buttons,
+// to the exact lyrics card height. Never clip information or add a scrollbar.
+function fitTrackCertificate(){
+  const cert=document.querySelector('#certStatusDiv>.cert-verified');
+  const lyrics=document.querySelector('#lyricsWrap .lyrics-box');
+  const content=cert?.querySelector('.cert-verified-content');
+  if(!cert||!lyrics||!content)return;
+  const target=Math.round(lyrics.getBoundingClientRect().height);
+  if(!target)return;
+  cert.style.setProperty('height',target+'px','important');
+  cert.style.setProperty('min-height',target+'px','important');
+  cert.style.setProperty('max-height',target+'px','important');
+  const padding=parseFloat(getComputedStyle(cert).paddingTop)||14;
+  const available=Math.max(1,target-padding*2-2);
+  content.style.transform='none';
+  content.style.width='100%';
+  const naturalHeight=content.scrollHeight;
+  const factor=Math.min(1,available/Math.max(1,naturalHeight));
+  content.style.transform='scale('+factor+')';
+  content.style.width=(100/factor)+'%';
+  // Recheck width-dependent wrapping once after scaling.
+  const adjustedHeight=content.scrollHeight;
+  const adjustedFactor=Math.min(factor,available/Math.max(1,adjustedHeight));
+  if(adjustedFactor<factor){content.style.transform='scale('+adjustedFactor+')';content.style.width=(100/adjustedFactor)+'%';}
+}
+
 function buildCertCard(meta, s){
   s=s||{};
   const fields=[['곡명',s.title],['가수',s.artist],['앨범',s.album],['장르',s.category||s.genre||meta.asset_genre],['작곡',s.composer||meta.asset_composer],['작사',s.lyricist||meta.asset_lyricist],['편곡',s.arranger],['프로듀서',s.producer]].filter(x=>String(x[1]||'').trim());
@@ -2249,9 +2285,9 @@ function buildCertCard(meta, s){
 
   var issueDate = meta.cert_issued_at ? new Date(meta.cert_issued_at).toLocaleDateString('ko-KR') : '—';
   var hashShort = meta.cert_hash ? meta.cert_hash.slice(0, 16) + '...' : '—';
-  return '<div style="margin:24px 0;padding:24px;background:linear-gradient(135deg,rgba(255,215,0,.08),rgba(255,159,10,.04));border:2px solid rgba(255,215,0,.35);border-radius:20px;position:relative;overflow:hidden">'
+  return '<div class="cert-verified" style="margin:24px 0;padding:24px;background:linear-gradient(135deg,rgba(255,215,0,.08),rgba(255,159,10,.04));border:2px solid rgba(255,215,0,.35);border-radius:20px;position:relative;overflow:hidden">'
     + '<div style="position:absolute;top:-50px;right:-50px;width:200px;height:200px;background:radial-gradient(circle,rgba(255,215,0,.15),transparent);border-radius:50%"></div>'
-    + '<div style="position:relative;z-index:1">'
+    + '<div class="cert-verified-content" style="position:relative;z-index:1">'
     + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">'
     + '<div style="font-size:32px">🏅</div>'
     + '<div>'
