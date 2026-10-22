@@ -381,7 +381,7 @@ var _shares = [], _selected = new Set(), _images = [];
   }catch(e){}
   if(!_user || !_token){ location.href='cafe-access.html?redirect=cafe-channel.html'; return; }
   document.getElementById('tbUser').textContent = _user.username||_user.email;
-  updateBalance();
+  await refreshV5Balance();
   var d = new Date(); d.setDate(d.getDate()+30);
   document.getElementById('nextRenew').textContent = d.toLocaleDateString('ko-KR');
   try{
@@ -397,8 +397,20 @@ var _shares = [], _selected = new Set(), _images = [];
 function toast(msg,t){ t=t||'i'; var el=document.createElement('div'); el.className='t '+t; el.textContent=msg; document.getElementById('toast-box').prepend(el); setTimeout(function(){el.remove();},3200); }
 function g(id){ return document.getElementById(id); }
 
+async function refreshV5Balance(){
+  try{
+    var res=await fetch(API+'/api/eco/wallet',{headers:{Authorization:'Bearer '+_token},cache:'no-store'});
+    var data=await res.json();
+    var bal=Number(data.wallet && data.wallet.tl_total);
+    if(!res.ok || !data.wallet || data.wallet.tl_total==null || !Number.isFinite(bal)) throw new Error(data.error||'V5 지갑 잔액 조회 실패');
+    _v5Balance=bal;
+    updateBalance();
+  }catch(err){console.warn('[Cafe V5 wallet]',err);g('balanceCur').textContent='잔액 조회 실패';g('balanceAfter').textContent='확인 불가';g('balanceWarn').style.display='block';g('balanceWarn').textContent='V5 지갑 잔액을 확인할 수 없습니다. 새로고침 후 다시 시도해주세요.';}
+}
+var _v5Balance=null;
 function updateBalance(){
-  var bal = _user ? (_user.tl||0) : 0;
+  if(_v5Balance===null)return;
+  var bal = _v5Balance;
   g('balanceCur').textContent = Number(bal).toLocaleString()+' TL';
   var after = bal - CHANNEL_FEE;
   g('balanceAfter').textContent = Number(Math.max(0,after)).toLocaleString()+' TL';
