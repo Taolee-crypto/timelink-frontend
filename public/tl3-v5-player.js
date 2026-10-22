@@ -162,9 +162,7 @@
     contentKey.fill(0);
     const manifest=decoded.manifest,totalMs=Number(manifest.duration_ms);
     let lpController=null;
-    const lpToggle=document.getElementById('lpEnhancedToggle'),lpControl=document.getElementById('lpEnhancedControl');
-    if(lpToggle){lpToggle.checked=false;lpToggle.disabled=true;}
-    // Accept legacy Creator LP license fields embedded in already-sealed V5 assets.
+    // Creator LP license is automatic; legacy V5 assets used lp_* field names.
     const rawLp=manifest.lp_meta;
     const lpMeta=rawLp&&typeof rawLp==='object'?{
       ...rawLp,
@@ -175,20 +173,17 @@
       n:rawLp.n??rawLp.lp_n,
       version:rawLp.version??rawLp.lp_version
     }:null;
-    if(lpMeta&&lpMeta.enabled===true&&global.TL3LPChain&&typeof global.TL3LPChain.create==='function'){
-      try{
-        lpController=await global.TL3LPChain.create(audio,lpMeta,totalMs);
-        const available=!!(lpController&&lpController.available&&lpController.available());
-        if(lpToggle){lpToggle.checked=false;lpToggle.disabled=!available;}
-        if(lpControl)lpControl.title=available?'체크하면 이 곡에 LP Enhanced 실시간 음질 처리를 적용합니다':'이 브라우저에서 LP Enhanced 오디오 처리를 사용할 수 없습니다';
-      }catch(e){lpController=null;console.warn('[TL3V5][LP] initialization failed; native audio retained',e);}
-    }else if(lpControl){lpControl.title='이 TL3 V5 자산에는 LP Enhanced 라이선스가 없습니다';}
-    global.setTL3LpEnhanced=async function(enabled){
-      if(!lpController||!lpController.available||!lpController.available())return false;
-      const ok=await lpController.setEnabled(!!enabled);
-      if(lpToggle)lpToggle.checked=!!(ok&&enabled);
-      return !!(ok&&enabled);
-    };
+    if(lpMeta&&lpMeta.enabled===true){
+      if(global.TL3LPChain&&typeof global.TL3LPChain.create==='function'){
+        try{
+          lpController=await global.TL3LPChain.create(audio,lpMeta,totalMs);
+          if(lpController&&lpController.available&&lpController.available()){
+            const applied=await lpController.setEnabled(true);
+            if(!applied)console.warn('[TL3V5][LP] automatic LP processing could not be enabled');
+          }else console.warn('[TL3V5][LP] LP processing unavailable');
+        }catch(e){console.warn('[TL3V5][LP] automatic initialization failed; native audio retained',e);}
+      }else console.warn('[TL3V5][LP] LP processing engine missing');
+    }
     const blobUrl=URL.createObjectURL(new Blob([decoded.mp3],{type:'audio/mpeg'}));
     let stopped=false,meterTimer=null,billableMs=0,lastTime=null,meterQueued=0,lastBilled=0,meterQueue=Promise.resolve(),meterFailed=false;
     // The media clock is the billing source. Sample it both on a short
