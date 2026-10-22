@@ -771,31 +771,31 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
     </table>
   </div>
 </div>
-<!-- TL 충전/차감 -->
+<!-- V3 TL 충전/차감 -->
     <div class="panel" id="panel-charge">
-      <div class="sec-title">⚡ TL 충전 / 차감</div>
+      <div class="sec-title">⚡ TL 충전 / 차감 — V3 원장</div>
       <div class="charge-form">
-        <label class="f-label">대상 이메일</label>
+        <p style="line-height:1.7;color:var(--t3)">TL_P는 실제 결제·창작자 정산 전용이며 관리자 임의 발행을 금지합니다. TL_A(광고)·TL_B(활동/보너스)는 직접 현금 환전이 불가능합니다. 기존 tl / tl_balance 컬럼을 직접 변경하지 않습니다.</p>
+        <label class="f-label">대상 회원 이메일 (전체 지급 불가)</label>
         <input type="email" class="f-input" id="c-email" placeholder="user@example.com">
-        <label class="f-label">TL 금액 (음수 = 차감)</label>
-        <input type="number" class="f-input" id="c-amount" placeholder="예: 50000 또는 -10000">
-        <label class="f-label">적용 컬럼</label>
+        <label class="f-label">TL 종류</label>
         <select class="f-select" id="c-col">
-          <option value="both">tl + tl_balance 둘 다</option>
-          <option value="tl_b">TL_B (보너스·환전불가) 무상지급</option>
-          <option value="tl">tl 만 (소비용)</option>
-          <option value="tl_balance">tl_balance 만</option>
+          <option value="tl_b">TL_B — 활동·보너스 (현금 환전 불가)</option>
+          <option value="tl_a">TL_A — 광고 보상 (현금 환전 불가)</option>
+          <option value="tl_p" disabled>TL_P — 실결제 정산 전용 (관리자 조정 금지)</option>
         </select>
-        <button class="btn btn-g" style="width:100%;padding:10px;justify-content:center" onclick="doCharge()">⚡ 적용</button>
+        <label class="f-label">TL 금액 (양수 지급 / 음수 차감)</label>
+        <input type="number" class="f-input" id="c-amount" step="1" placeholder="예: 40000 또는 -1000">
+        <label class="f-label">조정 사유 (필수, 감사 원장에 기록)</label>
+        <input class="f-input" id="c-reason" placeholder="예: 90일 무료 이용 보너스">
+        <button class="btn btn-g" style="width:100%;padding:10px;justify-content:center" onclick="doCharge()">⚡ V3 원장에 적용</button>
         <div class="f-result" id="c-result"></div>
       </div>
-      <div class="sec-title">유저별 TL 현황</div>
-      <div class="tbox">
-        <table>
-          <thead><tr><th>이메일</th><th>유저명</th><th>tl</th><th>tl_balance</th><th>TLC</th><th>빠른 충전</th></tr></thead>
-          <tbody id="tl-users-tbody"></tbody>
-        </table>
-      </div>
+      <div class="sec-title">회원별 V3 지갑 잔액</div>
+      <div class="tbox"><table>
+        <thead><tr><th>이메일</th><th>회원명</th><th>TL_P</th><th>TL_A</th><th>TL_B</th><th>전체 TL</th><th>보너스 조정</th></tr></thead>
+        <tbody id="tl-users-tbody"></tbody>
+      </table></div>
     </div>
 
     <!-- SQL -->
@@ -1857,63 +1857,55 @@ async function toggleMemberAccess(id, suspended){
   }catch(err){toast('회원 상태 변경 실패: '+err.message,'r');}
 }
 
-function renderTLUsers(){
-  var tb=g('tl-users-tbody');
-  if(!_users.length){tb.innerHTML='<tr><td colspan="6"><div class="empty">유저 탭 또는 SQL로 먼저 조회하세요</div></td></tr>';return;}
-  paginate('tl-users-tbody', _users, function(u){
-    return '<tr>'+
-      '<td style="font-size:11px">'+esc(u.email||'-')+'</td>'+
-      '<td style="font-weight:600">'+esc(u.username||'-')+'</td>'+
-      '<td class="td-mono" style="color:var(--g)">'+Number(u.tl||0).toLocaleString()+'</td>'+
-      '<td class="td-mono" style="color:var(--sky)">'+Number(u.tl_balance||0).toLocaleString()+'</td>'+
-      '<td class="td-mono" style="color:var(--amber)">'+Number(u.tlc||0).toFixed(4)+'</td>'+
-      '<td><div style="display:flex;gap:4px">'+
-        '<button class="btn btn-g btn-xs" onclick="quickCharge(\''+esc(u.email)+'\',100000)">+10만</button>'+
-        '<button class="btn btn-a btn-xs" onclick="quickCharge(\''+esc(u.email)+'\',999999)">맥스</button>'+
-        '<button class="btn btn-r btn-xs" onclick="quickCharge(\''+esc(u.email)+'\',-10000)">-1만</button>'+
-      '</div></td>'+
-    '</tr>';
-  });
+async function renderTLUsers(){
+  var tb=g('tl-users-tbody');if(!tb)return;
+  tb.innerHTML='<tr><td colspan="7">V3 원장 조회 중...</td></tr>';
+  try{
+    var token=localStorage.getItem('tl_token');
+    var response=await fetch('https://api.timelink.digital/api/admin/tl/balances',{headers:{Authorization:'Bearer '+token}});
+    var data=await response.json();
+    if(!response.ok||!data.ok)throw new Error(data.error||'V3 원장 조회 실패');
+    var users=data.users||[];
+    if(!users.length){tb.innerHTML='<tr><td colspan="7">조회된 회원이 없습니다.</td></tr>';return;}
+    paginate('tl-users-tbody',users,function(u){
+      var p=Number(u.tl_p||0),a=Number(u.tl_a||0),b=Number(u.tl_b||0);
+      return '<tr><td>'+esc(u.email||'-')+'</td><td>'+esc(u.username||'-')+'</td>'+
+        '<td class="td-mono">'+p.toLocaleString()+'</td><td class="td-mono">'+a.toLocaleString()+'</td>'+
+        '<td class="td-mono">'+b.toLocaleString()+'</td><td class="td-mono">'+(p+a+b).toLocaleString()+'</td>'+
+        '<td><button class="btn btn-g btn-xs" onclick="quickCharge(\''+esc(u.email)+'\',40000)">TL_B 지급</button></td></tr>';
+    });
+  }catch(err){tb.innerHTML='<tr><td colspan="7" style="color:var(--rose)">'+esc(err.message)+'</td></tr>';}
 }
 
-// ─ TL Charge ─
+// ─ V3 ledger-only TL adjustments ─
 function quickCharge(email,amt){
-  g('c-email').value=email; g('c-amount').value=amt; g('c-col').value='both';
-  go('charge',document.querySelectorAll('.sb-item')[5]);
+  g('c-email').value=email;g('c-amount').value=amt;g('c-col').value='tl_b';
+  if(g('c-reason'))g('c-reason').value='관리자 활동 보너스 조정';
+  go('charge',document.querySelector('[onclick*="go(\'charge\'"]'));
 }
 async function doCharge(){
-  var email=v('c-email'), amt=parseInt(g('c-amount').value), col=g('c-col').value;
-  
-  // TL_B (보너스·환전불가) 특별 처리
-  if(col === 'tl_b'){
-    var uid = email === 'all' ? '전체 유저' : email;
-    if(!confirm('⚠️ TL_B(보너스·환전불가) '+amt+' TL을\n['+uid+']에게 무상 지급합니다.\n\n이 TL은 현금 교환이 불가능합니다.')) return;
-    // tl_b 컬럼 마이그레이션
-    await execSQL("ALTER TABLE users ADD COLUMN tl_b INTEGER DEFAULT 0").catch(function(){});
-    var sql = email === 'all'
-      ? "UPDATE users SET tl_b=COALESCE(tl_b,0)+"+amt+", tl=COALESCE(tl,0)+"+amt
-      : "UPDATE users SET tl_b=COALESCE(tl_b,0)+"+amt+", tl=COALESCE(tl,0)+"+amt+" WHERE email='"+email+"'";
-    var res2 = await execSQL(sql);
-    if(res2) toast('✅ TL_B(보너스) '+amt+' TL 지급 완료 — 환전불가','g');
-    else toast('지급 실패','r');
-    renderTLUsers();
-    return;
+  var email=v('c-email'),amount=Number(g('c-amount').value),bucket=g('c-col').value,reason=v('c-reason');
+  var result=g('c-result');
+  if(!email||email==='all'||!Number.isSafeInteger(amount)||!amount||Math.abs(amount)>1000000||reason.length<5){
+    toast('회원 이메일, 정수 금액(최대 100만), 사유(5자 이상)를 확인하세요.','a');return;
   }
-  var res=g('c-result');
-  if(!email||isNaN(amt)){toast('이메일과 금액을 입력하세요','a');return;}
-  var cols=col==='both'?['tl','tl_balance']:[col];
-  var results=[];
-  for(var i=0;i<cols.length;i++){
-    var c=cols[i];
-    var sql="UPDATE users SET "+c+"=MAX(0,"+c+"+("+amt+")) WHERE email='"+email+"'";
-    var r=await runSQLQuery(sql);
-    results.push(c+': '+(r!==null?'✓ 적용됨':'✗ 실패 — wrangler 클립보드 확인'));
-  }
-  res.style.display='block';
-  res.style.color=results.every(function(r){return r.includes('✓');})?'var(--g)':'var(--rose)';
-  res.textContent=results.join('\n');
-  await loadUsers();
-  toast('TL 적용 완료','g');
+  if(!['tl_a','tl_b'].includes(bucket)){toast('TL_P는 관리자 임의 조정이 불가합니다.','r');return;}
+  if(!confirm(email+' 회원의 '+bucket.toUpperCase()+'를 '+amount.toLocaleString()+' TL 조정합니까?\n사유: '+reason))return;
+  var button=document.querySelector('#panel-charge button[onclick="doCharge()"]');
+  if(button)button.disabled=true;
+  try{
+    var token=localStorage.getItem('tl_token');
+    var response=await fetch('https://api.timelink.digital/api/admin/tl/adjust',{
+      method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({email:email,bucket:bucket,amount:amount,reason:reason,idempotency_key:'admin-tl-'+crypto.randomUUID()})
+    });
+    var data=await response.json().catch(function(){return {};});
+    if(!response.ok||!data.ok)throw new Error(data.error||'원장 조정 실패');
+    result.style.display='block';result.style.color='var(--g)';
+    result.textContent='V3 원장 적용 완료: '+data.transaction_id;
+    toast('V3 '+bucket.toUpperCase()+' 조정 완료','g');await renderTLUsers();
+  }catch(err){result.style.display='block';result.style.color='var(--rose)';result.textContent=err.message;toast('조정 실패: '+err.message,'r');}
+  finally{if(button)button.disabled=false;}
 }
 
 // ─ SQL ─
