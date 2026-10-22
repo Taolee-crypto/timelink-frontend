@@ -217,11 +217,34 @@ const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>
 if(!token||!user.id){location.href='login.html?redirect=/creator';return;}
 function auth(){return {Authorization:'Bearer '+token};}
 let spotifyTrack=null;
+let spotifyCoverSelected=false;
 function renderSpotifyResults(tracks){
  const root=$('spotifyResults');if(!root)return;
  if(!tracks.length){root.innerHTML='<div class="spotify-footnote">'+esc(TLi18n.t('creator.spotify.none'))+'</div>';return;}
- root.innerHTML=tracks.map(function(t,i){return '<div class="spotify-result"><div><strong>'+esc(t.title)+'</strong><small>'+esc([t.artist,t.album,t.release_date].filter(Boolean).join(' · '))+'</small></div><button type="button" class="btn secondary" data-spotify-index="'+i+'">'+esc(TLi18n.t('creator.spotify.select'))+'</button></div>';}).join('');
- root.querySelectorAll('[data-spotify-index]').forEach(function(btn){btn.addEventListener('click',function(){const track=tracks[Number(btn.dataset.spotifyIndex)];if(!track)return;spotifyTrack=track;$('title').value=track.title||'';$('artist').value=track.artist||'';$('album').value=track.album||'';$('spotifySelected').style.display='block';$('spotifySelected').textContent=TLi18n.t('creator.spotify.selected')+': '+[track.title,track.artist,track.album].filter(Boolean).join(' · ');root.innerHTML='';preview();});});
+ root.innerHTML=tracks.map(function(t,i){
+  const image=/^https:\/\//.test(t.cover_url||'')?'<img src="'+esc(t.cover_url)+'" alt="" style="width:52px;height:52px;object-fit:cover;border-radius:7px" referrerpolicy="no-referrer">':'';
+  return '<div class="spotify-result">'+image+'<div style="flex:1;min-width:0"><strong>'+esc(t.title)+'</strong><small>'+esc([t.artist,t.album,t.release_date].filter(Boolean).join(' · '))+'</small></div><button type="button" class="btn secondary" data-spotify-index="'+i+'">'+esc(TLi18n.t('creator.spotify.select'))+'</button></div>';
+ }).join('');
+ root.querySelectorAll('[data-spotify-index]').forEach(function(btn){btn.addEventListener('click',function(){
+  const track=tracks[Number(btn.dataset.spotifyIndex)];if(!track)return;
+  spotifyTrack=track;spotifyCoverSelected=false;
+  $('title').value=track.title||'';$('artist').value=track.artist||'';$('album').value=track.album||'';
+  const selected=$('spotifySelected');selected.style.display='block';selected.textContent='';
+  const summary=document.createElement('div');summary.textContent=TLi18n.t('creator.spotify.selected')+': '+[track.title,track.artist,track.album].filter(Boolean).join(' · ');selected.appendChild(summary);
+  if(/^https:\/\//.test(track.cover_url||'')){
+   const label=document.createElement('label');label.style.cssText='display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer';
+   const check=document.createElement('input');check.type='checkbox';check.style.width='18px';
+   label.append(check,document.createTextNode('Spotify 앨범 자켓 사용 (등록 후 TRACK에서 교체 가능)'));
+   selected.appendChild(label);
+   check.addEventListener('change',function(){
+    spotifyCoverSelected=check.checked;
+    if(check.checked){cover=null;$('coverPreview').innerHTML='<div class="preview"><div class="cover"><img alt="Spotify 앨범 자켓" src="'+esc(track.cover_url)+'"></div></div>';}
+    else $('coverPreview').innerHTML='';
+    preview();
+   });
+  }
+  root.innerHTML='';preview();
+ });});
 }
 async function searchSpotify(){
  const q=$('spotifyQuery').value.trim();if(!q){$('spotifyResults').textContent=TLi18n.t('creator.spotify.enter');return;}
@@ -232,7 +255,7 @@ async function searchSpotify(){
 }
 $('spotifySearchBtn').addEventListener('click',searchSpotify);
 $('spotifyQuery').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();searchSpotify();}});
-['title','artist','album'].forEach(function(id){$(id).addEventListener('input',function(){if(!spotifyTrack)return;const same=$('title').value===spotifyTrack.title&&$('artist').value===spotifyTrack.artist&&$('album').value===spotifyTrack.album;if(!same){spotifyTrack=null;$('spotifySelected').style.display='none';}});});
+['title','artist','album'].forEach(function(id){$(id).addEventListener('input',function(){if(!spotifyTrack)return;const same=$('title').value===spotifyTrack.title&&$('artist').value===spotifyTrack.artist&&$('album').value===spotifyTrack.album;if(!same){spotifyTrack=null;spotifyCoverSelected=false;$('spotifySelected').style.display='none';}});});
 
 
 /* Original-release artwork: use only Commons public-domain/CC0 images, with an
@@ -324,7 +347,7 @@ function updateLpBalance(){
 }
 function bindDrop(zone,input,cb){$(zone).onclick=()=>$(input).click();$(zone).ondragover=e=>{e.preventDefault();$(zone).classList.add('over')};$(zone).ondragleave=()=>$(zone).classList.remove('over');$(zone).ondrop=e=>{e.preventDefault();$(zone).classList.remove('over');if(e.dataTransfer.files[0]){cb(e.dataTransfer.files[0]);}};}
 bindDrop('audioDrop','audio',f=>{file=f;$('audioInfo').innerHTML='<div class="preview"><div class="cover">♪</div><div><b>'+esc(f.name)+'</b><div style="color:var(--dim);font-size:10px;margin-top:4px">'+(f.size/1024/1024).toFixed(1)+' MB · MP3</div></div></div>'});$('audio').onchange=e=>e.target.files[0]&&$('audioDrop').ondrop({preventDefault(){},dataTransfer:{files:e.target.files}});
-bindDrop('coverDrop','cover',f=>{cover=f;const r=new FileReader();r.onload=e=>$('coverPreview').innerHTML='<div class="preview"><div class="cover"><img src="'+e.target.result+'"></div><div><b>커버 이미지 선택됨</b></div></div>';r.readAsDataURL(f)});$('cover').onchange=e=>{if(e.target.files[0]){cover=e.target.files[0];const r=new FileReader();r.onload=x=>$('coverPreview').innerHTML='<div class="preview"><div class="cover"><img src="'+x.target.result+'"></div><div><b>커버 이미지 선택됨</b></div></div>';r.readAsDataURL(cover)}};
+bindDrop('coverDrop','cover',f=>{spotifyCoverSelected=false;cover=f;const r=new FileReader();r.onload=e=>$('coverPreview').innerHTML='<div class="preview"><div class="cover"><img src="'+e.target.result+'"></div><div><b>커버 이미지 선택됨</b></div></div>';r.readAsDataURL(f)});$('cover').onchange=e=>{if(e.target.files[0]){spotifyCoverSelected=false;cover=e.target.files[0];const r=new FileReader();r.onload=x=>$('coverPreview').innerHTML='<div class="preview"><div class="cover"><img src="'+x.target.result+'"></div><div><b>커버 이미지 선택됨</b></div></div>';r.readAsDataURL(cover)}};
 ['K-pop','Rock','Folk','Hip-hop','Jazz','R&B','EDM','Ambient','Classical'].forEach(g=>{const b=document.createElement('button');b.className='chip';b.textContent=g;b.onclick=()=>{document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));b.classList.add('active');$('genre').value=g};$('chips').appendChild(b)});
 async function loadBalance(){try{const r=await fetch(API+'/api/v1/users/me/wallet',{headers:auth()});const d=await r.json();const u=d.user||d;const b=Number(u.tl_balance??u.tl??0);$('balance').textContent=b.toLocaleString()+' TL'}catch(e){}}
 function preview(){
@@ -340,7 +363,8 @@ $('uploadBtn').onclick=async()=>{
  try{
    // 원본 MP3는 브라우저 메모리에만 둔다. 서버에는 TL3 v4 암호화 컨테이너만 전달한다.
    upload={url:'',stream_url:'',source_local:true};
-   if(!cover)await generateOriginalCover();
+   if(!cover&&!spotifyCoverSelected)await generateOriginalCover();
+   if(spotifyCoverSelected&&spotifyTrack&&/^https:\/\//.test(spotifyTrack.cover_url||''))upload.cover_url=spotifyTrack.cover_url;
    if(cover){const cf=new FormData();cf.append('file',cover,'cover_'+Date.now()+'.jpg');cf.append('trackId','cover_'+Date.now());const cr=await fetch(API+'/api/upload',{method:'POST',headers:auth(),body:cf});const cd=await cr.json();if(cd.ok)upload.cover_url=cd.url;}
    preview();step(2);
  }catch(e){err('error',e.message);b.disabled=false;b.textContent=TLi18n.t('creator.upload.continue');}
