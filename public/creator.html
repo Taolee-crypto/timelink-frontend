@@ -70,7 +70,7 @@ nav{background:rgba(10,10,10,.9);border-color:var(--line)}
 <div class="field"><label data-i18n="creator.genre">장르</label><div class="chips" id="chips"></div><input id="genre" placeholder="직접 입력 가능" data-i18n-placeholder="creator.genre.custom"></div>
 <div class="field"><label data-i18n="creator.album.desc">앨범 / 설명</label><input id="album" placeholder="앨범명 또는 간단한 설명" data-i18n-placeholder="creator.album.placeholder"></div>
 <div class="field"><label>음원 파일 *</label><div class="drop" id="audioDrop"><strong data-i18n="creator.drop.mp3">MP3 파일을 여기에 놓거나 클릭</strong><small>제조 과정에서 일시 전송·암호화 · 원본 별도 보관 없음 · 16MB 이하</small><input id="audio" type="file" accept=".mp3,audio/mpeg" hidden></div><div id="audioInfo"></div></div>
-<div class="field"><label data-i18n="creator.cover.optional">커버 이미지 (선택)</label><div class="drop" id="coverDrop"><strong data-i18n="creator.cover.choose">커버 이미지를 선택</strong><small>JPG · PNG</small><input id="cover" type="file" accept="image/*" hidden></div><div id="coverPreview"></div></div>
+<div class="field"><label data-i18n="creator.cover.optional">커버 이미지 (선택)</label><div class="drop" id="coverDrop"><strong data-i18n="creator.cover.choose">커버 이미지를 선택</strong><small>JPG · PNG</small><input id="cover" type="file" accept="image/*" hidden></div><div id="coverPreview"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" class="btn secondary" id="autoCoverBtn">✨ 제목에 맞는 커버 자동 생성</button><small id="autoCoverStatus" style="align-self:center;color:var(--muted)">커버를 선택하지 않으면 등록 시 자동 생성됩니다.</small></div></div>
 <div class="actions"><button class="btn primary" id="uploadBtn" data-i18n="creator.upload.continue">음원 등록하고 계속 →</button></div><div class="error" id="error"></div>
 </section>
 <section class="card" id="panel1_tl4" style="display:none">
@@ -234,6 +234,63 @@ $('spotifySearchBtn').addEventListener('click',searchSpotify);
 $('spotifyQuery').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();searchSpotify();}});
 ['title','artist','album'].forEach(function(id){$(id).addEventListener('input',function(){if(!spotifyTrack)return;const same=$('title').value===spotifyTrack.title&&$('artist').value===spotifyTrack.artist&&$('album').value===spotifyTrack.album;if(!same){spotifyTrack=null;$('spotifySelected').style.display='none';}});});
 
+
+/* Original-release artwork: use only Commons public-domain/CC0 images, with an
+   offline-safe generated design when a licensed image cannot be verified. */
+async function findFreeCoverImage(query){
+ const endpoint='https://commons.wikimedia.org/w/api.php?origin=*&action=query&generator=search&gsrnamespace=6&gsrlimit=12&gsrsearch='+encodeURIComponent(query+' filetype:bitmap')+'&prop=imageinfo&iiprop=url%7Cextmetadata&iiurlwidth=1100&format=json';
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),6500);
+ try{
+  const response=await fetch(endpoint,{signal:controller.signal});
+  if(!response.ok)return null;
+  const data=await response.json(),pages=Object.values(data.query?.pages||{});
+  for(const page of pages){
+   const info=page.imageinfo?.[0],meta=info?.extmetadata||{};
+   const license=(meta.LicenseShortName?.value||'').toLowerCase().replace(/\s/g,'');
+   if(!['cc0','publicdomain','pd-old','pd-art','pd-us','pd-self'].includes(license))continue;
+   const url=info.thumburl||info.url;
+   if(url&&/^https:\/\/upload\.wikimedia\.org\//.test(url))return url;
+  }
+ }catch(e){console.warn('[cover] Free-image search unavailable:',e.message);}
+ finally{clearTimeout(timeout);}
+ return null;
+}
+function drawCoverText(ctx,text,maxWidth,y,size,weight){
+ ctx.font=weight+' '+size+'px "Noto Sans KR",sans-serif';
+ while(ctx.measureText(text).width>maxWidth&&size>26){size-=2;ctx.font=weight+' '+size+'px "Noto Sans KR",sans-serif';}
+ ctx.fillText(text,72,y,maxWidth);
+}
+async function generateOriginalCover(){
+ const title=$('title').value.trim(),artist=$('artist').value.trim();
+ if(!title||!artist)throw Error('곡명과 가수명을 먼저 입력하세요.');
+ const status=$('autoCoverStatus');status.textContent='무료 이미지 검색 및 커버 제작 중...';
+ const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=1000;
+ const ctx=canvas.getContext('2d'),hue=[...title].reduce((n,c)=>n+c.codePointAt(0),0)%360;
+ const gradient=ctx.createLinearGradient(0,0,1000,1000);
+ gradient.addColorStop(0,'hsl('+hue+',48%,24%)');gradient.addColorStop(1,'hsl('+((hue+75)%360)+',60%,11%)');
+ ctx.fillStyle=gradient;ctx.fillRect(0,0,1000,1000);
+ const imageUrl=await findFreeCoverImage(title+' '+($('genre').value||'music'));
+ if(imageUrl){
+  try{
+   const img=new Image();img.crossOrigin='anonymous';img.src=imageUrl;
+   await Promise.race([img.decode(),new Promise((_,reject)=>setTimeout(()=>reject(Error('timeout')),5500))]);
+   const scale=Math.max(1000/img.naturalWidth,1000/img.naturalHeight);
+   ctx.drawImage(img,(1000-img.naturalWidth*scale)/2,(1000-img.naturalHeight*scale)/2,img.naturalWidth*scale,img.naturalHeight*scale);
+  }catch(e){console.warn('[cover] Image unavailable, using original artwork:',e.message);}
+ }
+ const shade=ctx.createLinearGradient(0,330,0,1000);shade.addColorStop(0,'rgba(0,0,0,0)');shade.addColorStop(1,'rgba(0,0,0,.88)');
+ ctx.fillStyle=shade;ctx.fillRect(0,0,1000,1000);
+ ctx.fillStyle='#ffffff';ctx.textBaseline='alphabetic';
+ drawCoverText(ctx,title,850,790,86,'800');
+ ctx.fillStyle='#e6e6f2';drawCoverText(ctx,artist,850,876,43,'600');
+ const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.87));
+ if(!blob)throw Error('커버 이미지 생성 실패');
+ cover=new File([blob],'timelink-auto-cover.jpg',{type:'image/jpeg'});
+ $('coverPreview').innerHTML='<div class="preview"><div class="cover"><img alt="자동 생성 커버" src="'+URL.createObjectURL(blob)+'"></div><div><b>자동 커버 생성 완료</b><small> · 곡명 / 가수명 포함</small></div></div>';
+ status.textContent='커버 준비 완료. 필요하면 다른 이미지로 교체할 수 있습니다.';
+}
+$('autoCoverBtn').addEventListener('click',async function(){this.disabled=true;try{await generateOriginalCover();}catch(e){$('autoCoverStatus').textContent=e.message;}finally{this.disabled=false;}});
+
 function err(id,msg){const e=$(id);e.textContent=msg;e.style.display='block';}
 function clearErr(id){$(id).style.display='none';}
 function step(n){
@@ -283,6 +340,7 @@ $('uploadBtn').onclick=async()=>{
  try{
    // 원본 MP3는 브라우저 메모리에만 둔다. 서버에는 TL3 v4 암호화 컨테이너만 전달한다.
    upload={url:'',stream_url:'',source_local:true};
+   if(!cover && !spotifyTrack)await generateOriginalCover();
    if(cover){const cf=new FormData();cf.append('file',cover,'cover_'+Date.now()+'.jpg');cf.append('trackId','cover_'+Date.now());const cr=await fetch(API+'/api/upload',{method:'POST',headers:auth(),body:cf});const cd=await cr.json();if(cd.ok)upload.cover_url=cd.url;}
    preview();step(2);
  }catch(e){err('error',e.message);b.disabled=false;b.textContent=TLi18n.t('creator.upload.continue');}
