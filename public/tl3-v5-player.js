@@ -265,6 +265,7 @@
       // Flush accrued audible time before closing the session. The server
       // performs the TL_B-only refund atomically and rejects future meters.
       sample(true);
+      if(!meterFailed&&billableMs>0)queueMeter(Number((billableMs/1000).toFixed(3)),false);
       const closingMeter=meterQueue;
       closingMeter.then(async()=>{
         if(meterFailed||audio.ended)return;
