@@ -261,6 +261,21 @@
       return lastBilled;
     };
     audio._tl3Stop=function(){
+      if(stopped)return;
+      // Flush accrued audible time before closing the session. The server
+      // performs the TL_B-only refund atomically and rejects future meters.
+      sample(true);
+      const closingMeter=meterQueue;
+      closingMeter.then(async()=>{
+        if(meterFailed||audio.ended)return;
+        const response=await fetch(API+'/api/v1/tl3/play/stop/'+encodeURIComponent(fileId),{
+          method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
+          body:JSON.stringify({session_id:sessionId})
+        });
+        const data=await response.json().catch(()=>({}));
+        if(!response.ok||!data.ok)throw new Error(data.error||'중도 종료 정산 실패');
+        if(opts.onStopSettlement)opts.onStopSettlement(data);
+      }).catch(onError);
       if(stopped)return;stopped=true;
       if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}
       try{audio.pause();}catch(_){}
