@@ -257,12 +257,21 @@ body{font-family:Pretendard,Inter,-apple-system,BlinkMacSystemFont,"Noto Sans KR
 .cert-verified-actions{margin-top:auto}
 .cert-verified-actions button{padding:9px 10px!important}
 
+/* Verified certificate: preserve EVERY field and control; scale its content to fit. */
+.rp-two-col>#certStatusDiv>.cert-verified{height:100%!important;min-height:0!important;max-height:100%!important;padding:14px!important;margin:0!important;box-sizing:border-box;overflow:hidden!important;position:relative}
+.cert-verified>.cert-verified-content{position:relative;z-index:1;transform-origin:top left}
+.cert-verified .cert-track-fields{margin:8px 0!important;padding:10px!important;gap:6px!important}
+.cert-verified .cert-track-field{gap:1px}
+
+
 @media(max-width:720px){
 .rp-two-col>#lyricsWrap .lyrics-box{height:400px!important;max-height:400px!important}
 .rp-two-col>#certStatusDiv{height:400px!important;min-height:400px!important;max-height:400px!important}
 }
 </style>
-
+<script>
+window.addEventListener('resize',()=>requestAnimationFrame(()=>{if(typeof fitTrackCertificate==='function')fitTrackCertificate();}));
+</script>
 </head>
 <body>
 
@@ -867,7 +876,7 @@ function renderPage(s, stats, myFileTL, requiredTL){
           <button class="btn-icon" id="plBtn">📋</button>
           <button class="btn-icon" id="shareBtn">🔗</button>
         </div>
-        ${hasUrl && !isFree ? '<button class="btn-dl" id="dlBtn">⬇ .tl3 다운로드</button>' : ''}
+        ${hasUrl && !isFree ? '<button class="btn-dl" id="dlBtn" disabled title="창작권 인증 확인 중">🔒 인증 확인 중</button>' : ''}
         <button class="btn-score" id="scoreBtn">🎼 악보 보기</button>
       </div>
 
@@ -2170,19 +2179,27 @@ function stopPlay(){
 window.stopPlay = stopPlay;
 
 async function downloadTL(){
-  // ⭐ 네이티브 다운로드 (fetch/blob 우회)
+  const btn=document.getElementById('dlBtn');
+  if(!btn || btn.disabled){alert('창작권 인증된 음원만 TL3 다운로드할 수 있습니다.');return;}
+  if(!getTok()){alert('로그인이 필요합니다.');return;}
+  btn.disabled=true;
   try{
-    var url = API + '/api/v1/tl3/file/' + SHARE_ID;
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = ((_share && _share.title) || 'track') + '.tl3';
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(function(){
-      try { document.body.removeChild(a); } catch(e){}
-    }, 200);
-  }catch(e){ alert('다운로드 오류: ' + e.message); }
+    const response=await fetch(API+'/api/v1/tl3/file/'+encodeURIComponent(SHARE_ID),{
+      headers:{Authorization:'Bearer '+getTok()},cache:'no-store'
+    });
+    if(!response.ok){
+      const data=await response.json().catch(()=>({}));
+      throw new Error(data.error||('다운로드 불가 (HTTP '+response.status+')'));
+    }
+    const blob=await response.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=((_share&&_share.title)||'track')+'.tl3';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }catch(e){alert('TL3 다운로드 오류: '+e.message);}
+  finally{if(btn && btn.textContent.includes('다운로드')&&!btn.textContent.includes('인증 후'))btn.disabled=false;}
 }
 
 // CERT_UI_TRACK_V1: 증명서 상태 UI (인증/미인증)
@@ -2236,9 +2253,16 @@ async function renderCopyright(s){
     var certDiv = document.getElementById('certStatusDiv');
     if(!certDiv) return;
 
+    const downloadButton=document.getElementById('dlBtn');
+    if(downloadButton){
+      downloadButton.disabled=!meta.certified;
+      downloadButton.textContent=meta.certified?'⬇ .tl3 다운로드':'🔒 창작권 인증 후 다운로드';
+      downloadButton.title=meta.certified?'창작권 인증 완료':'창작권 인증된 음원만 다운로드할 수 있습니다';
+    }
     if(meta.certified){
       // 🏅 인증됨 → 멋진 증명서 카드
       certDiv.innerHTML = buildCertCard(meta, s);
+      requestAnimationFrame(fitTrackCertificate);
     } else {
       // ⚠️ 미인증 → 공지 + 신청 유도
       certDiv.innerHTML = buildUncertifiedNotice(meta, s);
@@ -2254,6 +2278,33 @@ function certTrackFieldsHtml(s,meta){
   const fields=[['곡명',s.title],['가수',s.artist],['앨범',s.album],['장르',s.category||s.genre||meta.asset_genre],['작곡',s.composer||s.asset_composer||meta.asset_composer],['작사',s.lyricist||s.asset_lyricist||meta.asset_lyricist],['편곡',s.arranger],['프로듀서',s.producer]];
   return '<div class="cert-track-fields">'+fields.map(([label,value])=>'<div class="cert-track-field"><span>'+escH(label)+'</span><strong>'+escH(String(value||'—'))+'</strong></div>').join('')+'</div>';
 }
+
+// Scale the complete issued certificate, including all metadata and buttons,
+// to the exact lyrics card height. Never clip information or add a scrollbar.
+function fitTrackCertificate(){
+  const cert=document.querySelector('#certStatusDiv>.cert-verified');
+  const lyrics=document.querySelector('#lyricsWrap .lyrics-box');
+  const content=cert?.querySelector('.cert-verified-content');
+  if(!cert||!lyrics||!content)return;
+  const target=Math.round(lyrics.getBoundingClientRect().height);
+  if(!target)return;
+  cert.style.setProperty('height',target+'px','important');
+  cert.style.setProperty('min-height',target+'px','important');
+  cert.style.setProperty('max-height',target+'px','important');
+  const padding=parseFloat(getComputedStyle(cert).paddingTop)||14;
+  const available=Math.max(1,target-padding*2-2);
+  content.style.transform='none';
+  content.style.width='100%';
+  const naturalHeight=content.scrollHeight;
+  const factor=Math.min(1,available/Math.max(1,naturalHeight));
+  content.style.transform='scale('+factor+')';
+  content.style.width=(100/factor)+'%';
+  // Recheck width-dependent wrapping once after scaling.
+  const adjustedHeight=content.scrollHeight;
+  const adjustedFactor=Math.min(factor,available/Math.max(1,adjustedHeight));
+  if(adjustedFactor<factor){content.style.transform='scale('+adjustedFactor+')';content.style.width=(100/adjustedFactor)+'%';}
+}
+
 function buildCertCard(meta, s){
   s=s||{};
   const fields=[['곡명',s.title],['가수',s.artist],['앨범',s.album],['장르',s.category||s.genre||meta.asset_genre],['작곡',s.composer||meta.asset_composer],['작사',s.lyricist||meta.asset_lyricist],['편곡',s.arranger],['프로듀서',s.producer]].filter(x=>String(x[1]||'').trim());
@@ -2263,7 +2314,7 @@ function buildCertCard(meta, s){
   var hashShort = meta.cert_hash ? meta.cert_hash.slice(0, 16) + '...' : '—';
   return '<div class="cert-verified" style="margin:24px 0;padding:24px;background:linear-gradient(135deg,rgba(255,215,0,.08),rgba(255,159,10,.04));border:2px solid rgba(255,215,0,.35);border-radius:20px;position:relative;overflow:hidden">'
     + '<div style="position:absolute;top:-50px;right:-50px;width:200px;height:200px;background:radial-gradient(circle,rgba(255,215,0,.15),transparent);border-radius:50%"></div>'
-    + '<div style="position:relative;z-index:1">'
+    + '<div class="cert-verified-content" style="position:relative;z-index:1">'
     + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">'
     + '<div style="font-size:32px">🏅</div>'
     + '<div>'
@@ -2476,7 +2527,7 @@ async function downloadCert(certNo){
     console.log('[CERT] 이미지 생성됨:', Math.round(imageB64.length/1024), 'KB');
 
     // 3) 서버에서 TL3 래핑
-    var resp = await fetch(API + '/api/v1/certs/' + certNo + '/file.tlj'  /* TLJ_EXT_V1 */, {
+    var resp = await fetch(API + '/api/v1/certs/' + certNo + '/file.tl3', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -2488,7 +2539,7 @@ async function downloadCert(certNo){
     if(!resp.ok){
       var errTxt = '';
       try { var ej = await resp.json(); errTxt = ej.error || ''; } catch(_){}
-      alert('TL3 생성 실패: ' + errTxt);
+      alert('증명서 파일 생성 실패: ' + errTxt);
       return;
     }
 
@@ -2497,14 +2548,14 @@ async function downloadCert(certNo){
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
-    a.download = certNo + '.tlj';
+    a.download = certNo + '.tl3';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
 
-    console.log('[CERT] 다운로드 완료:', certNo + '.tlj', blob.size, 'bytes');
-    alert('✅ 다운로드 완료\n\n파일: ' + certNo + '.tlj\n크기: ' + Math.round(blob.size/1024) + ' KB\n\nTL3 플레이어로 열면 증명서가 표시됩니다.');
+    console.log('[CERT] 다운로드 완료:', certNo + '.tl3', blob.size, 'bytes');
+    alert('✅ 다운로드 완료\n\n파일: ' + certNo + '.tl3\n크기: ' + Math.round(blob.size/1024) + ' KB\n\nTL3 플레이어로 열면 증명서가 표시됩니다.');
   } catch(e){
     console.error('[CERT] 다운로드 오류:', e);
     alert('오류: ' + e.message);

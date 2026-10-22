@@ -228,10 +228,7 @@ body::before{background:radial-gradient(ellipse 70% 50% at 10% 20%,rgba(139,92,2
         <label class="form-label"><span data-i18n="ch.cafe.name.label">카페명</span> *</label>
         <input class="form-input" id="cafeName" placeholder="카페 이름 입력" data-i18n-placeholder="ch.placeholder.cafe">
       </div>
-      <div class="form-group">
-        <label class="form-label"><span data-i18n="ch.channel.id">채널 ID</span> *</label>
-        <input class="form-input" id="channelId" placeholder="영문 소문자, 숫자 (예: mycafe01)" data-i18n-placeholder="ch.placeholder.channel" oninput="validateChannelId(this)">
-      </div>
+      <input type="hidden" id="channelId">
     </div>
     <div class="form-row one">
       <div class="form-group">
@@ -416,10 +413,8 @@ function updateBalance(){
 
 // Address & Map
 function formatBizNo(el){
-  var v = el.value.replace(/\D/g,'');
-  if(v.length>3) v = v.slice(0,3)+'-'+v.slice(3);
-  if(v.replace('-','').length>5) v = v.slice(0,6)+'-'+v.slice(6);
-  el.value = v.slice(0,12);
+  var digits=el.value.replace(/\D/g,'').slice(0,10);
+  el.value=digits.slice(0,3)+(digits.length>3?'-'+digits.slice(3,5):'')+(digits.length>5?'-'+digits.slice(5):'');
 }
 
 function validateChannelId(el){
@@ -561,7 +556,6 @@ function validateWizardStep(step){
   if(step===1){
     var name=g('cafeName').value.trim(), id=g('channelId').value.trim().toLowerCase(), biz=g('bizNo').value.replace(/\\D/g,'');
     if(!name){toast(window.TLi18n.t('ch.toast.no.cafe'),'e');g('cafeName').focus();return false;}
-    if(!/^[a-z0-9_]{3,20}$/.test(id)){toast('채널 ID는 영문 소문자·숫자·밑줄을 사용해 3~20자로 입력해주세요.','e');g('channelId').focus();return false;}
     if(biz.length!==10){toast(window.TLi18n.t('ch.toast.biz.format'),'e');g('bizNo').focus();return false;}
   }
   if(step===2&&!g('cafeAddr').value.trim()){toast(window.TLi18n.t('ch.toast.address.required'),'e');g('cafeAddr').focus();return false;}
@@ -582,19 +576,19 @@ function prevWizardStep(){if(_wizardStep>1){_wizardStep--;renderWizardStep();}}
 // Submit
 async function submitChannel(){
   var name = g('cafeName').value.trim();
-  var chId = g('channelId').value.trim().toLowerCase();
-  var bizNo = g('bizNo').value.trim();
+  var chId = '';
+  var bizNo = g('bizNo').value.replace(/\D/g,'');
   var addr = g('cafeAddr').value.trim();
 
-  if(!name||!chId||!bizNo||!addr){ toast(window.TLi18n.t('ch.toast.required'),'e'); return; }
-  if(!chId.match(/^[a-z0-9_]{3,20}$/)){ toast('채널 ID는 영문 소문자/숫자/언더스코어 3~20자입니다','e'); return; }
+  if(!name||!bizNo||!addr){ toast(window.TLi18n.t('ch.toast.required'),'e'); return; }
+  if(!/^\d{10}$/.test(bizNo)){toast(window.TLi18n.t('ch.toast.biz.format'),'e');g('bizNo').focus();return;}
 
   var btn = g('submitBtn');
   btn.disabled=true; btn.textContent=window.TLi18n.t('ch.processing');
 
   try{
     var body = {
-      channel_id: chId,
+      channel_id: '',
       name: name,
       country: 'KR',
       biz_reg_num: bizNo,
@@ -644,7 +638,7 @@ async function submitChannel(){
         info.style.cssText = 'margin-top:12px;padding:12px;background:rgba(255,255,255,.04);border-radius:8px;font-size:12px;font-family:var(--fm);color:var(--t2);text-align:left';
         sb.insertBefore(info, sb.querySelector('a'));
       }
-      info.innerHTML = '<div>채널 ID: <b style="color:var(--amber)">'+chId+'</b></div>'+
+      info.innerHTML = '<div>채널 ID: <b style="color:var(--amber)">'+d.channel_id+'</b></div>'+
         '<div>카페명: '+name+'</div>'+
         '<div>만료일: '+new Date(d.expires_at).toLocaleDateString('ko-KR')+'</div>';
     }
