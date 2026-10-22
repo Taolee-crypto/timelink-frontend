@@ -286,39 +286,26 @@ function coverSearchConcept(title,genre){
    Fetch several semantic searches so a title with no matching photo still
    has a realistic landscape choice. */
 async function findFreeCoverImage(title,genre){
- const concepts=coverSearchConcept(title,genre);
- for(const concept of concepts){
-  const endpoint='https://commons.wikimedia.org/w/api.php?origin=*&action=query&generator=search&gsrnamespace=6&gsrlimit=20&gsrsearch='+encodeURIComponent(concept)+'&prop=imageinfo&iiprop=url%7Cextmetadata%7Csize&iiurlwidth=1100&format=json';
-  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),4500);
+ for(const concept of coverSearchConcept(title,genre)){
   try{
-   const response=await fetch(endpoint,{signal:controller.signal});
+   const response=await fetch(API+'/api/unsplash/search?q='+encodeURIComponent(concept));
    if(!response.ok)continue;
-   const data=await response.json(),pages=Object.values(data.query?.pages||{});
-   const valid=pages.map(p=>p.imageinfo?.[0]).filter(info=>{
-    if(!info||info.width<700||info.height<700)return false;
-    const meta=info.extmetadata||{};
-    const license=String(meta.LicenseShortName?.value||'').toLowerCase().replace(/\s/g,'');
-    const url=info.thumburl||info.url||'';
-    return ['cc0','publicdomain','pd-old','pd-art','pd-us','pd-self'].includes(license)&&/^https:\/\/upload\.wikimedia\.org\//.test(url);
-   });
-   if(valid.length){
-    valid.sort((x,y)=>Math.abs(x.width/x.height-1)-Math.abs(y.width/y.height-1));
-    return valid[0].thumburl||valid[0].url;
-   }
-  }catch(e){console.warn('[cover] Image search unavailable:',e.message);}
-  finally{clearTimeout(timeout);}
+   const data=await response.json();
+   const photo=(data.photos||[]).find(p=>p.url&&p.url.startsWith('https://'));
+   if(photo)return photo.url;
+  }catch(e){console.warn('[cover] Unsplash search unavailable',e);}
  }
  return null;
 }
 function drawCoverText(ctx,text,maxWidth,y,size,weight){
- ctx.font=weight+' '+size+'px "Noto Sans KR",sans-serif';
- while(ctx.measureText(text).width>maxWidth&&size>26){size-=2;ctx.font=weight+' '+size+'px "Noto Sans KR",sans-serif';}
+ ctx.font=weight+' '+size+'px "Noto Serif KR","Noto Sans KR",serif';
+ while(ctx.measureText(text).width>maxWidth&&size>26){size-=2;ctx.font=weight+' '+size+'px "Noto Serif KR","Noto Sans KR",serif';}
  ctx.fillText(text,72,y,maxWidth);
 }
 async function generateOriginalCover(){
  const title=$('title').value.trim(),artist=$('artist').value.trim();
  if(!title||!artist)throw Error('곡명과 가수명을 먼저 입력하세요.');
- const status=$('autoCoverStatus');status.textContent='무료 이미지 검색 및 커버 제작 중...';
+ const status=$('autoCoverStatus');status.textContent='Unsplash에서 곡명에 어울리는 사진 검색 중...';
  const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=1000;
  const ctx=canvas.getContext('2d'),hue=[...title].reduce((n,c)=>n+c.codePointAt(0),0)%360;
  const gradient=ctx.createLinearGradient(0,0,1000,1000);
@@ -336,8 +323,9 @@ async function generateOriginalCover(){
  const shade=ctx.createLinearGradient(0,330,0,1000);shade.addColorStop(0,'rgba(0,0,0,0)');shade.addColorStop(1,'rgba(0,0,0,.88)');
  ctx.fillStyle=shade;ctx.fillRect(0,0,1000,1000);
  ctx.fillStyle='#ffffff';ctx.textBaseline='alphabetic';
+ ctx.shadowColor='rgba(0,0,0,.65)';ctx.shadowBlur=15;
  drawCoverText(ctx,title,850,790,86,'800');
- ctx.fillStyle='#e6e6f2';drawCoverText(ctx,artist,850,876,43,'600');
+ ctx.fillStyle='#e6e6f2';drawCoverText(ctx,artist,850,876,43,'600');ctx.shadowBlur=0;
  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.87));
  if(!blob)throw Error('커버 이미지 생성 실패');
  cover=new File([blob],'timelink-auto-cover.jpg',{type:'image/jpeg'});
