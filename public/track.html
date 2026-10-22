@@ -660,6 +660,7 @@ async function loadTrack(){
     
     document.title = (s.title||'곡') + ' - TimeLink';
     renderPage(s, stats, _myFileTL, requiredTL);
+    renderV5Wallet(walletData.wallet);
     if(new URLSearchParams(location.search).get('charge')==='1') setTimeout(function(){ chargeTL(); },250);
     loadComments();
     renderCopyright(s);
@@ -747,7 +748,7 @@ function renderPage(s, stats, myFileTL, requiredTL){
         <div class="track-artist">${escH(s.artist||'')}${s.album?' · <span style="color:var(--t3)">'+escH(s.album)+'</span>':''}</div>
         <div class="track-uploader">가수: ${escH(s.artist||'—')} · 작곡: ${escH(s.composer || s.asset_composer || '—')} · 작사: ${escH(s.lyricist || s.asset_lyricist || '—')} · 공유: ${s.created_at ? new Date(s.created_at).toLocaleDateString('ko-KR') : '—'}</div>
         <div class="track-tl required">${isFree ? '🎵 무료 MP3 · TLC 보상' : '⚡ 재생에 필요한 TL량: '}<span id="reqTLText" style="color:#F5A623;font-weight:700">계산 중...</span><span id="durText" style="font-size:12px;color:var(--t3);font-weight:400">/ ${fmtTime(s.duration)}</span></div>
-        <div class="track-tl my" id="myTLDisplay">${isFree ? '💎 POC → TLC 보상 대상' : '💰 내 지갑 TL: '+formatTLInteger(myFileTL)}</div>
+        <div class="track-tl my" id="myTLDisplay">💰 내 지갑 TL: ${formatTLInteger(myFileTL)}</div>\n        <div class="track-tl my" id="myTLBreakdown" style="font-size:12px;opacity:.85">TL_P · TL_A · TL_B 잔액 조회 중</div>
       </div>
 
       <div class="actions">
@@ -1414,6 +1415,17 @@ function handlePlayClick(){
   else {alert('사용자 지갑 TL 또는 음원 잔여 TL이 부족합니다. 지갑을 확인해 주세요.');chargeTL();}
 }
 
+function renderV5Wallet(wallet){
+  if(!wallet)return;
+  var p=Number(wallet.tl_p||0),a=Number(wallet.tl_a||0),b=Number(wallet.tl_b||0);
+  var total=Number(wallet.tl_total||0);
+  if(!Number.isFinite(total))total=p+a+b;
+  _myFileTL=total;
+  var el=document.getElementById('myTLDisplay');
+  if(el)el.textContent='💰 내 지갑 TL: '+formatTLInteger(total);
+  var breakdown=document.getElementById('myTLBreakdown');
+  if(breakdown)breakdown.textContent='TL_P '+formatTLInteger(p)+' · TL_A '+formatTLInteger(a)+' · TL_B '+formatTLInteger(b);
+}
 async function updateMyTLFromServer(){
   try{
     const h={'Authorization':'Bearer '+getTok()};
@@ -1422,6 +1434,7 @@ async function updateMyTLFromServer(){
     if(!wr.ok) throw new Error(w.error||'TL 조회 실패');
     _myFileTL=Number(w.wallet?.tl_total||0);
     updateUIAfterCharge(_myFileTL);
+    renderV5Wallet(w.wallet);
     updatePlayerTLDisplay();
     return _myFileTL;
   }catch(e){console.warn('[TRACK wallet sync]',e);return _myFileTL;}
