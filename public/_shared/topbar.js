@@ -64,9 +64,9 @@
       + '<button class="tl-upload" onclick="location.href=\'/creator\'">📤 내 파일 업로드</button>'
       + '<div class="tl-balance">'
       +   '<span style="color:rgba(255,255,255,.5)">⏱</span>'
-      +   '<span class="tl-bal-tl">' + totalTL().toLocaleString() + ' TL</span>'
+      +   '<span class="tl-bal-tl" id="tl-topbar-tl">잔액 조회 중</span>'
       +   '<span class="tl-sep"></span>'
-      +   '<span class="tl-bal-tlc">' + tlcVal().toFixed(0) + ' TLC</span>'
+      +   '<span class="tl-bal-tlc" id="tl-topbar-tlc">— TLC</span>'
       +   '<button class="tl-logout" onclick="doLogout()">↩ 로그아웃</button>'
       + '</div>';
     var search = bar.querySelector('#tl-topbar-search');
@@ -83,25 +83,25 @@
   async function fetchBalance(){
     try {
       var r = await fetch('https://api.timelink.digital/api/eco/wallet', {
-        headers: { 'Authorization': 'Bearer ' + _token }
+        headers: { 'Authorization': 'Bearer ' + _token }, cache: 'no-store'
       });
       var d = await r.json();
       var bal = r.ok && d && d.wallet ? Number(d.wallet.tl_total) : NaN;
-      if(isFinite(bal)){
+      if(r.ok && d && d.wallet && d.wallet.tl_total != null && Number.isFinite(bal) && bal >= 0){
         var el = document.getElementById('tl-topbar-tl');
         if(el) el.textContent = Math.floor(Math.max(0,bal)).toLocaleString() + ' TL';
         // 로컬 캐시 갱신
         _user.tl_balance = bal;
         localStorage.setItem('tl_user', JSON.stringify(_user));
       }
-      var tlc = Number(d.tlc_balance);
+      var tlc = d && d.tlc_balance != null ? Number(d.tlc_balance) : NaN;
       if(isFinite(tlc)){
         var el2 = document.getElementById('tl-topbar-tlc');
         if(el2) el2.textContent = tlc.toFixed(2) + ' TLC';
       }
       // 사이드바에도 반영
-      window.dispatchEvent(new CustomEvent('tl-balance-updated', {detail:{tl: bal, tlc: tlc}}));
-    } catch(e){}
+      if(Number.isFinite(bal) && bal >= 0) window.dispatchEvent(new CustomEvent('tl-balance-updated', {detail:{tl: bal, tlc: tlc}}));
+    } catch(e){ console.warn('[Topbar V5 wallet]',e); }
   }
   function inject(){
     styleInject();
