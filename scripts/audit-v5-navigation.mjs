@@ -19,7 +19,7 @@ for(const route of routes){
   if(tab && !page.includes(tab)) failures.push('DASHBOARD TAB NOT REFERENCED '+route);
  }
 }
-const expected=['/dashboard.html','/shareplace.html','/creator.html','/tilo.html','/dj-center.html','/cafe-channel.html','/incar-channel.html','/cafe-world.html','/my-car-world.html','/advertiser.html','/ads.html','/wallet.html','/my-profile.html'];
+const expected=['/dashboard.html','/shareplace.html','/creator.html','/tl-broadcast.html','/dj-center.html','/cafe-channel.html','/incar-channel.html','/cafe-world.html','/my-car-world.html','/advertiser.html','/ads.html','/wallet.html','/my-profile.html'];
 for(const route of expected)if(!routes.includes(route))failures.push('REQUIRED MENU MISSING '+route);
 const creator=fs.readFileSync(path.join(root,'creator.html'),'utf8');
 for(const val of ['new_work','new_recording','same_recording','work_identity_type'])if(!creator.includes(val))failures.push('CREATOR WORK IDENTITY MISSING '+val);
