@@ -1819,6 +1819,24 @@ function doLogout(){
 (function(){
  const clock=document.getElementById('tsClock'),caption=document.getElementById('tsCaption'),person=document.getElementById('tsPerson'),speak=document.getElementById('tsSpeak'),stop=document.getElementById('tsMute');
  if(!clock||!caption||!person||!speak||!stop)return;
+ const status=document.getElementById('tsStatus'),onAir=document.getElementById('tsOnAir');
+ async function refreshStudio(){
+   try{
+     const response=await fetch('https://api.timelink.digital/api/v1/tilo/studio/status',{cache:'no-store'});
+     if(!response.ok)throw new Error('status unavailable');
+     const data=await response.json();
+     if(!data||data.ok!==true||typeof data.live!=='boolean')throw new Error('invalid status');
+     const active=data.live===true&&data.state==='broadcasting'&&!!data.current_track;
+     onAir.dataset.active=active?'true':'false';
+     onAir.textContent=active?'ON AIR':'STUDIO READY';
+     status.textContent=active?'● 방송 송출 중':'● 방송 엔진 연결 대기';
+     if(active&&data.current_track&&data.current_track.title)caption.textContent='현재 방송: '+String(data.current_track.title).slice(0,120);
+   }catch(e){
+     onAir.dataset.active='false';onAir.textContent='STUDIO OFFLINE';
+     status.textContent='● 방송 상태 확인 불가';
+   }
+ }
+ refreshStudio();setInterval(()=>{if(!document.hidden)refreshStudio()},15000);
  const messages=['안녕하세요. TimeLink 중앙방송의 TILO입니다.','세계의 음악을 언어와 국가, 장르에 맞춰 소개합니다.','홍보 신청곡과 일반 공개곡을 방송 시간 기준으로 균형 있게 편성합니다.','카페에서는 기본 방송을 선택하거나 DJ와 계약해 방송할 수 있습니다.'];
  let idx=0,utterance=null;
  function tick(){clock.textContent=new Date().toLocaleTimeString('ko-KR',{hour12:false,timeZone:'Asia/Seoul'})}
