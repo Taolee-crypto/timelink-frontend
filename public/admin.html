@@ -3219,5 +3219,46 @@ async function forceEndLink(id){
 
 
 
+<!-- Central broadcast TILO child identity control: status is persisted by admin API. -->
+<div id="tilo-admin-switch-panel" style="position:fixed;right:18px;bottom:18px;z-index:80;background:#12121f;border:1px solid #7c5cff;border-radius:10px;padding:14px 18px;box-shadow:0 8px 30px #0009;max-width:320px;font-family:'Noto Sans KR',sans-serif">
+  <label style="display:flex;gap:10px;align-items:center;cursor:pointer;color:#f0f0ff;font-size:13px;font-weight:700">
+    <input id="tilo-admin-switch" type="checkbox" disabled style="width:18px;height:18px;accent-color:#7c5cff">
+    중앙방송 하위 아이디 · TILO
+  </label>
+  <p id="tilo-admin-switch-status" role="status" style="font-size:11px;color:#b4b4cb;margin-top:8px">관리자 권한 확인 중…</p>
+</div>
+<script>
+(function(){
+  const check=document.getElementById('tilo-admin-switch');
+  const status=document.getElementById('tilo-admin-switch-status');
+  const url='https://api.timelink.digital/api/admin/central-broadcast/tilo';
+  function token(){return (typeof getAdminToken==='function'&&getAdminToken())||localStorage.getItem('tl_adm_token')||localStorage.getItem('tl_token')||'';}
+  async function request(method,body){
+    const response=await fetch(url,{method,headers:{Authorization:'Bearer '+token(),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||!data.ok)throw Error(data.error||'HTTP '+response.status);
+    return data;
+  }
+  async function load(){
+    try{
+      const d=await request('GET');
+      check.checked=!!d.enabled;check.disabled=false;
+      status.textContent=d.enabled?'하위 아이디 활성화 · 방송 엔진 연결 대기':'하위 아이디 비활성화';
+    }catch(e){status.textContent='관리자 인증 또는 방송 계정 API 확인 필요: '+e.message;}
+  }
+  check.addEventListener('change',async function(){
+    const desired=check.checked;
+    check.disabled=true;status.textContent='TILO 상태 저장 중…';
+    try{
+      const d=await request('POST',{enabled:desired});
+      check.checked=!!d.enabled;
+      status.textContent=d.enabled?'TILO 하위 아이디 활성화 · 실제 방송 엔진 연결 대기':'TILO 하위 아이디 비활성화';
+    }catch(e){check.checked=!desired;status.textContent='변경 실패: '+e.message;}
+    finally{check.disabled=false;}
+  });
+  load();
+})();
+</script>
+
 </body>
 </html>
