@@ -527,7 +527,7 @@ window.addEventListener('resize',()=>requestAnimationFrame(()=>{if(typeof fitTra
 </div>
 
 <!-- TL 플레이어 바 -->
-<div id="tlPlayerBar">
+<div id="v5StopRefundStatus" role="status" aria-live="polite" style="display:none;padding:9px 12px;margin:8px 0;color:#64D2FF;background:rgba(100,210,255,.08);border:1px solid rgba(100,210,255,.25);border-radius:9px;font-size:12px"></div>\n<div id="tlPlayerBar">
   <div style="display:flex;align-items:center;gap:14px;width:100%;max-width:100%;margin:0 auto;box-sizing:border-box">
     <div style="min-width:0;flex:1"><div id="playerTitle" style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">-</div><div id="playerArtist" style="font-size:11px;color:rgba(255,255,255,.4)">-</div></div>
     <div style="flex:1;min-width:0;max-width:260px">
@@ -1911,6 +1911,8 @@ async function playTrack(){
   window._tlElapsed = 0;
   _tlSessionSettledSeconds=0;
   _tlSettledSegments=new Set();
+  const refundStatus=document.getElementById('v5StopRefundStatus');
+  if(refundStatus)refundStatus.style.display='none';
 
   document.getElementById('playerTitle').textContent = _share.title || '';
   document.getElementById('playerArtist').textContent = _share.artist || '';
@@ -2040,6 +2042,22 @@ async function playTrack(){
         _trackTL=_tlCurrentTL;
         updatePlayerTLDisplay();
         console.log('[TRACK TL V5] elapsed playback settlement:',info.delta_tl,'TL; total:',_tlSessionSettledSeconds,'wallet:',_myFileTL);
+      },
+      onStopSettlement: function(info){
+        // The V5 stop request has committed; refresh the canonical wallet rather
+        // than guessing which TL_P/TL_A/TL_B bucket received the refund.
+        const refunded=Math.max(0,Number(info.refunded_tl)||0);
+        const status=document.getElementById('v5StopRefundStatus');
+        if(status){
+          status.textContent='중도 종료 정산 완료 · 잔여 '+formatTLInteger(refunded)+' 반환 · 지갑 동기화 중';
+          status.style.display='block';
+        }
+        refreshWalletTL().then(function(){
+          if(status)status.textContent='중도 종료 정산 완료 · 잔여 '+formatTLInteger(refunded)+' 반환 · 지갑 반영 완료';
+        }).catch(function(err){
+          if(status)status.textContent='잔여 '+formatTLInteger(refunded)+' 반환 · 지갑 새로고침 필요';
+          console.warn('[TRACK TL V5] refund wallet refresh failed',err);
+        });
       },
       onInsufficient: function(info){
         if(!_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;
