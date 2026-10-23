@@ -254,7 +254,29 @@ stationJoin.addEventListener('click',async()=>{
     if(!response.ok||!data.ok)throw Error(data.error||'방송국 권한 확인 실패');
     if(!data.service_enabled)throw Error('TILO 관리자 하위 계정이 비활성화 상태입니다.');
     const tracks=(data.granted_file_ids||[]).filter(x=>Number.isSafeInteger(x)&&x>0);
+
+    if(!tracks.length){
+      let details='이 국가에서 방송 가능한 V5 곡이 0곡입니다.';
+      try{
+        const auditResponse=await fetch('https://api.timelink.digital/api/admin/central-broadcast/stations/'+encodeURIComponent(country)+'/audit',{
+          headers:{Authorization:'Bearer '+token},cache:'no-store'
+        });
+        const audit=await auditResponse.json();
+        if(auditResponse.ok&&audit.ok){
+          const counts={};
+          for(const track of audit.tracks||[])for(const reason of track.reasons||[])counts[reason]=(counts[reason]||0)+1;
+          const labels={NO_V5_RELEASE:'V5 봉인 기록 없음',V5_NOT_SEALED:'V5 봉인 미완료',
+            SHAREPLACE_RELEASE_RIGHTS_MISSING:'SharePlace 권리 확인 없음',
+            COUNTRY_BROADCAST_RIGHTS_MISSING:'국가별 방송 사용권 없음',
+            FILE_TYPE_NOT_TL3:'TL3 파일 형식 불일치'};
+          details+=' 공개 후보 '+audit.total+'곡 · '+Object.entries(counts).map(([k,v])=>(labels[k]||k)+' '+v+'곡').join(', ');
+        }
+      }catch(_){}
+      throw Error(details);
+    }
+
     if(!tracks.length)throw Error('SharePlace V5 자동 선곡 결과가 0곡입니다. V5 봉인·공개·파일 형식을 확인하세요.');
+
     if(generation!==stationGeneration)return;
     joinedCountry=country;stationTracks=tracks;stationPlaying=true;
     renderCountryStation();
