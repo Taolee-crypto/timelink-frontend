@@ -459,8 +459,8 @@ function renderProfileForm(isEdit){
           '<input class="form-input" id="fDjName" placeholder="예: DJ TiLo" value="'+esc(p.dj_name||'')+'">' +
         '</div>' +
         '<div class="form-group">' +
-          '<label class="form-label">프로필 이미지 URL</label>' +
-          '<input class="form-input" id="fAvatar" type="hidden" value="'+esc(p.avatar_url||'')+'"><a href="/my-profile.html" style="color:#64D2FF">공통 회원 프로필로 이동 →</a><div style="font-size:12px;color:#aaa">회원 사진은 공통 프로필과 연동됩니다. 이미지 업로드 기능은 별도로 연결할 예정입니다.</div>' +
+          '<label class="form-label">DJ 프로필 사진</label>' +
+          '<input class="form-input" id="fAvatar" type="hidden" value="'+esc(p.avatar_url||'')+'"><input class="form-input" id="fAvatarFile" type="file" accept="image/png,image/jpeg,image/webp"><div style="font-size:12px;color:#aaa">DJ 전용 사진 (PNG/JPG/WEBP, 256KB 이하). 회원 프로필 사진은 변경되지 않습니다. DJ 프로필을 먼저 저장한 뒤 사진을 올려주세요.</div><button class="btn btn-ghost" type="button" onclick="uploadDjAvatar()">📷 DJ 사진 업로드</button>' +
         '</div>' +
       '</div>' +
       '<div class="form-row one">' +
@@ -513,6 +513,19 @@ function toggleMood(m){
   renderProfileForm(true);
 }
 
+async function uploadDjAvatar(){
+  var input=g('fAvatarFile'),file=input&&input.files&&input.files[0];
+  if(!file){toast('DJ 프로필 사진을 선택해주세요.','e');return;}
+  if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>262144){toast('PNG/JPG/WEBP 256KB 이하 파일을 선택해주세요.','e');return;}
+  try {
+    var res=await fetch(API+'/api/dj-cafe/profile/avatar',{method:'POST',headers:{'Authorization':'Bearer '+_token,'Content-Type':file.type},body:file});
+    var data=await res.json();
+    if(!res.ok||!data.ok)throw new Error(data.error||'업로드 실패');
+    g('fAvatar').value=data.avatar_url;
+    toast('DJ 전용 사진이 저장되었습니다.','s');
+    await loadProfile();
+  }catch(e){toast('사진 업로드 실패: '+e.message,'e');}
+}
 async function saveProfile(){
   var djName = g('fDjName').value.trim();
   if(!djName){ toast('DJ 활동명을 입력하세요','e'); return; }
