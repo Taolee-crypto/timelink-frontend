@@ -113,13 +113,22 @@ h1{font-size:clamp(22px,2.8vw,37px);margin:22px 0 2px;max-width:800px}
 <div class="status" id="station-status" role="status" aria-live="polite">방송국 연결 상태 확인 중…</div></div>
 <div class="station-row"><div class="controls"><label for="country">방송 국가</label><select id="country">
 <option value="KR">🇰🇷 대한민국</option><option value="JP">🇯🇵 日本</option><option value="US">🇺🇸 United States</option><option value="CN">🇨🇳 中国</option><option value="TH">🇹🇭 ประเทศไทย</option><option value="VN">🇻🇳 Việt Nam</option></select>
-<button class="button" id="country-station-join" type="button">▶ 선택 국가 TILO 연결</button></div></div></section>
+<button class="button" id="country-station-join" type="button">▶ 선택 국가 TILO 연결</button><audio id="tilo-broadcast-audio" controls preload="none" aria-label="TILO 중앙방송 오디오 플레이어" style="width:min(100%,360px);height:36px"></audio></div></div></section>
 <aside class="stack"><section class="panel news"><h2>오늘의 주요 뉴스</h2><p id="news-status">검증된 뉴스 공급자 연결을 준비하고 있습니다. 확인되지 않은 기사는 방송하지 않습니다.</p></section>
 <section class="panel schedule"><h2>SharePlace 선곡 분석</h2><p id="catalog-status">공개 TL3 음원 목록을 확인하고 있습니다.</p><p id="catalog-genres"></p><button type="button" class="button" id="next-selection" disabled>↻ 다음 랜덤 선곡</button><p style="font-size:11px">선곡 미리보기 · 실제 재생과 TL 차감은 아직 연결되지 않았습니다.</p></section>
 <section class="panel schedule"><h2>Next on air</h2><p id="broadcast-playlist-status">V5 공개 음원 목록을 확인하는 중…</p><div id="broadcast-playlist" aria-live="polite"></div><p id="broadcast-settlement-preview" class="muted"></p></section></aside></div>
 
 <div class="genre-row" aria-label="방송 장르 미리보기"><div class="genre-tile">♫ K-POP</div><div class="genre-tile">♡ 발라드</div><div class="genre-tile">♬ 인디</div><div class="genre-tile">♩ 재즈</div><div class="genre-tile">⚡ 일렉트로닉</div></div><p class="foot">방송 화면 미리보기 · 뉴스, 음성 및 재생 기능은 연결 상태가 확인된 후 활성화됩니다.</p></main>
+<script src="/tl3-v5-player.js?v=tl3-v5-20261019a"></script>
 <script>
+const broadcastAudio=document.getElementById('tilo-broadcast-audio');
+// Reuse the exact TRACK V5 playback engine. Its playStream method performs
+// personal wallet preflight and billing, so never invoke it for free radio.
+// A separately authorized broadcast session must supply audio to this element.
+const sharedV5Player=window.TL3V5Player;
+if(!sharedV5Player||typeof sharedV5Player.playStream!=='function'){
+  console.error('[TILO] TRACK TL3 V5 player library unavailable');
+}
 const select=document.getElementById('country'),status=document.getElementById('station-status'),title=document.getElementById('dj-title');
 const names={KR:'TILO Korea',JP:'TILO Japan',US:'TILO United States',CN:'TILO China',TH:'TILO Thailand',VN:'TILO Vietnam'};
 let request=0;
@@ -145,9 +154,10 @@ stationJoin.addEventListener('click',()=>{
   joinedCountry=joinedCountry===c?null:c;
   renderCountryStation();
   if(joinedCountry){
-    status.textContent=countrySession[c].name+' ('+countrySession[c].lang+') 선택됨 · 실제 오디오 스트림 미연결';
+    status.textContent=countrySession[c].name+' ('+countrySession[c].lang+') 선택됨 · TRACK V5 재생 엔진 로드 '+(sharedV5Player?'완료':'실패')+' · 방송 전용 라이선스/스트림 대기';
   }else{
-    status.textContent=countrySession[c].name+' 연결 해제 · 실제 오디오 스트림 미연결';
+    broadcastAudio.pause();broadcastAudio.removeAttribute('src');broadcastAudio.load();
+    status.textContent=countrySession[c].name+' 연결 해제';
   }
 });
 renderCountryStation();
