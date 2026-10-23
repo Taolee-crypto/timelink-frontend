@@ -181,6 +181,14 @@ function renderCountryStation(){
   if(joinedCountry!==c)status.textContent=countrySession[c].name+' · 현지 방송 선택 준비';
 }
 let stationTracks=[],stationGeneration=0,stationPlaying=false,tiloSpeaking=false;
+const tiloGreeting={
+  KR:'안녕하세요. 음악으로 하루를 이어가는 타임링크입니다. 저는 오늘 여러분과 함께할 디제이, 틸로예요. 잠시 음악과 함께 편안한 시간을 가져보세요. 자, 그럼 첫 번째 음악을 만나볼까요?',
+  JP:'こんにちは。タイムリンクのDJ、ティロです。今日も音楽と一緒に、心地よい時間をお過ごしください。それでは、最初の曲をお届けします。',
+  US:"Hello, and welcome to TimeLink. I'm Tilo, your DJ today. Wherever you are, I hope the music brings a little warmth to your day. Let's begin with our first song.",
+  CN:'大家好，欢迎来到TimeLink。我是今天的音乐主持人Tilo。愿音乐陪伴您度过美好的时光。现在，一起来听第一首歌吧。',
+  TH:'สวัสดีค่ะ ยินดีต้อนรับสู่ไทม์ลิงก์ ฉันชื่อทิโล ดีเจของคุณวันนี้ ขอให้เสียงเพลงเติมความสุขให้กับวันของคุณ มาเริ่มฟังเพลงแรกกันเลยค่ะ',
+  VN:'Xin chào, chào mừng bạn đến với TimeLink. Mình là Tilo, DJ đồng hành cùng bạn hôm nay. Chúc bạn có những phút giây thật dễ chịu cùng âm nhạc. Và bây giờ, mời bạn nghe ca khúc đầu tiên.'
+};
 const tiloInterlude={
   KR:'지금까지 함께해 주셔서 감사합니다. 잠시 후 다음 음악을 들려드리겠습니다.',
   JP:'お聴きいただきありがとうございます。続いて次の曲をお届けします。',
@@ -204,7 +212,11 @@ const tiloVoiceAdapters={
       return new Promise((resolve,reject)=>{
         const utterance=new SpeechSynthesisUtterance(text);
         utterance.lang=locale;
-        utterance.rate=0.95;
+        utterance.rate=0.92;
+        utterance.pitch=1.03;
+        const voices=window.speechSynthesis.getVoices();
+        const localVoices=voices.filter(v=>v.lang.toLowerCase().startsWith(locale.slice(0,2).toLowerCase()));
+        utterance.voice=localVoices.find(v=>/natural|neural|premium|enhanced|online/i.test(v.name))||localVoices.find(v=>v.lang.toLowerCase()===locale.toLowerCase())||localVoices[0]||null;
         utterance.onstart=onStart;
         utterance.onend=()=>resolve();
         utterance.onerror=e=>reject(new Error('음성합성 실패: '+(e.error||'unknown')));
@@ -216,7 +228,7 @@ const tiloVoiceAdapters={
   }
 };
 let tiloVoiceProfileId='system';
-async function speakTilo(generation,country){
+async function speakTilo(generation,country,text=tiloInterlude[country]){
   if(generation!==stationGeneration||!stationPlaying||joinedCountry!==country)return false;
   const profile=tiloVoiceProfiles[tiloVoiceProfileId];
   const adapter=profile&&profile.enabled&&tiloVoiceAdapters[profile.provider];
@@ -225,7 +237,7 @@ async function speakTilo(generation,country){
   tiloSpeaking=true;
   try{
     await adapter.speak({
-      text:tiloInterlude[country],
+      text,
       locale:countrySession[country].lang,
       onStart:()=>{if(generation===stationGeneration)status.textContent=countrySession[country].name+' · TILO 진행 멘트 중 (다음 곡 일시정지)';}
     });
@@ -365,7 +377,9 @@ stationJoin.addEventListener('click',async()=>{
     if(generation!==stationGeneration)return;
     joinedCountry=country;stationTracks=tracks;stationPlaying=true;
     renderCountryStation();
-    await nextTiloTrack(generation,country);
+    status.textContent=countrySession[country].name+' · TILO 첫인사 준비 중';
+    await speakTilo(generation,country,tiloGreeting[country]);
+    if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)await nextTiloTrack(generation,country);
   }catch(e){if(generation===stationGeneration)status.textContent='방송 시작 불가: '+String(e?.message||e);}
   finally{stationJoin.disabled=false;}
 });
