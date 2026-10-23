@@ -113,7 +113,7 @@ h1{font-size:clamp(22px,2.8vw,37px);margin:22px 0 2px;max-width:800px}
 <div class="status" id="station-status" role="status" aria-live="polite">방송국 연결 상태 확인 중…</div></div>
 <div class="station-row"><div class="controls"><label for="country">방송 국가</label><select id="country">
 <option value="KR">🇰🇷 대한민국</option><option value="JP">🇯🇵 日本</option><option value="US">🇺🇸 United States</option><option value="CN">🇨🇳 中国</option><option value="TH">🇹🇭 ประเทศไทย</option><option value="VN">🇻🇳 Việt Nam</option></select>
-<button class="button" id="country-station-join" type="button">▶ 선택 국가 TILO 연결</button><button class="button" id="tilo-grant-open" type="button">방송곡 등록</button><audio id="tilo-broadcast-audio" controls preload="none" aria-label="TILO 중앙방송 오디오 플레이어" style="width:min(100%,360px);height:36px"></audio></div></div></section>
+<button class="button" id="country-station-join" type="button">▶ 선택 국가 TILO 연결</button><audio id="tilo-broadcast-audio" controls preload="none" aria-label="TILO 중앙방송 오디오 플레이어" style="width:min(100%,360px);height:36px"></audio></div></div></section>
 <aside class="stack"><section class="panel news"><h2>오늘의 주요 뉴스</h2><p id="news-status">검증된 뉴스 공급자 연결을 준비하고 있습니다. 확인되지 않은 기사는 방송하지 않습니다.</p></section>
 <section class="panel schedule"><h2>SharePlace 선곡 분석</h2><p id="catalog-status">공개 TL3 음원 목록을 확인하고 있습니다.</p><p id="catalog-genres"></p><button type="button" class="button" id="next-selection" disabled>↻ 다음 랜덤 선곡</button><p style="font-size:11px">선곡 미리보기 · 실제 재생과 TL 차감은 아직 연결되지 않았습니다.</p></section>
 <section class="panel schedule"><h2>Next on air</h2><p id="broadcast-playlist-status">V5 공개 음원 목록을 확인하는 중…</p><div id="broadcast-playlist" aria-live="polite"></div><p id="broadcast-settlement-preview" class="muted"></p></section></aside></div>
@@ -195,7 +195,7 @@ stationJoin.addEventListener('click',async()=>{
     if(!response.ok||!data.ok)throw Error(data.error||'방송국 권한 확인 실패');
     if(!data.service_enabled)throw Error('TILO 관리자 하위 계정이 비활성화 상태입니다.');
     const tracks=(data.granted_file_ids||[]).filter(x=>Number.isSafeInteger(x)&&x>0);
-    if(!tracks.length)throw Error('방송 사용권이 승인된 곡이 없습니다.');
+    if(!tracks.length)throw Error('이 국가에서 방송 가능한 V5 곡이 0곡입니다. SharePlace 공개·V5 봉인·국가별 방송권 데이터를 확인하세요.');
     if(generation!==stationGeneration)return;
     joinedCountry=country;stationTracks=tracks;stationPlaying=true;
     renderCountryStation();
@@ -205,36 +205,6 @@ stationJoin.addEventListener('click',async()=>{
 });
 select.addEventListener('change',()=>{stopTilo();});
 renderCountryStation();
-const grantOpen=document.getElementById('tilo-grant-open');
-grantOpen.addEventListener('click',async()=>{
-  const country=select.value;
-  const token=localStorage.getItem('tl_token')||'';
-  if(!token){status.textContent='방송곡 등록은 관리자 로그인이 필요합니다.';return;}
-  grantOpen.disabled=true;
-  try{
-    const inventory=await fetch('https://api.timelink.digital/api/v5/central-broadcast/inventory',{cache:'no-store'});
-    const payload=await inventory.json();
-    if(!inventory.ok||!payload.ok)throw Error(payload.error||'V5 방송 후보 목록 조회 실패');
-    const candidates=(payload.tracks||[]).filter(t=>Number.isSafeInteger(t.file_id)&&t.file_id>0);
-    if(!candidates.length)throw Error('방송 후보가 없습니다. V5 봉인·SharePlace 공개·저작권 확인 상태를 점검하세요.');
-    const choices=candidates.slice(0,30).map(t=>t.file_id+' · '+String(t.title||'제목 없음')).join('\n');
-    const answer=window.prompt(country+' 방송 편성할 곡의 번호를 입력하세요.\n(해당 국가의 저작권자 방송권이 등록된 곡만 승인됩니다.)\n'+choices);
-    if(answer===null)return;
-    const fileId=Number(answer.trim());
-    if(!Number.isSafeInteger(fileId)||!candidates.some(t=>t.file_id===fileId))throw Error('후보 목록에 있는 곡 번호를 입력하세요.');
-    const result=await fetch('https://api.timelink.digital/api/admin/central-broadcast/stations/'+encodeURIComponent(country)+'/grants',{
-      method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
-      body:JSON.stringify({file_id:fileId})
-    });
-    const data=await result.json();
-    if(!result.ok||!data.ok){
-      if(data.error==='BROADCAST_RIGHTS_NOT_CLEARED')throw Error('해당 국가 방송권이 아직 승인되지 않았습니다. 권리자 허가를 먼저 등록해야 합니다.');
-      throw Error(data.error||'방송곡 등록 실패');
-    }
-    status.textContent='곡 '+fileId+' 방송 편성 승인 완료 · 이제 TILO 연결 버튼을 누르세요.';
-  }catch(e){status.textContent='방송곡 등록 실패: '+String(e.message||e);}
-  finally{grantOpen.disabled=false;}
-});
 async function loadBroadcastInventory(){
   const list=document.getElementById('broadcast-playlist');
   const message=document.getElementById('broadcast-playlist-status');
