@@ -1005,7 +1005,22 @@ function renderTracks(tracks){
 }
 
 // ── 트랙 클릭 ──
+// V5 safety gate: the radio catalogue must never bypass encrypted TL3 playback
+// or simulate TL deductions in localStorage. Use the canonical Track V5 player.
+function openV5RadioTrack(s){
+  var raw=String((s&&(s.id||s.share_id))||'');
+  if(!/^(?:tl3_)?[0-9]+$/.test(raw)){
+    toast('V5 재생 ID를 확인할 수 없습니다. 공유플레이스에서 곡을 선택해 주세요.','e');
+    return;
+  }
+  var id=raw.startsWith('tl3_')?raw:'tl3_'+raw;
+  window.location.assign('/track.html?id='+encodeURIComponent(id));
+}
+
 async function onTrackClick(s){
+  // All radio catalogue play requests go through the authoritative V5 player.
+  openV5RadioTrack(s);
+  return;
   var sid = String(s.id);
   var myTL = _myFileTL[sid]||0;
   var walletTL = ((_user&&_user.tl)||0);
@@ -1061,6 +1076,9 @@ async function autoCharge(shareId, amount){
 
 // ── 재생 ──
 function playTrack(s){
+  // Legacy raw-audio playback is forbidden for V5 assets.
+  openV5RadioTrack(s);
+  return;
   if(_audio){ _audio.pause(); _audio=null; }
   var url = s.stream_url || s.preview_url;
   if(!url){ toast('재생 가능한 URL이 없습니다','e'); return; }
