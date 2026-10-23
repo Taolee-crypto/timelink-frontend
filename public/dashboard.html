@@ -551,10 +551,13 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
     <!-- 카페 -->
     <div class="tab-panel" id="tab-cafe">
       <div class="sec">
-        <div class="sec-head"><div class="sec-title">☕ 내 카페 채널</div></div>
+        <div class="sec-head"><div class="sec-title">▣ 내 채널</div></div>
         <div id="cafeChannelList">
           <div style="text-align:center;padding:32px;color:var(--t3);font-size:13px">로딩 중...</div>
         </div>
+        <div class="sec-head" style="margin-top:26px"><div class="sec-title">🚗 내 인카채널</div></div>
+        <div id="incarChannelList"><div style="text-align:center;padding:20px;color:var(--t3);font-size:13px">로딩 중...</div></div>
+        <div style="margin-top:16px"><a href="incar-channel.html" class="tl-btn tl-btn-primary">🚗 인카채널 개설 또는 관리</a></div>
         <div style="margin-top:16px">
           <a href="cafe-channel.html" class="tl-btn tl-btn-primary">☕ 새 카페 채널 개설</a>
         </div>
@@ -824,6 +827,7 @@ async function deleteMyFile(id, title){
 // 카페 탭
 // ═══════════════════════════════════════════
 async function loadCafeTab(){
+  loadMyIncarChannel();
   try{
     var r = await fetch(API + '/api/cafe/channels');
     var d = await r.json();
@@ -848,6 +852,25 @@ async function loadCafeTab(){
   }catch(e){
     console.warn('카페 탭 로드 실패:', e);
   }
+}
+
+async function loadMyIncarChannel(){
+  var box=g('incarChannelList');
+  if(!box)return;
+  try{
+    var response=await fetch(API+'/api/incar/my-channel',{headers:{'Authorization':'Bearer '+_token}});
+    if(!response.ok)throw new Error('채널 조회 실패 ('+response.status+')');
+    var result=await response.json();
+    if(!result.ok)throw new Error(result.error||'채널 조회 실패');
+    if(!result.registered||!result.channel){
+      box.innerHTML='<div style="text-align:center;padding:20px;color:var(--t3);font-size:13px">개설한 인카채널이 없습니다.</div>';
+      return;
+    }
+    var ch=result.channel;
+    box.innerHTML='<div style="padding:14px;border-radius:12px;background:var(--card2);border:1px solid var(--bd);display:flex;align-items:center;gap:12px;margin-bottom:8px">'+
+      '<span style="font-size:20px">🚗</span><div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(ch.name||ch.channel_name||'내 인카채널')+'</div><div style="font-size:11px;color:var(--t3)">등록된 내 차량 방송</div></div>'+
+      '<a href="incar-studio.html" class="tl-btn tl-btn-primary" style="padding:7px 14px;font-size:12px">채널 관리</a></div>';
+  }catch(e){box.textContent='인카채널을 불러오지 못했습니다: '+e.message;}
 }
 
 // ═══════════════════════════════════════════
