@@ -149,10 +149,46 @@ function renderCountryStation(){
   stationJoin.setAttribute('aria-pressed',String(joinedCountry===c));
   if(joinedCountry!==c)status.textContent=countrySession[c].name+' · 현지 방송 선택 준비';
 }
-let stationTracks=[],stationGeneration=0,stationPlaying=false;
+let stationTracks=[],stationGeneration=0,stationPlaying=false,tiloSpeaking=false;
+const tiloInterlude={
+  KR:'지금까지 함께해 주셔서 감사합니다. 잠시 후 다음 음악을 들려드리겠습니다.',
+  JP:'お聴きいただきありがとうございます。続いて次の曲をお届けします。',
+  US:'Thank you for listening. Coming up next, another song for you.',
+  CN:'感谢您的收听。接下来为您播放下一首歌曲。',
+  TH:'ขอบคุณที่รับฟัง ต่อไปพบกับเพลงถัดไปค่ะ',
+  VN:'Cảm ơn bạn đã lắng nghe. Sau đây là ca khúc tiếp theo.'
+};
+function speakTilo(generation,country){
+  return new Promise(resolve=>{
+    if(generation!==stationGeneration||!stationPlaying||joinedCountry!==country){resolve(false);return;}
+    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){
+      status.textContent='TILO 음성 엔진을 사용할 수 없어 다음 곡 재생을 보류합니다.';
+      resolve(false);return;
+    }
+    broadcastAudio.pause();
+    tiloSpeaking=true;
+    const speech=new SpeechSynthesisUtterance(tiloInterlude[country]);
+    speech.lang=countrySession[country].lang;
+    speech.rate=0.95;
+    let settled=false;
+    const finish=ok=>{
+      if(settled)return;
+      settled=true;
+      tiloSpeaking=false;
+      resolve(ok&&generation===stationGeneration&&stationPlaying&&joinedCountry===country);
+    };
+    speech.onend=()=>finish(true);
+    speech.onerror=()=>{status.textContent='TILO 멘트 재생 오류 · 다음 곡 대기';finish(false);};
+    status.textContent=countrySession[country].name+' · TILO 진행 멘트 중 (다음 곡 일시정지)';
+    try{window.speechSynthesis.cancel();window.speechSynthesis.speak(speech);}
+    catch(e){status.textContent='TILO 음성 재생 실패';finish(false);}
+  });
+}
 async function stopTilo(){
   stationGeneration++;
   stationPlaying=false;
+  tiloSpeaking=false;
+  if('speechSynthesis' in window)window.speechSynthesis.cancel();
   if(typeof broadcastAudio._tl3Stop==='function')broadcastAudio._tl3Stop();
   else broadcastAudio.pause();
   stationTracks=[];
@@ -174,8 +210,11 @@ async function nextTiloTrack(generation,country){
     });
   }catch(e){if(generation===stationGeneration){status.textContent='방송 재생 실패: '+String(e?.message||e);stationPlaying=false;}}
 }
-broadcastAudio.addEventListener('ended',()=>{
-  if(stationPlaying&&joinedCountry)nextTiloTrack(stationGeneration,joinedCountry);
+broadcastAudio.addEventListener('ended',async()=>{
+  if(!stationPlaying||!joinedCountry||tiloSpeaking)return;
+  const generation=stationGeneration,country=joinedCountry;
+  const completed=await speakTilo(generation,country);
+  if(completed)await nextTiloTrack(generation,country);
 });
 stationJoin.addEventListener('click',async()=>{
   const country=select.value;
