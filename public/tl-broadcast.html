@@ -197,7 +197,24 @@ function tiloOpening(country){
   const period=hour>=5&&hour<11?'morning':hour>=11&&hour<18?'day':hour>=18&&hour<22?'evening':'night';
   const choices=tiloGreetingThemes[country]?.[period]||tiloGreetingThemes.KR[period];
   const day=Number(parts.find(p=>p.type==='day')?.value||1);
-  return choices[(day+hour)%choices.length];
+  const recent=recentTiloText(country,'opening');
+  return choices.find(t=>!recent.includes(t))||choices[(day+hour)%choices.length];
+}
+// First-stage DJ learning: local station memory, not model-weight training.
+const tiloMemoryKey='tilo-v5-dj-memory-v1';
+function readTiloMemory(){
+  try{const data=JSON.parse(localStorage.getItem(tiloMemoryKey)||'{}');return data&&typeof data==='object'?data:{};}catch(_){return {};}
+}
+function rememberTilo(country,kind,text,extra={}){
+  try{
+    const all=readTiloMemory(),entries=Array.isArray(all[country])?all[country]:[];
+    entries.push({at:new Date().toISOString(),kind,text:String(text||'').slice(0,300),...extra});
+    all[country]=entries.slice(-100);
+    localStorage.setItem(tiloMemoryKey,JSON.stringify(all));
+  }catch(_){/* Storage restrictions must never interrupt the broadcast. */}
+}
+function recentTiloText(country,kind){
+  return (readTiloMemory()[country]||[]).filter(x=>x.kind===kind).slice(-8).map(x=>x.text);
 }
 const tiloInterlude={
   KR:'지금까지 함께해 주셔서 감사합니다. 잠시 후 다음 음악을 들려드리겠습니다.',
@@ -251,6 +268,7 @@ async function speakTilo(generation,country,text=tiloInterlude[country]){
       locale:countrySession[country].lang,
       onStart:()=>{if(generation===stationGeneration)status.textContent=countrySession[country].name+' · TILO 진행 멘트 중 (다음 곡 일시정지)';}
     });
+    if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)rememberTilo(country,text===tiloInterlude[country]?'interlude':'opening',text);
     return generation===stationGeneration&&stationPlaying&&joinedCountry===country;
   }catch(e){
     if(generation===stationGeneration)status.textContent='TILO 멘트 재생 오류 · 다음 곡 대기: '+String(e.message||e);
@@ -273,7 +291,9 @@ async function stopTilo(){
 async function nextTiloTrack(generation,country){
   if(generation!==stationGeneration||!joinedCountry||joinedCountry!==country)return;
   if(!stationTracks.length){status.textContent='재생 가능한 SharePlace V5 음원이 없습니다.';await stopTilo();return;}
-  const fileId=stationTracks.shift();
+  const recentTracks=(readTiloMemory()[country]||[]).filter(x=>x.kind==='track').slice(-Math.min(5,stationTracks.length-1)).map(x=>Number(x.fileId));
+  const candidate=stationTracks.findIndex(id=>!recentTracks.includes(id));
+  const fileId=stationTracks.splice(candidate>=0?candidate:0,1)[0];
   stationTracks.push(fileId);
   status.textContent=countrySession[country].name+' · TL3 V5 음원 '+fileId+' 재생 연결 중';
   try{
@@ -282,7 +302,7 @@ async function nextTiloTrack(generation,country){
     await sharedV5Player.playStream('tl3_'+fileId,broadcastAudio,{
       broadcastCountry:country,
       onError:e=>{if(generation===stationGeneration)status.textContent='방송 재생 오류: '+String(e?.message||e);},
-      onReady:()=>{if(generation===stationGeneration)status.textContent=countrySession[country].name+' · V5 방송 재생 중 (개인 TL 차감 없음)';}
+      onReady:()=>{if(generation===stationGeneration){status.textContent=countrySession[country].name+' · V5 방송 재생 중 (개인 TL 차감 없음)';rememberTilo(country,'track','V5 track '+fileId,{fileId});}}
     });
   }catch(e){if(generation===stationGeneration){status.textContent='방송 재생 실패: '+String(e?.message||e);stationPlaying=false;}}
 }
@@ -320,6 +340,7 @@ async function tiloBetweenSongs(generation,country){
     await nextTiloTrack(generation,country);return;
   }
   const words=String(plan.commentary||'').trim().slice(0,220);
+  if(recentTiloText(country,'editorial').includes(words)){await nextTiloTrack(generation,country);return;}
   if(!words||!('speechSynthesis' in window)){
     await nextTiloTrack(generation,country);return;
   }
@@ -332,7 +353,7 @@ async function tiloBetweenSongs(generation,country){
     if(completed)return;completed=true;tiloSpeech=null;
     if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)nextTiloTrack(generation,country);
   };
-  utterance.onend=continueMusic;
+  utterance.onend=()=>{rememberTilo(country,'editorial',words);continueMusic();};
   utterance.onerror=continueMusic;
   status.textContent=countrySession[country].name+' · TILO AI DJ 멘트 중';
   window.speechSynthesis.speak(utterance);
