@@ -41,7 +41,7 @@
     db.close();return credential;
   }
   let registeredKey='',registerPromise=null;
-  async function unwrapAssetKey(fileId,shareId,sessionId){
+  async function unwrapAssetKey(fileId,shareId,sessionId,broadcastCountry){
     const credential=await playerCredential();
     const cacheKey=token()+'|'+credential.playerId;
     if(registeredKey!==cacheKey||!registerPromise){
@@ -54,7 +54,7 @@
     await registerPromise;
     const envelope=await request(API+'/api/v1/tl3/v5/session-license/'+encodeURIComponent(fileId),{
       method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
-      body:JSON.stringify({player_id:credential.playerId,session_id:sessionId})
+      body:JSON.stringify({player_id:credential.playerId,session_id:sessionId,...(broadcastCountry?{broadcast_country:broadcastCountry}:{})})
     });
     if(envelope.version!==1||envelope.algorithm!=='ECDH-P256/HKDF-SHA256/AES-256-GCM'||
        Number(envelope.file_id)!==Number(fileId)||String(envelope.session_id)!==sessionId||
@@ -137,11 +137,13 @@
     const data=await resolve(id);
     if(Number(data.version)!==5)throw new Error('TL3 V5 자산이 아닙니다.');
     const fileId=Number(data.file_id),shareId=String(data.share_id),sessionId=String(opts.sessionId||sid());
-    const pre=await request(API+'/api/v1/tl3/play/preflight/'+encodeURIComponent(fileId),{
+    const broadcastCountry=String(opts.broadcastCountry||'').toUpperCase();
+    if(broadcastCountry && !['KR','JP','US','CN','TH','VN'].includes(broadcastCountry))throw new Error('Invalid broadcast country');
+    const pre=broadcastCountry?{can_play:true}:await request(API+'/api/v1/tl3/play/preflight/'+encodeURIComponent(fileId),{
       method:'POST',headers:auth()
     });
     if(!pre.can_play)throw new Error('TL이 부족하여 TL3 V5를 재생할 수 없습니다.');
-    const contentKey=await unwrapAssetKey(fileId,shareId,sessionId);
+    const contentKey=await unwrapAssetKey(fileId,shareId,sessionId,broadcastCountry);
     const response=await fetch(API+'/api/v1/tl3/v5/container/'+encodeURIComponent(fileId)+'?session_id='+encodeURIComponent(sessionId),{headers:auth(),cache:'no-store'});
     if(!response.ok)throw new Error('TL3 V5 컨테이너 다운로드 실패 (HTTP '+response.status+')');
     const container=new Uint8Array(await response.arrayBuffer());
@@ -209,10 +211,10 @@
       lastTime=now;
       publishProgress(false);
       const target=Math.floor((billableMs+1e-6)/1000);
-      if(target>meterQueued)queueMeter(target,false);
+      if(!broadcastCountry && target>meterQueued)queueMeter(target,false);
     }
     function queueMeter(target,complete){
-      if(target<=meterQueued||meterFailed)return;
+      if(broadcastCountry||target<=meterQueued||meterFailed)return;
       meterQueued=target;
       const playedMs=complete?totalMs:Math.min(totalMs,Math.floor(billableMs));
       meterQueue=meterQueue.then(async()=>{
@@ -266,10 +268,10 @@
       // Flush accrued audible time before closing the session. The server
       // returns unused TL to the original wallet buckets atomically and rejects future meters.
       sample(true);
-      if(!meterFailed&&billableMs>0)queueMeter(Number((billableMs/1000).toFixed(3)),false);
+      if(!broadcastCountry&&!meterFailed&&billableMs>0)queueMeter(Number((billableMs/1000).toFixed(3)),false);
       const closingMeter=meterQueue;
       closingMeter.then(async()=>{
-        if(meterFailed||audio.ended)return;
+        if(broadcastCountry||meterFailed||audio.ended)return;
         const response=await fetch(API+'/api/v1/tl3/play/stop/'+encodeURIComponent(fileId),{
           method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
           body:JSON.stringify({session_id:sessionId})
