@@ -152,6 +152,8 @@ function renderCountryStation(){
 let stationTracks=[],stationGeneration=0,stationPlaying=false;
 async function stopTilo(){
   stationGeneration++;
+  cancelTiloSpeech();
+  tiloCompletedSongs=0;
   stationPlaying=false;
   if(typeof broadcastAudio._tl3Stop==='function')broadcastAudio._tl3Stop();
   else broadcastAudio.pause();
@@ -174,8 +176,54 @@ async function nextTiloTrack(generation,country){
     });
   }catch(e){if(generation===stationGeneration){status.textContent='방송 재생 실패: '+String(e?.message||e);stationPlaying=false;}}
 }
+// TILO editorial AI runs only between songs; a failure must never stop the music.
+let tiloCompletedSongs=0;
+let tiloSpeech=null;
+function cancelTiloSpeech(){
+  if(tiloSpeech && 'speechSynthesis' in window)window.speechSynthesis.cancel();
+  tiloSpeech=null;
+}
+async function tiloBetweenSongs(generation,country){
+  if(generation!==stationGeneration||!stationPlaying||joinedCountry!==country)return;
+  tiloCompletedSongs++;
+  // Give the DJ discretion without interrupting every song.
+  if(tiloCompletedSongs%3!==0){await nextTiloTrack(generation,country);return;}
+  try{
+    const token=localStorage.getItem('tl_token')||'';
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),8000);
+    let response;
+    try{
+      response=await fetch('https://api.timelink.digital/api/dj/tilo/daily-context/'+encodeURIComponent(country),{
+        method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
+        body:JSON.stringify({headlines:[]}),signal:controller.signal
+      });
+    }finally{clearTimeout(timeout);}
+    if(!response.ok)throw Error('AI editorial unavailable');
+    const data=await response.json();
+    if(generation!==stationGeneration||!stationPlaying||joinedCountry!==country)return;
+    const words=String(data?.plan?.commentary||'').trim().slice(0,350);
+    if(!data.ok||data.plan?.speak_now!==true||!words||!('speechSynthesis' in window)){
+      await nextTiloTrack(generation,country);return;
+    }
+    const utterance=new SpeechSynthesisUtterance(words);
+    tiloSpeech=utterance;
+    utterance.lang=countrySession[country].lang;
+    utterance.rate=0.98;
+    let finished=false;
+    const continueMusic=()=>{if(finished)return;finished=true;tiloSpeech=null;if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)nextTiloTrack(generation,country);};
+    utterance.onend=continueMusic;
+    utterance.onerror=continueMusic;
+    status.textContent=countrySession[country].name+' · TILO AI DJ 멘트 중';
+    window.speechSynthesis.speak(utterance);
+    // Some browsers silently refuse speech synthesis; continue playback.
+    setTimeout(continueMusic,Math.max(6000,Math.min(24000,words.length*180)));
+  }catch(_){
+    if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)await nextTiloTrack(generation,country);
+  }
+}
 broadcastAudio.addEventListener('ended',()=>{
-  if(stationPlaying&&joinedCountry)nextTiloTrack(stationGeneration,joinedCountry);
+  if(stationPlaying&&joinedCountry)tiloBetweenSongs(stationGeneration,joinedCountry);
 });
 stationJoin.addEventListener('click',async()=>{
   const country=select.value;
