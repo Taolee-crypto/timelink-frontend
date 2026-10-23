@@ -66,6 +66,12 @@ nav{background:rgba(10,10,10,.9);border-color:var(--line)}
 
 <section class="card" id="panel1">
 <h2 data-i18n="creator.audio.heading">음원 등록</h2><p class="desc" data-i18n="creator.audio.desc">음원 원본은 TL3 V5 제조 요청 중 일시 전송되어 암호화 처리된다. 원본 음원을 별도 파일로 보관하지 않고 TL3 V5 암호화 패키지를 등록한다.</p>
+<section class="spotify-search" aria-labelledby="creatorConnectTitle">
+ <div class="spotify-search-head"><div><h3 id="creatorConnectTitle">🌍 TimeLink Creator Connect</h3><p>다른 플랫폼에서 활동 중인 음악가도 기존 활동을 유지하면서 타임링크에 음악을 등록할 수 있습니다.</p></div><span class="spotify-mark">CREATOR CONNECT</span></div>
+ <div class="row"><div class="field"><label for="creatorConnectPlatform">기존 활동 플랫폼 (선택)</label><select id="creatorConnectPlatform" style="width:100%;padding:12px;background:var(--panel2);color:var(--txt);border:1px solid var(--line2);border-radius:10px"><option value="">선택 안 함 / 신인 음악가</option><option value="spotify">Spotify</option><option value="soundcloud">SoundCloud</option><option value="audius">Audius</option><option value="bandcamp">Bandcamp</option><option value="other">기타</option></select></div><div class="field"><label for="creatorConnectUrl">아티스트 프로필 주소 (선택)</label><input id="creatorConnectUrl" type="url" inputmode="url" placeholder="https://..."></div></div>
+ <p class="spotify-footnote" id="creatorConnectHelp">기존 프로필은 음악가의 활동 정보를 참고하기 위한 것입니다. 계정 소유권이나 음원 권리가 자동 검증되는 것은 아닙니다. 외부 플랫폼의 음원 파일을 가져오지 않습니다.</p>
+ <div class="actions"><button type="button" class="btn secondary" id="creatorConnectSave">활동 정보 임시 저장</button><span id="creatorConnectStatus" class="spotify-footnote" role="status"></span></div>
+</section>
 <section class="spotify-search" aria-labelledby="spotifySearchTitle"><div class="spotify-search-head"><div><h3 id="spotifySearchTitle" data-i18n="creator.spotify.title">기존 발매 작품 검색</h3><p data-i18n="creator.spotify.desc">Spotify에서 작품을 찾아 선택하면 제목·아티스트·앨범 정보가 자동 입력됩니다.</p></div><span class="spotify-mark">Spotify</span></div><div class="spotify-search-controls"><input id="spotifyQuery" type="search" autocomplete="off" placeholder="곡 제목 또는 아티스트 검색" data-i18n-placeholder="creator.spotify.placeholder"><button type="button" class="btn secondary" id="spotifySearchBtn" data-i18n="creator.spotify.search">검색</button></div><div id="spotifyResults" class="spotify-results" aria-live="polite"></div><div id="spotifySelected" class="spotify-selected" style="display:none"></div><p class="spotify-footnote" data-i18n="creator.spotify.note">Spotify는 작품 정보 확인용입니다. 음원 파일은 직접 제출해야 하며, 검색 결과는 저작권 소유 증명이 아닙니다. Spotify에 없는 신곡은 검색을 건너뛸 수 있습니다.</p></section><div class="row"><div class="field"><label data-i18n="creator.title">제목 *</label><input id="title" placeholder="자산 제목" data-i18n-placeholder="creator.asset.title.placeholder"></div><div class="field"><label data-i18n="creator.artist">아티스트 *</label><input id="artist" placeholder="아티스트명"></div></div>
 <div class="field"><label data-i18n="creator.genre">장르</label><div class="chips" id="chips"></div><input id="genre" placeholder="직접 입력 가능" data-i18n-placeholder="creator.genre.custom"></div>
 <div class="field"><label data-i18n="creator.album.desc">앨범 / 설명</label><input id="album" placeholder="앨범명 또는 간단한 설명" data-i18n-placeholder="creator.album.placeholder"></div>
@@ -216,6 +222,31 @@ const API='https://api.timelink.digital';const token=localStorage.getItem('tl_to
 const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 if(!token||!user.id){location.href='login.html?redirect=/creator';return;}
 function auth(){return {Authorization:'Bearer '+token};}
+// Creator Connect: optional local onboarding notes only. No ownership verification is implied.
+(function(){
+ const platform=document.getElementById('creatorConnectPlatform');
+ const url=document.getElementById('creatorConnectUrl');
+ const status=document.getElementById('creatorConnectStatus');
+ const key='tl_creator_connect_draft_'+String(user.id);
+ try{
+  const saved=JSON.parse(localStorage.getItem(key)||'null');
+  if(saved){platform.value=saved.platform||'';url.value=saved.url||'';status.textContent='이 브라우저에 임시 저장된 활동 정보입니다. 권리 인증은 별도로 필요합니다.';}
+ }catch(e){}
+ document.getElementById('creatorConnectSave').addEventListener('click',function(){
+  const value=url.value.trim();
+  if(value){
+   let parsed;
+   try{parsed=new URL(value);}catch(e){status.textContent='올바른 HTTPS 프로필 주소를 입력해주세요.';return;}
+   if(parsed.protocol!=='https:'||!parsed.hostname||parsed.username||parsed.password){status.textContent='HTTPS 프로필 주소만 입력할 수 있습니다.';return;}
+   const allowed={spotify:['open.spotify.com'],soundcloud:['soundcloud.com','www.soundcloud.com'],audius:['audius.co','www.audius.co'],bandcamp:[]};
+   const chosen=platform.value;
+   if(!chosen){status.textContent='활동 플랫폼을 먼저 선택해주세요.';return;}
+   if(allowed[chosen]&&allowed[chosen].length&&!allowed[chosen].includes(parsed.hostname.toLowerCase())){status.textContent='선택한 플랫폼의 프로필 주소를 입력해주세요.';return;}
+  }
+  try{localStorage.setItem(key,JSON.stringify({platform:platform.value,url:value}));status.textContent='이 브라우저에 임시 저장했습니다. 계정 인증이나 서버 등록은 아직 아닙니다.';}
+  catch(e){status.textContent='임시 저장에 실패했습니다.';}
+ });
+})();
 let spotifyTrack=null;
 let spotifyCoverSelected=false;
 function renderSpotifyResults(tracks){
