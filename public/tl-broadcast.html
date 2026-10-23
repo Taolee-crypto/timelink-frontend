@@ -41,4 +41,34 @@ if(!data.ok||data.station?.country!==country)throw Error('방송국 응답 확�
 document.documentElement.lang=data.station.locale;status.textContent='국가별 방송 설정 연결 완료 · 오디오 스트림 준비 중';
 }catch(e){if(id!==request)return;status.textContent='방송국 API 연결 확인 필요 · 오디오 스트림 준비 중';}}
 select.addEventListener('change',loadStation);loadStation();
-</script><script src="/sidebar.js?v=tilo-station-navigation-20261023"></script></body></html>
+</script><script src="/sidebar.js?v=tl-broadcast-nav-20261023b"></script>
+<script>
+// The legacy central-station sidebar href may survive in a previously cached shell.
+// Limit this compatibility correction to the CENTRAL STATION page, never the TILO DJ page.
+(function(){
+  const station='/tl-broadcast.html';
+  function isStationLink(a){
+    if(!a || !a.closest('.tl-global-sidebar')) return false;
+    const href=a.getAttribute('href')||'';
+    const label=(a.textContent||'').replace(/\\s+/g,' ').trim();
+    return /^\\/?(?:tilo|tl-broadcast)\\.html(?:[?#]|$)/.test(href) &&
+      /(?:중앙방송|Central Broadcast)/i.test(label);
+  }
+  function repair(){
+    document.querySelectorAll('.tl-global-sidebar a[href]').forEach(a=>{
+      if(isStationLink(a)) a.setAttribute('href',station);
+    });
+  }
+  document.addEventListener('click',function(e){
+    const a=e.target.closest && e.target.closest('a[href]');
+    if(!isStationLink(a)) return;
+    a.setAttribute('href',station);
+    if(a.pathname!==station){
+      e.preventDefault();
+      location.assign(station);
+    }
+  },true);
+  repair();
+  document.addEventListener('DOMContentLoaded',repair,{once:true});
+})();
+</script></body></html>
