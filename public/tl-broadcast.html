@@ -225,6 +225,7 @@ async function nextTiloTrack(generation,country){
   status.textContent=countrySession[country].name+' · TL3 V5 음원 '+fileId+' 재생 연결 중';
   try{
     if(typeof broadcastAudio._tl3Stop==='function')broadcastAudio._tl3Stop();
+    if(tiloCompletedSongs%3===2)void prepareTiloEditorial(generation,country);
     await sharedV5Player.playStream('tl3_'+fileId,broadcastAudio,{
       broadcastCountry:country,
       onError:e=>{if(generation===stationGeneration)status.textContent='방송 재생 오류: '+String(e?.message||e);},
@@ -232,59 +233,61 @@ async function nextTiloTrack(generation,country){
     });
   }catch(e){if(generation===stationGeneration){status.textContent='방송 재생 실패: '+String(e?.message||e);stationPlaying=false;}}
 }
-// TILO editorial AI runs only between songs; a failure must never stop the music.
+// Prepare AI decisions while music is playing, never at the song boundary.
 let tiloCompletedSongs=0;
+let tiloPrepared=null;
 let tiloSpeech=null;
 function cancelTiloSpeech(){
-  if(tiloSpeech && 'speechSynthesis' in window)window.speechSynthesis.cancel();
-  tiloSpeech=null;
+  if('speechSynthesis' in window)window.speechSynthesis.cancel();
+  tiloSpeech=null;tiloPrepared=null;
+}
+async function prepareTiloEditorial(generation,country){
+  try{
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),6500);
+    let response;
+    try{
+      response=await fetch('https://api.timelink.digital/api/dj/tilo/daily-context/'+encodeURIComponent(country),{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({headlines:[]}),signal:controller.signal
+      });
+    }finally{clearTimeout(timeout);}
+    if(!response.ok) return;
+    const data=await response.json();
+    if(generation===stationGeneration&&joinedCountry===country&&data.ok)tiloPrepared=data.plan;
+  }catch(_){/* Never block the broadcast for editorial requests. */}
 }
 async function tiloBetweenSongs(generation,country){
   if(generation!==stationGeneration||!stationPlaying||joinedCountry!==country)return;
   tiloCompletedSongs++;
-  // Give the DJ discretion without interrupting every song.
-  if(tiloCompletedSongs%3!==0){await nextTiloTrack(generation,country);return;}
-  try{
-    const token=localStorage.getItem('tl_token')||'';
-    const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),8000);
-    let response;
-    try{
-      response=await fetch('https://api.timelink.digital/api/dj/tilo/daily-context/'+encodeURIComponent(country),{
-        method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
-        body:JSON.stringify({headlines:[]}),signal:controller.signal
-      });
-    }finally{clearTimeout(timeout);}
-    if(!response.ok)throw Error('AI editorial unavailable');
-    const data=await response.json();
-    if(generation!==stationGeneration||!stationPlaying||joinedCountry!==country)return;
-    const words=String(data?.plan?.commentary||'').trim().slice(0,350);
-    if(!data.ok||data.plan?.speak_now!==true||!words||!('speechSynthesis' in window)){
-      await nextTiloTrack(generation,country);return;
-    }
-    const utterance=new SpeechSynthesisUtterance(words);
-    tiloSpeech=utterance;
-    utterance.lang=countrySession[country].lang;
-    utterance.rate=0.98;
-    let finished=false;
-    const continueMusic=()=>{if(finished)return;finished=true;tiloSpeech=null;if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)nextTiloTrack(generation,country);};
-    utterance.onend=continueMusic;
-    utterance.onerror=continueMusic;
-    status.textContent=countrySession[country].name+' · TILO AI DJ 멘트 중';
-    window.speechSynthesis.speak(utterance);
-    // Some browsers silently refuse speech synthesis; continue playback.
-    setTimeout(continueMusic,Math.max(6000,Math.min(24000,words.length*180)));
-  }catch(_){
-    if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)await nextTiloTrack(generation,country);
+  const plan=tiloPrepared;
+  tiloPrepared=null;
+  // No blocking network request at track end.
+  if(tiloCompletedSongs%3!==0||!plan?.speak_now){
+    await nextTiloTrack(generation,country);return;
   }
+  const words=String(plan.commentary||'').trim().slice(0,220);
+  if(!words||!('speechSynthesis' in window)){
+    await nextTiloTrack(generation,country);return;
+  }
+  const utterance=new SpeechSynthesisUtterance(words);
+  tiloSpeech=utterance;
+  utterance.lang=countrySession[country].lang;
+  utterance.rate=1;
+  let completed=false;
+  const continueMusic=()=>{
+    if(completed)return;completed=true;tiloSpeech=null;
+    if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)nextTiloTrack(generation,country);
+  };
+  utterance.onend=continueMusic;
+  utterance.onerror=continueMusic;
+  status.textContent=countrySession[country].name+' · TILO AI DJ 멘트 중';
+  window.speechSynthesis.speak(utterance);
+  // Speech synthesis may be suspended in a hidden tab; never let it stall the station.
+  setTimeout(continueMusic,Math.min(9000,Math.max(3500,words.length*75)));
 }
 broadcastAudio.addEventListener('ended',()=>{
   if(stationPlaying&&joinedCountry)tiloBetweenSongs(stationGeneration,joinedCountry);
-broadcastAudio.addEventListener('ended',async()=>{
-  if(!stationPlaying||!joinedCountry||tiloSpeaking)return;
-  const generation=stationGeneration,country=joinedCountry;
-  const completed=await speakTilo(generation,country);
-  if(completed)await nextTiloTrack(generation,country);
 });
 stationJoin.addEventListener('click',async()=>{
   const country=select.value;
