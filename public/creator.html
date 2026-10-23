@@ -80,6 +80,15 @@ nav{background:rgba(10,10,10,.9);border-color:var(--line)}
 </section>
 <section class="spotify-search" aria-labelledby="spotifySearchTitle"><div class="spotify-search-head"><div><h3 id="spotifySearchTitle" data-i18n="creator.spotify.title">기존 발매 작품 검색</h3><p data-i18n="creator.spotify.desc">Spotify에서 작품을 찾아 선택하면 제목·아티스트·앨범 정보가 자동 입력됩니다.</p></div><span class="spotify-mark">Spotify</span></div><div class="spotify-search-controls"><input id="spotifyQuery" type="search" autocomplete="off" placeholder="곡 제목 또는 아티스트 검색" data-i18n-placeholder="creator.spotify.placeholder"><button type="button" class="btn secondary" id="spotifySearchBtn" data-i18n="creator.spotify.search">검색</button></div><div id="spotifyResults" class="spotify-results" aria-live="polite"></div><div id="spotifySelected" class="spotify-selected" style="display:none"></div><p class="spotify-footnote" data-i18n="creator.spotify.note">Spotify는 작품 정보 확인용입니다. 음원 파일은 직접 제출해야 하며, 검색 결과는 저작권 소유 증명이 아닙니다. Spotify에 없는 신곡은 검색을 건너뛸 수 있습니다.</p></section><div class="row"><div class="field"><label data-i18n="creator.title">제목 *</label><input id="title" placeholder="자산 제목" data-i18n-placeholder="creator.asset.title.placeholder"></div><div class="field"><label data-i18n="creator.artist">아티스트 *</label><input id="artist" placeholder="아티스트명"></div></div>
 <div class="field"><label data-i18n="creator.genre">장르</label><div class="chips" id="chips"></div><input id="genre" placeholder="직접 입력 가능" data-i18n-placeholder="creator.genre.custom"></div>
+<section aria-labelledby="tiloMetaTitle" style="margin:16px 0;padding:16px;border:1px solid var(--line,rgba(128,128,128,.3));border-radius:12px">
+<h3 id="tiloMetaTitle">TILO 중앙방송 편성 정보 · 필수</h3>
+<p class="desc">방송 자동 편성을 위해 정확한 작품 정보를 입력해 주세요. Spotify 검색은 참고용이며 창작자가 최종 확인합니다.</p>
+<div class="row"><div class="field"><label for="tiloCountry">곡의 국가 *</label><input id="tiloCountry" required maxlength="80" placeholder="예: 대한민국 (KR)" autocomplete="off"></div><div class="field"><label for="tiloComposer">작곡 *</label><input id="tiloComposer" required maxlength="200" placeholder="작곡가 이름 또는 해당 없음"></div></div>
+<div class="row"><div class="field"><label for="tiloLyricist">작사 *</label><input id="tiloLyricist" required maxlength="200" placeholder="작사가 이름 · 연주곡은 해당 없음"></div><div class="field"><label for="tiloVocal">가사 유형 *</label><select id="tiloVocal" required><option value="">선택</option><option value="vocal">가창곡</option><option value="instrumental">연주곡 · 가사 없음</option></select></div></div>
+<div class="field"><label for="tiloDescription">곡 설명 *</label><textarea id="tiloDescription" required maxlength="2000" rows="3" placeholder="곡의 내용, 분위기, 배경 등을 설명해 주세요."></textarea></div>
+<div class="field"><label for="tiloLyrics">가사 (가창곡 필수)</label><textarea id="tiloLyrics" maxlength="15000" rows="5" placeholder="가창곡은 전체 가사를 입력해 주세요. 연주곡은 비워 두세요."></textarea></div>
+<p class="desc">BPM·에너지·분위기·장르 분석은 서버의 별도 분석 단계에서 산출합니다. 분석하지 않은 값을 추정해 표시하지 않습니다.</p>
+</section>
 <div class="field"><label data-i18n="creator.album.desc">앨범 / 설명</label><input id="album" placeholder="앨범명 또는 간단한 설명" data-i18n-placeholder="creator.album.placeholder"></div>
 <div class="field"><label>음원 파일 *</label><div class="drop" id="audioDrop"><strong data-i18n="creator.drop.mp3">MP3 파일을 여기에 놓거나 클릭</strong><small>제조 과정에서 일시 전송·암호화 · 원본 별도 보관 없음 · 16MB 이하</small><input id="audio" type="file" accept=".mp3,audio/mpeg" hidden></div><div id="audioInfo"></div></div>
 <div class="field"><label data-i18n="creator.cover.optional">커버 이미지 (선택)</label><div class="drop" id="coverDrop"><strong data-i18n="creator.cover.choose">커버 이미지를 선택</strong><small>JPG · PNG</small><input id="cover" type="file" accept="image/*" hidden></div><div id="coverPreview"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" class="btn secondary" id="autoCoverBtn">✨ 제목에 맞는 커버 자동 생성</button><small id="autoCoverStatus" style="align-self:center;color:var(--muted)">커버를 선택하지 않으면 등록 시 자동 생성됩니다.</small></div></div>
@@ -446,7 +455,15 @@ function preview(){
   if(_rs) _rs.innerHTML='<div class="summary"><span>TRACK</span><b>'+esc(t)+'</b></div><div class="summary"><span>ARTIST</span><b>'+esc(a)+'</b></div>';
 }
 $('uploadBtn').onclick=async()=>{
- clearErr('error');const title=$('title').value.trim(),artist=$('artist').value.trim();if(!title||!artist||!file){err('error',TLi18n.t('creator.error.required'));return;}
+ clearErr('error');const title=$('title').value.trim(),artist=$('artist').value.trim();if(!title||!artist||!file){err('error',TLi18n.t('creator.error.required'));return;} 
+ const required=['genre','tiloCountry','tiloComposer','tiloLyricist','tiloDescription'];
+ const missing=required.find(id=>!$(id).value.trim());
+ if(missing||!$('tiloVocal').value||($('tiloVocal').value==='vocal'&&!$('tiloLyrics').value.trim())){
+   err('error','TILO 편성을 위해 장르·국가·작곡·작사·곡 설명·가사 유형과 가창곡 가사를 입력해 주세요.');
+   (missing?$(missing):!$('tiloVocal').value?$('tiloVocal'):$('tiloLyrics')).focus();
+   return;
+ }
+
  const b=$('uploadBtn');b.disabled=true;b.textContent=TLi18n.t('creator.status.original.check');
  try{
    // 원본 MP3는 브라우저 메모리에만 둔다. 서버에는 TL3 v4 암호화 컨테이너만 전달한다.
@@ -461,7 +478,7 @@ $('back2').onclick=()=>step(1);
 $('freeBtn').onclick=async()=>{
  clearErr('error2');const b=$('freeBtn');b.disabled=true;b.textContent=TLi18n.t('creator.status.original.upload');
  try{
-  const body={title:$('title').value.trim(),artist:$('artist').value.trim(),genre:$('genre').value.trim()||'Music',stream_url:upload.url||upload.stream_url||'',cover_image:upload.cover_url||'',shared_to_shareplace:false,auth_status:'creator_uploaded',icon:'🎵',file_type:'audio/mpeg',force_new:true,user_email:user.email,username:user.username||user.email};
+  const body={title:$('title').value.trim(),artist:$('artist').value.trim(),genre:$('genre').value.trim(),country:$('tiloCountry').value.trim(),composer:$('tiloComposer').value.trim(),lyricist:$('tiloLyricist').value.trim(),description:$('tiloDescription').value.trim(),lyrics:$('tiloLyrics').value.trim(),vocal_type:$('tiloVocal').value,stream_url:upload.url||upload.stream_url||'',cover_image:upload.cover_url||'',shared_to_shareplace:false,auth_status:'creator_uploaded',icon:'🎵',file_type:'audio/mpeg',force_new:true,user_email:user.email,username:user.username||user.email};
   const r=await fetch(API+'/api/files/sync',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),body:JSON.stringify(body)});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||TLi18n.t('creator.error.original.register'));share=d;share.file_id=d.d1_id;preview();var _b1=$('lpPreviewOrig'),_b2=$('lpPreviewLp');if(_b1)_b1.disabled=false;if(_b2)_b2.disabled=false;var _s=$('lpPreviewStatus');if(_s)_s.textContent=TLi18n.t('creator.status.original.compare');updateLpBalance();step(2.5);
  }catch(e){err('error2',e.message);b.disabled=false;b.textContent=TLi18n.t('creator.lp.continue');}
 };
