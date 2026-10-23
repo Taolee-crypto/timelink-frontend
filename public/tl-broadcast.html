@@ -141,13 +141,14 @@ async function loadBroadcastInventory(){
     const data=await r.json();
     if(!data.ok||!Array.isArray(data.tracks))throw Error('Invalid inventory');
     const tracks=data.tracks.filter(t=>Number.isSafeInteger(t.file_id)&&t.duration_ms>0);
-    message.textContent=tracks.length+'곡의 방송 편성 후보 · 방송권 별도 확인 필요';
+    message.textContent=tracks.length ? tracks.length+'곡의 V5 봉인·공개 편성 후보 · 방송권 별도 확인 필요' : 'V5 봉인·공개·권리 확인 조건을 통과한 곡 0곡 · 왼쪽 SharePlace 공개곡 수와 기준이 다릅니다.';
     list.replaceChildren();
     for(const t of tracks.slice(0,6)){
       const row=document.createElement('p');
       row.textContent=String(t.title||'제목 없음')+' — '+String(t.artist||'아티스트 미상')+' ('+Math.ceil(t.duration_ms/1000)+'초)';
       list.appendChild(row);
     }
+    if(!tracks.length)preview.textContent='실제 방송은 시작되지 않았습니다. 공개 SharePlace 곡을 V5 방송 대상으로 사용하려면 봉인 및 권리 조건을 먼저 확인해야 합니다.';
     if(tracks.length){
       const duration=Math.min(86400000,Math.floor(tracks[0].duration_ms));
       const calc=await fetch('https://api.timelink.digital/api/v5/central-broadcast/settlement-preview?played_ms='+duration);
