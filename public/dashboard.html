@@ -828,37 +828,31 @@ async function deleteMyFile(id, title){
 // ═══════════════════════════════════════════
 async function loadCafeTab(){
   loadMyIncarChannel();
+  var box=g('cafeChannelList');
   try{
-    var r = await fetch(API + '/api/cafe/channels');
-    var d = await r.json();
-    var channels = d.channels || [];
-    var myChannels = channels.filter(function(ch){ return String(ch.user_id) === String(_user.id); });
-
-    if(!myChannels.length){
-      g('cafeChannelList').innerHTML = '<div style="text-align:center;padding:32px;color:var(--t3);font-size:13px">개설한 카페 채널이 없습니다</div>';
+    var r=await fetch(API+'/api/cafe/my-channels',{headers:{'Authorization':'Bearer '+_token},cache:'no-store'});
+    if(!r.ok)throw new Error('채널 조회 실패 ('+r.status+')');
+    var d=await r.json();
+    if(!d.ok)throw new Error(d.error||'카페채널 조회 실패');
+    var channels=Array.isArray(d.channels)?d.channels:[];
+    if(!channels.length){
+      box.innerHTML='<div style="text-align:center;padding:32px;color:var(--t3);font-size:13px">개설한 카페채널이 없습니다.</div>';
       return;
     }
-
-    g('cafeChannelList').innerHTML = myChannels.map(function(ch){
-      return '<div style="padding:14px;border-radius:12px;background:var(--card2);border:1px solid var(--bd);display:flex;align-items:center;gap:12px;margin-bottom:8px">' +
-        '<span style="font-size:20px">☕</span>' +
-        '<div style="flex:1">' +
-          '<div style="font-size:13px;font-weight:600">' + esc(ch.name) + '</div>' +
-          '<div style="font-size:11px;color:var(--t3);margin-top:2px">' + esc(ch.description||'') + '</div>' +
-        '</div>' +
-        '<a href="cafe-radio.html" class="tl-btn tl-btn-primary" style="padding:7px 14px;font-size:12px">방송 보기</a>' +
-      '</div>';
+    box.innerHTML=channels.map(function(ch){
+      return '<a href="cafe-studio.html" aria-label="'+esc(ch.name||'카페채널')+' 채널 관리" style="text-decoration:none;color:inherit;padding:14px;border-radius:12px;background:var(--card2);border:1px solid var(--bd);display:flex;align-items:center;gap:12px;margin-bottom:8px">'+
+        '<span style="font-size:20px">☕</span><div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(ch.name||'내 카페채널')+'</div>'+
+        '<div style="font-size:11px;color:var(--t3);margin-top:2px">'+esc(ch.description||'내가 개설한 카페방송')+'</div></div>'+
+        '<span style="font-size:12px;color:var(--accent)">채널로 이동 →</span></a>';
     }).join('');
-  }catch(e){
-    console.warn('카페 탭 로드 실패:', e);
-  }
+  }catch(e){box.textContent='카페채널을 불러오지 못했습니다: '+e.message;}
 }
 
 async function loadMyIncarChannel(){
   var box=g('incarChannelList');
   if(!box)return;
   try{
-    var response=await fetch(API+'/api/incar/my-channel',{headers:{'Authorization':'Bearer '+_token}});
+    var response=await fetch(API+'/api/incar/my-channel',{headers:{'Authorization':'Bearer '+_token},cache:'no-store'});
     if(!response.ok)throw new Error('채널 조회 실패 ('+response.status+')');
     var result=await response.json();
     if(!result.ok)throw new Error(result.error||'채널 조회 실패');
@@ -867,9 +861,9 @@ async function loadMyIncarChannel(){
       return;
     }
     var ch=result.channel;
-    box.innerHTML='<div style="padding:14px;border-radius:12px;background:var(--card2);border:1px solid var(--bd);display:flex;align-items:center;gap:12px;margin-bottom:8px">'+
-      '<span style="font-size:20px">🚗</span><div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(ch.name||ch.channel_name||'내 인카채널')+'</div><div style="font-size:11px;color:var(--t3)">등록된 내 차량 방송</div></div>'+
-      '<a href="incar-studio.html" class="tl-btn tl-btn-primary" style="padding:7px 14px;font-size:12px">채널 관리</a></div>';
+    box.innerHTML='<a href="incar-studio.html" aria-label="'+esc(ch.name||ch.channel_name||'내 인카채널')+' 채널 관리" style="text-decoration:none;color:inherit;padding:14px;border-radius:12px;background:var(--card2);border:1px solid var(--bd);display:flex;align-items:center;gap:12px;margin-bottom:8px">'+
+      '<span style="font-size:20px">🚗</span><div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(ch.name||ch.channel_name||'내 인카채널')+'</div><div style="font-size:11px;color:var(--t3)">내가 개설한 인카방송</div></div>'+
+      '<span style="font-size:12px;color:var(--accent)">채널로 이동 →</span></a>';
   }catch(e){box.textContent='인카채널을 불러오지 못했습니다: '+e.message;}
 }
 
