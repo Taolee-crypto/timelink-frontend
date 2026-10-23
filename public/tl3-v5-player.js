@@ -185,7 +185,7 @@
       }else console.warn('[TL3V5][LP] LP processing engine missing');
     }
     const blobUrl=URL.createObjectURL(new Blob([decoded.mp3],{type:'audio/mpeg'}));
-    let stopped=false,meterTimer=null,billableMs=0,lastTime=null,meterQueued=0,lastBilled=0,meterQueue=Promise.resolve(),meterFailed=false;
+    let stopped=false,meterTimer=null,billableMs=0,lastTime=null,meterQueued=0,lastBilled=0,meterQueue=Promise.resolve(),meterFailed=false,buffering=false;
     // The media clock is the billing source. Sample it both on a short
     // interval and on timeupdate so throttled browser timers cannot suppress
     // whole-second settlements. Pause/buffering boundaries flush only the
@@ -199,7 +199,7 @@
       if(opts.onProgress)opts.onProgress({played_ms:elapsedMs,billed_seconds:seconds,complete:!!complete});
     }
     function sample(force){
-      if(stopped||meterFailed||audio.seeking||audio.ended&&!force||audio.muted||audio.volume<=0||audio.paused&&!force){lastTime=null;return;}
+      if(stopped||meterFailed||buffering||audio.seeking||audio.ended&&!force||audio.muted||audio.volume<=0||audio.paused&&!force){lastTime=null;return;}
       const now=Number(audio.currentTime);
       if(!Number.isFinite(now)){lastTime=null;return;}
       if(lastTime!==null){
@@ -229,7 +229,8 @@
         if(d.stop){meterFailed=true;try{audio.pause();}catch(_){};if(opts.onInsufficient)opts.onInsufficient(d);}
       }).catch(e=>{meterFailed=true;try{audio.pause();}catch(_){};onError(e);});
     }
-    const onPlaying=()=>{lastTime=Number(audio.currentTime)||0;if(meterTimer===null)meterTimer=setInterval(sample,100);};
+    const onPlaying=()=>{buffering=false;lastTime=Number(audio.currentTime)||0;if(meterTimer===null)meterTimer=setInterval(sample,100);};
+    const onBuffering=()=>{sample(true);buffering=true;lastTime=null;};
     const onPause=()=>{sample(true);lastTime=null;};
     const onSeeking=()=>{lastTime=null;};
     const onSeeked=()=>{lastTime=Number(audio.currentTime)||0;};
@@ -237,8 +238,8 @@
     const onEnded=()=>{sample(true);billableMs=totalMs;publishProgress(true);queueMeter(Math.ceil(totalMs/1000),true);};
     audio.addEventListener('playing',onPlaying);
     audio.addEventListener('pause',onPause);
-    audio.addEventListener('waiting',onPause);
-    audio.addEventListener('stalled',onPause);
+    audio.addEventListener('waiting',onBuffering);
+    audio.addEventListener('stalled',onBuffering);
     audio.addEventListener('seeking',onSeeking);
     audio.addEventListener('seeked',onSeeked);
     audio.addEventListener('timeupdate',onTimeUpdate);
@@ -263,7 +264,7 @@
     audio._tl3Stop=function(){
       if(stopped)return;
       // Flush accrued audible time before closing the session. The server
-      // performs the TL_B-only refund atomically and rejects future meters.
+      // returns unused TL to the original wallet buckets atomically and rejects future meters.
       sample(true);
       if(!meterFailed&&billableMs>0)queueMeter(Number((billableMs/1000).toFixed(3)),false);
       const closingMeter=meterQueue;
@@ -281,7 +282,7 @@
       if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}
       try{audio.pause();}catch(_){}
       if(lpController&&lpController.stop)lpController.stop().catch(()=>{});
-      try{audio.removeEventListener('playing',onPlaying);audio.removeEventListener('pause',onPause);audio.removeEventListener('waiting',onPause);audio.removeEventListener('stalled',onPause);audio.removeEventListener('seeking',onSeeking);audio.removeEventListener('seeked',onSeeked);audio.removeEventListener('timeupdate',onTimeUpdate);audio.removeEventListener('ended',onEnded);}catch(_){}
+      try{audio.removeEventListener('playing',onPlaying);audio.removeEventListener('pause',onPause);audio.removeEventListener('waiting',onBuffering);audio.removeEventListener('stalled',onBuffering);audio.removeEventListener('seeking',onSeeking);audio.removeEventListener('seeked',onSeeked);audio.removeEventListener('timeupdate',onTimeUpdate);audio.removeEventListener('ended',onEnded);}catch(_){}
       try{audio.removeAttribute('src');audio.load();}catch(_){}
       URL.revokeObjectURL(blobUrl);
     };
