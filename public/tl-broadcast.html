@@ -149,17 +149,61 @@ function renderCountryStation(){
   stationJoin.setAttribute('aria-pressed',String(joinedCountry===c));
   if(joinedCountry!==c)status.textContent=countrySession[c].name+' · 현지 방송 선택 준비';
 }
-stationJoin.addEventListener('click',()=>{
-  const c=select.value;
-  joinedCountry=joinedCountry===c?null:c;
+let stationTracks=[],stationGeneration=0,stationPlaying=false;
+async function stopTilo(){
+  stationGeneration++;
+  stationPlaying=false;
+  if(typeof broadcastAudio._tl3Stop==='function')broadcastAudio._tl3Stop();
+  else broadcastAudio.pause();
+  stationTracks=[];
+  joinedCountry=null;
   renderCountryStation();
-  if(joinedCountry){
-    status.textContent=countrySession[c].name+' ('+countrySession[c].lang+') 선택됨 · TRACK V5 재생 엔진 로드 '+(sharedV5Player?'완료':'실패')+' · 방송 전용 라이선스/스트림 대기';
-  }else{
-    broadcastAudio.pause();broadcastAudio.removeAttribute('src');broadcastAudio.load();
-    status.textContent=countrySession[c].name+' 연결 해제';
-  }
+}
+async function nextTiloTrack(generation,country){
+  if(generation!==stationGeneration||!joinedCountry||joinedCountry!==country)return;
+  if(!stationTracks.length){status.textContent='방송 사용권이 확인된 음원이 없습니다.';await stopTilo();return;}
+  const fileId=stationTracks.shift();
+  stationTracks.push(fileId);
+  status.textContent=countrySession[country].name+' · TL3 V5 음원 '+fileId+' 재생 연결 중';
+  try{
+    if(typeof broadcastAudio._tl3Stop==='function')broadcastAudio._tl3Stop();
+    await sharedV5Player.playStream('tl3_'+fileId,broadcastAudio,{
+      broadcastCountry:country,
+      onError:e=>{if(generation===stationGeneration)status.textContent='방송 재생 오류: '+String(e?.message||e);},
+      onReady:()=>{if(generation===stationGeneration)status.textContent=countrySession[country].name+' · V5 방송 재생 중 (개인 TL 차감 없음)';}
+    });
+  }catch(e){if(generation===stationGeneration){status.textContent='방송 재생 실패: '+String(e?.message||e);stationPlaying=false;}}
+}
+broadcastAudio.addEventListener('ended',()=>{
+  if(stationPlaying&&joinedCountry)nextTiloTrack(stationGeneration,joinedCountry);
 });
+stationJoin.addEventListener('click',async()=>{
+  const country=select.value;
+  if(joinedCountry===country){await stopTilo();status.textContent=countrySession[country].name+' 연결 해제';return;}
+  await stopTilo();
+  const generation=stationGeneration;
+  stationJoin.disabled=true;
+  status.textContent='방송국 사용권과 TILO 관리자 권한 확인 중…';
+  try{
+    if(!sharedV5Player)throw Error('TRACK V5 플레이어가 로드되지 않았습니다.');
+    const token=localStorage.getItem('tl_token')||'';
+    if(!token)throw Error('방송 송출을 시작하려면 관리자 로그인이 필요합니다.');
+    const response=await fetch('https://api.timelink.digital/api/admin/central-broadcast/stations/'+encodeURIComponent(country),{
+      headers:{Authorization:'Bearer '+token}
+    });
+    const data=await response.json();
+    if(!response.ok||!data.ok)throw Error(data.error||'방송국 권한 확인 실패');
+    if(!data.service_enabled)throw Error('TILO 관리자 하위 계정이 비활성화 상태입니다.');
+    const tracks=(data.granted_file_ids||[]).filter(x=>Number.isSafeInteger(x)&&x>0);
+    if(!tracks.length)throw Error('방송 사용권이 승인된 곡이 없습니다.');
+    if(generation!==stationGeneration)return;
+    joinedCountry=country;stationTracks=tracks;stationPlaying=true;
+    renderCountryStation();
+    await nextTiloTrack(generation,country);
+  }catch(e){if(generation===stationGeneration)status.textContent='방송 시작 불가: '+String(e?.message||e);}
+  finally{stationJoin.disabled=false;}
+});
+select.addEventListener('change',()=>{stopTilo();});
 renderCountryStation();
 async function loadBroadcastInventory(){
   const list=document.getElementById('broadcast-playlist');
