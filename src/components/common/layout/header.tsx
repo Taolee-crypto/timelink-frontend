@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { User } from '@/types/common.types';
 
 interface HeaderProps {
@@ -17,6 +17,38 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onChargeClick
 }) => {
+  const [v5Balance, setV5Balance] = useState<number | null>(null);
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      const token = localStorage.getItem('tl_token') || localStorage.getItem('tl_adm_token');
+      if (!token) { if (active) setV5Balance(null); return; }
+      try {
+        const response = await fetch('https://api.timelink.digital/api/eco/wallet', {
+          headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' }, cache: 'no-store'
+        });
+        if (!response.ok) throw new Error('Wallet HTTP ' + response.status);
+        const data = await response.json();
+        const amount = Number(data?.wallet?.tl_total);
+        if (data?.wallet?.tl_total == null || !Number.isFinite(amount) || amount < 0)
+          throw new Error('Invalid V5 wallet balance');
+        if (active) setV5Balance(amount);
+      } catch (error) {
+        if (active) setV5Balance(null);
+        console.warn('[V5 header wallet]', error);
+      }
+    };
+    const onWalletEvent = () => { void refresh(); };
+    void refresh();
+    window.addEventListener('focus', onWalletEvent);
+    window.addEventListener('pageshow', onWalletEvent);
+    window.addEventListener('tl-balance-updated', onWalletEvent);
+    window.addEventListener('tl-v5-wallet-loaded', onWalletEvent);
+    return () => { active = false; window.removeEventListener('focus', onWalletEvent);
+      window.removeEventListener('pageshow', onWalletEvent);
+      window.removeEventListener('tl-balance-updated', onWalletEvent);
+      window.removeEventListener('tl-v5-wallet-loaded', onWalletEvent); };
+  }, [user]);
   return (
     <div className="app-header" style={{
       background: 'rgba(17, 17, 17, 0.85)',
@@ -75,7 +107,7 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <div className="label" style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '6px' }}>💰 TL</div>
             <div className="amount" style={{ fontSize: '22px', fontWeight: 800, color: 'white', lineHeight: 1.2 }} id="walletBalance">
-              {wallet.available.toLocaleString()}
+              {v5Balance == null ? '—' : v5Balance.toLocaleString()}
             </div>
           </div>
           
