@@ -863,7 +863,7 @@ async function startBroadcast(){
       headers:{'Authorization':'Bearer '+_token}
     });
     var d = await r.json();
-    if(!r.ok) throw new Error(d.error || '시작 실패');
+    if(!r.ok || d.ok === false) throw new Error(d.error || '시작 실패');
     _isLive = true;
     toast('🔴 라이브 방송 시작!', 's');
     startLiveHeartbeat();
@@ -883,7 +883,11 @@ async function playCurrentTrack(){
       headers:{'Authorization':'Bearer '+_token}
     });
     var d = await r.json();
+
     if(!r.ok || !d.live || !(d.live.is_live === 1 || d.live.is_live === true)) return;
+
+    if(!r.ok || !d.live || (d.live.is_live !== 1 && d.live.is_live !== true)) return;
+
     
     var trackId = d.live.live_current_track_id;
     if(!trackId) return;
@@ -1003,7 +1007,11 @@ async function stopBroadcast(){
       headers:{'Authorization':'Bearer '+_token}
     });
     var d = await r.json().catch(function(){return {};});
+
     if(!r.ok || d.ok === false) throw new Error(d.error || '방송 종료 요청 실패 ('+r.status+')');
+
+    if(!r.ok || d.ok === false) throw new Error(d.error || '방송 종료 요청 실패 (HTTP '+r.status+')');
+
     _isLive = false;
     if(_liveHeartbeat){ clearInterval(_liveHeartbeat); _liveHeartbeat = null; }
     stopDjAudio();
@@ -1023,7 +1031,11 @@ function startLiveHeartbeat(){
         headers:{'Authorization':'Bearer '+_token}
       });
       var d = await r.json();
+
       if(!r.ok || !d.live || !(d.live.is_live === 1 || d.live.is_live === true)){
+
+      if(r.ok && (!d.live || (d.live.is_live !== 1 && d.live.is_live !== true))){
+
         console.log('[DJ] 서버 방송 종료 감지');
         _isLive = false;
         if(_liveHeartbeat){ clearInterval(_liveHeartbeat); _liveHeartbeat = null; }
