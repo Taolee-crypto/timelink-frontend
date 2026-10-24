@@ -1650,8 +1650,7 @@ async function loadUsers(){
     toast('/api/users 응답 오류 — 관리자 role 확인 필요 (role=admin)','r');
   }
   g('sb-users-cnt').textContent=_users.length;
-  await loadAdminLedgerBalances();
-  renderUsers(); renderTLUsers();
+  await renderTLUsers();
 }
 
 // ─ Dashboard ─
@@ -1875,22 +1874,21 @@ async function toggleMemberAccess(id, suspended){
 
 async function renderTLUsers(){
   var tb=g('tl-users-tbody');if(!tb)return;
-  tb.innerHTML='<tr><td colspan="7">V3 원장 조회 중...</td></tr>';
-  try{
-    var token=localStorage.getItem('tl_token');
-    var response=await fetch('https://api.timelink.digital/api/admin/tl/balances',{headers:{Authorization:'Bearer '+token}});
-    var data=await response.json();
-    if(!response.ok||!data.ok)throw new Error(data.error||'V3 원장 조회 실패');
-    var users=data.users||[];
-    if(!users.length){tb.innerHTML='<tr><td colspan="7">조회된 회원이 없습니다.</td></tr>';return;}
-    paginate('tl-users-tbody',users,function(u){
-      var p=Number(u.tl_p||0),a=Number(u.tl_a||0),b=Number(u.tl_b||0);
-      return '<tr><td>'+esc(u.email||'-')+'</td><td>'+esc(u.username||'-')+'</td>'+
-        '<td class="td-mono">'+p.toLocaleString()+'</td><td class="td-mono">'+a.toLocaleString()+'</td>'+
-        '<td class="td-mono">'+b.toLocaleString()+'</td><td class="td-mono">'+(p+a+b).toLocaleString()+'</td>'+
-        '<td><button class="btn btn-g btn-xs" onclick="quickCharge(\''+esc(u.email)+'\',40000)">TL_B 지급</button></td></tr>';
-    });
-  }catch(err){tb.innerHTML='<tr><td colspan="7" style="color:var(--rose)">'+esc(err.message)+'</td></tr>';}
+  tb.innerHTML='<tr><td colspan="7">경제원장 조회 중...</td></tr>';
+  await loadAdminLedgerBalances();
+  var users=Object.keys(_v5AdminBalances).map(function(email){
+    var u=_users.find(function(x){return String(x.email||'').trim().toLowerCase()===email;})||{};
+    return {email:email,username:u.username||'-',balance:_v5AdminBalances[email]};
+  });
+  if(!users.length){tb.innerHTML='<tr><td colspan="7">원장 잔액을 조회할 수 없습니다. 잠시 후 새로고침하세요.</td></tr>';return;}
+  paginate('tl-users-tbody',users,function(u){
+    var v=u.balance;
+    return '<tr><td>'+esc(u.email)+'</td><td>'+esc(u.username)+'</td>'+
+      '<td class="td-mono">'+v.p.toLocaleString()+'</td><td class="td-mono">'+v.a.toLocaleString()+'</td>'+
+      '<td class="td-mono">'+v.b.toLocaleString()+'</td><td class="td-mono">'+v.total.toLocaleString()+'</td>'+
+      '<td><button class="btn btn-g btn-xs" onclick="quickCharge(\\''+esc(u.email)+'\\',40000)">TL_B 지급</button></td></tr>';
+  });
+  renderUsers();
 }
 
 // ─ V3 ledger-only TL adjustments ─
