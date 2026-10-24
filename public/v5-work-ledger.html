@@ -31,10 +31,23 @@ let scope='all';
 function scopeFor(category){return commonCategories.has(category)?'common':'individual'}
 function chooseScope(next,category){scope=next;$('category').value=category||'';document.querySelectorAll('[data-scope]').forEach(b=>b.classList.toggle('selected',b.dataset.scope===scope));render()}
 function renderNavigation(){
- const group=(type,title)=>'<h2>'+title+'</h2>'+categories.filter(c=>scopeFor(c)===type).map(c=>{const tasks=state.tasks.filter(t=>t.category===c),m=metrics(tasks);return '<button data-nav-category="'+escapeHtml(c)+'" class="'+($('category').value===c?'selected':'')+'"><span>'+escapeHtml(c)+'</span><small>'+m.progress+'% · '+m.done+'/'+m.total+'</small></button>'}).join('');
- $('workNavButtons').innerHTML='<button data-nav-scope="all" class="'+(scope==='all'&&!$('category').value?'selected':'')+'">📊 전체 요약 <small>'+state.tasks.length+'</small></button>'+group('common','공통 관리')+'<div class="nav-divider"></div>'+group('individual','개별 관리');
+ const group=(type,title)=>'<div class="nav-group"><h2>'+title+'</h2>'+
+  categories.filter(c=>scopeFor(c)===type).map(c=>{
+   const tasks=state.tasks.filter(t=>t.category===c),m=metrics(tasks);
+   return '<button data-nav-category="'+escapeHtml(c)+'" class="'+($('category').value===c?'selected':'')+
+    '"><span>'+escapeHtml(c)+'</span><small>'+m.progress+'% · '+m.done+'/'+m.total+'</small></button>';
+  }).join('')+'</div>';
+ $('workNavButtons').innerHTML=
+  '<button data-nav-scope="all" class="'+(scope==='all'&&!$('category').value?'selected':'')+
+  '">📊 전체 요약 <small>'+state.tasks.length+'</small></button>'+
+  group('common','공통 관리')+'<div class="nav-divider"></div>'+group('individual','개별 관리');
  const visible=categories.filter(c=>scope==='all'||scopeFor(c)===scope);
- $('categoryCards').innerHTML=visible.map(c=>{const tasks=state.tasks.filter(t=>t.category===c),m=metrics(tasks);return '<button class="category-card" data-card-category="'+escapeHtml(c)+'"><strong>'+escapeHtml(c)+'</strong><span>개발 '+m.progress+'% · 운영 '+m.verified+'% ('+m.done+'/'+m.total+')</span><div class="mini"><i style="width:'+m.progress+'%"></i></div></button>'}).join('');
+ $('categoryCards').innerHTML=visible.map(c=>{
+  const tasks=state.tasks.filter(t=>t.category===c),m=metrics(tasks);
+  return '<button class="category-card" data-card-category="'+escapeHtml(c)+'"><strong>'+
+   escapeHtml(c)+'</strong><span>개발 '+m.progress+'% · 운영 '+m.verified+'% ('+m.done+'/'+m.total+
+   ')</span><div class="mini"><i style="width:'+m.progress+'%"></i></div></button>';
+ }).join('');
 }
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){alert('브라우저 저장 실패. JSON 백업을 내려받아 주세요: '+e.message)}}
 function addEvent(title,detail,type='변경'){state.events.unshift({id:'log-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),at:new Date().toISOString(),title,detail,type})}
