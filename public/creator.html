@@ -89,6 +89,7 @@ nav{background:rgba(10,10,10,.9);border-color:var(--line)}
 <div class="row"><div class="field"><label for="tiloLyricist">작사 *</label><input id="tiloLyricist" required maxlength="200" placeholder="작사가 이름 · 연주곡은 해당 없음"></div><div class="field"><label for="tiloVocal">가사 유형 *</label><select id="tiloVocal" required><option value="">선택</option><option value="vocal">가창곡</option><option value="instrumental">연주곡 · 가사 없음</option></select></div></div>
 <div class="field"><label for="rightsKindV5">음악 권리 유형 *</label><select id="rightsKindV5" required><option value="ai_creation">창작권 · AI 생성 음악</option><option value="copyright">저작권 · 기존 저작권 음악</option></select><p class="desc">TimeLink 창작권은 플랫폼의 등록·인증 명칭이며 법적 저작권 인정과는 별개입니다.</p></div>
 <div class="row"><div class="field"><label for="rightsSourcePlatform">AI 생성 플랫폼 / 원본 출처</label><input id="rightsSourcePlatform" maxlength="120" placeholder="예: 사용한 음악 생성 서비스"></div><div class="field"><label for="rightsSourceReference">원본 참조번호 또는 링크</label><input id="rightsSourceReference" maxlength="240" placeholder="원본 생성 이력 또는 출처"></div></div>
+<div class="field"><label for="globalMusicQuery">Global Music Connect · MusicBrainz 작품 검색</label><div class="row"><input id="globalMusicQuery" maxlength="180" placeholder="곡명 또는 아티스트 검색" aria-label="MusicBrainz 음악 검색"><button type="button" class="btn secondary" id="globalMusicSearch">검색</button></div><div id="globalMusicResults" class="desc" aria-live="polite">검색된 작품 정보는 참고용이며 권리 인증이 아닙니다.</div></div>
 <div class="row"><div class="field"><label for="rightsIsrc">ISRC (해당 시)</label><input id="rightsIsrc" maxlength="32"></div><div class="field"><label for="rightsIswc">ISWC (해당 시)</label><input id="rightsIswc" maxlength="32"></div></div>
 <div class="row"><div class="field"><label for="rightsSocietyName">저작권협회 (해당 시)</label><input id="rightsSocietyName" maxlength="160"></div><div class="field"><label for="rightsSocietyReference">협회 등록 참조번호</label><input id="rightsSocietyReference" maxlength="160"></div></div>
 <div class="field"><label for="tiloDescription">곡 설명 *</label><textarea id="tiloDescription" required maxlength="2000" rows="3" placeholder="곡의 내용, 분위기, 배경 등을 설명해 주세요."></textarea></div>
@@ -709,5 +710,42 @@ loadBalance();
 
 <script src="/_shared/footer.js" defer></script>
 <script src="/tl-scenes.js?v=20261020l"></script>
+<script>
+(function(){
+  const query=document.getElementById('globalMusicQuery');
+  const button=document.getElementById('globalMusicSearch');
+  const results=document.getElementById('globalMusicResults');
+  if(!query||!button||!results)return;
+  button.addEventListener('click',async function(){
+    const q=query.value.trim();
+    if(q.length<2){results.textContent='두 글자 이상 입력해 주세요.';return;}
+    button.disabled=true;results.textContent='MusicBrainz 조회 중...';
+    try{
+      const params=new URLSearchParams({query:q,fmt:'json',limit:'8'});
+      const response=await fetch('https://musicbrainz.org/ws/2/recording/?'+params.toString(),{headers:{Accept:'application/json'}});
+      if(!response.ok)throw Error('MusicBrainz HTTP '+response.status);
+      const data=await response.json();
+      results.replaceChildren();
+      const recordings=Array.isArray(data.recordings)?data.recordings:[];
+      if(!recordings.length){results.textContent='검색 결과가 없습니다.';return;}
+      recordings.forEach(function(item){
+        const artist=(item['artist-credit']||[]).map(x=>x.name||'').filter(Boolean).join(', ');
+        const row=document.createElement('div');row.className='spotify-result';
+        const name=document.createElement('span');name.textContent=(item.title||'제목 없음')+' · '+artist;
+        const select=document.createElement('button');select.type='button';select.className='btn secondary';select.textContent='정보 가져오기';
+        select.addEventListener('click',function(){
+          const set=(id,value)=>{const el=document.getElementById(id);if(el&&value)el.value=value;};
+          set('title',item.title);set('artist',artist);set('rightsKindV5','copyright');
+          set('rightsSourcePlatform','MusicBrainz');set('rightsSourceReference','https://musicbrainz.org/recording/'+item.id);
+          set('rightsIsrc',Array.isArray(item.isrcs)?item.isrcs[0]:'');
+          results.textContent='MusicBrainz 작품 정보 입력 완료 · 권리 소유는 별도 확인해야 합니다.';
+        });
+        row.append(name,select);results.appendChild(row);
+      });
+    }catch(error){results.textContent='조회 실패: '+error.message+' · 네트워크 또는 API 제한을 확인하세요.';}
+    finally{button.disabled=false;}
+  });
+})();
+</script>
 </body>
 </html>
