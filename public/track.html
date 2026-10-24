@@ -303,7 +303,7 @@ window.addEventListener('resize',()=>requestAnimationFrame(()=>{if(typeof fitTra
         <label>작사<input id="editTrackLyricist" maxlength="500"></label>
         <label>프로듀서<input id="editTrackProducer" maxlength="500"></label>
         <label>편곡<input id="editTrackArranger" maxlength="500"></label>
-        <label>장르<input id="editTrackCategory" maxlength="100"></label>
+        <label>큰 장르<select id="editGenreFamily"><option value="">큰 장르 선택</option><option>Pop</option><option>Rock</option><option>Hip-Hop / R&B</option><option>EDM / Electronic</option><option>Jazz / Blues</option><option>Classical / Instrumental</option><option>Folk / Country</option><option>트로트</option><option>전통 / World</option><option>OST / 기타</option></select></label><label>지역 스타일 (선택)<select id="editGenreRegion"><option value="">지역 스타일 선택</option><option value="K">K (한국)</option><option value="J">J (일본)</option><option value="C">C (중국권)</option><option value="British">British (영국)</option><option value="American">American (미국)</option><option value="Latin">Latin (라틴)</option><option value="Other">기타 지역</option></select></label><label>세부 장르 (직접 입력 가능)<input id="editTrackCategory" maxlength="120"></label>
       </div>
       <label>가사<textarea id="editTrackLyrics" rows="6" maxlength="20000" placeholder="가사 전체를 입력하세요."></textarea></label>
       <div id="trackInfoEditError" style="display:none;color:#ff6b6b;font-size:12px"></div>
@@ -714,10 +714,18 @@ function renderPlainLyrics(s){
   wrap.style.display=plain.trim()?'block':'none';
   if(box.textContent!==plain)box.textContent=plain;
 }
+function syncTrackEditGenre(){
+ const family=document.getElementById('editGenreFamily').value,region=document.getElementById('editGenreRegion').value;
+ if(!family)return;
+ const pop={K:'K-Pop',J:'J-Pop',C:'C-Pop',British:'British Pop',American:'American Pop',Latin:'Latin Pop'};
+ document.getElementById('editTrackCategory').value=family==='Pop'?(pop[region]||'Pop'):family;
+}
+document.getElementById('editGenreFamily').addEventListener('change',syncTrackEditGenre);
+document.getElementById('editGenreRegion').addEventListener('change',syncTrackEditGenre);
 function openTrackInfoEditor(){
   if(!_share||String(_currentUserId)!==String(_share.user_id)){alert('본인의 곡 정보만 수정할 수 있습니다.');return;}
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v==null?'':String(v);};
-  set('editTrackTitle',_share.title);set('editTrackArtist',_share.artist);set('editTrackAlbum',_share.album);set('editTrackComposer',_share.composer);set('editTrackLyricist',_share.lyricist);set('editTrackProducer',_share.producer);set('editTrackArranger',_share.arranger);set('editTrackCategory',_share.category);set('editTrackLyrics',_share.lyrics);
+  set('editTrackTitle',_share.title);set('editTrackArtist',_share.artist);set('editTrackAlbum',_share.album);set('editTrackComposer',_share.composer);set('editTrackLyricist',_share.lyricist);set('editTrackProducer',_share.producer);set('editTrackArranger',_share.arranger);set('editTrackCategory',_share.category);set('editGenreFamily','');set('editGenreRegion','');set('editTrackLyrics',_share.lyrics);
   const err=document.getElementById('trackInfoEditError');if(err)err.style.display='none';
   document.getElementById('trackInfoModal').classList.add('open');
 }
