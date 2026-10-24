@@ -463,8 +463,10 @@ var MOOD_ICONS = {'조용한':'🤫','신나는':'🔥','감성적인':'🌙','�
 function renderProfileForm(isEdit){
   var p = isEdit && _profile ? _profile : {};
   if(isEdit) {
-    try { _selectedGenres = JSON.parse(p.genres || '[]'); } catch(e) { _selectedGenres = []; }
-    try { _selectedMoods = JSON.parse(p.mood || '[]'); } catch(e) { _selectedMoods = []; }
+    try { _selectedGenres = Array.isArray(p.genres) ? p.genres.slice() : JSON.parse(p.genres || '[]'); } catch(e) { _selectedGenres = []; }
+    try { _selectedMoods = Array.isArray(p.mood) ? p.mood.slice() : JSON.parse(p.mood || '[]'); } catch(e) { _selectedMoods = []; }
+    if(!Array.isArray(_selectedGenres)) _selectedGenres=[];
+    if(!Array.isArray(_selectedMoods)) _selectedMoods=[];
   }
 
   var genresHtml = GENRES.map(function(gn){
@@ -531,13 +533,25 @@ function toggleGenre(gn){
   var i = _selectedGenres.indexOf(gn);
   if(i>=0) _selectedGenres.splice(i,1);
   else _selectedGenres.push(gn);
-  renderProfileForm(true);
+  refreshDjPreferenceTags();
 }
 function toggleMood(m){
   var i = _selectedMoods.indexOf(m);
   if(i>=0) _selectedMoods.splice(i,1);
   else _selectedMoods.push(m);
-  renderProfileForm(true);
+  refreshDjPreferenceTags();
+}
+function refreshDjPreferenceTags(){
+  var panel=g('profileContent');
+  if(!panel) return;
+  panel.querySelectorAll('.tag[onclick^="toggleGenre("]').forEach(function(el){
+    var code=el.getAttribute('onclick').match(/^toggleGenre\('([^']+)'\)$/);
+    if(code) el.classList.toggle('active',_selectedGenres.includes(code[1]));
+  });
+  panel.querySelectorAll('.tag[onclick^="toggleMood("]').forEach(function(el){
+    var code=el.getAttribute('onclick').match(/^toggleMood\('([^']+)'\)$/);
+    if(code){el.classList.toggle('active',_selectedMoods.includes(code[1]));el.classList.toggle('purple',_selectedMoods.includes(code[1]));}
+  });
 }
 
 async function uploadDjAvatar(){
