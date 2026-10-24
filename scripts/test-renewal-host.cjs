@@ -8,9 +8,9 @@ class Element{
 }
 function harness(){
  const nodes={},events={},docEvents={},timeouts=new Map();let clock=0;const body=new Element();
- const document={body,head:new Element(),getElementById(id){if(!nodes[id])nodes[id]=new Element();return nodes[id]},createElement(tag){return new Element(tag)},addEventListener(n,f){docEvents[n]=f},documentElement:{}};
+ const document={body,head:new Element(),getElementById(id){if(!nodes[id])nodes[id]=new Element();return nodes[id]},createElement(tag){return new Element(tag)},querySelectorAll(selector){return selector==='[data-tl-logout]'?[this.getElementById('tlLogoutButton'),this.getElementById('tlSidebarLogout')]:[]},addEventListener(n,f){docEvents[n]=f},documentElement:{}};
  const location={origin,href:origin+'/index.html',pathname:'/index.html',search:'',hash:''};
- const store=new Map(),localStorage={getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)};
+ const store=new Map(),localStorage={getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)};
  const context={console,URL,URLSearchParams,document,location,localStorage,history:{replaceState(){},pushState(){}},CustomEvent:class{constructor(type,o){this.type=type;this.detail=o?.detail}},Event:class{constructor(type){this.type=type}},setTimeout(fn){timeouts.set(++clock,fn);return clock},clearTimeout(id){timeouts.delete(id)},setInterval(){return 1},clearInterval(){},navigator:{language:'ko-KR'}};
  context.window=context;context.parent=context;context.addEventListener=(n,f)=>events[n]=f;context.dispatchEvent=()=>{};
  document.readyState='loading';
@@ -22,7 +22,9 @@ function harness(){
  return {context,nodes,document,content,body,events,message,navigate,timeouts};
 }
 async function main(){
+ assert.ok(fs.readFileSync('public/sidebar.js','utf8').includes('data-tl-logout'),'Account navigation must render a logout control');assert.ok(fs.readFileSync('public/index.html','utf8').includes('id="tlLogoutButton"'),'Header must render a logout control');
  const h=harness(),{context:c,nodes,content}=h;
+ assert.equal(nodes.tlLogoutButton.hidden,true);c.localStorage.setItem('tl_token','isolated-fixture-token');c.localStorage.setItem('tl_user','{}');h.events.focus();assert.equal(nodes.tlLogoutButton.hidden,false);assert.equal(nodes.tlSidebarLogout.hidden,false);assert.equal(nodes.tlLoginLink.hidden,true);
  assert.equal(content.src,'/dashboard.html');h.navigate('/creator');assert.equal(content.src,'/creator.html');h.navigate('/cafes');assert.equal(content.src,'/cafe-world.html');
  assert.equal(c.TLUI.canonicalPath('/creator'),'/creator.html');assert.equal(c.TLUI.canonicalPath('/radio'),'/radio.html');assert.equal(c.TLUI.canonicalPath('/renewal/files'),'/renewal/files.html');assert.equal(c.TLUI.canonicalPath('/index'),'/index.html');assert.equal(c.TLUI.canonicalPath('/track.html'),'/track.html');assert.equal(c.TLUI.route('https://evil.example/track.html'),null);
  assert.equal(c.TLUI.route('javascript:alert(1)'),null);
@@ -44,6 +46,7 @@ async function main(){
  h.navigate('/cafe-world.html');assert.equal(content.src,'/cafe-world.html');assert.equal(radio.src,'/radio.html');assert.ok(radio.classList.values.has('tl-radio-background'),'Radio stays mounted when exploring another screen');
  h.message(radio.contentWindow,{type:'tl:radio-start-request'});await Promise.resolve();assert.equal(radio.messages.at(-1).data.type,'tl:radio-start-approved');
  console.log('PASS host: same-origin/source validation, legacy filenames, player continuity, acknowledged stop, persistent radio');
+ const a=harness();a.context.localStorage.setItem('tl_token','isolated-fixture-token');a.context.localStorage.setItem('tl_user','{}');a.events.focus();a.message(a.content.contentWindow,{type:'tl:play-track',href:'/track.html?id=145'});const active=a.nodes.tlPlayerContainer.children[0];const cancelled=a.nodes.tlLogoutButton.onclick();assert.equal(a.nodes.tlLogoutButton.disabled,true);assert.equal(a.context.localStorage.getItem('tl_token'),'isolated-fixture-token');a.message(active.contentWindow,{type:'tl:player-stop-error'});assert.equal(await cancelled,false);assert.equal(a.context.localStorage.getItem('tl_token'),'isolated-fixture-token');assert.equal(a.nodes.tlLogoutButton.disabled,false);const success=a.nodes.tlLogoutButton.onclick();a.message(active.contentWindow,{type:'tl:player-stopped'});assert.equal(await success,true);assert.equal(a.context.localStorage.getItem('tl_token'),null);assert.equal(a.context.localStorage.getItem('tl_user'),null);assert.equal(a.context.location.href,'/login.html');assert.equal(a.nodes.tlLogoutButton.hidden,true);console.log('PASS logout: header and account controls, login-state updates, settlement acknowledgement, credentials retained on failure and cleared on success');
  // Execute the actual stop implementation with a deferred meter and simulated API.
  const source=fs.readFileSync('public/tl3-v5-player.js','utf8');const start=source.indexOf('audio._tl3Stop=function(){'),end=source.indexOf('audio._tl3Confirm=audio._tl3Stop;',start);
  assert.ok(start>0&&end>start);let release,fetches=0,errors=0,revokes=0;
