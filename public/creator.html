@@ -91,8 +91,8 @@ nav{background:rgba(10,10,10,.9);border-color:var(--line)}
 </section>
 <section class="spotify-search" aria-labelledby="creatorActivityTitle">
  <div class="spotify-search-head"><div><h3 id="creatorActivityTitle">📊 내 TimeLink 음악 활동</h3><p>내 계정으로 등록한 음악의 현황을 확인합니다. 외부 플랫폼 통계나 실제 정산액은 포함하지 않습니다.</p></div><button type="button" class="btn secondary" id="creatorActivityRefresh">새로고침</button></div>
- <div id="creatorActivitySummary" class="spotify-selected" style="display:block" role="status">내 음악을 조회하려면 새로고침을 눌러주세요.</div>
- <div id="creatorActivityList" class="spotify-results"></div>
+ <details id="creatorActivityDetails"><summary id="creatorActivitySummary" class="spotify-selected" style="display:block;cursor:pointer" role="status">내 음악을 조회하려면 새로고침을 눌러주세요.</summary>
+ <div id="creatorActivityList" class="spotify-results"></div><nav id="creatorActivityPager" aria-label="내 등록 음악 페이지" style="display:flex;justify-content:center;align-items:center;gap:12px;margin:12px 0"></nav></details>
  <p class="spotify-footnote">재생·수익 데이터는 별도 V5 경제원장 검증 후 연결합니다. 등록된 곡 수를 정산 금액으로 환산하지 않습니다.</p>
 </section>
 <section class="spotify-search" aria-labelledby="spotifySearchTitle"><div class="spotify-search-head"><div><h3 id="spotifySearchTitle" data-i18n="creator.spotify.title">기존 발매 작품 검색</h3><p data-i18n="creator.spotify.desc">Spotify에서 작품을 찾아 선택하면 제목·아티스트·앨범 정보가 자동 입력됩니다.</p></div><span class="spotify-mark">Spotify</span></div><div class="spotify-search-controls"><input id="spotifyQuery" type="search" autocomplete="off" placeholder="곡 제목 또는 아티스트 검색" data-i18n-placeholder="creator.spotify.placeholder"><button type="button" class="btn secondary" id="spotifySearchBtn" data-i18n="creator.spotify.search">검색</button></div><div id="spotifyResults" class="spotify-results" aria-live="polite"></div><div id="spotifySelected" class="spotify-selected" style="display:none"></div><p class="spotify-footnote" data-i18n="creator.spotify.note">Spotify는 작품 정보 확인용입니다. 음원 파일은 직접 제출해야 하며, 검색 결과는 저작권 소유 증명이 아닙니다. Spotify에 없는 신곡은 검색을 건너뛸 수 있습니다.</p></section><div class="row"><div class="field"><label data-i18n="creator.title">제목 *</label><input id="title" placeholder="자산 제목" data-i18n-placeholder="creator.asset.title.placeholder"></div><div class="field"><label data-i18n="creator.artist">아티스트 *</label><input id="artist" placeholder="아티스트명"></div></div>
@@ -286,24 +286,35 @@ function auth(){return {Authorization:'Bearer '+token};}
 })();
 (function(){
  const summary=document.getElementById('creatorActivitySummary'),list=document.getElementById('creatorActivityList'),button=document.getElementById('creatorActivityRefresh');
+ let mine=[],page=0;
+ function renderPage(){
+  list.replaceChildren();
+  const pager=document.getElementById('creatorActivityPager');pager.replaceChildren();
+  if(!mine.length){list.textContent='아직 등록한 TL3 음악이 없습니다.';return;}
+  const totalPages=Math.ceil(mine.length/20);
+  mine.slice(page*20,(page+1)*20).forEach(x=>{
+   const row=document.createElement('div');row.className='spotify-result';
+   const content=document.createElement('div');content.style.flex='1';
+   const title=document.createElement('strong');title.textContent=x.title||'제목 없음';
+   const meta=document.createElement('small');meta.textContent=[x.artist||'',x.album||''].filter(Boolean).join(' · ');
+   content.append(title,meta);row.append(content);list.append(row);
+  });
+  if(totalPages>1){
+   const prev=document.createElement('button');prev.type='button';prev.className='btn secondary';prev.textContent='이전 20곡';prev.disabled=page===0;prev.addEventListener('click',()=>{page--;renderPage();});
+   const status=document.createElement('span');status.textContent=(page+1)+' / '+totalPages+' 페이지';
+   const next=document.createElement('button');next.type='button';next.className='btn secondary';next.textContent='다음 20곡';next.disabled=page===totalPages-1;next.addEventListener('click',()=>{page++;renderPage();});
+   pager.append(prev,status,next);
+  }
+ }
  async function load(){
-  button.disabled=true;summary.textContent='내 음악 조회 중...';list.textContent='';
+  button.disabled=true;summary.textContent='내 음악 조회 중...';list.replaceChildren();
   try{
    const res=await fetch(API+'/api/shares',{headers:auth(),cache:'no-store'});
    if(!res.ok)throw Error('조회 실패 ('+res.status+')');
    const data=await res.json();
    const shares=Array.isArray(data)?data:(Array.isArray(data.shares)?data.shares:[]);
-   const mine=shares.filter(x=>String(x.user_id)===String(user.id)&&String(x.content_kind||'').toLowerCase()==='tl3');
-   summary.textContent='내 TL3 등록 음악: '+mine.length+'곡';
-   if(!mine.length){list.textContent='아직 등록한 TL3 음악이 없습니다.';return;}
-   mine.slice(0,30).forEach(x=>{
-    const row=document.createElement('div');row.className='spotify-result';
-    const content=document.createElement('div');content.style.flex='1';
-    const title=document.createElement('strong');title.textContent=x.title||'제목 없음';
-    const meta=document.createElement('small');meta.textContent=[x.artist||'',x.album||''].filter(Boolean).join(' · ');
-    content.append(title,meta);row.append(content);list.append(row);
-   });
-   if(mine.length>30){const note=document.createElement('p');note.className='spotify-footnote';note.textContent='최근 목록 중 최대 30곡을 표시합니다. 전체 자산은 대시보드에서 확인하세요.';list.append(note);}
+   mine=shares.filter(x=>String(x.user_id)===String(user.id)&&String(x.content_kind||'').toLowerCase()==='tl3');
+   page=0;summary.textContent='내 TL3 등록 음악: '+mine.length+'곡 · 목록 펼치기 / 접기';renderPage();
   }catch(e){summary.textContent='조회 오류: '+e.message;}
   finally{button.disabled=false;}
  }
