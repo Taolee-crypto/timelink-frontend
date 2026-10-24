@@ -72,6 +72,16 @@ nav{background:rgba(10,10,10,.9);border-color:var(--line)}
  <p class="spotify-footnote" id="creatorConnectHelp">기존 프로필은 음악가의 활동 정보를 참고하기 위한 것입니다. 계정 소유권이나 음원 권리가 자동 검증되는 것은 아닙니다. 외부 플랫폼의 음원 파일을 가져오지 않습니다.</p>
  <div class="actions"><button type="button" class="btn secondary" id="creatorConnectSave">활동 정보 계정에 저장</button><span id="creatorConnectStatus" class="spotify-footnote" role="status"></span></div>
 </section>
+<section class="spotify-search" aria-labelledby="mySettlementTitle" id="my-settlement">
+ <div class="spotify-search-head"><div><h3 id="mySettlementTitle" style="font-size:24px">💰 나의 정산 내역</h3><p style="font-size:15px;line-height:1.7">내 계정의 TL 잔액과 창작자 보상·환전 상태를 확인합니다. 타인의 정보는 표시하지 않습니다.</p></div><button type="button" class="btn secondary" id="mySettlementRefresh" style="font-size:15px;padding:12px 18px">↻ 새로고침</button></div>
+ <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:18px 0">
+  <div class="spotify-selected" style="display:block;padding:20px"><div style="font-size:15px;opacity:.8">내 TL 지갑 잔액</div><strong id="mySettlementWallet" style="font-size:26px;display:block;margin-top:8px">조회 중</strong></div>
+  <div class="spotify-selected" style="display:block;padding:20px"><div style="font-size:15px;opacity:.8">음악 보상 누적 TL</div><strong id="mySettlementEarned" style="font-size:23px;display:block;margin-top:8px">원장 연결 대기</strong></div>
+  <div class="spotify-selected" style="display:block;padding:20px"><div style="font-size:15px;opacity:.8">현금 환전 가능액</div><strong id="mySettlementRedeem" style="font-size:23px;display:block;margin-top:8px">검증 대기</strong></div>
+ </div>
+ <div id="mySettlementStatus" role="status" class="spotify-footnote" style="font-size:15px;line-height:1.8">V5 경제원장과 지급 내역을 확인하고 있습니다.</div>
+ <div style="margin-top:14px;padding:16px;border:1px solid rgba(255,255,255,.12);border-radius:12px;font-size:15px;line-height:1.8"><strong>정산 내역 · 환전 신청</strong><p style="opacity:.8">창작자 70% 보상은 TL로 지급됩니다. 기여도별 환전율, 플랫폼 발전 기여금, 국가별 세금 및 지급 검증을 거친 금액만 환전 가능합니다. 지급 연동이 검증되기 전에는 환전 신청을 받지 않습니다.</p><p id="mySettlementHistory" style="margin-top:10px">검증된 정산 이력 조회 API 연결 대기</p></div>
+</section>
 <section class="spotify-search" aria-labelledby="creatorActivityTitle">
  <div class="spotify-search-head"><div><h3 id="creatorActivityTitle">📊 내 TimeLink 음악 활동</h3><p>내 계정으로 등록한 음악의 현황을 확인합니다. 외부 플랫폼 통계나 실제 정산액은 포함하지 않습니다.</p></div><button type="button" class="btn secondary" id="creatorActivityRefresh">새로고침</button></div>
  <div id="creatorActivitySummary" class="spotify-selected" style="display:block" role="status">내 음악을 조회하려면 새로고침을 눌러주세요.</div>
@@ -650,6 +660,29 @@ function finish(released,d){
  step(4);
 }
 loadBalance();
+})();
+</script>
+<script>
+(function(){
+ const button=document.getElementById('mySettlementRefresh');
+ const wallet=document.getElementById('mySettlementWallet');
+ const status=document.getElementById('mySettlementStatus');
+ async function refresh(){
+  const token=localStorage.getItem('tl_token')||'';
+  if(!token){wallet.textContent='로그인 필요';status.textContent='로그인 후 본인 지갑을 조회할 수 있습니다.';return;}
+  button.disabled=true;
+  try{
+   const response=await fetch('https://api.timelink.digital/api/eco/wallet',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+   const d=await response.json();
+   const amount=Number(d.wallet?.tl_total);
+   if(!response.ok||!d.wallet||!Number.isFinite(amount))throw Error(d.error||'V5 경제원장 지갑 조회 실패');
+   wallet.textContent=amount.toLocaleString()+' TL';
+   status.textContent='V5 지갑 잔액 조회 완료. 음악 보상·환전 가능액·지급 이력은 별도의 검증된 본인 정산 API 연결 후 표시됩니다.';
+  }catch(e){wallet.textContent='확인 불가';status.textContent='지갑 조회 오류: '+String(e.message||e);}
+  finally{button.disabled=false;}
+ }
+ button.addEventListener('click',refresh);
+ refresh();
 })();
 </script>
 <script src="/notice-popup.js"></script>
