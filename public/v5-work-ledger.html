@@ -108,7 +108,42 @@ function renderNavigation(){
    ')</span><div class="mini"><i style="width:'+m.progress+'%"></i></div></button>';
  }).join('');
 }
-function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){alert('브라우저 저장 실패. JSON 백업을 내려받아 주세요: '+e.message)}}
+let serverVersion=0,serverReady=false,serverConflict=false,saveQueue=Promise.resolve();
+const workLedgerAPI='https://api.timelink.digital/api/admin/v5-work-ledger';
+const workHeaders=()=>({'Content-Type':'application/json',Authorization:'Bearer '+(localStorage.getItem('tl_adm_token')||localStorage.getItem('tl_token')||'')});
+function save(){
+ try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){alert('브라우저 백업 저장 실패: '+e.message)}
+ if(!serverReady||serverConflict)return;
+ const snapshot=clone(state);
+ saveQueue=saveQueue.then(async()=>{
+  if(serverConflict)return;
+  const r=await fetch(workLedgerAPI,{method:'POST',headers:workHeaders(),body:JSON.stringify({state:snapshot,expected_version:serverVersion})});
+  const d=await r.json();
+  if(!r.ok||!d.ok){serverConflict=true;throw Error(r.status===409?'다른 관리자가 먼저 수정했습니다. 현재 변경은 이 브라우저에 백업했습니다. JSON을 내보낸 뒤 새로고침해 비교해 주세요.':(d.error||'서버 저장 실패'));}
+  serverVersion=d.version;
+  document.getElementById('serverSaveStatus').textContent='서버 저장 완료 · 버전 '+serverVersion;
+ }).catch(e=>{serverConflict=true;document.getElementById('serverSaveStatus').textContent='서버 미저장 · '+e.message;});
+}
+async function loadServerWorkLedger(){
+ const banner=document.createElement('p');banner.id='serverSaveStatus';banner.setAttribute('role','status');document.body.prepend(banner);
+ document.querySelectorAll('button,input,select,textarea').forEach(el=>{el.dataset.initialDisabled=String(el.disabled);el.disabled=true;});
+ try{
+  const r=await fetch(workLedgerAPI,{headers:workHeaders(),cache:'no-store'});const d=await r.json();
+  if(!r.ok||!d.ok)throw Error(d.error||'관리자 권한을 확인하지 못했습니다.');
+  serverVersion=d.version;
+  if(d.state){
+   localStorage.setItem(KEY+'-before-server-sync',JSON.stringify(state));
+   state=d.state;
+   render();
+  }
+  serverReady=true;
+  document.querySelectorAll('button,input,select,textarea').forEach(el=>{el.disabled=el.dataset.initialDisabled==='true';});
+  banner.textContent='서버 관리대장 연결 · 버전 '+serverVersion;
+  if(!d.state)save();
+ }catch(e){banner.textContent='관리자 전용 관리대장 · '+e.message;document.querySelectorAll('main,dialog').forEach(el=>el.hidden=true);}
+}
+window.addEventListener('beforeunload',e=>{if(serverConflict){e.preventDefault();e.returnValue='서버 미저장 변경이 있습니다.';}});
+
 function addEvent(title,detail,type='변경'){state.events.unshift({id:'log-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),at:new Date().toISOString(),title,detail,type})}
 function applyBaselineOnce(){
  const marker='timelink-v5-baseline-20261024-applied';
@@ -326,4 +361,5 @@ migrateSidebarCategories20261024();
 migrateLinkedPages20261024();
 migrateTrackFeatures20261024();
 render();
+loadServerWorkLedger();
 </script></body></html>

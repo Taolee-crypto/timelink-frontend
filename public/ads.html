@@ -489,31 +489,7 @@ function onIMAError(e){
 }
 
 async function grantIMAreward(reward){
-  // TL_A 지급 (외부 광고 완료)
-  try{
-    var r=await fetch(API+'/api/eco/ad-reward',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(_token||'')},
-      body:JSON.stringify({ad_id:'ima_'+Date.now(), tl_amount:reward})
-    });
-    var d=await r.json();
-    if(d.wallet){
-      _user.tl_a=(d.wallet.tl_a||0);
-      localStorage.setItem('tl_user',JSON.stringify(_user));
-    }
-  }catch(e){
-    _user.tl_a=((_user&&_user.tl_a)||0)+reward;
-    localStorage.setItem('tl_user',JSON.stringify(_user));
-  }
-  _todayEarned+=reward; _totalEarned+=reward;
-  var tk='tl_ad_earned_'+new Date().toISOString().slice(0,10);
-  localStorage.setItem(tk,String(_todayEarned));
-  localStorage.setItem('tl_ad_total_earned',String(_totalEarned));
-  updateStats();
-  g('sbTL').textContent=(((_user&&_user.tl_p)||0)+((_user&&_user.tl_a)||0)+((_user&&_user.tl_b)||0)).toLocaleString()+' TL';
-  toast('✅ '+reward.toLocaleString()+' TL_A 적립! (Google 광고 보상)','s');
-  // 다음 광고 카드에 반영
-  loadAds();
+  toast('외부 광고 보상은 서버의 광고사 검증 완료 후 지급됩니다. 현재 적립되지 않았습니다.','w');
 }
 
 // 페이지 로드 시 IMA 초기화
@@ -602,47 +578,16 @@ async function loadAds(){
       headers:{'Authorization':'Bearer '+_token}
     });
     var d = await r.json();
+    if(!r.ok||d.error)throw Error(d.error||'광고 목록 조회 실패');
     _ads = d.ads || [];
-    // 테스트용 mock 데이터 (API 아직 없을 때)
-    if(!_ads.length){
-      _ads = generateMockAds();
-    }
     g('statAds').textContent = _ads.filter(function(a){ return !_viewedToday.has(a.id); }).length;
     renderAds();
   }catch(e){
-    _ads = generateMockAds();
-    g('statAds').textContent = _ads.length;
+    _ads = [];
+    g('statAds').textContent = 0;
     renderAds();
+    toast('광고 목록을 불러오지 못했습니다. 다시 시도해 주세요.','w');
   }
-}
-
-function generateMockAds(){
-  return [
-    {id:'mock_1',business_name:'TimeLink Corp',title:'TimeLink 프리미엄 멤버십',
-     description:'TLC 채굴로 실제 수익을 창출하세요. 지금 가입하면 42,500 TL 즉시 지급!',
-     ad_type:'video',thumbnail_url:'',tl_reward:500,views:1234,status:'active',
-     target_url:'https://timelink.digital'},
-    {id:'mock_2',business_name:'AI Music Lab',title:'AI 작곡 서비스 SUNO 무료 체험',
-     description:'AI로 나만의 음악을 만들어보세요. 무료 체험 30일 제공.',
-     ad_type:'audio',thumbnail_url:'',tl_reward:300,views:892,status:'active',
-     target_url:''},
-    {id:'mock_3',business_name:'K-Coffee Brand',title:'카페 브랜드 채널 개설 이벤트',
-     description:'TimeLink 카페 채널로 24시간 AI DJ를 운영하세요. 이달 개설 시 50% 할인!',
-     ad_type:'image',thumbnail_url:'',tl_reward:200,views:456,status:'active',
-     target_url:''},
-    {id:'mock_4',business_name:'TLC Exchange',title:'TLC 거래소 오픈 예정 알림',
-     description:'TimeLink Coin 글로벌 거래소 곧 오픈. 지금 사전 등록하면 추가 TLC 지급.',
-     ad_type:'video',thumbnail_url:'',tl_reward:800,views:2341,status:'active',
-     target_url:''},
-    {id:'mock_5',business_name:'Creative Studio',title:'크리에이터 수익화 가이드',
-     description:'SharePlace에 파일을 올리고 수익을 창출하는 방법을 알아보세요.',
-     ad_type:'audio',thumbnail_url:'',tl_reward:250,views:678,status:'active',
-     target_url:''},
-    {id:'mock_6',business_name:'Drive Radio',title:'인카방송 드라이브 이벤트',
-     description:'주행 중 인카방송으로 POC 2.5배! 이달의 드라이버 이벤트 참여하세요.',
-     ad_type:'image',thumbnail_url:'',tl_reward:150,views:345,status:'active',
-     target_url:''},
-  ];
 }
 
 // ── 광고 렌더 ──
@@ -689,10 +634,20 @@ function filterAds(type, btn){
 }
 
 // ── 광고 시청 모달 ──
-function openWatchModal(adId){
+async function openWatchModal(adId){
   if(_viewedToday.has(adId)){ toast('오늘 이미 시청한 광고입니다','w'); return; }
   _curAd = _ads.find(function(a){ return a.id===adId; });
   if(!_curAd) return;
+  try{
+    var sessionResponse=await fetch(API+'/api/eco/ad-session',{
+      method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+_token},
+      body:JSON.stringify({ad_id:_curAd.id})});
+    var session=await sessionResponse.json();
+    if(!sessionResponse.ok||!session.ok)throw Error(session.error||'광고 세션 시작 실패');
+    _curAd.reward_session_id=session.session_id;
+    _curAd.tl_reward=session.reward_tl;
+    _curAd.reward_duration=session.duration_seconds;
+  }catch(e){toast(String(e.message||e),'w');_curAd=null;return;}
 
   g('wmBiz').textContent = _curAd.business_name || '광고주';
   g('wmTitle').textContent = _curAd.title;
@@ -707,7 +662,7 @@ function openWatchModal(adId){
   g('wmSkipBtn').textContent='건너뛰기 (5s 후)';
 
   // 미디어 설정
-  _adDuration = _curAd.ad_type==='video' ? 15 : _curAd.ad_type==='audio' ? 30 : 10;
+  _adDuration = _curAd.reward_duration;
   setupMedia();
 
   g('watchOverlay').classList.add('open');
@@ -820,19 +775,17 @@ async function collectTL(){
     var r=await fetch(API+'/api/eco/ad-reward',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
-      body:JSON.stringify({ad_id:_curAd.id, tl_amount:reward})
+      body:JSON.stringify({ad_id:_curAd.id, session_id:_curAd.reward_session_id})
     });
     var d=await r.json();
-    if(d.wallet){
-      _user.tl_a=(d.wallet.tl_a||0);
-      _user.tl_p=(d.wallet.tl_p||(_user&&_user.tl_p)||0);
-      _user.tl_b=(d.wallet.tl_b||(_user&&_user.tl_b)||0);
-    }else{
-      _user.tl_a=((_user&&_user.tl_a)||0)+reward;
-    }
+    if(!r.ok||!d.ok||!d.wallet)throw Error(d.error||'서버 적립 확인 실패');
+    _user.tl_a=d.wallet.tl_a;
+    _user.tl_p=d.wallet.tl_p;
+    _user.tl_b=d.wallet.tl_b;
+    reward=Number(d.tl_a_rewarded||0);
   }catch(e){
-    // API 실패해도 로컬 TL_A 적립
-    _user.tl_a=((_user&&_user.tl_a)||0)+reward;
+    toast('적립되지 않았습니다: '+String(e.message||e),'w');
+    btn.disabled=false;btn.textContent='적립 다시 시도';return;
   }
 
   // 로컬 상태 업데이트

@@ -294,12 +294,13 @@ html,body{background:#0A0A0A;color:#F5F5F7}
   <div class="sb-item on" onclick="go('dashboard',this)"><span class="ico">◈</span>대시보드</div>
   <a class="sb-item" href="/v5-work-ledger.html" style="text-decoration:none;color:#c4b5fd;background:rgba(139,92,246,.10)"><span class="ico">☑</span>V5 전체 개발 현황 ↗</a>
   <div id="v5LedgerMini" style="padding:12px 14px;margin:5px 10px 12px;border:1px solid rgba(139,92,246,.28);border-radius:10px;font-size:13px;line-height:1.7;color:#c4b5fd">개발 관리대장 확인하기</div>
+  <a class="sb-item" href="/community-admin.html" style="text-decoration:none;color:var(--t1)">커뮤니티 신고 검토 ↗</a>
   <a class="sb-item" href="/tilo-admin.html" style="text-decoration:none;color:var(--t1)"><span class="ico">📡</span>TILO 중앙방송 관리실 ↗</a>
   <div class="sb-section">콘텐츠</div>
   <div class="sb-item" onclick="go('shares',this)"><span class="ico">▦</span>공유 파일 <span class="sb-badge g" id="sb-shares-cnt">0</span></div>
   <div class="sb-item" onclick="go('rights-review',this)"><span class="ico">✓</span>TL3 권리 검증 <span class="sb-badge" id="sb-rights-pending">0</span></div>
   <div class="sb-item" onclick="go('users',this)"><span class="ico">◎</span>유저 관리 <span class="sb-badge" id="sb-users-cnt">0</span></div>
-  <div class="sb-section">도구</div>
+  <div class="sb-section">도구</div><a class="sb-item" href="/reward-policy.html" style="text-decoration:none;color:var(--t1)">V5 보상 규칙 수동 관리 ↗</a>
   <div class="sb-item" onclick="go('charge',this)"><span class="ico">⚡</span>TL 충전/차감</div>
   <div class="sb-item" onclick="go('notice',this)"><span class="ico">📢</span>공지 / 이벤트</div>
   <div class="sb-item" onclick="go('revenue',this)"><span class="ico">💰</span>재무 현황</div>
@@ -1125,11 +1126,11 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
   </div>
   <div class="grid2" style="margin-bottom:16px">
     <div class="tbox">
-      <div class="tbox-top"><div class="tbox-title">🌟 분위기별 선택 통계</div><button class="btn btn-g btn-xs" onclick="loadDJStats()">↻</button></div>
+      <div class="tbox-top"><div class="tbox-title">🌟 장르 기반 분위기 추정 (실제 선곡 통계 아님)</div><button class="btn btn-g btn-xs" onclick="loadDJStats()">↻</button></div>
       <div style="padding:16px" id="dj-vibe-chart"></div>
     </div>
     <div class="tbox">
-      <div class="tbox-top"><div class="tbox-title">⏰ 시간대별 재생 패턴</div></div>
+      <div class="tbox-top"><div class="tbox-title">⏰ 시간대별 편성 예시 (실제 재생 기록 아님)</div></div>
       <div style="padding:16px" id="dj-time-chart"></div>
     </div>
   </div>
@@ -1148,7 +1149,7 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
 <!-- ═══════════════ P3: 보안/접근 로그 ═══════════════ -->
 <div class="panel" id="panel-security">
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
-    <div class="stat" style="--ac:#10B981"><div class="stat-val" id="sec-admin-logins">—</div><div class="stat-lbl">관리자 접속</div><div class="stat-sub">최근 30일</div></div>
+    <div class="stat" style="--ac:#10B981"><div class="stat-val" id="sec-admin-logins">—</div><div class="stat-lbl">관리자 API 요청</div><div class="stat-sub">최근 30일</div></div>
     <div class="stat" style="--ac:#F59E0B"><div class="stat-val" id="sec-sql-cnt">—</div><div class="stat-lbl">SQL 실행 횟수</div><div class="stat-sub">최근 30일</div></div>
     <div class="stat" style="--ac:#EF4444"><div class="stat-val" id="sec-charge-cnt">—</div><div class="stat-lbl">TL 수동 변경</div><div class="stat-sub">충전/차감 내역</div></div>
   </div>
@@ -3059,20 +3060,23 @@ async function loadSecurity(){
       body:JSON.stringify({sql:"SELECT t.created_at, u.username, u.email, t.tx_type, t.amount, t.note FROM transactions t LEFT JOIN users u ON t.user_id=u.id WHERE t.tx_type IN ('charge','deduct','admin_charge','admin_deduct') ORDER BY t.created_at DESC LIMIT 30"})
     });
 
-    g('sec-admin-logins').textContent = _secLog.length+'회';
-    g('sec-sql-cnt').textContent = _secLog.filter(function(l){return l.action==='SQL 실행';}).length+'회';
+    var audit=await api('/api/admin/audit-events');
+    if(!audit||!audit.ok)throw Error('서버 감사 기록 조회 실패');
+    var serverLogs=(audit.events||[]).map(function(e){return {time:e.created_at,action:e.method,target:e.path,detail:'관리자 '+e.actor_user_id+' · '+e.outcome+' · HTTP '+(e.status||'처리 중')};});
+    g('sec-admin-logins').textContent = Number(audit.stats.requests||0)+'회';
+    g('sec-sql-cnt').textContent = Number(audit.stats.sql_requests||0)+'회';
     g('sec-charge-cnt').textContent = (tlLog&&tlLog.results||[]).length+'건';
 
     // 관리자 액션 로그
-    g('sec-log-tbody').innerHTML = _secLog.length
-      ? _secLog.slice(0,20).map(function(l){
+    g('sec-log-tbody').innerHTML = serverLogs.length
+      ? serverLogs.slice(0,100).map(function(l){
           return '<tr>'+
-            '<td style="font-size:11px;font-family:var(--mono);color:var(--t3)">'+l.time+'</td>'+
-            '<td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:rgba(0,113,227,.1);color:var(--purple)">'+l.action+'</span></td>'+
+            '<td style="font-size:11px;font-family:var(--mono);color:var(--t3)">'+esc(l.time)+'</td>'+
+            '<td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:rgba(0,113,227,.1);color:var(--purple)">'+esc(l.action)+'</span></td>'+
             '<td style="font-family:var(--mono)">'+esc(l.target)+'</td>'+
             '<td style="font-size:11px;color:var(--t3)">'+esc(l.detail)+'</td></tr>';
         }).join('')
-      : '<tr><td colspan="4"><div class="empty">이 세션에서 아직 액션 없음</div></td></tr>';
+      : '<tr><td colspan="4"><div class="empty">아직 서버 감사 기록이 없습니다.</div></td></tr>';
 
     // TL 변경 이력
     paginate('sec-tl-tbody', (tlLog&&tlLog.results)||[], function(r){
@@ -3402,18 +3406,10 @@ async function forceEndLink(id){
 </script>
 
 <script>
-/* V5 관리대장 요약: 동일 브라우저에 저장된 값만 표시합니다. */
-(function(){
- var el=document.getElementById('v5LedgerMini');
- if(!el)return;
- try{
-  var data=JSON.parse(localStorage.getItem('timelink-v5-work-ledger-v1')||'null');
-  if(!data||!Array.isArray(data.tasks)){el.textContent='공통 · 개별 관리 / 변경 일기 / 체크리스트';return;}
-  var tasks=data.tasks,done=tasks.filter(function(t){return t.status==='운영확인'}).length;
-  var common=tasks.filter(function(t){return t.category==='기반·계정'||t.category==='운영·출시'});
-  var commonDone=common.filter(function(t){return t.status==='운영확인'}).length;
-  el.textContent='전체 '+done+'/'+tasks.length+' 완료 · 공통 '+commonDone+'/'+common.length+' · 개별 '+(done-commonDone)+'/'+(tasks.length-common.length);
- }catch(_){el.textContent='개발 관리대장 확인하기'}
+/* V5 관리대장 요약은 관리자 공용 서버 기록을 사용합니다. */
+(async function(){
+ const el=document.getElementById('v5LedgerMini');if(!el)return;
+ try{const response=await fetch(ADMIN_API+'/api/admin/v5-work-ledger',{headers:{Authorization:'Bearer '+getAdminToken()},cache:'no-store'});const d=await response.json();if(!response.ok||!d.ok)throw Error('조회 실패');const tasks=d.state?.tasks||[],done=tasks.filter(t=>t.status==='운영확인').length;el.textContent=tasks.length?'서버 관리대장 · 운영확인 '+done+'/'+tasks.length+' · 버전 '+d.version:'관리대장을 열어 초기 상태를 저장하세요.';}catch(e){el.textContent='서버 관리대장 조회 필요';}
 })();
 </script>
 </body>

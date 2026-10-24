@@ -308,8 +308,8 @@ input:focus,select:focus,textarea:focus{border-color:#8B5CF6!important;box-shado
 
       <!-- 로그인 패널 -->
       <div id="panelLogin">
-        <div class="biz-card-sub" style="margin-bottom:16px">사업자 등록번호로 로그인하세요</div>
-        <form onsubmit="doBizLogin();return false;">
+        <div class="biz-card-sub" style="margin-bottom:16px">회원 이메일로 로그인하세요. 기존 사업자번호 계정도 사용할 수 있습니다.</div>
+        <form onsubmit="doBizLogin();return false;"><div class="biz-form-group"><label class="biz-form-label" for="bizEmail">회원 이메일</label><input class="biz-form-input" id="bizEmail" type="email" autocomplete="email" placeholder="name@example.com"></div>
           <div class="biz-form-group">
             <label class="biz-form-label">사업자 등록번호</label>
             <input class="biz-form-input" id="bizRegNum" type="text"
@@ -329,7 +329,7 @@ input:focus,select:focus,textarea:focus{border-color:#8B5CF6!important;box-shado
       <!-- 가입 패널 -->
       <div id="panelSignup" style="display:none">
         <div class="biz-card-sub" style="margin-bottom:16px">사업자 번호로 광고주 계정을 만드세요</div>
-        <form onsubmit="doBizSignup();return false;">
+        <form onsubmit="doBizSignup();return false;"><div class="biz-form-group"><label class="biz-form-label" for="signupEmail">인증받을 이메일</label><input class="biz-form-input" id="signupEmail" type="email" autocomplete="email" required placeholder="name@example.com"></div>
           <div class="biz-form-group">
             <label class="biz-form-label">사업자 등록번호</label>
             <input class="biz-form-input" id="signupRegNum" type="text"
@@ -353,7 +353,7 @@ input:focus,select:focus,textarea:focus{border-color:#8B5CF6!important;box-shado
             <input class="biz-form-input" id="signupPw2" type="password"
               placeholder="비밀번호 재입력" autocomplete="new-password">
           </div>
-          <div class="biz-login-err" id="bizSignupErr" style="display:none"></div>
+          <div class="biz-form-group" id="bizEmailVerifyGroup" hidden><label class="biz-form-label" for="bizEmailVerifyCode">이메일 인증번호</label><input class="biz-form-input" id="bizEmailVerifyCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code"><button type="button" onclick="_bizSignupVerification=false;g('bizEmailVerifyCode').value='';doBizSignup();">인증번호 다시 받기</button></div><div class="biz-login-err" id="bizSignupErr" style="display:none"></div>
           <button class="biz-login-btn" id="bizSignupBtn" type="submit">가입하기</button>
         </form>
       </div>
@@ -1072,9 +1072,10 @@ function showSignupErr(msg){
 async function doBizLogin(){
   var regNum=(g('bizRegNum').value||'').replace(/[^0-9]/g,'');
   var pw=(g('bizNumPw').value||'');
-  if(regNum.length!==10){showErr('사업자 등록번호 10자리를 입력하세요');return;}
+  var loginEmail=(g('bizEmail').value||'').trim();
+  if(!loginEmail&&regNum.length!==10){showErr('사업자 등록번호 10자리를 입력하세요');return;}
   if(!pw){showErr('비밀번호를 입력하세요');return;}
-  var email=regNum+'@biz.timelink.digital';
+  var email=loginEmail||regNum+'@biz.timelink.digital';
   var btn=g('bizLoginBtn'); if(btn){btn.disabled=true;btn.textContent='로그인 중...';}
   if(g('bizLoginErr')) g('bizLoginErr').style.display='none';
   try{
@@ -1093,6 +1094,7 @@ async function doBizLogin(){
 }
 
 // ── 가입 ──
+var _bizSignupVerification=false;
 async function doBizSignup(){
   var regNum=(g('signupRegNum').value||'').replace(/[^0-9]/g,'');
   var bizName=(g('signupBizName').value||'').trim();
@@ -1102,16 +1104,20 @@ async function doBizSignup(){
   if(!bizName){showSignupErr('상호명을 입력하세요');return;}
   if(pw.length<8){showSignupErr('비밀번호는 8자 이상이어야 합니다');return;}
   if(pw!==pw2){showSignupErr('비밀번호가 일치하지 않습니다');return;}
-  var email=regNum+'@biz.timelink.digital';
+  var email=(g('signupEmail').value||'').trim();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showSignupErr('인증받을 이메일을 입력하세요.');return;}
+  var code=(g('bizEmailVerifyCode').value||'').trim();
+  if(_bizSignupVerification&&!/^\d{6}$/.test(code)){showSignupErr('이메일로 받은 6자리 인증번호를 입력하세요.');return;}
   var btn=g('bizSignupBtn'); if(btn){btn.disabled=true;btn.textContent='가입 중...';}
   if(g('bizSignupErr')) g('bizSignupErr').style.display='none';
   try{
     var r=await fetch(API+'/api/auth/register',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email,password:pw,username:'biz_'+regNum,business_name:bizName,biz_reg_num:regNum,is_advertiser:true})
+      body:JSON.stringify({email,password:pw,username:'biz_'+regNum,business_name:bizName,biz_reg_num:regNum,is_advertiser:true,verify_code:code||undefined})
     });
     var d=await r.json();
     if(!r.ok) throw new Error(d.error||'가입 실패');
+    if(d.step==='verify'){_bizSignupVerification=true;g('bizEmailVerifyGroup').hidden=false;showSignupErr('이메일로 인증번호를 보냈습니다. 인증번호를 입력한 뒤 가입을 완료하세요.');return;}
     _token=d.token||'';
     if(!_token){
       var r2=await fetch(API+'/api/auth/login',{
@@ -1126,7 +1132,7 @@ async function doBizSignup(){
     toast('🎉 가입 완료! 광고주 센터에 오신 걸 환영합니다','s');
     enterDashboard();
   }catch(e){ showSignupErr(e.message); }
-  if(btn){btn.disabled=false;btn.textContent='가입하기';}
+  finally{if(btn){btn.disabled=false;btn.textContent=_bizSignupVerification?'인증 후 가입 완료':'인증번호 받기';}}
 }
 
 // ── 대시보드 진입 ──

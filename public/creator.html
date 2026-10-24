@@ -65,7 +65,7 @@ nav{background:rgba(10,10,10,.9);border-color:var(--line)}
 </div>
 <section class="discovery-panel" id="discoveryPanel" hidden aria-label="기존 음원 발굴 등록">
 <h2>기존 음원 등록 · 최대 10곡</h2>
-<p class="desc">파일을 선택해 음원 정보를 확인하세요. 등록자의 보상은 검증 후 소액 POC 기여도이며 음악 이용 수익은 실제 권리자에게 귀속됩니다. 현재는 검색 및 등록 준비 단계로, 서버 등록 기능은 별도 연결 전입니다.</p>
+<p class="desc">파일을 선택해 음원 정보를 확인하세요. 등록자의 보상은 검증 후 소액 POC 기여도이며 음악 이용 수익은 실제 권리자에게 귀속됩니다. 등록 자료는 비공개로 보관하며 권리 검토 승인 후에만 공개할 수 있습니다. 곡당 최대 20MB입니다.</p>
 <label for="discoveryFiles">음원 선택 (최대 10곡)</label>
 <input id="discoveryFiles" type="file" multiple accept=".mp3,.wav,.flac,.m4a,.aac,audio/*">
 <p id="discoveryCount" role="status">선택한 곡 0/10</p>
@@ -717,8 +717,57 @@ loadBalance();
  function mode(isDiscovery){panel.hidden=!isDiscovery;workflow.hidden=isDiscovery;original.setAttribute('aria-pressed',String(!isDiscovery));discovery.setAttribute('aria-pressed',String(isDiscovery));}
  original.addEventListener('click',()=>mode(false));discovery.addEventListener('click',()=>mode(true));
  const files=document.getElementById('discoveryFiles'),count=document.getElementById('discoveryCount'),list=document.getElementById('discoveryList');
- files.addEventListener('change',()=>{const selected=Array.from(files.files||[]);list.replaceChildren();if(selected.length>10){count.textContent='한 번에 최대 10곡까지 선택할 수 있습니다.';files.value='';return;}
- count.textContent='선택한 곡 '+selected.length+'/10';selected.forEach((file,i)=>{const row=document.createElement('div');row.className='discovery-item';const label=document.createElement('strong');label.textContent=(i+1)+'. '+file.name;const info=document.createElement('small');info.textContent=' · '+(file.size/1024/1024).toFixed(1)+' MB · 비공개 등록 준비';row.append(label,info);list.append(row);});});
+ let items=[],batchId=crypto.randomUUID(),running=false;
+ const submit=document.createElement('button');submit.type='button';submit.className='btn primary';submit.textContent='선택한 음원 비공개 등록';submit.disabled=true;panel.append(submit);
+ const headers=()=>({Authorization:'Bearer '+(localStorage.getItem('tl_token')||'')});
+ files.addEventListener('change',()=>{
+  if(running)return;
+  const selected=Array.from(files.files||[]);list.replaceChildren();items=[];batchId=crypto.randomUUID();
+  if(selected.length>10){count.textContent='한 번에 최대 10곡까지 선택할 수 있습니다.';files.value='';submit.disabled=true;return;}
+  count.textContent='선택한 곡 '+selected.length+'/10';submit.disabled=!selected.length;
+  selected.forEach((file,i)=>{
+   const row=document.createElement('div');row.className='discovery-item';
+   const label=document.createElement('strong');label.textContent=(i+1)+'. '+file.name;
+   const title=document.createElement('input');title.value=file.name.replace(/\.[^.]+$/,'');title.placeholder='곡 제목';title.maxLength=200;
+   const artist=document.createElement('input');artist.placeholder='아티스트';artist.maxLength=200;
+   const search=document.createElement('button');search.type='button';search.textContent='발매 정보 검색';
+   const results=document.createElement('div'),info=document.createElement('p');info.setAttribute('role','status');info.textContent=(file.size/1024/1024).toFixed(1)+' MB · 등록 대기';
+   const item={file,title,artist,info,metadata:{},done:false};items.push(item);
+   search.onclick=async()=>{
+    search.disabled=true;results.replaceChildren();
+    try{
+     const r=await fetch('https://api.timelink.digital/api/spotify/search?q='+encodeURIComponent(title.value+' '+artist.value),{headers:headers()});
+     const d=await r.json();if(!r.ok)throw Error(d.error||'검색 실패');
+     for(const track of (d.tracks||[]).slice(0,5)){
+      const choose=document.createElement('button');choose.type='button';
+      const trackTitle=track.name||track.title||'',trackArtist=Array.isArray(track.artists)?track.artists.map(a=>a.name||a).join(', '):track.artist||'';
+      choose.textContent=trackTitle+' · '+trackArtist;
+      choose.onclick=()=>{title.value=trackTitle;artist.value=trackArtist;item.metadata={source:'spotify',track};results.textContent='발매 정보 선택 완료 · 권리 증명과는 별도입니다.';};results.append(choose);
+     }
+     if(!results.childNodes.length)results.textContent='검색 결과가 없습니다. 제목·아티스트를 직접 입력할 수 있습니다.';
+    }catch(e){results.textContent=String(e.message||e);}finally{search.disabled=false;}
+   };
+   row.append(label,title,artist,search,results,info);list.append(row);
+  });
+ });
+ submit.onclick=async()=>{
+  running=true;submit.disabled=true;files.disabled=true;
+  try{
+   for(const item of items){
+    if(item.done)continue;
+    if(item.file.size>20*1024*1024){item.info.textContent='20MB 제한을 초과했습니다.';continue;}
+    item.info.textContent='비공개 등록 중…';
+    try{
+     const form=new FormData();form.append('file',item.file);form.append('batch_id',batchId);form.append('title',item.title.value);form.append('artist',item.artist.value);form.append('metadata',JSON.stringify(item.metadata));
+     const r=await fetch('https://api.timelink.digital/api/v5/music-discovery',{method:'POST',headers:headers(),body:form});
+     const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'등록 실패');
+     item.done=true;item.title.disabled=true;item.artist.disabled=true;
+     item.info.textContent=(d.replayed?'기존 등록 확인':'비공개 등록 완료')+' · 권리 검토 대기 · '+d.registration.id;
+    }catch(e){item.info.textContent='미등록 · '+String(e.message||e);}
+   }
+  }finally{running=false;files.disabled=false;submit.disabled=items.every(x=>x.done);submit.textContent='실패한 음원 다시 등록';count.textContent='등록 완료 '+items.filter(x=>x.done).length+'/'+items.length;}
+ };
+
 })();
 </script>
 <script src="/notice-popup.js"></script>
