@@ -24,7 +24,7 @@ function harness(){
 async function main(){
  const h=harness(),{context:c,nodes,content}=h;
  assert.equal(content.src,'/dashboard.html');h.navigate('/creator');assert.equal(content.src,'/creator.html');h.navigate('/cafes');assert.equal(content.src,'/cafe-world.html');
- assert.equal(c.TLUI.route('https://evil.example/track.html'),null);
+ assert.equal(c.TLUI.canonicalPath('/creator'),'/creator.html');assert.equal(c.TLUI.canonicalPath('/radio'),'/radio.html');assert.equal(c.TLUI.canonicalPath('/renewal/files'),'/renewal/files.html');assert.equal(c.TLUI.canonicalPath('/index'),'/index.html');assert.equal(c.TLUI.canonicalPath('/track.html'),'/track.html');assert.equal(c.TLUI.route('https://evil.example/track.html'),null);
  assert.equal(c.TLUI.route('javascript:alert(1)'),null);
  assert.equal(c.TLUI.route('/docs/plan.html'),null);
  assert.equal(c.TLUI.route('/track.html?id=tl3_145'),'/track.html?id=tl3_145');

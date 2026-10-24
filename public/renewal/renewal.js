@@ -1,7 +1,8 @@
 /* Shared same-origin application bridge. Existing page filenames and APIs are retained. */
 (function(){
 'use strict';
-var params=new URLSearchParams(location.search),path=location.pathname,origin=location.origin;
+function canonicalPath(p){return p!=='/'&&!p.endsWith('/')&&!/\.[^/]+$/.test(p)?p+'.html':p;}
+var params=new URLSearchParams(location.search),path=canonicalPath(location.pathname),origin=location.origin;
 var HOST=path==='/'||path==='/index.html';
 var PLAYER=params.get('tl_player')==='1';
 var EMBEDDED=window.parent!==window;
@@ -15,8 +16,8 @@ function t(k){var arr=words[k];return arr?arr[['ko','en','ja','zh','th','vi'].in
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]});}
 function safeURL(v){try{var u=new URL(v,origin);return /^https?:$/.test(u.protocol)?u.href:''}catch(e){return '';}}
 function route(v){try{var u=new URL(v,origin);if(u.origin!==origin||!/^\/[a-zA-Z0-9_\/-]+(?:\.html)?$/.test(u.pathname)||u.pathname.startsWith('/docs/')||u.pathname.startsWith('/images/'))return null;return u.pathname+u.search+u.hash;}catch(e){return null;}}
-window.TLUI={t:t,esc:esc,safeURL:safeURL,route:route,lang:currentLang};
-var css=document.createElement('link');css.rel='stylesheet';css.href='/renewal/renewal.css?v=20261024r1';document.head.appendChild(css);
+window.TLUI={t:t,esc:esc,safeURL:safeURL,route:route,lang:currentLang,canonicalPath:canonicalPath,pagePath:path};
+var css=document.createElement('link');css.rel='stylesheet';css.href='/renewal/renewal.css?v=20261024r2';document.head.appendChild(css);
 if(PLAYER){document.documentElement.classList.add('tl-player-document');}
 else if(EMBEDDED&&!HOST){document.documentElement.classList.add('tl-embedded');}
 // The application host is persistent; individual document URLs still load their original files.
