@@ -3,6 +3,16 @@
   var API='https://api.timelink.digital';
   var token=localStorage.getItem('tl_token')||'';
   var user=null, allAssets=[], currentFilter='all';
+  var premiumSelection=new Set(), premiumAgreed=false;
+  function premiumEligible(a){return a.kind==='share'&&isAudio(a);}
+  function updatePremiumSummary(){
+    var ids=new Set(allAssets.filter(premiumEligible).map(function(a){return String(a.id)}));
+    premiumSelection.forEach(function(id){if(!ids.has(id))premiumSelection.delete(id);});
+    var count=premiumSelection.size, el=$('premiumSummary');
+    if(el)el.textContent='선택 '+count+'곡 · '+(count*30000).toLocaleString('ko-KR')+' TL';
+    var btn=$('premiumCheckout');if(btn)btn.disabled=true;
+    var note=$('premiumCheckoutNote');if(note)note.textContent=count&&premiumAgreed?'결제 API 연결 전: 실제 TL 차감 및 신청은 비활성화되어 있습니다.':'곡 선택과 계약 동의를 완료하면 결제할 수 있습니다. 현재는 결제 기능 개발 전입니다.';
+  }
   var $=function(id){return document.getElementById(id)};
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function authHeaders(){return {'Authorization':'Bearer '+token,'Content-Type':'application/json'};}
@@ -30,8 +40,10 @@
       var symbol=isAudio(a)?'♫':(/video|tl4/i.test(a.file_type||'')?'▣':(/image|tlj/i.test(a.file_type||'')?'▧':'▤'));
       var source=a.kind==='share'?'TL 공유 자산':(a.kind==='cloud'?'개인 클라우드 원본':'기존 Creator 파일');
       var type=String(a.file_type||a.category||'디지털 파일').toUpperCase();
-      return '<article class="asset-row"><div class="asset-art">'+symbol+'</div><div class="asset-main"><div class="asset-title">'+esc(a.title||'이름 없는 파일')+'</div><div class="asset-subtitle">'+esc(a.artist||a.genre||'아티스트 정보 없음')+' · '+esc(source)+'</div><div class="asset-tags"><span class="asset-tag">'+esc(type)+'</span>'+statusTag(a)+'</div></div><div class="asset-date">'+esc(dateLabel(a.created_at))+'</div></article>';
+      return '<article class="asset-row">'+(premiumEligible(a)?'<label style="display:flex;align-items:center;gap:6px;padding:8px;font-size:12px;white-space:nowrap"><input type="checkbox" class="premium-check" data-premium-id="'+esc(a.id)+'" '+(premiumSelection.has(String(a.id))?'checked':'')+' aria-label="'+esc(a.title||'음원')+' TL PREMIUM 홍보 선택"> 홍보</label>':'')+'<div class="asset-art">'+symbol+'</div><div class="asset-main"><div class="asset-title">'+esc(a.title||'이름 없는 파일')+'</div><div class="asset-subtitle">'+esc(a.artist||a.genre||'아티스트 정보 없음')+' · '+esc(source)+'</div><div class="asset-tags"><span class="asset-tag">'+esc(type)+'</span>'+statusTag(a)+'</div></div><div class="asset-date">'+esc(dateLabel(a.created_at))+'</div></article>';
     }).join('');
+    $('assetList').querySelectorAll('.premium-check').forEach(function(cb){cb.addEventListener('change',function(){var id=cb.getAttribute('data-premium-id');if(cb.checked)premiumSelection.add(id);else premiumSelection.delete(id);updatePremiumSummary();});});
+    updatePremiumSummary();
     $('emptyState').hidden=rows.length!==0;
     $('assetList').hidden=rows.length===0;
     $('listFooter').textContent=rows.length+'개 항목 표시 · 원본 파일의 직접 주소는 목록 API에서 노출하지 않습니다.';
@@ -107,6 +119,8 @@
       $('providerGrid').innerHTML='<div class="loading-state">저장소 상태 조회 실패</div>';
     }
   }
+  $('premiumAgreement').addEventListener('change',function(e){premiumAgreed=e.target.checked;updatePremiumSummary();});
+  $('premiumCheckout').addEventListener('click',function(){alert('결제 및 TL PREMIUM 활성화 기능은 아직 연결되지 않았습니다. TL은 차감되지 않습니다.');});
   $('searchInput').addEventListener('input',render);
   document.querySelectorAll('[data-filter]').forEach(function(btn){btn.addEventListener('click',function(){
     currentFilter=btn.getAttribute('data-filter');
