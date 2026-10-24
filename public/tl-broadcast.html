@@ -405,10 +405,27 @@ stationJoin.addEventListener('click',async()=>{
 
     if(!tracks.length)throw Error('SharePlace V5 자동 선곡 결과가 0곡입니다. V5 봉인·공개·파일 형식을 확인하세요.');
 
+    // Synchronize station metadata with the server clock, not a local playlist timer.
+    // Do not seek encrypted TL3 until the V5 player supports verified mid-track entry.
+    let serverSlot=null;
+    try{
+      const nowResponse=await fetch('https://api.timelink.digital/api/admin/central-broadcast/stations/'+encodeURIComponent(country)+'/now',{
+        headers:{Authorization:'Bearer '+token},cache:'no-store',signal:AbortSignal.timeout(7000)
+      });
+      if(nowResponse.ok){
+        const nowData=await nowResponse.json();
+        if(nowData.ok&&nowData.enabled&&nowData.slot&&tracks.includes(nowData.slot.fileId))serverSlot=nowData.slot;
+      }
+    }catch(error){console.warn('[TILO] Server timeline unavailable; legacy playback remains',error);}
     if(generation!==stationGeneration)return;
     joinedCountry=country;stationTracks=tracks;stationPlaying=true;
+    if(serverSlot){
+      const index=stationTracks.indexOf(serverSlot.fileId);
+      if(index>=0)stationTracks=stationTracks.slice(index).concat(stationTracks.slice(0,index));
+      status.textContent=countrySession[country].name+' · 서버 방송 현재 곡 '+serverSlot.fileId+' ('+Math.floor(serverSlot.positionMs/1000)+'초 경과)';
+    }
     renderCountryStation();
-    status.textContent=countrySession[country].name+' · TILO 첫인사 준비 중';
+    status.textContent=countrySession[country].name+' · TILO 첫인사 준비 중 (서버 편성 확인 완료)';
     await speakTilo(generation,country,tiloOpening(country));
     if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)await nextTiloTrack(generation,country);
   }catch(e){if(generation===stationGeneration)status.textContent='방송 시작 불가: '+String(e?.message||e);}
