@@ -292,6 +292,8 @@ html,body{background:#0A0A0A;color:#F5F5F7}
   </div>
   <div class="sb-section">메인</div>
   <div class="sb-item on" onclick="go('dashboard',this)"><span class="ico">◈</span>대시보드</div>
+  <a class="sb-item" href="/v5-work-ledger.html" style="text-decoration:none;color:#c4b5fd;background:rgba(139,92,246,.10)"><span class="ico">☑</span>V5 전체 개발 현황 ↗</a>
+  <div id="v5LedgerMini" style="padding:12px 14px;margin:5px 10px 12px;border:1px solid rgba(139,92,246,.28);border-radius:10px;font-size:13px;line-height:1.7;color:#c4b5fd">개발 관리대장 확인하기</div>
   <div class="sb-section">콘텐츠</div>
   <div class="sb-item" onclick="go('shares',this)"><span class="ico">▦</span>공유 파일 <span class="sb-badge g" id="sb-shares-cnt">0</span></div>
   <div class="sb-item" onclick="go('rights-review',this)"><span class="ico">✓</span>TL3 권리 검증 <span class="sb-badge" id="sb-rights-pending">0</span></div>
@@ -302,9 +304,10 @@ html,body{background:#0A0A0A;color:#F5F5F7}
   <div class="sb-item" onclick="go('revenue',this)"><span class="ico">💰</span>재무 현황</div>
   <div class="sb-item" onclick="go('footer',this)"><span class="ico">🦶</span>푸터 관리</div>
   <div class="sb-item" onclick="go('sql',this)"><span class="ico">▸</span>SQL 실행</div>
+  
   <div class="sb-section">P1 운영</div>
   <div class="sb-item" onclick="go('realtime',this)"><span class="ico">🔴</span>실시간 현황</div>
-  <div class="sb-item" onclick="go('payout',this)"><span class="ico">💸</span>크리에이터 정산 <span class="sb-badge" id="sb-payout-cnt">0</span></div>
+  <div class="sb-item" onclick="go('payout',this)"><span class="ico">💸</span>글로벌 정산 관리 <span class="sb-badge" id="sb-payout-cnt">0</span></div>
   <div class="sb-item" onclick="go('tl-flow',this)"><span class="ico">♻</span>TL 이코노미</div>
   <div class="sb-section">DJ 관리</div>
   <div class="sb-item" onclick="go('dj-manage',this)"><span class="ico">🎧</span>DJ 관리 <span class="sb-badge" id="sb-dj-cnt">0</span></div>
@@ -1000,17 +1003,45 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
     <div class="tbox-top"><div class="tbox-title">📋 정산 이력</div></div>
     <div class="po-table-scroll"><table><thead><tr><th>날짜</th><th>유저</th><th>TL</th><th>원화</th><th>상태</th><th>메모</th></tr></thead>
     <tbody id="po-requests-tbody"></tbody></table></div>
+#panel-payout{font-size:16px;line-height:1.65}
+#panel-payout h2{font-size:26px;margin:0 0 8px}
+#panel-payout .po-desc{color:var(--t2);font-size:15px;margin-bottom:22px}
+#panel-payout .po-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:20px 0}
+#panel-payout .po-stat{background:var(--bg3);border:1px solid var(--bd2);border-radius:14px;padding:22px}
+#panel-payout .po-stat strong{display:block;font-size:28px;margin:8px 0}
+#panel-payout .po-stat small{font-size:14px;color:var(--t2)}
+#panel-payout .po-controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+#panel-payout select,#panel-payout input{background:var(--bg3);border:1px solid var(--bd2);border-radius:10px;padding:12px 14px;color:var(--t1);font:inherit;font-size:15px}
+#panel-payout .po-table-wrap{overflow-x:auto}
+#panel-payout table{min-width:780px}
+#panel-payout th,#panel-payout td{padding:16px;font-size:15px}
+#panel-payout .po-note{font-size:15px;color:var(--t2);padding:18px;line-height:1.7}
+@media(max-width:900px){#panel-payout .po-grid{grid-template-columns:1fr}}
+</style>
+<!-- ═══════════════ 글로벌 정산 운영 ═══════════════ -->
+<div class="panel" id="panel-payout">
+  <h2>🌐 글로벌 정산 운영</h2>
+  <p class="po-desc">전 세계 창작자 정산의 운영 상태와 오류를 관리합니다. 개인별 수익·환전 신청은 크리에이터 대시보드에서 확인합니다.</p>
+  <div class="po-controls">
+    <label for="po-country">정산 국가</label>
+    <select id="po-country" onchange="renderGlobalPayout()"><option value="ALL">🌐 전체 국가</option><option value="KR">🇰🇷 대한민국</option><option value="JP">🇯🇵 일본</option><option value="US">🇺🇸 미국</option><option value="CN">🇨🇳 중국</option><option value="TH">🇹🇭 태국</option><option value="VN">🇻🇳 베트남</option></select>
+    <label for="po-state">처리 상태</label>
+    <select id="po-state" onchange="renderGlobalPayout()"><option value="ALL">전체 상태</option><option value="pending">대기</option><option value="completed">완료</option><option value="failed">실패</option><option value="held">보류</option></select>
+    <button class="btn btn-g" onclick="loadPayout()">↻ 운영 현황 새로고침</button>
   </div>
-  <div id="po-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);align-items:center;justify-content:center">
-    <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:24px;width:360px">
-      <div style="font-size:15px;font-weight:700;margin-bottom:16px">💸 정산 처리</div>
-      <input id="po-modal-user" type="hidden">
-      <div style="margin-bottom:10px"><div id="po-modal-username" style="font-weight:600;font-size:14px"></div></div>
-      <div style="margin-bottom:10px"><label style="font-size:12px;color:var(--t3)">TL 금액</label><input id="po-modal-tl" type="number" class="inp" style="width:100%;margin-top:4px" placeholder="0"></div>
-      <div style="margin-bottom:10px"><label style="font-size:12px;color:var(--t3)">원화 환산</label><input id="po-modal-krw" type="number" class="inp" style="width:100%;margin-top:4px" placeholder="0"></div>
-      <div style="margin-bottom:16px"><label style="font-size:12px;color:var(--t3)">메모</label><input id="po-modal-note" class="inp" style="width:100%;margin-top:4px" value="관리자 수동 정산"></div>
-      <div style="display:flex;gap:8px"><button class="btn btn-g" onclick="document.getElementById('po-modal').style.display='none'" style="flex:1">취소</button><button class="btn btn-b" onclick="submitPayout()" style="flex:2">✅ 정산 처리</button></div>
-    </div>
+  <div class="po-grid">
+    <div class="po-stat"><small>창작자 보상 TL (원장 검증 기준)</small><strong id="po-total-earned">확인 대기</strong><small id="po-creators">크리에이터 집계 대기</small></div>
+    <div class="po-stat"><small>미지급 TL (원장 검증 기준)</small><strong id="po-unpaid">확인 대기</strong><small>현금 환전 가능액과 구분</small></div>
+    <div class="po-stat"><small>처리 대기 요청</small><strong id="po-req-cnt">확인 대기</strong><small>자동 지급 연동 여부 별도 확인</small></div>
+  </div>
+  <div class="tbox">
+    <div class="tbox-top"><div class="tbox-title">국가별 정산 운영 상태</div></div>
+    <div class="po-table-wrap"><table><thead><tr><th>국가</th><th>정산 요청</th><th>대기</th><th>완료</th><th>실패·보류</th><th>검증 상태</th></tr></thead><tbody id="po-requests-tbody"><tr><td colspan="6">정산 데이터 검증 대기</td></tr></tbody></table></div>
+    <p class="po-note" id="po-operations-note">국가별 통계는 국가 정보가 검증된 원장 데이터에서만 표시합니다. 누락된 국가를 임의로 추정하지 않습니다.</p>
+  </div>
+  <div class="tbox" style="margin-top:18px">
+    <div class="tbox-top"><div class="tbox-title">운영 예외 및 점검</div></div>
+    <div id="po-creators-tbody" class="po-note">자동 정산 실패, 지급 보류, 원장 불일치 등의 운영 예외만 이곳에서 확인합니다. 관리자 수동 지급 기능은 제공하지 않습니다.</div>
   </div>
 </div>
 
@@ -1448,7 +1479,7 @@ async function createTestAd(){
   await execSQL("INSERT INTO tl_ads (id,business_name,title,description,ad_type,status,budget_tl,spent_tl,tl_reward,views,created_at) VALUES ('"+id+"','"+biz+"','"+title+"','"+desc+"','"+type+"','active',"+budget+",0,"+reward+",0,datetime('now'))");
   toast('광고 생성됨!','g'); loadAdvertisers();
 }
-var TITLES={'signup-hero':'회원가입 배경 이미지 관리',dashboard:'대시보드',revenue:'재무 현황',shares:'공유 파일 관리','rights-review':'TL3 권리 검증',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리',realtime:'🔴 실시간 현황',payout:'💸 크리에이터 정산','tl-flow':'♻ TL 이코노미 흐름','music-analytics':'🎵 음악 콘텐츠 분석','cafe-mgmt':'☕ 카페방송 채널 관리',infra:'🖥 인프라/비용 추적','dj-stats':'🤖 AI DJ 통계','dj-manage':'🎧 DJ 관리',security:'🔒 보안/접근 로그','auto-payout':'🔄 자동 정산 워크플로우'};
+var TITLES={'signup-hero':'회원가입 배경 이미지 관리',dashboard:'대시보드',revenue:'재무 현황',shares:'공유 파일 관리','rights-review':'TL3 권리 검증',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리',realtime:'🔴 실시간 현황',payout:'🌐 글로벌 정산 관리','tl-flow':'♻ TL 이코노미 흐름','music-analytics':'🎵 음악 콘텐츠 분석','cafe-mgmt':'☕ 카페방송 채널 관리',infra:'🖥 인프라/비용 추적','dj-stats':'🤖 AI DJ 통계','dj-manage':'🎧 DJ 관리',security:'🔒 보안/접근 로그','auto-payout':'🔄 자동 정산 워크플로우'};
 function go(id,el){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
   document.querySelectorAll('.sb-item').forEach(function(i){i.classList.remove('on');});
@@ -2609,6 +2640,7 @@ async function loadRealtime(){
 // ═══════════════════════════════════════
 // P1: 크리에이터 정산
 // ═══════════════════════════════════════
+
 var payoutCreatorRows=[];
 function renderPayoutCreators(){
   var query=String(g('po-search')?.value||'').trim().toLowerCase();
@@ -2623,8 +2655,26 @@ function renderPayoutCreators(){
       '<td>'+Number(cr.tl_balance||0).toLocaleString()+'</td>'+
       '<td><span style="color:var(--t2)">원장 검증 대기</span></td></tr>';
   }).join('')||'<tr><td colspan="7" style="text-align:center;padding:24px">검색 결과가 없습니다.</td></tr>';
+
+var globalPayoutSnapshot=null;
+function renderGlobalPayout(){
+  var body=g('po-requests-tbody'),note=g('po-operations-note');
+  if(!body)return;
+  var country=g('po-country').value,state=g('po-state').value;
+  var d=globalPayoutSnapshot;
+  if(!d){body.innerHTML='<tr><td colspan="6">검증된 정산 데이터를 조회할 수 없습니다.</td></tr>';return;}
+  var requests=d.requests.filter(function(r){return (country==='ALL'||String(r.country||'').toUpperCase()===country)&&(state==='ALL'||r.status===state);});
+  var countries=country==='ALL'?['KR','JP','US','CN','TH','VN']:[country];
+  body.innerHTML=countries.map(function(code){
+    var entries=requests.filter(function(r){return String(r.country||'').toUpperCase()===code;});
+    return '<tr><td>'+code+'</td><td>'+entries.length+'</td><td>'+entries.filter(function(r){return r.status==='pending';}).length+'</td><td>'+entries.filter(function(r){return r.status==='completed';}).length+'</td><td>'+entries.filter(function(r){return r.status==='failed'||r.status==='held';}).length+'</td><td>요청 상태 기준 · 원장 대조 필요</td></tr>';
+  }).join('');
+  var unknown=requests.filter(function(r){return !['KR','JP','US','CN','TH','VN'].includes(String(r.country||'').toUpperCase());}).length;
+  note.textContent='국가가 확인되지 않은 정산 요청 '+unknown+'건은 국가별 합계에서 제외했습니다. TL 원장과 지급 상태를 검증한 뒤에만 금액을 확정할 수 있습니다.';
+
 }
 async function loadPayout(){
+  globalPayoutSnapshot=null;
   try{
     var response=await fetch(API+'/api/admin/creators/payouts',{headers:{Authorization:'Bearer '+getAdminToken()}});
     var payload=null;
@@ -2669,12 +2719,25 @@ async function loadPayout(){
       '</tr>';
     }).join('') || '<tr><td colspan="6"><div class="empty">정산 이력 없음</div></td></tr>';
     g('sb-payout-cnt').textContent = d.creators?.length||0;
+    var d=await response.json();
+    if(!response.ok||!d||d.ok!==true||!Array.isArray(d.creators)||!Array.isArray(d.requests))throw Error(d&&d.error||'정산 조회 API가 연결되지 않았거나 검증에 실패했습니다.');
+    globalPayoutSnapshot=d;
+    var summary=d.summary||{};
+    g('po-total-earned').textContent='원장 검증 대기';
+    g('po-unpaid').textContent='원장 검증 대기';
+    g('po-req-cnt').textContent=d.requests.filter(function(r){return r.status==='pending';}).length+'건';
+    g('po-creators').textContent='등록 크리에이터 '+(summary.creator_count||d.creators.length)+'명 · 수익 확정 전';
+    g('po-creators-tbody').textContent='지급 오류 및 원장 불일치의 운영 검증 API 연결 대기 · 임의 수동 지급 금지';
+    g('sb-payout-cnt').textContent=d.requests.filter(function(r){return r.status==='pending';}).length;
+    renderGlobalPayout();
   }catch(e){
-    ['po-unpaid','po-req-cnt','po-total-earned'].forEach(function(id){var el=g(id);if(el)el.textContent='확인 불가';});
-    var creators=g('po-creators');if(creators)creators.textContent='크리에이터 집계 대기';
-    var tbody=g('po-creators-tbody');if(tbody)tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--rose)">'+esc(e.message)+'</td></tr>';
-    var requests=g('po-requests-tbody');if(requests)requests.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--t3)">정산 이력을 확인할 수 없습니다.</td></tr>';
-    console.error('[payout]',e.message);
+    g('po-total-earned').textContent='확인 불가';
+    g('po-unpaid').textContent='확인 불가';
+    g('po-req-cnt').textContent='확인 불가';
+    g('po-creators').textContent='원장 조회 실패';
+    g('po-operations-note').textContent='조회 실패: '+String(e.message||e);
+    g('po-creators-tbody').textContent='정산 원장 및 지급 API 연결을 확인해야 합니다. 지급 기능은 비활성 상태입니다.';
+    renderGlobalPayout();
   }
 }
 
@@ -3274,12 +3337,28 @@ async function forceEndLink(id){
     if(!response.ok||!data.ok)throw Error(data.error||'HTTP '+response.status);
     return data;
   }
+  // A failed admin status lookup is NOT evidence that the broadcaster stopped.
+  // Never toggle the service automatically in response to a failed read.
+  let retryTimer=null, retries=0;
   async function load(){
     try{
       const d=await request('GET');
+      if(retryTimer){clearTimeout(retryTimer);retryTimer=null;}
+      retries=0;
       check.checked=!!d.enabled;check.disabled=false;
-      status.textContent=d.enabled?'하위 아이디 활성화 · 방송 엔진 연결 대기':'하위 아이디 비활성화';
-    }catch(e){status.textContent='관리자 인증 또는 방송 계정 API 확인 필요: '+e.message;}
+      status.textContent=d.enabled?'방송 계정 활성화 · 실제 송출 여부는 별도 확인 필요':'방송 계정 비활성화';
+    }catch(e){
+      check.disabled=true;
+      const message=String(e.message||e);
+      const authFailure=/HTTP (401|403)|UNAUTHORIZED|FORBIDDEN/i.test(message);
+      status.textContent=authFailure
+        ?'관리자 인증 만료 또는 권한 거부 · 방송 중단을 의미하지 않습니다. 다시 로그인해 확인하세요.'
+        :'방송 계정 상태 조회 일시 실패 · 실제 송출과 무관할 수 있습니다. 자동 재확인 중…';
+      if(!authFailure&&retries<5&&!retryTimer){
+        const delay=Math.min(30000,1000*Math.pow(2,retries++));
+        retryTimer=setTimeout(()=>{retryTimer=null;load();},delay);
+      }
+    }
   }
   check.addEventListener('change',async function(){
     const desired=check.checked;
@@ -3295,5 +3374,20 @@ async function forceEndLink(id){
 })();
 </script>
 
+<script>
+/* V5 관리대장 요약: 동일 브라우저에 저장된 값만 표시합니다. */
+(function(){
+ var el=document.getElementById('v5LedgerMini');
+ if(!el)return;
+ try{
+  var data=JSON.parse(localStorage.getItem('timelink-v5-work-ledger-v1')||'null');
+  if(!data||!Array.isArray(data.tasks)){el.textContent='공통 · 개별 관리 / 변경 일기 / 체크리스트';return;}
+  var tasks=data.tasks,done=tasks.filter(function(t){return t.status==='운영확인'}).length;
+  var common=tasks.filter(function(t){return t.category==='기반·계정'||t.category==='운영·출시'});
+  var commonDone=common.filter(function(t){return t.status==='운영확인'}).length;
+  el.textContent='전체 '+done+'/'+tasks.length+' 완료 · 공통 '+commonDone+'/'+common.length+' · 개별 '+(done-commonDone)+'/'+(tasks.length-common.length);
+ }catch(_){el.textContent='개발 관리대장 확인하기'}
+})();
+</script>
 </body>
 </html>
