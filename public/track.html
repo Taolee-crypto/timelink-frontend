@@ -289,6 +289,20 @@ window.addEventListener('resize',()=>requestAnimationFrame(()=>{if(typeof fitTra
   <div class="loading" id="loadingEl"><div class="spinner"></div> 불러오는 중...</div>
 </div>
 
+<!-- TL PREMIUM: payment UI; never activate before verified server checkout -->
+<div class="modal-overlay" id="premiumPromoModal" role="dialog" aria-modal="true" aria-labelledby="premiumPromoTitle">
+ <div class="modal" style="max-width:520px;padding:22px">
+  <div class="modal-hdr"><span class="modal-title" id="premiumPromoTitle">✦ TL PREMIUM 음악 홍보</span><button class="modal-close" type="button" onclick="closePremiumPromo()">✕</button></div>
+  <p style="font-size:13px;line-height:1.8;color:var(--t2)">현금 선불 홍보입니다. TILO와 DJ가 장르·분위기에 맞춰 재생하며 실제 방송된 시간만큼 예산을 사용합니다.</p>
+  <div id="premiumPromoTrack" style="font-weight:700;margin:12px 0"></div>
+  <label for="premiumPromoPlan" style="display:block;font-size:13px;margin:12px 0 6px">홍보 상품 선택</label>
+  <select id="premiumPromoPlan" onchange="renderPremiumPromoEstimate()" style="width:100%;padding:12px;border-radius:9px;background:#171923;color:#fff;border:1px solid #555"><option value="5000">체험 홍보 · 5,000원</option><option value="15000">기본 홍보 · 15,000원</option><option value="30000">집중 홍보 · 30,000원</option><option value="50000">프리미엄 홍보 · 50,000원</option></select>
+  <div id="premiumPromoEstimate" style="padding:12px 0;font-size:13px;line-height:1.8" aria-live="polite"></div>
+  <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.6"><input type="checkbox" id="premiumPromoRights" style="margin-top:3px">본인은 이 음원의 홍보 방송에 필요한 권리를 보유하거나 이용허락을 확보했으며, 홍보 방송에 대한 별도 TL 음악 사용 보상을 청구하지 않는 조건에 동의합니다.</label>
+  <p id="premiumPromoNotice" style="color:#f6c36b;font-size:12px;line-height:1.7;margin-top:12px">결제 연동 준비 중입니다. 결제가 검증되기 전에는 금액을 청구하거나 TL PREMIUM 상태를 부여하지 않습니다.</p>
+  <button type="button" disabled style="width:100%;padding:13px;border:0;border-radius:10px;background:#52525b;color:white;font-weight:700;cursor:not-allowed">결제 연동 준비 중</button>
+ </div>
+</div>
 <!-- TRACK_PLAIN_LYRICS_EDITOR_V2: 일반 텍스트 가사 편집 -->
 <div class="modal-overlay" id="trackInfoModal">
   <div class="modal" style="max-width:640px;max-height:88vh;overflow:auto">
@@ -705,6 +719,21 @@ async function openCoverEdit(){
   input.onchange=()=>saveTrackCoverFile(input.files[0]);input.click();
  }
 }
+
+function openPremiumPromo(){
+ if(!_share||!_currentUserId||String(_currentUserId)!==String(_share.user_id)){alert('본인 소유의 음악만 홍보 신청할 수 있습니다.');return;}
+ const m=document.getElementById('premiumPromoModal');
+ document.getElementById('premiumPromoTrack').textContent=String(_share.title||'선택한 음악');
+ document.getElementById('premiumPromoRights').checked=false;
+ renderPremiumPromoEstimate();m.classList.add('open');
+}
+function closePremiumPromo(){document.getElementById('premiumPromoModal').classList.remove('open');}
+function renderPremiumPromoEstimate(){
+ const amount=Number(document.getElementById('premiumPromoPlan').value);
+ const duration=Number(_share?.duration_sec||_share?.duration||0);
+ const count=duration>0?Math.floor(amount/(duration*2.5)):0;
+ document.getElementById('premiumPromoEstimate').textContent='방송 요금: 초당 2.5원 · 예산: '+amount.toLocaleString('ko-KR')+'원'+(duration>0?' · 약 '+count+'회 완곡 방송 가능 (실제 재생시간에 따라 변동)':' · 곡 길이 확인 후 예상 횟수 표시');
+}
 function escH(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtTime(s){ const m=Math.floor((s||0)/60),sec=Math.floor((s||0)%60); return m+':'+(sec<10?'0':'')+sec; }
 function renderPlainLyrics(s){
@@ -885,6 +914,7 @@ function renderPage(s, stats, myFileTL, requiredTL){
           <button class="btn-icon" id="shareBtn">🔗</button>
         </div>
         ${hasUrl && !isFree ? '<button class="btn-dl" id="dlBtn" disabled title="창작권 인증 확인 중">🔒 인증 확인 중</button>' : ''}
+        \x24{_currentUserId && String(_currentUserId)===String(s.user_id) ? '<button type="button" id="premiumPromoBtn" onclick="openPremiumPromo()" style="width:100%;padding:13px;border:1px solid #a78bfa;border-radius:12px;background:linear-gradient(120deg,#4c1d95,#7c3aed);color:#fff;font-weight:700;cursor:pointer">✦ TL PREMIUM 홍보 신청</button>' : ''}
         <button class="btn-score" id="scoreBtn">🎼 악보 보기</button>
       </div>
 
