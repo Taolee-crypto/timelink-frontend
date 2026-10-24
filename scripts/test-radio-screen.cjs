@@ -1,0 +1,16 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync('public/radio.html','utf8');
+const code='//'+source.split('// Metadata follows the actual broadcast ID;')[1].split('</script>')[0];
+const nodes=new Map();const node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',dataset:{},addEventListener(){},replaceChildren(){},appendChild(){}});return nodes.get(id)};
+const events={};const audio={paused:true,ended:false,readyState:0,addEventListener(){}};
+const context={document:{getElementById:node,createElement:()=>({})},window:{addEventListener:(name,fn)=>events[name]=fn},broadcastAudio:audio,joinedCountry:null,stationJoin:{},MutationObserver:class{observe(){}},AbortSignal,fetch:async()=>({ok:true,json:async()=>({ok:true,tracks:[{file_id:7,title:'실제 곡',artist:'창작자',duration_ms:10000}]})})};
+vm.createContext(context);vm.runInContext(code,context);
+(async()=>{await new Promise(resolve=>setImmediate(resolve));
+ assert.match(node('selection-title').textContent,/준비/);
+ events['tilo:live-track']({detail:{fileId:7}});assert.equal(node('selection-title').textContent,'실제 곡');
+ events['tilo:live-track']({detail:{fileId:8}});assert.equal(node('selection-title').textContent,'방송곡 #8');
+ events['tilo:live-track']({detail:{fileId:null}});assert.match(node('selection-title').textContent,/준비/);
+ vm.runInContext('renderAudioState()',context);assert.equal(node('radio-live-state').dataset.active,'false');
+ audio.paused=false;audio.readyState=3;vm.runInContext('renderAudioState()',context);assert.equal(node('radio-live-state').dataset.active,'true');
+ console.log('PASS radio: actual track metadata, unknown ID fallback, clear state and real audio status');
+})().catch(error=>{console.error(error);process.exitCode=1});
