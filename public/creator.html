@@ -100,7 +100,7 @@ nav{background:rgba(10,10,10,.9);border-color:var(--line)}
 <section aria-labelledby="tiloMetaTitle" style="margin:16px 0;padding:16px;border:1px solid var(--line,rgba(128,128,128,.3));border-radius:12px">
 <h3 id="tiloMetaTitle">TILO 중앙방송 편성 정보 · 필수</h3>
 <p class="desc">방송 자동 편성을 위해 정확한 작품 정보를 입력해 주세요. Spotify 검색은 참고용이며 창작자가 최종 확인합니다.</p>
-<div class="row"><div class="field"><label for="tiloCountry">곡의 국가 *</label><input id="tiloCountry" required maxlength="80" placeholder="예: 대한민국 (KR)" autocomplete="off"></div><div class="field"><label for="tiloComposer">작곡 *</label><input id="tiloComposer" required maxlength="200" placeholder="작곡가 이름 또는 해당 없음"></div></div>
+<div class="row"><div class="field"><label for="tiloCountry">곡의 국가 *</label><select id="tiloCountry" required aria-label="곡의 국가 선택"><option value="">국가를 선택하세요 (필수)</option></select></div><div class="field"><label for="tiloComposer">작곡 *</label><input id="tiloComposer" required maxlength="200" placeholder="작곡가 이름 또는 해당 없음"></div></div>
 <div class="row"><div class="field"><label for="tiloLyricist">작사 *</label><input id="tiloLyricist" required maxlength="200" placeholder="작사가 이름 · 연주곡은 해당 없음"></div><div class="field"><label for="tiloVocal">가사 유형 *</label><select id="tiloVocal" required><option value="">선택</option><option value="vocal">가창곡</option><option value="instrumental">연주곡 · 가사 없음</option></select></div></div>
 <div class="field"><label for="tiloDescription">곡 설명 *</label><textarea id="tiloDescription" required maxlength="2000" rows="3" placeholder="곡의 내용, 분위기, 배경 등을 설명해 주세요."></textarea></div>
 <div class="field"><label for="tiloLyrics">가사 (가창곡 필수)</label><textarea id="tiloLyrics" maxlength="15000" rows="5" placeholder="가창곡은 전체 가사를 입력해 주세요. 연주곡은 비워 두세요."></textarea></div>
@@ -482,6 +482,20 @@ const TILO_GENRE_GROUPS={"한국 대중음악":["K-Pop","K-발라드","K-댄스"
  function populate(){const term=search.value.trim().toLocaleLowerCase();catalog.replaceChildren(new Option('분류에서 장르 선택',''));let count=0;
  Object.entries(TILO_GENRE_GROUPS).forEach(([group,names])=>{const matches=names.filter(n=>!term||n.toLocaleLowerCase().includes(term)||group.toLocaleLowerCase().includes(term));if(!matches.length)return;const opt=document.createElement('optgroup');opt.label=group;matches.forEach(n=>{opt.appendChild(new Option(n,n));count++});catalog.appendChild(opt)});counter.textContent=count+'개 장르 선택 가능 · 목록에 없으면 직접 입력';}
  catalog.addEventListener('change',()=>{if(catalog.value)genre.value=catalog.value});search.addEventListener('input',populate);populate();
+})();
+(function initCreatorCountrySelector(){
+ const el=document.getElementById('tiloCountry');if(!el)return;
+ const fallback=[['KR','대한민국'],['US','미국'],['JP','일본'],['CN','중국'],['GB','영국'],['FR','프랑스'],['DE','독일'],['CA','캐나다'],['AU','호주'],['IN','인도'],['TH','태국'],['VN','베트남'],['PH','필리핀'],['ID','인도네시아'],['BR','브라질'],['MX','멕시코'],['ES','스페인'],['IT','이탈리아']];
+ const names=typeof Intl.DisplayNames==='function'?new Intl.DisplayNames([navigator.language||'ko'],{type:'region'}):null;
+ const list=[];
+ for(let a=65;a<=90;a++)for(let b=65;b<=90;b++){
+  const code=String.fromCharCode(a,b);let name;
+  try{name=names?names.of(code):null;}catch(e){name=null;}
+  if(name&&name!==code&&name!==code.toLowerCase())list.push([code,name]);
+ }
+ const countries=list.length>100?list:fallback;
+ countries.sort((a,b)=>a[1].localeCompare(b[1],navigator.language||'ko'));
+ countries.forEach(([code,name])=>el.add(new Option(name+' ('+code+')',code)));
 })();
 async function loadBalance(){try{const r=await fetch(API+'/api/v1/users/me/wallet',{headers:auth()});const d=await r.json();const u=d.user||d;const b=Number(u.tl_balance??u.tl??0);$('balance').textContent=b.toLocaleString()+' TL'}catch(e){}}
 function preview(){
