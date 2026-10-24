@@ -68,6 +68,15 @@
       file_id: fileId, share_id: shareId,
       title: String(o.title || ''), artist: String(o.artist || ''),
       duration_ms: durationMs, rights_confirmed: true,
+      rights_kind: o.rightsKind === 'ai_creation' ? 'ai_creation' : 'copyright',
+      composer: String(o.composer || '').slice(0,200),
+      lyricist: String(o.lyricist || '').slice(0,200),
+      source_platform: String(o.sourcePlatform || '').slice(0,120),
+      source_reference: String(o.sourceReference || '').slice(0,240),
+      isrc: String(o.isrc || '').slice(0,32),
+      iswc: String(o.iswc || '').slice(0,32),
+      society_name: String(o.societyName || '').slice(0,160),
+      society_reference: String(o.societyReference || '').slice(0,160),
       lp_license: lpLicense
     };
     const form = new FormData();
