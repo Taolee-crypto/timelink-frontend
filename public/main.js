@@ -1,312 +1,42 @@
-/**
- * TimeLink — Player Engine v2
- * GameState 연동: TL 소비, Locked TL, Pulse, Car Mode
- */
+/* Persistent application host. Navigation replaces only the content document. */
+(function(){
+'use strict';if(!document.body.hasAttribute('data-tl-app-host'))return;
+var UI=window.TLUI,t=UI.t,origin=location.origin,frame=document.getElementById('tl-content'),dock=document.getElementById('tlPlayerDock'),container=document.getElementById('tlPlayerContainer'),status=document.getElementById('tlRouteStatus');
+var player=null,playerRoute='',stopResolve=null,current='',timer=null,radio=null,radioActive=false,radioConnected=false,radioResolve=null;
+var mini=document.createElement('section');mini.className='tl-radio-mini';mini.hidden=true;mini.innerHTML='<img src="/images/renewal/dj-mixing-card.jpg" alt="TILO"><div>TILO <small id="tlRadioStatus">'+t('radio')+'</small></div><button id="tlReturnRadio" type="button">'+t('radio')+'</button><button id="tlStopRadio" type="button">'+t('close')+'</button>';document.body.appendChild(mini);
+function radioUI(){mini.hidden=!radioConnected;document.body.classList.toggle('tl-has-radio',radioConnected);}
+function radioStop(){if(!radio)return Promise.resolve(true);return new Promise(function(resolve){var tm=setTimeout(function(){radioResolve=null;resolve(false)},15000);radioResolve=function(ok){clearTimeout(tm);radioResolve=null;if(ok){radioActive=false;radioConnected=false;radioUI()}resolve(ok)};radio.contentWindow.postMessage({type:'tl:stop-radio'},origin)})}
+function clearPlayer(){container.replaceChildren();player=null;playerRoute='';dock.hidden=true;document.body.classList.remove('tl-has-player');}
 
-// ============================================================
-// 플레이어 상태
-// ============================================================
-const PlayerState = {
-  trackId:        null,
-  sessionId:      null,
-  isPlaying:      false,
-  elapsed:        0,
-  heartbeatTimer: null,
-  uiTimer:        null,
-  audio:          new Audio()
-};
-
-// ============================================================
-// 플레이어 바 초기화
-// ============================================================
-function initPlayerBar() {
-  PlayerState.audio.addEventListener('timeupdate', onTimeUpdate);
-  PlayerState.audio.addEventListener('ended', onTrackEnded);
-  PlayerState.audio.addEventListener('error', () => toast('오디오 로드 실패', 'error'));
-}
-
-// ============================================================
-// 트랙 로드 & 재생
-// ============================================================
-async function loadTrack(trackId, audioUrl, title, artist) {
-  // 기존 세션 종료
-  if (PlayerState.sessionId) {
-    await PulseAPI.endPlay(PlayerState.sessionId);
-    clearInterval(PlayerState.heartbeatTimer);
-    clearInterval(PlayerState.uiTimer);
-  }
-
-  PlayerState.trackId = trackId;
-  PlayerState.elapsed = 0;
-
-  // UI 업데이트 — Now Playing Card & Player Bar
-  _setNowPlayingUI(title, artist);
-
-  // 오디오 로드
-  if (audioUrl) {
-    PlayerState.audio.src = audioUrl;
-    PlayerState.audio.load();
-  }
-
-  // Pulse 세션 시작 (로그인 시)
-  const token = localStorage.getItem('tl_token');
-  if (token) {
-    const { ok, data } = await PulseAPI.startPlay(trackId);
-    if (ok) PlayerState.sessionId = data.sessionId;
-  }
-
-  // 재생
-  try {
-    await PlayerState.audio.play();
-  } catch(e) {
-    console.warn('[Player] autoplay blocked:', e.message);
-  }
-  PlayerState.isPlaying = true;
-  _updatePlayIcon(true);
-
-  // 플레이어 바 표시
-  const bar = document.getElementById('player-bar');
-  if (bar) bar.classList.remove('hidden');
-
-  // 1초마다 — TL 소비 + Pulse + UI
-  PlayerState.uiTimer = setInterval(async () => {
-    if (!PlayerState.isPlaying) return;
-    PlayerState.elapsed++;
-
-    // TL 소비 (1초 = 1 TL 기본)
-    const canContinue = GameState.consumeTL(1);
-    if (!canContinue) {
-      stopPlay();
-      toast('⚠️ TL 잔액 부족 — 재생 중단', 'error');
-      return;
-    }
-
-    updateBalanceUI?.();
-    _updateProgressUI();
-
-  }, 1000);
-
-  // 10초마다 서버 heartbeat
-  PlayerState.heartbeatTimer = setInterval(async () => {
-    if (PlayerState.sessionId && PlayerState.isPlaying) {
-      await PulseAPI.heartbeat(PlayerState.sessionId, 10);
-    }
-  }, 10000);
-}
-
-// ============================================================
-// 재생 / 일시정지 토글
-// ============================================================
-function togglePlay() {
-  if (!PlayerState.trackId) {
-    toast('트랙을 먼저 선택하세요', 'info');
-    return;
-  }
-  if (PlayerState.isPlaying) {
-    PlayerState.audio.pause();
-    PlayerState.isPlaying = false;
-    _updatePlayIcon(false);
-  } else {
-    PlayerState.audio.play().catch(e => toast('재생 실패: ' + e.message, 'error'));
-    PlayerState.isPlaying = true;
-    _updatePlayIcon(true);
-  }
-}
-
-// ============================================================
-// 정지
-// ============================================================
-async function stopPlay() {
-  clearInterval(PlayerState.uiTimer);
-  clearInterval(PlayerState.heartbeatTimer);
-  PlayerState.audio.pause();
-  PlayerState.audio.currentTime = 0;
-  PlayerState.isPlaying = false;
-  _updatePlayIcon(false);
-
-  if (PlayerState.sessionId) {
-    await PulseAPI.endPlay(PlayerState.sessionId);
-    PlayerState.sessionId = null;
-  }
-  PlayerState.trackId = null;
-}
-
-// ============================================================
-// 트랙 종료 (자연 완료)
-// ============================================================
-async function onTrackEnded() {
-  clearInterval(PlayerState.uiTimer);
-  clearInterval(PlayerState.heartbeatTimer);
-  PlayerState.isPlaying = false;
-  _updatePlayIcon(false);
-
-  if (PlayerState.sessionId) {
-    await PulseAPI.endPlay(PlayerState.sessionId);
-    PlayerState.sessionId = null;
-  }
-  toast('🎵 재생 완료 — Pulse 적립!', 'success');
-}
-
-// ============================================================
-// 시간 업데이트 (오디오 진행바)
-// ============================================================
-function onTimeUpdate() {
-  const { audio } = PlayerState;
-  if (!audio.duration) return;
-
-  const pct = (audio.currentTime / audio.duration) * 100;
-
-  // Player Bar progress
-  const pbFill = document.getElementById('pb-fill');
-  if (pbFill) pbFill.style.width = pct + '%';
-
-  // Now Playing Card progress
-  const npFill = document.getElementById('np-progress-fill');
-  if (npFill) npFill.style.width = pct + '%';
-
-  const cur = fmtTime(Math.floor(audio.currentTime));
-  const dur = fmtTime(Math.floor(audio.duration));
-
-  const pbEl  = document.getElementById('pb-elapsed');
-  const pbDur = document.getElementById('pb-duration');
-  const npEl  = document.getElementById('np-elapsed');
-  const npDur = document.getElementById('np-duration');
-
-  if (pbEl) pbEl.textContent = cur;
-  if (pbDur) pbDur.textContent = dur;
-  if (npEl) npEl.textContent = cur;
-  if (npDur) npDur.textContent = dur;
-}
-
-// ============================================================
-// Pulse 카운터 UI
-// ============================================================
-function _updateProgressUI() {
-  const e = PlayerState.elapsed;
-  const els = ['np-pulse-count', 'pb-pulse'];
-  els.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = fmtNum(e);
-  });
-}
-
-// ============================================================
-// Now Playing UI 설정
-// ============================================================
-function _setNowPlayingUI(title, artist) {
-  ['pb-title', 'np-title'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = title;
-  });
-  ['pb-artist', 'np-sub'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = artist;
-  });
-}
-
-// ============================================================
-// 재생/일시정지 아이콘
-// ============================================================
-function _updatePlayIcon(playing) {
-  ['np-play-btn', 'pb-play-btn'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = playing ? '⏸' : '▶';
-  });
-}
-
-// ============================================================
-// Hot Pulse 목록 로드 (홈 화면용)
-// ============================================================
-async function loadHotPulse() {
-  const container = document.getElementById('hot-pulse-list');
-  if (!container) return;
-
-  container.innerHTML = '<div class="flex-center" style="padding:32px"><div class="spinner"></div></div>';
-  const { ok, data } = await TracksAPI.getHotPulse(20);
-
-  const tracks = (ok && data?.tracks?.length) ? data.tracks : GameState.sampleTracks;
-
-  if (!tracks.length) {
-    container.innerHTML = '<p class="text-muted text-center" style="padding:32px">트랙이 없습니다.</p>';
-    return;
-  }
-
-  container.innerHTML = tracks.map((t, i) => `
-    <div class="track-item" onclick="loadTrack('${t.id}','${t.audioUrl||''}','${escHtml(t.title)}','${escHtml(t.artist||'')}')">
-      <div class="track-thumb">${['🎵','🎶','🎸','🥁','🎹','🎺','🎻'][i % 7]}</div>
-      <div class="track-info">
-        <div class="track-title">${escHtml(t.title)}</div>
-        <div class="track-meta">${escHtml(t.artist||'Unknown')} · ${fmtTime(t.duration||0)}</div>
-      </div>
-      <div class="track-pulse">⚡ ${fmtNum(t.pulseCount||0)}</div>
-    </div>
-  `).join('');
-}
-
-// ============================================================
-// 실시간 Live Stats (5초 polling)
-// ============================================================
-function startLiveStats() {
-  async function update() {
-    const { ok, data } = await PulseAPI.getLive();
-    const stats = ok ? data : {
-      listeners: Math.floor(Math.random() * 500) + 100,
-      totalPulse: Math.floor(Math.random() * 50000) + 10000,
-      activeTracks: Math.floor(Math.random() * 200) + 50
-    };
-    ['live-listeners','live-pulse','live-tracks'].forEach((id, i) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = fmtNum([stats.listeners, stats.totalPulse, stats.activeTracks][i]);
-    });
-  }
-  update();
-  setInterval(update, 5000);
-}
-
-// ============================================================
-// Mining Panel
-// ============================================================
-function initMining() {
-  // 로컬 TLC 값을 표시 (API 호출 병행)
-  function updateMineUI() {
-    const el = document.getElementById('mine-pending');
-    if (el) el.textContent = GameState.wallet.tlc.toFixed(4);
-  }
-  updateMineUI();
-  setInterval(updateMineUI, 3000);
-}
-
-async function mineClaim() {
-  const btn = document.getElementById('mine-claim-btn');
-  if (!btn) return;
-
-  // 로컬 TLC 수령
-  if (GameState.wallet.tlc >= 0.0001) {
-    const claimed = GameState.wallet.tlc;
-    GameState.wallet.tlc = 0;
-    btn.disabled = false;
-    toast(`TLC ${claimed.toFixed(4)} 수령 완료!`, 'success');
-    updateBalanceUI?.();
-    return;
-  }
-
-  // API 수령 시도
-  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>'; }
-  const { ok, data, error } = await MiningAPI.claim();
-  if (btn) { btn.disabled = false; btn.textContent = '수령하기'; }
-
-  if (ok) {
-    toast(`TLC ${(data.claimed||0).toFixed(4)} 수령!`, 'success');
-  } else {
-    toast(error || '수령 가능한 TLC가 없습니다', 'info');
-  }
-}
-
-// ============================================================
-// HTML 이스케이프
-// ============================================================
-function escHtml(str) {
-  return String(str || '').replace(/[&<>"']/g, m => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-  })[m]);
-}
+function valid(v){var r=UI.route(v);if(!r)return null;var u=new URL(r,origin);if(u.pathname==='/'||u.pathname==='/index.html')return '/dashboard.html';if(u.pathname==='/track')u.pathname='/track.html';return u.pathname+u.search+u.hash}
+function showStatus(msg){status.textContent=msg;status.hidden=false;clearTimeout(timer);timer=setTimeout(function(){status.hidden=true},16000)}
+function address(href,replace){var u=new URL(href,origin);var next=href;if(!current&&href==='/dashboard.html'&&!new URLSearchParams(location.search).has('view'))next='/index.html';history[replace?'replaceState':'pushState']({tlRoute:href},'',next);current=href;document.body.dataset.currentRoute=href;window.dispatchEvent(new CustomEvent('tl:route',{detail:{href:href}}))}
+function navigate(href,replace){var target=valid(href);if(!target)return;showStatus(UI.lang==='ko'?'화면을 불러오는 중…':'Loading…');if(playerRoute&&new URL(target,origin).pathname==='/radio.html'){showStatus(UI.lang==='ko'?'개인 음악을 정지한 뒤 방송을 연결하세요.':'Stop personal playback before joining a station.')}if(new URL(target,origin).pathname==='/radio.html'){frame.hidden=true;if(!radio){radio=document.createElement('iframe');radio.id='tl-radio-content';radio.className='tl-radio-frame';radio.title=t('tilo');radio.allow='autoplay';radio.src=target;document.body.appendChild(radio);}radio.classList.remove('tl-radio-background');status.hidden=true;}else{frame.hidden=false;if(radio)radio.classList.add('tl-radio-background');frame.src=target;}address(target,!!replace);}
+async function stopPlayer(){if(!player)return true;if(stopResolve)return false;return new Promise(function(resolve){var timeout=setTimeout(function(){stopResolve=null;showStatus(UI.lang==='ko'?'재생 종료 응답을 확인하지 못했습니다. 잠시 후 다시 시도하세요.':'Playback stop was not confirmed. Please retry.');resolve(false)},25000);stopResolve=function(ok){clearTimeout(timeout);stopResolve=null;resolve(ok)};player.contentWindow.postMessage({type:'tl:stop-player'},origin)})}
+async function openPlayer(href){var target=valid(href);if(!target||new URL(target,origin).pathname!=='/track.html')return;if(target===playerRoute&&player){dock.hidden=false;document.body.classList.add('tl-has-player');showStatus(t('playerReady'));return;}if(radio&&!await radioStop())return;if(player&&!await stopPlayer())return;
+ container.replaceChildren();var u=new URL(target,origin);u.searchParams.set('tl_player','1');player=document.createElement('iframe');player.id='tl-player';player.title='TL3 V5 '+t('firstPlay');player.allow='autoplay';player.src=u.pathname+u.search;container.appendChild(player);playerRoute=target;document.getElementById('tlDockDetail').href=target;dock.hidden=false;document.body.classList.add('tl-has-player');document.getElementById('tlDockLabel').textContent=t('playerReady');}
+window.addEventListener('message',function(e){if(e.origin!==origin||!e.data||typeof e.data.type!=='string')return;var fromRadio=radio&&e.source===radio.contentWindow,fromContent=e.source===frame.contentWindow,fromPlayer=player&&e.source===player.contentWindow;if(!fromContent&&!fromPlayer&&!fromRadio)return;
+ if(e.data.type==='tl:navigate'&&(fromContent||fromRadio))navigate(e.data.href);
+ if(e.data.type==='tl:route-loaded'&&fromRadio){if(new URL(current||'/dashboard.html',origin).pathname==='/radio.html'){document.title=(e.data.title||'TimeLink').slice(0,150);status.hidden=true;}return;}
+ if(e.data.type==='tl:route-loaded'&&fromContent){if(new URL(current||'/dashboard.html',origin).pathname==='/radio.html')return;var target=valid(e.data.href);if(target){if(target!==current)address(target,true);document.title=(e.data.title||'TimeLink').slice(0,150);status.hidden=true;var logged=!!localStorage.getItem('tl_token');document.getElementById('tlLoginLink').hidden=logged;window.dispatchEvent(new CustomEvent('tl:route',{detail:{href:target}}));}}
+ if(e.data.type==='tl:play-track'&&fromContent)openPlayer(e.data.href);
+ if(e.data.type==='tl:radio-state'&&fromRadio){radioActive=!!e.data.active;radioConnected=!!e.data.connected||radioActive;document.getElementById('tlRadioStatus').textContent=(e.data.country||'')+' · '+(radioActive?(UI.lang==='ko'?'실제 오디오 수신 중':'Audio playing'):(UI.lang==='ko'?'연결됨 · 음악 준비 중':'Connected · waiting for audio'));radioUI();}
+ if(e.data.type==='tl:radio-stopped'&&fromRadio){if(radioResolve)radioResolve(true)}
+ if(e.data.type==='tl:radio-stop-error'&&fromRadio){if(radioResolve)radioResolve(false)}
+ if(e.data.type==='tl:radio-start-request'&&fromRadio){(async function(){if(player&&!await stopPlayer())return;if(player)clearPlayer();radio.contentWindow.postMessage({type:'tl:radio-start-approved'},origin)})();}
+ if(e.data.type==='tl:logout-request'&&(fromContent||fromRadio)){(async function(){if(player&&!await stopPlayer())return;if(radio&&!await radioStop())return;clearPlayer();localStorage.removeItem('tl_token');localStorage.removeItem('tl_user');location.href='/login.html';})();}
+ if(e.data.type==='tl:player-ready'&&fromPlayer){document.getElementById('tlDockLabel').textContent=t('playerTitle');showStatus(t('playerReady'))}
+ if(e.data.type==='tl:player-error'&&fromPlayer){document.getElementById('tlDockLabel').textContent=t('loadError')}
+ if(e.data.type==='tl:player-stopped'&&fromPlayer){if(stopResolve)stopResolve(true)}
+ if(e.data.type==='tl:player-stop-error'&&fromPlayer){showStatus(UI.lang==='ko'?'재생 종료 또는 정산 확인이 필요합니다. 다시 시도하세요.':'Playback stop or settlement needs confirmation. Please retry.');if(stopResolve)stopResolve(false)}
+ if(e.data.type==='tl:wallet'&&fromPlayer){window.dispatchEvent(new CustomEvent('tl-balance-updated',{detail:{tl:e.data.tl}}));try{frame.contentWindow.dispatchEvent(new frame.contentWindow.CustomEvent('tl-balance-updated',{detail:{tl:e.data.tl}}))}catch(error){}}
+});
+document.addEventListener('click',function(e){if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;var a=e.target.closest('a[href]');if(!a||a.download||a.target==='_blank'||a.getAttribute('href').startsWith('#'))return;var target=valid(a.href);if(target){e.preventDefault();navigate(target)}});
+document.getElementById('tlClosePlayer').onclick=async function(){var b=this;b.disabled=true;try{if(!await stopPlayer())return;clearPlayer();window.dispatchEvent(new Event('focus'))}finally{b.disabled=false}};
+window.addEventListener('popstate',function(e){var target=e.state&&e.state.tlRoute||location.pathname+location.search+location.hash;target=valid(target)||'/dashboard.html';navigate(target,true)});
+document.getElementById('tlSearch').onsubmit=function(e){e.preventDefault();var q=document.getElementById('tlSearchInput').value.trim();navigate('/shareplace.html'+(q?'?q='+encodeURIComponent(q):''))};
+var lang=document.getElementById('tlLanguage');lang.value=UI.lang;lang.onchange=function(){localStorage.setItem('tl_lang',lang.value);if(player||radioConnected){showStatus(UI.lang==='ko'?'재생을 종료한 뒤 언어를 변경해 주세요.':'Stop playback before changing the interface language.');lang.value=UI.lang;localStorage.setItem('tl_lang',UI.lang);return;}location.href='/index.html?view='+encodeURIComponent(current)};
+document.documentElement.lang=UI.lang;document.getElementById('tlCreateLink').textContent='＋ '+t('create');document.getElementById('tlSearchInput').placeholder=t('search');document.getElementById('tlSearchInput').setAttribute('aria-label',t('search'));document.getElementById('tlLoginLink').textContent=t('login');document.getElementById('tlLoginLink').hidden=!!localStorage.getItem('tl_token');document.getElementById('tlClosePlayer').textContent=t('close')+' ×';document.getElementById('tlDockDetail').textContent=t('details');
+document.getElementById('tlReturnRadio').onclick=function(){navigate('/radio.html')};document.getElementById('tlStopRadio').onclick=async function(){var b=this;b.disabled=true;await radioStop();b.disabled=false};
+var initial=new URLSearchParams(location.search).get('view')||'/dashboard.html';navigate(initial,true);
+})();

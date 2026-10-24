@@ -264,13 +264,13 @@
       return lastBilled;
     };
     audio._tl3Stop=function(){
-      if(stopped)return;
+      if(stopped)return audio._tl3StopPromise;
       // Flush accrued audible time before closing the session. The server
       // returns unused TL to the original wallet buckets atomically and rejects future meters.
       sample(true);
       if(!broadcastCountry&&!meterFailed&&billableMs>0)queueMeter(Number((billableMs/1000).toFixed(3)),false);
       const closingMeter=meterQueue;
-      closingMeter.then(async()=>{
+      audio._tl3StopPromise=closingMeter.then(async()=>{
         if(broadcastCountry||meterFailed||audio.ended)return;
         const response=await fetch(API+'/api/v1/tl3/play/stop/'+encodeURIComponent(fileId),{
           method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
@@ -279,14 +279,15 @@
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok)throw new Error(data.error||'중도 종료 정산 실패');
         if(opts.onStopSettlement)opts.onStopSettlement(data);
-      }).catch(onError);
-      if(stopped)return;stopped=true;
+      }).catch(function(error){audio._tl3StopError=error;onError(error);});
+      if(stopped)return audio._tl3StopPromise;stopped=true;
       if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}
       try{audio.pause();}catch(_){}
       if(lpController&&lpController.stop)lpController.stop().catch(()=>{});
       try{audio.removeEventListener('playing',onPlaying);audio.removeEventListener('pause',onPause);audio.removeEventListener('waiting',onBuffering);audio.removeEventListener('stalled',onBuffering);audio.removeEventListener('seeking',onSeeking);audio.removeEventListener('seeked',onSeeked);audio.removeEventListener('timeupdate',onTimeUpdate);audio.removeEventListener('ended',onEnded);}catch(_){}
       try{audio.removeAttribute('src');audio.load();}catch(_){}
       URL.revokeObjectURL(blobUrl);
+      return audio._tl3StopPromise;
     };
     audio._tl3Confirm=audio._tl3Stop;
     audio._tl3Suspend=()=>lpController&&lpController.suspend?lpController.suspend():Promise.resolve();

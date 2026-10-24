@@ -2370,7 +2370,7 @@ function createLangSwitcher(containerId){
 
 /* ── 상단 고정 스위처 자동 삽입 ── */
 function injectSwitcher(){
-  if(document.getElementById('tl-lang-switcher')) return;
+  if(window.parent!==window || document.body.hasAttribute('data-tl-app-host') || document.getElementById('tl-lang-switcher')) return;
   var sw=document.createElement('div');
   sw.id='tl-lang-switcher';
   sw.setAttribute('role','group');
