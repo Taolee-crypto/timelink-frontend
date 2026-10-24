@@ -687,6 +687,10 @@ async function loadApplications(){
 ══════════════════════════════════════ */
 var _selectedTrackIds = [];  // 선택된 곡 ID 목록
 var _allMyFiles = [];        // 전체 파일 목록
+var _djTotalCount = 10; // final total, including premium tracks
+function setDjTotalCount(v){var n=Number(v);if(!Number.isInteger(n)||n<2||n>200||n%2){toast('전체 곡 수는 2~200 사이 짝수로 설정하세요','e');return;} _djTotalCount=n;updateDjQuota();}
+function updateDjQuota(){var el=g('djQuotaStatus');if(el)el.textContent='전체 '+_djTotalCount+'곡 = 직접 선택 '+(_djTotalCount/2)+'곡 + TL PREMIUM '+(_djTotalCount/2)+'곡 · 현재 직접 선택 '+_selectedTrackIds.length+'곡';}
+
 
 async function loadFiles(){
   try {
@@ -756,6 +760,7 @@ function renderFiles(files){
     }).join('');
 
   g('filesContent').innerHTML = html;
+  updateDjQuota();
 }
 
 /* ══════════════════════════════════════
@@ -777,6 +782,7 @@ function toggleTrack(id){
   }
   var el = g('selectedCount');
   if(el) el.textContent = _selectedTrackIds.length;
+  updateDjQuota();
 }
 
 function selectAllFiles(){
@@ -790,6 +796,8 @@ function clearAllFiles(){
 }
 
 async function saveBroadcastSet(){
+  if(_selectedTrackIds.length !== _djTotalCount/2){toast('직접 선택 곡은 전체 '+_djTotalCount+'곡의 절반인 '+(_djTotalCount/2)+'곡이어야 합니다','e');return;}
+  toast('TL PREMIUM 홍보곡 '+(_djTotalCount/2)+'곡을 선택·저장하는 서버 기능이 아직 연결되지 않았습니다. 불완전한 세트는 저장하지 않습니다.','e');return;
   if(_selectedTrackIds.length === 0){
     toast('곡을 최소 1개 이상 선택하세요','e');
     return;
