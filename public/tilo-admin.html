@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TILO 중앙방송 관리실 · TimeLink V5</title><link rel="stylesheet" href="/apple-theme.css"><style>
+:root{color-scheme:dark}body{margin:0;background:#090f1c;color:#f0f5ff;font:14px system-ui,sans-serif}main{max-width:1250px;margin:auto;padding:32px 20px 70px}h1{font-size:28px;margin:0 0 8px}h2{font-size:19px}p{line-height:1.65;color:#b7c6d9}.panel{background:#101b2c;border:1px solid #30455f;border-radius:16px;padding:20px;margin:18px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.country{background:#111e30;border:1px solid #30455f;border-radius:13px;padding:16px}.country strong{font-size:17px}.tag{display:inline-block;padding:4px 8px;border-radius:7px;background:#26354b;color:#c9dfff;font-size:12px}button,.link{display:inline-block;border:1px solid #557ba7;background:#183451;color:#eaf5ff;border-radius:9px;padding:10px 14px;text-decoration:none;cursor:pointer;margin:4px 5px 4px 0}button:disabled{opacity:.5;cursor:not-allowed}.error{color:#ff9e9e}.ok{color:#8ee3c1}.muted{color:#b7c6d9}code{word-break:break-word}nav a{color:#a8d7ff;margin-right:18px}small{color:#9cacc3}#stations{min-height:60px}
+</style></head><body><main><nav><a href="/admin.html">← 관리자 콘솔</a><a href="/tl-broadcast.html">일반 중앙방송국 화면</a><a href="/v5-work-ledger.html">V5 개발대장</a></nav>
+<h1>📡 TILO 중앙방송 관리실</h1><p>관리자 전용 운영 화면입니다. 중앙방송의 청취 페이지와 분리하여 국가별 운영 현황·편성·권한·정산·장애를 관리합니다.</p>
+<section class="panel"><h2>관리자 인증</h2><p id="auth-status" role="status">관리자 권한을 확인하는 중…</p><a class="link" href="/login.html?redirect=%2Ftilo-admin.html">관리자 로그인</a><button id="refresh">방송국 상태 새로고침</button><p><small>관리자 권한은 서버에서 확인합니다. 이 페이지는 권한 검사 없이 방송 제어 요청을 실행하지 않습니다.</small></p></section>
+<section class="panel"><h2>국가별 방송국 현황</h2><div id="stations" class="grid" aria-live="polite"></div></section>
+<section class="panel"><h2>운영 관리 항목</h2><div class="grid">
+<div class="country"><strong>🎼 편성곡·방송 권리</strong><p>국가별 승인된 V5 TL3 음원과 제외 사유를 점검합니다.</p><span class="tag">권한 있는 조회 지원</span></div>
+<div class="country"><strong>🎙 TILO AI DJ</strong><p>국가·언어·시간대·날씨별 DJ 편성 및 발화 설정</p><span class="tag">관리 API 연동 예정</span></div>
+<div class="country"><strong>🕒 24시간 송출</strong><p>브라우저와 무관한 서버 측 송출 상태·재시작·장애 복구</p><span class="tag">서버 기능 검증 필요</span></div>
+<div class="country"><strong>💰 V5 경제원장·정산</strong><p>실제 방송 시간 × 0.3 TL, 권리자 70%·플랫폼 30% 정산 검증</p><span class="tag">원장 연동 예정</span></div>
+<div class="country"><strong>📰 뉴스·날씨</strong><p>국가별 뉴스 소스와 날씨 데이터 점검</p><span class="tag">관리 기능 예정</span></div>
+<div class="country"><strong>🛡 권한·감사 기록</strong><p>관리자 역할, 변경 승인, 방송 제어 이력 관리</p><span class="tag">관리 기능 예정</span></div>
+</div></section>
+</main><script>
+(function(){
+'use strict';
+const API='https://api.timelink.digital';
+const countries={KR:'대한민국',JP:'일본',US:'미국',CN:'중국',TH:'태국',VN:'베트남'};
+const auth=document.getElementById('auth-status'),stations=document.getElementById('stations'),refresh=document.getElementById('refresh');
+const token=()=>localStorage.getItem('tl_token')||'';
+const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function load(){
+refresh.disabled=true;stations.textContent='국가별 상태 조회 중…';
+if(!token()){auth.textContent='로그인이 필요합니다. 관리자 계정으로 로그인하세요.';stations.textContent='관리자 인증 후 조회할 수 있습니다.';refresh.disabled=false;return;}
+const entries=await Promise.all(Object.entries(countries).map(async ([country,name])=>{
+try{
+const response=await fetch(API+'/api/admin/central-broadcast/stations/'+country,{headers:{Authorization:'Bearer '+token()},cache:'no-store'});
+const data=await response.json().catch(()=>({}));
+if(response.status===401||response.status===403||data.error==='ADMIN_REQUIRED')return {country,name,error:'관리자 권한이 없습니다 ('+(data.error||response.status)+')',auth:true};
+if(!response.ok||!data.ok)return {country,name,error:data.error||'HTTP '+response.status};
+return {country,name,data};
+}catch(e){return {country,name,error:e.message||'네트워크 오류'};}
+}));
+const denied=entries.some(e=>e.auth);
+auth.textContent=denied?'관리자 권한을 확인할 수 없습니다. 관리자 계정으로 다시 로그인하세요.':entries.some(e=>e.data)?'관리자 방송국 조회 권한 확인됨':'서버 응답을 확인해 주세요.';
+auth.className=denied?'error':entries.some(e=>e.data)?'ok':'muted';
+stations.innerHTML=entries.map(e=>'<article class="country"><strong>'+escapeHtml(e.name)+' ('+e.country+')</strong><p>'+(e.error?'<span class="error">'+escapeHtml(e.error)+'</span>':'<span class="ok">서버 조회 성공</span>')+'</p>'+(e.data?'<p>서비스: '+(e.data.service_enabled?'활성':'비활성')+'<br>방송 가능 곡: '+(Array.isArray(e.data.granted_file_ids)?e.data.granted_file_ids.length:'정보 없음')+'</p><a class="link" href="/tl-broadcast.html">방송국 보기</a>':'')+'</article>').join('');
+refresh.disabled=false;
+}
+refresh.addEventListener('click',load);load();
+})();
+</script></body></html>
