@@ -33,7 +33,7 @@
       ['/creator.html', '✧', 'Creator Studio', '크리에이터 스튜디오', 'purple']
     ]],
     ['TL BROADCAST', 'TL 방송국', [
-      ['/tl-broadcast.html', '◉', 'TL Central Broadcast Center', 'TL 중앙방송센터', 'orange'],
+      ['/radio.html', '◉', 'TL Radio', 'TL 중앙방송국 · 청취', 'orange'],
       ['/dj-center.html', '♫', 'DJ Center', 'DJ센터', 'orange'],
       ['/cafe-channel.html', '▣', 'Cafe Broadcast', '카페방송', 'orange'],
       ['/incar-channel.html', '◇', 'In-car Broadcast', '인카방송', 'orange']
@@ -232,6 +232,12 @@
       adminLink.innerHTML = '<span class="tl-global-icon" aria-hidden="true">⚙</span><span>' + esc(label('Admin Console', '관리자 콘솔')) + '</span>';
       nav.appendChild(adminSection);
       nav.appendChild(adminLink);
+      var broadcastAdminLink=document.createElement('a');
+      broadcastAdminLink.className='tl-global-link'+(pathName==='/tilo-admin.html'?' is-active':'');
+      broadcastAdminLink.setAttribute('data-tone','orange');
+      broadcastAdminLink.href='/tilo-admin.html';
+      broadcastAdminLink.innerHTML='<span class="tl-global-icon" aria-hidden="true">◉</span><span>'+esc(label('Central Broadcast Operations','중앙방송 운영센터'))+'</span>';
+      nav.appendChild(broadcastAdminLink);
     }).catch(function () {});
   }
 
