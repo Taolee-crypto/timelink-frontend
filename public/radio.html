@@ -162,7 +162,24 @@ h1{font-size:clamp(22px,2.8vw,37px);margin:22px 0 2px;max-width:800px}
 
 /* integrated V5 broadcast status */
 #tsLiveBroadcastLink{background:#147eaa;color:white;border:0;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer}
-</style></head><body><main class="shell">
+</style><style>
+/* Single-studio layout: old visual stage stays non-rendered while the V5
+   engine's original nodes are relocated into the upper studio. */
+.on-air-head,.layout,.genre-row,.foot{display:none!important}
+.ts-engine{display:grid;gap:14px;margin-top:18px}
+.ts-engine .broadcast-strip{margin:0}
+.ts-engine .station-row{display:block;margin:0;padding:14px;border:1px solid #55517c;border-radius:14px;background:#10172d}
+.ts-engine .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.ts-engine .controls>label,.ts-engine .controls>small{width:100%}
+.ts-engine #tilo-country-checkboxes{width:100%}
+.ts-engine #tilo-broadcast-audio{width:100%!important;max-width:520px}
+.ts-engine-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.ts-engine-info .stack{display:contents}
+.ts-engine-info .panel{padding:18px;border-radius:14px;background:#10172d}
+.ts-engine .station-row,.ts-engine .panel{min-width:0}
+@media(max-width:650px){.ts-engine-info{grid-template-columns:minmax(0,1fr)}.ts-engine .controls{display:flex;flex-direction:column;align-items:stretch}}
+</style>
+</head><body><main class="shell">
 <header class="top"><a href="/" class="logo">TimeLink <span style="color:#b99dff">/ TL BROADCAST</span></a><a class="pill" href="/dashboard.html">Dashboard ↗</a></header>
 <div class="studio-sign" aria-label="TL 중앙방송국">TL 중앙방송국</div><h1>Music connects every moment.</h1><p class="muted intro">각 나라의 언어와 시간에 맞춰 방송하는 TILO AI DJ. 국가별 중앙방송국의 소식과 음악을 한곳에서 만나보세요.</p>
   <section class="tilo-studio" aria-label="TILO 중앙방송 가상 방송실">
@@ -179,6 +196,12 @@ h1{font-size:clamp(22px,2.8vw,37px);margin:22px 0 2px;max-width:800px}
       <div class="ts-panel"><div class="ts-panel-title">GLOBAL CHANNELS · 준비 중</div><div class="ts-channel-list"><span>🇰🇷 한국어</span><span>🇺🇸 English</span><span>🇯🇵 日本語</span><span>🇨🇳 中文</span><span>🇹🇭 ไทย</span><span>🇻🇳 Tiếng Việt</span></div><div class="ts-panel-sub">채널은 편성 엔진 연결 후 활성화됩니다.</div><div class="ts-scene-label" id="tsSceneLabel" aria-live="polite">방송실 연출 준비 중</div></div>
     </div>
     <div class="ts-controls"><button type="button" id="tsLiveBroadcastLink" aria-label="선택한 국가의 실제 TILO V5 방송 연결">▶ 실제 TILO 방송 연결</button><button type="button" id="tsSpeak">🔊 TILO 음성 안내 듣기</button><button type="button" id="tsMute">음성 정지</button><a href="cafe-channel.html">☕ 카페방송</a><a href="incar-channel.html">🚘 인카방송</a><span class="ts-note">음성은 브라우저 합성 안내입니다. 실제 방송 송출과 별개입니다.</span></div>
+    <div class="ts-engine" id="tsEngine" aria-label="TILO V5 실제 방송 연결 및 정보">
+      <div class="ts-engine-status" id="tsEngineStatus"></div>
+      <div class="ts-engine-selection" id="tsEngineSelection"></div>
+      <div class="ts-engine-controls" id="tsEngineControls"></div>
+      <div class="ts-engine-info" id="tsEngineInfo"></div>
+    </div>
   </section>
 <div class="on-air-head"><span class="on-air-dot"></span> TILO STUDIO <span class="broadcast-caption"> · 방송 화면 시연 · 실제 송출 대기</span></div>
 <div class="layout"><section class="panel hero"><div><div class="station-tag">TIME LINK · CENTRAL STATION</div>
@@ -234,6 +257,20 @@ h1{font-size:clamp(22px,2.8vw,37px);margin:22px 0 2px;max-width:800px}
 <section class="panel schedule"><h2>Next on air</h2><p id="broadcast-playlist-status">V5 공개 음원 목록을 확인하는 중…</p><div id="broadcast-playlist" aria-live="polite"></div><p id="broadcast-settlement-preview" class="muted"></p></section></aside></div>
 
 <div class="genre-row" aria-label="방송 장르 미리보기"><div class="genre-tile">♫ K-POP</div><div class="genre-tile">♡ 발라드</div><div class="genre-tile">♬ 인디</div><div class="genre-tile">♩ 재즈</div><div class="genre-tile">⚡ 일렉트로닉</div></div><p class="foot">방송 화면 미리보기 · 뉴스, 음성 및 재생 기능은 연결 상태가 확인된 후 활성화됩니다.</p></main>
+<script>
+// Preserve the existing V5 station engine and its element IDs; relocate its actual
+// controls, player and live data into the ONE visible TILO studio, not a second UI.
+(function(){
+  const move=(selector,target)=>{const node=document.querySelector(selector),slot=document.getElementById(target);if(node&&slot)slot.appendChild(node);};
+  move('.broadcast-strip','tsEngineSelection');
+  move('#station-status','tsEngineStatus');
+  move('.station-row','tsEngineControls');
+  move('.layout > aside.stack','tsEngineInfo');
+  const primary=document.getElementById('tsLiveBroadcastLink');
+  const join=document.getElementById('country-station-join');
+  if(primary&&join)primary.addEventListener('click',()=>join.click());
+})();
+</script>
 <script src="/tl3-v5-player.js?v=tl3-v5-20261019a"></script>
 <script>
 const broadcastAudio=document.getElementById('tilo-broadcast-audio');
