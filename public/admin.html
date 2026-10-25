@@ -277,7 +277,7 @@ body.tl-admin-console>.admin-main{display:flex!important;flex-direction:column!i
 @media(max-width:450px){#panel-payout .po-stats{grid-template-columns:1fr}}
 </style><link rel="stylesheet" href="/admin-kr-finance.css?v=kr-finance-20261026a">
 <script defer src="/admin-kr-finance.js?v=kr-finance-20261026a"></script>
-<link rel="stylesheet" href="/sales-manager.css?v=sales-20261026a"><script defer src="/sales-manager.js?v=sales-20261026a"></script></head>
+<link rel="stylesheet" href="/sales-manager.css?v=sales-20261026a"><script defer src="/sales-manager.js?v=sales-20261026a"></script><link rel="stylesheet" href="/admin-sales-operations.css?v=20261026a"><script defer src="/admin-sales-operations.js?v=20261026a"></script></head>
 <body class="tl-admin-console">
 
 <!-- LOGIN -->
@@ -320,11 +320,21 @@ body.tl-admin-console>.admin-main{display:flex!important;flex-direction:column!i
   <div class="sb-section">도구</div><a class="sb-item" href="/reward-policy.html" style="text-decoration:none;color:var(--t1)">V5 보상 규칙 수동 관리 ↗</a>
   <div class="sb-item" onclick="go('charge',this)"><span class="ico">⚡</span>TL 충전/차감</div>
   <div class="sb-item" onclick="go('notice',this)"><span class="ico">📢</span>공지 / 이벤트</div>
-  <div class="sb-item" onclick="go('revenue',this)"><span class="ico">💰</span>재무 현황</div><div class="sb-item" onclick="go('sales',this)"><span class="ico">🤝</span>영업 매니저</div>
+  <div class="sb-item" onclick="go('revenue',this)"><span class="ico">💰</span>재무 현황</div>
   <div class="sb-item" onclick="go('footer',this)"><span class="ico">🦶</span>푸터 관리</div>
   <div class="sb-item" onclick="go('sql',this)"><span class="ico">▸</span>SQL 실행</div>
   
-  <div class="sb-section">P1 운영</div>
+  <div class="sb-section">영업관리</div>
+<div class="sb-item" onclick="openSalesOperations('overview',this)"><span class="ico">↳</span>영업 현황</div>
+<div class="sb-item" onclick="openSalesOperations('managers',this)"><span class="ico">↳</span>영업 매니저</div>
+<div class="sb-item" onclick="openSalesOperations('djs',this)"><span class="ico">↳</span>파트너 DJ</div>
+<div class="sb-item" onclick="openSalesOperations('stores',this)"><span class="ico">🏪</span>스토어</div>
+<div class="sb-item" onclick="openSalesOperations('sales',this)"><span class="ico">↳</span>매출·원거래</div>
+<div class="sb-item" onclick="openSalesOperations('settlements',this)"><span class="ico">↳</span>배분·정산</div>
+<div class="sb-item" onclick="openSalesOperations('tax',this)"><span class="ico">↳</span>세금·증빙</div>
+<div class="sb-item" onclick="openSalesOperations('policy',this)"><span class="ico">↳</span>가입 심사·영업 정책</div>
+
+<div class="sb-section">P1 운영</div>
   <div class="sb-item" onclick="go('realtime',this)"><span class="ico">🔴</span>실시간 현황</div>
   <div class="sb-item" onclick="go('payout',this)"><span class="ico">💸</span>크리에이터 정산 관리 <span class="sb-badge" id="sb-payout-cnt">0</span></div>
   <div class="sb-item" onclick="go('tl-flow',this)"><span class="ico">♻</span>TL 이코노미</div>
@@ -332,7 +342,7 @@ body.tl-admin-console>.admin-main{display:flex!important;flex-direction:column!i
   <div class="sb-item" onclick="go('dj-manage',this)"><span class="ico">🎧</span>DJ 관리 <span class="sb-badge" id="sb-dj-cnt">0</span></div>
   <div class="sb-section">P2 분석</div>
   <div class="sb-item" onclick="go('music-analytics',this)"><span class="ico">🎵</span>음악 분석</div>
-  <div class="sb-item" onclick="go('cafe-mgmt',this)"><span class="ico">☕</span>카페방송 관리 <span class="sb-badge g" id="sb-cafe-cnt">0</span></div>
+  <div class="sb-item" onclick="go('cafe-mgmt',this)"><span class="ico">☕</span>스토어 관리 <span class="sb-badge g" id="sb-cafe-cnt">0</span></div>
   <div class="sb-item" onclick="go('dj-stats',this)"><span class="ico">🤖</span>AI DJ 통계</div>
   <div class="sb-section">P3 인프라</div>
   <div class="sb-item" onclick="go('infra',this)"><span class="ico">🖥</span>인프라/비용</div>
@@ -604,7 +614,7 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
     </div>
 
 
-    <div class="panel" id="panel-sales"><div id="adminSalesRoot" style="max-width:1160px;margin:auto"><p data-sm-status role="status">영업 매니저 정보를 조회하세요.</p></div></div>
+    <div class="panel" id="panel-sales"><div id="salesOperationsRoot"></div><section id="salesPolicyPane" hidden><div id="adminSalesRoot" style="max-width:1160px;margin:auto"></div></section></div>
 <!-- ══ 재무 현황 패널 ══ -->
     <div class="panel" id="panel-revenue">
       <div style="max-width:1100px;margin:0 auto">
@@ -1020,18 +1030,7 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
 </div>
 
 <!-- ═══════════════ P2: 카페방송 채널 관리 ═══════════════ -->
-<div class="panel" id="panel-cafe-mgmt">
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
-    <div class="stat" style="--ac:#10B981"><div class="stat-val" id="cm-active">—</div><div class="stat-lbl">활성 채널</div><div class="stat-sub">만료일 이전</div></div>
-    <div class="stat" style="--ac:#EF4444"><div class="stat-val" id="cm-expired">—</div><div class="stat-lbl">만료 채널</div><div class="stat-sub">갱신 필요</div></div>
-    <div class="stat" style="--ac:#0071E3"><div class="stat-val" id="cm-revenue">—</div><div class="stat-lbl">스토어 가입비 수익 (TL)</div><div class="stat-sub">무료 가입 · 수익 0 TL</div></div>
-  </div>
-  <div class="tbox">
-    <div class="tbox-top"><div class="tbox-title">☕ 스토어채널 목록</div><button class="btn btn-g btn-xs" onclick="loadCafeMgmt()">↻</button></div>
-    <table><thead><tr><th>채널명</th><th>사장</th><th>주소</th><th>만료일</th><th>잔여일</th><th>상태</th></tr></thead>
-    <tbody id="cm-tbody"></tbody></table>
-  </div>
-</div>
+<div class="panel" id="panel-cafe-mgmt"><p>스토어 관리는 영업관리에서 확인합니다.</p><button onclick="openSalesOperations('stores')">스토어 관리 열기</button></div>
 
 <!-- ═══════════════ P3: 인프라/비용 ═══════════════ -->
 <div class="panel" id="panel-infra">
@@ -1241,7 +1240,7 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
   <!-- 매칭 목록 -->
   <div class="tbox">
     <div class="tbox-top">
-      <div class="tbox-title">🎙️ DJ ↔ 스토어 매칭 목록</div>
+      <div class="tbox-title">🎙️ 기존 DJ 방송 매칭 · 영업 정산은 영업관리에서 확인</div>
     </div>
     <div style="overflow-x:auto">
       <table style="width:100%">
@@ -1254,7 +1253,7 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
             <th>메시지</th>
             <th>DJ 요율</th>
             <th>카페 요율</th>
-            <th>수익배분(DJ/카페/플랫폼)</th>
+            <th>이전 계약 배분 · 현행 정산 아님</th>
             <th>신청일</th>
             <th>관리</th>
           </tr>
@@ -1444,14 +1443,20 @@ async function createTestAd(){
   await execSQL("INSERT INTO tl_ads (id,business_name,title,description,ad_type,status,budget_tl,spent_tl,tl_reward,views,created_at) VALUES ('"+id+"','"+biz+"','"+title+"','"+desc+"','"+type+"','active',"+budget+",0,"+reward+",0,datetime('now'))");
   toast('광고 생성됨!','g'); loadAdvertisers();
 }
-var TITLES={'signup-hero':'회원가입 배경 이미지 관리',dashboard:'대시보드',sales:'영업 매니저',revenue:'재무 현황',shares:'공유 파일 관리','rights-review':'TL3 권리 검증',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리',realtime:'🔴 실시간 현황',payout:'🌐 크리에이터 정산 관리','tl-flow':'♻ TL 이코노미 흐름','music-analytics':'🎵 음악 콘텐츠 분석','cafe-mgmt':'☕ 카페방송 채널 관리',infra:'🖥 인프라/비용 추적','dj-stats':'🤖 AI DJ 통계','dj-manage':'🎧 DJ 관리',security:'🔒 보안/접근 로그','auto-payout':'🔄 자동 정산 워크플로우'};
-function go(id,el){
+var TITLES={'signup-hero':'회원가입 배경 이미지 관리',dashboard:'대시보드',sales:'영업관리',revenue:'재무 현황',shares:'공유 파일 관리','rights-review':'TL3 권리 검증',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리',realtime:'🔴 실시간 현황',payout:'🌐 크리에이터 정산 관리','tl-flow':'♻ TL 이코노미 흐름','music-analytics':'🎵 음악 콘텐츠 분석','cafe-mgmt':'스토어 관리',infra:'🖥 인프라/비용 추적','dj-stats':'🤖 AI DJ 통계','dj-manage':'🎧 DJ 관리',security:'🔒 보안/접근 로그','auto-payout':'🔄 자동 정산 워크플로우'};
+function openSalesOperations(tab,el){
+ go('sales',el,true);
+ window.TimeLinkSalesOperations.open({tab:tab});
+}
+function go(id,el,skipSalesLoad){
+ if(id==='cafe-mgmt'){openSalesOperations('stores',el);return;}
+
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
   document.querySelectorAll('.sb-item').forEach(function(i){i.classList.remove('on');});
   g('panel-'+id).classList.add('on');
   if(el) el.classList.add('on');
   g('tbTitle').textContent=TITLES[id]||id;
-  if(id==='sales'&&window.TimeLinkSales)window.TimeLinkSales.loadAdmin();
+  if(id==='sales'&&!skipSalesLoad&&window.TimeLinkSalesOperations)window.TimeLinkSalesOperations.load();
   if(id==='users') renderUsers();
   if(id==='charge') renderTLUsers();
   if(id==='shares'){renderShares();loadMusicGateReviews();}
@@ -2715,29 +2720,7 @@ async function loadMusicAnalytics(){
 // ═══════════════════════════════════════
 // P2: 카페방송 채널 관리
 // ═══════════════════════════════════════
-async function loadCafeMgmt(){
-  try{
-    var d = await api('/api/admin/cafe/channels');
-    if(!d.ok) return;
-    var s = d.summary || {};
-    g('cm-active').textContent = s?.active||0;
-    g('cm-expired').textContent = s?.expired||0;
-    g('cm-revenue').textContent = '0 TL';
-    g('sb-cafe-cnt').textContent = s?.active||0;
-    paginate('cm-tbody', d.channels||[], function(ch){
-      var isActive = ch.status==='active';
-      var daysLeft = Number(ch.days_left||0);
-      return '<tr>'+
-        '<td><div style="font-weight:600">'+esc(ch.name||'')+'</div></td>'+
-        '<td style="font-size:12px"><div>'+esc(ch.username||'')+'</div><div style="color:var(--t3)">'+esc(ch.email||'')+'</div></td>'+
-        '<td style="font-size:12px;color:var(--t3)">'+esc(ch.addr||'-')+'</td>'+
-        '<td style="font-size:12px;font-family:var(--mono)">'+(ch.expires_at||'-').slice(0,10)+'</td>'+
-        '<td style="font-family:var(--mono);color:'+(daysLeft<=7?'var(--rose)':daysLeft<=30?'var(--amber)':'var(--g)')+'">'+daysLeft+'일</td>'+
-        '<td><span style="padding:2px 8px;border-radius:6px;font-size:11px;background:'+(isActive?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)')+';color:'+(isActive?'var(--g)':'var(--rose)')+'">'+ch.status+'</span></td>'+
-      '</tr>';
-    }).join('') || '<tr><td colspan="6"><div class="empty">채널 없음</div></td></tr>';
-  }catch(e){ toast('카페관리 로드 실패: '+e.message,'r'); }
-}
+async function loadCafeMgmt(){openSalesOperations('stores');}
 
 // ═══════════════════════════════════════
 // P3: 인프라/비용
@@ -2864,9 +2847,9 @@ function logAdminAction(action, target, detail){
 
 // 기존 go() 함수에 로깅 추가 (이미 정의된 go를 감싸기)
 var _origGo = go;
-go = function(id, el){
+go = function(id, el, skipSalesLoad){
   logAdminAction('페이지 이동', id, '');
-  _origGo(id, el);
+  _origGo(id, el, skipSalesLoad);
 };
 
 async function loadSecurity(){
@@ -3086,10 +3069,7 @@ async function loadDJManage(){
           '<td style="font-size:11px;color:var(--t3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(l.message||'')+'">'+esc((l.message||'-').slice(0,40))+'</td>'+
           '<td style="font-family:var(--mono);color:var(--mint)">'+Number(l.dj_rate||0.3).toFixed(2)+' TL/s</td>'+
           '<td style="font-family:var(--mono);color:var(--amber)">'+Number(l.cafe_rate||0.5).toFixed(2)+' TL/s</td>'+
-          '<td style="font-family:var(--mono);font-size:11px">'+
-            Math.round((l.revenue_share_dj||0.5)*100)+'% / '+
-            Math.round((l.revenue_share_cafe||0.3)*100)+'% / '+
-            Math.round((l.revenue_share_platform||0.2)*100)+'%'+
+          '<td style="font-size:11px">영업관리의 원거래 배분 확인'+
           '</td>'+
           '<td style="font-size:11px;color:var(--t3)">'+createdDate+'</td>'+
           '<td>'+
