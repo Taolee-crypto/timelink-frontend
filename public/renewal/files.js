@@ -98,7 +98,7 @@
       var md=await me.json();user=md.user||md;
       var name=String(user.username||user.email||'TimeLink 회원');
       var initial=name.trim().charAt(0).toUpperCase()||'T';
-      $('sideName').textContent=name;$('sideAvatar').textContent=initial;$('topAvatar').textContent=initial;
+      $('sideName').textContent=name;$('sideAvatar').textContent=initial;if($('topAvatar'))$('topAvatar').textContent=initial;
       await loadAssets();
       await Promise.all([loadCloudObjects(),loadProviders()]);
     }catch(err){
@@ -114,7 +114,7 @@
     render();
   });});
   $('logoutButton').addEventListener('click',function(){if(!confirm('로그아웃하시겠습니까?'))return;localStorage.removeItem('tl_token');localStorage.removeItem('tl_user');location.href='/login.html';});
-  $('mobileMenu').addEventListener('click',function(){$('sidebar').classList.toggle('open');});
-  document.addEventListener('click',function(e){if(innerWidth<=760&&$('sidebar').classList.contains('open')&&!$('sidebar').contains(e.target)&&!$('mobileMenu').contains(e.target))$('sidebar').classList.remove('open');});
+  if($('mobileMenu'))$('mobileMenu').addEventListener('click',function(){$('sidebar').classList.toggle('open');});
+  document.addEventListener('click',function(e){var menu=$('mobileMenu');if(menu&&innerWidth<=760&&$('sidebar').classList.contains('open')&&!$('sidebar').contains(e.target)&&!menu.contains(e.target))$('sidebar').classList.remove('open');});
   start();
 })();
