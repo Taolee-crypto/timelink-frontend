@@ -20,7 +20,7 @@
    root.innerHTML='<div class="ce-heading"><div><small>MY MUSIC EARNINGS</small><h2>내 음악이 만든 수익</h2><p>실제 음악 사용으로 내 계정에 기록된 창작자 보상입니다.</p></div><button type="button" class="ce-refresh">↻ 새로고침</button></div>'+
     '<div class="ce-summary"><div class="ce-total"><span>누적 창작 수익</span><strong>'+amount(total)+' <small>TL</small></strong>'+
     '<div class="ce-increase" role="status">'+(delta>0?'새 수익 +'+amount(delta)+' TL':total>0?'음악이 재생되며 쌓인 나의 보상':'첫 재생 수익을 기다리고 있습니다')+'</div></div>'+
-    '<div class="ce-secondary"><span>본인 재생 보류</span><strong>'+amount(data.summary.self_play_held_tl)+' TL</strong><small>누적 창작 수익에서 제외</small></div>'+
+    '<div class="ce-secondary"><span>음악 재생 수익</span><strong>'+amount(data.summary.playback_earned_tl??data.summary.earned_tl)+' TL</strong><small>본인 곡 재생 보상 포함</small></div>'+
     '<div class="ce-secondary"><span>정산 요청</span><strong>'+Number(data.summary.pending_request_count)+'건</strong><small>접수된 요청 기준</small></div></div>'+
     '<h3>곡별 창작 수익</h3><div class="ce-tracks">'+(trackHTML||'<p class="ce-message">등록한 곡이 없습니다. <a href="/creator.html">내 음악 올리기</a></p>')+'</div>'+
     '<details class="ce-history"><summary>정산 요청 · 지급 기록</summary>'+(history||'<p class="ce-message">등록된 정산 요청과 지급 기록이 없습니다.</p>')+'</details>'+
