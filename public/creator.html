@@ -63,7 +63,7 @@ nav{background:rgba(10,10,10,.9);border-color:var(--line)}
 
 <div class="steps" style="grid-template-columns:repeat(4,1fr)"><div class="step active" id="s1"><b>01 / UPLOAD</b><span data-i18n="creator.step.audio">음원 등록</span></div><div class="step" id="s2"><b>02 / REGISTER</b><span data-i18n="creator.step.original">원본 등록</span></div><div class="step" id="s2lp"><b>02.5 / LP (비용 1000TL)</b><span data-i18n="creator.step.lp">LP 음질 (선택)</span></div><div class="step" id="s3"><b>03 / RIGHTS & TL3</b><span data-i18n="creator.step.rights">권리 확인 및 공유</span></div></div>
 
-<section class="notice" id="musicGatePanel" hidden style="margin-bottom:14px" aria-live="polite"><strong>MP3 음원 심사</strong><p id="musicGateText"></p><small id="musicGateReviewId"></small><button type="button" class="btn secondary" id="musicGateRefresh" style="margin-top:10px">심사 상태 확인</button></section>
+<section class="notice" id="musicGatePanel" hidden style="margin-bottom:14px" aria-live="polite"><strong>MP3 음원 심사</strong><p id="musicGateText"></p><small id="musicGateReviewId"></small><div id="musicGateHistory" hidden><p id="musicGateAccount"></p><label for="musicGateSelect">현재 로그인 계정의 최근 심사</label><select id="musicGateSelect" style="width:100%;margin-top:8px;padding:12px;background:var(--panel2);color:var(--txt)"></select></div><button type="button" class="btn secondary" id="musicGateHistoryBtn" style="margin-top:10px">내 심사 목록</button><button type="button" class="btn secondary" id="musicGateRefresh" style="margin-top:10px">심사 상태 확인</button></section>
 <section class="card" id="panel1">
 <h2 data-i18n="creator.audio.heading">음원 등록</h2><p class="desc" data-i18n="creator.audio.desc">음원 원본은 TL3 V5 제조 요청 중 일시 전송되어 암호화 처리된다. 원본 음원을 별도 파일로 보관하지 않고 TL3 V5 암호화 패키지를 등록한다.</p>
 <section class="spotify-search" aria-labelledby="creatorConnectTitle">
@@ -215,7 +215,7 @@ nav{background:rgba(10,10,10,.9);border-color:var(--line)}
 
 <section class="card done" id="done" style="display:none"><div class="done-icon">✓</div><h2 id="doneTitle" data-i18n="creator.done.title">TL3 자산 등록 완료</h2><p id="doneText"></p><div class="actions"><a class="btn secondary" href="/creator" data-i18n="creator.done.new">새 음악 올리기</a><a class="btn primary" href="shareplace.html" data-i18n="creator.done.view">SharePlace에서 확인하기</a></div></section>
 </main>
-<script src="/tl3-manufacture.js?v=music-gate-details-20261025c"></script>
+<script src="/tl3-manufacture.js?v=music-gate-history-20261025d"></script>
 <script src="/tl3-lp.js?v=20261016"></script>
 <script src="/tl3-lp-diff.js?v=20261016"></script>
 
@@ -300,7 +300,42 @@ $('musicGateRefresh').onclick=async function(){
 };
 window.addEventListener('pagehide',function(){clearTimeout(musicGateTimer);musicGateEpoch++;});
 
-// A review link reads the authenticated owner's existing result without uploading audio again.
+// Missing and foreign review IDs remain indistinguishable; offer only this account's real history.
+async function showMusicGateHistory(missingId){
+ const result=await window.TimeLinkTL3.listReviews({api:API,token:token});
+ $('musicGatePanel').hidden=false;$('musicGateHistory').hidden=false;
+ $('musicGateAccount').textContent='현재 서버 로그인 회원번호: '+result.account_id+
+  (Number(user.id)!==result.account_id?' · 화면 계정 정보와 다릅니다. 로그인 계정을 확인하세요.':'');
+ const select=$('musicGateSelect');select.replaceChildren();
+ const empty=document.createElement('option');empty.value='';empty.textContent='조회할 심사를 선택하세요';select.appendChild(empty);
+ result.reviews.forEach(function(review){
+  const option=document.createElement('option');option.value=review.review_id;
+  const labels={pending_analysis:'분석 대기',analyzing:'분석 중',review_required:'검토 필요',approved:'승인',rejected:'반려',cancelled:'취소'};
+  option.textContent=String(review.created_at||'')+' · '+labels[review.review_status]+' · '+review.review_id;
+  select.appendChild(option);
+ });
+ if(missingId){
+  $('musicGateText').textContent='요청한 심사 번호를 현재 로그인 계정에서 찾지 못했습니다. 아래 내 심사 목록에서 실제 기록을 선택하세요.';
+  $('musicGateReviewId').textContent='조회한 번호: '+missingId;
+ }
+ if(!result.reviews.length)$('musicGateText').textContent='현재 로그인 계정에는 심사 기록이 없습니다. 음원을 접수했던 계정으로 로그인했는지 확인하세요.';
+ return result;
+}
+$('musicGateHistoryBtn').onclick=async function(){
+ const b=$('musicGateHistoryBtn');b.disabled=true;
+ try{await showMusicGateHistory();}catch(error){$('musicGateText').textContent='내 심사 목록 조회 실패: '+error.message;}
+ finally{b.disabled=false;}
+};
+$('musicGateSelect').onchange=async function(){
+ const reviewId=this.value;if(!reviewId)return;
+ this.disabled=true;
+ try{
+  const review=await window.TimeLinkTL3.getReview({api:API,token:token,reviewId:reviewId});
+  musicGateEpoch++;clearTimeout(musicGateTimer);musicGateSource=null;musicGatePolls=0;
+  renderMusicGate(review);pollMusicGate();
+ }catch(error){$('musicGateText').textContent='선택한 심사 조회 실패: '+error.message;}
+ finally{this.disabled=false;}
+};
 (function loadRequestedMusicGateReview(){
  const reviewId=new URLSearchParams(location.search).get('review_id');
  if(!/^[a-f0-9-]{36}$/i.test(reviewId||''))return;
@@ -308,9 +343,13 @@ window.addEventListener('pagehide',function(){clearTimeout(musicGateTimer);music
  window.TimeLinkTL3.getReview({api:API,token:token,reviewId:reviewId}).then(function(review){
   if(file)return;
   musicGateSource=null;musicGatePolls=0;renderMusicGate(review);pollMusicGate();
- }).catch(function(error){$('musicGateText').textContent='심사 결과 조회 실패: '+error.message;});
+ }).catch(async function(error){
+  $('musicGateText').textContent='심사 결과 조회 실패: '+error.message;
+  if(error.code==='REVIEW_NOT_FOUND'){
+   try{await showMusicGateHistory(reviewId);}catch(listError){$('musicGateText').textContent+=' · 내 심사 목록 조회 실패: '+listError.message;}
+  }
+ });
 })();
-
 
 // Creator Connect is saved to the authenticated member account. It is not ownership verification.
 (function(){

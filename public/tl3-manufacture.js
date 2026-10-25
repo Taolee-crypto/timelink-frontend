@@ -71,8 +71,24 @@
       headers:{Authorization:'Bearer '+o.token},cache:'no-store',signal:AbortSignal.timeout(15000)
     });
     const data=await response.json().catch(function(){return {};});
-    if(!response.ok||!data.ok)throw new Error(data.error||('심사 상태 조회 실패: HTTP '+response.status));
+    if(!response.ok||!data.ok){
+      const error=new Error(data.message||data.error||('심사 상태 조회 실패: HTTP '+response.status));
+      error.code=data.error;error.status=response.status;throw error;
+    }
     if(data.review_id!==o.reviewId||!gateMessages[data.review_status])throw new Error('심사 상태 응답이 올바르지 않습니다.');
+    return data;
+  }
+  async function listReviews(options) {
+    const o=options||{},api=String(o.api||'').replace(/\/$/, '');
+    if(!api||!o.token)throw new Error('심사 목록을 보려면 로그인이 필요합니다.');
+    const response=await fetch(api+'/api/v1/music-gate/reviews',{
+      headers:{Authorization:'Bearer '+o.token},cache:'no-store',signal:AbortSignal.timeout(15000)
+    });
+    const data=await response.json().catch(function(){return {};});
+    if(!response.ok||!data.ok)throw new Error(data.error||('내 심사 목록 조회 실패: HTTP '+response.status));
+    if(!Number.isSafeInteger(data.account_id)||data.account_id<=0||!Array.isArray(data.reviews)||data.reviews.length>20||
+      !data.reviews.every(r=>r&&/^[a-f0-9-]{36}$/i.test(r.review_id||'')&&Object.hasOwn(gateMessages,r.review_status)))
+      throw new Error('심사 목록 응답이 올바르지 않습니다.');
     return data;
   }
   async function postJson(url, token, body) {
@@ -206,6 +222,6 @@
     };
   }
   global.TimeLinkTL3 = Object.freeze({ manufacture: manufacture, submitForReview: submitForReview,
-    getReview: getReview, reviewDescription:reviewDescription,
+    getReview: getReview, listReviews:listReviews, reviewDescription:reviewDescription,
     reviewMessage: function(status){return gateMessages[status]||'심사 상태 확인이 필요합니다.';}, version: 5 });
 })(window);
