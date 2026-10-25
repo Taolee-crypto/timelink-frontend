@@ -1,6 +1,47 @@
 /* TimeLink TL3 manufacturing pipeline — V5 MP3-preserving container builder. */
 (function (global) {
   'use strict';
+  const gateMessages = {
+    pending_analysis: 'MP3 심사 접수가 완료됐습니다. AI 분석 대기 중입니다.',
+    analyzing: 'MP3를 분석 중입니다. 잠시 후 심사 상태를 확인하세요.',
+    review_required: '운영자 검토가 필요합니다. 위험 신호·분석 불확실성·검증 미완료 여부를 확인한 뒤 승인합니다.',
+    approved: 'MP3 심사가 승인됐습니다. 권리 관계를 확인한 뒤 TL3 등록을 진행하세요.',
+    rejected: 'MP3 심사가 반려됐습니다. TL3로 변환할 수 없습니다.',
+    cancelled: 'MP3 심사가 취소됐습니다. TL3로 변환할 수 없습니다.'
+  };
+  function gateError(data) {
+    const status = data.review_status;
+    const error = new Error(gateMessages[status] || '심사 상태를 확인할 수 없습니다. 다시 확인하세요.');
+    error.code = 'MUSIC_GATE_APPROVAL_REQUIRED'; error.review = data;
+    return error;
+  }
+  async function submitForReview(options) {
+    const o=options||{}, api=String(o.api||'').replace(/\/$/, '');
+    if(!api||!o.token||!(o.file instanceof File)) throw new Error('MP3 심사 접수에 필요한 파일과 로그인이 없습니다.');
+    const mode=o.registrationMode||'original_creation';
+    if(!['original_creation','existing_release_share'].includes(mode)) throw new Error('음원 등록 유형이 올바르지 않습니다.');
+    const form=new FormData();form.append('file',o.file,o.file.name||'source.mp3');
+    form.append('registration_mode',mode);
+    const response=await fetch(api+'/api/upload/mp3',{
+      method:'POST',headers:{Authorization:'Bearer '+o.token},body:form,signal:AbortSignal.timeout(120000)
+    });
+    const data=await response.json().catch(function(){return {};});
+    if(!response.ok||!data.ok) throw new Error(data.error||('MP3 심사 접수 실패: HTTP '+response.status));
+    if(!/^[a-f0-9-]{36}$/i.test(data.review_id||'')||!gateMessages[data.review_status])
+      throw new Error('MP3 심사 접수 응답이 올바르지 않습니다.');
+    return data;
+  }
+  async function getReview(options) {
+    const o=options||{},api=String(o.api||'').replace(/\/$/, '');
+    if(!api||!o.token||!/^[a-f0-9-]{36}$/i.test(o.reviewId||''))throw new Error('심사 조회 정보가 올바르지 않습니다.');
+    const response=await fetch(api+'/api/v1/music-gate/reviews/'+encodeURIComponent(o.reviewId),{
+      headers:{Authorization:'Bearer '+o.token},cache:'no-store',signal:AbortSignal.timeout(15000)
+    });
+    const data=await response.json().catch(function(){return {};});
+    if(!response.ok||!data.ok)throw new Error(data.error||('심사 상태 조회 실패: HTTP '+response.status));
+    if(data.review_id!==o.reviewId||!gateMessages[data.review_status])throw new Error('심사 상태 응답이 올바르지 않습니다.');
+    return data;
+  }
   async function postJson(url, token, body) {
     const response = await fetch(url, {
       method: 'POST',
@@ -61,8 +102,13 @@
       throw new Error('Creator의 LP 효과 분석이 완성되지 않았습니다. LP 설정 분석을 다시 실행해 주세요.');
     }
 
-    // MP3 remains unchanged in Creator. Only its measured duration and rights
-    // manifest accompany it into the final V5 containerization stage.
+    // Always bind a fresh server-side review to these exact MP3 bytes. Neither a
+    // caller-provided approval flag nor a previous file's review grants clearance.
+    let review=await submitForReview(o);
+    if(review.review_status!=='approved')review=await getReview({api:api,token:token,reviewId:review.review_id});
+    if(typeof o.onReviewStatus==='function')o.onReviewStatus(review);
+    if(review.review_status!=='approved')throw gateError(review);
+    // The backend independently rechecks the uploader and source hash at manufacture.
     const durationMs = await readDurationMs(sourceFile);
     const metadata = {
       file_id: fileId, share_id: shareId,
@@ -122,5 +168,6 @@
         : { enabled: false }
     };
   }
-  global.TimeLinkTL3 = Object.freeze({ manufacture: manufacture, version: 5 });
+  global.TimeLinkTL3 = Object.freeze({ manufacture: manufacture, submitForReview: submitForReview,
+    getReview: getReview, reviewMessage: function(status){return gateMessages[status]||'심사 상태 확인이 필요합니다.';}, version: 5 });
 })(window);
