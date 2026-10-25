@@ -1,7 +1,7 @@
 const fs=require('node:fs'),assert=require('node:assert/strict'),{chromium}=require('playwright');
 (async()=>{
 const temp=fs.mkdtempSync(require('node:path').join(require('node:os').tmpdir(),'kr-finance-browser-'));
-const backendRef='50679552c8fd858615e0c79c0f4bb0d8ad9fba4a';
+const backendRef='174bec47fca0654c108e92b88b3c58efde91c00e';
 for(const path of ['scripts/test-kr-finance.cjs','src/kr-finance.ts','migrations/20261026_kr_finance_accounting.sql']){
  const response=await fetch('https://raw.githubusercontent.com/Taolee-crypto/timelink-backend/'+backendRef+'/'+path);
  if(!response.ok)throw Error('Backend fixture download failed: '+path);
