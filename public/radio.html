@@ -287,7 +287,23 @@ if(storeHandoff.get('store_channel_id')&&storeHandoff.get('autojoin')==='1'){
   }
 }
 
- // Store schedule watchdog: only this store's central player changes source.
+ // Same-origin DJ player confirms audible playback before central radio is stopped.
+window.addEventListener('message',async event=>{
+  if(event.origin!==location.origin||!event.data||event.data.type!=='store-dj-playing')return;
+  const currentStore=new URLSearchParams(location.search).get('store_channel_id');
+  if(!currentStore||String(event.data.channel_id)!==currentStore)return;
+  if(!stationPlaying)return;
+  const token=localStorage.getItem('tl_token')||'';
+  try{
+    const response=await fetch('https://api.timelink.digital/api/cafe/channels/'+encodeURIComponent(currentStore)+'/broadcast-source',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+    const result=await response.json();
+    if(response.ok&&result.ok&&result.source==='dj'&&Number(result.dj_id)===Number(event.data.dj_id)){
+      await stopTilo();
+      status.textContent='편성 DJ 재생 확인 · 중앙방송 일시 중지';
+    }
+  }catch(e){console.warn('[store] DJ confirmation failed',e);}
+});
+// Store schedule watchdog: only this store's central player changes source.
 const storeScheduleId=new URLSearchParams(location.search).get('store_channel_id');
 if(storeScheduleId){
   let handoffPending=false;
@@ -304,9 +320,8 @@ if(storeScheduleId){
         const url='/player-host.html?dj_id='+encodeURIComponent(source.dj_id)+'&role=cafe&cafe_channel_id='+encodeURIComponent(storeScheduleId);
         const player=window.open(url,'tl_live_player','width=380,height=660,resizable=yes');
         if(player){
-          // Only silence central after a DJ window has actually been created.
-          await stopTilo();
-          status.textContent='편성 DJ 플레이어를 열었습니다. 재생 상태를 확인하세요.';
+          // Keep central audible until the DJ player confirms actual audio playback.
+          status.textContent='편성 DJ 연결 중 · 재생 확인 전까지 중앙방송을 유지합니다.';
           player.focus();
         }else{
           // Timer-driven popups are routinely blocked: preserve central playback.
