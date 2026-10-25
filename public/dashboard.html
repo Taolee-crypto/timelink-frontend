@@ -838,6 +838,17 @@ async function preparePremiumSelection(){
     var pay=await fetch(API+'/api/payment/v5/premium/checkout',{method:'POST',headers:{Authorization:'Bearer '+(localStorage.getItem('tl_token')||_token||''),'Content-Type':'application/json'},body:JSON.stringify({file_ids:results.map(function(x){return Number(x.file_id);}),method:method,plan:plan,rights_accepted:true,request_id:requestId})});
     var order=await pay.json().catch(function(){return {};});
     if(!pay.ok||!order.ok)throw new Error('결제 실패: '+(order.error||pay.status));
+    if(method==='cash'){
+      if(!order.toss_checkout)throw new Error('토스 결제 주문이 준비되지 않았습니다.');
+      status.textContent='토스 테스트 결제창을 여는 중입니다…';
+      if(!window.TossPayments)await new Promise(function(resolve,reject){var sc=document.createElement('script');sc.src='https://js.tosspayments.com/v1/payment';sc.onload=resolve;sc.onerror=function(){reject(new Error('토스 SDK 로드 실패'));};document.head.appendChild(sc);});
+      await window.TossPayments('test_ck_yL0qZ4G1VOlboLm0dX1vroWb2MQY').requestPayment('카드',{
+        amount:Number(order.amount),orderId:String(order.order_id),orderName:'TimeLink TL PREMIUM 홍보 '+results.length+'곡',
+        customerName:(_user&&(_user.username||_user.email))||'TimeLink User',
+        successUrl:location.origin+'/payment-success.html',failUrl:location.origin+'/payment-fail.html'
+      });
+      return;
+    }
     status.textContent=results.length+'곡 홍보 신청 접수 완료 · 주문번호 '+order.order_id+' · '+(order.simulated?'가상 현금 결제':'TL_P 결제')+' · 방송 편성 대기';
     alert(results.length+'곡 홍보 신청 접수 완료!\\n주문번호: '+order.order_id+'\\n'+(order.simulated?'현금 가상 결제 완료 (실제 결제 없음)':'TL_P 결제 완료')+'\\n방송 편성 대기 중입니다.');
   }catch(e){status.textContent=e.message||'홍보 신청 확인에 실패했습니다.';alert(status.textContent);}
