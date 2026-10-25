@@ -55,7 +55,7 @@ async function main(){
  assert.ok(creator.includes("addEventListener('pagehide'"));
  assert.ok(creator.includes('musicGatePolls>=18'));
  assert.ok(!creator.includes('원본 MP3는 브라우저 메모리에만 둔다'));
- assert.ok(creator.includes('/tl3-manufacture.js?v=music-gate-retry-20261025e'));
+ assert.ok(creator.includes('/tl3-manufacture.js?v=music-gate-retry-returning-20261025f'));
 
  const details=setup().api;
  const risk=details.reviewDescription({review_status:'review_required',analysis_status:'complete',risk_signals:['profanity'],verification_pending:['CATALOG_VERIFICATION_UNAVAILABLE']});

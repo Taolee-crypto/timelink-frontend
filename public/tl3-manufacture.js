@@ -107,10 +107,11 @@
     if(!response.ok||!data.ok){
       const labels={ANALYSIS_RETRY_EXHAUSTED:'재분석 1회를 이미 사용했습니다. 운영자 확인이 필요합니다.',
         ANALYSIS_NOT_RETRYABLE:'현재 상태에서는 재분석을 접수할 수 없습니다. 심사 상태를 다시 확인하세요.',
+        ANALYSIS_RETRY_CONFLICT:'심사 상태가 먼저 변경됐습니다. 심사 상태를 다시 확인하세요.',
         REVIEW_NOT_FOUND:'현재 계정의 심사 기록을 찾지 못했습니다.'};
       throw new Error(labels[data.error]||data.error||('재분석 접수 실패: HTTP '+response.status));
     }
-    if(data.review_id!==o.reviewId||data.review_status!=='pending_analysis')throw new Error('재분석 접수 응답이 올바르지 않습니다.');
+    if(data.review_id!==o.reviewId||!['pending_analysis','analyzing'].includes(data.review_status))throw new Error('재분석 접수 응답이 올바르지 않습니다.');
     return data;
   }
   async function postJson(url, token, body) {
