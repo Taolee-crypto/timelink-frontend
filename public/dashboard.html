@@ -772,7 +772,7 @@ async function loadShares(){
     function renderFileItem(s){
       return '<div class="file-item">' +
         '<input type="checkbox" class="file-select-cb" data-id="' + s.id + '" title="선택" style="width:16px;height:16px;cursor:pointer;accent-color:#FF453A;flex-shrink:0">' +
-        '<label style="font-size:11px;display:flex;align-items:center;gap:4px;color:#C4B5FD"><input type="checkbox" class="premium-select-cb" data-id="'+esc(s.id)+'" onchange="updatePremiumTotal()" style="accent-color:#a78bfa"> 홍보</label>' +
+        '<label style="font-size:11px;display:flex;align-items:center;gap:4px;color:#C4B5FD"><input type="checkbox" class="premium-select-cb" data-id="'+esc(s.id)+'" data-file-id="'+esc(s.file_id||s.tl_file_id||'')+'" onchange="updatePremiumTotal()" style="accent-color:#a78bfa"> 홍보</label>' +
         '<div class="file-icon">🔒</div>' +
         '<div class="file-info">' +
           '<div class="file-name">' + esc(s.title||'Untitled') + '</div>' +
@@ -825,8 +825,8 @@ async function preparePremiumSelection(){
   try{
     var results=[];
     for(var cb of checked){
-      var fileId=Number(cb.dataset.fileId||cb.dataset.id);
-      if(!Number.isSafeInteger(fileId)||fileId<=0)throw new Error('음원 ID를 확인할 수 없습니다.');
+      var fileId=Number(cb.dataset.fileId);
+      if(!Number.isSafeInteger(fileId)||fileId<=0)throw new Error('이 음원의 V5 파일 ID가 목록 응답에 없어 홍보 신청을 검증할 수 없습니다.');
       var res=await fetch(API+'/api/payment/v5/premium/prepare',{method:'POST',headers:{Authorization:'Bearer '+(localStorage.getItem('tl_token')||_token||''),'Content-Type':'application/json'},body:JSON.stringify({file_id:fileId,method:method,plan:plan,rights_accepted:true})});
       var data=await res.json().catch(function(){return {};});
       if(!res.ok||!data.ok)throw new Error('음원 '+fileId+' 홍보 신청 확인 실패: '+(data.error||res.status));
