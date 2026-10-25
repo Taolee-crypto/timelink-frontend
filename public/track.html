@@ -305,11 +305,11 @@ window.addEventListener('resize',()=>requestAnimationFrame(()=>{if(typeof fitTra
   <label for="premiumPromoMethod" style="display:block;font-size:13px;margin:12px 0 6px">결제 방식</label>
   <select id="premiumPromoMethod" onchange="renderPremiumPromoEstimate()" style="width:100%;padding:12px;border-radius:9px;background:#171923;color:#fff;border:1px solid #555"><option value="cash">현금 (원화)</option><option value="tl">TL 지갑 잔액</option></select>
   <label for="premiumPromoPlan" style="display:block;font-size:13px;margin:12px 0 6px">홍보 상품 선택</label>
-  <select id="premiumPromoPlan" onchange="renderPremiumPromoEstimate()" style="width:100%;padding:12px;border-radius:9px;background:#171923;color:#fff;border:1px solid #555"><option value="5000">체험 홍보 · 5,000원</option><option value="15000">기본 홍보 · 15,000원</option><option value="30000">집중 홍보 · 30,000원</option><option value="50000">프리미엄 홍보 · 50,000원</option></select>
+  <select id="premiumPromoPlan" onchange="renderPremiumPromoEstimate()" style="width:100%;padding:12px;border-radius:9px;background:#171923;color:#fff;border:1px solid #555"><option value="trial">체험 홍보 · 5,000원</option><option value="basic">기본 홍보 · 15,000원</option><option value="focused">집중 홍보 · 30,000원</option><option value="premium">프리미엄 홍보 · 50,000원</option></select>
   <div id="premiumPromoEstimate" style="padding:12px 0;font-size:13px;line-height:1.8" aria-live="polite"></div>
   <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.6"><input type="checkbox" id="premiumPromoRights" style="margin-top:3px">본인은 이 음원의 홍보 방송에 필요한 권리를 보유하거나 이용허락을 확보했으며, 홍보 방송에 대한 별도 TL 음악 사용 보상을 청구하지 않는 조건에 동의합니다.</label>
   <p id="premiumPromoNotice" style="color:#f6c36b;font-size:12px;line-height:1.7;margin-top:12px">결제 연동 준비 중입니다. 결제가 검증되기 전에는 금액을 청구하거나 TL PREMIUM 상태를 부여하지 않습니다.</p>
-  <button type="button" disabled style="width:100%;padding:13px;border:0;border-radius:10px;background:#52525b;color:white;font-weight:700;cursor:not-allowed">결제 연동 준비 중</button>
+  <button type="button" id="premiumPromoPay" onclick="submitTrackPremiumPromo()" style="width:100%;padding:13px;border:0;border-radius:10px;background:#6756db;color:white;font-weight:700;cursor:pointer">홍보 결제 진행</button>
  </div>
 </div>
 <!-- TRACK_PLAIN_LYRICS_EDITOR_V2: 일반 텍스트 가사 편집 -->
@@ -738,7 +738,8 @@ function openPremiumPromo(){
 }
 function closePremiumPromo(){document.getElementById('premiumPromoModal').classList.remove('open');}
 function renderPremiumPromoEstimate(){
- const amount=Number(document.getElementById('premiumPromoPlan').value);
+ const plan=document.getElementById('premiumPromoPlan').value;
+ const amount=({trial:5000,basic:15000,focused:30000,premium:50000})[plan]||0;
  const method=document.getElementById('premiumPromoMethod').value;
  const duration=Number(_share?.duration_sec||_share?.duration||0);
  const seconds=amount/2.5;
@@ -749,7 +750,32 @@ function renderPremiumPromoEstimate(){
    :'현금 결제 · 방송 요금: 초당 2.5원 · 예산: '+amount.toLocaleString('ko-KR')+'원';
  document.getElementById('premiumPromoEstimate').textContent=summary+
    (duration>0?' · 약 '+count+'회 완곡 방송 가능 (실제 재생시간에 따라 변동)':' · 곡 길이 확인 후 예상 횟수 표시')+
-   ' · 실제 결제·차감 기능은 아직 비활성화되어 있습니다.';
+   ' · 최종 결제 금액은 서버에서 확인합니다.';
+}
+
+async function submitTrackPremiumPromo(){
+ const button=document.getElementById('premiumPromoPay'),notice=document.getElementById('premiumPromoNotice');
+ if(!document.getElementById('premiumPromoRights').checked){alert('홍보 권리 및 이용 조건에 동의해 주세요.');return;}
+ const fileId=Number(_share?.d1_id||_share?.file_id||0);
+ if(!Number.isSafeInteger(fileId)||fileId<=0){alert('이 트랙의 V5 파일 ID를 확인할 수 없습니다. 내 파일에서 신청해 주세요.');return;}
+ const method=document.getElementById('premiumPromoMethod').value,plan=document.getElementById('premiumPromoPlan').value;
+ const token=getTok();if(!token){alert('로그인이 필요합니다.');return;}
+ button.disabled=true;notice.textContent='서버에서 홍보 자격과 결제 금액을 확인하고 있습니다…';
+ try{
+  const headers={'Content-Type':'application/json','Authorization':'Bearer '+token};
+  const prepared=await fetch(API+'/api/payment/v5/premium/prepare',{method:'POST',headers,body:JSON.stringify({file_id:fileId,method,plan,rights_accepted:true})});
+  const p=await prepared.json().catch(()=>({}));if(!prepared.ok||!p.ok)throw Error(p.reason||p.error||'홍보 자격 확인 실패');
+  if(!confirm((method==='cash'?'토스 카드 테스트 결제':'TL_P 결제')+'를 진행하시겠습니까?')){notice.textContent='결제가 취소되었습니다.';return;}
+  const requestId='track_'+Date.now()+'_'+Math.random().toString(36).slice(2,12);
+  const res=await fetch(API+'/api/payment/v5/premium/checkout',{method:'POST',headers,body:JSON.stringify({file_ids:[fileId],method,plan,rights_accepted:true,request_id:requestId})});
+  const order=await res.json().catch(()=>({}));if(!res.ok||!order.ok)throw Error(order.error||'결제 요청 실패');
+  if(method==='cash'){
+   if(!order.toss_checkout)throw Error('토스 결제 주문을 준비하지 못했습니다.');
+   if(!window.TossPayments)await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src='https://js.tosspayments.com/v1/payment';sc.onload=resolve;sc.onerror=()=>reject(Error('토스 결제창 로드 실패'));document.head.appendChild(sc);});
+   await window.TossPayments('test_ck_yL0qZ4G1VOlboLm0dX1vroWb2MQY').requestPayment('카드',{amount:Number(order.amount),orderId:String(order.order_id),orderName:'TimeLink TL PREMIUM 홍보 1곡',customerName:'TimeLink User',successUrl:location.origin+'/payment-success.html',failUrl:location.origin+'/payment-fail.html'});
+  }else{notice.textContent='TL_P 결제 접수 완료 · 주문번호 '+order.order_id;alert(notice.textContent);closePremiumPromo();}
+ }catch(e){notice.textContent='홍보 신청 실패: '+e.message;alert(notice.textContent);}
+ finally{button.disabled=false;}
 }
 function escH(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtTime(s){ const m=Math.floor((s||0)/60),sec=Math.floor((s||0)%60); return m+':'+(sec<10?'0':'')+sec; }
