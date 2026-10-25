@@ -162,6 +162,15 @@ async function loadAndPlay(){
       g('status').textContent=d.code==='DJ_DAILY_LIMIT'?'DJ 하루 6시간 방송 제한 종료':'DJ 방송 종료 · 중앙방송 복귀';
       return;
     }
+    if(cafeChannelId && Number.isFinite(Number(d.remaining_broadcast_ms))){
+      const remaining=Math.max(0,Number(d.remaining_broadcast_ms));
+      if(window._djDailyCutoffTimer)clearTimeout(window._djDailyCutoffTimer);
+      window._djDailyCutoffTimer=setTimeout(function(){
+        stopAll();
+        g('status').textContent='DJ 일일 방송 시간 종료 · 중앙방송 복귀';
+        if(window.opener&&!window.opener.closed)window.opener.postMessage({type:'store-dj-ended',channel_id:cafeChannelId},location.origin);
+      },Math.min(remaining,2147483647));
+    }
     if(!d.current_track)return;
     var t = d.current_track;
 
