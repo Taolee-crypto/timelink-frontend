@@ -122,6 +122,22 @@ async function init(){
   await loadAndPlay();
   g('playBtn').textContent = '\u23f8';
 
+  // Store source is resolved independently from the public central station.
+  // If the DJ slot ends, stop DJ audio and its TL charging immediately.
+  if(cafeChannelId) {
+    setInterval(async function(){
+      try {
+        const r=await fetch(API+'/api/cafe/channels/'+encodeURIComponent(cafeChannelId)+'/broadcast-source',{headers:{Authorization:'Bearer '+_token}});
+        if(!r.ok)return;
+        const d=await r.json();
+        if(d.ok&&(d.source!=='dj'||Number(d.dj_id)!==djId)){
+          stopAll();
+          g('status').textContent='📻 DJ 편성 종료 · 중앙방송으로 복귀하세요';
+          if(window.opener&&!window.opener.closed)window.opener.postMessage({type:'store-dj-ended',channel_id:cafeChannelId},location.origin);
+        }
+      }catch(e){}
+    },10000);
+  }
   _pollTimer = setInterval(loadAndPlay, 5000);
   startCharging();
 
