@@ -543,7 +543,7 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
               <div style="font-size:12px;color:var(--t3);margin-left:8px" id="cntTl3">0개</div>
             </div>
           </div>
-          <div style="margin:12px 0;padding:14px;border:1px solid rgba(167,139,250,.4);border-radius:10px"><strong>✦ 내 TL로 내 음악 홍보하기</strong><p style="font-size:12px">음악 활동으로 모은 TL을 사용해 더 많은 청취자에게 자신의 음악을 알리세요.</p><p style="font-size:12px">TL PREMIUM 출시 특별가 <strong>곡당 10,000 TL</strong> (기준 가격 30,000 TL)</p><strong id="premiumTotal">선택 0곡 · 0 TL</strong><label style="display:block;margin:10px 0;font-size:12px"><input type="checkbox" id="premiumTerms" onchange="updatePremiumTotal()"> TL PREMIUM 홍보 계약 및 결제 조건 동의 (계약서 준비 중)</label><button type="button" id="premiumPay" disabled style="padding:9px 16px;border-radius:8px;opacity:.6">전체 홍보 · 결제 기능 준비 중</button><p style="font-size:11px;opacity:.75">현재는 선택·금액 확인만 가능하며 TL은 차감되지 않습니다.</p></div><div class="file-list" id="myTl3List">
+          <div style="margin:12px 0;padding:14px;border:1px solid rgba(167,139,250,.4);border-radius:10px"><strong>✦ 내 TL로 내 음악 홍보하기</strong><p style="font-size:12px">음악 활동으로 모은 TL을 사용해 더 많은 청취자에게 자신의 음악을 알리세요.</p><p style="font-size:12px">TL PREMIUM 출시 특별가 <strong>곡당 10,000 TL</strong> (기준 가격 30,000 TL)</p><strong id="premiumTotal">선택 0곡 · 홍보 상품 선택 대기</strong><div style="margin:10px 0"><label for="premiumMethod">결제 수단 </label><select id="premiumMethod" onchange="updatePremiumTotal()"><option value="tl">TL_P 결제</option><option value="cash">현금 · 토스페이먼츠</option></select> <label for="premiumPlan">곡별 홍보 상품 </label><select id="premiumPlan" onchange="updatePremiumTotal()"><option value="trial">체험 · 5,000원 / 10,000 TL</option><option value="basic">기본 · 15,000원 / 30,000 TL</option><option value="focused">집중 · 30,000원 / 60,000 TL</option><option value="premium">프리미엄 · 50,000원 / 100,000 TL</option></select></div><label style="display:block;margin:10px 0;font-size:12px"><input type="checkbox" id="premiumTerms" onchange="updatePremiumTotal()"> 홍보 신청 조건 및 저작권·방송 이용 권한 확인에 동의합니다.</label><button type="button" id="premiumPay" disabled onclick="preparePremiumSelection()" style="padding:9px 16px;border-radius:8px">선택 음원 홍보 신청 확인</button><p id="premiumPayStatus" style="font-size:11px;opacity:.85" role="status">선택한 음원과 결제 수단을 확인한 뒤 신청할 수 있습니다. 실제 결제·TL 차감은 서버의 홍보 주문 기능 활성화 후 진행됩니다.</p></div><div class="file-list" id="myTl3List">
             <div class="empty">
               <div class="empty-icon">🔒</div>
               <div class="empty-text">TL3 파일이 없습니다.</div>
@@ -807,9 +807,34 @@ async function loadShares(){
 
 function updatePremiumTotal(){
   var checked=document.querySelectorAll('#myTl3List .premium-select-cb:checked').length;
+  var method=document.getElementById('premiumMethod').value;
+  var plan=document.getElementById('premiumPlan').value;
+  var prices={trial:5000,basic:15000,focused:30000,premium:50000};
+  var unit=prices[plan]*(method==='tl'?2:1);
   var total=document.getElementById('premiumTotal');
-  if(total)total.textContent='선택 '+checked+'곡 · '+(checked*10000).toLocaleString('ko-KR')+' TL';
-  // Real checkout remains disabled until V5 ledger settlement and contract are implemented.
+  if(total)total.textContent='선택 '+checked+'곡 · '+(checked*unit).toLocaleString('ko-KR')+(method==='tl'?' TL_P':'원');
+  var button=document.getElementById('premiumPay');
+  if(button){button.disabled=!(checked>0&&document.getElementById('premiumTerms').checked);button.textContent='선택 '+checked+'곡 홍보 신청 확인';}
+}
+async function preparePremiumSelection(){
+  var button=document.getElementById('premiumPay'),status=document.getElementById('premiumPayStatus');
+  var checked=Array.from(document.querySelectorAll('#myTl3List .premium-select-cb:checked'));
+  if(!checked.length||!document.getElementById('premiumTerms').checked)return;
+  var method=document.getElementById('premiumMethod').value,plan=document.getElementById('premiumPlan').value;
+  button.disabled=true;status.textContent='서버에서 음원별 홍보 자격을 확인하고 있습니다…';
+  try{
+    var results=[];
+    for(var cb of checked){
+      var fileId=Number(cb.dataset.fileId||cb.dataset.id);
+      if(!Number.isSafeInteger(fileId)||fileId<=0)throw new Error('음원 ID를 확인할 수 없습니다.');
+      var res=await fetch(API+'/api/payment/v5/premium/prepare',{method:'POST',headers:{Authorization:'Bearer '+(localStorage.getItem('tl_token')||_token||''),'Content-Type':'application/json'},body:JSON.stringify({file_id:fileId,method:method,plan:plan,rights_accepted:true})});
+      var data=await res.json().catch(function(){return {};});
+      if(!res.ok||!data.ok)throw new Error('음원 '+fileId+' 홍보 신청 확인 실패: '+(data.error||res.status));
+      results.push(data);
+    }
+    status.textContent=results.length+'곡의 홍보 자격을 확인했습니다. 현재 서버에서 홍보 전용 결제 주문·승인이 비활성화되어 있어 실제 결제나 TL 차감은 진행되지 않았습니다.';
+  }catch(e){status.textContent=e.message||'홍보 신청 확인에 실패했습니다.';}
+  finally{updatePremiumTotal();}
 }
 
 function toggleAllTl3(btn) {
