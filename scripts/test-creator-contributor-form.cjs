@@ -1,0 +1,11 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const context={window:{},document:{addEventListener(){}}};vm.createContext(context);vm.runInContext(fs.readFileSync('public/creator-contributors.js','utf8'),context);
+const collect=context.window.TimeLinkCreatorContributors.collect;
+const row=(role,name,share,phone='',id)=>({dataset:{role,...(id?{memberId:id}:{})},querySelector(s){return {value:({'[data-name]':name,'[data-share]':share,'[data-phone]':phone})[s]}}});
+let rows=[row('composition','A','33.33'),row('lyrics','B','33.33'),row('arrangement','C','33.34')];
+const root={querySelectorAll(){return rows}};
+assert.equal(collect(root).length,3);rows.push(row('master','D','1'));assert.throws(()=>collect(root),/100/);
+rows=[row('composition','','10')];assert.throws(()=>collect(root));rows=[row('lyrics','A','33.333')];assert.throws(()=>collect(root));
+rows=[row('composition','A','100','','prior-member')];assert.equal(collect(root)[0].member_id,'prior-member');assert.equal(collect(root)[0].phone,'');
+rows=[row('lyrics','','','')];assert.equal(collect(root).length,0);
+console.log('PASS contributor form: multiple roles, exact 100%, overflow/invalid rows, preserved private-phone references and blank optional rows');
