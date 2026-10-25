@@ -152,7 +152,17 @@ async function loadAndPlay(){
   try {
     var r = await fetch(API + '/api/dj-cafe/live/' + djId + '/now');
     var d = await r.json();
-    if(!d.ok || !d.current_track) return;
+    if(!d.ok || d.is_live===false){
+      // Server stopped the DJ (including daily airtime limit): do not
+      // keep playing cached audio or charging the store.
+      stopAll();
+      if(cafeChannelId && window.opener && !window.opener.closed){
+        window.opener.postMessage({type:'store-dj-ended',channel_id:cafeChannelId},location.origin);
+      }
+      g('status').textContent=d.code==='DJ_DAILY_LIMIT'?'DJ 하루 6시간 방송 제한 종료':'DJ 방송 종료 · 중앙방송 복귀';
+      return;
+    }
+    if(!d.current_track)return;
     var t = d.current_track;
 
     // mp3는 재생 안 함 (tl3만)
