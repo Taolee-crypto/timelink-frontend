@@ -301,12 +301,27 @@ if(storeScheduleId){
       const source=await response.json();
       if(source.ok&&source.source==='dj'&&Number(source.dj_id)>0){
         handoffPending=true;
-        await stopTilo();
         const url='/player-host.html?dj_id='+encodeURIComponent(source.dj_id)+'&role=cafe&cafe_channel_id='+encodeURIComponent(storeScheduleId);
         const player=window.open(url,'tl_live_player','width=380,height=660,resizable=yes');
-        if(player){status.textContent='편성 DJ 방송으로 전환했습니다.';player.focus();}
-        else{
-          status.textContent='DJ 방송이 시작되었습니다. 팝업 허용 후 방송을 선택하세요.';
+        if(player){
+          // Only silence central after a DJ window has actually been created.
+          await stopTilo();
+          status.textContent='편성 DJ 플레이어를 열었습니다. 재생 상태를 확인하세요.';
+          player.focus();
+        }else{
+          // Timer-driven popups are routinely blocked: preserve central playback.
+          status.textContent='DJ 편성 시간입니다. 자동 팝업이 차단되어 중앙방송을 유지합니다.';
+          let handoffLink=document.getElementById('store-dj-manual-link');
+          if(!handoffLink){
+            handoffLink=document.createElement('a');
+            handoffLink.id='store-dj-manual-link';
+            handoffLink.style='display:inline-block;margin:12px;padding:10px;border:1px solid currentColor;border-radius:8px';
+            status.insertAdjacentElement('afterend',handoffLink);
+          }
+          handoffLink.href=url;
+          handoffLink.textContent='편성 DJ 방송 직접 열기';
+          handoffLink.target='_blank';
+          handoffLink.rel='noopener';
           handoffPending=false;
         }
       }
