@@ -63,7 +63,7 @@ nav{background:rgba(10,10,10,.9);border-color:var(--line)}
 
 <div class="steps" style="grid-template-columns:repeat(4,1fr)"><div class="step active" id="s1"><b>01 / UPLOAD</b><span data-i18n="creator.step.audio">음원 등록</span></div><div class="step" id="s2"><b>02 / REGISTER</b><span data-i18n="creator.step.original">원본 등록</span></div><div class="step" id="s2lp"><b>02.5 / LP (비용 1000TL)</b><span data-i18n="creator.step.lp">LP 음질 (선택)</span></div><div class="step" id="s3"><b>03 / RIGHTS & TL3</b><span data-i18n="creator.step.rights">권리 확인 및 공유</span></div></div>
 
-<section class="notice" id="musicGatePanel" hidden style="margin-bottom:14px" aria-live="polite"><strong>MP3 음원 심사</strong><p id="musicGateText"></p><small id="musicGateReviewId"></small><button type="button" class="btn secondary" id="musicGateRetryTop" hidden style="margin-top:10px">시스템 오류 재분석 1회 접수</button><div id="musicGateHistory" hidden><p id="musicGateAccount"></p><label for="musicGateSelect">현재 로그인 계정의 최근 심사</label><select id="musicGateSelect" style="width:100%;margin-top:8px;padding:12px;background:var(--panel2);color:var(--txt)"></select></div><button type="button" class="btn secondary" id="musicGateHistoryBtn" style="margin-top:10px">내 심사 목록</button><button type="button" class="btn secondary" id="musicGateRefresh" style="margin-top:10px">심사 상태 확인</button></section>
+<section class="notice" id="musicGatePanel" hidden style="margin-bottom:14px" aria-live="polite"><strong>욕설 참고 검사 · 등록 차단 없음</strong><p id="musicGateText"></p><small id="musicGateReviewId"></small><button type="button" class="btn secondary" id="musicGateRetryTop" hidden style="margin-top:10px">시스템 오류 재분석 1회 접수</button><div id="musicGateHistory" hidden><p id="musicGateAccount"></p><label for="musicGateSelect">현재 로그인 계정의 최근 심사</label><select id="musicGateSelect" style="width:100%;margin-top:8px;padding:12px;background:var(--panel2);color:var(--txt)"></select></div><button type="button" class="btn secondary" id="musicGateHistoryBtn" style="margin-top:10px">내 심사 목록</button><button type="button" class="btn secondary" id="musicGateRefresh" style="margin-top:10px">심사 상태 확인</button></section>
 <section class="card" id="panel1">
 <h2 data-i18n="creator.audio.heading">음원 등록</h2><p class="desc" data-i18n="creator.audio.desc">음원 원본은 TL3 V5 제조 요청 중 일시 전송되어 암호화 처리된다. 원본 음원을 별도 파일로 보관하지 않고 TL3 V5 암호화 패키지를 등록한다.</p>
 <section class="spotify-search" aria-labelledby="creatorConnectTitle">
@@ -216,7 +216,7 @@ nav{background:rgba(10,10,10,.9);border-color:var(--line)}
 
 <section class="card done" id="done" style="display:none"><div class="done-icon">✓</div><h2 id="doneTitle" data-i18n="creator.done.title">TL3 자산 등록 완료</h2><p id="doneText"></p><div class="actions"><a class="btn secondary" href="/creator" data-i18n="creator.done.new">새 음악 올리기</a><a class="btn primary" href="shareplace.html" data-i18n="creator.done.view">SharePlace에서 확인하기</a></div></section>
 </main>
-<script src="/tl3-manufacture.js?v=music-gate-retry-returning-20261025f"></script>
+<script src="/tl3-manufacture.js?v=advisory-screening-20261025g"></script>
 <script src="/tl3-lp.js?v=20261016"></script>
 <script src="/tl3-lp-diff.js?v=20261016"></script>
 
@@ -268,7 +268,7 @@ function renderMusicGate(review){
  $('musicGateText').textContent=window.TimeLinkTL3.reviewDescription(review);
  $('musicGateText').style.whiteSpace='pre-line';
  $('musicGateReviewId').textContent='심사 번호: '+review.review_id;
- setFinalMusicGateMessage(window.TimeLinkTL3.reviewDescription(review)+'\n심사 번호: '+review.review_id);
+ // Advisory polling must not overwrite the registration result.
 }
 async function refreshMusicGate(){
  if(!musicGateReview||musicGateSource!==file)return;
@@ -662,7 +662,7 @@ $('uploadBtn').onclick=async()=>{
  try{
    // MP3 is first stored privately in the server's AI review queue, before any TL3 manufacture.
    b.textContent='MP3 음원 심사 접수 중…';
-   await submitCreatorMusicGate();
+   try{await submitCreatorMusicGate();}catch(screeningError){$('musicGatePanel').hidden=true;}
    upload={url:'',stream_url:'',source_local:true};
    if(!cover&&!spotifyCoverSelected)await generateOriginalCover();
    if(spotifyCoverSelected&&spotifyTrack&&/^https:\/\//.test(spotifyTrack.cover_url||''))upload.cover_url=spotifyTrack.cover_url;
@@ -811,19 +811,9 @@ $('releaseBtn').onclick=async()=>{
  const rightsRole=$('rightsRole').value,rightsScope=$('rightsScope').value;
  if(!$('workIdentityType').value){err('error3','기존 작품과의 관계를 선택해주세요.');return;}
  if(!rightsRole||!rightsScope||!$('rights').checked){err('error3',TLi18n.t('creator.error.rights'));return;}
- const b=$('releaseBtn');b.disabled=true;b.textContent='음원 심사 상태 확인 중…';
- setFinalMusicGateMessage('서버에서 음원 심사 상태를 확인하고 있습니다.');
+ const b=$('releaseBtn');b.disabled=true;b.textContent='TL3 생성 및 공유 중…';
+ setFinalMusicGateMessage('음원을 등록하고 있습니다. AI 분석 결과는 등록을 차단하지 않습니다.');
  try{
- const gate=musicGateSource===file&&musicGateReview?await refreshMusicGate():await submitCreatorMusicGate();
- if(!gate)throw new Error('선택한 파일이 변경됐습니다. 처음 단계에서 다시 접수하세요.');
- renderMusicGate(gate);
- if(gate.review_status!=='approved'){
-  b.textContent='심사 상태 다시 확인';
-  const status=$('musicGateFinalStatus');status.focus();status.scrollIntoView({block:'center',behavior:'smooth'});
-  return;
- }
- b.textContent='TL3 생성 및 공유 중…';
- setFinalMusicGateMessage('음원 심사가 승인됐습니다. TL3를 생성하고 등록하고 있습니다.');
  if(window.TimeLinkCreatorContributors)await window.TimeLinkCreatorContributors.save(Number(share.file_id));
  const mr=await fetch(API+'/api/creator/metadata',{signal:AbortSignal.timeout(20000),method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),body:JSON.stringify({file_id:Number(share.file_id),spotify:spotifyTrack?{id:spotifyTrack.requested_id||spotifyTrack.id}:null,rights_role:rightsRole,rights_scope:rightsScope,work_identity_type:$('workIdentityType').value,rights_declared:true})});
  const md=await mr.json();if(!mr.ok||!md.ok)throw new Error(md.error||TLi18n.t('creator.error.rights.save'));

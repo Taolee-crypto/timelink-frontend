@@ -16,44 +16,12 @@
     return error;
   }
   function reviewDescription(review) {
-    const d=review||{},lines=[gateMessages[d.review_status]||'심사 상태 확인이 필요합니다.'];
-    const states={queued:'분석 대기',analyzing:'분석 중',retry_wait:'API 오류 후 재시도 대기',
-      complete:'완료',incomplete:'일부 결과 불확실',failed:'실패',not_started:'분석 근거 미확인',
-      manual_evidence:'관리자 수동 입력 근거 — 실제 AI 호출 확인 아님'};
-    if(states[d.analysis_status])lines.push('AI 오디오 분석: '+states[d.analysis_status]);
-    const stages={queued:'재분석 대기',claimed:'작업 선점',reading_source:'원본 읽기',hashing_source:'원본 해시 검증',
-      encoding_audio:'AI 전송 형식 변환',requesting_ai:'AI 서버 요청',reading_ai_response:'AI 응답 읽기',
-      validating_ai_output:'AI 응답 검증',saving_result:'분석 결과 저장',finished:'완료'};
-    if(Object.hasOwn(stages,d.analysis_stage)&&d.analysis_stage!=='finished')lines.push('마지막 처리 단계: '+stages[d.analysis_stage]);
-    const errors={AI_HTTP_400:'AI 요청 형식 또는 모델 설정 확인 필요',AI_HTTP_401:'AI API 키 인증 실패',
-      AI_HTTP_403:'AI API 접근 권한 확인 필요',AI_HTTP_404:'설정한 AI 모델을 찾을 수 없음',
-      AI_HTTP_429:'무료 한도 또는 요청 한도 도달',AI_NETWORK_ERROR:'AI 서버 연결 실패',
-      AI_SAFETY_BLOCKED:'AI 제공자가 응답을 제한함 — 유해성 확정 판정 아님',
-      INVALID_AI_OUTPUT:'AI 분석 결과 형식 오류',INVALID_AI_RESPONSE:'AI 응답 형식 오류',
-      INCOMPLETE_AI_RESPONSE:'AI 응답이 끝까지 생성되지 않음',
-      AUDIO_ANALYSIS_SIZE_LIMIT:'현재 AI 분석 크기 한도 10 MiB 초과',
-      SOURCE_HASH_MISMATCH:'원본 파일 해시 불일치',SOURCE_NOT_FOUND:'심사 원본 파일 없음',
-      INVALID_SOURCE_BINDING:'심사 원본의 소유자 연결 불일치',
-      ANALYSIS_LEASE_EXPIRED:'결과 저장 전에 분석 작업이 종료되어 실행 임대 만료',ANALYSIS_LEASE_LOST:'분석 작업 실행권 변경',ANALYSIS_STORAGE_ERROR:'분석 저장소 처리 오류',
-      AI_NOT_CONFIGURED:'AI 연결 설정 필요'};
-    if(d.analysis_error&&/^AI_HTTP_[1-5][0-9]{2}$/.test(d.analysis_error))
-      lines.push('분석 오류: '+(errors[d.analysis_error]||'AI 제공자 요청 오류')+' ('+d.analysis_error+')');
-    else if(errors[d.analysis_error])lines.push('분석 오류: '+errors[d.analysis_error]+' ('+d.analysis_error+')');
-    const risks={credible_threat:'구체적인 위협',targeted_harassment:'대상 지정 괴롭힘',hate_incitation:'혐오 선동',
-      child_sexual_exploitation:'아동 성착취 의심',nonconsensual_intimate_content:'비동의 사적 성적 내용 의심',
-      private_personal_data:'개인정보 노출 의심',fraudulent_impersonation:'사칭 의심',
-      unlawful_instructions:'위법 행위 지시 의심',profanity:'욕설',sexual_audio:'성적 음성',uncertain_context:'맥락 불확실'};
-    const signals=Array.isArray(d.risk_signals)?d.risk_signals.filter(k=>Object.hasOwn(risks,k)).map(k=>risks[k]):[];
-    if(signals.length)lines.push('감지된 위험 신호: '+signals.join(', ')+' — 운영자 확인 필요');
-    else if(d.analysis_status==='complete')lines.push('AI가 보고한 위험 신호 없음. 안전성·권리 확정 판정은 아닙니다.');
-    const checks={INDEPENDENT_DECODE_REQUIRED:'독립 오디오 디코딩',
-      FINGERPRINT_VERIFICATION_UNAVAILABLE:'음원 지문 검증',CATALOG_VERIFICATION_UNAVAILABLE:'외부 카탈로그 검증'};
-    const pending=Array.isArray(d.verification_pending)?d.verification_pending.filter(k=>Object.hasOwn(checks,k)).map(k=>checks[k]):[];
-    if(pending.length)lines.push('남아 있는 검증: '+pending.join(', '));
-    if(d.retry_available===true)lines.push('시스템 오류로 중단된 심사입니다. 원본을 다시 올리지 않고 재분석을 1회 접수할 수 있습니다.');
-    else if(d.analysis_status==='failed'&&d.analysis_retry_count===1)lines.push('재분석 후에도 중단됐습니다. 마지막 처리 단계와 실행 로그를 확인해야 합니다.');
-    return lines.join('\n');
+    const d=review||{};
+    const detected=Array.isArray(d.risk_signals)&&d.risk_signals.includes('profanity');
+    return '욕설 참고 검사: '+(detected?'욕설 감지 — 관리자 확인용':d.analysis_status==='complete'?'검출된 욕설 없음':'분석 대기 또는 미완료')+
+      '\nAI 분석 상태와 관계없이 음원을 등록할 수 있습니다.';
   }
+
   async function submitForReview(options) {
     const o=options||{}, api=String(o.api||'').replace(/\/$/, '');
     if(!api||!o.token||!(o.file instanceof File)) throw new Error('MP3 심사 접수에 필요한 파일과 로그인이 없습니다.');
@@ -175,13 +143,7 @@
       throw new Error('Creator의 LP 효과 분석이 완성되지 않았습니다. LP 설정 분석을 다시 실행해 주세요.');
     }
 
-    // Always bind a fresh server-side review to these exact MP3 bytes. Neither a
-    // caller-provided approval flag nor a previous file's review grants clearance.
-    let review=await submitForReview(o);
-    if(review.review_status!=='approved')review=await getReview({api:api,token:token,reviewId:review.review_id});
-    if(typeof o.onReviewStatus==='function')o.onReviewStatus(review);
-    if(review.review_status!=='approved')throw gateError(review);
-    // The backend independently rechecks the uploader and source hash at manufacture.
+    // Advisory screening must never block manufacturing or require approval.
     const durationMs = await readDurationMs(sourceFile);
     const metadata = {
       file_id: fileId, share_id: shareId,
