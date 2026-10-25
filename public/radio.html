@@ -307,6 +307,20 @@ window.addEventListener('message',async event=>{
 const storeScheduleId=new URLSearchParams(location.search).get('store_channel_id');
 if(storeScheduleId){
   let handoffPending=false;
+  window.addEventListener('message',async event=>{
+    if(event.origin!==location.origin||!event.data||event.data.type!=='store-dj-ended')return;
+    if(String(event.data.channel_id)!==storeScheduleId)return;
+    handoffPending=false;
+    const token=localStorage.getItem('tl_token')||'';
+    if(!token)return;
+    try{
+      const response=await fetch('https://api.timelink.digital/api/cafe/channels/'+encodeURIComponent(storeScheduleId)+'/broadcast-source',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+      const source=await response.json();
+      if(!response.ok||!source.ok||source.source!=='central')return;
+      status.textContent='DJ 편성 종료 · 중앙방송 재연결 중';
+      if(!stationPlaying)stationJoin.click();
+    }catch(e){status.textContent='중앙방송 재연결 버튼을 눌러주세요.';}
+  });
   setInterval(async()=>{
     if(handoffPending||!stationPlaying)return;
     const token=localStorage.getItem('tl_token')||'';
