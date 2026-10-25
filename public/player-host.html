@@ -221,7 +221,7 @@ function startCharging(){
       var r = await fetch(API + '/api/dj-cafe/charge', {
         method: 'POST',
         headers: {'Content-Type':'application/json','Authorization':'Bearer '+_token},
-        body: JSON.stringify({ dj_id: djId, share_id: _trackId || 'stream', seconds: 1, role: role, cafe_channel_id: cafeChannelId })
+        body: JSON.stringify({ dj_id: djId, share_id: _trackId || 'stream', seconds: 1, role: role, cafe_channel_id: cafeChannelId, request_id: crypto.randomUUID() })
       });
       if(r.status === 402){
         var d = await r.json();
@@ -231,6 +231,7 @@ function startCharging(){
       }
       if(!r.ok){
         var denied = await r.json().catch(function(){return {};});
+        if(denied.code==='CAFE_CHARGE_RETRY')return;
         g('status').textContent = denied.error || '카페 방송 권한을 확인할 수 없어 재생을 중지했습니다.';
         stopAll();
         return;

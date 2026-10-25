@@ -19,10 +19,11 @@ var sections = [
  ]],
  ['ACTIVITY','activity',[
   ['/dj-center.html','radio','djTitle'],
-  ['/cafe-channel.html','generic','cafeBroadcast'],
+  ['/sales-manager.html','generic','Sales Managers','영업 매니저'],
+  ['/cafe-channel.html','generic','Store Broadcast','스토어 방송'],
   ['/incar-channel.html','generic','incarBroadcast'],
-  ['/cafe-world.html','generic','cafe'],
-  ['/my-car-world.html','generic','car'],
+  ['/cafe-world.html','generic','Store World','스토어 월드'],
+  ['/my-car-world.html','generic','In-car World','인카 월드'],
   ['/advertiser.html','generic','advertiser']
  ]],
  ['TOOLS','tools',[

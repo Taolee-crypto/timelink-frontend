@@ -277,7 +277,7 @@ body.tl-admin-console>.admin-main{display:flex!important;flex-direction:column!i
 @media(max-width:450px){#panel-payout .po-stats{grid-template-columns:1fr}}
 </style><link rel="stylesheet" href="/admin-kr-finance.css?v=kr-finance-20261026a">
 <script defer src="/admin-kr-finance.js?v=kr-finance-20261026a"></script>
-</head>
+<link rel="stylesheet" href="/sales-manager.css?v=sales-20261026a"><script defer src="/sales-manager.js?v=sales-20261026a"></script></head>
 <body class="tl-admin-console">
 
 <!-- LOGIN -->
@@ -320,7 +320,7 @@ body.tl-admin-console>.admin-main{display:flex!important;flex-direction:column!i
   <div class="sb-section">도구</div><a class="sb-item" href="/reward-policy.html" style="text-decoration:none;color:var(--t1)">V5 보상 규칙 수동 관리 ↗</a>
   <div class="sb-item" onclick="go('charge',this)"><span class="ico">⚡</span>TL 충전/차감</div>
   <div class="sb-item" onclick="go('notice',this)"><span class="ico">📢</span>공지 / 이벤트</div>
-  <div class="sb-item" onclick="go('revenue',this)"><span class="ico">💰</span>재무 현황</div>
+  <div class="sb-item" onclick="go('revenue',this)"><span class="ico">💰</span>재무 현황</div><div class="sb-item" onclick="go('sales',this)"><span class="ico">🤝</span>영업 매니저</div>
   <div class="sb-item" onclick="go('footer',this)"><span class="ico">🦶</span>푸터 관리</div>
   <div class="sb-item" onclick="go('sql',this)"><span class="ico">▸</span>SQL 실행</div>
   
@@ -604,7 +604,8 @@ POC 기여지수가 높을수록 채굴량이 증가합니다.</textarea>
     </div>
 
 
-    <!-- ══ 재무 현황 패널 ══ -->
+    <div class="panel" id="panel-sales"><div id="adminSalesRoot" style="max-width:1160px;margin:auto"><p data-sm-status role="status">영업 매니저 정보를 조회하세요.</p></div></div>
+<!-- ══ 재무 현황 패널 ══ -->
     <div class="panel" id="panel-revenue">
       <div style="max-width:1100px;margin:0 auto">
         <section class="tbox" style="padding:18px;margin-bottom:18px">
@@ -1443,13 +1444,14 @@ async function createTestAd(){
   await execSQL("INSERT INTO tl_ads (id,business_name,title,description,ad_type,status,budget_tl,spent_tl,tl_reward,views,created_at) VALUES ('"+id+"','"+biz+"','"+title+"','"+desc+"','"+type+"','active',"+budget+",0,"+reward+",0,datetime('now'))");
   toast('광고 생성됨!','g'); loadAdvertisers();
 }
-var TITLES={'signup-hero':'회원가입 배경 이미지 관리',dashboard:'대시보드',revenue:'재무 현황',shares:'공유 파일 관리','rights-review':'TL3 권리 검증',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리',realtime:'🔴 실시간 현황',payout:'🌐 크리에이터 정산 관리','tl-flow':'♻ TL 이코노미 흐름','music-analytics':'🎵 음악 콘텐츠 분석','cafe-mgmt':'☕ 카페방송 채널 관리',infra:'🖥 인프라/비용 추적','dj-stats':'🤖 AI DJ 통계','dj-manage':'🎧 DJ 관리',security:'🔒 보안/접근 로그','auto-payout':'🔄 자동 정산 워크플로우'};
+var TITLES={'signup-hero':'회원가입 배경 이미지 관리',dashboard:'대시보드',sales:'영업 매니저',revenue:'재무 현황',shares:'공유 파일 관리','rights-review':'TL3 권리 검증',users:'유저 관리',charge:'TL 충전/차감',notice:'공지 / 이벤트',footer:'푸터 관리',sql:'SQL 실행',ton:'TLC 출금 관리',advertiser:'광고주 관리',realtime:'🔴 실시간 현황',payout:'🌐 크리에이터 정산 관리','tl-flow':'♻ TL 이코노미 흐름','music-analytics':'🎵 음악 콘텐츠 분석','cafe-mgmt':'☕ 카페방송 채널 관리',infra:'🖥 인프라/비용 추적','dj-stats':'🤖 AI DJ 통계','dj-manage':'🎧 DJ 관리',security:'🔒 보안/접근 로그','auto-payout':'🔄 자동 정산 워크플로우'};
 function go(id,el){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
   document.querySelectorAll('.sb-item').forEach(function(i){i.classList.remove('on');});
   g('panel-'+id).classList.add('on');
   if(el) el.classList.add('on');
   g('tbTitle').textContent=TITLES[id]||id;
+  if(id==='sales'&&window.TimeLinkSales)window.TimeLinkSales.loadAdmin();
   if(id==='users') renderUsers();
   if(id==='charge') renderTLUsers();
   if(id==='shares'){renderShares();loadMusicGateReviews();}
