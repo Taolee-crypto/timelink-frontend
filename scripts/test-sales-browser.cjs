@@ -15,7 +15,7 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),asse
   const req=route.request(),url=new URL(req.url());
   if(url.hostname==='fixture.test'){
    const admin=url.pathname.includes('admin-sales'),body=admin?'<section id="panel-sales" class="on"><div id="adminSalesRoot"></div></section>':html;
-   await route.fulfill({status:200,contentType:'text/html',body:body+'<style>body{background:#0a0a0e;color:#fff;font-family:Arial}'+css+'</style><script>'+js+'</script>'});return;
+   await route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:body+'<style>body{background:#0a0a0e;color:#fff;font-family:Arial}'+css+'</style><script>'+js+'</script>'});return;
   }
   if(url.hostname==='api.timelink.digital'){
    const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Authorization,Content-Type','Access-Control-Allow-Methods':'GET,POST,OPTIONS'};
@@ -28,6 +28,7 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),asse
  await page.goto('https://fixture.test/sales-manager.html');await page.getByRole('button',{name:'계약 서명·가입 신청'}).waitFor();assert.equal(await page.getByRole('button',{name:'계약 서명·가입 신청'}).isDisabled(),true);
  await page.goto('https://fixture.test/admin-sales');let form=page.locator('[data-sm-form="policy"]');await form.locator('[name="join_fee_krw"]').fill('100000');await form.locator('[name="reason"]').fill('테스트 정책 승인');await form.getByRole('button',{name:/정책 저장/}).click();await page.getByText('가입비와 배분 정책 저장 완료',{exact:true}).waitFor();
  await page.goto('https://fixture.test/sales-manager.html');form=page.locator('[data-sm-form="join"]');await form.locator('[name="display_name"]').fill('영업 매니저 테스트');
+ await page.locator('canvas[data-signature]').scrollIntoViewIfNeeded();
  const box=await page.locator('canvas[data-signature]').boundingBox();await page.mouse.move(box.x+20,box.y+40);await page.mouse.down();await page.mouse.move(box.x+box.width*.7,box.y+110,{steps:15});await page.mouse.up();
  await form.locator('[name="accept"]').check();await form.getByRole('button',{name:'계약 서명·가입 신청'}).click();await page.getByRole('button',{name:'테스트 입금 표시'}).waitFor();await page.getByRole('button',{name:'테스트 입금 표시'}).click();await page.getByText(/테스트 입금 표시 완료/).waitFor();
  assert.equal(f.raw.prepare('SELECT COUNT(*) n FROM v5_sales_payments').get().n,0);

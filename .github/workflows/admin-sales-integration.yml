@@ -1,0 +1,38 @@
+name: Admin sales finance integration
+on:
+  push:
+    branches: [main]
+    paths: ['public/admin*.js','public/admin*.css','public/admin.html','scripts/test-admin-sales-operations.cjs','.github/workflows/admin-sales-integration.yml']
+  pull_request:
+    paths: ['public/admin*.js','public/admin*.css','public/admin.html','scripts/test-admin-sales-operations.cjs','.github/workflows/admin-sales-integration.yml']
+permissions:
+  contents: read
+jobs:
+  admin-sales-finance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Taolee-crypto/timelink-backend
+          ref: bcdbd3bbfd31d0d79ada0572acd154fb0f8b0864
+          path: .sales-test-backend
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+        working-directory: .sales-test-backend
+      - run: node scripts/test-sales-finance.cjs
+        working-directory: .sales-test-backend
+      - run: npm install --no-save --ignore-scripts playwright
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/test-admin-sales-operations.cjs
+        env:
+          TL_SALES_BACKEND_ROOT: .sales-test-backend
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: admin-sales-finance-browser
+          path: test-results/
+          if-no-files-found: ignore
