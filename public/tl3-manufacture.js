@@ -21,6 +21,10 @@
       complete:'완료',incomplete:'일부 결과 불확실',failed:'실패',not_started:'분석 근거 미확인',
       manual_evidence:'관리자 수동 입력 근거 — 실제 AI 호출 확인 아님'};
     if(states[d.analysis_status])lines.push('AI 오디오 분석: '+states[d.analysis_status]);
+    const stages={queued:'재분석 대기',claimed:'작업 선점',reading_source:'원본 읽기',hashing_source:'원본 해시 검증',
+      encoding_audio:'AI 전송 형식 변환',requesting_ai:'AI 서버 요청',reading_ai_response:'AI 응답 읽기',
+      validating_ai_output:'AI 응답 검증',saving_result:'분석 결과 저장',finished:'완료'};
+    if(Object.hasOwn(stages,d.analysis_stage)&&d.analysis_stage!=='finished')lines.push('마지막 처리 단계: '+stages[d.analysis_stage]);
     const errors={AI_HTTP_400:'AI 요청 형식 또는 모델 설정 확인 필요',AI_HTTP_401:'AI API 키 인증 실패',
       AI_HTTP_403:'AI API 접근 권한 확인 필요',AI_HTTP_404:'설정한 AI 모델을 찾을 수 없음',
       AI_HTTP_429:'무료 한도 또는 요청 한도 도달',AI_NETWORK_ERROR:'AI 서버 연결 실패',
@@ -30,7 +34,7 @@
       AUDIO_ANALYSIS_SIZE_LIMIT:'현재 AI 분석 크기 한도 10 MiB 초과',
       SOURCE_HASH_MISMATCH:'원본 파일 해시 불일치',SOURCE_NOT_FOUND:'심사 원본 파일 없음',
       INVALID_SOURCE_BINDING:'심사 원본의 소유자 연결 불일치',
-      ANALYSIS_LEASE_EXPIRED:'분석 처리 시간 초과',ANALYSIS_STORAGE_ERROR:'분석 저장소 처리 오류',
+      ANALYSIS_LEASE_EXPIRED:'결과 저장 전에 분석 작업이 종료되어 실행 임대 만료',ANALYSIS_LEASE_LOST:'분석 작업 실행권 변경',ANALYSIS_STORAGE_ERROR:'분석 저장소 처리 오류',
       AI_NOT_CONFIGURED:'AI 연결 설정 필요'};
     if(d.analysis_error&&/^AI_HTTP_[1-5][0-9]{2}$/.test(d.analysis_error))
       lines.push('분석 오류: '+(errors[d.analysis_error]||'AI 제공자 요청 오류')+' ('+d.analysis_error+')');
@@ -46,6 +50,8 @@
       FINGERPRINT_VERIFICATION_UNAVAILABLE:'음원 지문 검증',CATALOG_VERIFICATION_UNAVAILABLE:'외부 카탈로그 검증'};
     const pending=Array.isArray(d.verification_pending)?d.verification_pending.filter(k=>Object.hasOwn(checks,k)).map(k=>checks[k]):[];
     if(pending.length)lines.push('남아 있는 검증: '+pending.join(', '));
+    if(d.retry_available===true)lines.push('시스템 오류로 중단된 심사입니다. 원본을 다시 올리지 않고 재분석을 1회 접수할 수 있습니다.');
+    else if(d.analysis_status==='failed'&&d.analysis_retry_count===1)lines.push('재분석 후에도 중단됐습니다. 마지막 처리 단계와 실행 로그를 확인해야 합니다.');
     return lines.join('\n');
   }
   async function submitForReview(options) {
@@ -89,6 +95,22 @@
     if(!Number.isSafeInteger(data.account_id)||data.account_id<=0||!Array.isArray(data.reviews)||data.reviews.length>20||
       !data.reviews.every(r=>r&&/^[a-f0-9-]{36}$/i.test(r.review_id||'')&&Object.hasOwn(gateMessages,r.review_status)))
       throw new Error('심사 목록 응답이 올바르지 않습니다.');
+    return data;
+  }
+  async function retryReview(options) {
+    const o=options||{},api=String(o.api||'').replace(/\/$/, '');
+    if(!api||!o.token||!/^[a-f0-9-]{36}$/i.test(o.reviewId||''))throw new Error('재분석 접수 정보가 올바르지 않습니다.');
+    const response=await fetch(api+'/api/v1/music-gate/reviews/'+encodeURIComponent(o.reviewId)+'/retry',{
+      method:'POST',headers:{Authorization:'Bearer '+o.token},signal:AbortSignal.timeout(15000)
+    });
+    const data=await response.json().catch(function(){return {};});
+    if(!response.ok||!data.ok){
+      const labels={ANALYSIS_RETRY_EXHAUSTED:'재분석 1회를 이미 사용했습니다. 운영자 확인이 필요합니다.',
+        ANALYSIS_NOT_RETRYABLE:'현재 상태에서는 재분석을 접수할 수 없습니다. 심사 상태를 다시 확인하세요.',
+        REVIEW_NOT_FOUND:'현재 계정의 심사 기록을 찾지 못했습니다.'};
+      throw new Error(labels[data.error]||data.error||('재분석 접수 실패: HTTP '+response.status));
+    }
+    if(data.review_id!==o.reviewId||data.review_status!=='pending_analysis')throw new Error('재분석 접수 응답이 올바르지 않습니다.');
     return data;
   }
   async function postJson(url, token, body) {
@@ -222,6 +244,6 @@
     };
   }
   global.TimeLinkTL3 = Object.freeze({ manufacture: manufacture, submitForReview: submitForReview,
-    getReview: getReview, listReviews:listReviews, reviewDescription:reviewDescription,
+    getReview: getReview, listReviews:listReviews, retryReview:retryReview, reviewDescription:reviewDescription,
     reviewMessage: function(status){return gateMessages[status]||'심사 상태 확인이 필요합니다.';}, version: 5 });
 })(window);

@@ -19,6 +19,7 @@ function setup(status='pending_analysis',failure){
     return Response.json({ok:true,review_id:id,review_status:status});
    }
    if(url.endsWith('/music-gate/reviews'))return Response.json({ok:true,account_id:1,reviews:[{review_id:id,review_status:status,created_at:'fixture'}]});
+   if(url.endsWith('/retry')){assert.equal(init.method,'POST');return Response.json({ok:true,review_id:id,review_status:'pending_analysis'});}
    if(url.includes('/music-gate/reviews/'))return Response.json({ok:true,review_id:id,review_status:status});
    if(url.endsWith('/manufacture'))return Response.json({ok:true,file_id:1,version:5,status:'released',duration_ms:2000});
    if(url.includes('/verify/'))return Response.json({ok:true,valid:true,version:5});
@@ -54,7 +55,7 @@ async function main(){
  assert.ok(creator.includes("addEventListener('pagehide'"));
  assert.ok(creator.includes('musicGatePolls>=18'));
  assert.ok(!creator.includes('원본 MP3는 브라우저 메모리에만 둔다'));
- assert.ok(creator.includes('/tl3-manufacture.js?v=music-gate-history-20261025d'));
+ assert.ok(creator.includes('/tl3-manufacture.js?v=music-gate-retry-20261025e'));
 
  const details=setup().api;
  const risk=details.reviewDescription({review_status:'review_required',analysis_status:'complete',risk_signals:['profanity'],verification_pending:['CATALOG_VERIFICATION_UNAVAILABLE']});
@@ -65,6 +66,10 @@ assert.ok(risk.includes('욕설'));assert.ok(risk.includes('외부 카탈로그 
  const ownHistory=await details.listReviews({api:'https://fixture.test',token:'fixture'});
  assert.equal(ownHistory.account_id,1);assert.equal(ownHistory.reviews[0].review_id,id);
  assert.ok(creator.includes("error.code==='REVIEW_NOT_FOUND'"));assert.ok(creator.includes('showMusicGateHistory(reviewId)'));
+ const retryResult=await details.retryReview({api:'https://fixture.test',token:'fixture',reviewId:id});assert.equal(retryResult.review_status,'pending_analysis');
+ const expired=details.reviewDescription({review_status:'review_required',analysis_status:'failed',analysis_error:'ANALYSIS_LEASE_EXPIRED',analysis_stage:'requesting_ai',retry_available:true});assert.ok(expired.includes('AI 서버 요청'));assert.ok(expired.includes('재분석'));
+ assert.ok(creator.includes('retryCurrentMusicGate'));
+ console.log('PASS explicit retry transport and last-stage failure diagnostics');
  console.log('PASS owner history recovery from a missing review ID');
  console.log('PASS Creator diagnostics distinguish inference signals, provider failures and pending verification');
  console.log('PASS Creator intake, per-file review state, bounded polling and cache version');
