@@ -832,8 +832,14 @@ async function preparePremiumSelection(){
       if(!res.ok||!data.ok)throw new Error('음원 '+fileId+' 홍보 신청 확인 실패: '+(data.reason||data.error||res.status));
       results.push(data);
     }
-    status.textContent=results.length+'곡의 홍보 자격 확인 완료 · 결제 대기 (결제·홍보 신청은 아직 완료되지 않았습니다).';
-    alert('홍보 대상 '+results.length+'곡의 자격을 확인했습니다.\\n\\n현재 홍보 전용 '+(method==='cash'?'토스 결제':'TL_P 차감')+' 기능은 서버에서 비활성화되어 있습니다.\\n결제와 홍보 신청은 완료되지 않았으며 금액은 차감되지 않았습니다.');
+    status.textContent=results.length+'곡 자격 확인 완료. 결제를 진행합니다…';
+    if(!confirm(results.length+'곡 · '+(method==='cash'?'가상 현금 결제':'실제 TL_P 결제')+'를 진행하시겠습니까?\\n곡당 '+(method==='cash'?results[0].amount_krw+'원':results[0].amount_tl+' TL')+'\\n총액 '+results.reduce(function(n,x){return n+Number(method==='cash'?x.amount_krw:x.amount_tl);},0).toLocaleString('ko-KR')+(method==='cash'?'원':' TL')))throw new Error('결제가 취소되었습니다.');
+    var requestId='dash_'+Date.now()+'_'+Math.random().toString(36).slice(2,12);
+    var pay=await fetch(API+'/api/payment/v5/premium/checkout',{method:'POST',headers:{Authorization:'Bearer '+(localStorage.getItem('tl_token')||_token||''),'Content-Type':'application/json'},body:JSON.stringify({file_ids:results.map(function(x){return Number(x.file_id);}),method:method,plan:plan,rights_accepted:true,request_id:requestId})});
+    var order=await pay.json().catch(function(){return {};});
+    if(!pay.ok||!order.ok)throw new Error('결제 실패: '+(order.error||pay.status));
+    status.textContent=results.length+'곡 홍보 신청 접수 완료 · 주문번호 '+order.order_id+' · '+(order.simulated?'가상 현금 결제':'TL_P 결제')+' · 방송 편성 대기';
+    alert(results.length+'곡 홍보 신청 접수 완료!\\n주문번호: '+order.order_id+'\\n'+(order.simulated?'현금 가상 결제 완료 (실제 결제 없음)':'TL_P 결제 완료')+'\\n방송 편성 대기 중입니다.');
   }catch(e){status.textContent=e.message||'홍보 신청 확인에 실패했습니다.';alert(status.textContent);}
   finally{updatePremiumTotal();}
 }
