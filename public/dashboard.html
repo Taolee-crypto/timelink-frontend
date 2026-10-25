@@ -847,7 +847,7 @@ async function preparePremiumSelection(){
     var requestId='dash_'+Date.now()+'_'+Math.random().toString(36).slice(2,12);
     var pay=await fetch(API+'/api/payment/v5/premium/checkout',{method:'POST',headers:{Authorization:'Bearer '+(localStorage.getItem('tl_token')||_token||''),'Content-Type':'application/json'},body:JSON.stringify({file_ids:results.map(function(x){return Number(x.file_id);}),method:method,plan:plan,rights_accepted:true,request_id:requestId})});
     var order=await pay.json().catch(function(){return {};});
-    if(!pay.ok||!order.ok)throw new Error('결제 실패: '+(order.error||pay.status));
+    if(!pay.ok||!order.ok)throw new Error(order.error==='INSUFFICIENT_TL_P'?'TL_P 잔액 부족 · 필요 '+Number(order.required_tl||0).toLocaleString('ko-KR')+' TL / 사용 가능 '+Number(order.available_tl_p||0).toLocaleString('ko-KR')+' TL / 부족 '+Number(order.shortfall_tl||0).toLocaleString('ko-KR')+' TL': '결제 실패: '+(order.error||pay.status));
     if(method==='cash'){
       if(!order.toss_checkout)throw new Error('토스 결제 주문이 준비되지 않았습니다.');
       status.textContent='토스 테스트 결제창을 여는 중입니다…';
