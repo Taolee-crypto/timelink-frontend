@@ -32,86 +32,40 @@ function setup(status='pending_analysis',failure){
 }
 async function main(){
  const options={api:'https://fixture.test',token:'fixture',fileId:1,file:new File(['fixture mp3'],'fixture.mp3',{type:'audio/mpeg'}),rightsConfirmed:true};
- for(const state of ['pending_analysis','analyzing','review_required','rejected','cancelled']){
-  const {api,calls}=setup(state);
-  await assert.rejects(api.manufacture({...options,gateApproved:true,reviewStatus:'approved'}),e=>e.code==='MUSIC_GATE_APPROVAL_REQUIRED'&&e.review.review_status===state);
-  assert.equal(calls[0].url,'https://fixture.test/api/upload/mp3');
-  assert.ok(calls[1].url.includes('/music-gate/reviews/'));
-  assert.ok(!calls.some(c=>c.url.endsWith('/manufacture')));
+ for(const status of ['pending_analysis','analyzing','review_required','rejected','cancelled','approved']){
+  const {api,calls}=setup(status);
+  const result=await api.manufacture(options);
+  assert.equal(result.ok,true);
+  assert.ok(calls[0].url.endsWith('/manufacture'));
+  assert.ok(!calls.some(c=>c.url.includes('music-gate')||c.url.endsWith('/upload/mp3')));
+  assert.ok(calls[1].url.includes('/verify/'));assert.ok(calls[2].url.includes('/resolve/'));
  }
- console.log('PASS pending, analyzing, exception, rejected and cancelled reviews block manufacture; client flags cannot bypass');
- let {api,calls}=setup('approved');
- const result=await api.manufacture(options);assert.equal(result.ok,true);assert.equal(result.version,5);
- assert.equal(calls[0].url,'https://fixture.test/api/upload/mp3');assert.equal(calls[1].url,'https://fixture.test/api/v1/tl3/v5/manufacture');
- assert.ok(calls[2].url.includes('/verify/'));assert.ok(calls[3].url.includes('/resolve/'));
- console.log('PASS server-approved source follows existing V5 manufacture, integrity and playback verification');
- ({api,calls}=setup('pending_analysis',true));await assert.rejects(api.manufacture(options),/AUTH_REQUIRED/);assert.equal(calls.length,1);
- ({api,calls}=setup());await assert.rejects(api.getReview({...options,reviewId:'invalid'}),/올바르지/);assert.equal(calls.length,0);
- console.log('PASS intake errors and invalid review IDs fail closed');
- const creator=fs.readFileSync('public/creator.html','utf8');
- assert.ok(creator.includes('await submitCreatorMusicGate();'));
- assert.ok(creator.includes("gate.review_status!=='approved'"));
- assert.ok(creator.includes('musicGateSource===file'));
- assert.ok(creator.includes("addEventListener('pagehide'"));
- assert.ok(creator.includes('musicGatePolls>=18'));
- assert.ok(!creator.includes('원본 MP3는 브라우저 메모리에만 둔다'));
- assert.ok(creator.includes('/tl3-manufacture.js?v=music-gate-retry-returning-20261025f'));
-
+ console.log('PASS all advisory review states allow manufacture; integrity and playback verification remain');
+ let {api,calls}=setup();
+ await assert.rejects(api.manufacture({...options,rightsConfirmed:false}),/권한/);assert.equal(calls.length,0);
+ ({api,calls}=setup('pending_analysis',true));
+ await assert.rejects(api.manufacture(options),/AUTH_REQUIRED/);
+ console.log('PASS rights confirmation and server authentication failures remain enforced');
  const details=setup().api;
- const risk=details.reviewDescription({review_status:'review_required',analysis_status:'complete',risk_signals:['profanity'],verification_pending:['CATALOG_VERIFICATION_UNAVAILABLE']});
-assert.ok(risk.includes('욕설'));assert.ok(risk.includes('외부 카탈로그 검증'));
- const failed=details.reviewDescription({review_status:'review_required',analysis_status:'failed',analysis_error:'AI_HTTP_400',risk_signals:[]});
- assert.ok(failed.includes('AI_HTTP_400'));assert.ok(!failed.includes('위험 신호 없음'));
- assert.ok(details.reviewDescription({review_status:'review_required'}).includes('AI 오디오 분석: 완료')===false);
- const ownHistory=await details.listReviews({api:'https://fixture.test',token:'fixture'});
- assert.equal(ownHistory.account_id,1);assert.equal(ownHistory.reviews[0].review_id,id);
- assert.ok(creator.includes("error.code==='REVIEW_NOT_FOUND'"));assert.ok(creator.includes('showMusicGateHistory(reviewId)'));
- const retryResult=await details.retryReview({api:'https://fixture.test',token:'fixture',reviewId:id});assert.equal(retryResult.review_status,'pending_analysis');
- const expired=details.reviewDescription({review_status:'review_required',analysis_status:'failed',analysis_error:'ANALYSIS_LEASE_EXPIRED',analysis_stage:'requesting_ai',retry_available:true});assert.ok(expired.includes('AI 서버 요청'));assert.ok(expired.includes('재분석'));
- assert.ok(creator.includes('retryCurrentMusicGate'));
- console.log('PASS explicit retry transport and last-stage failure diagnostics');
- console.log('PASS owner history recovery from a missing review ID');
- console.log('PASS Creator diagnostics distinguish inference signals, provider failures and pending verification');
- console.log('PASS Creator intake, per-file review state, bounded polling and cache version');
- 
- await testFinalButton(creator);
-}
-async function testFinalButton(creator){
- const helpers=creator.slice(creator.indexOf('function setFinalMusicGateMessage'),creator.indexOf('async function refreshMusicGate'));
+ assert.ok(details.reviewDescription({analysis_status:'complete',risk_signals:['profanity']}).includes('욕설 감지'));
+ assert.ok(details.reviewDescription({analysis_status:'failed'}).includes('등록할 수 있습니다'));
+ const history=await details.listReviews({api:options.api,token:options.token});assert.equal(history.account_id,1);
+ assert.equal((await details.retryReview({api:options.api,token:options.token,reviewId:id})).review_status,'pending_analysis');
+ const creator=fs.readFileSync('public/creator.html','utf8');
  const handler=creator.slice(creator.indexOf("$('releaseBtn').onclick=async()=>{"),creator.indexOf('function finish(released,d)'));
- const messages=setup().api;
- function ui(status,fail){
-  const nodes=new Map();
-  const $=id=>{if(!nodes.has(id))nodes.set(id,{value:'fixture',checked:true,disabled:false,hidden:true,
-    textContent:'',style:{},focus(){this.focused=true},scrollIntoView(){this.scrolled=true}});return nodes.get(id)};
-  let writes=0;const file={};
-  const context={$,file,musicGateSource:file,musicGateReview:{review_id:id,review_status:status},share:{file_id:1},
-    window:{TimeLinkTL3:messages},TLi18n:{t:k=>k},clearErr(){},err(id,msg){$(id).textContent=msg},
-    API:'https://fixture.test',token:'fixture',spotifyTrack:null,auth:()=>({Authorization:'Bearer fixture'}),AbortSignal,
-    async refreshMusicGate(){if(fail)throw Error('심사 조회 연결 실패');return {review_id:id,review_status:status}},
-    async submitCreatorMusicGate(){throw Error('Unexpected duplicate intake')},
-    async fetch(url,init){writes++;assert.ok(init.signal);return Response.json({ok:false,error:'권리 저장 실패'})}
-  };
-  vm.createContext(context);vm.runInContext(helpers+handler,context);
-  return {context,$,writes:()=>writes};
+ for(const status of ['pending_analysis','analyzing','review_required','rejected','cancelled']){
+  const nodes=new Map(),$=id=>{if(!nodes.has(id))nodes.set(id,{value:'fixture',checked:true,disabled:false,hidden:true,textContent:''});return nodes.get(id)};
+  let writes=0;
+  const ctx={$,share:{file_id:1},clearErr(){},setFinalMusicGateMessage(msg){$('musicGateFinalStatus').textContent=msg},
+   err(id,msg){$(id).textContent=msg},TLi18n:{t:k=>k},window:{},API:options.api,auth:()=>({}),AbortSignal,spotifyTrack:null,
+   musicGateReview:{review_status:status},
+   async refreshMusicGate(){throw Error('AI service unavailable')},
+   async submitCreatorMusicGate(){throw Error('AI service unavailable')},
+   async fetch(){writes++;return Response.json({ok:false,error:'fixture rights write failure'})}};
+  vm.runInNewContext(handler,ctx);await $('releaseBtn').onclick();
+  assert.equal(writes,1);assert.equal($('releaseBtn').disabled,false);
+  assert.equal($('musicGateFinalStatus').textContent,'fixture rights write failure');
  }
- for(const state of ['pending_analysis','analyzing','review_required','rejected','cancelled']){
-  const u=ui(state);await u.$('releaseBtn').onclick();
-  assert.equal(u.$('releaseBtn').disabled,false);assert.equal(u.$('musicGateFinalStatus').hidden,false);
-  assert.ok(u.$('musicGateFinalStatus').textContent.includes(id));
-  assert.ok(u.$('musicGateFinalStatus').textContent.includes(messages.reviewMessage(state)));
-  assert.equal(u.$('musicGateFinalStatus').focused,true);assert.equal(u.writes(),0);
- }
- let u=ui('approved',true);await u.$('releaseBtn').onclick();
- assert.equal(u.$('releaseBtn').disabled,false);assert.ok(u.$('musicGateFinalStatus').textContent.includes('연결 실패'));
- u=ui('approved');await u.$('releaseBtn').onclick();
- assert.equal(u.writes(),1);assert.equal(u.$('releaseBtn').disabled,false);
- assert.ok(u.$('musicGateFinalStatus').textContent.includes('권리 저장 실패'));
- u=ui('pending_analysis');let release;u.context.refreshMusicGate=()=>new Promise(r=>release=r);
- const first=u.$('releaseBtn').onclick();assert.equal(u.$('releaseBtn').disabled,true);
- assert.ok(u.$('musicGateFinalStatus').textContent.includes('확인하고 있습니다'));
- await u.$('releaseBtn').onclick();release({review_id:id,review_status:'pending_analysis'});await first;
- assert.equal(u.$('releaseBtn').disabled,false);
- console.log('PASS actual final button: visible pending/exception results, query/write failures, busy state and duplicate-click guard');
+ console.log('PASS actual Creator final button reaches rights save even with unavailable AI and any advisory status');
 }
 main().catch(e=>{console.error(e);process.exitCode=1});
