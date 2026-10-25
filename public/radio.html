@@ -272,8 +272,22 @@ stationJoin.addEventListener('click',async()=>{
 });
 select.addEventListener('change',()=>{stopTilo();});
 renderCountryStation();
+// Store handoff from the DJ player: use the existing authorized central player.
+const storeHandoff=new URLSearchParams(location.search);
+if(storeHandoff.get('store_channel_id')&&storeHandoff.get('autojoin')==='1'){
+  const storeId=storeHandoff.get('store_channel_id');
+  const token=localStorage.getItem('tl_token')||'';
+  if(token){
+    fetch('https://api.timelink.digital/api/cafe/channels/'+encodeURIComponent(storeId)+'/broadcast-source',{headers:{Authorization:'Bearer '+token}})
+      .then(r=>r.json()).then(d=>{
+        if(!d.ok||d.source!=='central')return;
+        status.textContent='스토어 DJ 편성 종료 · 중앙방송 연결 중';
+        if(!stationPlaying)stationJoin.click();
+      }).catch(()=>{status.textContent='중앙방송 연결 버튼을 눌러주세요.';});
+  }
+}
 
-// Metadata follows the actual broadcast ID; a catalog candidate is never “now playing”.
+ // Metadata follows the actual broadcast ID; a catalog candidate is never “now playing”.
 const radioTracks=new Map();let radioLiveId=null;
 function renderRadioTrack(){
  const song=radioTracks.get(radioLiveId);
