@@ -53,7 +53,46 @@ async function main(){
  assert.ok(creator.includes("addEventListener('pagehide'"));
  assert.ok(creator.includes('musicGatePolls>=18'));
  assert.ok(!creator.includes('원본 MP3는 브라우저 메모리에만 둔다'));
- assert.ok(creator.includes('/tl3-manufacture.js?v=music-gate-intake-20261025a'));
+ assert.ok(creator.includes('/tl3-manufacture.js?v=music-gate-intake-20261025b'));
  console.log('PASS Creator intake, per-file review state, bounded polling and cache version');
+ await testFinalButton(creator);
+}
+async function testFinalButton(creator){
+ const helpers=creator.slice(creator.indexOf('function setFinalMusicGateMessage'),creator.indexOf('async function refreshMusicGate'));
+ const handler=creator.slice(creator.indexOf("$('releaseBtn').onclick=async()=>{"),creator.indexOf('function finish(released,d)'));
+ const messages=setup().api;
+ function ui(status,fail){
+  const nodes=new Map();
+  const $=id=>{if(!nodes.has(id))nodes.set(id,{value:'fixture',checked:true,disabled:false,hidden:true,
+    textContent:'',focus(){this.focused=true},scrollIntoView(){this.scrolled=true}});return nodes.get(id)};
+  let writes=0;const file={};
+  const context={$,file,musicGateSource:file,musicGateReview:{review_id:id,review_status:status},share:{file_id:1},
+    window:{TimeLinkTL3:messages},TLi18n:{t:k=>k},clearErr(){},err(id,msg){$(id).textContent=msg},
+    API:'https://fixture.test',token:'fixture',spotifyTrack:null,auth:()=>({Authorization:'Bearer fixture'}),AbortSignal,
+    async refreshMusicGate(){if(fail)throw Error('심사 조회 연결 실패');return {review_id:id,review_status:status}},
+    async submitCreatorMusicGate(){throw Error('Unexpected duplicate intake')},
+    async fetch(url,init){writes++;assert.ok(init.signal);return Response.json({ok:false,error:'권리 저장 실패'})}
+  };
+  vm.createContext(context);vm.runInContext(helpers+handler,context);
+  return {context,$,writes:()=>writes};
+ }
+ for(const state of ['pending_analysis','analyzing','review_required','rejected','cancelled']){
+  const u=ui(state);await u.$('releaseBtn').onclick();
+  assert.equal(u.$('releaseBtn').disabled,false);assert.equal(u.$('musicGateFinalStatus').hidden,false);
+  assert.ok(u.$('musicGateFinalStatus').textContent.includes(id));
+  assert.ok(u.$('musicGateFinalStatus').textContent.includes(messages.reviewMessage(state)));
+  assert.equal(u.$('musicGateFinalStatus').focused,true);assert.equal(u.writes(),0);
+ }
+ let u=ui('approved',true);await u.$('releaseBtn').onclick();
+ assert.equal(u.$('releaseBtn').disabled,false);assert.ok(u.$('musicGateFinalStatus').textContent.includes('연결 실패'));
+ u=ui('approved');await u.$('releaseBtn').onclick();
+ assert.equal(u.writes(),1);assert.equal(u.$('releaseBtn').disabled,false);
+ assert.ok(u.$('musicGateFinalStatus').textContent.includes('권리 저장 실패'));
+ u=ui('pending_analysis');let release;u.context.refreshMusicGate=()=>new Promise(r=>release=r);
+ const first=u.$('releaseBtn').onclick();assert.equal(u.$('releaseBtn').disabled,true);
+ assert.ok(u.$('musicGateFinalStatus').textContent.includes('확인하고 있습니다'));
+ await u.$('releaseBtn').onclick();release({review_id:id,review_status:'pending_analysis'});await first;
+ assert.equal(u.$('releaseBtn').disabled,false);
+ console.log('PASS actual final button: visible pending/exception results, query/write failures, busy state and duplicate-click guard');
 }
 main().catch(e=>{console.error(e);process.exitCode=1});

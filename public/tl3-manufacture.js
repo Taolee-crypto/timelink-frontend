@@ -44,6 +44,7 @@
   }
   async function postJson(url, token, body) {
     const response = await fetch(url, {
+      signal: AbortSignal.timeout(20000),
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify(body)
@@ -129,6 +130,7 @@
     form.append('file', sourceFile, sourceFile.name || 'source.mp3');
     form.append('metadata', JSON.stringify(metadata));
     const response = await fetch(api + '/api/v1/tl3/v5/manufacture', {
+      signal: AbortSignal.timeout(120000),
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + token },
       body: form
@@ -143,6 +145,7 @@
       throw new Error('TL3 V5 제조 결과가 정상 규격과 일치하지 않습니다.');
     }
     const integrityResponse = await fetch(api + '/api/v1/tl3/v5/verify/' + encodeURIComponent(fileId), {
+      signal: AbortSignal.timeout(15000),
       headers: { 'Authorization': 'Bearer ' + token }
     });
     const integrity = await integrityResponse.json().catch(function () { return {}; });
@@ -150,6 +153,7 @@
       throw new Error(integrity.error || integrity.reason || 'TL3 V5 컨테이너 무결성 검증에 실패했습니다.');
     }
     const playableResponse = await fetch(api + '/api/v1/tl3/v5/resolve/' + encodeURIComponent(fileId), {
+      signal: AbortSignal.timeout(15000),
       headers: { 'Authorization': 'Bearer ' + token }
     });
     const playable = await playableResponse.json().catch(function () { return {}; });
