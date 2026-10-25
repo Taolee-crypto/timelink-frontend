@@ -160,12 +160,11 @@ async function stopTilo(){
   clearTiloTrack();
   renderCountryStation();
 }
-async function nextTiloTrack(generation,country){
+async function nextTiloTrack(generation,country,broadcastStartAt=null){
   if(generation!==stationGeneration||!joinedCountry||joinedCountry!==country)return;
   if(!stationTracks.length){status.textContent='재생 가능한 SharePlace V5 음원이 없습니다.';await stopTilo();return;}
-  const recentTracks=(readTiloMemory()[country]||[]).filter(x=>x.kind==='track').slice(-Math.min(5,stationTracks.length-1)).map(x=>Number(x.fileId));
-  const candidate=stationTracks.findIndex(id=>!recentTracks.includes(id));
-  const fileId=stationTracks.splice(candidate>=0?candidate:0,1)[0];
+  // Keep the authoritative server schedule, including premium priority.
+  const fileId=stationTracks.shift();
   stationTracks.push(fileId);
   status.textContent=countrySession[country].name+' · TL3 V5 음원 '+fileId+' 재생 연결 중';
   try{
@@ -173,6 +172,7 @@ async function nextTiloTrack(generation,country){
     if(tiloCompletedSongs%3===2)void prepareTiloEditorial(generation,country);
     await sharedV5Player.playStream('tl3_'+fileId,broadcastAudio,{
       broadcastCountry:country,
+      broadcastStartAt,
       onError:e=>{if(generation===stationGeneration)status.textContent='방송 재생 오류: '+String(e?.message||e);},
       onReady:()=>{if(generation===stationGeneration){status.textContent=countrySession[country].name+' · V5 방송 재생 중 (개인 TL 차감 없음)';publishTiloTrack(fileId,country);rememberTilo(country,'track','V5 track '+fileId,{fileId});}}
     });
@@ -264,7 +264,7 @@ stationJoin.addEventListener('click',async()=>{
     renderCountryStation();
     // Connect the authorized TL3 audio before any DJ speech delays playback.
      status.textContent=countrySession[country].name+' · 첫 곡 연결 중';
-     if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)await nextTiloTrack(generation,country);
+     if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)await nextTiloTrack(generation,country,serverSlot?.startAt||null);
   }catch(e){if(generation===stationGeneration)status.textContent='방송 시작 불가: '+String(e?.message||e);}
   finally{stationJoin.disabled=false;}
 });

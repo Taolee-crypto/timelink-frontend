@@ -255,6 +255,10 @@
       audio.addEventListener('canplay',ok,{once:true});audio.addEventListener('error',fail,{once:true});
       if(audio.readyState>=2)ok();
     });
+    if(broadcastCountry&&opts.broadcastStartAt){
+      const started=Date.parse(opts.broadcastStartAt);
+      if(Number.isFinite(started))audio.currentTime=Math.max(0,Math.min((totalMs-1000)/1000,(Date.now()-started)/1000));
+    }
     try{await audio.play();}catch(e){throw new Error('음원 재생을 시작하지 못했습니다: '+(e&&e.message||e));}
     audio._tl3End=async function(){
       sample(true);
