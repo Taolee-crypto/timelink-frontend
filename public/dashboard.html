@@ -833,7 +833,17 @@ async function preparePremiumSelection(){
       results.push(data);
     }
     status.textContent=results.length+'곡 자격 확인 완료. 결제를 진행합니다…';
-    if(!confirm(results.length+'곡 · '+(method==='cash'?'가상 현금 결제':'실제 TL_P 결제')+'를 진행하시겠습니까?\\n곡당 '+(method==='cash'?results[0].amount_krw+'원':results[0].amount_tl+' TL')+'\\n총액 '+results.reduce(function(n,x){return n+Number(method==='cash'?x.amount_krw:x.amount_tl);},0).toLocaleString('ko-KR')+(method==='cash'?'원':' TL')))throw new Error('결제가 취소되었습니다.');
+    var chosen=await new Promise(function(resolve){
+      var overlay=document.createElement('div');overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px';
+      var box=document.createElement('div');box.style.cssText='background:#1b1b23;color:#fff;border:1px solid #555;border-radius:18px;padding:26px;max-width:440px;width:100%;box-shadow:0 20px 60px #0008';
+      var title=document.createElement('h3');title.textContent='TL PREMIUM 홍보 결제 선택';title.style.margin='0 0 16px';box.appendChild(title);
+      var info=document.createElement('p');info.style.cssText='line-height:1.8;margin-bottom:18px';info.textContent=results.length+'곡 · '+plan+' 상품\\nTL_P: '+(results.length*({trial:10000,basic:30000,focused:60000,premium:100000}[plan])).toLocaleString('ko-KR')+' TL\\n토스 테스트 결제: '+(results.length*({trial:5000,basic:15000,focused:30000,premium:50000}[plan])).toLocaleString('ko-KR')+'원';info.style.whiteSpace='pre-line';box.appendChild(info);
+      function option(label,value){var btn=document.createElement('button');btn.type='button';btn.textContent=label;btn.style.cssText='display:block;width:100%;padding:14px;margin:9px 0;border:0;border-radius:10px;background:'+(value==='tl'?'#6d5efc':value==='cash'?'#0071e3':'#454550')+';color:white;font-weight:700;cursor:pointer';btn.onclick=function(){overlay.remove();resolve(value);};box.appendChild(btn);}
+      option('TL_P로 실제 결제','tl');option('토스 PG 테스트 카드 결제','cash');option('취소',null);
+      overlay.appendChild(box);document.body.appendChild(overlay);
+    });
+    if(!chosen){status.textContent='홍보 결제를 취소했습니다.';return;}
+    method=chosen;
     var requestId='dash_'+Date.now()+'_'+Math.random().toString(36).slice(2,12);
     var pay=await fetch(API+'/api/payment/v5/premium/checkout',{method:'POST',headers:{Authorization:'Bearer '+(localStorage.getItem('tl_token')||_token||''),'Content-Type':'application/json'},body:JSON.stringify({file_ids:results.map(function(x){return Number(x.file_id);}),method:method,plan:plan,rights_accepted:true,request_id:requestId})});
     var order=await pay.json().catch(function(){return {};});
