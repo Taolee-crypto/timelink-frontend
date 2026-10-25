@@ -41,7 +41,7 @@
     db.close();return credential;
   }
   let registeredKey='',registerPromise=null;
-  async function unwrapAssetKey(fileId,shareId,sessionId,broadcastCountry){
+  async function unwrapAssetKey(fileId,shareId,sessionId,broadcastCountry,djStationId){
     const credential=await playerCredential();
     const cacheKey=token()+'|'+credential.playerId;
     if(registeredKey!==cacheKey||!registerPromise){
@@ -54,8 +54,9 @@
     await registerPromise;
     const envelope=await request(API+'/api/v1/tl3/v5/session-license/'+encodeURIComponent(fileId),{
       method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
-      body:JSON.stringify({player_id:credential.playerId,session_id:sessionId,...(broadcastCountry?{broadcast_country:broadcastCountry}:{})})
+      body:JSON.stringify({player_id:credential.playerId,session_id:sessionId,...(broadcastCountry?{broadcast_country:broadcastCountry}:{}),...(djStationId?{dj_monitor:true,dj_station_id:djStationId}:{})})
     });
+    if(djStationId&&(envelope.dj_monitor!==true||Number(envelope.dj_station_id)!==djStationId))throw new Error('DJ 모니터 재생 권한이 확인되지 않았습니다.');
     if(envelope.version!==1||envelope.algorithm!=='ECDH-P256/HKDF-SHA256/AES-256-GCM'||
        Number(envelope.file_id)!==Number(fileId)||String(envelope.session_id)!==sessionId||
        envelope.player_id!==credential.playerId||Number(envelope.expires_at)<=Math.floor(Date.now()/1000)){
@@ -138,12 +139,15 @@
     if(Number(data.version)!==5)throw new Error('TL3 V5 자산이 아닙니다.');
     const fileId=Number(data.file_id),shareId=String(data.share_id),sessionId=String(opts.sessionId||sid());
     const broadcastCountry=String(opts.broadcastCountry||'').toUpperCase();
+    const djStationId=Number(opts.djStationId||0);
+    if(djStationId&&(!Number.isSafeInteger(djStationId)||djStationId<=0))throw new Error('Invalid DJ station');
+    const nonBillable=!!broadcastCountry||djStationId>0;
     if(broadcastCountry && !['KR','JP','US','CN','TH','VN'].includes(broadcastCountry))throw new Error('Invalid broadcast country');
-    const pre=broadcastCountry?{can_play:true}:await request(API+'/api/v1/tl3/play/preflight/'+encodeURIComponent(fileId),{
+    const pre=nonBillable?{can_play:true}:await request(API+'/api/v1/tl3/play/preflight/'+encodeURIComponent(fileId),{
       method:'POST',headers:auth()
     });
     if(!pre.can_play)throw new Error('TL이 부족하여 TL3 V5를 재생할 수 없습니다.');
-    const contentKey=await unwrapAssetKey(fileId,shareId,sessionId,broadcastCountry);
+    const contentKey=await unwrapAssetKey(fileId,shareId,sessionId,broadcastCountry,djStationId);
     const response=await fetch(API+'/api/v1/tl3/v5/container/'+encodeURIComponent(fileId)+'?session_id='+encodeURIComponent(sessionId),{headers:auth(),cache:'no-store'});
     if(!response.ok)throw new Error('TL3 V5 컨테이너 다운로드 실패 (HTTP '+response.status+')');
     const container=new Uint8Array(await response.arrayBuffer());
@@ -211,10 +215,10 @@
       lastTime=now;
       publishProgress(false);
       const target=Math.floor((billableMs+1e-6)/1000);
-      if(!broadcastCountry && target>meterQueued)queueMeter(target,false);
+      if(!nonBillable && target>meterQueued)queueMeter(target,false);
     }
     function queueMeter(target,complete){
-      if(broadcastCountry||target<=meterQueued||meterFailed)return;
+      if(nonBillable||target<=meterQueued||meterFailed)return;
       meterQueued=target;
       const playedMs=complete?totalMs:Math.min(totalMs,Math.floor(billableMs));
       meterQueue=meterQueue.then(async()=>{
@@ -259,6 +263,7 @@
       const started=Date.parse(opts.broadcastStartAt);
       if(Number.isFinite(started))audio.currentTime=Math.max(0,Math.min((totalMs-1000)/1000,(Date.now()-started)/1000));
     }
+    if(djStationId&&Number.isFinite(Number(opts.startOffsetSeconds)))audio.currentTime=Math.max(0,Math.min(totalMs/1000-.1,Number(opts.startOffsetSeconds)));
     try{await audio.play();}catch(e){throw new Error('음원 재생을 시작하지 못했습니다: '+(e&&e.message||e));}
     audio._tl3End=async function(){
       sample(true);
@@ -272,10 +277,10 @@
       // Flush accrued audible time before closing the session. The server
       // returns unused TL to the original wallet buckets atomically and rejects future meters.
       sample(true);
-      if(!broadcastCountry&&!meterFailed&&billableMs>0)queueMeter(Number((billableMs/1000).toFixed(3)),false);
+      if(!nonBillable&&!meterFailed&&billableMs>0)queueMeter(Number((billableMs/1000).toFixed(3)),false);
       const closingMeter=meterQueue;
       audio._tl3StopPromise=closingMeter.then(async()=>{
-        if(broadcastCountry||meterFailed||audio.ended)return;
+        if(nonBillable||meterFailed||audio.ended)return;
         const response=await fetch(API+'/api/v1/tl3/play/stop/'+encodeURIComponent(fileId),{
           method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
           body:JSON.stringify({session_id:sessionId})
