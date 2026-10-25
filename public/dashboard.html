@@ -270,7 +270,7 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
 </style>
 
   <link rel="stylesheet" href="/wallet-design-system.css?v=20261020">
-<link rel="stylesheet" href="/renewal/renewal.css?v=20261024r2"></head>
+<link rel="stylesheet" href="/renewal/renewal.css?v=20261024r2"><link rel="stylesheet" href="/creator-earnings.css?v=v5-earnings-20261025a"></head>
 <body>
 
 <div class="tl-toast-box" id="toast-box"></div>
@@ -421,16 +421,7 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
     <p style="font-size:16px;line-height:1.8;color:var(--t2)">내 음악의 TL 보상과 현금 환전 진행 상황을 확인하는 개인 정산 공간입니다.</p>
     <button class="tl-btn tl-btn-secondary" id="settlementRefresh" onclick="loadMySettlement()" style="margin-top:16px;font-size:15px">↻ 새로고침</button>
   </section>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:20px">
-    <div class="wallet-card tl" style="padding:22px"><div style="font-size:15px">내 TL 지갑 잔액</div><strong id="settlementWallet" style="display:block;font-size:26px;margin-top:12px">조회 대기</strong></div>
-    <div class="wallet-card tl" style="padding:22px"><div style="font-size:15px">창작자 보상 누적 TL</div><strong style="display:block;font-size:22px;margin-top:12px">원장 검증 대기</strong></div>
-    <div class="wallet-card tl" style="padding:22px"><div style="font-size:15px">현금 환전 가능액</div><strong style="display:block;font-size:22px;margin-top:12px">검증 대기</strong></div>
-  </div>
-  <section style="padding:24px;border:1px solid var(--bd2);border-radius:16px;background:var(--bg2);font-size:16px;line-height:1.9">
-    <h2 style="font-size:21px;margin-bottom:10px">정산 및 지급 이력</h2>
-    <p id="settlementStatus" role="status">검증된 본인 정산 이력 API 연결 대기</p>
-    <p style="margin-top:12px;color:var(--t2)">창작자 음악 보상은 TL로 배분하며, 기여도에 따른 환전율과 국가별 공제·지급 조건은 별도 검증됩니다. 환전 신청과 현금 지급은 검증된 시스템 연동 이후 활성화됩니다.</p>
-  </section>
+<section data-creator-earnings aria-label="내 음악 수익"><p class="ce-message">내 음악 수익을 불러오는 중…</p></section>
 </div>
 
 <div class="tab-panel" id="tab-mining">
@@ -524,7 +515,7 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
       <div class="content-stats">
         <div class="content-stat"><div class="content-stat-val" id="cntFiles">0</div><div class="content-stat-label">전체 파일</div></div>
         <div class="content-stat"><div class="content-stat-val" style="color:var(--teal)" id="cntPlays">0</div><div class="content-stat-label">총 재생 수</div></div>
-        <div class="content-stat"><div class="content-stat-val" style="color:var(--orange)" id="cntEarned">0</div><div class="content-stat-label">수익 TL</div></div>
+        <div class="content-stat"><div class="content-stat-val" style="color:var(--orange)" id="cntEarned" data-creator-earnings-total>조회 중</div><div class="content-stat-label">수익 TL</div></div>
         <div class="content-stat"><div class="content-stat-val" style="color:var(--pink)" id="cntPulse">0</div><div class="content-stat-label">총 Pulse</div></div>
       </div>
       <div class="quick-bar">
@@ -714,21 +705,7 @@ function getTotalTL(){
 // ═══════════════════════════════════════════
 // 탭 전환
 // ═══════════════════════════════════════════
-async function loadMySettlement(){
-  var el=g('settlementWallet'),status=g('settlementStatus'),btn=g('settlementRefresh');
-  var token=localStorage.getItem('tl_token')||'';
-  if(!token){el.textContent='로그인 필요';status.textContent='로그인 후 본인 정산 내역을 조회할 수 있습니다.';return;}
-  if(btn)btn.disabled=true;
-  try{
-    var response=await fetch(API+'/api/eco/wallet',{headers:{Authorization:'Bearer '+token,'Accept':'application/json'},cache:'no-store'});
-    var data=await response.json();
-    var amount=Number(data&&data.wallet&&data.wallet.tl_total);
-    if(!response.ok||!data.wallet||data.wallet.tl_total==null||!Number.isFinite(amount))throw Error(data.error||'V5 지갑 조회 오류');
-    el.textContent=amount.toLocaleString()+' TL';
-    status.textContent='본인 V5 TL 잔액 조회 완료. 음악 보상과 현금 지급 이력은 검증된 개인 정산 API가 연결되면 표시됩니다.';
-  }catch(error){el.textContent='확인 불가';status.textContent='조회 실패: '+String(error.message||error);}
-  finally{if(btn)btn.disabled=false;}
-}
+async function loadMySettlement(){if(window.TimeLinkCreatorEarnings)await window.TimeLinkCreatorEarnings.refresh();}
 function switchTab(name){
   var routeURL=new URL(location.href);if(name==='home')routeURL.searchParams.delete('tab');else routeURL.searchParams.set('tab',name);history.replaceState(null,'',routeURL.pathname+routeURL.search+routeURL.hash);if(parent!==window)parent.postMessage({type:'tl:route-loaded',href:routeURL.pathname+routeURL.search+routeURL.hash,title:document.title},location.origin);
   document.querySelectorAll('.tab-panel').forEach(function(e){ e.classList.remove('active'); });
@@ -763,7 +740,7 @@ async function loadShares(){
 
     var totalPulse = myFiles.reduce(function(acc, s){ return acc + (s.pulse||0); }, 0);
     g('cntPulse').textContent = fmt(totalPulse);
-    g('cntEarned').textContent = '정산 내역 확인';
+    if(window.TimeLinkCreatorEarnings)window.TimeLinkCreatorEarnings.refresh();
     g('cntPlays').textContent = myFiles.every(function(s){return Number.isFinite(Number(s.play_count))&&s.play_count!=null;}) ? fmt(myFiles.reduce(function(acc,s){return acc+Number(s.play_count);},0)) : '집계 확인 필요';
 
     var tl3Files = myFiles.filter(function(s){ return String(s.content_kind||'').toLowerCase() === 'tl3'; });
@@ -1339,5 +1316,5 @@ document.addEventListener('DOMContentLoaded', function(){
 <script src="/sidebar.js?v=tl-broadcast-nav-20261023b"></script>
 <script src="/_shared/footer.js" defer></script>
 <script src="/tl-scenes.js?v=20261020l"></script>
-</body>
+<script src="/creator-earnings.js?v=v5-earnings-20261025a" defer></script></body>
 </html>
