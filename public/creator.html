@@ -300,6 +300,18 @@ $('musicGateRefresh').onclick=async function(){
 };
 window.addEventListener('pagehide',function(){clearTimeout(musicGateTimer);musicGateEpoch++;});
 
+// A review link reads the authenticated owner's existing result without uploading audio again.
+(function loadRequestedMusicGateReview(){
+ const reviewId=new URLSearchParams(location.search).get('review_id');
+ if(!/^[a-f0-9-]{36}$/i.test(reviewId||''))return;
+ $('musicGatePanel').hidden=false;$('musicGateText').textContent='기존 음원의 심사 결과를 조회하고 있습니다.';
+ window.TimeLinkTL3.getReview({api:API,token:token,reviewId:reviewId}).then(function(review){
+  if(file)return;
+  musicGateSource=null;musicGatePolls=0;renderMusicGate(review);pollMusicGate();
+ }).catch(function(error){$('musicGateText').textContent='심사 결과 조회 실패: '+error.message;});
+})();
+
+
 // Creator Connect is saved to the authenticated member account. It is not ownership verification.
 (function(){
  const platform=document.getElementById('creatorConnectPlatform'),url=document.getElementById('creatorConnectUrl'),status=document.getElementById('creatorConnectStatus'),button=document.getElementById('creatorConnectSave');
