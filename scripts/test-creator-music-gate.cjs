@@ -53,8 +53,17 @@ async function main(){
  assert.ok(creator.includes("addEventListener('pagehide'"));
  assert.ok(creator.includes('musicGatePolls>=18'));
  assert.ok(!creator.includes('원본 MP3는 브라우저 메모리에만 둔다'));
- assert.ok(creator.includes('/tl3-manufacture.js?v=music-gate-intake-20261025b'));
+ assert.ok(creator.includes('/tl3-manufacture.js?v=music-gate-details-20261025c'));
+
+ const details=setup().api;
+ const risk=details.reviewDescription({review_status:'review_required',analysis_status:'complete',risk_signals:['profanity'],verification_pending:['CATALOG_VERIFICATION_UNAVAILABLE']});
+assert.ok(risk.includes('욕설'));assert.ok(risk.includes('외부 카탈로그 검증'));
+ const failed=details.reviewDescription({review_status:'review_required',analysis_status:'failed',analysis_error:'AI_HTTP_400',risk_signals:[]});
+ assert.ok(failed.includes('AI_HTTP_400'));assert.ok(!failed.includes('위험 신호 없음'));
+ assert.ok(details.reviewDescription({review_status:'review_required'}).includes('AI 오디오 분석: 완료')===false);
+ console.log('PASS Creator diagnostics distinguish inference signals, provider failures and pending verification');
  console.log('PASS Creator intake, per-file review state, bounded polling and cache version');
+ 
  await testFinalButton(creator);
 }
 async function testFinalButton(creator){
@@ -64,7 +73,7 @@ async function testFinalButton(creator){
  function ui(status,fail){
   const nodes=new Map();
   const $=id=>{if(!nodes.has(id))nodes.set(id,{value:'fixture',checked:true,disabled:false,hidden:true,
-    textContent:'',focus(){this.focused=true},scrollIntoView(){this.scrolled=true}});return nodes.get(id)};
+    textContent:'',style:{},focus(){this.focused=true},scrollIntoView(){this.scrolled=true}});return nodes.get(id)};
   let writes=0;const file={};
   const context={$,file,musicGateSource:file,musicGateReview:{review_id:id,review_status:status},share:{file_id:1},
     window:{TimeLinkTL3:messages},TLi18n:{t:k=>k},clearErr(){},err(id,msg){$(id).textContent=msg},
