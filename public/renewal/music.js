@@ -22,7 +22,7 @@
     if(!me.ok){if(me.status===401||me.status===403){localStorage.removeItem('tl_token');localStorage.removeItem('tl_user');location.replace('/login.html');return;}throw new Error('로그인 상태를 확인하지 못했습니다.');}
     var md=await me.json();user=md.user||md;
     var name=String(user.username||user.email||'회원'),initial=name.charAt(0).toUpperCase()||'T';
-    $('sideName').textContent=name;$('sideAvatar').textContent=initial;$('topAvatar').textContent=initial;
+    $('sideName').textContent=name;$('sideAvatar').textContent=initial;if($('topAvatar'))$('topAvatar').textContent=initial;
     var r=await fetch(API+'/api/shares/my?limit=200',{headers:{Authorization:'Bearer '+token}});
     if(!r.ok)throw new Error('내 음원 목록을 불러오지 못했습니다. ('+r.status+')');
     var d=await r.json();
@@ -36,7 +36,7 @@
   document.querySelectorAll('[data-filter]').forEach(function(b){b.addEventListener('click',function(){filter=b.getAttribute('data-filter');document.querySelectorAll('[data-filter]').forEach(function(x){x.classList.toggle('active',x===b);x.setAttribute('aria-selected',x===b?'true':'false');});render();});});
   $('trackGrid').addEventListener('click',async function(e){var b=e.target.closest('[data-share]');if(!b)return;var url=location.origin+'/track.html?id='+encodeURIComponent(b.getAttribute('data-share'));try{await navigator.clipboard.writeText(url);b.textContent='복사 완료 ✓';setTimeout(function(){b.textContent='홍보 링크 복사';},1800);}catch(err){window.prompt('곡 홍보 링크를 복사하세요.',url);}});
   $('logoutButton').addEventListener('click',function(){if(!confirm('로그아웃하시겠습니까?'))return;localStorage.removeItem('tl_token');localStorage.removeItem('tl_user');location.href='/login.html';});
-  $('mobileMenu').addEventListener('click',function(){$('sidebar').classList.toggle('open');});
-  document.addEventListener('click',function(e){if(innerWidth<=760&&$('sidebar').classList.contains('open')&&!$('sidebar').contains(e.target)&&!$('mobileMenu').contains(e.target))$('sidebar').classList.remove('open');});
+  if($('mobileMenu'))$('mobileMenu').addEventListener('click',function(){$('sidebar').classList.toggle('open');});
+  document.addEventListener('click',function(e){var menu=$('mobileMenu');if(menu&&innerWidth<=760&&$('sidebar').classList.contains('open')&&!$('sidebar').contains(e.target)&&!menu.contains(e.target))$('sidebar').classList.remove('open');});
   load().catch(function(e){$('trackGrid').innerHTML='<div class="loading-state">'+esc(e.message||'불러오기 실패')+'</div>';});
 })();
