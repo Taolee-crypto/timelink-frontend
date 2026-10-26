@@ -1,15 +1,9 @@
 name: Install Shared Place Fireworks Videos
 on:
   workflow_dispatch:
-    inputs:
-      first_mp4_url:
-        description: 'Direct HTTPS URL to first fireworks MP4 (not a Pexels page)'
-        required: true
-        type: string
-      double_mp4_url:
-        description: 'Direct HTTPS URL to second fireworks MP4 (not a Pexels page)'
-        required: true
-        type: string
+  push:
+    paths:
+      - '.github/workflows/install-fireworks.yml'
 permissions:
   contents: write
 jobs:
@@ -17,30 +11,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download and optimize verified direct MP4 sources
+      - name: Download and optimize the two Pexels MP4 assets
         shell: bash
-        env:
-          FIRST_URL: ${{ inputs.first_mp4_url }}
-          DOUBLE_URL: ${{ inputs.double_mp4_url }}
         run: |
           set -euo pipefail
           mkdir -p public/media
           download() {
-            local url="$1" output="$2" source="$3"
-            case "$url" in https://*) ;; *) echo "::error::MP4 URL must use HTTPS"; exit 1;; esac
-            curl --fail --location --show-error --silent --retry 2 --max-time 180 "$url" -o "$source"
-            ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 "$source" | grep -qx video || { echo "::error::Invalid video source"; exit 1; }
-            ffmpeg -hide_banner -loglevel error -y -i "$source" -t 5 -an -vf 'scale=640:-2' -c:v libx264 -preset fast -crf 29 -movflags +faststart "public/media/$output"
-            test -s "public/media/$output"
+            local id="$1" filename="$2" output="$3"
+            local url="https://videos.pexels.com/video-files/${id}/${filename}"
+            echo "Downloading Pexels video ${id}"
+            curl -fL --retry 3 --connect-timeout 15 --max-time 240 -A 'Mozilla/5.0' "$url" -o "/tmp/${id}.mp4"
+            ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=nw=1 "/tmp/${id}.mp4" | grep -q codec_name
+            ffmpeg -hide_banner -loglevel error -y -i "/tmp/${id}.mp4" -t 5 -an -vf 'scale=640:-2' -c:v libx264 -preset fast -crf 29 -movflags +faststart "public/media/${output}"
+            test -s "public/media/${output}"
           }
-          download "$FIRST_URL" timelink-fireworks-first.mp4 /tmp/first.mp4
-          download "$DOUBLE_URL" timelink-fireworks-double.mp4 /tmp/double.mp4
-      - name: Commit media to repository
+          download 963206 963206-hd_720_1280_30fps.mp4 timelink-fireworks-first.mp4
+          download 5451399 5451399-hd_1920_1080_24fps.mp4 timelink-fireworks-double.mp4
+      - name: Commit fireworks MP4 assets
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add public/media/timelink-fireworks-first.mp4 public/media/timelink-fireworks-double.mp4
           if ! git diff --cached --quiet; then
-            git commit -m "assets: install fireworks clips for luck draws"
+            git commit -m "assets: add fireworks videos for Share Place lucky draws"
             git push
           fi
