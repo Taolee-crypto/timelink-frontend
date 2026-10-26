@@ -15,7 +15,8 @@ const fixture={exports:{}};new Function('require','module',pre+'\nmodule.exports
 const {ctx,db}=fixture.exports;
 console.log('[KR browser] launching Chrome');
 browser=await chromium.launch({headless:true,args:['--no-sandbox'],...(process.env.TL_CHROMIUM_EXECUTABLE?{executablePath:process.env.TL_CHROMIUM_EXECUTABLE}:{})});const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];page.setDefaultTimeout(15000);page.setDefaultNavigationTimeout(15000);page.on('pageerror',e=>errors.push(e.message));
-await page.route('https://api.timelink.digital/api/admin/finance/kr**',async route=>{
+// Use a boundary-aware regex: embedded globstars differ across driver versions.
+await page.route(/^https:\/\/api\.timelink\.digital\/api\/admin\/finance\/kr(?:[/?].*)?$/,async route=>{
  const req=route.request(),url=new URL(req.url());let out,status=200;
  try{
   if(req.method()==='OPTIONS'){await route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Authorization,Content-Type','Access-Control-Allow-Methods':'GET,POST,OPTIONS'}});return;}
