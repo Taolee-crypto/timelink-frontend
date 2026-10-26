@@ -41,12 +41,13 @@ var p = new URLSearchParams(location.search);
 var paymentKey = p.get('paymentKey');
 var orderId    = p.get('orderId');
 var amount     = p.get('amount');
+var isMusicOrder = !!orderId && orderId.startsWith('v5music_');
 
 function setUI(icon, title, msg, showBtn){
   document.getElementById('icon').textContent  = icon;
   document.getElementById('title').textContent = title;
   document.getElementById('msg').textContent   = msg;
-  if(showBtn) document.getElementById('homeBtn').style.display = 'inline-block';
+  if(showBtn){var button=document.getElementById('homeBtn');button.style.display='inline-block';if(isMusicOrder){button.href='/music-subscriptions.html';button.textContent='음악 구독으로 돌아가기';}}
 }
 
 async function confirmPayment(){
@@ -56,6 +57,11 @@ async function confirmPayment(){
   }
 
   var token = localStorage.getItem('tl_token') || '';
+  if(!token && isMusicOrder){
+    setUI('🔐','로그인이 필요합니다.','관리하던 계정으로 로그인한 뒤 이 화면에서 다시 확인하세요. 구독 결제를 TL 충전으로 처리하지 않습니다.',true);
+    var loginBtn=document.getElementById('homeBtn');loginBtn.href='/login.html';loginBtn.target='_blank';loginBtn.rel='noopener';loginBtn.textContent='로그인하기';
+    var retry=document.createElement('button');retry.className='btn';retry.textContent='로그인 후 다시 확인';retry.style.marginTop='12px';retry.onclick=function(){location.reload();};loginBtn.after(retry);return;
+  }
   if(!token){
     // 토큰 없으면 shareplace로 파라미터 전달
     location.href = (orderId && orderId.startsWith('v5promo_') ? 'dashboard.html' : 'shareplace.html') + '?paymentKey=' + encodeURIComponent(paymentKey)
@@ -65,7 +71,7 @@ async function confirmPayment(){
   }
 
   try {
-    var r = await fetch(API + (orderId.startsWith('v5promo_') ? '/api/payment/v5/premium/toss/confirm' : '/api/payment/toss/confirm'), {
+    var r = await fetch(API + (isMusicOrder ? '/api/payment/v5/music/confirm' : orderId.startsWith('v5promo_') ? '/api/payment/v5/premium/toss/confirm' : '/api/payment/toss/confirm'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -74,16 +80,22 @@ async function confirmPayment(){
       body: JSON.stringify({
         paymentKey: paymentKey,
         orderId:    orderId,
-        amount:     parseInt(amount)
+        amount:     Number(amount)
       })
     });
     var d = await r.json();
 
-    if(!r.ok){
+    if(!r.ok || (isMusicOrder && d.ok!==true)){
       setUI('❌','결제 처리 실패', d.error || '오류가 발생했습니다.', true);
       return;
     }
 
+    if(isMusicOrder){
+      setUI('🎵',d.testPayment?'음악 구독 시험결제 확인':'음악 구독 결제 확인',d.testPayment?'시험 승인 완료 · 실제 청취 이용권과 구매 기여에는 적용되지 않습니다.':'구독 이용권이 등록되었습니다. 음악 구독 화면에서 기간과 연결 상태를 확인하세요.',true);
+      var musicBtn=document.getElementById('homeBtn');musicBtn.href='/music-subscriptions.html';musicBtn.textContent='음악 구독 확인';
+      try{for(var i=sessionStorage.length-1;i>=0;i--){var k=sessionStorage.key(i);if(k&&k.startsWith('tl_music_pending_')){var pending=JSON.parse(sessionStorage.getItem(k)||'null');if(pending&&pending.orderId===orderId)sessionStorage.removeItem(k);}}}catch(ignore){}
+      return;
+    }
     if(orderId.startsWith('v5promo_')){setUI('🎉','홍보 결제 완료','토스 테스트 결제 승인 완료 · 홍보 편성 대기 · 주문번호 '+orderId,true);document.getElementById('homeBtn').href='dashboard.html';document.getElementById('homeBtn').textContent='대시보드로 이동';return;}
     // 성공 - localStorage 잔액 업데이트
     try {
@@ -114,4 +126,5 @@ confirmPayment();
 <script src="/_shared/footer.js" defer></script>
 </body>
 </html>
+
 
