@@ -20,10 +20,8 @@ var sections = [
  ['ACTIVITY','activity',[
   ['/dj-center.html','radio','My Broadcast','나의 방송'],
   ['/sales-manager.html','manager','Sales Manager','영업 매니저'],
-  ['#','space','My Spaces','나의 공간',[
-    ['/my-cafe.html','store','My Cafe','나의 카페'],
-    ['/my-car.html','car','My Car','나의 차']
-  ]]
+  ['/my-cafe.html','store','My Cafe','나의 카페'],
+  ['/my-car.html','car','My Car','나의 차']
  ]],
  ['WORLD','world',[
   ['/cafe-world.html','store','Store World','스토어월드'],
@@ -52,7 +50,7 @@ function activityLink(item){
 }
 var html='<a class="tl-skip" href="#tl-content">'+esc(t('skip'))+'</a><aside class="tl-global-sidebar" aria-label="TimeLink"><a class="tl-global-brand" href="/dashboard.html"><span class="tl-global-mark">t</span>TimeLink</a><nav class="tl-global-links">';
 html+=sections[0][2].map(link).join('');html+='<a class="tl-global-create" href="/creator.html">＋ '+esc(t('create'))+'</a>';
-sections.slice(2).forEach(function(group){html+='<details class="tl-global-details"'+(group[1]==='activity'?' open':'')+'><summary>'+esc(groupName(group[1]))+'</summary>'+(group[1]==='activity'?group[2].map(activityLink):group[2].map(link)).join('')+'</details>'});
+sections.slice(2).forEach(function(group){html+='<details class="tl-global-details"'+(group[1]==='activity'||group[1]==='world'?' open':'')+'><summary>'+esc(groupName(group[1]))+'</summary>'+(group[1]==='activity'?group[2].map(activityLink):group[2].map(link)).join('')+'</details>'});
 html+='</nav><div class="tl-global-balance"><small>'+esc(t('balance'))+'</small><strong id="tlGlobalBalance">'+(token?'…':'— TL')+'</strong><a href="/wallet.html#charge">'+esc(t('charge'))+' ↗</a><button type="button" class="tl-global-logout" data-tl-logout hidden>로그아웃</button></div></aside><nav class="tl-bottom-nav" aria-label="Mobile navigation">'+sections[0][2].map(function(item){return '<a href="'+esc(item[0])+'">'+icon(item[1])+'<span>'+esc(name(item))+'</span></a>'}).join('')+'</nav>';
 document.body.insertAdjacentHTML('afterbegin',html);document.body.classList.add('tl-global-shell');
 function active(href){var u=new URL(href,location.origin),query=u.searchParams;var page=document.body.dataset.currentRoute||href;var v=new URL(page,location.origin);document.querySelectorAll('.tl-global-link,.tl-bottom-nav a').forEach(function(a){var w=new URL(a.href),same=w.pathname===v.pathname&&w.search===v.search;a.classList.toggle('is-active',same);if(same){a.setAttribute('aria-current','page');var parent=a.parentElement;while(parent){if(parent.tagName==='DETAILS')parent.open=true;parent=parent.parentElement}}else a.removeAttribute('aria-current')})}

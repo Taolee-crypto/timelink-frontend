@@ -17,7 +17,7 @@ function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){retur
 function safeURL(v){try{var u=new URL(v,origin);return /^https?:$/.test(u.protocol)?u.href:''}catch(e){return '';}}
 function route(v){try{var u=new URL(v,origin);if(u.origin!==origin||!/^\/[a-zA-Z0-9_\/-]+(?:\.html)?$/.test(u.pathname)||u.pathname.startsWith('/docs/')||u.pathname.startsWith('/images/'))return null;return u.pathname+u.search+u.hash;}catch(e){return null;}}
 window.TLUI={t:t,esc:esc,safeURL:safeURL,route:route,lang:currentLang,canonicalPath:canonicalPath,pagePath:path};
-var css=document.createElement('link');css.rel='stylesheet';css.href='/renewal/renewal.css?v=20261026activity1';document.head.appendChild(css);
+var css=document.createElement('link');css.rel='stylesheet';css.href='/renewal/renewal.css?v=20261026compact1';document.head.appendChild(css);
 if(PLAYER){document.documentElement.classList.add('tl-player-document');}
 else if(EMBEDDED&&!HOST){document.documentElement.classList.add('tl-embedded');}
 // The application host is persistent; individual document URLs still load their original files.

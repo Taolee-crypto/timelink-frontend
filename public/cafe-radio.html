@@ -174,7 +174,7 @@ body::before{background:radial-gradient(ellipse 60% 40% at 80% 10%,rgba(139,92,2
 @media(prefers-reduced-motion:reduce){.station-card,.channel-card,.btn-primary{transition:none!important}}
 </style><!-- TL_TOPBAR_UNIFY -->
   <link rel="stylesheet" href="/wallet-design-system.css?v=20261020">
-<link rel="stylesheet" href="/renewal/renewal.css?v=20261024r2"></head>
+<link rel="stylesheet" href="/renewal/renewal.css?v=20261024r2"><style>.dj-listening-view .hero{background:linear-gradient(90deg,#101016ed,#10101655),url(/images/renewal/dj-mixing.jpg) center/cover;border-radius:20px;padding:36px;margin-bottom:24px}.dj-listening-view .dj-btn-preview,.dj-listening-view .dj-btn-contract{display:none}.dj-listening-view .dj-btn-listen{width:100%}.dj-listening-view .dj-avatar{overflow:hidden}.dj-listening-view .dj-avatar img{width:100%;height:100%;object-fit:cover}</style><link rel="stylesheet" href="/renewal/activity.css?v=20261026compact1"></head>
 <body>
 <div id="toast-box"></div>
 
@@ -233,7 +233,11 @@ var _myContracts = [];      // 카페 주인 계약 목록
 var _isCafeOwner = false;   // 대표자 여부
 var _isCafeStaff = false;
 var _canOperateCafe = false;
-var _channelId = new URLSearchParams(location.search).get('channel_id') || '';
+var listeningParams=new URLSearchParams(location.search);
+var listeningView=listeningParams.get('view')==='listen';
+var listeningSpace=listeningParams.get('space')==='car'?'car':'cafe';
+var _channelId = listeningParams.get('channel_id') || '';
+if(listeningView){document.body.classList.add('dj-listening-view');document.querySelector('.hero-title').textContent='DJ 방송';document.querySelector('.hero-sub').textContent='현재 방송 중인 DJ를 선택해 들어보세요.';var back=document.querySelector('.tb-back');back.href=listeningSpace==='car'?'/my-car.html':'/my-cafe.html';back.textContent='← 나의 공간';}
 var _playing = null;        // 현재 재생 중인 DJ
 var _preview = false;       // 미리듣기 여부
 var _chargeTimer = null;
@@ -344,7 +348,8 @@ async function loadLiveDjs(){
   try {
     var r = await fetch(API+'/api/dj-cafe/live-djs');
     var d = await r.json();
-    _liveDjs = d.djs || [];
+    if(!r.ok||d.ok===false||!Array.isArray(d.djs))throw Error('DJ 목록 조회 실패');
+    _liveDjs = d.djs.filter(function(dj){return dj&&Number.isSafeInteger(Number(dj.id))&&Number(dj.id)>0&&dj.is_live!==false&&dj.is_live!==0;});
     renderDjs();
     var cnt = _liveDjs.length;
     g('liveCount').textContent = 'LIVE ' + cnt;
@@ -399,7 +404,7 @@ function renderDjs(){
         (_user
           ? '<button class="dj-btn dj-btn-listen" onclick="listenDj('+dj.id+')">🎧 청취</button>'
           : '') +
-        (_isCafeOwner
+        (_isCafeOwner && !listeningView
           ? (isContract
               ? '<button class="dj-btn dj-btn-contract on" onclick="cancelContract('+dj.id+')">🚪 계약 해지</button>'
               : '<button class="dj-btn dj-btn-contract" onclick="contractDj('+dj.id+')">🤝 계약 (×0.5)</button>'
@@ -458,6 +463,7 @@ async function previewDj(djId){
 // ── 청취 (팝업 플레이어) ──
 function listenDj(djId){
   if(!_user){ toast('로그인이 필요합니다', 'e'); return; }
+  if(listeningView&&listeningSpace==='cafe'&&!_canOperateCafe){toast('스토어 방송 권한을 확인해 주세요.','e');return;}
   var dj = _liveDjs.find(function(d){ return Number(d.id) === Number(djId); });
   if(!dj) return;
 
@@ -647,7 +653,7 @@ window.addEventListener('message',function(event){
 // ── 초기화 ──
 async function init(){
   await loadRates();
-  await checkCafeOwner();
+  if(!listeningView||listeningSpace!=='car')await checkCafeOwner();
   await loadMyContracts();
   await loadLiveDjs();
   // 30초마다 DJ 목록 갱신
