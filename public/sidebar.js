@@ -22,7 +22,7 @@ var sections = [
   ['/sales-manager.html','generic','Sales Manager','영업 매니저'],
   ['#','generic','Cafe Activities','카페활동',[
     ['/cafe-channel.html','generic','My Cafe','나의 카페'],
-    ['/incar-channel.html','generic','My Car Introduction','나의 차소개']
+    ['/incar-channel.html','generic','My Car','나의차']
   ]]
  ]],
  ['WORLD','world',[
