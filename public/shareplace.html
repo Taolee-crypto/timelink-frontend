@@ -434,9 +434,6 @@ html body .app .main .cat-bar .cat-tab .cat-count{
     <div id="fileGrid"></div>
     <div id="filePager" class="pager"></div>
   </div>
-  <div class="page-ads" id="adsSidebar">
-    <div style="padding:20px;text-align:center;color:rgba(255,255,255,.2);font-size:12px">광고 로딩 중...</div>
-  </div>
 </div>
   </main>
 </div>
@@ -1251,96 +1248,6 @@ loadShares();
 })();
 
 
-
-// ⭐ 사이드바 광고 로드 (다중 배너 지원)
-(async function loadSidebarAds(){
-  var adsBox = document.getElementById('adsSidebar');
-  if(!adsBox) return;
-
-  // 광고 없을 때 placeholder (플랫폼 자체 광고)
-  function renderEmpty(){
-    adsBox.innerHTML = 
-      '<a href="advertiser.html" class="sidebar-ad" style="aspect-ratio:220/120">'+
-        '<div class="sidebar-ad-thumb" style="background:linear-gradient(135deg,rgba(139,92,246,.2),rgba(191,90,242,.15))">'+
-          '<div style="text-align:center;padding:16px">'+
-            '<div style="font-size:32px;margin-bottom:6px">📢</div>'+
-            '<div style="font-size:12px;font-weight:700;color:#fff">광고주 센터</div>'+
-            '<div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:3px">TimeLink 광고 시작하기</div>'+
-          '</div>'+
-        '</div>'+
-      '</a>'+
-      '<div class="sidebar-ad-empty">'+
-        '<div style="font-size:24px;margin-bottom:8px;opacity:.4">📌</div>'+
-        '<div>배너 광고 자리</div>'+
-        '<div style="font-size:10px;margin-top:4px;opacity:.6">220×120px · 7일 50,000 TL</div>'+
-      '</div>'+
-      '<div class="sidebar-ad-empty">'+
-        '<div style="font-size:24px;margin-bottom:8px;opacity:.4">⭐</div>'+
-        '<div>프리미엄 광고</div>'+
-        '<div style="font-size:10px;margin-top:4px;opacity:.6">문의: support@timelink.digital</div>'+
-      '</div>';
-  }
-
-  try{
-    var token = localStorage.getItem('tl_token') || '';
-    var r = await fetch(API_BASE + '/api/ads/sidebar', {
-      headers: token ? {'Authorization':'Bearer '+token} : {}
-    });
-    var d = await r.json();
-    var ads = d.ads || (d.ad ? [d.ad] : []);
-
-    if(!ads.length){
-      renderEmpty();
-      return;
-    }
-
-    // 최대 4개
-    adsBox.innerHTML = ads.slice(0, 4).map(function(ad){
-      var img = ad.thumbnail_url
-        ? '<img src="'+escH(ad.thumbnail_url)+'" onerror="this.onerror=null;this.src=\'/images/renewal/vinyl-collection-card.jpg\';this.alt=\'대표 이미지\'">'
-        : '';
-      var clickUrl = ad.target_url || '#';
-      var biz = ad.business_name || '광고';
-      var title = ad.title || '';
-      var bizHtml = biz ? '<div class="sidebar-ad-biz">'+escH(biz)+'</div>' : '';
-      var titleHtml = title ? '<div class="sidebar-ad-title">'+escH(title)+'</div>' : '';
-      var infoHtml = (bizHtml || titleHtml) 
-        ? '<div class="sidebar-ad-info">'+bizHtml+titleHtml+'</div>'
-        : '';
-      var fallback = !ad.thumbnail_url 
-        ? '<div style="font-size:32px;opacity:.3;position:absolute;inset:0;display:flex;align-items:center;justify-content:center">📢</div>'
-        : '';
-      return '<a href="'+escH(clickUrl)+'" target="_blank" class="sidebar-ad" onclick="trackAdClick(\''+escH(ad.id||'')+'\')">'+
-        '<div class="sidebar-ad-thumb">'+img+fallback+'</div>'+
-        infoHtml+
-      '</a>';
-    }).join('');
-
-    // 광고가 4개 미만이면 placeholder 추가
-    var remaining = 4 - ads.length;
-    if(remaining > 0){
-      var placeholder = '';
-      for(var i=0; i<remaining; i++){
-        placeholder += '<div class="sidebar-ad-empty">'+
-          '<div style="font-size:24px;margin-bottom:8px;opacity:.4">📌</div>'+
-          '<div>배너 광고 자리</div>'+
-          '<div style="font-size:10px;margin-top:4px;opacity:.6">광고주 센터에서 등록</div>'+
-        '</div>';
-      }
-      adsBox.innerHTML += placeholder;
-    }
-  }catch(e){
-    console.warn('[sidebar ads]', e);
-    renderEmpty();
-  }
-})();
-
-async function trackAdClick(adId){
-  if(!adId) return;
-  try{
-    await fetch(API_BASE + '/api/ads/' + adId + '/click', {method:'POST'});
-  }catch(e){}
-}
 
 </script>
 <script src="/notice-popup.js?v=20261024r2"></script>
