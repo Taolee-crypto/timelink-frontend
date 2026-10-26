@@ -21,8 +21,8 @@ var sections = [
   ['/dj-center.html','radio','My Broadcast','나의 방송'],
   ['/sales-manager.html','generic','Sales Manager','영업 매니저'],
   ['#','generic','Cafe Activities','카페활동',[
-    ['/cafe-channel.html','generic','Store Cafe','스토어카페'],
-    ['/incar-channel.html','generic','My Car Introduction','나의 차소개']
+    ['/my-cafe.html','generic','My Cafe','나의 카페'],
+    ['/my-car.html','generic','My Car','나의차']
   ]]
  ]],
  ['WORLD','world',[
