@@ -572,7 +572,7 @@ window.addEventListener('resize',()=>requestAnimationFrame(()=>{if(typeof fitTra
   <script src="/offline-fetcher.js"></script>
   <script src="/tl3-lp.js?v=lp-runtime-20261018-v4"></script>
 <script src="/tl3-lp-chain.js?v=audio-unlock-20261019"></script>
-  <script src="/tl3-v5-player.js?v=tl3-v5-20261026-subscription"></script>
+  <script src="/tl3-v5-player.js?v=tl3-v5-20261027-timefree"></script>
 
 <script src="/tl3-config.js"></script>
 <script>
@@ -1940,8 +1940,8 @@ function updatePlayerTLDisplay(){
   var assetVal=document.getElementById('playerTLVal'),spentVal=document.getElementById('playerSpentTLVal'),trackBalanceVal=document.getElementById('playerAssetTLVal'),walletVal=document.getElementById('playerWalletVal'),bar=document.getElementById('playerTLBar');
   var required=songRequiredTL();
   if(assetVal) assetVal.previousElementSibling.textContent=_tlSubscription?'청취 요금':'곡 1회 필요 TL';
-  if(trackBalanceVal) trackBalanceVal.previousElementSibling.textContent=_tlSubscription?'오늘 남은 포함 시간':'남은 재생 횟수';
-  if(assetVal) assetVal.textContent=_tlSubscription?'포함 시간 우선 · 초과 1초 = 1 TL':(_tlFree?'FREE':formatTLInteger(required,'ceil'));
+  if(trackBalanceVal) trackBalanceVal.previousElementSibling.textContent=_tlSubscription?(_tlSubscription.mode==='time_free'?'TIME FREE 남은 시간':'오늘 남은 포함 시간'):'남은 재생 횟수';
+  if(assetVal) assetVal.textContent=_tlSubscription?(_tlSubscription.mode==='time_free'?'TIME FREE · TL 차감·보상 없음':'포함 시간 우선 · 초과 1초 = 1 TL'):(_tlFree?'FREE':formatTLInteger(required,'ceil'));
   if(spentVal) spentVal.textContent=_tlFree?'0 TL':formatTLInteger(_tlSubscription?_tlSubscription.chargedTL:_tlSessionSettledSeconds);
   var wholePlays=required>0?Math.floor((Math.max(0,Number(_tlCurrentTL)||0)+1e-9)/required):0;
   if(trackBalanceVal) trackBalanceVal.textContent=_tlFree?'FREE':(required>0?Math.max(0,wholePlays-(_tlPlayCountReserved?1:0))+'회':'—');
@@ -2118,7 +2118,7 @@ async function playTrack(){
   } else if(_useTl3V5 && window.TL3V5Player && typeof TL3V5Player.playStream === 'function'){
     console.log('[PLAY] TL3 V5 whole-container Player 시작:', SHARE_ID);
     TL3V5Player.playStream(RAW_SHARE_ID || SHARE_ID, _tlAudio, {
-      onBillingMode:function(info){if(info.billing_mode==='subscription'){_tlSubscription={remainingMs:Math.max(0,Number(info.remaining_included_ms)||0),chargedTL:0};updatePlayerTLDisplay();}},
+      onBillingMode:function(info){if(['subscription','time_free'].includes(info.billing_mode)){_tlSubscription={mode:info.billing_mode,remainingMs:Math.max(0,Number(info.remaining_included_ms)||0),chargedTL:0};updatePlayerTLDisplay();}},
       onProgress: function(progress){
         if(!_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;
         _tlSessionSettledSeconds=Math.max(_tlSessionSettledSeconds,Number(progress.billed_seconds)||0);
@@ -2126,18 +2126,20 @@ async function playTrack(){
       },
       onMeter: function(info){
         if(!_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;
-        _myFileTL=Math.max(0,Number(info.wallet_tl)||0);
-        if(info.billing_mode==='subscription' && _tlSubscription){_tlSubscription.chargedTL=Math.max(0,Number(info.charged_tl)||0);if(info.subscription_remaining_ms!==undefined)_tlSubscription.remainingMs=Math.max(0,Number(info.subscription_remaining_ms)||0);}
+        if(info.wallet_tl!==undefined)_myFileTL=Math.max(0,Number(info.wallet_tl)||0);
+        if(['subscription','time_free'].includes(info.billing_mode) && _tlSubscription){_tlSubscription.chargedTL=Math.max(0,Number(info.charged_tl)||0);if(info.subscription_remaining_ms!==undefined)_tlSubscription.remainingMs=Math.max(0,Number(info.subscription_remaining_ms)||0);if(info.time_free_remaining_ms!==undefined)_tlSubscription.remainingMs=Math.max(0,Number(info.time_free_remaining_ms)||0);}
         _tlSessionSettledSeconds=Math.max(_tlSessionSettledSeconds,Number(info.billed_seconds||info.charged_tl)||0);
-        _tlCurrentTL=Math.max(0,Number(info.asset_tl ?? (songRequiredTL()-_tlSessionSettledSeconds))||0);
-        _trackTL=_tlCurrentTL;
+        if(info.billing_mode!=='time_free'){
+          _tlCurrentTL=Math.max(0,Number(info.asset_tl ?? (songRequiredTL()-_tlSessionSettledSeconds))||0);
+          _trackTL=_tlCurrentTL;
+        }
         updatePlayerTLDisplay();
         console.log('[TRACK TL V5] elapsed playback settlement:',info.delta_tl,'TL; total:',_tlSessionSettledSeconds,'wallet:',_myFileTL);
       },
       onStopSettlement: function(info){
         // The V5 stop request has committed; refresh the canonical wallet rather
         // than guessing which TL_P/TL_A/TL_B bucket received the refund.
-        if(info.billing_mode==='subscription'){const status=document.getElementById('v5StopRefundStatus');if(status){status.textContent='구독 재생 종료 · 사용시간 정산 완료';status.style.display='block';}updateMyTLFromServer().catch(console.warn);return;}
+        if(['subscription','time_free'].includes(info.billing_mode)){const status=document.getElementById('v5StopRefundStatus');if(status){status.textContent=info.billing_mode==='time_free'?'TIME FREE 재생 종료 · 사용시간 반영 완료 · TL 차감·보상 없음':'구독 재생 종료 · 사용시간 정산 완료';status.style.display='block';}updateMyTLFromServer().catch(console.warn);return;}
         const refunded=Math.max(0,Number(info.refunded_tl)||0);
         const status=document.getElementById('v5StopRefundStatus');
         if(status){
@@ -2153,10 +2155,10 @@ async function playTrack(){
       },
       onInsufficient: function(info){
         if(!_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;
-        _myFileTL=Math.max(0,Number(info.wallet_tl)||0);
+        if(info.wallet_tl!==undefined)_myFileTL=Math.max(0,Number(info.wallet_tl)||0);
         updatePlayerTLDisplay();
         stopPlay();
-        alert('보유 TL이 부족하여 재생을 중지했습니다. 실제 재생된 시간만 정산했습니다.');
+        alert(info.billing_mode==='time_free'?'TIME FREE 시간을 모두 사용했습니다. 시간 이용권을 구매하면 계속 들을 수 있습니다.':'보유 TL이 부족하여 재생을 중지했습니다. 실제 재생된 시간만 정산했습니다.');
       },
       onError:function(err){
         console.error('[TRACK TL3 V5]',err);
@@ -2769,3 +2771,4 @@ document.addEventListener('click', function(e){
 
 </body>
 </html>
+
