@@ -17,7 +17,7 @@ function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){retur
 function safeURL(v){try{var u=new URL(v,origin);return /^https?:$/.test(u.protocol)?u.href:''}catch(e){return '';}}
 function route(v){try{var u=new URL(v,origin);if(u.origin!==origin||!/^\/[a-zA-Z0-9_\/-]+(?:\.html)?$/.test(u.pathname)||u.pathname.startsWith('/docs/')||u.pathname.startsWith('/images/'))return null;return u.pathname+u.search+u.hash;}catch(e){return null;}}
 window.TLUI={t:t,esc:esc,safeURL:safeURL,route:route,lang:currentLang,canonicalPath:canonicalPath,pagePath:path};
-var css=document.createElement('link');css.rel='stylesheet';css.href='/renewal/renewal.css?v=20261024r2';document.head.appendChild(css);
+var css=document.createElement('link');css.rel='stylesheet';css.href='/renewal/renewal.css?v=20261026activity1';document.head.appendChild(css);
 if(PLAYER){document.documentElement.classList.add('tl-player-document');}
 else if(EMBEDDED&&!HOST){document.documentElement.classList.add('tl-embedded');}
 // The application host is persistent; individual document URLs still load their original files.
@@ -52,7 +52,7 @@ var heroConfigs={
 var heroKeys={'/shareplace.html':['explore','exploreDesc'],'/creator.html':['creatorTitle','creatorDesc'],'/wallet.html':['wallet','walletDesc'],'/cafe-world.html':['cafe','cafeDesc'],'/my-car-world.html':['car','carDesc'],'/cafe-channel.html':['cafeBroadcast','cafeDesc'],'/incar-channel.html':['incarBroadcast','carDesc'],'/ads.html':['adTitle','adDesc'],'/advertiser.html':['advertiser','advertiserDesc'],'/my-profile.html':['profile','profileDesc'],'/dj-center.html':['djTitle','djDesc'],'/renewal/files.html':['files','profileDesc'],'/renewal/music.html':['music','creatorDesc']};
 function pageHero(){var cfg=heroConfigs[path];if(!cfg||PLAYER)return;var container=document.querySelector('main,.main,.world-wrap,body>.wrap');if(!container)return;var keys=heroKeys[path],heroTitle=keys?t(keys[0]):(currentLang==='ko'?cfg[2]:cfg[4]),heroDesc=keys?t(keys[1]):(currentLang==='ko'?cfg[3]:cfg[5]);var existing=container.querySelector(':scope > .hero,:scope > .world-head');
  if(path==='/creator.html'&&existing){existing.classList.add('tl-photo-hero');existing.insertAdjacentHTML('afterbegin',image(cfg[0],t('photoNote')).replace('loading="lazy"','class="tl-hero-photo" fetchpriority="high"'));var title=existing.querySelector('h1'),desc=existing.querySelector('p');if(title){title.removeAttribute('data-i18n-html');title.textContent=heroTitle}if(desc){desc.removeAttribute('data-i18n-html');desc.textContent=heroDesc}return;}
- if(path==='/login.html')return;
+ if(path==='/login.html'||path==='/cafe-world.html'||path==='/my-car-world.html'||path==='/dj-center.html')return;
  var hero=document.createElement('section');hero.className='tl-photo-hero';hero.setAttribute('aria-label',heroTitle);hero.innerHTML=image(cfg[0],t('photoNote')).replace('loading="lazy"','class="tl-hero-photo" fetchpriority="high"')+'<div><small>'+esc(cfg[1])+'</small><h1>'+esc(heroTitle)+'</h1><p>'+esc(heroDesc)+'</p></div>';
  if(existing){var oldTitle=existing.querySelector('h1');if(oldTitle)oldTitle.hidden=true;var oldDesc=existing.querySelector('p');if(oldDesc)oldDesc.hidden=true;}
  container.prepend(hero);
