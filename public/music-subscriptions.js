@@ -17,7 +17,7 @@ function ready(){return !!(config&&((config.testCheckoutEnabled===true&&config.c
 function selection(){
  const product=products.find(p=>p.level===selected);if(!product)return;
  $('selection').hidden=false;$('selected-title').textContent=product.code+' · 매일 '+product.level+'시간';$('selected-price').textContent='월 '+product.monthlyPriceKrw.toLocaleString('ko-KR')+'원 · 요금 초안';$('selected-price').className='ms-selected-price';
- $('selected-details').textContent='기여도 기반 개별 채굴 혜택 · 실제 보상 기준과 한도는 출시 전에 안내합니다.';
+ $('selected-details').textContent='TILO 보상은 기존 V5 보상 기준을 따릅니다.';
  for(const button of $('products').children)button.setAttribute('aria-pressed',String(Number(button.dataset.level)===selected));
  $('login').hidden=!!userId;
  $('pending').textContent=pending?'TL-'+pending.level+'의 결제 준비 기록이 있습니다. 같은 상품은 다시 시도할 수 있으며 다른 상품으로 바꾸려면 기존 주문을 먼저 확인해야 합니다.':'';
