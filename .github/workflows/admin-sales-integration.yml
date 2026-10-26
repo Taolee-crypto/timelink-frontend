@@ -9,8 +9,11 @@ permissions:
   contents: read
 jobs:
   admin-sales-finance:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      TL_CHROMIUM_EXECUTABLE: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -25,8 +28,13 @@ jobs:
         working-directory: .sales-test-backend
       - run: node scripts/test-sales-finance.cjs
         working-directory: .sales-test-backend
-      - run: npm install --no-save --ignore-scripts playwright
-      - run: npx playwright install --with-deps chromium
+      - name: Install pinned browser driver
+        timeout-minutes: 2
+        run: npm install --no-save --ignore-scripts playwright@1.51.1
+      - name: Verify preinstalled Chrome
+        run: |
+          test -x "$TL_CHROMIUM_EXECUTABLE"
+          "$TL_CHROMIUM_EXECUTABLE" --version
       - run: node scripts/test-admin-sales-operations.cjs
         env:
           TL_SALES_BACKEND_ROOT: .sales-test-backend

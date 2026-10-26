@@ -11,7 +11,7 @@ let pre=fs.readFileSync(temp+'/scripts/test-kr-finance.cjs','utf8').split('(asyn
 pre=pre.replaceAll("'migrations/20261026_kr_finance_accounting.sql'",JSON.stringify(temp+'/migrations/20261026_kr_finance_accounting.sql')).replaceAll("'src/kr-finance.ts'",JSON.stringify(temp+'/src/kr-finance.ts'));
 const fixture={exports:{}};new Function('require','module',pre+'\nmodule.exports={ctx,db,raw};')(require,fixture);
 const {ctx,db}=fixture.exports;
-const browser=await chromium.launch({headless:true,args:['--no-sandbox']});const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+const browser=await chromium.launch({headless:true,args:['--no-sandbox'],...(process.env.TL_CHROMIUM_EXECUTABLE?{executablePath:process.env.TL_CHROMIUM_EXECUTABLE}:{})});const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.route('https://api.timelink.digital/api/admin/finance/kr**',async route=>{
  const req=route.request(),url=new URL(req.url());let out,status=200;
  try{
