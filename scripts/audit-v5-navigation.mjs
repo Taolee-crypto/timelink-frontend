@@ -20,7 +20,15 @@ for(const route of routes){
   if(tab && !page.includes(tab)) failures.push('DASHBOARD TAB NOT REFERENCED '+route);
  }
 }
-const expected=['/dashboard.html','/shareplace.html','/creator.html','/radio.html','/dj-center.html','/cafe-channel.html','/incar-channel.html','/cafe-world.html','/my-car-world.html','/advertiser.html','/ads.html','/wallet.html','/my-profile.html'];
+// Only intentional navigation entries are required in the sidebar. Older feature
+// pages remain supported as direct routes without cluttering the activity menu.
+const expected=['/dashboard.html','/shareplace.html','/creator.html','/radio.html','/dj-center.html','/sales-manager.html','/cafe-channel.html','/cafe-world.html','/my-car-world.html','/ads.html','/wallet.html','/my-profile.html'];
+const supportedDirectRoutes=['/incar-channel.html','/advertiser.html'];
+for(const route of supportedDirectRoutes){
+ const filename=path.join(root,route.slice(1));
+ if(!fs.existsSync(filename))failures.push('MISSING SUPPORTED PAGE '+route);
+ else if(!fs.readFileSync(filename,'utf8').includes('/sidebar.js'))failures.push('MISSING GLOBAL SIDEBAR '+route);
+}
 for(const route of expected)if(!routes.includes(route))failures.push('REQUIRED MENU MISSING '+route);
 const creator=fs.readFileSync(path.join(root,'creator.html'),'utf8');
 for(const val of ['new_work','new_recording','same_recording','work_identity_type'])if(!creator.includes(val))failures.push('CREATOR WORK IDENTITY MISSING '+val);
