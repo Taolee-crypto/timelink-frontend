@@ -22,8 +22,8 @@ for(const route of routes){
 }
 // Only intentional navigation entries are required in the sidebar. Older feature
 // pages remain supported as direct routes without cluttering the activity menu.
-const expected=['/dashboard.html','/shareplace.html','/creator.html','/radio.html','/dj-center.html','/sales-manager.html','/cafe-channel.html','/cafe-world.html','/my-car-world.html','/ads.html','/wallet.html','/my-profile.html'];
-const supportedDirectRoutes=['/incar-channel.html','/advertiser.html'];
+const expected=['/dashboard.html','/shareplace.html','/creator.html','/radio.html','/dj-center.html','/sales-manager.html','/my-cafe.html','/my-car.html','/cafe-world.html','/my-car-world.html','/ads.html','/wallet.html','/my-profile.html'];
+const supportedDirectRoutes=['/cafe-channel.html','/incar-channel.html','/advertiser.html'];
 for(const route of supportedDirectRoutes){
  const filename=path.join(root,route.slice(1));
  if(!fs.existsSync(filename))failures.push('MISSING SUPPORTED PAGE '+route);
