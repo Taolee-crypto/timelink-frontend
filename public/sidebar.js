@@ -20,10 +20,14 @@ var sections = [
  ['ACTIVITY','activity',[
   ['/dj-center.html','radio','My Broadcast','나의 방송'],
   ['/sales-manager.html','generic','Sales Manager','영업 매니저'],
-  ['/cafe-world.html','generic','Cafe Activities','카페활동',[
+  ['#','generic','Cafe Activities','카페활동',[
     ['/cafe-channel.html','generic','Store Cafe','스토어카페'],
-    ['/my-car-world.html','generic','My Car Introduction','나의 차소개']
+    ['/incar-channel.html','generic','My Car Introduction','나의 차소개']
   ]]
+ ]],
+ ['WORLD','world',[
+  ['/cafe-world.html','generic','Store World','스토어월드'],
+  ['/my-car-world.html','generic','Car World','카월드']
  ]],
  ['TOOLS','tools',[
   ['/wallet.html','generic','wallet'],
