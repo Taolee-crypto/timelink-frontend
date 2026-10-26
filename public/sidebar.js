@@ -18,13 +18,12 @@ var sections = [
   ['/creator.html','generic','create']
  ]],
  ['ACTIVITY','activity',[
-  ['/dj-center.html','radio','djTitle'],
-  ['/sales-manager.html','generic','Sales Managers','영업 매니저'],
-  ['/cafe-channel.html','generic','Store Broadcast','스토어 방송'],
-  ['/incar-channel.html','generic','incarBroadcast'],
-  ['/cafe-world.html','generic','Store World','스토어 월드'],
-  ['/my-car-world.html','generic','In-car World','인카 월드'],
-  ['/advertiser.html','generic','advertiser']
+  ['/dj-center.html','radio','My Broadcast','나의 방송'],
+  ['/sales-manager.html','generic','Sales Manager','영업 매니저'],
+  ['/cafe-world.html','generic','Cafe Activities','카페활동',[
+    ['/cafe-channel.html','generic','Store Cafe','스토어카페'],
+    ['/my-car-world.html','generic','My Car Introduction','나의 차소개']
+  ]]
  ]],
  ['TOOLS','tools',[
   ['/wallet.html','generic','wallet'],
@@ -41,9 +40,13 @@ var sections = [
   ];
 function name(item){return item[3]?(UI.lang==='ko'?item[3]:item[2]):t(item[2])}
 function link(item){return '<a class="tl-global-link" href="'+esc(item[0])+'">'+icon(item[1])+'<span>'+esc(name(item))+'</span></a>'}
+function activityLink(item){
+  if(!item[4])return link(item);
+  return '<details class="tl-global-subdetails" open><summary>'+icon(item[1])+'<span>'+esc(name(item))+'</span></summary><div class="tl-global-sublinks">'+item[4].map(link).join('')+'</div></details>';
+}
 var html='<a class="tl-skip" href="#tl-content">'+esc(t('skip'))+'</a><aside class="tl-global-sidebar" aria-label="TimeLink"><a class="tl-global-brand" href="/dashboard.html"><span class="tl-global-mark">t</span>TimeLink</a><nav class="tl-global-links">';
 html+=sections[0][2].map(link).join('');html+='<a class="tl-global-create" href="/creator.html">＋ '+esc(t('create'))+'</a>';
-sections.slice(2).forEach(function(group){html+='<details class="tl-global-details"'+(group[1]==='activity'?' open':'')+'><summary>'+esc(t(group[1]))+'</summary>'+group[2].map(link).join('')+'</details>'});
+sections.slice(2).forEach(function(group){html+='<details class="tl-global-details"'+(group[1]==='activity'?' open':'')+'><summary>'+esc(t(group[1]))+'</summary>'+(group[1]==='activity'?group[2].map(activityLink):group[2].map(link)).join('')+'</details>'});
 html+='</nav><div class="tl-global-balance"><small>'+esc(t('balance'))+'</small><strong id="tlGlobalBalance">'+(token?'…':'— TL')+'</strong><a href="/wallet.html#charge">'+esc(t('charge'))+' ↗</a><button type="button" class="tl-global-logout" data-tl-logout hidden>로그아웃</button></div></aside><nav class="tl-bottom-nav" aria-label="Mobile navigation">'+sections[0][2].map(function(item){return '<a href="'+esc(item[0])+'">'+icon(item[1])+'<span>'+esc(name(item))+'</span></a>'}).join('')+'</nav>';
 document.body.insertAdjacentHTML('afterbegin',html);document.body.classList.add('tl-global-shell');
 function active(href){var u=new URL(href,location.origin),query=u.searchParams;var page=document.body.dataset.currentRoute||'/dashboard.html';var v=new URL(page,location.origin);document.querySelectorAll('.tl-global-link,.tl-bottom-nav a').forEach(function(a){var w=new URL(a.href),same=w.pathname===v.pathname&&w.search===v.search;a.classList.toggle('is-active',same);if(same)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')})}
