@@ -1,0 +1,36 @@
+name: V5 contribution admin browser validation
+on:
+  pull_request:
+    paths: ['public/contribution-policy.*','public/admin.html','public/reward-policy.html','scripts/test-contribution-policy-ui.cjs','.github/workflows/v5-contribution-admin-ui.yml']
+  push:
+    branches: [main]
+    paths: ['public/contribution-policy.*','scripts/test-contribution-policy-ui.cjs','.github/workflows/v5-contribution-admin-ui.yml']
+permissions:
+  contents: read
+jobs:
+  contribution-admin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Taolee-crypto/timelink-backend
+          ref: e68c734c862d3ba93253a37e369589e64f61c35f
+          path: .contribution-test-backend
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+        working-directory: .contribution-test-backend
+      - run: npm install --no-save --ignore-scripts playwright
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/test-contribution-policy-ui.cjs
+        env:
+          TL_CONTRIBUTION_BACKEND_ROOT: .contribution-test-backend
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v5-contribution-admin-browser
+          path: test-results/
+          if-no-files-found: ignore
