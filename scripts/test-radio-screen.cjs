@@ -3,7 +3,7 @@ const source=fs.readFileSync('public/radio.html','utf8');
 const code='//'+source.split('// Metadata follows the actual broadcast ID;')[1].split('</script>')[0];
 const nodes=new Map();const node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',dataset:{},addEventListener(){},replaceChildren(){},appendChild(){}});return nodes.get(id)};
 const events={};const audio={paused:true,ended:false,readyState:0,addEventListener(){}};
-const context={document:{getElementById:node,createElement:()=>({})},window:{addEventListener:(name,fn)=>events[name]=fn},broadcastAudio:audio,joinedCountry:null,stationJoin:{},MutationObserver:class{observe(){}},setInterval:()=>0,clearInterval:()=>{},AbortSignal,fetch:async()=>({ok:true,json:async()=>({ok:true,tracks:[{file_id:7,title:'실제 곡',artist:'창작자',duration_ms:10000}]})})};
+const context={localStorage:{getItem:()=>null},document:{getElementById:node,createElement:()=>({})},window:{addEventListener:(name,fn)=>events[name]=fn},broadcastAudio:audio,joinedCountry:null,stationJoin:{},MutationObserver:class{observe(){}},setInterval:()=>0,clearInterval:()=>{},AbortSignal,fetch:async()=>({ok:true,json:async()=>({ok:true,tracks:[{file_id:7,title:'실제 곡',artist:'창작자',duration_ms:10000}]})})};
 vm.createContext(context);vm.runInContext(code,context);
 (async()=>{await new Promise(resolve=>setImmediate(resolve));
  assert.match(node('selection-title').textContent,/준비/);
