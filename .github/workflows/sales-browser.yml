@@ -9,15 +9,23 @@ permissions:
   contents: read
 jobs:
   sales-store-browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      TL_CHROMIUM_EXECUTABLE: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: npm install --no-save --ignore-scripts playwright esbuild hono
-      - run: npx playwright install --with-deps chromium
+      - name: Install pinned browser driver and test dependencies
+        timeout-minutes: 2
+        run: npm install --no-save --ignore-scripts playwright@1.51.1 esbuild hono
+      - name: Verify preinstalled Chrome
+        run: |
+          test -x "$TL_CHROMIUM_EXECUTABLE"
+          "$TL_CHROMIUM_EXECUTABLE" --version
       - run: node scripts/test-sales-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()

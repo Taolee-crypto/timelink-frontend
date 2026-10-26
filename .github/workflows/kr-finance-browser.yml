@@ -9,16 +9,26 @@ permissions:
   contents: read
 jobs:
   kr-finance-browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      TL_CHROMIUM_EXECUTABLE: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: npm install --no-save --ignore-scripts playwright
-      - run: npx playwright install --with-deps chromium
-      - run: node scripts/test-kr-finance-browser.cjs
+      - name: Install pinned browser driver
+        timeout-minutes: 2
+        run: npm install --no-save --ignore-scripts playwright@1.51.1
+      - name: Verify preinstalled Chrome
+        run: |
+          test -x "$TL_CHROMIUM_EXECUTABLE"
+          "$TL_CHROMIUM_EXECUTABLE" --version
+      - name: Verify Korean finance in Chrome
+        timeout-minutes: 3
+        run: node scripts/test-kr-finance-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

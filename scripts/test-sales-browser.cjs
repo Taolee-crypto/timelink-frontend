@@ -8,7 +8,7 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),asse
  const paid=await f.core.ensureLedgerAccount(f.db,'user',1,'TL','wallet_paid');f.raw.prepare('UPDATE v3_economy_balances SET available_atoms=1000000000 WHERE account_id=?').run(paid);
  const html=fs.readFileSync(front+'/public/sales-manager.html','utf8').replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<link[^>]*>/gi,'');
  const js=fs.readFileSync(front+'/public/sales-manager.js','utf8'),css=fs.readFileSync(front+'/public/sales-manager.css','utf8');
- const browser=await chromium.launch({headless:true,args:['--no-sandbox']}),page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];
+ const browser=await chromium.launch({headless:true,args:['--no-sandbox'],...(process.env.TL_CHROMIUM_EXECUTABLE?{executablePath:process.env.TL_CHROMIUM_EXECUTABLE}:{})}),page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(()=>localStorage.setItem('tl_token',location.pathname.includes('admin-sales')?'fixture-99':location.pathname.includes('owner')?'fixture-1':'fixture-2'));
  await page.route('**/*',async route=>{
