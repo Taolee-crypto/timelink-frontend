@@ -572,7 +572,7 @@ window.addEventListener('resize',()=>requestAnimationFrame(()=>{if(typeof fitTra
   <script src="/offline-fetcher.js"></script>
   <script src="/tl3-lp.js?v=lp-runtime-20261018-v4"></script>
 <script src="/tl3-lp-chain.js?v=audio-unlock-20261019"></script>
-  <script src="/tl3-v5-player.js?v=tl3-v5-20261024-renewal"></script>
+  <script src="/tl3-v5-player.js?v=tl3-v5-20261026-subscription"></script>
 
 <script src="/tl3-config.js"></script>
 <script>
@@ -1922,6 +1922,7 @@ function copyLink(){ navigator.clipboard.writeText(location.href).then(()=>{ let
 // ==================== TL PLAYER ====================
 let _tlAudio=null, _tlPlaying=false, _tlInterval=null, _tlCurrentTL=0, _tlMaxTL=0, _tlElapsed=0, _tlFree=false;
 let _tlSessionSettledSeconds=0;
+let _tlSubscription=null;
 let _tlSettledSegments=new Set();
 // 재생이 실제 시작된 직후 이번 1회를 표시상 먼저 예약한다.
 // 첫 서버 정산 응답이 오면 실제 곡별 잔액 기준 표시로 전환한다.
@@ -1938,10 +1939,13 @@ function songRequiredTL(){ return Math.ceil(Math.max(0,Number(_assetInitialTL||0
 function updatePlayerTLDisplay(){
   var assetVal=document.getElementById('playerTLVal'),spentVal=document.getElementById('playerSpentTLVal'),trackBalanceVal=document.getElementById('playerAssetTLVal'),walletVal=document.getElementById('playerWalletVal'),bar=document.getElementById('playerTLBar');
   var required=songRequiredTL();
-  if(assetVal) assetVal.textContent=_tlFree?'FREE':formatTLInteger(required,'ceil');
-  if(spentVal) spentVal.textContent=_tlFree?'0 TL':formatTLInteger(_tlSessionSettledSeconds);
+  if(assetVal) assetVal.previousElementSibling.textContent=_tlSubscription?'청취 요금':'곡 1회 필요 TL';
+  if(trackBalanceVal) trackBalanceVal.previousElementSibling.textContent=_tlSubscription?'오늘 남은 포함 시간':'남은 재생 횟수';
+  if(assetVal) assetVal.textContent=_tlSubscription?'포함 시간 우선 · 초과 1초 = 1 TL':(_tlFree?'FREE':formatTLInteger(required,'ceil'));
+  if(spentVal) spentVal.textContent=_tlFree?'0 TL':formatTLInteger(_tlSubscription?_tlSubscription.chargedTL:_tlSessionSettledSeconds);
   var wholePlays=required>0?Math.floor((Math.max(0,Number(_tlCurrentTL)||0)+1e-9)/required):0;
   if(trackBalanceVal) trackBalanceVal.textContent=_tlFree?'FREE':(required>0?Math.max(0,wholePlays-(_tlPlayCountReserved?1:0))+'회':'—');
+  if(trackBalanceVal && _tlSubscription) trackBalanceVal.textContent=Math.floor(_tlSubscription.remainingMs/60000)+'분 '+Math.floor(_tlSubscription.remainingMs%60000/1000)+'초';
   if(walletVal) walletVal.textContent=formatTLInteger(_myFileTL);
   var pageWallet=document.getElementById('myTLDisplay');
   if(pageWallet) pageWallet.textContent='💰 내 지갑 TL: '+formatTLInteger(_myFileTL);
@@ -1994,6 +1998,7 @@ async function playTrack(){
   window._tlMaxTL = _tlFree ? 0 : songRequiredTL();
   window._tlElapsed = 0;
   _tlSessionSettledSeconds=0;
+  _tlSubscription=null;
   _tlSettledSegments=new Set();
   const refundStatus=document.getElementById('v5StopRefundStatus');
   if(refundStatus)refundStatus.style.display='none';
@@ -2113,6 +2118,7 @@ async function playTrack(){
   } else if(_useTl3V5 && window.TL3V5Player && typeof TL3V5Player.playStream === 'function'){
     console.log('[PLAY] TL3 V5 whole-container Player 시작:', SHARE_ID);
     TL3V5Player.playStream(RAW_SHARE_ID || SHARE_ID, _tlAudio, {
+      onBillingMode:function(info){if(info.billing_mode==='subscription'){_tlSubscription={remainingMs:Math.max(0,Number(info.remaining_included_ms)||0),chargedTL:0};updatePlayerTLDisplay();}},
       onProgress: function(progress){
         if(!_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;
         _tlSessionSettledSeconds=Math.max(_tlSessionSettledSeconds,Number(progress.billed_seconds)||0);
@@ -2121,6 +2127,7 @@ async function playTrack(){
       onMeter: function(info){
         if(!_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;
         _myFileTL=Math.max(0,Number(info.wallet_tl)||0);
+        if(info.billing_mode==='subscription' && _tlSubscription){_tlSubscription.chargedTL=Math.max(0,Number(info.charged_tl)||0);if(info.subscription_remaining_ms!==undefined)_tlSubscription.remainingMs=Math.max(0,Number(info.subscription_remaining_ms)||0);}
         _tlSessionSettledSeconds=Math.max(_tlSessionSettledSeconds,Number(info.billed_seconds||info.charged_tl)||0);
         _tlCurrentTL=Math.max(0,Number(info.asset_tl ?? (songRequiredTL()-_tlSessionSettledSeconds))||0);
         _trackTL=_tlCurrentTL;
@@ -2130,6 +2137,7 @@ async function playTrack(){
       onStopSettlement: function(info){
         // The V5 stop request has committed; refresh the canonical wallet rather
         // than guessing which TL_P/TL_A/TL_B bucket received the refund.
+        if(info.billing_mode==='subscription'){const status=document.getElementById('v5StopRefundStatus');if(status){status.textContent='구독 재생 종료 · 사용시간 정산 완료';status.style.display='block';}updateMyTLFromServer().catch(console.warn);return;}
         const refunded=Math.max(0,Number(info.refunded_tl)||0);
         const status=document.getElementById('v5StopRefundStatus');
         if(status){

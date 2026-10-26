@@ -137,7 +137,8 @@
     const onError=opts.onError||function(){},onReady=opts.onReady||function(){};
     const data=await resolve(id);
     if(Number(data.version)!==5)throw new Error('TL3 V5 자산이 아닙니다.');
-    const fileId=Number(data.file_id),shareId=String(data.share_id),sessionId=String(opts.sessionId||sid());
+    const fileId=Number(data.file_id),shareId=String(data.share_id);
+    let sessionId=String(opts.sessionId||sid());
     const broadcastCountry=String(opts.broadcastCountry||'').toUpperCase();
     const djStationId=Number(opts.djStationId||0);
     if(djStationId&&(!Number.isSafeInteger(djStationId)||djStationId<=0))throw new Error('Invalid DJ station');
@@ -147,6 +148,8 @@
       method:'POST',headers:auth()
     });
     if(!pre.can_play)throw new Error('TL이 부족하여 TL3 V5를 재생할 수 없습니다.');
+    if(pre.billing_mode==='subscription'){sessionId='sub_'+sessionId.replace(/^sub_/,'');if(sessionId.length>100)throw new Error('구독 재생 세션이 너무 깁니다.');}
+    if(opts.onBillingMode)opts.onBillingMode(pre);
     const contentKey=await unwrapAssetKey(fileId,shareId,sessionId,broadcastCountry,djStationId);
     const response=await fetch(API+'/api/v1/tl3/v5/container/'+encodeURIComponent(fileId)+'?session_id='+encodeURIComponent(sessionId),{headers:auth(),cache:'no-store'});
     if(!response.ok)throw new Error('TL3 V5 컨테이너 다운로드 실패 (HTTP '+response.status+')');
@@ -306,3 +309,4 @@
   }
   global.TL3V5Player=Object.freeze({version:'TL3-V5',canPlay:canPlay,playStream:playStream});
 })(window);
+
