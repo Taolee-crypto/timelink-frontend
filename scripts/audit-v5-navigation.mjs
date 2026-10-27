@@ -22,7 +22,7 @@ for(const route of routes){
 }
 // Only intentional navigation entries are required in the sidebar. Older feature
 // pages remain supported as direct routes without cluttering the activity menu.
-const expected=['/dashboard.html','/shareplace.html','/creator.html','/radio.html','/dj-center.html','/sales-manager.html','/my-cafe.html','/my-car.html','/cafe-world.html','/my-car-world.html','/ads.html','/wallet.html','/my-profile.html'];
+const expected=['/timelink.html','/new-asset.html','/world-network.html','/dashboard.html','/shareplace.html','/creator.html','/radio.html','/dj-center.html','/sales-manager.html','/my-cafe.html','/my-car.html','/cafe-world.html','/my-car-world.html','/ads.html','/wallet.html','/my-profile.html'];
 const supportedDirectRoutes=['/cafe-channel.html','/incar-channel.html','/advertiser.html'];
 for(const route of supportedDirectRoutes){
  const filename=path.join(root,route.slice(1));
@@ -61,3 +61,4 @@ else {
 }
 console.log(JSON.stringify({routes:routes.length,checked:[...new Set(routes)].length,failures},null,2));
 if(failures.length)process.exitCode=1;
+
