@@ -22,7 +22,7 @@
   const logo=link('/timelink.html','TimeLink');logo.className='site-footer-logo';logo.append(element('span','','by TILO'));brand.append(logo,element('p','site-footer-tagline',t[0]));grid.append(brand);
   const groups=[
    [t[1],[['/new-asset.html','New Asset'],['/shareplace.html',t[4]],['/radio.html','Broadcast'],['/world-network.html','World Network']]],
-   [t[2],[['/creator.html',t[5]],['/dj-center.html',t[6]],['/b2b.html',t[7]],['/sales-manager.html',t[8]],['/advertiser.html',t[9]]]],
+   [t[2],[['/creator.html',t[5]],['/b2b.html',t[7]],['/advertiser.html',t[9]]]],
    [t[3],[['/timelink-story.html',t[10]],['/timelink-economy.html',t[11]],['/download.html',t[12]]]]
   ];
   for(const [title,links] of groups){const nav=element('nav','site-footer-links');nav.setAttribute('aria-label',title);nav.append(element('p','site-footer-label',title));for(const [href,text] of links)nav.append(link(href,text));grid.append(nav);}
