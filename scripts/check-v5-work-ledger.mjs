@@ -27,7 +27,8 @@ const manual={...releases.tasks[0],status:'보류',note:'관리자 검토 중',h
 const startRetire=script.indexOf('const retiredIds='),endRetire=script.indexOf('const commonCategories=',startRetire);
 assert.ok(startRetire>=0&&endRetire>startRetire);
 const routeKey=path=>'TLV5-PAGE-'+Array.from(path).map(c=>c.codePointAt(0).toString(16)).join('-');
-const context=createContext({state:{tasks:[manual,{id:'old-market',category:'공유플레이스',status:'구현'}],events:[]},categories:[...new Set(releases.tasks.map(t=>t.category))],STAGE_WEIGHT:{'미검증':0,'설계':20,'구현':55,'테스트':80,'운영확인':100,'보류':0},routeKey,clone:o=>JSON.parse(JSON.stringify(o)),fetch:async()=>({ok:true,json:async()=>releases})});
+const pageRoutes=runInContext(script.slice(script.indexOf('const pageRoutes='),script.indexOf('const routeKey='))+';pageRoutes',createContext({}));
+const context=createContext({pageRoutes,state:{tasks:[manual,{id:'old-market',category:'공유플레이스',status:'구현'}],events:[]},categories:[...new Set(releases.tasks.map(t=>t.category))],STAGE_WEIGHT:{'미검증':0,'설계':20,'구현':55,'테스트':80,'운영확인':100,'보류':0},routeKey,clone:o=>JSON.parse(JSON.stringify(o)),fetch:async()=>({ok:true,json:async()=>releases})});
 runInContext(script.slice(startRetire,endRetire),context);
 runInContext(merge,context);
 assert.equal(await runInContext('mergeDevelopmentReleases()',context),true);
@@ -42,7 +43,7 @@ assert.ok(script.indexOf('const releaseChanged=await mergeDevelopmentReleases()'
 assert.ok(script.includes('const pct=allMetrics.progress;'));
 console.log('PASS development progress: server-first merge, manual edits retained, repeat-safe releases and progress bar');
 
-const retireContext=createContext({routeKey:path=>'TLV5-PAGE-'+Array.from(path).map(c=>c.codePointAt(0).toString(16)).join('-'),STAGE_WEIGHT:{'미검증':0,'설계':20,'구현':55,'테스트':80,'운영확인':100,'보류':0}});
+const retireContext=createContext({pageRoutes,routeKey:path=>'TLV5-PAGE-'+Array.from(path).map(c=>c.codePointAt(0).toString(16)).join('-'),STAGE_WEIGHT:{'미검증':0,'설계':20,'구현':55,'테스트':80,'운영확인':100,'보류':0}});
 runInContext(script.slice(startRetire,endRetire),retireContext);
 const sample=[
  {id:'TLV5-DJC-01',category:'DJ센터',title:'DJ 회원',status:'운영확인'},
@@ -78,3 +79,14 @@ assert.equal(optionLines.length,1);
 assert.ok(optionLines[0].includes('!retiredCategories.has(c)'));
 assert.ok(optionLines[0].includes('categoryLabel(c)'));
 console.log('PASS retired categories stay excluded from overview and selectors');
+
+
+assert.ok(runInContext("isRetired({id:routeKey('/cafe-radio.html'),category:'대시보드',title:'페이지 검증',status:'운영확인'})",retireContext));
+assert.ok(!readFileSync(new URL('../public/my-car.html',import.meta.url),'utf8').includes('cafe-radio.html'));
+assert.ok(!readFileSync(new URL('../public/incar-studio.html',import.meta.url),'utf8').includes('cafe-radio.html'));
+console.log('PASS retired DJ listening excluded; central radio and personal spaces retained');
+
+assert.ok(runInContext("isRetired({id:routeKey('/cafe-access.html'),status:'미검증'})",retireContext));
+assert.ok(!runInContext("isRetired({id:routeKey('/cafe-studio.html'),status:'미검증'})",retireContext));
+assert.ok(runInContext("isRetired({id:'TLV5-WORK-20261027-CONTRIBUTION',status:'구현'})",retireContext));
+console.log('PASS removed page records and retired proposed policy are excluded without deleting history');
