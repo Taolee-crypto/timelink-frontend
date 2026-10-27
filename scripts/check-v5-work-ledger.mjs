@@ -40,7 +40,8 @@ assert.ok(!context.state.tasks.some(t=>t.id==='TLV5-WORK-20261027-POLICY'));
 assert.equal(await runInContext('mergeDevelopmentReleases()',context),false);
 assert.equal(context.state.events.length,releases.events.length);
 assert.ok(script.indexOf('const releaseChanged=await mergeDevelopmentReleases()')>script.indexOf('state=d.state;'));
-assert.ok(script.includes('const pct=allMetrics.progress;'));
+assert.ok(script.includes("!String(t.id||'').startsWith('TLV5-PAGE-')&&t.category!=='라디오 수신앱'"));
+assert.ok(script.includes("['구현','테스트','운영확인'].includes(t.status)"));
 console.log('PASS development progress: server-first merge, manual edits retained, repeat-safe releases and progress bar');
 
 const retireContext=createContext({pageRoutes,routeKey:path=>'TLV5-PAGE-'+Array.from(path).map(c=>c.codePointAt(0).toString(16)).join('-'),STAGE_WEIGHT:{'미검증':0,'설계':20,'구현':55,'테스트':80,'운영확인':100,'보류':0}});
@@ -111,3 +112,4 @@ const sidebarGroups=runInContext(script.slice(script.indexOf('const sidebarPageG
 assert.deepEqual(Array.from(sidebarGroups,g=>g[0]),['기본 메뉴','활동 공간','월드','계정과 활동','운영센터']);
 assert.deepEqual(Array.from(sidebarGroups.flatMap(g=>g[1].map(i=>i[1]))).sort(),[...actual].sort());
 console.log('PASS page overview groups and ordering match visible sidebar');
+
