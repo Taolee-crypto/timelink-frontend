@@ -56,7 +56,7 @@ const sample=[
 ];
 retireContext.sample=sample;
 const calculated=runInContext('metrics(sample)',retireContext);
-assert.equal(calculated.total,3);assert.equal(calculated.progress,52);assert.equal(calculated.done,0);
+assert.equal(calculated.total,3);assert.equal(calculated.progress,67);assert.equal(calculated.done,2);assert.equal(calculated.verified,0);
 assert.ok(runInContext("isRetired({id:routeKey('/dj-center.html'),category:'내 프로필',title:'페이지 검증',status:'미검증'})",retireContext));
 assert.ok(script.includes("const active=activeTasks(state.tasks)"));
 assert.ok(script.includes("$('showRetired').checked ? isRetired(t) : !isRetired(t)"));
