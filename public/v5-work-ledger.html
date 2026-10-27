@@ -36,6 +36,8 @@ const sidebarGroups=[
  {title:'확장 개발',scope:'individual',items:['라디오 수신앱']}
 ];
 const categories=sidebarGroups.flatMap(g=>g.items);
+const categoryLabels={'카페방송':'나의 카페','인카방송':'나의 차','카페 월드':'스토어월드','마이카 월드':'카월드','공유 마켓':'공유플레이스','라디오 수신앱':'라디오 수신앱 · 향후 개발'};
+function categoryLabel(c){return categoryLabels[c]||c;}
 // Verified navigation routes and direct page links from current frontend sources.
 // Routes are listed explicitly; no claims of functional completion are inferred from existence.
 const pageRoutes={
@@ -46,13 +48,10 @@ const pageRoutes={
  '공유 마켓':[['공유 마켓','/shareplace.html'],['음원 상세·플레이어','/track.html']],
  '크리에이터 스튜디오':[['크리에이터 스튜디오','/creator.html'],['창작자 정책','/creator-policy.html'],['음원 상세·메타데이터','/track.html']],
  'TL 중앙방송센터':[['TL 중앙방송센터','/tl-broadcast.html'],['라디오 수신','/radio.html']],
- 'DJ센터':[['DJ센터','/dj-center.html'],['DJ 이용 가이드','/dj-guide.html'],['라디오 수신','/radio.html'],['카페 라디오','/cafe-radio.html']],
- '카페방송':[['카페방송','/cafe-channel.html'],['카페 스튜디오','/cafe-studio.html'],['카페 접근·승인','/cafe-access.html'],['라디오 수신','/radio.html']],
- '인카방송':[['인카방송','/incar-channel.html'],['인카 스튜디오','/incar-studio.html'],['라디오 수신','/radio.html']],
- '카페 월드':[['카페 월드','/cafe-world.html'],['카페 상세','/cafe-detail.html']],
- '마이카 월드':[['마이카 월드','/my-car-world.html']],
- '스폰서 센터':[['스폰서 센터','/advertiser.html'],['공유 마켓','/shareplace.html']],
- '광고 시청':[['광고 시청','/ads.html'],['음원 상세','/track.html']],
+ '카페방송':[['나의 카페','/my-cafe.html'],['카페방송','/cafe-channel.html'],['카페 꾸미기','/cafe-studio.html'],['중앙방송 청취','/radio.html']],
+ '인카방송':[['나의 차','/my-car.html'],['인카방송','/incar-channel.html'],['인카 스튜디오','/incar-studio.html'],['중앙방송 청취','/radio.html']],
+ '카페 월드':[['스토어월드','/cafe-world.html'],['카페 상세','/cafe-detail.html']],
+ '마이카 월드':[['카월드','/my-car-world.html']],
  '지갑':[['지갑','/wallet.html'],['공유 마켓','/shareplace.html']],
  'TL↔TLC 교환풀':[['TL↔TLC 교환풀','/tl-tlc-pool.html']],
  '경제원장·정산':[['관리자 정산','/admin.html'],['지갑','/wallet.html']],
@@ -85,7 +84,7 @@ function pageMetrics(category){
  return {total:keys.length,done:verified,progress};
 }
 function pageDetails(category){
- const routes=pageRoutes[category]||[];
+ const routes=(pageRoutes[category]||[]).filter(([,route])=>!retiredRoutes.has(route));
  return '<div class="page-links">'+routes.map(([label,route])=>{
   const t=state.tasks.find(x=>x.id===routeKey(route));
   const status=t?t.status:'미검증';
@@ -99,7 +98,7 @@ function renderNavigation(){
   g.items.map(c=>{
    const tasks=state.tasks.filter(t=>t.category===c),m=metrics(tasks);
    return '<button data-nav-category="'+escapeHtml(c)+'" class="'+($('category').value===c?'selected':'')+
-    '"><span>'+escapeHtml(c)+'</span><small>'+m.progress+'% · '+m.done+'/'+m.total+'</small></button>';
+    '"><span>'+escapeHtml(categoryLabel(c))+'</span><small>'+m.progress+'% · '+m.done+'/'+m.total+'</small></button>';
   }).join('')+'</div>';
  $('workNavButtons').innerHTML='<button data-nav-scope="all" class="'+(scope==='all'&&!$('category').value?'selected':'')+
   '">📊 전체 요약 <small>'+activeTasks(state.tasks).length+'</small></button>'+
@@ -108,7 +107,7 @@ function renderNavigation(){
  $('categoryCards').innerHTML=visible.map(c=>{
   const tasks=state.tasks.filter(t=>t.category===c),m=metrics(tasks);
   return '<button class="category-card" data-card-category="'+escapeHtml(c)+'"><strong>'+
-   escapeHtml(c)+'</strong><span>작업 '+m.progress+'% · 페이지 '+pageMetrics(c).progress+'% ('+pageMetrics(c).done+'/'+pageMetrics(c).total+
+   escapeHtml(categoryLabel(c))+'</strong><span>작업 '+m.progress+'% · 페이지 '+pageMetrics(c).progress+'% ('+pageMetrics(c).done+'/'+pageMetrics(c).total+
    ')</span><div class="mini"><i style="width:'+m.progress+'%"></i></div></button>';
  }).join('');
 }
@@ -156,11 +155,14 @@ async function loadServerWorkLedger(){
    state=d.state;
    render();
   }
+  const beforePageSync=JSON.stringify(state);
+  migrateLinkedPages20261024();
+  const pagesChanged=beforePageSync!==JSON.stringify(state);
   const releaseChanged=await mergeDevelopmentReleases();
   serverReady=true;
   document.querySelectorAll('button,input,select,textarea').forEach(el=>{el.disabled=el.dataset.initialDisabled==='true';});
   banner.textContent='서버 관리대장 연결 · 버전 '+serverVersion;
-  if(!d.state||releaseChanged)save();render();
+  if(!d.state||releaseChanged||pagesChanged)save();render();
  }catch(e){banner.textContent='관리자 전용 관리대장 · '+e.message;document.querySelectorAll('main,dialog').forEach(el=>el.hidden=true);}
 }
 window.addEventListener('beforeunload',e=>{if(serverConflict){e.preventDefault();e.returnValue='서버 미저장 변경이 있습니다.';}});
@@ -269,8 +271,6 @@ function migrateSidebarCategories20261024(){
   ['INCAR','인카방송','인카방송 기기·재생 연결 검증'],
   ['CAFEWORLD','카페 월드','카페 카드·댓글·공유·방송 연결 검증'],
   ['CARWORLD','마이카 월드','차량 카드·댓글·거래 게시 흐름 검증'],
-  ['SPONSOR','스폰서 센터','광고주 등록·캠페인·통계 검증'],
-  ['ADS','광고 시청','광고 시청·TL_A 지급·중복 방지 검증'],
   ['PROFILE','내 프로필','프로필 조회·수정·회원 정보 연동 검증'],
   ['LIBRARY','내 라이브러리','내 음원·삭제·재생·잔액 연동 검증'],
   ['MINING','TLC 채굴','POC 기여도·채굴 화면·원장 연동 검증'],
@@ -318,12 +318,12 @@ function render(){
  $('percent').textContent=pct+'%';$('progressFill').style.width=pct+'%';
  renderNavigation();
  const detail=$('pageTree');
- if(detail)detail.innerHTML=cat?'<h2>'+escapeHtml(cat)+' · 연결 페이지와 검증 현황</h2><p>페이지별 완성도는 운영확인 상태에 근거합니다. HTML 존재 여부만으로 완료 처리하지 않습니다.</p>'+pageDetails(cat):'<h2>메뉴별 연결 페이지 완성도</h2>'+categories.filter(c=>scope==='all'||scopeFor(c)===scope).map(c=>'<div class="page-summary"><strong>'+escapeHtml(c)+'</strong> · 페이지 검증 '+pageMetrics(c).done+'/'+pageMetrics(c).total+' · 진행 '+pageMetrics(c).progress+'%'+pageDetails(c)+'</div>').join('');
+ if(detail)detail.innerHTML=cat?'<h2>'+escapeHtml(categoryLabel(cat))+' · 연결 페이지와 검증 현황</h2><p>페이지별 완성도는 운영확인 상태에 근거합니다. HTML 존재 여부만으로 완료 처리하지 않습니다.</p>'+pageDetails(cat):'<h2>메뉴별 연결 페이지 완성도</h2>'+categories.filter(c=>scope==='all'||scopeFor(c)===scope).map(c=>'<div class="page-summary"><strong>'+escapeHtml(categoryLabel(c))+'</strong> · 페이지 검증 '+pageMetrics(c).done+'/'+pageMetrics(c).total+' · 진행 '+pageMetrics(c).progress+'%'+pageDetails(c)+'</div>').join('');
  const list=state.tasks.filter(t=>(($('showRetired').checked ? isRetired(t) : !isRetired(t)))&&(scope==='all'||scopeFor(t.category)===scope)&&(!cat||t.category===cat)&&(!st||t.status===st)&&(!q||[t.title,t.note,t.category,...(t.history||[]).map(h=>h.detail)].join(' ').toLowerCase().includes(q)));
  if($('sort').value==='updated')list.sort((a,b)=>String(b.updated||'').localeCompare(String(a.updated||'')));
  else list.sort((a,b)=>categories.indexOf(a.category)-categories.indexOf(b.category)||a.id.localeCompare(b.id));
  $('filtered').textContent='('+list.length+'건)';
- $('tasks').innerHTML=list.length?list.map(t=>'<div class="task"><input type="checkbox" data-check="'+escapeHtml(t.id)+'" aria-label="'+escapeHtml(t.title)+' 완료 검증" '+(t.status==='운영확인'?'checked':'')+(isRetired(t)?' disabled':'')+'><div><strong>'+escapeHtml(t.title)+'</strong><small><span class="pill">'+escapeHtml(t.category)+'</span><span class="pill">'+escapeHtml(t.status)+'</span>'+escapeHtml(t.id)+' · '+escapeHtml(t.priority)+(t.updated?' · '+escapeHtml(t.updated.slice(0,16)):'')+'</small>'+(t.note?'<p>'+escapeHtml(t.note)+'</p>':'')+'</div>'+(isRetired(t)?'<span class="pill">폐기 이력</span>':'<button data-edit="'+escapeHtml(t.id)+'">수정</button>')+'</div>').join(''):'<div class="empty">검색 결과가 없습니다.</div>';
+ $('tasks').innerHTML=list.length?list.map(t=>'<div class="task"><input type="checkbox" data-check="'+escapeHtml(t.id)+'" aria-label="'+escapeHtml(t.title)+' 완료 검증" '+(t.status==='운영확인'?'checked':'')+(isRetired(t)?' disabled':'')+'><div><strong>'+escapeHtml(t.title)+'</strong><small><span class="pill">'+escapeHtml(categoryLabel(t.category))+'</span><span class="pill">'+escapeHtml(t.status)+'</span>'+escapeHtml(t.id)+' · '+escapeHtml(t.priority)+(t.updated?' · '+escapeHtml(t.updated.slice(0,16)):'')+'</small>'+(t.note?'<p>'+escapeHtml(t.note)+'</p>':'')+'</div>'+(isRetired(t)?'<span class="pill">폐기 이력</span>':'<button data-edit="'+escapeHtml(t.id)+'">수정</button>')+'</div>').join(''):'<div class="empty">검색 결과가 없습니다.</div>';
  $('events').innerHTML=state.events.length?state.events.slice(0,250).map(e=>'<article class="event"><time>'+escapeHtml(e.at.slice(0,16).replace('T',' '))+' · '+escapeHtml(e.type||'변경')+'</time><strong>'+escapeHtml(e.title)+'</strong><p>'+escapeHtml(e.detail)+'</p></article>').join(''):'<div class="empty">아직 기록이 없습니다.</div>';
 }
 function openEdit(id){
@@ -372,8 +372,7 @@ $('importFile').onchange=async e=>{
  state=next;save();render();alert('백업을 불러왔습니다.');
  }catch(err){alert('불러오기 실패: '+err.message)}finally{e.target.value=''}
 };
-categories.forEach(c=>{$('category').add(new Option(c,c));$('editCategory').add(new Option(c,c))});
-migrateDjCenter20261024();
+categories.forEach(c=>{$('category').add(new Option(categoryLabel(c),c));$('editCategory').add(new Option(categoryLabel(c),c))});
 migrateTrackRights20261024();
 migrateDjLearning();
 migrateCommonPoc();
