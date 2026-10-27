@@ -90,3 +90,10 @@ assert.ok(runInContext("isRetired({id:routeKey('/cafe-access.html'),status:'미�
 assert.ok(!runInContext("isRetired({id:routeKey('/cafe-studio.html'),status:'미검증'})",retireContext));
 assert.ok(runInContext("isRetired({id:'TLV5-WORK-20261027-CONTRIBUTION',status:'구현'})",retireContext));
 console.log('PASS removed page records and retired proposed policy are excluded without deleting history');
+
+assert.ok(!pageRoutes['TL 중앙방송센터'].some(([,p])=>p==='/tl-broadcast.html'));
+assert.ok(!pageRoutes['카페방송'].some(([,p])=>p==='/cafe-channel.html'));
+assert.ok(!pageRoutes['인카방송'].some(([,p])=>p==='/incar-studio.html'));
+assert.equal(pageRoutes['라디오 수신앱'].length,0);
+assert.ok(script.includes('pageMetrics(c).total>0'));
+console.log('PASS obsolete, redirected and future-only pages omitted from page overview');
