@@ -36,7 +36,11 @@
 
 등록은 여러 독립 요청으로 이루어져 중간 실패 시 Local Agent 파일, SharePlace 레코드, tl_files, TL3 release, asset/certificate가 서로 다른 상태로 남을 수 있다. 재시도 멱등성 및 단계별 복구가 필요하다.
 
-## 4. TLC 채굴 화면과 현재 economics router 계약 불일치
+## 4. TLC 채굴 API 계약 — 과거 불일치 기록 (2026-10-28 재확인)
+
+**현재 코드 재확인:** `public/dashboard.html`은 POC 관련 `/api/eco/activity`, TLC 채굴 `POST /api/eco/mine-tlc` (`tlc_amount` 포함), 이력 `GET /api/eco/mining-history`를 사용한다. 백엔드 `src/economics.ts`에 해당 라우트가 정의되어 있고 `src/index.ts`가 `/api/eco`를 등록한다. 아래의 `/calc-poc`·`/mine` 호출 지적은 **과거 감사 시점의 기록이며 현재 호출 계약의 결함으로 취급하지 않는다.** 실제 배포 환경에서의 채굴·지갑 잔액·이력 일치 및 중복 방지 검증은 별도 필요하다.
+
+### 이전 감사 기록 (이력 보존)
 
 `public/dashboard.html`은 `POST /api/eco/calc-poc`를 호출한 뒤 `POST /api/eco/mine`을 body 없이 호출한다. 그러나 조사한 백엔드 `src/economics.ts`는 `POST /mine-tlc`를 정의하고, 요청 JSON `tlc_amount`를 필수로 읽는다. `/calc-poc`, `/mine`, `/mining-history` 정의는 이 router 파일에서 확인되지 않았다.
 
