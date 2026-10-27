@@ -67,3 +67,14 @@ assert.ok(script.includes("['나의 카페','/my-cafe.html']"));
 assert.ok(script.includes("['나의 차','/my-car.html']"));
 assert.ok(script.includes('migrateLinkedPages20261024();\n  const pagesChanged='));
 console.log('PASS current menu names, route mapping, and server ledger sync');
+
+// Both the overview and the category selectors must use one retired filter.
+// A second rendering/option loop previously overwrote the filtered result.
+assert.equal((script.match(/if\(detail\)detail\.innerHTML=/g)||[]).length,1);
+const detailLine=script.split('\n').find(line=>line.includes('if(detail)detail.innerHTML='));
+assert.ok(detailLine.includes('!retiredCategories.has(c)'));
+const optionLines=script.split('\n').filter(line=>line.includes("$('category').add(new Option"));
+assert.equal(optionLines.length,1);
+assert.ok(optionLines[0].includes('!retiredCategories.has(c)'));
+assert.ok(optionLines[0].includes('categoryLabel(c)'));
+console.log('PASS retired categories stay excluded from overview and selectors');
