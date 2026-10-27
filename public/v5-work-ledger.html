@@ -327,7 +327,7 @@ function render(){
  $('developmentSummary').textContent+=' · 미완료 '+pending.length+'건 ('+Object.entries(pendingByStatus).map(([name,count])=>name+' '+count).join(', ')+')'+(pendingDetail?' · 미완료 분포: '+pendingDetail:'');
  $('developmentSummary').title=pending.length?'미완료 항목 전체: '+pending.map(t=>'['+t.id+'] '+t.title+' ('+t.status+')').join(' / '):'현재 집계 대상 중 미완료 항목 없음';
  $('pendingEvidence').querySelector('summary').textContent='완료율 미반영 작업 '+pending.length+'건 · 항목별 확인';
- $('pendingEvidenceItems').innerHTML=pending.length?pending.map(t=>'<div style="padding:7px 0;border-bottom:1px solid #343447"><strong>'+escapeHtml(t.id)+'</strong> · '+escapeHtml(t.status)+' · '+escapeHtml(categoryLabel(t.category))+'<div>'+escapeHtml(t.title)+'</div></div>').join(''):'<p>현재 집계 대상에서 미완료로 분류된 작업이 없습니다.</p>';
+ $('pendingEvidenceItems').innerHTML=pending.length?pending.map(t=>'<div style="padding:7px 0;border-bottom:1px solid #343447"><strong>'+escapeHtml(t.id)+'</strong> · '+escapeHtml(t.status)+' · '+escapeHtml(categoryLabel(t.category))+'<div>'+escapeHtml(t.title)+'</div><button type="button" data-pending-edit="'+escapeHtml(t.id)+'">근거 확인·상태 정정</button></div>').join(''):'<p>현재 집계 대상에서 미완료로 분류된 작업이 없습니다.</p>';
  $('percent').textContent=pct+'%';$('progressFill').style.width=pct+'%';
  renderNavigation();
  const detail=$('pageTree');
@@ -344,6 +344,7 @@ function render(){
  $('tasks').innerHTML=list.length?list.map(t=>'<div class="task"><input type="checkbox" data-check="'+escapeHtml(t.id)+'" aria-label="'+escapeHtml(t.title)+' 완료 검증" '+(t.status==='운영확인'?'checked':'')+(isRetired(t)?' disabled':'')+'><div><strong>'+escapeHtml(t.title)+'</strong><small><span class="pill">'+escapeHtml(categoryLabel(t.category))+'</span><span class="pill">'+escapeHtml(t.status)+'</span>'+escapeHtml(t.id)+' · '+escapeHtml(t.priority)+(t.updated?' · '+escapeHtml(t.updated.slice(0,16)):'')+'</small>'+(t.note?'<p>'+escapeHtml(t.note)+'</p>':'')+'</div>'+(isRetired(t)?'<span class="pill">폐기 이력</span>':'<button data-edit="'+escapeHtml(t.id)+'">수정</button>')+'</div>').join(''):'<div class="empty">검색 결과가 없습니다.</div>';
  $('events').innerHTML=state.events.length?state.events.slice(0,250).map(e=>'<article class="event"><time>'+escapeHtml(e.at.slice(0,16).replace('T',' '))+' · '+escapeHtml(e.type||'변경')+'</time><strong>'+escapeHtml(e.title)+'</strong><p>'+escapeHtml(e.detail)+'</p></article>').join(''):'<div class="empty">아직 기록이 없습니다.</div>';
 }
+$('pendingEvidenceItems').addEventListener('click',e=>{const button=e.target.closest('[data-pending-edit]');if(!button)return;openEdit(button.dataset.pendingEdit);});
 function openEdit(id){
  const t=state.tasks.find(x=>x.id===id);
  $('editId').value=t?t.id:'';
