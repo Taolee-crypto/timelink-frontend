@@ -35,3 +35,23 @@ assert.equal(context.state.events.length,releases.events.length);
 assert.ok(script.indexOf('const releaseChanged=await mergeDevelopmentReleases()')>script.indexOf('state=d.state;'));
 assert.ok(script.includes('const pct=allMetrics.progress;'));
 console.log('PASS development progress: server-first merge, manual edits retained, repeat-safe releases and progress bar');
+
+const startRetire=script.indexOf('const retiredIds='),endRetire=script.indexOf('const commonCategories=',startRetire);
+assert.ok(startRetire>=0&&endRetire>startRetire);
+const retireContext=createContext({routeKey:path=>'TLV5-PAGE-'+Array.from(path).map(c=>c.codePointAt(0).toString(16)).join('-'),STAGE_WEIGHT:{'미검증':0,'설계':20,'구현':55,'테스트':80,'운영확인':100,'보류':0}});
+runInContext(script.slice(startRetire,endRetire),retireContext);
+const sample=[
+ {id:'TLV5-DJC-01',category:'DJ센터',title:'DJ 회원',status:'운영확인'},
+ {id:'TLV5-055',category:'광고 시청',title:'광고 수익',status:'미검증'},
+ {id:'TLV5-NEW',category:'공통 인프라·운영',title:'폐기 항목',status:'폐기'},
+ {id:'TLV5-056',category:'카페 월드',title:'사업자 통계',status:'구현'},
+ {id:'TLV5-DJLEARN-01',category:'TL 중앙방송센터',title:'TILO 학습',status:'테스트'},
+ {id:'TLV5-050',category:'카페방송',title:'카페 방송',status:'설계'}
+];
+retireContext.sample=sample;
+const calculated=runInContext('metrics(sample)',retireContext);
+assert.equal(calculated.total,3);assert.equal(calculated.progress,52);assert.equal(calculated.done,0);
+assert.ok(runInContext("isRetired({id:routeKey('/dj-center.html'),category:'내 프로필',title:'페이지 검증',status:'미검증'})",retireContext));
+assert.ok(script.includes("const active=activeTasks(state.tasks)"));
+assert.ok(script.includes("$('showRetired').checked ? isRetired(t) : !isRetired(t)"));
+console.log('PASS retired tasks excluded from all metrics; TILO and store retained');
