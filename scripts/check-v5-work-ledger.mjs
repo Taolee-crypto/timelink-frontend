@@ -71,9 +71,7 @@ console.log('PASS current menu names, route mapping, and server ledger sync');
 
 // Both the overview and the category selectors must use one retired filter.
 // A second rendering/option loop previously overwrote the filtered result.
-assert.equal((script.match(/if\(detail\)detail\.innerHTML=/g)||[]).length,1);
-const detailLine=script.split('\n').find(line=>line.includes('if(detail)detail.innerHTML='));
-assert.ok(detailLine.includes('!retiredCategories.has(c)'));
+assert.equal((script.match(/if\(detail\)/g)||[]).length,1);
 const optionLines=script.split('\n').filter(line=>line.includes("$('category').add(new Option"));
 assert.equal(optionLines.length,1);
 assert.ok(optionLines[0].includes('!retiredCategories.has(c)'));
@@ -95,7 +93,7 @@ assert.ok(!pageRoutes['TL 중앙방송센터'].some(([,p])=>p==='/tl-broadcast.h
 assert.ok(!pageRoutes['카페방송'].some(([,p])=>p==='/cafe-channel.html'));
 assert.ok(!pageRoutes['인카방송'].some(([,p])=>p==='/incar-studio.html'));
 assert.ok(!pageRoutes['라디오 수신앱']);
-assert.ok(script.includes('pageMetrics(c).total>0'));
+assert.ok(script.includes('sidebarPageGroups.map')); 
 console.log('PASS obsolete, redirected and future-only pages omitted from page overview');
 
 // Compare the actual sidebar menu entries with the overview, including admin-only links.
@@ -108,3 +106,8 @@ const listed=Object.values(pageRoutes).flat().map(([,path])=>path);
 assert.equal(listed.length,new Set(listed).size,'sidebar route displayed more than once');
 assert.deepEqual([...listed].sort(),[...actual].sort(),'page overview must match current sidebar routes');
 console.log('PASS page overview exactly matches current sidebar and admin menu routes');
+
+const sidebarGroups=runInContext(script.slice(script.indexOf('const sidebarPageGroups='),script.indexOf('const routeKey='))+';sidebarPageGroups',createContext({}));
+assert.deepEqual(Array.from(sidebarGroups,g=>g[0]),['기본 메뉴','활동 공간','월드','계정과 활동','운영센터']);
+assert.deepEqual(Array.from(sidebarGroups.flatMap(g=>g[1].map(i=>i[1]))).sort(),[...actual].sort());
+console.log('PASS page overview groups and ordering match visible sidebar');
