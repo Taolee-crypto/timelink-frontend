@@ -12,6 +12,11 @@ function apply(){
   if(!document.getElementById('tl-editorial-style')){
     const link=document.createElement('link');link.id='tl-editorial-style';link.rel='stylesheet';link.href='/renewal/editorial.css?v=20261027a';document.head.append(link);
   }
+  const route=window.TLUI?.canonicalPath(location.pathname)||location.pathname;
+  if(/^\/(shareplace|track|radio|creator|wallet)\.html$/.test(route)&&new URLSearchParams(location.search).get('tl_player')!=='1'){
+    if(!document.getElementById('tl-module-style')){const link=document.createElement('link');link.id='tl-module-style';link.rel='stylesheet';link.href='/renewal/modules.css?v=20261027a';document.head.append(link);}
+    if(!document.getElementById('tl-module-script')){const script=document.createElement('script');script.id='tl-module-script';script.src='/renewal/modules.js?v=20261027a';document.head.append(script);}
+  }
   const host=document.body.hasAttribute('data-tl-app-host');
   if(host){const frame=document.getElementById('tl-content');if(frame){frame.style.setProperty('width','100%','important');frame.style.setProperty('max-width','none','important');frame.style.setProperty('margin-right','0','important');}}
 }
