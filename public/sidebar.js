@@ -9,10 +9,10 @@ var icons={home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1
 function icon(k){return '<span class="tl-global-icon" aria-hidden="true"><svg viewBox="0 0 24 24">'+(icons[k]||icons.generic)+'</svg></span>'}
 var sections = [
  ['MAIN','main',[
-  ['/dashboard.html','home','home'],
-  ['/shareplace.html','explore','explore'],
-  ['/radio.html','radio','radio'],
-  ['/dashboard.html?tab=content','space','space']
+  ['/timelink.html','home','TimeLink','TimeLink'],
+  ['/new-asset.html','explore','New Asset','New Asset'],
+  ['/radio.html','radio','Broadcast','Broadcast'],
+  ['/world-network.html','globe','World Network','World Network']
  ]],
  ['CREATE','create',[
   ['/creator.html','generic','create']
@@ -28,9 +28,12 @@ var sections = [
   ['/my-car-world.html','car','Car World','카월드']
  ]],
  ['TOOLS','tools',[
+  ['/dashboard.html','home','My Activity','내 활동 요약'],
+  ['/shareplace.html','explore','explore'],
+  ['/dashboard.html?tab=content','space','history'],
   ['/wallet.html','generic','wallet'],
   ['/ads.html','generic','adTitle'],
-  ['/my-profile.html','space','profile'],
+  ['/my-profile.html','space','My Info','내 정보'],
   ['/renewal/files.html','generic','files'],
   ['/renewal/music.html','generic','music'],
   ['/dashboard.html?tab=settlement','generic','settlement'],
@@ -48,12 +51,13 @@ function activityLink(item){
   if(!item[4])return link(item);
   return '<details class="tl-global-subdetails" open><summary>'+icon(item[1])+'<span>'+esc(name(item))+'</span></summary><div class="tl-global-sublinks">'+item[4].map(link).join('')+'</div></details>';
 }
-var html='<a class="tl-skip" href="#tl-content">'+esc(t('skip'))+'</a><aside class="tl-global-sidebar" aria-label="TimeLink"><a class="tl-global-brand" href="/dashboard.html"><span class="tl-global-mark">t</span>TimeLink</a><nav class="tl-global-links">';
+var html='<a class="tl-skip" href="#tl-content">'+esc(t('skip'))+'</a><aside class="tl-global-sidebar" aria-label="TimeLink"><a class="tl-global-brand" href="/timelink.html"><span class="tl-global-mark">t</span>TimeLink</a><nav class="tl-global-links">';
 html+=sections[0][2].map(link).join('');html+='<a class="tl-global-create" href="/creator.html">＋ '+esc(t('create'))+'</a>';
 sections.slice(2).forEach(function(group){html+='<details class="tl-global-details"'+(group[1]==='activity'||group[1]==='world'?' open':'')+'><summary>'+esc(groupName(group[1]))+'</summary>'+(group[1]==='activity'?group[2].map(activityLink):group[2].map(link)).join('')+'</details>'});
 html+='</nav><div class="tl-global-balance"><small>'+esc(t('balance'))+'</small><strong id="tlGlobalBalance">'+(token?'…':'— TL')+'</strong><a href="/wallet.html#charge">'+esc(t('charge'))+' ↗</a><button type="button" class="tl-global-logout" data-tl-logout hidden>로그아웃</button></div></aside><nav class="tl-bottom-nav" aria-label="Mobile navigation">'+sections[0][2].map(function(item){return '<a href="'+esc(item[0])+'">'+icon(item[1])+'<span>'+esc(name(item))+'</span></a>'}).join('')+'</nav>';
 document.body.insertAdjacentHTML('afterbegin',html);document.body.classList.add('tl-global-shell');
-function active(href){var u=new URL(href,location.origin),query=u.searchParams;var page=document.body.dataset.currentRoute||href;var v=new URL(page,location.origin);document.querySelectorAll('.tl-global-link,.tl-bottom-nav a').forEach(function(a){var w=new URL(a.href),same=w.pathname===v.pathname&&w.search===v.search;a.classList.toggle('is-active',same);if(same){a.setAttribute('aria-current','page');var parent=a.parentElement;while(parent){if(parent.tagName==='DETAILS')parent.open=true;parent=parent.parentElement}}else a.removeAttribute('aria-current')})}
+function entrance(path){if(['/timelink.html','/timelink-story.html','/timelink-economy.html','/b2b.html','/download.html'].includes(path))return '/timelink.html';if(['/new-asset.html','/shareplace.html','/track.html','/creator.html'].includes(path))return '/new-asset.html';if(path==='/radio.html')return path;if(['/world-network.html','/cafe-world.html','/my-car-world.html'].includes(path))return '/world-network.html';return null;}
+function active(href){var u=new URL(href,location.origin),query=u.searchParams;var page=document.body.dataset.currentRoute||href;var v=new URL(page,location.origin);document.querySelectorAll('.tl-global-link,.tl-bottom-nav a').forEach(function(a){var w=new URL(a.href),same=w.pathname===v.pathname&&w.search===v.search;a.classList.toggle('is-active',same);a.classList.toggle('is-current-section',!same&&w.pathname===entrance(v.pathname));if(same){a.setAttribute('aria-current','page');var parent=a.parentElement;while(parent){if(parent.tagName==='DETAILS')parent.open=true;parent=parent.parentElement}}else a.removeAttribute('aria-current')})}
 window.addEventListener('tl:route',function(e){document.body.dataset.currentRoute=e.detail.href;active(e.detail.href)});active(location.pathname+location.search);
 var toggle=document.getElementById('tlMenuToggle');var scrim=document.createElement('button');scrim.className='tl-global-scrim';scrim.type='button';scrim.setAttribute('aria-label','Close navigation');document.body.appendChild(scrim);
 function close(){document.body.classList.remove('tl-global-nav-open');if(toggle)toggle.setAttribute('aria-expanded','false')}
@@ -66,3 +70,4 @@ function refreshAdminAccess(){var nextToken=localStorage.getItem('tl_token')||''
  ['/admin.html','generic','operations'],['/tilo-admin.html','radio','broadcastOps'],['/reward-policy.html','generic','rewardPolicy'],['/v5-work-ledger.html','generic','workLedger'],['/community-admin.html','generic','moderation']].map(link).join('');nav.appendChild(d)}).catch(function(){});}
 window.addEventListener('tl:route',refreshAdminAccess);window.addEventListener('focus',refreshAdminAccess);refreshAdminAccess();
 })();
+

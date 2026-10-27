@@ -25,7 +25,7 @@ async function main(){
  assert.ok(fs.readFileSync('public/sidebar.js','utf8').includes('data-tl-logout'),'Account navigation must render a logout control');assert.ok(fs.readFileSync('public/index.html','utf8').includes('id="tlLogoutButton"'),'Header must render a logout control');
  const h=harness(),{context:c,nodes,content}=h;
  assert.equal(nodes.tlLogoutButton.hidden,true);c.localStorage.setItem('tl_token','isolated-fixture-token');c.localStorage.setItem('tl_user','{}');h.events.focus();assert.equal(nodes.tlLogoutButton.hidden,false);assert.equal(nodes.tlSidebarLogout.hidden,false);assert.equal(nodes.tlLoginLink.hidden,true);
- assert.equal(content.src,'/dashboard.html');h.navigate('/creator');assert.equal(content.src,'/creator.html');h.navigate('/cafes');assert.equal(content.src,'/cafe-world.html');
+ assert.equal(content.src,'/timelink.html');h.navigate('/creator');assert.equal(content.src,'/creator.html');h.navigate('/cafes');assert.equal(content.src,'/cafe-world.html');
  assert.equal(c.TLUI.canonicalPath('/creator'),'/creator.html');assert.equal(c.TLUI.canonicalPath('/radio'),'/radio.html');assert.equal(c.TLUI.canonicalPath('/renewal/files'),'/renewal/files.html');assert.equal(c.TLUI.canonicalPath('/index'),'/index.html');assert.equal(c.TLUI.canonicalPath('/track.html'),'/track.html');assert.equal(c.TLUI.route('https://evil.example/track.html'),null);
  assert.equal(c.TLUI.route('javascript:alert(1)'),null);
  assert.equal(c.TLUI.route('/docs/plan.html'),null);
@@ -58,3 +58,4 @@ async function main(){
  const failedAudio={ended:false,pause(){},removeEventListener(){},removeAttribute(){},load(){}};engine.audio=failedAudio;engine.stopped=false;engine.meterQueue=Promise.resolve();engine.fetch=async()=>({ok:false,json:async()=>({error:'SETTLEMENT_UNAVAILABLE'})});let successCallbacks=0;engine.opts={onStopSettlement(){successCallbacks++}};vm.runInContext(source.slice(start,end),engine);await failedAudio._tl3Stop();assert.ok(failedAudio._tl3StopError);assert.equal(errors,1);assert.equal(successCallbacks,0);console.log('PASS V5 player: failed settlement remains observable and never fires a success callback');
 }
 main().catch(e=>{console.error(e);process.exitCode=1});
+

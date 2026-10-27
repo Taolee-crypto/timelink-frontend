@@ -1,0 +1,33 @@
+name: Editorial UI and usability
+on:
+  pull_request:
+    paths: ['public/renewal/**','public/timelink*.html','public/new-asset.html','public/world-network.html','public/my-profile.html','public/index.html','public/sidebar.js','public/main.js','scripts/test-editorial-renewal.cjs','.github/workflows/editorial-renewal.yml']
+  push:
+    branches: [main]
+    paths: ['public/renewal/**','public/timelink*.html','public/new-asset.html','public/world-network.html','public/my-profile.html','public/index.html','public/sidebar.js','public/main.js','scripts/test-editorial-renewal.cjs','.github/workflows/editorial-renewal.yml']
+permissions:
+  contents: read
+jobs:
+  editorial-ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/check-inline-js.cjs
+      - run: node scripts/audit-v5-navigation.mjs
+      - run: node scripts/test-renewal-host.cjs
+      - run: npm install --no-save --ignore-scripts playwright@1.51.1
+      - run: node scripts/test-editorial-renewal.cjs
+        env:
+          TL_CHROMIUM_EXECUTABLE: /usr/bin/google-chrome
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: editorial-ui-screenshots
+          path: test-results/editorial-*.png
+          if-no-files-found: ignore
