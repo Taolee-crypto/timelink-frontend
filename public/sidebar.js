@@ -18,8 +18,6 @@ var sections = [
   ['/creator.html','generic','create']
  ]],
  ['ACTIVITY','activity',[
-  ['/dj-center.html','radio','My Broadcast','나의 방송'],
-  ['/sales-manager.html','manager','Sales Manager','영업 매니저'],
   ['/my-cafe.html','store','My Cafe','나의 카페'],
   ['/my-car.html','car','My Car','나의 차']
  ]],
