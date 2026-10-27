@@ -28,7 +28,7 @@
   }
   refresh();new MutationObserver(()=>{if(!queued){queued=true;queueMicrotask(refresh);}}).observe(root,{childList:true});
   if(cfg.kind==='creator'){
-   root.querySelectorAll('.field').forEach(field=>{const label=field.querySelector('label:not([for])'),input=field.querySelector('input[id],select[id],textarea[id]');if(label&&input&&document.querySelectorAll('[id="'+CSS.escape(input.id)+'"]').length===1)label.htmlFor=input.id;});
+   root.querySelectorAll('.field').forEach(field=>{const label=field.querySelector('label:not([for])'),input=field.querySelector('input[id],select[id],textarea[id]');if(label&&input){if(document.querySelectorAll('[id="'+CSS.escape(input.id)+'"]').length===1)label.htmlFor=input.id;else{if(!label.id)label.id="module-field-label-"+[...root.querySelectorAll(".field")].indexOf(field);input.setAttribute("aria-labelledby",label.id);}}});
    root.querySelectorAll('.drop').forEach(drop=>{drop.tabIndex=0;drop.setAttribute('role','button');drop.setAttribute('aria-label',drop.querySelector('strong')?.textContent||'파일 선택');drop.addEventListener('keydown',e=>{if(!['Enter',' '].includes(e.key)||e.target!==drop||drop.querySelector('input')?.disabled)return;e.preventDefault();drop.click();});});
   }
   if(['discover','track'].includes(cfg.kind))setupTimeFree(bar);
