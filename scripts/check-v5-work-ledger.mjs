@@ -113,3 +113,7 @@ assert.deepEqual(Array.from(sidebarGroups,g=>g[0]),['기본 메뉴','활동 공�
 assert.deepEqual(Array.from(sidebarGroups.flatMap(g=>g[1].map(i=>i[1]))).sort(),[...actual].sort());
 console.log('PASS page overview groups and ordering match visible sidebar');
 
+
+const adminLedgerHtml=readFileSync(new URL('../public/admin.html',import.meta.url),'utf8');
+assert.ok(adminLedgerHtml.includes("['구현','테스트','운영확인'].includes(t.status)"),'admin ledger summary must count implemented and tested tasks');
+console.log('PASS admin ledger summary uses implementation completion');
