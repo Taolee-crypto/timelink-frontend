@@ -367,7 +367,7 @@ html body .app .main .cat-bar .cat-tab .cat-count{
 <link rel="stylesheet" href="/apple-theme.css?v=restore-apple-20261020" data-tl-global-theme="2026.10-apple">
 
   <link rel="stylesheet" href="/wallet-design-system.css?v=20261020">
-<link rel="stylesheet" href="/renewal/renewal.css?v=20261024r2"><style>.page-ads:not(:has(a,img,video)){display:none!important}</style></head>
+<link rel="stylesheet" href="/renewal/renewal.css?v=20261027-footer-visible"><style>.page-ads:not(:has(a,img,video)){display:none!important}</style></head>
 <body>
 
 <div id="tossPayOverlay" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);align-items:center;justify-content:center">
@@ -462,7 +462,7 @@ html body .app .main .cat-bar .cat-tab .cat-count{
 var API_BASE = 'https://api.timelink.digital';
 var _user = null, _token = null;
 var _allShares = [], _filter = 'all', _tab = 'latest', _search = '', _view = 'grid', _genre = 'all';
-var _curPage = 1, _perPage = 50, _kind = 'all';
+var _curPage = 1, _perPage = 20, _kind = 'all';
 var initialSearch=new URLSearchParams(location.search);_search=initialSearch.get('q')||'';_genre=initialSearch.get('genre')||'all';_tab=initialSearch.get('sort')||'latest';
 var _myFileTL = {};
 
@@ -575,13 +575,24 @@ async function loadShares(){
   }
   try{
     var headers=_token ? {'Authorization':'Bearer '+_token} : {};
-    var r=await fetchWithTimeout(API_BASE+'/api/shares',{headers:headers});
-    if(!r.ok && (r.status===404 || r.status===405)){
-      r=await fetchWithTimeout(API_BASE+'/api/v1/shareplace',{headers:headers});
+    // Each backend source is independently paged; fetch until all are exhausted.
+    var incoming=[], offset=0, batchSize=100, endpoint='/api/shares', previousBatch='';
+    while(true){
+      var r=await fetchWithTimeout(API_BASE+endpoint+'?limit='+batchSize+'&offset='+offset,{headers:headers});
+      if(offset===0 && !r.ok && (r.status===404 || r.status===405)){
+        endpoint='/api/v1/shareplace';
+        r=await fetchWithTimeout(API_BASE+endpoint+'?limit='+batchSize+'&offset='+offset,{headers:headers});
+      }
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      var d=await r.json();
+      var batch=Array.isArray(d)?d:(Array.isArray(d.shares)?d.shares:(Array.isArray(d.data)?d.data:[]));
+      if(!batch.length) break;
+      var signature=JSON.stringify(batch.map(function(item){return [item.source_table,item.id,item.file_id];}));
+      if(offset && signature===previousBatch) throw new Error('목록 페이지를 불러오지 못했습니다');
+      previousBatch=signature;
+      incoming.push.apply(incoming,batch);
+      offset+=batchSize;
     }
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    var d=await r.json();
-    var incoming=Array.isArray(d)?d:(Array.isArray(d.shares)?d.shares:(Array.isArray(d.data)?d.data:[]));
     _allShares=incoming.filter(isPublishedTLAsset);
     updateCounts();
     applyFilter();
@@ -678,7 +689,7 @@ function switchSort(el,t){ document.querySelectorAll('.sort-tab:not(.kind-tab)')
 function switchView(v){ _view=v; document.getElementById('vt-grid').classList.toggle('active',v==='grid'); document.getElementById('vt-list').classList.toggle('active',v==='list'); applyFilter(); }
 var _lastTotal=0;
 function switchKind(k,el){ _kind=k; _curPage=1; document.querySelectorAll('.kind-tab').forEach(function(x){x.classList.remove('active');}); if(el) el.classList.add('active'); applyFilter(); }
-function goPage(n){ var totalPages=Math.max(1,Math.ceil(_lastTotal/_perPage)); if(n<1||n>totalPages) return; _curPage=n; applyFilter(); }
+function goPage(n){ var totalPages=Math.max(1,Math.ceil(_lastTotal/_perPage)); if(n<1||n>totalPages) return; _curPage=n; applyFilter(); document.getElementById('fileGrid').scrollIntoView({behavior:'smooth',block:'start'}); }
 function renderPager(total){
   var el=document.getElementById('filePager'); if(!el) return;
   var totalPages=Math.max(1,Math.ceil(total/_perPage));
