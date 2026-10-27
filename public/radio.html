@@ -147,7 +147,18 @@ async function speakTilo(generation,country,text=tiloInterlude[country]){
     return false;
   }finally{tiloSpeaking=false;}
 }
+let tiloRecoveryTimer=null;
+let tiloRecoveryAttempts=0;
+function clearTiloRecovery(){if(tiloRecoveryTimer!==null)clearTimeout(tiloRecoveryTimer);tiloRecoveryTimer=null;}
+function scheduleTiloRecovery(generation,country){
+ if(generation!==stationGeneration||!stationPlaying||joinedCountry!==country||tiloRecoveryTimer!==null)return;
+ if(tiloRecoveryAttempts>=3){status.textContent='방송 연결이 반복 실패했습니다. 다시 연결해 주세요.';return;}
+ const delay=Math.min(12000,1500*Math.pow(2,tiloRecoveryAttempts++));
+ status.textContent='방송 연결이 끊겼습니다. '+Math.ceil(delay/1000)+'초 후 다시 연결합니다 ('+tiloRecoveryAttempts+'/3)';
+ tiloRecoveryTimer=setTimeout(()=>{tiloRecoveryTimer=null;if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)void nextTiloTrack(generation,country);},delay);
+}
 async function stopTilo(){
+  clearTiloRecovery();tiloRecoveryAttempts=0;
   stationGeneration++;
   cancelTiloSpeech();
   tiloCompletedSongs=0;
@@ -175,10 +186,10 @@ async function nextTiloTrack(generation,country,broadcastStartAt=null){
     await sharedV5Player.playStream('tl3_'+fileId,broadcastAudio,{
       broadcastCountry:country,
       broadcastStartAt,
-      onError:e=>{if(generation===stationGeneration)status.textContent='방송 재생 오류: '+String(e?.message||e);},
-      onReady:()=>{if(generation===stationGeneration){broadcastAudio.hidden=false;status.textContent=countrySession[country].name+' · V5 방송 재생 중 (개인 TL 차감 없음)';publishTiloTrack(fileId,country);rememberTilo(country,'track','V5 track '+fileId,{fileId});}}
+      onError:e=>{if(generation===stationGeneration){status.textContent='방송 재생 오류: '+String(e?.message||e);scheduleTiloRecovery(generation,country);}},
+      onReady:()=>{if(generation===stationGeneration){clearTiloRecovery();tiloRecoveryAttempts=0;broadcastAudio.hidden=false;status.textContent=countrySession[country].name+' · V5 방송 재생 중 (개인 TL 차감 없음)';publishTiloTrack(fileId,country);rememberTilo(country,'track','V5 track '+fileId,{fileId});}}
     });
-  }catch(e){if(generation===stationGeneration){status.textContent='방송 재생 실패: '+String(e?.message||e);stationPlaying=false;}}
+  }catch(e){if(generation===stationGeneration){status.textContent='방송 재생 실패: '+String(e?.message||e);scheduleTiloRecovery(generation,country);}}
 }
 // Prepare AI decisions while music is playing, never at the song boundary.
 let tiloCompletedSongs=0;
