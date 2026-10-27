@@ -48,8 +48,8 @@ const pageRoutes={
  '공유 마켓':[['공유 마켓','/shareplace.html'],['음원 상세·플레이어','/track.html']],
  '크리에이터 스튜디오':[['크리에이터 스튜디오','/creator.html'],['창작자 정책','/creator-policy.html'],['음원 상세·메타데이터','/track.html']],
  'TL 중앙방송센터':[['TL 중앙방송센터','/tl-broadcast.html'],['라디오 수신','/radio.html']],
- '카페방송':[['나의 카페','/my-cafe.html'],['카페방송','/cafe-channel.html'],['카페 꾸미기','/cafe-studio.html'],['중앙방송 청취','/radio.html']],
- '인카방송':[['나의 차','/my-car.html'],['인카방송','/incar-channel.html'],['인카 스튜디오','/incar-studio.html'],['중앙방송 청취','/radio.html']],
+ '카페방송':[['나의 카페','/my-cafe.html'],['카페 개설','/cafe-channel.html'],['카페 꾸미기','/cafe-studio.html'],['중앙방송 청취','/radio.html']],
+ '인카방송':[['나의 차','/my-car.html'],['차량 등록','/incar-channel.html'],['내 차 관리','/incar-studio.html'],['중앙방송 청취','/radio.html']],
  '카페 월드':[['스토어월드','/cafe-world.html'],['카페 상세','/cafe-detail.html']],
  '마이카 월드':[['카월드','/my-car-world.html']],
  '지갑':[['지갑','/wallet.html'],['공유 마켓','/shareplace.html']],
@@ -59,16 +59,17 @@ const pageRoutes={
  '내 라이브러리':[['내 라이브러리','/dashboard.html?tab=content'],['음원 상세','/track.html']],
  'TLC 채굴':[['TLC 채굴','/dashboard.html?tab=mining']],
  '미션':[['미션','/dashboard.html?tab=mission']],
- '내 채널':[['내 채널','/dashboard.html?tab=cafe'],['카페 스튜디오','/cafe-studio.html'],['인카 스튜디오','/incar-studio.html']],
+ '내 채널':[['내 채널','/dashboard.html?tab=cafe'],['카페 스튜디오','/cafe-studio.html'],['내 차 관리','/incar-studio.html']],
  '라디오 수신앱':[['웹 라디오 수신','/radio.html'],['카페 라디오','/cafe-radio.html']]
 };
 const routeKey=path=>'TLV5-PAGE-'+Array.from(path).map(c=>c.codePointAt(0).toString(16)).join('-');
 
 const STAGE_WEIGHT={'미검증':0,'설계':20,'구현':55,'테스트':80,'운영확인':100,'보류':0};
-const retiredIds=new Set(['TLV5-039','TLV5-054','TLV5-055','TLV5-NAV-SPONSOR','TLV5-NAV-ADS','TLV5-WORK-20261027-POLICY']);
+const retiredIds=new Set(['TLV5-039','TLV5-054','TLV5-055','TLV5-NAV-SPONSOR','TLV5-NAV-ADS','TLV5-WORK-20261027-POLICY','TLV5-WORK-20261027-CONTRIBUTION']);
 const retiredCategories=new Set(['DJ센터','스폰서 센터','광고 시청']);
-const retiredRoutes=new Set(['/dj-center.html','/dj-guide.html','/advertiser.html','/ads.html']);
-function isRetired(t){return t.status==='폐기'||t.retired===true||/^(영업\s*(매니저|파트너)|DJ\s*(센터|방송)|광고주|광고\s*수익)/i.test(String(t.title||''))||retiredIds.has(t.id)||String(t.id||'').startsWith('TLV5-DJC-')||(retiredCategories.has(t.category)&&t.id!=='TLV5-056')||Array.from(retiredRoutes).some(route=>t.id===routeKey(route));}
+const retiredRoutes=new Set(['/dj-center.html','/dj-guide.html','/advertiser.html','/ads.html','/cafe-radio.html']);
+const activePageIds=new Set(Object.entries(pageRoutes).filter(([category])=>!retiredCategories.has(category)).flatMap(([,routes])=>routes.filter(([,route])=>!retiredRoutes.has(route)).map(([,route])=>routeKey(route))));
+function isRetired(t){return (String(t.id||'').startsWith('TLV5-PAGE-')&&!activePageIds.has(t.id))||t.status==='폐기'||t.retired===true||/^(영업\s*(매니저|파트너)|DJ\s*(센터|방송)|광고주|광고\s*수익)/i.test(String(t.title||''))||retiredIds.has(t.id)||String(t.id||'').startsWith('TLV5-DJC-')||(retiredCategories.has(t.category)&&t.id!=='TLV5-056')||Array.from(retiredRoutes).some(route=>t.id===routeKey(route));}
 function activeTasks(tasks){return tasks.filter(t=>!isRetired(t));}
 function metrics(tasks){tasks=activeTasks(tasks);const total=tasks.length,done=tasks.filter(t=>t.status==='운영확인').length;const progress=total?Math.round(tasks.reduce((sum,t)=>sum+(STAGE_WEIGHT[t.status]||0),0)/total):0;return {total,done,progress,verified:total?Math.round(done/total*100):0}}
 const commonCategories=new Set(sidebarGroups.filter(g=>g.scope==='common').flatMap(g=>g.items));
@@ -76,7 +77,7 @@ let scope='all';
 function scopeFor(category){return commonCategories.has(category)?'common':'individual'}
 function chooseScope(next,category){scope=next;$('category').value=category||'';document.querySelectorAll('[data-scope]').forEach(b=>b.classList.toggle('selected',b.dataset.scope===scope));render()}
 function pageMetrics(category){
- const routes=(pageRoutes[category]||[]).filter(([,route])=>!retiredRoutes.has(route));
+ const routes=(pageRoutes[category]||[]).filter(([,route])=>!retiredRoutes.has(route)&&!state.tasks.some(t=>t.id===routeKey(route)&&isRetired(t)));
  const keys=[...new Set(routes.map(x=>x[1]))];
  const entries=keys.map(route=>state.tasks.find(t=>t.id===routeKey(route)&&!isRetired(t)));
  const verified=entries.filter(t=>t&&t.status==='운영확인').length;
@@ -84,7 +85,7 @@ function pageMetrics(category){
  return {total:keys.length,done:verified,progress};
 }
 function pageDetails(category){
- const routes=(pageRoutes[category]||[]).filter(([,route])=>!retiredRoutes.has(route));
+ const routes=(pageRoutes[category]||[]).filter(([,route])=>!retiredRoutes.has(route)&&!state.tasks.some(t=>t.id===routeKey(route)&&isRetired(t)));
  return '<div class="page-links">'+routes.map(([label,route])=>{
   const t=state.tasks.find(x=>x.id===routeKey(route));
   const status=t?t.status:'미검증';
@@ -378,3 +379,4 @@ migrateTrackFeatures20261024();
 render();
 loadServerWorkLedger();
 </script></body></html>
+
