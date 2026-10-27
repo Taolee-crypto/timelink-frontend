@@ -13,7 +13,7 @@
   if(retry){const button=document.createElement('button');button.type='button';button.textContent='다시 불러오기';button.onclick=load;box.append(button);}
   catalog.replaceChildren(box);
  }
- function coverURL(raw){try{const url=new URL(raw,location.origin);return /^https?:$/.test(url.protocol)?url.href:''}catch(_){return '';}}
+ function coverURL(raw){if(typeof raw!=='string'||!raw.trim())return '';try{const url=new URL(raw,location.origin);return /^https?:$/.test(url.protocol)?url.href:''}catch(_){return '';}}
  async function load(){
   const run=++generation;catalog.setAttribute('aria-busy','true');state('공개 음악을 불러오는 중입니다.');
   try{
