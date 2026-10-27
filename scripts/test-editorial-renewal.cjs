@@ -47,7 +47,7 @@ async function main(){
    await content.evaluate(()=>document.fonts.ready);await content.waitForFunction(()=>[...document.images].every(i=>i.complete));
    const state=await content.evaluate(()=>({overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+1,broken:[...document.images].filter(i=>i.naturalWidth===0).length}));assert.equal(state.overflow,false,route+' overflows');assert.equal(state.broken,0,route+' has broken images');
    await frame().locator('.site-footer').waitFor();assert.equal(await frame().locator('footer.site-footer').count(),1);
-   if(route==='/timelink.html'){await content.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));await page.screenshot({path:'test-results/footer-mobile.png',fullPage:true});await content.evaluate(()=>scrollTo(0,0));}
+   if(route==='/timelink.html'){await content.evaluate(()=>scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'}));assert.equal(await frame().locator('.site-footer-company small').evaluate(el=>el.getBoundingClientRect().bottom<=innerHeight-60),true,'Company information must clear the mobile navigation');await page.screenshot({path:'test-results/footer-mobile.png',fullPage:true});await content.evaluate(()=>scrollTo(0,0));}
    if(route==='/timelink.html')await page.screenshot({path:'test-results/editorial-home-mobile.png',fullPage:true});
    if(route==='/new-asset.html')await page.screenshot({path:'test-results/editorial-assets-mobile.png',fullPage:true});
   }
