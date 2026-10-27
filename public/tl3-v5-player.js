@@ -148,6 +148,7 @@
       method:'POST',headers:auth()
     });
     if(!pre.can_play)throw new Error('TL이 부족하여 TL3 V5를 재생할 수 없습니다.');
+    if(pre.billing_mode==='time_free'){sessionId='tf_'+sessionId.replace(/^(tf_|sub_)/,'');if(sessionId.length>100)throw new Error('TIME FREE 재생 세션이 너무 깁니다.');}
     if(pre.billing_mode==='subscription'){sessionId='sub_'+sessionId.replace(/^sub_/,'');if(sessionId.length>100)throw new Error('구독 재생 세션이 너무 깁니다.');}
     if(opts.onBillingMode)opts.onBillingMode(pre);
     const contentKey=await unwrapAssetKey(fileId,shareId,sessionId,broadcastCountry,djStationId);
@@ -216,9 +217,11 @@
         if(delta>0)billableMs=Math.min(totalMs,billableMs+delta);
       }
       lastTime=now;
+      if(pre.billing_mode==='time_free')billableMs=Math.min(billableMs,Number(pre.time_free_remaining_ms)||0);
       publishProgress(false);
       const target=Math.floor((billableMs+1e-6)/1000);
       if(!nonBillable && target>meterQueued)queueMeter(target,false);
+      if(pre.billing_mode==='time_free'&&billableMs>=pre.time_free_remaining_ms){queueMeter(billableMs/1000,false);audio.pause();}
     }
     function queueMeter(target,complete){
       if(nonBillable||target<=meterQueued||meterFailed)return;
@@ -244,7 +247,7 @@
     const onSeeking=()=>{lastTime=null;};
     const onSeeked=()=>{lastTime=Number(audio.currentTime)||0;};
     const onTimeUpdate=()=>sample(false);
-    const onEnded=()=>{sample(true);billableMs=totalMs;publishProgress(true);queueMeter(Math.ceil(totalMs/1000),true);};
+    const onEnded=()=>{sample(true);if(pre.billing_mode==='time_free'){publishProgress(false);queueMeter(billableMs/1000,false);}else{billableMs=totalMs;publishProgress(true);queueMeter(Math.ceil(totalMs/1000),true);}};
     audio.addEventListener('playing',onPlaying);
     audio.addEventListener('pause',onPause);
     audio.addEventListener('waiting',onBuffering);
@@ -270,7 +273,7 @@
     try{await audio.play();}catch(e){throw new Error('음원 재생을 시작하지 못했습니다: '+(e&&e.message||e));}
     audio._tl3End=async function(){
       sample(true);
-      if(audio.ended){billableMs=totalMs;publishProgress(true);queueMeter(Math.ceil(totalMs/1000),true);}
+      if(audio.ended){if(pre.billing_mode==='time_free'){publishProgress(false);queueMeter(billableMs/1000,false);}else{billableMs=totalMs;publishProgress(true);queueMeter(Math.ceil(totalMs/1000),true);}}
       if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}
       await meterQueue;
       return lastBilled;
@@ -283,7 +286,7 @@
       if(!nonBillable&&!meterFailed&&billableMs>0)queueMeter(Number((billableMs/1000).toFixed(3)),false);
       const closingMeter=meterQueue;
       audio._tl3StopPromise=closingMeter.then(async()=>{
-        if(nonBillable||meterFailed||audio.ended)return;
+        if(nonBillable||meterFailed||(audio.ended&&pre.billing_mode!=='time_free'))return;
         const response=await fetch(API+'/api/v1/tl3/play/stop/'+encodeURIComponent(fileId),{
           method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
           body:JSON.stringify({session_id:sessionId})
@@ -309,4 +312,5 @@
   }
   global.TL3V5Player=Object.freeze({version:'TL3-V5',canPlay:canPlay,playStream:playStream});
 })(window);
+
 
