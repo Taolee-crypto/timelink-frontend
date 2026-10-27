@@ -39,7 +39,7 @@
   action.onclick=e=>{const buy=document.getElementById('tlTimeBuy');if(buy){e.preventDefault();buy.click();}};
   let generation=0;
   async function load(){const token=localStorage.getItem('tl_token'),run=++generation;if(!token){status.textContent='로그인 후 시간 이용권을 확인할 수 있습니다.';return;}
-   try{const r=await fetch('https://api.timelink.digital/api/payment/v5/shareplace-time/status',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:AbortSignal.timeout(10000)});const d=await r.json();if(run!==generation||localStorage.getItem('tl_token')!==token)return;if(!r.ok||!d.ok||!Number.isSafeInteger(d.time_free_remaining_ms)||d.time_free_remaining_ms<0)throw Error();const seconds=Math.floor(d.time_free_remaining_ms/1000);status.textContent=seconds>0?'남은 시간 '+Math.floor(seconds/60)+'분 '+seconds%60+'초 · 이용권 청취는 TL 차감·보상 없음':'보유한 시간 이용권이 없습니다. 구매한 시간만큼 자유롭게 들으세요.';box.dataset.active=String(seconds>0);}
+   try{const r=await fetch('https://api.timelink.digital/api/payment/v5/shareplace-time/status',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:AbortSignal.timeout(10000)});const d=await r.json();if(run!==generation||localStorage.getItem('tl_token')!==token)return;if(!r.ok||!d.ok||!Number.isSafeInteger(d.time_free_remaining_ms)||d.time_free_remaining_ms<0)throw Error();const seconds=Math.floor(d.time_free_remaining_ms/1000);status.textContent=seconds>0?'남은 시간 '+Math.floor(seconds/60)+'분 '+seconds%60+'초 · TL 차감·보상 없이 기여만 반영':'보유한 시간 이용권이 없습니다. 구매한 시간만큼 자유롭게 들으세요.';box.dataset.active=String(seconds>0);}
    catch(_){if(run===generation)status.textContent='이용권 상태를 불러오지 못했습니다. 시간 이용권에서 다시 확인해 주세요.';}
   }
   // Reattach after the track's asynchronous render replaces its children.

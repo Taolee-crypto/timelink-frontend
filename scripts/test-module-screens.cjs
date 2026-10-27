@@ -27,8 +27,8 @@ async function main(){
    else if(u.pathname.includes('/api/admin/')){status=403;body={ok:false};}
    return route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
   });
-  const origin='http://127.0.0.1:'+server.address().port,frame=()=>page.frameLocator('#tl-content');
-  const open=async route=>{await page.goto(origin+'/?view='+encodeURIComponent(route));await page.frameLocator('#tl-content').locator('.module-context').waitFor();};
+  const origin='http://127.0.0.1:'+server.address().port,frame=()=>page.frameLocator(activeFrame);let activeFrame='#tl-content';
+  const open=async route=>{activeFrame=route==='/radio.html'?'#tl-radio-content':'#tl-content';await page.goto(origin+'/?view='+encodeURIComponent(route));await frame().locator('.module-context').waitFor();};
   fs.mkdirSync('test-results',{recursive:true});
   await open('/wallet.html');await frame().getByText('현재 계정의 지갑 잔액입니다.',{exact:true}).waitFor();assert.equal(await frame().locator('#walletTl').textContent(),'333');assert.equal(await frame().locator('#walletPaid').textContent(),'123 TL');assert.equal(await frame().locator('#walletTlc').textContent(),'1.25');assert.match(await frame().locator('#walletTimeFree').textContent(),/1시간 0분 0초/);assert.equal(await frame().locator('.wallet-history-row').count(),50);assert.equal(await frame().locator('.wallet-history-row b').count(),0);assert.equal(await frame().locator('.wallet-entry-value').first().textContent(),'+2 TL');
   await frame().getByRole('button',{name:'이전 기록 더 보기'}).click();await frame().getByText('53건',{exact:true}).waitFor();assert.equal(writes.length,0,'Wallet must not mutate financial state');await frame().locator('.wallet-heading').evaluate(el=>el.scrollIntoView({block:'start'}));await page.screenshot({path:'test-results/modules-wallet-desktop.png',fullPage:true});
