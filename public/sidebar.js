@@ -30,7 +30,6 @@ var sections = [
   ['/shareplace.html','explore','explore'],
   ['/dashboard.html?tab=content','space','history'],
   ['/wallet.html','generic','wallet'],
-  ['/ads.html','generic','adTitle'],
   ['/my-profile.html','space','My Info','내 정보'],
   ['/renewal/files.html','generic','files'],
   ['/renewal/music.html','generic','music'],
@@ -68,4 +67,5 @@ function refreshAdminAccess(){var nextToken=localStorage.getItem('tl_token')||''
  ['/admin.html','generic','operations'],['/tilo-admin.html','radio','broadcastOps'],['/reward-policy.html','generic','rewardPolicy'],['/v5-work-ledger.html','generic','workLedger'],['/community-admin.html','generic','moderation']].map(link).join('');nav.appendChild(d)}).catch(function(){});}
 window.addEventListener('tl:route',refreshAdminAccess);window.addEventListener('focus',refreshAdminAccess);refreshAdminAccess();
 })();
+
 
