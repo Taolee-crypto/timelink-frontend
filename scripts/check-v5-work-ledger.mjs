@@ -87,13 +87,24 @@ assert.ok(!readFileSync(new URL('../public/incar-studio.html',import.meta.url),'
 console.log('PASS retired DJ listening excluded; central radio and personal spaces retained');
 
 assert.ok(runInContext("isRetired({id:routeKey('/cafe-access.html'),status:'미검증'})",retireContext));
-assert.ok(!runInContext("isRetired({id:routeKey('/cafe-studio.html'),status:'미검증'})",retireContext));
+assert.ok(!runInContext("isRetired({id:routeKey('/my-cafe.html'),status:'미검증'})",retireContext));
 assert.ok(runInContext("isRetired({id:'TLV5-WORK-20261027-CONTRIBUTION',status:'구현'})",retireContext));
 console.log('PASS removed page records and retired proposed policy are excluded without deleting history');
 
 assert.ok(!pageRoutes['TL 중앙방송센터'].some(([,p])=>p==='/tl-broadcast.html'));
 assert.ok(!pageRoutes['카페방송'].some(([,p])=>p==='/cafe-channel.html'));
 assert.ok(!pageRoutes['인카방송'].some(([,p])=>p==='/incar-studio.html'));
-assert.equal(pageRoutes['라디오 수신앱'].length,0);
+assert.ok(!pageRoutes['라디오 수신앱']);
 assert.ok(script.includes('pageMetrics(c).total>0'));
 console.log('PASS obsolete, redirected and future-only pages omitted from page overview');
+
+// Compare the actual sidebar menu entries with the overview, including admin-only links.
+const sidebar=readFileSync(new URL('../public/sidebar.js',import.meta.url),'utf8');
+const sections=runInContext(sidebar.slice(sidebar.indexOf('var sections = ['),sidebar.indexOf('var groupNames='))+';sections',createContext({}));
+const adminBlock=sidebar.slice(sidebar.indexOf("d.innerHTML='<summary>'+t('operations')"),sidebar.indexOf('].map(link)',sidebar.indexOf("d.innerHTML='<summary>'+t('operations')")));
+const adminRoutes=[...adminBlock.matchAll(/\['(\/[^']+)'/g)].map(m=>m[1]);
+const actual=new Set([...sections.flatMap(section=>section[2].map(item=>item[0])),...adminRoutes]);
+const listed=Object.values(pageRoutes).flat().map(([,path])=>path);
+assert.equal(listed.length,new Set(listed).size,'sidebar route displayed more than once');
+assert.deepEqual([...listed].sort(),[...actual].sort(),'page overview must match current sidebar routes');
+console.log('PASS page overview exactly matches current sidebar and admin menu routes');
