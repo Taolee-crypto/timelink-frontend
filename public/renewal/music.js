@@ -4,14 +4,14 @@
   var filter='all',user=null,$=function(id){return document.getElementById(id);};
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function date(v){if(!v)return '등록일 정보 없음';var d=new Date(v);return isNaN(d.getTime())?'등록일 정보 없음':d.toLocaleDateString('ko-KR',{year:'numeric',month:'short',day:'numeric'});}
-  function kind(t){var s=String(t.release_mode||'').toLowerCase(),f=String(t.file_type||'').toLowerCase(),c=String(t.content_kind||'').toLowerCase();return s.indexOf('tl3')>=0||f.indexOf('tl3')>=0||c==='tl3'?'tl3':'mp3';}
+  function kind(t){var s=String(t.release_mode||'').trim().toLowerCase(),f=String(t.file_type||'').trim().toLowerCase(),c=String(t.content_kind||'').trim().toLowerCase();return (s==='tl3'||f==='tl3'||f==='audio/tl3'||c==='tl3')?'tl3':'other';}
   function render(){
     var q=$('searchInput').value.trim().toLowerCase();
     var list=allTracks.filter(function(t){return (filter==='all'||kind(t)===filter)&&(!q||(String(t.title||'')+' '+String(t.artist||'')).toLowerCase().includes(q));});
     $('trackGrid').innerHTML=list.map(function(t){
       var id=String(t.id),k=kind(t),cover=t.cover_url?'<img src="'+esc(t.cover_url)+'" alt="">':'♫';
       var page='/track.html?id='+encodeURIComponent(id);
-      return '<article class="my-track-card"><div class="my-track-art">'+cover+'</div><div class="my-track-main"><div class="my-track-top"><div class="my-track-title">'+esc(t.title||'제목 없는 곡')+'</div></div><div class="my-track-artist">'+esc(t.artist||'아티스트 미입력')+(t.album?' · '+esc(t.album):'')+'</div><div class="track-badges"><span class="track-badge '+k+'">'+(k==='tl3'?'TL3 음원':'MP3 원본 등록')+'</span><span class="track-badge">곡별 페이지</span></div><div class="track-date">'+esc(date(t.created_at))+'</div><div class="track-actions"><a class="track-action primary" href="'+page+'">Track Page 열기 ↗</a><button class="track-action" data-share="'+esc(id)+'">홍보 링크 복사</button></div></div></article>';
+      return '<article class="my-track-card"><div class="my-track-art">'+cover+'</div><div class="my-track-main"><div class="my-track-top"><div class="my-track-title">'+esc(t.title||'제목 없는 곡')+'</div></div><div class="my-track-artist">'+esc(t.artist||'아티스트 미입력')+(t.album?' · '+esc(t.album):'')+'</div><div class="track-badges"><span class="track-badge '+k+'">'+'TL3 음원'+'</span><span class="track-badge">곡별 페이지</span></div><div class="track-date">'+esc(date(t.created_at))+'</div><div class="track-actions"><a class="track-action primary" href="'+page+'">Track Page 열기 ↗</a><button class="track-action" data-share="'+esc(id)+'">홍보 링크 복사</button></div></div></article>';
     }).join('');
     $('emptyState').hidden=list.length!==0;
     $('trackGrid').hidden=list.length===0;
@@ -26,8 +26,8 @@
     var r=await fetch(API+'/api/shares/my?limit=200',{headers:{Authorization:'Bearer '+token}});
     if(!r.ok)throw new Error('내 음원 목록을 불러오지 못했습니다. ('+r.status+')');
     var d=await r.json();
-    allTracks=(d.shares||[]).filter(function(t){return String(t.category_type||'').toLowerCase()==='audio'||String(t.file_type||'').toLowerCase().indexOf('audio/')===0||String(t.category||'').toLowerCase()==='music';});
-    legacy=(d.files||[]).filter(function(t){return String(t.file_type||'').toLowerCase().indexOf('audio')>=0||String(t.genre||'').length>0;});
+    allTracks=(d.shares||[]).filter(function(t){return kind(t)==='tl3';});
+    legacy=(d.files||[]).filter(function(t){return kind(t)==='tl3';});
     $('legacyPanel').hidden=legacy.length===0;
     $('legacyList').innerHTML=legacy.map(function(t){return '<div class="legacy-row"><span>♫</span><div><b>'+esc(t.title)+'</b><small>'+esc(t.artist||t.genre||'기존 파일')+' · Track Page 연결 확인 필요</small></div></div>';}).join('');
     render();
