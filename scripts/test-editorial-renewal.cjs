@@ -11,7 +11,7 @@ async function main(){
   let failedCatalog=false;
   await page.route('https://api.timelink.digital/**',route=>{
    const url=new URL(route.request().url());
-   if(url.pathname==='/api/shares'){if(failedCatalog)return route.fulfill({status:503,contentType:'application/json',body:'{}'});return route.fulfill({contentType:'application/json',body:JSON.stringify({shares:[{id:10,share_id:'tl3_fixture',content_kind:'tl3',title:'공개 음악 검사',artist:'검사 창작자',cover_url:'/images/renewal/vinyl-collection-card.jpg'},{id:11,content_kind:'mp3',title:'공유 제외 원본'}]})});}
+   if(url.pathname==='/api/shares'){if(failedCatalog)return route.fulfill({status:503,contentType:'application/json',body:'{}'});const shares=[{id:10,share_id:'tl3_fixture',content_kind:'tl3',title:'공개 음악 검사',artist:'검사 창작자',cover_url:'/images/renewal/vinyl-collection-card.jpg'},{id:11,content_kind:'mp3',title:'공유 제외 원본'}];const offset=Number(url.searchParams.get('offset')||0);return route.fulfill({contentType:'application/json',body:JSON.stringify({shares:offset===0?shares:[]})});}
    if(url.pathname.includes('member-profile'))return route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,profile:{display_name:'검사 계정',email:'fixture@example.test',bio:'브라우저 검사'}})});
    return route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({ok:false})});
   });
