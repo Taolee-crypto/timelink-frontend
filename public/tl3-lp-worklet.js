@@ -54,6 +54,7 @@
         Gm: clamp(Number(g.Gm ?? 1), 0, 1),
         nz: clamp(Number(g.nz ?? -48), -70, -30)
       };
+      this.surfaceNoiseEnabled = p.surfaceNoise === true;
       this.seed = Number(p.seed ?? 7) | 0;
       this.totalFrames = Math.max(0, Number(p.durationMs || 0) * sampleRate / 1000);
       this.frame = 0;
@@ -117,10 +118,10 @@
         l = mid + wide;
         r = mid - wide;
 
-        const progress = this.totalFrames > 0 ? clamp(this.frame / this.totalFrames, 0, 1) : 0;
-        const gi = clamp(g.Gi * (1 + progress), 0, 1);
-        const fc = 16000 - 7000 * g.Gw - 4000 * gi;
         if ((this.frame & 1023) === 0 || this.channels[0].fcBlock !== Math.floor(this.frame / 1024)) {
+          const progress = this.totalFrames > 0 ? clamp(this.frame / this.totalFrames, 0, 1) : 0;
+          const gi = clamp(g.Gi * (1 + progress), 0, 1);
+          const fc = 16000 - 7000 * g.Gw - 4000 * gi;
           const rc = 1 / (2 * Math.PI * fc);
           const al = this.dt / (rc + this.dt);
           const beta = 0.08 * (1 + gi);
@@ -149,8 +150,10 @@
 
         // Streaming equivalent of the reference's seeded surface noise and
         // stochastic click events. PRNG/filter/click state survives segments.
-        a += this.surfaceNoise(this.channels[0], a);
-        b += this.surfaceNoise(this.channels[1], b);
+        if(this.surfaceNoiseEnabled){
+          a += this.surfaceNoise(this.channels[0], a);
+          b += this.surfaceNoise(this.channels[1], b);
+        }
 
         // Whole-file peak normalization cannot be known during live streaming;
         // apply a fast safety limiter only when a transient exceeds 0.98.
@@ -211,3 +214,4 @@
 
   registerProcessor('tl3-reference-lp', TL3ReferenceLPProcessor);
 })();
+

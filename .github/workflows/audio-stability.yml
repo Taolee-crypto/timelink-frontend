@@ -1,0 +1,26 @@
+name: Audio playback stability
+on:
+  pull_request:
+    paths: ['public/tl3-lp-chain.js','public/tl3-lp-worklet.js','scripts/test-audio-stability*.cjs','.github/workflows/audio-stability.yml']
+  push:
+    branches: [main]
+    paths: ['public/tl3-lp-chain.js','public/tl3-lp-worklet.js','scripts/test-audio-stability*.cjs','.github/workflows/audio-stability.yml']
+permissions:
+  contents: read
+jobs:
+  audio-stability:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --check public/tl3-lp-chain.js && node --check public/tl3-lp-worklet.js
+      - run: node scripts/test-audio-stability.cjs
+      - run: npm install --no-save --ignore-scripts playwright@1.51.1
+      - run: node scripts/test-audio-stability-browser.cjs
+        env:
+          TL_CHROMIUM_EXECUTABLE: /usr/bin/google-chrome

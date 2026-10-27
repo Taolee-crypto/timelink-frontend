@@ -9,10 +9,14 @@
   // Prime a reusable context synchronously from the user's Play click.
   // Creating it only after async API requests can leave WebAudio suspended.
   let sharedContext = null;
+  function createContext(){
+    try{return new AudioContextCtor({latencyHint:'playback'});}
+    catch(_){return new AudioContextCtor();}
+  }
   function unlock() {
     if (!AudioContextCtor) return Promise.resolve(false);
     try {
-      if (!sharedContext || sharedContext.state === 'closed') sharedContext = new AudioContextCtor();
+      if (!sharedContext || sharedContext.state === 'closed') sharedContext = createContext();
       return sharedContext.state === 'suspended'
         ? sharedContext.resume().then(() => true)
         : Promise.resolve(true);
@@ -41,7 +45,7 @@
     const profile = resolved(meta);
     profile.duration_ms = Number(durationMs || profile.duration_ms || 0);
 
-    const ctx = (sharedContext && sharedContext.state !== 'closed') ? sharedContext : (sharedContext = new AudioContextCtor());
+    const ctx = (sharedContext && sharedContext.state !== 'closed') ? sharedContext : (sharedContext = createContext());
     const source = ctx.createMediaElementSource(audioEl);
     const master = ctx.createGain();
     master.gain.value = 1;
@@ -53,12 +57,13 @@
     let enabled = false;
     let destroyed = false;
     let workletReady = false;
+    let locallySuspended = false;
 
     async function ensureWorklet() {
       if (workletReady || destroyed) return workletReady;
       if (!ctx.audioWorklet || typeof global.AudioWorkletNode !== 'function') return false;
       try {
-        await ctx.audioWorklet.addModule('/tl3-lp-worklet.js?v=lp-enhanced-stateful-20261018');
+        await ctx.audioWorklet.addModule('/tl3-lp-worklet.js?v=lp-stable-20261027');
         workletReady = true;
       } catch (e) {
         console.warn('[LP-CHAIN] worklet load failed:', e);
@@ -67,14 +72,22 @@
       return workletReady;
     }
 
+    function releaseProcessor(node){
+      if(!node)return;
+      try{node.disconnect();}catch(_){}
+      node.removeEventListener('processorerror',restoreNative);
+      if(node.port){node.port.onmessage=null;try{node.port.close();}catch(_){}}
+    }
+
     async function buildProcessor(p) {
       if (!await ensureWorklet()) return null;
       try {
         const node = new global.AudioWorkletNode(ctx, 'tl3-reference-lp', {
           numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
           channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'speakers',
-          processorOptions: { g: p.g, seed: p.seed, durationMs: Number(p.duration_ms || 0) }
+          processorOptions: { g: p.g, seed: p.seed, durationMs: Number(p.duration_ms || 0), surfaceNoise: false }
         });
+        node.addEventListener('processorerror', restoreNative);
         node.port.onmessage = function (event) {
           const d = event.data || {};
           if (d.type === 'audio-levels') audioEl._tl3LpLevels = d;
@@ -91,13 +104,29 @@
       available = !!processor;
     } catch (_) { available = false; }
 
+    function setOutput(value){
+      try{master.gain.cancelScheduledValues(ctx.currentTime);master.gain.setTargetAtTime(value,ctx.currentTime,0.008);}
+      catch(_){master.gain.value=value;}
+    }
+    function restoreNative(){
+      if(destroyed)return;
+      available=false;enabled=false;
+      try{source.disconnect();}catch(_){}
+      try{if(processor)processor.disconnect();}catch(_){}
+      try{source.connect(master);}catch(_){}
+      setOutput(locallySuspended?0:1);
+      console.warn('[LP-CHAIN] processor failed; restoring native audio');
+    }
     function resume() {
       if (destroyed || audioEl.paused) return Promise.resolve();
-      return ctx.state === 'suspended' ? ctx.resume().catch(() => {}) : Promise.resolve();
+      locallySuspended=false;setOutput(1);
+      return ctx.state !== 'running' && ctx.state !== 'closed' ? ctx.resume().catch(() => {}) : Promise.resolve();
     }
     function suspend() {
       if (destroyed) return Promise.resolve();
-      return ctx.state === 'running' ? ctx.suspend().catch(() => {}) : Promise.resolve();
+      // Each track owns only its gain. Suspending the shared AudioContext
+      // here can interrupt a newer track whose playback has already started.
+      locallySuspended=true;setOutput(0);return Promise.resolve();
     }
 
     function setEnabled(next) {
@@ -151,17 +180,14 @@
       setEnabled,
       resume,
       suspend,
-      stop: suspend,
+      stop: function(){return controller.destroy();},
       updateProfile: async function (nextMeta, nextDurationMs) {
         if (destroyed) return false;
         const nextProfile = resolved(nextMeta);
         nextProfile.duration_ms = Number(nextDurationMs || nextProfile.duration_ms || 0);
         try { master.gain.setValueAtTime(0, ctx.currentTime); } catch (_) {}
         try {
-          if (processor) {
-            try { processor.disconnect(); } catch (_) {}
-            if (processor.port) processor.port.onmessage = null;
-          }
+          releaseProcessor(processor);
           source.disconnect();
           source.connect(master);
           enabled = false;
@@ -178,6 +204,8 @@
       destroy: async function () {
         if (destroyed) return;
         destroyed = true;
+        audioEl.removeEventListener('playing',resume);
+        releaseProcessor(processor);
         try { source.disconnect(); } catch (_) {}
         try { if (processor) processor.disconnect(); } catch (_) {}
         try { master.disconnect(); } catch (_) {}
@@ -205,5 +233,5 @@
     };
   }
 
-  global.TL3LPChain = { create, unlock, defaultProfile: DEFAULT, version: 'lp-chain-2026-10-19-unlocked' };
+  global.TL3LPChain = { create, unlock, defaultProfile: DEFAULT, version: 'lp-chain-2026-10-27-stable' };
 })(window);
