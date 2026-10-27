@@ -18,6 +18,17 @@ async function main(){
   const origin='http://127.0.0.1:'+server.address().port;
   await page.goto(origin+'/');const frame=()=>page.frameLocator('#tl-content');
   await frame().getByRole('heading',{name:'창작활동이 경제활동이 되는 곳.'}).waitFor();
+  fs.mkdirSync('test-results',{recursive:true});await frame().locator('.site-footer').waitFor();
+  assert.equal(await page.locator('body>.site-footer').count(),0,'Host must not repeat the frame footer');
+  assert.equal(await frame().locator('footer').count(),1);
+  const footer=frame().locator('.site-footer');
+  assert.match(await footer.textContent(),/주식회사 틸로/);assert.match(await footer.textContent(),/틸로코리아/);assert.doesNotMatch(await footer.textContent(),/씨엠피|1 TL = 1원/);
+  for(const href of await footer.locator('a').evaluateAll(links=>links.map(a=>a.getAttribute('href'))))assert.ok(fs.existsSync(path.join(root,href)),href);
+  // Old pages may complete a legacy footer render after the common script.
+  await footer.evaluate(el=>el.innerHTML='<p>obsolete footer</p>');await footer.getByRole('link',{name:/TimeLink.*by TILO/}).waitFor();
+  await footer.scrollIntoViewIfNeeded();await page.screenshot({path:'test-results/footer-desktop.png',fullPage:true});
+  await footer.getByRole('button',{name:'맨 위로 ↑'}).click();
+  await page.frames().find(f=>f.url().includes('/timelink.html')).waitForFunction(()=>scrollY<5);
   const entrances=page.locator('.tl-global-links>.tl-global-link');assert.equal(await entrances.count(),4);assert.deepEqual(await entrances.evaluateAll(links=>links.map(a=>new URL(a.href).pathname)),['/timelink.html','/new-asset.html','/radio.html','/world-network.html']);
   await frame().getByRole('link',{name:'플레이어 다운로드 ↗'}).waitFor();await page.waitForLoadState('networkidle');assert.equal(await frame().getByRole('link',{name:'24개 상품 살펴보기 →'}).getAttribute('href'),'/music-subscriptions.html');
   fs.mkdirSync('test-results',{recursive:true});await page.screenshot({path:'test-results/editorial-home-desktop.png',fullPage:true});
@@ -25,7 +36,7 @@ async function main(){
   failedCatalog=true;await page.goto(origin+'/?view='+encodeURIComponent('/new-asset.html'));await frame().getByRole('button',{name:'다시 불러오기'}).waitFor();failedCatalog=false;await frame().getByRole('button',{name:'다시 불러오기'}).click();await frame().locator('#gateCatalog .gate-work').waitFor();
   await page.locator('.tl-global-links>.tl-global-link').nth(3).click();await frame().getByRole('heading',{name:'나의 매장에서, 우리의 일상으로.'}).waitFor();assert.equal(await frame().getByRole('link',{name:'스토어월드 둘러보기 ↗'}).getAttribute('href'),'/cafe-world.html');assert.equal(await frame().getByRole('link',{name:'나의 차 →',exact:true}).getAttribute('href'),'/my-car.html');
   await page.screenshot({path:'test-results/editorial-world-desktop.png',fullPage:true});
-  await page.goto(origin+'/?view='+encodeURIComponent('/shareplace.html'));await frame().locator('.file-card[role="link"]').first().waitFor();await frame().locator('#vt-list').click();const row=frame().locator('.fl-item[role="link"]').first();await row.focus();await Promise.all([page.waitForEvent('framenavigated',{predicate:f=>/\/(track|login)(?:\.html)?(?:[?#]|$)/.test(f.url())}),row.press('Enter')]);
+  await page.goto(origin+'/?view='+encodeURIComponent('/shareplace.html'));await frame().locator('.file-card[role="link"]').first().waitFor();assert.equal(await frame().locator('.site-footer').count(),1);assert.equal(await frame().locator('.gate-footer').count(),0);await frame().locator('#vt-list').click();const row=frame().locator('.fl-item[role="link"]').first();await row.focus();await Promise.all([page.waitForEvent('framenavigated',{predicate:f=>/\/(track|login)(?:\.html)?(?:[?#]|$)/.test(f.url())}),row.press('Enter')]);
   await page.evaluate(()=>localStorage.setItem('tl_token','isolated-ui-fixture'));await page.goto(origin+'/?view='+encodeURIComponent('/my-profile.html'));await frame().getByRole('heading',{name:'내 정보',exact:true}).waitFor();assert.equal(await frame().locator('.gate-account-links a').count(),10);await frame().locator('#name').fill('수정 이름');await frame().getByRole('button',{name:'프로필 저장'}).click();await frame().getByText('저장되었습니다.',{exact:true}).waitFor();
   // Check every new entrance/story at phone width; ensure the content frame
   // itself never needs horizontal scrolling and its images actually load.
@@ -35,6 +46,8 @@ async function main(){
    const content=page.frames().find(f=>new URL(f.url()).pathname===route);assert.ok(content,route);
    await content.evaluate(()=>document.fonts.ready);await content.waitForFunction(()=>[...document.images].every(i=>i.complete));
    const state=await content.evaluate(()=>({overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+1,broken:[...document.images].filter(i=>i.naturalWidth===0).length}));assert.equal(state.overflow,false,route+' overflows');assert.equal(state.broken,0,route+' has broken images');
+   await frame().locator('.site-footer').waitFor();assert.equal(await frame().locator('footer.site-footer').count(),1);
+   if(route==='/timelink.html'){await frame().locator('.site-footer').scrollIntoViewIfNeeded();await page.screenshot({path:'test-results/footer-mobile.png',fullPage:true});await content.evaluate(()=>scrollTo(0,0));}
    if(route==='/timelink.html')await page.screenshot({path:'test-results/editorial-home-mobile.png',fullPage:true});
    if(route==='/new-asset.html')await page.screenshot({path:'test-results/editorial-assets-mobile.png',fullPage:true});
   }

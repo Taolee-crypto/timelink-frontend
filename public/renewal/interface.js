@@ -18,6 +18,7 @@ function apply(){
     if(!document.getElementById('tl-module-script')){const script=document.createElement('script');script.id='tl-module-script';script.src='/renewal/modules.js?v=20261027a';document.head.append(script);}
   }
   const host=document.body.hasAttribute('data-tl-app-host');
+  if(!host&&!document.getElementById('tl-footer-script')){const script=document.createElement('script');script.id='tl-footer-script';script.src='/_shared/footer.js?v=20261027b';document.head.append(script);}
   if(host){const frame=document.getElementById('tl-content');if(frame){frame.style.setProperty('width','100%','important');frame.style.setProperty('max-width','none','important');frame.style.setProperty('margin-right','0','important');}}
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
