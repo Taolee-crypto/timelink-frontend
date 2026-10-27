@@ -55,3 +55,11 @@ assert.ok(runInContext("isRetired({id:routeKey('/dj-center.html'),category:'내 
 assert.ok(script.includes("const active=activeTasks(state.tasks)"));
 assert.ok(script.includes("$('showRetired').checked ? isRetired(t) : !isRetired(t)"));
 console.log('PASS retired tasks excluded from all metrics; TILO and store retained');
+
+assert.ok(!script.includes("['SPONSOR','스폰서 센터'"));
+assert.ok(!script.includes("['ADS','광고 시청'"));
+assert.ok(!script.includes("\nmigrateDjCenter20261024();"));
+assert.ok(script.includes("['나의 카페','/my-cafe.html']"));
+assert.ok(script.includes("['나의 차','/my-car.html']"));
+assert.ok(script.includes('migrateLinkedPages20261024();\n  const pagesChanged='));
+console.log('PASS current menu names, route mapping, and server ledger sync');
