@@ -22,7 +22,7 @@ for(const route of routes){
 }
 // Only intentional navigation entries are required in the sidebar. Older feature
 // pages remain supported as direct routes without cluttering the activity menu.
-const expected=['/timelink.html','/new-asset.html','/world-network.html','/dashboard.html','/shareplace.html','/creator.html','/radio.html','/my-cafe.html','/my-car.html','/cafe-world.html','/my-car-world.html','/ads.html','/wallet.html','/my-profile.html'];
+const expected=['/timelink.html','/new-asset.html','/world-network.html','/dashboard.html','/shareplace.html','/creator.html','/radio.html','/my-cafe.html','/my-car.html','/cafe-world.html','/my-car-world.html','/wallet.html','/my-profile.html'];
 const supportedDirectRoutes=['/cafe-channel.html','/incar-channel.html','/advertiser.html'];
 for(const route of supportedDirectRoutes){
  const filename=path.join(root,route.slice(1));
@@ -30,6 +30,7 @@ for(const route of supportedDirectRoutes){
  else if(!fs.readFileSync(filename,'utf8').includes('/sidebar.js'))failures.push('MISSING GLOBAL SIDEBAR '+route);
 }
 for(const route of expected)if(!routes.includes(route))failures.push('REQUIRED MENU MISSING '+route);
+for(const route of ['/ads.html','/advertiser.html','/dj-center.html','/dj-guide.html'])if(routes.includes(route))failures.push('RETIRED MENU PRESENT '+route);
 const creator=fs.readFileSync(path.join(root,'creator.html'),'utf8');
 for(const val of ['new_work','new_recording','same_recording','work_identity_type'])if(!creator.includes(val))failures.push('CREATOR WORK IDENTITY MISSING '+val);
 const track=fs.readFileSync(path.join(root,'track.html'),'utf8');
