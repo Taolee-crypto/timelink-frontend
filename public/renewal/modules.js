@@ -7,7 +7,7 @@
  const configs={
   '/shareplace.html':{kind:'discover',root:'.main',label:'NEW ASSET / SHAREPLACE',links:[['/new-asset.html','작품 둘러보기'],['/renewal/music.html','내 음악 관리']]},
   '/track.html':{kind:'track',root:'#mainWrap',label:'NEW ASSET / TRACK',links:[['/shareplace.html','공유플레이스'],['#lyricsWrap','가사'],['#commentInput','댓글']]},
-  '/radio.html':{kind:'radio',root:'.radio-page',label:'BROADCAST / TILO',links:[['/dj-center.html','나의 방송'],['/world-network.html','월드 네트워크']]},
+  '/radio.html':{kind:'radio',root:'.radio-page',label:'BROADCAST / TILO',links:[['/world-network.html','월드 네트워크']]},
   '/creator.html':{kind:'creator',root:'main',label:'NEW ASSET / CREATOR',links:[['/renewal/music.html','내 음악 관리'],['/dashboard.html?tab=content','등록 내역'],['/my-profile.html','내 정보']]},
   '/wallet.html':{kind:'wallet',root:'.wallet-page',label:'MY INFORMATION / WALLET',links:[['/my-profile.html','내 정보'],['/dashboard.html?tab=settlement','정산 내역']]},
  };
