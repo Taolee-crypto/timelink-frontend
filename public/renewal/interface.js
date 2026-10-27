@@ -6,6 +6,9 @@ function apply(){
   if(!document.getElementById('tl-interface-style')){
     const link=document.createElement('link');link.id='tl-interface-style';link.rel='stylesheet';link.href='/renewal/interface.css?v=20261026noads2';document.head.append(link);
   }
+  if(!document.getElementById('tl-editorial-font')){
+    const font=document.createElement('link');font.id='tl-editorial-font';font.rel='stylesheet';font.href='https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css';document.head.append(font);
+  }
   if(!document.getElementById('tl-editorial-style')){
     const link=document.createElement('link');link.id='tl-editorial-style';link.rel='stylesheet';link.href='/renewal/editorial.css?v=20261027a';document.head.append(link);
   }

@@ -7,7 +7,7 @@ async function main(){
  await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;
  try{
   browser=await chromium.launch({headless:true,...(process.env.TL_CHROMIUM_EXECUTABLE?{executablePath:process.env.TL_CHROMIUM_EXECUTABLE}:{})});
-  const page=await browser.newPage({viewport:{width:1440,height:1000}});page.setDefaultTimeout(15000);
+  const page=await browser.newPage({locale:'ko-KR',viewport:{width:1440,height:1000}});page.setDefaultTimeout(15000);
   let failedCatalog=false;
   await page.route('https://api.timelink.digital/**',route=>{
    const url=new URL(route.request().url());
@@ -19,7 +19,7 @@ async function main(){
   await page.goto(origin+'/');const frame=()=>page.frameLocator('#tl-content');
   await frame().getByRole('heading',{name:'창작활동이 경제활동이 되는 곳.'}).waitFor();
   const entrances=page.locator('.tl-global-links>.tl-global-link');assert.equal(await entrances.count(),4);assert.deepEqual(await entrances.evaluateAll(links=>links.map(a=>new URL(a.href).pathname)),['/timelink.html','/new-asset.html','/radio.html','/world-network.html']);
-  await frame().getByRole('link',{name:'플레이어 다운로드 ↗'}).waitFor();assert.equal(await frame().getByRole('link',{name:'24개 상품 살펴보기 →'}).getAttribute('href'),'/music-subscriptions.html');
+  await frame().getByRole('link',{name:'플레이어 다운로드 ↗'}).waitFor();await page.waitForLoadState('networkidle');assert.equal(await frame().getByRole('link',{name:'24개 상품 살펴보기 →'}).getAttribute('href'),'/music-subscriptions.html');
   fs.mkdirSync('test-results',{recursive:true});await page.screenshot({path:'test-results/editorial-home-desktop.png',fullPage:true});
   await entrances.nth(1).click();await frame().locator('#gateCatalog .gate-work').first().waitFor();assert.equal(await frame().locator('#gateCatalog .gate-work').count(),1);assert.equal(await frame().locator('#gateCatalog .gate-work').getAttribute('href'),'/track.html?id=tl3_fixture');
   failedCatalog=true;await page.goto(origin+'/?view='+encodeURIComponent('/new-asset.html'));await frame().getByRole('button',{name:'다시 불러오기'}).waitFor();failedCatalog=false;await frame().getByRole('button',{name:'다시 불러오기'}).click();await frame().locator('#gateCatalog .gate-work').waitFor();
@@ -32,7 +32,7 @@ async function main(){
   for(const route of ['/timelink.html','/new-asset.html','/world-network.html','/timelink-story.html','/timelink-economy.html','/my-profile.html']){
    await page.goto(origin+'/?view='+encodeURIComponent(route));await frame().locator('h1').waitFor();await frame().locator('#tl-editorial-style').waitFor({state:'attached'});
    const content=page.frames().find(f=>new URL(f.url()).pathname===route);assert.ok(content,route);
-   await content.waitForFunction(()=>[...document.images].every(i=>i.complete));
+   await content.evaluate(()=>document.fonts.ready);await content.waitForFunction(()=>[...document.images].every(i=>i.complete));
    const state=await content.evaluate(()=>({overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+1,broken:[...document.images].filter(i=>i.naturalWidth===0).length}));assert.equal(state.overflow,false,route+' overflows');assert.equal(state.broken,0,route+' has broken images');
    if(route==='/timelink.html')await page.screenshot({path:'test-results/editorial-home-mobile.png',fullPage:true});
    if(route==='/new-asset.html')await page.screenshot({path:'test-results/editorial-assets-mobile.png',fullPage:true});
