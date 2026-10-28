@@ -117,3 +117,18 @@ console.log('PASS page overview groups and ordering match visible sidebar');
 const adminLedgerHtml=readFileSync(new URL('../public/admin.html',import.meta.url),'utf8');
 assert.ok(adminLedgerHtml.includes("['구현','테스트','운영확인'].includes(t.status)"),'admin ledger summary must count implemented and tested tasks');
 console.log('PASS admin ledger summary uses implementation completion');
+
+
+// Actual release manifest must match canonical sidebar categories.
+const canonicalCategories=runInContext(script.slice(script.indexOf('const sidebarGroups='),script.indexOf('const categoryLabels='))+';categories',createContext({}));
+for(const item of releases.tasks){
+ assert.ok(Array.from(canonicalCategories).includes(item.category),item.id+' unknown category '+item.category);
+ assert.ok(['미검증','설계','구현','테스트','운영확인','보류'].includes(item.status),item.id+' unknown stage');
+}
+assert.ok(script.includes("RELEASE_CATEGORY_ALIASES"));
+assert.ok(script.includes("releaseImportWarnings.push("));
+assert.ok(script.includes("try{releaseChanged=await mergeDevelopmentReleases();}"));
+assert.ok(script.includes("catch(error){releaseError=error?.message||String(error);}"));
+assert.ok(script.includes("document.querySelector('.workspace')?.setAttribute('hidden','')"));
+assert.ok(!script.includes("document.querySelectorAll('main,dialog').forEach(el=>el.hidden=true)"));
+console.log('PASS release categories normalized; optional release sync errors cannot blank authorized ledger');
