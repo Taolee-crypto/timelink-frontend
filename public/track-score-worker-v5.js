@@ -7,14 +7,21 @@ function pitchAt(a,pos,sr){
  let sum=0;for(let i=0;i<n;i+=2){const y=a[pos+i]||0;sum+=y*y;}
  if(Math.sqrt(sum/(n/2))<0.018)return null;
  let cumulative=0,best=2,bestLag=0;
+ const yin=new Float32Array(lagMax+1);
  for(let lag=1;lag<=lagMax;lag++){
   let diff=0;
   for(let i=0;i<n-lag;i+=4){const d=a[pos+i]-a[pos+i+lag];diff+=d*d;}
   cumulative+=diff;
-  if(lag<lagMin)continue;
-  const normalized=cumulative?lag*diff/cumulative:1;
-  if(normalized<best){best=normalized;bestLag=lag;}
-  if(normalized<.16&&lag>lagMin)break;
+  yin[lag]=cumulative?lag*diff/cumulative:1;
+ }
+ // Never stop on the first low-difference lag: it is often 2-3 semitones too
+ // short. Use the earliest genuine local *minimum* of the YIN difference curve.
+ for(let lag=lagMin+1;lag<lagMax;lag++){
+  const value=yin[lag];
+  if(value<.23&&value<=yin[lag-1]&&value<=yin[lag+1]){best=value;bestLag=lag;break;}
+ }
+ if(!bestLag){
+  for(let lag=lagMin;lag<=lagMax;lag++)if(yin[lag]<best){best=yin[lag];bestLag=lag;}
  }
  if(best>.22||!bestLag)return null;
  const midi=Math.round(69+12*Math.log2(sr/bestLag/440));
