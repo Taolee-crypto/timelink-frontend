@@ -22,7 +22,7 @@ console.log('V5 ledger integrity and syntax checks passed');
 // Run the real release merge against an existing server ledger, including manual edits.
 const {createContext,runInContext}=await import('node:vm');
 const releases=JSON.parse(readFileSync(new URL('../public/docs/development-releases.json',import.meta.url),'utf8'));
-const merge=script.slice(script.indexOf('async function mergeDevelopmentReleases(){'),script.indexOf('async function loadServerWorkLedger(){'));
+const merge=script.slice(script.indexOf('const RELEASE_CATEGORY_ALIASES='),script.indexOf('async function loadServerWorkLedger(){'));
 const manual={...releases.tasks[0],status:'보류',note:'관리자 검토 중',history:[{detail:'수동 수정'}]};
 const startRetire=script.indexOf('const retiredIds='),endRetire=script.indexOf('const commonCategories=',startRetire);
 assert.ok(startRetire>=0&&endRetire>startRetire);
@@ -39,7 +39,7 @@ assert.equal(context.state.tasks.length,runInContext('releaseTasks.filter(t=>!is
 assert.ok(!context.state.tasks.some(t=>t.id==='TLV5-WORK-20261027-POLICY'));
 assert.equal(await runInContext('mergeDevelopmentReleases()',context),false);
 assert.equal(context.state.events.length,releases.events.length);
-assert.ok(script.indexOf('const releaseChanged=await mergeDevelopmentReleases()')>script.indexOf('state=d.state;'));
+assert.ok(script.indexOf('try{releaseChanged=await mergeDevelopmentReleases();}')>script.indexOf('state=d.state;'));
 assert.ok(script.includes("!String(t.id||'').startsWith('TLV5-PAGE-')&&t.category!=='라디오 수신앱'"));
 assert.ok(script.includes("['구현','테스트','운영확인'].includes(t.status)"));
 console.log('PASS development progress: server-first merge, manual edits retained, repeat-safe releases and progress bar');
