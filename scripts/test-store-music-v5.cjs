@@ -9,7 +9,7 @@ assert.match(js,/\/api\/v5\/store-music\/queue/);
 assert.match(js,/\/api\/v5\/store-music\/session/);
 assert.match(js,/\/api\/v5\/store-music\/meter/);
 assert.match(js,/\/api\/v5\/store-music\/close/);
-assert.match(js,/\/api\/v5\/store-music\/container/);
+assert.match(js,/license\.container_url/);
 assert.match(js,/crypto\.subtle\.decrypt/);
 assert.match(js,/tl_token/);
 console.log('Store music player uses only authenticated commercial V5 TL3 assets and metered store airtime');
