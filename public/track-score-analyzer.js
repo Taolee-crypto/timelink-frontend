@@ -138,7 +138,7 @@
     });
     download.addEventListener('click',()=>{
       if(!result||typeof root.scoreDataToMusicXml!=='function')return;
-      const xml=root.scoreDataToMusicXml(result,0,{title:root._share?.title||'Music transcription draft',artist:root._share?.artist||'',composer:root._share?.composer||'',lyricist:root._share?.lyricist||'',isrc:root._share?.isrc||''});
+      const xml=root.scoreDataToMusicXml(result,0,(typeof root.trackScoreShareInfo==='function'?root.trackScoreShareInfo():{title:'Music transcription draft'}));
       if(!xml)return;
       const url=URL.createObjectURL(new Blob([xml],{type:'application/vnd.recordare.musicxml+xml;charset=utf-8'}));
       const a=root.document.createElement('a');a.href=url;a.download='timelink-score-draft.musicxml';a.click();
