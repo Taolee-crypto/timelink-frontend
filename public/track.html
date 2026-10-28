@@ -1135,7 +1135,8 @@ async function loadScore(){
     const result=await response.json().catch(()=>({}));
     if(!response.ok||result.ok!==true||result.profile!=='TL3-V5')
       throw new Error(v5ScoreErrorMessage(result,'V5 악보 상태를 조회하지 못했습니다.'));
-    _v5ScoreOwnerAllowed=false; // Retired mixed-audio analyzer must not run, even with an older API.
+    // Expose only server-authorized actions; never revive the mixed-audio drum analyzer.
+    _v5ScoreOwnerAllowed=result.can_generate===true&&result.analysis_ready===true&&!!result.source_sha256;
     _v5ScoreFileId=Number(result.file_id)||0;
     _v5ScoreSourceSha=String(result.source_sha256||'');
     if(actions)actions.hidden=!_v5ScoreOwnerAllowed;
@@ -1222,7 +1223,7 @@ async function scoreDraftFromLicensedMp3(mp3,information){
 }
 async function generateV5ScoreDraft(){
   _v5ScoreAnalysisPending=false;
-  v5ScoreStatus('보컬 분리 채보 서비스 연결을 준비 중입니다. 현재 자동 채보를 시작할 수 없습니다.');
+  v5ScoreStatus('기존 TL3 음원의 보컬 채보는 서버 분석 서비스가 활성화된 후 사용할 수 있습니다. 원본 MP3를 다시 올리지 마세요.');
 }
 
 function closeScoreModal(){
