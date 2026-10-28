@@ -152,7 +152,7 @@ async function mergeDevelopmentReleases(){
  const seen=new Set();
  for(const original of releases.tasks){
   const category=RELEASE_CATEGORY_ALIASES[original?.category]||original?.category;
-  if(!original?.id||!original?.title||!categories.includes(category)||!(original.status in STAGE_WEIGHT)||seen.has(original.id)){
+  if(!original?.id||!original?.title||!categories.includes(category)||!(original?.status in STAGE_WEIGHT)||seen.has(original.id)){
    releaseImportWarnings.push(String(original?.id||'ID 없음')+' ('+String(original?.category||'분류 없음')+')');
    continue;
   }
@@ -177,6 +177,7 @@ let workLedgerLoading=false;
 async function loadServerWorkLedger(){
  if(workLedgerLoading)return;
  workLedgerLoading=true;
+ serverReady=false;
  let banner=document.getElementById('serverSaveStatus');
  if(!banner){banner=document.createElement('p');banner.id='serverSaveStatus';banner.setAttribute('role','status');document.body.prepend(banner);}
  const controls=document.querySelectorAll('button,input,select,textarea');
@@ -185,7 +186,7 @@ async function loadServerWorkLedger(){
   const r=await fetch(workLedgerAPI,{headers:workHeaders(),cache:'no-store'});
   const d=await r.json().catch(()=>({}));
   if(!r.ok||!d.ok)throw Error((d.error||d.code||'관리자 권한 또는 서버 연결 실패')+' (HTTP '+r.status+')');
-  if(!d.state||!Array.isArray(d.state.tasks)||!Array.isArray(d.state.events))throw Error('서버 관리대장 응답 형식이 올바르지 않습니다.');
+  if(d.state&&(!Array.isArray(d.state.tasks)||!Array.isArray(d.state.events)))throw Error('서버 관리대장 응답 형식이 올바르지 않습니다.');
   serverVersion=d.version;
   localStorage.setItem(KEY+'-before-server-sync',JSON.stringify(state));
   state=d.state;
@@ -198,13 +199,14 @@ async function loadServerWorkLedger(){
   try{releaseChanged=await mergeDevelopmentReleases();}
   catch(error){releaseError=error?.message||String(error);}
   serverReady=true;
+  document.querySelector('.workspace')?.removeAttribute('hidden');
   controls.forEach(el=>{el.disabled=el.dataset.initialDisabled==='true';});
   banner.textContent='서버 관리대장 연결 · 버전 '+serverVersion;
   if(releaseError||releaseImportWarnings.length){
    banner.textContent+=' · 개발 반영 동기화 주의: '+(releaseError||releaseImportWarnings.length+'건 분류·형식 미일치 (기존 관리대장 유지)');
    banner.title=releaseImportWarnings.join(' / ');
   }else{banner.removeAttribute('title');}
-  if(pagesChanged||releaseChanged)save();
+  if(!d.state||pagesChanged||releaseChanged)save();
   render();
  }catch(e){
   // Access was not confirmed: do not expose cached administrator data.
