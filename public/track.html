@@ -1134,7 +1134,7 @@ async function loadScore(){
     });
     const result=await response.json().catch(()=>({}));
     if(!response.ok||result.ok!==true||result.profile!=='TL3-V5')
-      throw new Error(result.message||'V5 악보 상태를 조회하지 못했습니다.');
+      throw new Error(v5ScoreErrorMessage(result,'V5 악보 상태를 조회하지 못했습니다.'));
     _v5ScoreOwnerAllowed=false; // Retired mixed-audio analyzer must not run, even with an older API.
     _v5ScoreFileId=Number(result.file_id)||0;
     _v5ScoreSourceSha=String(result.source_sha256||'');
@@ -1277,7 +1277,7 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
   const measures = [];
   let currentMeasure = [], position = 0, eventCursor = 0;
   const allowedTicks = [16,8,4,2,1];
-  function writeSpan(kind, duration, midi, chordSym){
+  function writeSpan(kind, duration, midi, chordSym, lyric){
     let remaining = duration, first = true;
     while(remaining>0){
       if(position>=MEASURE_TICKS){
@@ -1290,6 +1290,7 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
       currentMeasure.push({
         type:kind,duration:dur,midi,
         chordSym:first?chordSym:null,
+        lyric:first?lyric:null,
         tieStop:kind==='note'&&!first,
         tieStart:kind==='note'&&hasMore
       });
@@ -1304,10 +1305,11 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
     const durationTicks=Math.max(1,Math.round(ev.d*(bpm/60)*DIVISIONS));
     let chordSym=null;
     if(scoreData.chords&&scoreData.chords.length){
-      const chord=scoreData.chords.find(c=>ev.s>=c.s&&ev.s<c.e);
-      if(chord)chordSym=String(chord.sym||'').slice(0,30);
+      const chord=scoreData.chords.find(c=>Number.isFinite(Number(c.s))&&ev.s>=Number(c.s)&&ev.s<(Number.isFinite(Number(c.e))?Number(c.e):Infinity));
+      if(chord)chordSym=String(chord.sym||chord.symbol||'').slice(0,30);
     }
-    writeSpan('note',durationTicks,ev.m+transpose,chordSym);
+    const lyric=typeof ev.lyric==='string'?ev.lyric:(typeof ev.text==='string'?ev.text:'');
+    writeSpan('note',durationTicks,ev.m+transpose,chordSym,lyric);
     eventCursor=startTick+durationTicks;
   }
   if(currentMeasure.length)measures.push(currentMeasure);
@@ -1333,7 +1335,7 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
 
   // part-list
   xml.push('  <part-list>');
-  xml.push('    <score-part id="P1"><part-name>Melody</part-name></score-part>');
+  xml.push('    <score-part id="P1"><part-name>Vocal</part-name><part-abbreviation>Vo.</part-abbreviation></score-part>');
   xml.push('  </part-list>');
 
   // part
@@ -1367,10 +1369,16 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
         xml.push('      </note>');
       } else if(item.type === "note"){
         // 코드 심볼 (harmony)
-        if(item.chordSym){
+        if(item.chordSym && /^[A-G][#b]?/.test(String(item.chordSym).trim())){
+          const guitarChord=String(item.chordSym).trim();
+          const bassMatch=guitarChord.match(/\/([A-G][#b]?)$/);
+          const guitarRoot=guitarChord.match(/^([A-G])([#b]?)/);
           xml.push('      <harmony>');
           xml.push('        <root><root-step>' + chordRoot(item.chordSym) + '</root-step>' + chordAlter(item.chordSym) + '</root>');
-          xml.push('        <kind>' + chordKind(item.chordSym) + '</kind>');
+          xml.push('        <kind text="' + escapeXml(guitarChord) + '">' + chordKind(guitarChord) + '</kind>');
+          if(bassMatch){
+            xml.push('        <bass><bass-step>'+bassMatch[1][0]+'</bass-step>'+(bassMatch[1].length>1?'<bass-alter>'+(bassMatch[1][1]==='#'?1:-1)+'</bass-alter>':'')+'</bass>');
+          }
           xml.push('      </harmony>');
         }
 
@@ -1384,6 +1392,7 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
         xml.push('        </pitch>');
         xml.push('        <duration>' + item.duration + '</duration>');
         xml.push('        <type>' + ticksToType(item.duration, DIVISIONS) + '</type>');
+        if(item.lyric)xml.push('        <lyric number="1"><syllabic>single</syllabic><text>'+escapeXml(item.lyric.slice(0,120))+'</text></lyric>');
         if(item.tieStop)xml.push('        <tie type="stop"/>');
         if(item.tieStart)xml.push('        <tie type="start"/>');
         if(item.tieStop||item.tieStart){
