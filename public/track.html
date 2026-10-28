@@ -544,8 +544,15 @@ window.addEventListener('resize',()=>requestAnimationFrame(()=>{if(typeof fitTra
     </div>
     <section id="trackV5ScoreScope" aria-label="TRACK 연계 악보" style="margin:12px 0;padding:14px;border-radius:12px;border:1px solid rgba(245,166,35,.3);background:#161b28;color:#e2e8f0">
   <strong style="color:#f5a623">이 곡의 TLD 악보</strong>
-  <p style="font-size:12px;line-height:1.7;margin:8px 0 0">TRACK에 등록된 음원을 기준으로 악보를 자동 생성하는 방식으로 연결합니다. 음원을 다시 선택하거나 업로드하지 않습니다. V5 음원 분석·TLD 봉인·정산 연결은 아직 준비 중이며, 발행되지 않은 악보에 TL을 청구하지 않습니다.</p>
+  <p style="font-size:12px;line-height:1.7;margin:8px 0 0">TRACK에 등록된 V5 음원을 다시 업로드하지 않고, 창작자가 권리를 확인한 뒤 정상 재생 과정에서 악보 초안을 생성할 수 있습니다. 초안은 비공개·미검수 상태이며 정식 TLD 봉인·발행·결제·정산은 아직 제공되지 않습니다.</p>
 </section>
+<div id="v5ScoreCreatorActions" hidden style="padding:12px;margin:10px 0;background:#1b2334;border:1px solid #454f65;border-radius:10px">
+  <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;color:#e5eaf2;line-height:1.7">
+    <input id="v5ScoreDerivativesRights" type="checkbox" style="margin-top:3px"> 이 곡의 음원 및 작곡 저작물에 대해 악보 작성에 필요한 권리 또는 적법한 허락을 확보했습니다.
+  </label>
+  <button id="generateV5ScoreDraftBtn" type="button" onclick="generateV5ScoreDraft()" style="background:#e7b954;color:#111925;border:0;border-radius:8px;padding:10px 16px;margin-top:10px;cursor:pointer;font-weight:700">이 곡 자동 채보 초안 생성</button>
+  <p id="v5ScoreAnalysisProgress" role="status" aria-live="polite" style="margin:10px 0 0;color:#dbe4f3;font-size:12px">현재 등록된 V5 음원을 정상 재생하면서 분석합니다. 재생에 따른 기존 TL 이용 규칙은 그대로 적용됩니다. 초안 작성은 별도 과금되지 않습니다.</p>
+</div>
 <div id="scoreContainer">
       <div style="padding:40px;text-align:center;color:#666">⏳ 악보 불러오는 중...</div>
     </div>
@@ -1058,6 +1065,7 @@ function renderPage(s, stats, myFileTL, requiredTL){
 // ═══════════════════════════════════════════════════════════════
 let _scoreData = null;
 let _scoreTranspose = 0;
+let _v5ScoreOwnerAllowed=false,_v5ScoreFileId=0,_v5ScoreSourceSha='',_v5ScoreAnalysisPending=false,_v5ScoreAnalyzing=false;
 // V5-only status. The V3 score service is not a valid lookup or payment path.
 // This is a song-linked read: the same TRACK identifier is sent to the V5 API.
 function downloadTldPdf(){
@@ -1094,6 +1102,7 @@ function renderUnissuedV5Score(container, details){
 async function loadScore(){
   // The current V5 API never reads old tl3_releases or bills the user.
   _scoreData=null;_scoreTranspose=0;
+  const actions=document.getElementById('v5ScoreCreatorActions');if(actions)actions.hidden=true;
   const transpose=document.getElementById('scoreTransposeControls');
   if(transpose){transpose.hidden=true;transpose.setAttribute('aria-hidden','true');}
   const val=document.getElementById('transposeVal');if(val)val.textContent='0';
@@ -1109,15 +1118,25 @@ async function loadScore(){
   modal.classList.add('open');
   try{
     const response=await fetch(API+'/api/v1/scores/v5/'+encodeURIComponent(SHARE_ID),{
-      headers:{'Accept':'application/json'},cache:'no-store'
+      headers:{'Accept':'application/json',...(getTok()?{'Authorization':'Bearer '+getTok()}:{})},cache:'no-store'
     });
     const result=await response.json().catch(()=>({}));
     if(!response.ok||result.ok!==true||result.profile!=='TL3-V5')
       throw new Error(result.message||'V5 악보 상태를 조회하지 못했습니다.');
-    if(result.has_score===true&&result.score&&Array.isArray(result.score.melody)&&result.score.melody.length&&result.score_status==='published'){
+    _v5ScoreOwnerAllowed=result.can_generate===true;
+    _v5ScoreFileId=Number(result.file_id)||0;
+    _v5ScoreSourceSha=String(result.source_sha256||'');
+    if(actions)actions.hidden=!_v5ScoreOwnerAllowed;
+    if(result.has_score===true&&result.score&&Array.isArray(result.score.melody)&&result.score.melody.length&&['draft','published'].includes(result.score_status)){
       _scoreData=result.score;
       if(transpose){transpose.hidden=false;transpose.setAttribute('aria-hidden','false');}
       await renderScoreOSMD(_scoreData,0);
+      if(result.score_status==='draft'){
+        const notice=document.createElement('p');
+        notice.style.cssText='padding:10px 14px;background:#302717;color:#f5d17b;font-size:13px;margin:0 0 12px;border-radius:8px;';
+        notice.textContent='자동 채보 초안 · 악보 정확도 검수 전 · TLD 미발행 (TL 차감 없음)';
+        container.prepend(notice);
+      }
     }else{
       renderUnissuedV5Score(container,result);
     }
@@ -1129,6 +1148,85 @@ async function loadScore(){
     msg.textContent='악보 상태 연결 오류: '+(e?.message||'다시 확인해 주세요.');
     container.append(msg);
   }
+}
+
+
+function v5ScoreStatus(message){
+  const el=document.getElementById('v5ScoreAnalysisProgress');
+  if(el)el.textContent=String(message||'');
+}
+async function scoreDraftFromLicensedMp3(mp3,information){
+  if(!_v5ScoreOwnerAllowed||_v5ScoreAnalyzing)return;
+  _v5ScoreAnalyzing=true;_v5ScoreAnalysisPending=false;
+  const button=document.getElementById('generateV5ScoreDraftBtn');
+  if(button)button.disabled=true;
+  let audioContext=null;
+  try{
+    if(Number(information.file_id)!==_v5ScoreFileId)throw Error('분석 대상 곡 ID가 일치하지 않습니다.');
+    const bytes=mp3 instanceof Uint8Array?mp3:new Uint8Array(mp3);
+    const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)));
+    const hash=[...digest].map(v=>v.toString(16).padStart(2,'0')).join('');
+    if(hash!==_v5ScoreSourceSha||information.source_sha256&&String(information.source_sha256)!==hash)
+      throw Error('V5 원본 음원 지문이 일치하지 않습니다. 분석을 중단했습니다.');
+    v5ScoreStatus('실제 음원을 디코딩하고 있습니다. 재생과 악보 분석은 별도로 진행됩니다.');
+    const Context=window.AudioContext||window.webkitAudioContext;
+    if(!Context||typeof Worker==='undefined')throw Error('이 브라우저는 자동 채보 분석을 지원하지 않습니다.');
+    audioContext=new Context();
+    const pcm=await audioContext.decodeAudioData(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
+    if(!pcm||!pcm.length||pcm.duration<1)throw Error('음원을 디코딩할 수 없습니다.');
+    const targetRate=8000,seconds=Math.min(pcm.duration,480),sampleCount=Math.floor(seconds*targetRate);
+    const samples=new Float32Array(sampleCount),left=pcm.getChannelData(0);
+    const right=pcm.numberOfChannels>1?pcm.getChannelData(1):null;
+    for(let i=0;i<sampleCount;i++){
+      const index=Math.min(left.length-1,Math.floor(i*pcm.sampleRate/targetRate));
+      samples[i]=right?(left[index]+right[index])*.5:left[index];
+    }
+    v5ScoreStatus('복호화된 V5 음원의 실제 멜로디를 분석하고 있습니다. 약 '+Math.ceil(seconds)+'초 구간입니다.');
+    const worker=new Worker('/track-score-worker-v5.js?v=20261029a');
+    const result=await new Promise((resolve,reject)=>{
+      const deadline=setTimeout(()=>{worker.terminate();reject(Error('악보 분석 처리 제한을 초과했습니다.'));},120000);
+      worker.onmessage=event=>{
+        clearTimeout(deadline);worker.terminate();
+        const value=event.data||{};if(value.ok)resolve(value.score);
+        else reject(Error(value.error||'악보 분석에 실패했습니다.'));
+      };
+      worker.onerror=event=>{clearTimeout(deadline);worker.terminate();reject(Error(event.message||'분석 엔진 오류'));};
+      worker.postMessage({samples:samples.buffer,sampleRate:targetRate,bpm:Number(_share?.bpm)||120},[samples.buffer]);
+    });
+    v5ScoreStatus('추출한 '+result.melody.length+'개 음표를 이 곡의 비공개 초안으로 저장하고 있습니다.');
+    const response=await fetch(API+'/api/v1/scores/v5/'+encodeURIComponent(SHARE_ID)+'/draft',{
+      method:'POST',headers:{'Authorization':'Bearer '+getTok(),'Content-Type':'application/json'},
+      body:JSON.stringify({rights_confirmed:true,source_sha256:hash,score_data:result})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||data.ok!==true)throw Error(data.code||data.message||'악보 저장 실패');
+    await loadScore();
+    v5ScoreStatus('이 곡의 실제 음원에서 '+data.notes+'개 음표를 분석해 비공개 악보 초안으로 저장했습니다. 검수 전이며 TLD는 발행되지 않았습니다.');
+  }catch(error){v5ScoreStatus('자동 채보 실패: '+(error?.message||String(error)));}
+  finally{if(audioContext)await audioContext.close().catch(()=>{});_v5ScoreAnalyzing=false;if(button)button.disabled=false;}
+}
+async function generateV5ScoreDraft(){
+  if(!_v5ScoreOwnerAllowed||!_v5ScoreFileId)return;
+  const rights=document.getElementById('v5ScoreDerivativesRights');
+  if(!rights?.checked){v5ScoreStatus('작곡 저작물 및 음원 분석 권리 확인이 필요합니다.');return;}
+  if(!getTok()){v5ScoreStatus('창작자 로그인이 필요합니다.');return;}
+  if(_v5ScoreAnalyzing)return;
+  if(!confirm('이 곡의 음원·작곡 저작물에 대한 악보 작성 권한을 확인합니다. 악보는 검수용 비공개 초안으로 생성되며, 기존 음악 재생에 따른 TL 이용 규칙은 유지됩니다. 계속할까요?'))return;
+  if(_tlAudio&&_tlPlaying&&String(_tlAudio.src||'').startsWith('blob:')){
+    v5ScoreStatus('현재 재생 중인 V5 음원을 분석합니다.');
+    try{
+      const response=await fetch(_tlAudio.src,{cache:'no-store'});
+      const bytes=new Uint8Array(await response.arrayBuffer());
+      await scoreDraftFromLicensedMp3(bytes,{file_id:_v5ScoreFileId,source_sha256:_v5ScoreSourceSha});
+    }catch(e){v5ScoreStatus('음원 접근 실패: '+(e?.message||String(e)));}
+    return;
+  }
+  // The normal licensed V5 player already has the verified clear audio in
+  // memory. Do not add a second upload/decryption/payment pathway.
+  _v5ScoreAnalysisPending=true;
+  v5ScoreStatus('기존 V5 재생을 시작한 뒤 자동 채보합니다. 재생이 시작되지 않으면 TL 이용권을 확인해 주세요.');
+  closeScoreModal();
+  try{handlePlayClick();}catch(e){_v5ScoreAnalysisPending=false;v5ScoreStatus('재생 시작 실패: '+(e?.message||String(e)));}
 }
 
 function closeScoreModal(){
@@ -2036,6 +2134,9 @@ async function playTrack(){
   } else if(_useTl3V5 && window.TL3V5Player && typeof TL3V5Player.playStream === 'function'){
     console.log('[PLAY] TL3 V5 whole-container Player 시작:', SHARE_ID);
     TL3V5Player.playStream(RAW_SHARE_ID || SHARE_ID, _tlAudio, {
+      onVerifiedScoreAudio:_v5ScoreOwnerAllowed&&_v5ScoreAnalysisPending?function(mp3,info){
+        return scoreDraftFromLicensedMp3(mp3,info);
+      }:undefined,
       onBillingMode:function(info){if(['subscription','time_free'].includes(info.billing_mode)){_tlSubscription={mode:info.billing_mode,remainingMs:Math.max(0,Number(info.remaining_included_ms)||0),chargedTL:0};updatePlayerTLDisplay();}},
       onProgress: function(progress){
         if(!_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;

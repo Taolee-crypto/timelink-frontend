@@ -271,6 +271,15 @@
     }
     if(djStationId&&Number.isFinite(Number(opts.startOffsetSeconds)))audio.currentTime=Math.max(0,Math.min(totalMs/1000-.1,Number(opts.startOffsetSeconds)));
     try{await audio.play();}catch(e){throw new Error('음원 재생을 시작하지 못했습니다: '+(e&&e.message||e));}
+    // Optional, explicitly creator-authorized score drafting on the TRACK view.
+    // Neither keys nor MP3 are uploaded: only the owner-side analyzer receives
+    // the already-licensed clear audio in browser memory after playback starts.
+    if(typeof opts.onVerifiedScoreAudio==='function'){
+      Promise.resolve().then(()=>opts.onVerifiedScoreAudio(decoded.mp3,{
+        file_id:fileId,share_id:shareId,source_sha256:String(manifest.source_sha256||''),
+        duration_ms:totalMs
+      })).catch(err=>console.warn('[V5 SCORE] owner draft analysis failed',err));
+    }
     audio._tl3End=async function(){
       sample(true);
       if(audio.ended){if(pre.billing_mode==='time_free'){publishProgress(false);queueMeter(billableMs/1000,false);}else{billableMs=totalMs;publishProgress(true);queueMeter(Math.ceil(totalMs/1000),true);}}

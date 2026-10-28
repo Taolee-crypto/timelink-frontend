@@ -22,7 +22,7 @@ let result={ok:true,profile:'TL3-V5',score_status:'not_generated',title:'RED AND
 let success=true;
 const c={document:{getElementById(id){return els[id]||null;},createElement(){return element();}},
  _scoreData:null,_scoreTranspose:0,_share:{title:'RED AND YELLOW'},API:'https://api.timelink.digital',SHARE_ID:'178',
- encodeURIComponent,alert(){throw Error('no popup expected');},
+ encodeURIComponent,getTok:()=>'',alert(){throw Error('no popup expected');},
  fetch:async(url,opts)=>{calls.push({url,opts});return {ok:success,json:async()=>result};},
  renderScoreOSMD:()=>{throw Error('should not render unpublished TLD');}
 };

@@ -8,7 +8,8 @@ const releases=JSON.parse(fs.readFileSync(path.join(__dirname,'../public/docs/de
 // TRACK must use its existing share ID; never ask listeners to pick/upload another audio file.
 assert.ok(html.includes("fetch(API+'/api/v1/scores/v5/'+encodeURIComponent(SHARE_ID)"));
 assert.ok(html.includes('id="trackV5ScoreScope"'));
-assert.ok(html.includes('음원을 다시 선택하거나 업로드하지 않습니다'));
+assert.ok(html.includes('TRACK에 등록된 V5 음원을 다시 업로드하지 않고'));
+assert.ok(html.includes('비공개·미검수 상태이며 정식 TLD 봉인'));
 assert.ok(!html.includes('id="localScoreAudio"'));
 assert.ok(!html.includes('id="localScoreChoose"'));
 assert.ok(!html.includes('track-score-analyzer.js'));
@@ -25,6 +26,6 @@ assert.ok(releases.tasks.some(t=>t.id==='TLV5-TRACK-TLD-SERVICE-20261029'&&t.sta
 assert.ok(releases.events.some(e=>e.id==='retire-track-local-reupload-20261029'));
 assert.ok(!html.includes('fetch(API + "/api/v1/tl3/score/"'));
 assert.ok(!html.includes('fetch(API + "/api/v1/scores/" + SHARE_ID + "/use"'));
-assert.ok(html.includes('score_status===\'published\''));
+assert.ok(html.includes("['draft','published'].includes(result.score_status)"),'owner can see unreviewed draft without publishing');
 assert.ok(html.includes('#scoreModal [hidden]{display:none!important}'));
 console.log('PASS TRACK uses V5 score endpoint, no old V3 404, no false TL purchase, no manual upload');
