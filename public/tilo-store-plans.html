@@ -7,7 +7,7 @@
 
 
 
-<section class="card"><h2>내 매장에 맞는 상품</h2><div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap"><div><label for="hours">하루 예상 방송 이용 시간</label><input id="hours" type="number" min="1" max="24" step="1" value="12" required aria-label="하루 방송 시간, 1시간부터 24시간까지" style="width:110px;padding:12px;border-radius:9px;border:1px solid #718096;background:#fff;color:#14213d"></div><div><label for="purchasePeriod">구매 기간</label><select id="purchasePeriod"><option value="hour">시간 단위 · 1회</option><option value="day">일간</option><option value="month">월간</option><option value="year">연간</option></select></div><button id="storeCheckout" type="button" style="padding:13px 24px;background:#f4ce73;color:#141d33;border:0;border-radius:10px;font-weight:800;cursor:pointer">결제하기</button></div><div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:16px"><label><input type="checkbox" id="applyTripleLuck"> 트리플 행운 이벤트 적용 요청</label><label><input type="checkbox" id="applyReferralBenefit"> 매장 추천 혜택 적용 요청</label></div><p class="meta">이벤트 혜택은 서버에서 대상 여부와 중복 적용 가능 여부를 확인한 경우에만 가격에 반영됩니다.</p><p id="recommend" aria-live="polite"></p><p id="storeCheckoutStatus" role="status" aria-live="polite"></p>
+<section class="card"><h2>내 매장에 맞는 상품</h2><div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap"><div><label for="hours">하루 예상 방송 이용 시간</label><input id="hours" type="number" min="1" max="24" step="1" value="12" required aria-label="하루 방송 시간, 1시간부터 24시간까지" style="width:110px;padding:12px;border-radius:9px;border:1px solid #718096;background:#fff;color:#14213d"></div><div><label for="purchasePeriod">구매 기간</label><select id="purchasePeriod"><option value="hour">시간 단위 · 1회</option><option value="day">일간</option><option value="month">월간</option><option value="year">연간</option></select></div><button id="storeCheckout" type="button" style="padding:13px 24px;background:#f4ce73;color:#141d33;border:0;border-radius:10px;font-weight:800;cursor:pointer">결제하기</button></div><div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:16px"><label><input type="checkbox" id="applyTripleLuck" disabled aria-describedby="storeEventAvailability"> 트리플 행운 이벤트 · 준비 중</label><label><input type="checkbox" id="applyReferralBenefit" disabled aria-describedby="storeEventAvailability"> 매장 추천 혜택 · 준비 중</label></div><p class="meta" id="storeEventAvailability">이벤트 할인은 준비 중입니다. 현재는 이벤트 할인 없이 서버에서 확인한 금액으로 결제할 수 있습니다.</p><p id="recommend" aria-live="polite"></p><p id="storeCheckoutStatus" role="status" aria-live="polite"></p>
 <dialog id="storePaymentDialog" aria-labelledby="storePaymentTitle" style="width:min(94vw,540px);border:1px solid #637aa1;border-radius:18px;background:#141d31;color:#fff;padding:26px;box-shadow:0 24px 80px #000a">
   <h2 id="storePaymentTitle" style="margin-top:0">매장 방송 시간 결제 · 충전</h2>
   <p id="storePaymentSummary" aria-live="polite"></p>
@@ -44,9 +44,17 @@ const storePayButton=document.getElementById('storePaymentConfirm');
 const storePayNotice=document.getElementById('storePaymentNotice');
 const storePayChannel=document.getElementById('storePaymentChannel');
 let storePaySelection=null;
+// Unsupported events must stay off, including browser-restored form state.
+function resetUnavailableStoreEvents(){
+ for(const id of ['applyTripleLuck','applyReferralBenefit']){
+  const input=document.getElementById(id);input.checked=false;input.disabled=true;
+ }
+}
+resetUnavailableStoreEvents();
+window.addEventListener('pageshow',resetUnavailableStoreEvents);
 function storeToken(){return localStorage.getItem('tl_token')||localStorage.getItem('token')||localStorage.getItem('access_token')||'';}
 function storePaymentError(error){
- const messages={STORE_OWNER_REQUIRED:'선택한 매장의 소유자 계정으로 로그인해야 합니다.',TOSS_TEST_KEYS_REQUIRED:'토스 테스트 결제키가 서버에 준비되지 않았습니다.',STORE_EVENT_NOT_CONFIGURED:'선택하신 이벤트는 적용 조건이 아직 설정되지 않았습니다. 체크 해제 후 다시 결제해 주세요.',TOSS_MINIMUM_1000_KRW:'토스 최소 결제 금액은 1,000원입니다.',AUTH_REQUIRED:'로그인 상태를 다시 확인해 주세요.'};
+ const messages={STORE_OWNER_REQUIRED:'선택한 매장의 소유자 계정으로 로그인해야 합니다.',TOSS_TEST_KEYS_REQUIRED:'토스 테스트 결제키가 서버에 준비되지 않았습니다.',STORE_EVENT_NOT_CONFIGURED:'선택하신 이벤트는 적용 조건이 아직 설정되지 않았습니다. 현재 이벤트 할인은 준비 중입니다.',TOSS_MINIMUM_1000_KRW:'토스 최소 결제 금액은 1,000원입니다.',AUTH_REQUIRED:'로그인 상태를 다시 확인해 주세요.'};
  return messages[error]||error||'매장 방송 시간 결제를 진행할 수 없습니다.';
 }
 async function storeApi(path,options={}){
@@ -103,9 +111,10 @@ checkoutButton.addEventListener('click',async()=>{
  checkoutButton.disabled=true;
  checkoutStatus.textContent='서버에서 매장 방송 이용 금액을 확인하고 있습니다.';
  try{
+  resetUnavailableStoreEvents();
   storePaySelection={
    hours:Number(hours.value),period:purchasePeriod.value,area_tier:Number(document.getElementById('storeArea').value),
-   requested_events:{triple_luck:document.getElementById('applyTripleLuck').checked,referral:document.getElementById('applyReferralBenefit').checked}
+   requested_events:{triple_luck:false,referral:false}
   };
   if(!Number.isSafeInteger(storePaySelection.hours)||storePaySelection.hours<1||storePaySelection.hours>24)throw Error('하루 방송 시간은 1~24시간 사이의 정수로 입력해 주세요.');
   const quote=await storeApi('/api/payment/v5/commercial-time/quote',{
@@ -115,8 +124,8 @@ checkoutButton.addEventListener('click',async()=>{
   const summary='구매 시간 '+(quote.seconds/3600).toLocaleString('ko-KR')+'시간 · 기준 '+won(quote.nominalKrw)+' · 예상 결제금액 '+won(quote.amountKrw);
   checkoutStatus.textContent=summary;
   document.getElementById('storePaymentSummary').textContent=summary;
-  storePayNotice.textContent=(storePaySelection.requested_events.triple_luck||storePaySelection.requested_events.referral?'체크된 이벤트 할인은 아직 활성화되지 않았습니다. 체크 해제 후 결제 가능합니다. ':'')+'토스 테스트 결제 승인 후 선택한 매장에 방송 시간이 충전됩니다.';
-  storePayButton.disabled=!!(storePaySelection.requested_events.triple_luck||storePaySelection.requested_events.referral);
+  storePayNotice.textContent='토스 테스트 결제 승인 후 선택한 매장에 방송 시간이 충전됩니다.';
+  storePayButton.disabled=false;
   storePayDialog.showModal();
  }catch(error){checkoutStatus.textContent=storePaymentError(error?.message);}
  finally{checkoutButton.disabled=false;}
