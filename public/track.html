@@ -520,6 +520,7 @@ window.addEventListener('resize',()=>requestAnimationFrame(()=>{if(typeof fitTra
   </div>
 </div>
 
+<style>#scoreModal [hidden]{display:none!important}</style>
 <!-- ★ 악보 모달 (Score Modal) ★ -->
 <div class="modal-overlay" id="scoreModal">
   <div class="modal modal-score">
@@ -528,16 +529,16 @@ window.addEventListener('resize',()=>requestAnimationFrame(()=>{if(typeof fitTra
       <button class="modal-close" onclick="closeScoreModal()"><i data-lucide="x" style="width:18px;height:18px"></i></button>
     </div>
     <div class="score-controls">
-      <div class="score-transpose">
+      <div class="score-transpose" id="scoreTransposeControls" hidden aria-hidden="true">
         <button class="score-btn" onclick="transposeScore(-1)" title="반음 내림">♭ -1</button>
         <span class="score-transpose-val" id="transposeVal">0</span>
         <button class="score-btn" onclick="transposeScore(1)" title="반음 올림">♯ +1</button>
         <button class="score-btn" onclick="transposeScore(0)" title="원곡">↺ 원곡</button>
       </div>
-      <button class="score-btn primary" id="useScoreBtn" onclick="useScore()">
+      <button class="score-btn primary" id="useScoreBtn" onclick="useScore()" hidden disabled>
         <i data-lucide="download" style="width:14px;height:14px"></i> 악보 사용 (1,000 TL)
       </button>
-      <button class="score-btn" id="downloadPdfBtn" onclick="downloadTldPdf()" style="background:rgba(100,181,246,.15);border-color:rgba(100,181,246,.4)">
+      <button class="score-btn" id="downloadPdfBtn" hidden disabled onclick="downloadTldPdf()" style="background:rgba(100,181,246,.15);border-color:rgba(100,181,246,.4)">
         <i data-lucide="file-text" style="width:14px;height:14px"></i> PDF 악보
       </button>
     </div>
@@ -1057,64 +1058,76 @@ function renderPage(s, stats, myFileTL, requiredTL){
 // ═══════════════════════════════════════════════════════════════
 let _scoreData = null;
 let _scoreTranspose = 0;
-// ★ TLD PDF 다운로드 (Workers 프록시 경유)
-function downloadTldPdf(page){
-  alert('정식 TLD 악보 발행·다운로드는 V5 음원 및 권리 검증 시스템과 연결한 후 제공됩니다. 현재 TL은 차감되지 않습니다.');return;
-  page = page || 1;
-  if(!SHARE_ID){
-    alert("곡 정보를 찾을 수 없습니다");
-    return;
-  }
-  const url = API + "/api/v1/scores/" + SHARE_ID + "/file.tld?page=" + page;
-  window.open(url, '_blank');
+// V5-only status. The V3 score service is not a valid lookup or payment path.
+// This is a song-linked read: the same TRACK identifier is sent to the V5 API.
+function downloadTldPdf(){
+  alert('정식 V5 TLD 악보가 발행된 후 다운로드할 수 있습니다. 현재 TL은 차감되지 않습니다.');
 }
 
-// 악보 데이터 로드 + 모달 열기
+function renderUnissuedV5Score(container, details){
+  const title=String(details?.title || _share?.title || '선택한 곡');
+  container.replaceChildren();
+  container.style.background='linear-gradient(145deg,#161f30,#101522)';
+  container.style.color='#e8edf8';
+  container.style.border='1px solid rgba(148,163,184,.2)';
+  container.style.borderRadius='16px';
+  container.style.minHeight='230px';
+  container.style.display='flex';
+  container.style.alignItems='center';
+  container.style.justifyContent='center';
+  const wrap=document.createElement('div');
+  wrap.style.cssText='text-align:center;max-width:520px;padding:26px;line-height:1.8;';
+  const symbol=document.createElement('div');
+  symbol.textContent='🎼';symbol.style.cssText='font-size:38px;margin-bottom:8px;';
+  const heading=document.createElement('h3');
+  heading.textContent='이 곡의 TLD 악보는 아직 발행되지 않았습니다';
+  heading.style.cssText='font-size:17px;color:#f5d17b;margin:0 0 9px;';
+  const info=document.createElement('p');
+  info.textContent=title+' · TL3 V5 음원은 정상 등록되어 있습니다. 악보 자동 분석·검수·TLD 발행은 아직 완료되지 않았습니다.';
+  info.style.cssText='font-size:13px;color:#cbd5e1;margin:0 0 10px;';
+  const note=document.createElement('p');
+  note.textContent='음원을 다시 올릴 필요가 없습니다. 미발행 악보에 대한 TL 결제도 발생하지 않습니다.';
+  note.style.cssText='font-size:12px;color:#9faec7;margin:0;';
+  wrap.append(symbol,heading,info,note);container.append(wrap);
+}
+
 async function loadScore(){
-  // V3 score payment/proxy is not compatible with TL3 V5; do not expose a pay action.
-  for(const id of ['useScoreBtn','downloadPdfBtn']){const button=document.getElementById(id);if(button)button.hidden=true;}
-  if(!_share){ alert("곡 정보를 불러오는 중입니다"); return; }
-
-  const modal = document.getElementById("scoreModal");
-  const container = document.getElementById("scoreContainer");
-  if(!modal || !container){ alert("악보 모달을 찾을 수 없습니다"); return; }
-
-  container.innerHTML = '<div style="padding:40px;text-align:center;color:#666">⏳ 악보 불러오는 중...</div>';
-  modal.classList.add("open");
-
-  try {
-    const r = await fetch(API + "/api/v1/tl3/score/" + SHARE_ID);
-    const d = await r.json();
-
-    if(!r.ok || !d.ok){
-      if(d.error === "NO_SCORE"){
-        container.innerHTML = '<div style="padding:60px;text-align:center;color:#999">'
-          + '<div style="font-size:48px;margin-bottom:16px">🎼</div>'
-          + '<div style="font-size:15px;font-weight:700;color:#666;margin-bottom:8px">이 곡은 악보가 없습니다</div>'
-          + '<div style="font-size:12px;color:#999">이 곡의 TLD 악보는 아직 생성·발행되지 않았습니다. TRACK에 등록된 V5 음원과 연동하는 자동 채보·검수·TLD 발행 기능을 개발 중입니다.</div>'
-          + '</div>';
-        return;
-      }
-      throw new Error(d.error || "악보 조회 실패");
+  // The current V5 API never reads old tl3_releases or bills the user.
+  _scoreData=null;_scoreTranspose=0;
+  const transpose=document.getElementById('scoreTransposeControls');
+  if(transpose){transpose.hidden=true;transpose.setAttribute('aria-hidden','true');}
+  const val=document.getElementById('transposeVal');if(val)val.textContent='0';
+  for(const id of ['useScoreBtn','downloadPdfBtn']){
+    const button=document.getElementById(id);if(button){button.hidden=true;button.disabled=true;}
+  }
+  if(!_share){alert('곡 정보를 불러오는 중입니다.');return;}
+  const modal=document.getElementById('scoreModal');
+  const container=document.getElementById('scoreContainer');
+  if(!modal||!container){alert('악보 모달을 찾을 수 없습니다.');return;}
+  container.style.cssText='background:#131d2c;color:#ced8e8;min-height:220px;border-radius:14px;';
+  container.textContent='이 곡의 V5 악보 발행 상태를 확인하고 있습니다.';
+  modal.classList.add('open');
+  try{
+    const response=await fetch(API+'/api/v1/scores/v5/'+encodeURIComponent(SHARE_ID),{
+      headers:{'Accept':'application/json'},cache:'no-store'
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||result.ok!==true||result.profile!=='TL3-V5')
+      throw new Error(result.message||'V5 악보 상태를 조회하지 못했습니다.');
+    if(result.has_score===true&&result.score&&Array.isArray(result.score.melody)&&result.score.melody.length&&result.score_status==='published'){
+      _scoreData=result.score;
+      if(transpose){transpose.hidden=false;transpose.setAttribute('aria-hidden','false');}
+      await renderScoreOSMD(_scoreData,0);
+    }else{
+      renderUnissuedV5Score(container,result);
     }
-
-    _scoreData = d.score;
-    _scoreTranspose = 0;
-
-    // POC 로그 (보기)
-    if(getTok()){
-      fetch(API + "/api/v1/scores/" + SHARE_ID + "/log-view", {
-        method: "POST",
-        headers: {"Authorization": "Bearer " + getTok()}
-      }).catch(function(){});
-    }
-
-    renderScoreVexFlow(_scoreData, 0);
-  } catch(e){
-    container.innerHTML = '<div style="padding:40px;text-align:center;color:#e55">'
-      + '<div style="font-size:32px;margin-bottom:12px">⚠️</div>'
-      + '<div style="font-size:13px;color:#666">' + (e.message || "오류") + '</div>'
-      + '</div>';
+  }catch(e){
+    // A backend failure is not "no score": show it separately, never a false TLD.
+    container.replaceChildren();
+    container.style.cssText='background:#231b22;color:#ffd4d4;min-height:190px;padding:32px;border-radius:14px;text-align:center;line-height:1.8;';
+    const msg=document.createElement('div');
+    msg.textContent='악보 상태 연결 오류: '+(e?.message||'다시 확인해 주세요.');
+    container.append(msg);
   }
 }
 
@@ -1417,6 +1430,7 @@ function renderScoreVexFlow(scoreData, transpose){
 
 // 조옮김
 function transposeScore(semitones){
+  if(!_scoreData)return;
   if(semitones === 0){
     _scoreTranspose = 0;
   } else {
@@ -1431,94 +1445,9 @@ function transposeScore(semitones){
   renderScoreOSMD(_scoreData, _scoreTranspose);
 }
 
-// 악보 사용 (1,000 TL)
-async function useScore(){
-  alert('V5 TLD 악보 사용·과금은 준비 중입니다. 구형 1,000TL 과금은 실행하지 않습니다.');return;
-  if(!getTok()){ alert("로그인이 필요합니다"); return; }
-  if(!_share){ alert("곡 정보를 불러오는 중입니다"); return; }
-
-  if(!confirm("악보를 사용하시겠습니까?\\n\\n• 1,000 TL 차감\\n• 창작자에게 기여\\n• 악보(TLD) 다운로드")) return;
-
-  const btn = document.getElementById("useScoreBtn");
-  if(btn){ btn.disabled = true; btn.textContent = "⏳ 처리 중..."; }
-
-  try {
-    const r = await fetch(API + "/api/v1/scores/" + SHARE_ID + "/use", {
-      method: "POST",
-      headers: {"Authorization": "Bearer " + getTok()}
-    });
-    const d = await r.json();
-
-    if(!r.ok && !d.ok){
-      if(d.error === "TL 부족"){
-        alert("⚠️ TL이 부족합니다\\n\\n필요: " + (d.required||1000) + " TL\\n보유: " + (d.balance||0) + " TL");
-        closeScoreModal();
-        chargeTL();
-        // Insufficient balance is a normal preflight outcome, not a loading failure.
-        // Release the startup lock and restore the play controls so the user can retry after charging.
-        if(window._hidePlayLoading) window._hidePlayLoading(false);
-        else {
-          window._loadingPlay = false;
-          var retryPlayBtn=document.getElementById('playBtn');
-          var retryCoverBtn=document.getElementById('coverPlayBtn');
-          var retryPlayerBtn=document.getElementById('playerPlayBtn');
-          if(retryPlayBtn){retryPlayBtn.disabled=false;retryPlayBtn.textContent='▶ 재생';}
-          if(retryCoverBtn){retryCoverBtn.disabled=false;retryCoverBtn.textContent='▶';}
-          if(retryPlayerBtn) retryPlayerBtn.textContent='▶';
-        }
-        return;
-      }
-      throw new Error(d.error || "사용 실패");
-    }
-
-    if(d.already){
-      alert("✅ 이미 사용한 악보입니다\\n\\n다운로드를 시작합니다.");
-    } else {
-      alert("✅ 악보 사용 완료!\\n\\n차감: " + d.tl_paid + " TL\\n창작자 기여: " + (d.creator_share ? d.creator_share.tl_p : 0) + " TL");
-    }
-
-
-    // ★ 임시 클라이언트 PDF (정식 TLD는 서버 예정)
-    try {
-      const svgEl = document.querySelector("#scoreContainer svg");
-      if(!svgEl){
-        alert("악보를 찾을 수 없습니다");
-        return;
-      }
-
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-        compress: true
-      });
-
-      // 헤더 (임시 표시)
-      pdf.setFontSize(8);
-      pdf.setTextColor(150);
-      pdf.text("TimeLink Score (Preview) — 정식 TLD는 준비 중", 10, 6);
-
-      // SVG → PDF (A4 자동 맞춤)
-      await pdf.svg(svgEl, {
-        x: 10,
-        y: 10,
-        width: 190,
-        height: 0
-      });
-
-      // 파일명 (preview 표시)
-      const safeTitle = (_share.title || "score").replace(/[^a-zA-Z0-9가-힣_-]/g, "_");
-      pdf.save(safeTitle + "_preview.pdf");
-    } catch(pdfErr){
-      console.error("[PDF] 생성 오류:", pdfErr);
-      alert("PDF 생성 오류: " + pdfErr.message);
-    }
-  } catch(e){
-    alert("오류: " + e.message);
-  } finally {
-    if(btn){ btn.disabled = false; btn.textContent = "📥 악보 사용 (1,000 TL)"; }
-  }
+// V3 score purchase has no valid TL3 V5 ledger contract; this button stays disabled.
+function useScore(){
+  alert('V5 TLD 악보 사용·과금은 준비 중입니다. 구형 1,000TL 과금은 실행하지 않습니다.');
 }
 
 // 창작자 POC 카드 로드
