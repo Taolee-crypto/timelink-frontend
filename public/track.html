@@ -1189,73 +1189,46 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
   // ── divisions: 4분음표당 tick (MusicXML 표준: 1 = 4분음표)
   const DIVISIONS = 4;   // 16분음표 = 1 tick
 
-  // ── 음표 변환 ──
-  const melody = scoreData.melody.slice();
-
-  // 마디로 그룹화 (4/4 기준 4박씩)
+  // 음표를 절대 틱(16분음표=1틱)으로 배치하고, 마디를 넘는 음은 이어붙임표로 분리.
+  // 기존 구현처럼 초과 음표를 다음 마디에 통째로 옮기거나 0박/초과 마디를 생성하지 않는다.
+  const MEASURE_TICKS = Math.max(1, Math.round(beats * DIVISIONS * 4 / beatType));
   const measures = [];
-  let currentMeasure = [];
-  let currentBeat = 0;
-
-  for(let i = 0; i < melody.length; i++){
-    const ev = melody[i];
-    const midi = ev.m + transpose;
-    const durationBeats = (ev.d || 0.5) * (bpm / 60);   // 초 → 박
-    const durationTicks = Math.round(durationBeats * DIVISIONS);
-
-    // 쉼표 (이전 음표와의 간격)
-    if(i > 0){
-      const prevEnd = melody[i-1].s + melody[i-1].d;
-      const gap = ev.s - prevEnd;
-      if(gap > 0.05){
-        const gapTicks = Math.round(gap * (bpm / 60) * DIVISIONS);
-        if(gapTicks > 0){
-          currentMeasure.push({
-            type: "rest",
-            duration: gapTicks,
-            chord: false
-          });
-          currentBeat += gapTicks / DIVISIONS;
-        }
+  let currentMeasure = [], position = 0, eventCursor = 0;
+  const allowedTicks = [16,8,4,2,1];
+  function writeSpan(kind, duration, midi, chordSym){
+    let remaining = duration, first = true;
+    while(remaining>0){
+      if(position>=MEASURE_TICKS){
+        measures.push(currentMeasure);
+        currentMeasure=[]; position=0;
       }
+      const available=Math.min(remaining,MEASURE_TICKS-position);
+      const dur=allowedTicks.find(t=>t<=available) || 1;
+      const hasMore=remaining>dur;
+      currentMeasure.push({
+        type:kind,duration:dur,midi,
+        chordSym:first?chordSym:null,
+        tieStop:kind==='note'&&!first,
+        tieStart:kind==='note'&&hasMore
+      });
+      position+=dur;remaining-=dur;first=false;
     }
-
-    // 마디 넘김 처리
-    if(currentBeat + durationTicks / DIVISIONS > beats){
-      // 마디 마감
-      measures.push(currentMeasure);
-      currentMeasure = [];
-      currentBeat = 0;
-    }
-
-    // 코드 심볼 (마디 첫 음표에)
-    let chordSym = null;
-    if(scoreData.chords && scoreData.chords.length){
-      const t = ev.s;
-      for(const cd of scoreData.chords){
-        if(t >= cd.s && t < cd.e){
-          if(!currentMeasure.some(n => n.chordSym)){
-            chordSym = cd.sym;
-          }
-          break;
-        }
-      }
-    }
-
-    // 음표 추가
-    currentMeasure.push({
-      type: "note",
-      midi: midi,
-      duration: durationTicks,
-      chordSym: chordSym
-    });
-    currentBeat += durationTicks / DIVISIONS;
   }
-
-  // 마지막 마디
-  if(currentMeasure.length > 0){
-    measures.push(currentMeasure);
+  const melody = scoreData.melody.slice().filter(e=>Number.isFinite(e.s)&&Number.isFinite(e.d)&&Number.isInteger(e.m)&&e.d>0).sort((a,b)=>a.s-b.s);
+  for(const ev of melody){
+    let startTick=Math.max(0,Math.round(ev.s*(bpm/60)*DIVISIONS));
+    if(startTick<eventCursor)startTick=eventCursor;  // 단선율 중첩 음표는 이어서 정렬
+    if(startTick>eventCursor)writeSpan('rest',startTick-eventCursor);
+    const durationTicks=Math.max(1,Math.round(ev.d*(bpm/60)*DIVISIONS));
+    let chordSym=null;
+    if(scoreData.chords&&scoreData.chords.length){
+      const chord=scoreData.chords.find(c=>ev.s>=c.s&&ev.s<c.e);
+      if(chord)chordSym=String(chord.sym||'').slice(0,30);
+    }
+    writeSpan('note',durationTicks,ev.m+transpose,chordSym);
+    eventCursor=startTick+durationTicks;
   }
+  if(currentMeasure.length)measures.push(currentMeasure);
 
   // ── MusicXML 생성 ──
   const xml = [];
@@ -1329,6 +1302,14 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
         xml.push('        </pitch>');
         xml.push('        <duration>' + item.duration + '</duration>');
         xml.push('        <type>' + ticksToType(item.duration, DIVISIONS) + '</type>');
+        if(item.tieStop)xml.push('        <tie type="stop"/>');
+        if(item.tieStart)xml.push('        <tie type="start"/>');
+        if(item.tieStop||item.tieStart){
+          xml.push('        <notations>');
+          if(item.tieStop)xml.push('          <tied type="stop"/>');
+          if(item.tieStart)xml.push('          <tied type="start"/>');
+          xml.push('        </notations>');
+        }
         xml.push('      </note>');
       }
     }
@@ -1362,7 +1343,7 @@ function midiToStepAlterOctave(midi){
 }
 
 function ticksToType(ticks, divisions){
-  const q = ticks / divisions;   // 4분음표 단위
+  const q = ticks / divisions;   // 정확한 16·8·4·2·1틱만 생성
   if(q >= 4) return "whole";
   if(q >= 3) return "half";       // 점2분은 별도
   if(q >= 2) return "half";
