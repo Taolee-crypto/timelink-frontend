@@ -67,7 +67,7 @@ async function refreshMusic(){
  renderTracks();
  now.textContent='매장 방송 이용 가능 시간 '+(Number(data.remaining_seconds||0)/3600).toLocaleString('ko-KR',{maximumFractionDigits:2})+'시간 · 매장 전용 TL3 '+tracks.length+'곡';
  start.disabled=tracks.length===0||!data.playback_enabled;
- if(!tracks.length)message('상업 방송 전용 음악 변환·등록을 확인하고 있습니다. 일반 공유 음원을 대체 재생하지 않습니다.');
+ if(!tracks.length)message('기존 CC0 음원은 음질 문제로 전량 폐기되었습니다. 현재 매장 방송용 재생 음원이 없으며, 검증된 신규 음악이 공급되기 전까지 재생할 수 없습니다.');
  else if(!data.playback_enabled)message('이 매장의 방송 이용 시간이 없습니다. 이용권을 확인해주세요.');
  else message('방송 준비 완료 · 매장 전용 음악만 재생합니다.');
 }
@@ -79,7 +79,7 @@ function renderTracks(){
  if(!filtered.length){const p=document.createElement('p');p.textContent='현재 조건에 맞는 상업 방송 전용 음악이 준비되지 않았습니다.';results.append(p);return}
  for(const [i,x] of filtered.entries()){
   const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #385477;padding:8px 0';
-  const info=document.createElement('span');info.textContent=x.title+' — '+x.artist+' · '+x.genre+' · CC0';
+  const info=document.createElement('span');info.textContent=x.title+' — '+x.artist+' · '+x.genre+' · '+(x.license_code||'권리 확인');
   const btn=document.createElement('button');btn.type='button';btn.textContent='이 곡 듣기';btn.style.marginTop='0';
   btn.addEventListener('click',async()=>{if(playing)await endLive();playing=true;start.disabled=true;stop.disabled=false;index=i;await startTrack(filtered[index]).catch(async e=>{showError(e);await endLive()})});
   row.append(info,btn);results.append(row);
@@ -141,7 +141,7 @@ start.addEventListener('click',async()=>{
 stop.addEventListener('click',()=>endLive());
 genre.addEventListener('change',renderTracks);
 $('search').addEventListener('click',()=>refreshMusic().catch(showError));
-function localeHint(){$('localHint').textContent='CC0 음악은 국가와 무관하게 사용할 수 있지만 매장 이용권은 매장별로 확인합니다.'}
+function localeHint(){$('localHint').textContent='기존 CC0 음원은 전량 폐기되었습니다. 향후 제공할 매장 음악은 국가별 이용 권리를 확인한 음원만 등록합니다.'}
 country.addEventListener('change',localeHint);
 $('save').addEventListener('click',()=>{
  const pref={};for(const k of ids)pref[k]=$(k).value;
