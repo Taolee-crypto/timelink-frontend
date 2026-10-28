@@ -1099,7 +1099,7 @@ function renderUnissuedV5Score(container, details){
   heading.textContent='이 곡의 TLD 악보는 아직 발행되지 않았습니다';
   heading.style.cssText='font-size:17px;color:#f5d17b;margin:0 0 9px;';
   const info=document.createElement('p');
-  info.textContent=title+' · TL3 V5 음원은 정상 등록되어 있습니다. 악보 자동 분석·검수·TLD 발행은 아직 완료되지 않았습니다.';
+  info.textContent=title+' · 보컬 분리 채보 서비스 연결을 준비 중입니다. 현재 자동 채보를 시작할 수 없습니다.';
   info.style.cssText='font-size:13px;color:#cbd5e1;margin:0 0 10px;';
   const note=document.createElement('p');
   note.textContent='음원을 다시 올릴 필요가 없습니다. 미발행 악보에 대한 TL 결제도 발생하지 않습니다.';
@@ -1135,7 +1135,7 @@ async function loadScore(){
     const result=await response.json().catch(()=>({}));
     if(!response.ok||result.ok!==true||result.profile!=='TL3-V5')
       throw new Error(result.message||'V5 악보 상태를 조회하지 못했습니다.');
-    _v5ScoreOwnerAllowed=result.can_generate===true;
+    _v5ScoreOwnerAllowed=false; // Retired mixed-audio analyzer must not run, even with an older API.
     _v5ScoreFileId=Number(result.file_id)||0;
     _v5ScoreSourceSha=String(result.source_sha256||'');
     if(actions)actions.hidden=!_v5ScoreOwnerAllowed;
@@ -1213,27 +1213,8 @@ async function scoreDraftFromLicensedMp3(mp3,information){
   finally{if(audioContext)await audioContext.close().catch(()=>{});_v5ScoreAnalyzing=false;if(button)button.disabled=false;}
 }
 async function generateV5ScoreDraft(){
-  if(!_v5ScoreOwnerAllowed||!_v5ScoreFileId)return;
-  const rights=document.getElementById('v5ScoreDerivativesRights');
-  if(!rights?.checked){v5ScoreStatus('작곡 저작물 및 음원 분석 권리 확인이 필요합니다.');return;}
-  if(!getTok()){v5ScoreStatus('창작자 로그인이 필요합니다.');return;}
-  if(_v5ScoreAnalyzing)return;
-  if(!confirm('이 곡의 음원·작곡 저작물에 대한 악보 작성 권한을 확인합니다. 악보는 검수용 비공개 초안으로 생성되며, 기존 음악 재생에 따른 TL 이용 규칙은 유지됩니다. 계속할까요?'))return;
-  if(_tlAudio&&_tlPlaying&&String(_tlAudio.src||'').startsWith('blob:')){
-    v5ScoreStatus('현재 재생 중인 V5 음원을 분석합니다.');
-    try{
-      const response=await fetch(_tlAudio.src,{cache:'no-store'});
-      const bytes=new Uint8Array(await response.arrayBuffer());
-      await scoreDraftFromLicensedMp3(bytes,{file_id:_v5ScoreFileId,source_sha256:_v5ScoreSourceSha});
-    }catch(e){v5ScoreStatus('음원 접근 실패: '+(e?.message||String(e)));}
-    return;
-  }
-  // The normal licensed V5 player already has the verified clear audio in
-  // memory. Do not add a second upload/decryption/payment pathway.
-  _v5ScoreAnalysisPending=true;
-  v5ScoreStatus('기존 V5 재생을 시작한 뒤 자동 채보합니다. 재생이 시작되지 않으면 TL 이용권을 확인해 주세요.');
-  closeScoreModal();
-  try{handlePlayClick();}catch(e){_v5ScoreAnalysisPending=false;v5ScoreStatus('재생 시작 실패: '+(e?.message||String(e)));}
+  _v5ScoreAnalysisPending=false;
+  v5ScoreStatus('보컬 분리 채보 서비스 연결을 준비 중입니다. 현재 자동 채보를 시작할 수 없습니다.');
 }
 
 function closeScoreModal(){
