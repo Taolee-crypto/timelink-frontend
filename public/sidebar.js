@@ -36,7 +36,6 @@ var sections = [
   ['/dashboard.html?tab=settlement','generic','settlement'],
   ['/dashboard.html?tab=mining','generic','mining'],
   ['/dashboard.html?tab=mission','generic','missions'],
-  ['/dashboard.html?tab=cafe','generic','channels'],
   ['/tl-tlc-pool.html','generic','pool']
  ]]
   ];
