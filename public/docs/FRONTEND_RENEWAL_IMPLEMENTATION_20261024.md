@@ -4,9 +4,6 @@
 
 ## 기획서
 
-- `public/docs/TimeLink_Frontend_Renewal_Plan_20261024.docx`: 작성한 원본 기획서.
-- `public/docs/TimeLink_Frontend_Renewal_Plan_20261024.html`: 브라우저 열람본.
-- `public/docs/RENEWAL_IMAGE_SOURCES.md`: 실제 사진 10종의 출처와 사용 기준.
 
 ## 기존 파일 재사용
 
