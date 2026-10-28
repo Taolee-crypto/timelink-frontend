@@ -31,7 +31,7 @@ const html=fs.readFileSync(path.join(__dirname,'../public/track.html'),'utf8');
 const player=fs.readFileSync(path.join(__dirname,'../public/tl3-v5-player.js'),'utf8');
 assert.ok(html.includes("id=\"generateV5ScoreDraftBtn\""));
 assert.ok(html.includes("id=\"v5ScoreDerivativesRights\""));
-assert.ok(html.includes("result.can_generate===true"));
+assert.ok(html.includes("_v5ScoreOwnerAllowed=false; // Retired"));
 assert.ok(html.includes("onVerifiedScoreAudio:_v5ScoreOwnerAllowed&&_v5ScoreAnalysisPending"));
 assert.ok(html.includes("track-score-worker-v5.js"));
 assert.ok(html.includes("/api/v1/scores/v5/'+encodeURIComponent(SHARE_ID)+'/draft"));
@@ -40,3 +40,13 @@ assert.ok(html.includes("analysis:'")===false); // no raw MP3 submission on API
 assert.ok(player.includes("if(typeof opts.onVerifiedScoreAudio==='function')"));
 assert.ok(player.indexOf("opts.onVerifiedScoreAudio(decoded.mp3")>player.indexOf("await audio.play()"));
 console.log('PASS TRACK V5 licensed playback owner-only draft worker, actual pitched audio -> notes, no extra MP3 upload');
+
+const begin=html.indexOf('async function generateV5ScoreDraft(){');
+const end=html.indexOf('function closeScoreModal()',begin);
+let message='';
+const ctx={_v5ScoreAnalysisPending:true,v5ScoreStatus:x=>message=x};
+vm.runInNewContext(html.slice(begin,end),ctx);
+ctx.generateV5ScoreDraft();
+assert.equal(ctx._v5ScoreAnalysisPending,false);
+assert.match(message,/보컬 분리/);
+console.log('PASS retired button does not invoke playback, worker, upload or billing');
