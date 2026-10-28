@@ -553,6 +553,7 @@ window.addEventListener('resize',()=>requestAnimationFrame(()=>{if(typeof fitTra
   <button id="generateV5ScoreDraftBtn" type="button" onclick="generateV5ScoreDraft()" style="background:#e7b954;color:#111925;border:0;border-radius:8px;padding:10px 16px;margin-top:10px;cursor:pointer;font-weight:700">이 곡 자동 채보 초안 생성</button>
   <p id="v5ScoreAnalysisProgress" role="status" aria-live="polite" style="margin:10px 0 0;color:#dbe4f3;font-size:12px">현재 등록된 V5 음원을 정상 재생하면서 분석합니다. 재생에 따른 기존 TL 이용 규칙은 그대로 적용됩니다. 초안 작성은 별도 과금되지 않습니다.</p>
 </div>
+<p id="scoreDraftNotice" hidden role="status" style="padding:10px 14px;background:#302717;color:#f5d17b;font-size:13px;margin:0 0 12px;border-radius:8px;">자동 채보 초안 · 악보 정확도 검수 전 · TLD 미발행 (TL 차감 없음)</p>
 <div id="scoreContainer">
       <div style="padding:40px;text-align:center;color:#666">⏳ 악보 불러오는 중...</div>
     </div>
@@ -1065,6 +1066,13 @@ function renderPage(s, stats, myFileTL, requiredTL){
 // ═══════════════════════════════════════════════════════════════
 let _scoreData = null;
 let _scoreTranspose = 0;
+let _scoreRenderVersion = 0;
+let _osmdInstance = null;
+window.addEventListener('resize',()=>{
+  if(_osmdInstance&&document.getElementById('scoreModal')?.classList.contains('open')){
+    try{_osmdInstance.render();}catch(e){console.warn('[OSMD] 크기 조정 실패:',e);}
+  }
+});
 let _v5ScoreOwnerAllowed=false,_v5ScoreFileId=0,_v5ScoreSourceSha='',_v5ScoreAnalysisPending=false,_v5ScoreAnalyzing=false;
 // V5-only status. The V3 score service is not a valid lookup or payment path.
 // This is a song-linked read: the same TRACK identifier is sent to the V5 API.
@@ -1102,6 +1110,10 @@ function renderUnissuedV5Score(container, details){
 async function loadScore(){
   // The current V5 API never reads old tl3_releases or bills the user.
   _scoreData=null;_scoreTranspose=0;
+  ++_scoreRenderVersion;
+  _osmdInstance=null;
+  const draftNotice=document.getElementById('scoreDraftNotice');if(draftNotice)draftNotice.hidden=true;
+  _v5ScoreOwnerAllowed=false;_v5ScoreFileId=0;_v5ScoreSourceSha='';
   const actions=document.getElementById('v5ScoreCreatorActions');if(actions)actions.hidden=true;
   const transpose=document.getElementById('scoreTransposeControls');
   if(transpose){transpose.hidden=true;transpose.setAttribute('aria-hidden','true');}
@@ -1129,14 +1141,9 @@ async function loadScore(){
     if(actions)actions.hidden=!_v5ScoreOwnerAllowed;
     if(result.has_score===true&&result.score&&Array.isArray(result.score.melody)&&result.score.melody.length&&['draft','published'].includes(result.score_status)){
       _scoreData=result.score;
+      if(draftNotice)draftNotice.hidden=result.score_status!=='draft';
       if(transpose){transpose.hidden=false;transpose.setAttribute('aria-hidden','false');}
       await renderScoreOSMD(_scoreData,0);
-      if(result.score_status==='draft'){
-        const notice=document.createElement('p');
-        notice.style.cssText='padding:10px 14px;background:#302717;color:#f5d17b;font-size:13px;margin:0 0 12px;border-radius:8px;';
-        notice.textContent='자동 채보 초안 · 악보 정확도 검수 전 · TLD 미발행 (TL 차감 없음)';
-        container.prepend(notice);
-      }
     }else{
       renderUnissuedV5Score(container,result);
     }
@@ -1238,8 +1245,6 @@ function closeScoreModal(){
 // ═══════════════════════════════════════════════════════════════
 // ★ OSMD 기반 악보 렌더링 (A4 자동 맞춤, 조옮김, 페이지 넘김)
 // ═══════════════════════════════════════════════════════════════
-
-let _osmdInstance = null;   // OSMD 재사용
 
 // ScoreData → MusicXML 문자열 변환
 function scoreDataToMusicXml(scoreData, transpose, shareInfo){
@@ -1473,7 +1478,13 @@ function chordKind(sym){
 async function renderScoreOSMD(scoreData, transpose){
   const container = document.getElementById("scoreContainer");
   if(!container) return;
-  container.innerHTML = "";
+  const renderVersion=++_scoreRenderVersion;
+  _osmdInstance=null;
+  // A notation sheet needs a light surface even after the dark status view.
+  container.style.cssText='background:#fefefe;color:#111827;padding:20px;border-radius:12px;min-height:200px;overflow-x:auto;color-scheme:light;';
+  const sheet=document.createElement('div');
+  sheet.setAttribute('aria-label','악보 오선지');
+  container.replaceChildren(sheet);
 
   // 1. ScoreData → MusicXML
   const shareInfo = {
@@ -1496,13 +1507,10 @@ async function renderScoreOSMD(scoreData, transpose){
 
   // 2. OSMD 초기화 (A4 자동)
   try {
-    if(_osmdInstance && _osmdInstance.container === container){
-      // 재사용
-    } else {
-      _osmdInstance = new opensheetmusicdisplay.OpenSheetMusicDisplay(container, {
-        autoResize: true,
+    // Isolate each load so a slow earlier transpose cannot replace the latest.
+    const osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay(sheet, {
+        autoResize: false,
         backend: "svg",
-        drawingParameters: "default",
         pageFormat: "A4_P",
         drawTitle: true,
         drawComposer: true,
@@ -1510,14 +1518,17 @@ async function renderScoreOSMD(scoreData, transpose){
         drawCredits: true,
         drawingParameters: "compacttight",
       });
-    }
 
-    await _osmdInstance.load(musicXml);
-    _osmdInstance.Zoom = 1.0;
-    _osmdInstance.render();
+    await osmd.load(musicXml);
+    if(renderVersion!==_scoreRenderVersion)return;
+    osmd.Zoom = 1.0;
+    osmd.render();
+    _osmdInstance=osmd;
   } catch(e){
+    if(renderVersion!==_scoreRenderVersion)return;
     console.error("[OSMD] 렌더 오류:", e);
-    container.innerHTML = '<div style="padding:40px;text-align:center;color:#e55">악보 렌더 실패: ' + e.message + '</div>';
+    sheet.style.cssText='padding:40px;text-align:center;color:#b42318;';
+    sheet.textContent='악보 렌더 실패: '+(e?.message||'다시 시도해 주세요.');
   }
 }
 

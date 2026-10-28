@@ -21,7 +21,7 @@ const calls=[];
 let result={ok:true,profile:'TL3-V5',score_status:'not_generated',title:'RED AND YELLOW',has_score:false,score:null};
 let success=true;
 const c={document:{getElementById(id){return els[id]||null;},createElement(){return element();}},
- _scoreData:null,_scoreTranspose:0,_share:{title:'RED AND YELLOW'},API:'https://api.timelink.digital',SHARE_ID:'178',
+ _scoreData:null,_scoreTranspose:0,_scoreRenderVersion:0,_osmdInstance:null,_share:{title:'RED AND YELLOW'},API:'https://api.timelink.digital',SHARE_ID:'178',
  encodeURIComponent,getTok:()=>'',alert(){throw Error('no popup expected');},
  fetch:async(url,opts)=>{calls.push({url,opts});return {ok:success,json:async()=>result};},
  renderScoreOSMD:()=>{throw Error('should not render unpublished TLD');}
