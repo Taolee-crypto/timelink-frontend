@@ -25,6 +25,6 @@ assert.ok(releases.tasks.some(t=>t.id==='TLV5-TRACK-TLD-SERVICE-20261029'&&t.sta
 assert.ok(releases.events.some(e=>e.id==='retire-track-local-reupload-20261029'));
 assert.ok(!html.includes('fetch(API + "/api/v1/tl3/score/"'));
 assert.ok(!html.includes('fetch(API + "/api/v1/scores/" + SHARE_ID + "/use"'));
-assert.ok(html.includes('score_status===\'published\''));
+assert.ok(html.includes("['draft','published'].includes(result.score_status)"),'owner can see unreviewed draft without publishing');
 assert.ok(html.includes('#scoreModal [hidden]{display:none!important}'));
 console.log('PASS TRACK uses V5 score endpoint, no old V3 404, no false TL purchase, no manual upload');
