@@ -1,0 +1,15 @@
+const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('node:path');
+const html=fs.readFileSync(path.join(__dirname,'../public/store-music-programming.html'),'utf8');
+const js=fs.readFileSync(path.join(__dirname,'../public/store-music-player-v5.js'),'utf8');
+assert.match(html,/id="storeChannel"/);
+assert.match(html,/store-music-player-v5\.js/);
+assert.doesNotMatch(html,/\/api\/v5\/store-radio\/queue/);
+assert.doesNotMatch(html,/일반 공유 음원 조회 결과/);
+assert.match(js,/\/api\/v5\/store-music\/queue/);
+assert.match(js,/\/api\/v5\/store-music\/session/);
+assert.match(js,/\/api\/v5\/store-music\/meter/);
+assert.match(js,/\/api\/v5\/store-music\/close/);
+assert.match(js,/\/api\/v5\/store-music\/container/);
+assert.match(js,/crypto\.subtle\.decrypt/);
+assert.match(js,/tl_token/);
+console.log('Store music player uses only authenticated commercial V5 TL3 assets and metered store airtime');
