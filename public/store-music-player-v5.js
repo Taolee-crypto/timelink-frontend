@@ -92,6 +92,10 @@ function startClock(){
   if(!live||!playing||audio.paused||audio.seeking||audio.readyState<3)return;
   live.playedSeconds=Math.min(live.reservedSeconds,live.playedSeconds+1);
   if(live.playedSeconds%3===0)sendMeter();
+  if(live.playedSeconds>=live.reservedSeconds){
+   stopClock();
+   void (async()=>{await endLive();message('구매한 방송 시간 중 현재 재생 가능한 시간이 모두 사용되었습니다.');await refreshMusic()})().catch(showError);
+  }
  },1000);
 }
 function sendMeter(){
@@ -126,7 +130,7 @@ async function startTrack(x){
 audio.addEventListener('ended',async()=>{
  const next=selectedTracks();const nextIdx=index+1;
  await endLive();
- if(next.length&&nextIdx<next.length){playing=true;stop.disabled=false;index=nextIdx;await startTrack(next[index]).catch(e=>{showError(e);endLive()})}
+ if(next.length){playing=true;stop.disabled=false;index=nextIdx%next.length;await startTrack(next[index]).catch(async e=>{await endLive();showError(e)})}
  else message('선택된 음악 편성이 종료되었습니다.');
 });
 start.addEventListener('click',async()=>{
