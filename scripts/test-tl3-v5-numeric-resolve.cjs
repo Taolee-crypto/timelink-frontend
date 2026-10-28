@@ -41,6 +41,7 @@ const unauthorized={status:401,data:{ok:false,error:'AUTH_REQUIRED'}};
  await runScenario('178',[missing,missing],[base+'178?by=share_id',base+'178?by=file_id'],false);
  const track=fs.readFileSync('public/track.html','utf8');
  assert.ok(track.includes('TL3V5Player.canPlay(RAW_SHARE_ID || SHARE_ID)'));
- assert.ok(track.includes('onVerifiedScoreAudio:_v5ScoreOwnerAllowed&&_v5ScoreAnalysisPending'));
+ assert.ok(!track.includes('onVerifiedScoreAudio:_v5ScoreOwnerAllowed'));
+ assert.ok(track.includes('id="generateV5ScoreDraftBtn" type="button" disabled'));
  console.log('PASS actual TRACK id=178 resolves to sealed V5 file; preserves share IDs, auth and score analysis callback');
 })().catch(err=>{console.error(err);process.exitCode=1;});
