@@ -1162,6 +1162,14 @@ function v5ScoreStatus(message){
   const el=document.getElementById('v5ScoreAnalysisProgress');
   if(el)el.textContent=String(message||'');
 }
+function v5ScoreErrorMessage(data, fallback){
+  const code=String(data?.code||'');
+  if(code==='VOCAL_ANALYSIS_NOT_READY')return '보컬 전용 채보 서버가 연결되지 않았습니다. 반주·드럼을 보컬 음표로 잘못 채보하지 않도록 분석을 중단했습니다.';
+  if(code==='V5_TRACK_NOT_FOUND')return '이 곡의 공개 TL3 V5 음원을 찾을 수 없습니다. Creator에서 V5 자산 등록 상태를 확인해 주세요.';
+  if(code==='CREATOR_RIGHTS_REQUIRED')return '악보 초안을 생성하려면 Creator에서 권리자 확인을 완료해야 합니다.';
+  if(code==='V5_SCORE_DRAFT_FAILED')return '악보 초안 처리 중 서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
+  return String(data?.message||fallback||'악보 처리 실패');
+}
 async function scoreDraftFromLicensedMp3(mp3,information){
   if(!_v5ScoreOwnerAllowed||_v5ScoreAnalyzing)return;
   _v5ScoreAnalyzing=true;_v5ScoreAnalysisPending=false;
@@ -1206,7 +1214,7 @@ async function scoreDraftFromLicensedMp3(mp3,information){
       body:JSON.stringify({rights_confirmed:true,source_sha256:hash,score_data:result})
     });
     const data=await response.json().catch(()=>({}));
-    if(!response.ok||data.ok!==true)throw Error(data.code||data.message||'악보 저장 실패');
+    if(!response.ok||data.ok!==true)throw Error(v5ScoreErrorMessage(data,'악보 저장 실패'));
     await loadScore();
     v5ScoreStatus('이 곡의 실제 음원에서 '+data.notes+'개 음표를 분석해 비공개 악보 초안으로 저장했습니다. 검수 전이며 TLD는 발행되지 않았습니다.');
   }catch(error){v5ScoreStatus('자동 채보 실패: '+(error?.message||String(error)));}
