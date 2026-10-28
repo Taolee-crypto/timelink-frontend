@@ -132,3 +132,20 @@ assert.ok(script.includes("catch(error){releaseError=error?.message||String(erro
 assert.ok(script.includes("document.querySelector('.workspace')?.setAttribute('hidden','')"));
 assert.ok(!script.includes("document.querySelectorAll('main,dialog').forEach(el=>el.hidden=true)"));
 console.log('PASS release categories normalized; optional release sync errors cannot blank authorized ledger');
+
+
+// Removed duplicate My Channels route; historical entries retire automatically.
+assert.ok(!sidebar.includes("['/dashboard.html?tab=cafe','generic','channels']"));
+assert.ok(!script.includes("['CHANNELS','내 채널'"));
+assert.ok(!script.includes("'내 채널':[['내 채널','/dashboard.html?tab=cafe']]"));
+assert.ok(!script.includes("['내 채널','/dashboard.html?tab=cafe']"));
+assert.ok(runInContext("isRetired({id:'TLV5-NAV-CHANNELS',category:'내 채널',status:'구현'})",retireContext));
+assert.ok(runInContext("isRetired({id:routeKey('/dashboard.html?tab=cafe'),category:'내 채널',status:'운영확인'})",retireContext));
+assert.ok(!runInContext("isRetired({id:routeKey('/my-cafe.html'),category:'카페방송',status:'운영확인'})",retireContext));
+assert.ok(!runInContext("isRetired({id:routeKey('/my-car.html'),category:'인카방송',status:'운영확인'})",retireContext));
+const dashboard=readFileSync(new URL('../public/dashboard.html',import.meta.url),'utf8');
+assert.ok(!dashboard.includes('id="tab-cafe"'));
+assert.ok(!dashboard.includes("onclick=\"switchTab('cafe')\""));
+assert.ok(!dashboard.includes("loadCafeTab()"));
+assert.ok(dashboard.includes("if(name==='cafe'){location.replace('/my-cafe.html');return;}"));
+console.log('PASS My Channels removed from navigation, dashboard and active progress; history preserved');
