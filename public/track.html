@@ -1305,8 +1305,8 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
     const durationTicks=Math.max(1,Math.round(ev.d*(bpm/60)*DIVISIONS));
     let chordSym=null;
     if(scoreData.chords&&scoreData.chords.length){
-      const chord=scoreData.chords.find(c=>ev.s>=c.s&&ev.s<c.e);
-      if(chord)chordSym=String(chord.sym||'').slice(0,30);
+      const chord=scoreData.chords.find(c=>Number.isFinite(c.s)&&ev.s>=c.s&&ev.s<(Number.isFinite(c.e)?c.e:Infinity));
+      if(chord)chordSym=String(chord.sym||chord.symbol||'').slice(0,30);
     }
     const lyric=typeof ev.lyric==='string'?ev.lyric:(typeof ev.text==='string'?ev.text:'');
     writeSpan('note',durationTicks,ev.m+transpose,chordSym,lyric);
@@ -1335,7 +1335,7 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
 
   // part-list
   xml.push('  <part-list>');
-  xml.push('    <score-part id="P1"><part-name>Melody</part-name></score-part>');
+  xml.push('    <score-part id="P1"><part-name>Vocal</part-name><part-abbreviation>Vo.</part-abbreviation></score-part>');
   xml.push('  </part-list>');
 
   // part
@@ -1370,9 +1370,14 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
       } else if(item.type === "note"){
         // 코드 심볼 (harmony)
         if(item.chordSym){
+          const guitarChord=String(item.chordSym).trim();
+          const bassMatch=guitarChord.match(/\/([A-G][#b]?)$/);
           xml.push('      <harmony>');
           xml.push('        <root><root-step>' + chordRoot(item.chordSym) + '</root-step>' + chordAlter(item.chordSym) + '</root>');
-          xml.push('        <kind>' + chordKind(item.chordSym) + '</kind>');
+          xml.push('        <kind text="' + escapeXml(guitarChord) + '">' + chordKind(guitarChord) + '</kind>');
+          if(bassMatch){
+            xml.push('        <bass><bass-step>'+bassMatch[1][0]+'</bass-step>'+(bassMatch[1].length>1?'<bass-alter>'+(bassMatch[1][1]==='#'?1:-1)+'</bass-alter>':'')+'</bass>');
+          }
           xml.push('      </harmony>');
         }
 
