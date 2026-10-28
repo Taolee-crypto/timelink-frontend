@@ -8,8 +8,8 @@ const releases=JSON.parse(fs.readFileSync(path.join(__dirname,'../public/docs/de
 // TRACK must use its existing share ID; never ask listeners to pick/upload another audio file.
 assert.ok(html.includes("fetch(API+'/api/v1/scores/v5/'+encodeURIComponent(SHARE_ID)"));
 assert.ok(html.includes('id="trackV5ScoreScope"'));
-assert.ok(html.includes('TRACK에 등록된 V5 음원을 다시 업로드하지 않고'));
-assert.ok(html.includes('비공개·미검수 상태이며 정식 TLD 봉인'));
+assert.ok(html.includes('음원을 다시 업로드할 필요는 없습니다.'));
+assert.ok(html.includes('보컬 분리 → 가창 음정·리듬 추출 → 기존 등록 가사의 음절 정렬'));
 assert.ok(!html.includes('id="localScoreAudio"'));
 assert.ok(!html.includes('id="localScoreChoose"'));
 assert.ok(!html.includes('track-score-analyzer.js'));
