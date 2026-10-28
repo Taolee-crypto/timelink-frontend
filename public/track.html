@@ -541,23 +541,15 @@ window.addEventListener('resize',()=>requestAnimationFrame(()=>{if(typeof fitTra
         <i data-lucide="file-text" style="width:14px;height:14px"></i> PDF 악보
       </button>
     </div>
-    <section class="track-score-local" aria-label="음원 자동 악보 분석" style="margin:12px 0;padding:16px;border:1px solid rgba(245,166,35,.4);background:#161b28;border-radius:12px;color:#f5f5f7">
- <strong style="font-size:16px;color:#f5a623">음원 → 악보 자동 분석 (시험 기능)</strong>
- <p style="font-size:12px;line-height:1.7;color:#cfd5e4;margin:8px 0">직접 제작한 WAV·MP3·M4A 음원을 선택하면 브라우저에서 멜로디를 분석해 오선지 초안을 만듭니다. 파일은 서버로 업로드하지 않습니다. 여러 악기가 섞인 음원은 틀린 음표가 생길 수 있어 검수가 필요합니다.</p>
- <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:12px"><input id="localScoreRights" type="checkbox"> 이 음원의 분석·악보 제작 권한이 있습니다.</label>
- <label style="font-size:12px">곡 템포(BPM) <input id="localScoreBpm" type="number" min="40" max="220" step="1" value="120" style="width:76px;margin:0 8px;color:#fff;background:#273047;border:1px solid #67768d;padding:6px"></label>
- <input id="localScoreAudio" type="file" accept="audio/wav,audio/mpeg,audio/mp4,.wav,.mp3,.m4a,.ogg" hidden>
- <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:10px">
-  <button type="button" class="score-btn primary" id="localScoreChoose">음원 파일 선택 · 분석 시작</button>
-  <button type="button" class="score-btn" id="downloadDraftXml" disabled>MusicXML 초안 내려받기</button>
- </div>
- <p id="localScoreStatus" role="status" aria-live="polite" style="color:#d5dce8;font-size:12px;line-height:1.7;margin:10px 0 0">이 분석은 무료 로컬 시제품입니다. 정식 TLD 발행·창작자 정산·자동 악보 정확도 검증은 연결되지 않았습니다.</p>
+    <section id="trackV5ScoreScope" aria-label="TRACK 연계 악보" style="margin:12px 0;padding:14px;border-radius:12px;border:1px solid rgba(245,166,35,.3);background:#161b28;color:#e2e8f0">
+  <strong style="color:#f5a623">이 곡의 TLD 악보</strong>
+  <p style="font-size:12px;line-height:1.7;margin:8px 0 0">TRACK에 등록된 음원을 기준으로 악보를 자동 생성하는 방식으로 연결합니다. 음원을 다시 선택하거나 업로드하지 않습니다. V5 음원 분석·TLD 봉인·정산 연결은 아직 준비 중이며, 발행되지 않은 악보에 TL을 청구하지 않습니다.</p>
 </section>
 <div id="scoreContainer">
       <div style="padding:40px;text-align:center;color:#666">⏳ 악보 불러오는 중...</div>
     </div>
     <div style="margin-top:16px;padding:10px 12px;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);border-radius:8px;font-size:11px;color:rgba(255,255,255,.5);text-align:center">
-      💡 악보 사용 시 1,000 TL이 차감되며, 창작자에게 기여됩니다.
+      TLD 사용 요금과 창작자 보상은 V5 경제원장 정산 정책이 연결된 후 안내합니다.
     </div>
   </div>
 </div>
@@ -1065,24 +1057,9 @@ function renderPage(s, stats, myFileTL, requiredTL){
 // ═══════════════════════════════════════════════════════════════
 let _scoreData = null;
 let _scoreTranspose = 0;
-let _scoreDraft = false;
-// The local transcriber generates a review-only MusicXML score, never an issued TLD.
-window.trackScoreLocalReady = async function(score){
-  if(!score || !Array.isArray(score.melody) || !score.melody.length)throw new Error('악보 음표가 없습니다.');
-  _scoreData=score; _scoreTranspose=0; _scoreDraft=true;
-  const val=document.getElementById('transposeVal');
-  if(val)val.textContent='0';
-  for(const id of ['useScoreBtn','downloadPdfBtn']){
-    const button=document.getElementById(id);
-    if(button)button.hidden=true;
-  }
-  await renderScoreOSMD(score,0);
-};
-window.trackScoreShareInfo=function(){return _share || {};};
-
 // ★ TLD PDF 다운로드 (Workers 프록시 경유)
 function downloadTldPdf(page){
-  if(_scoreDraft){alert('로컬 분석 초안은 정식 TLD 파일이 아닙니다. MusicXML 초안을 다운로드해 검수해 주세요.');return;}
+  alert('정식 TLD 악보 발행·다운로드는 V5 음원 및 권리 검증 시스템과 연결한 후 제공됩니다. 현재 TL은 차감되지 않습니다.');return;
   page = page || 1;
   if(!SHARE_ID){
     alert("곡 정보를 찾을 수 없습니다");
@@ -1094,8 +1071,8 @@ function downloadTldPdf(page){
 
 // 악보 데이터 로드 + 모달 열기
 async function loadScore(){
-  _scoreDraft=false;
-  for(const id of ['useScoreBtn','downloadPdfBtn']){const button=document.getElementById(id);if(button)button.hidden=false;}
+  // V3 score payment/proxy is not compatible with TL3 V5; do not expose a pay action.
+  for(const id of ['useScoreBtn','downloadPdfBtn']){const button=document.getElementById(id);if(button)button.hidden=true;}
   if(!_share){ alert("곡 정보를 불러오는 중입니다"); return; }
 
   const modal = document.getElementById("scoreModal");
@@ -1114,7 +1091,7 @@ async function loadScore(){
         container.innerHTML = '<div style="padding:60px;text-align:center;color:#999">'
           + '<div style="font-size:48px;margin-bottom:16px">🎼</div>'
           + '<div style="font-size:15px;font-weight:700;color:#666;margin-bottom:8px">이 곡은 악보가 없습니다</div>'
-          + '<div style="font-size:12px;color:#999">창작자가 악보를 공유하지 않았습니다</div>'
+          + '<div style="font-size:12px;color:#999">이 곡의 TLD 악보는 아직 생성·발행되지 않았습니다. TRACK에 등록된 V5 음원과 연동하는 자동 채보·검수·TLD 발행 기능을 개발 중입니다.</div>'
           + '</div>';
         return;
       }
@@ -1456,7 +1433,7 @@ function transposeScore(semitones){
 
 // 악보 사용 (1,000 TL)
 async function useScore(){
-  if(_scoreDraft){alert('로컬 악보 초안에는 TL이 차감되지 않습니다. 정식 TLD 발행은 아직 연결되지 않았습니다.');return;}
+  alert('V5 TLD 악보 사용·과금은 준비 중입니다. 구형 1,000TL 과금은 실행하지 않습니다.');return;
   if(!getTok()){ alert("로그인이 필요합니다"); return; }
   if(!_share){ alert("곡 정보를 불러오는 중입니다"); return; }
 
@@ -2776,7 +2753,6 @@ document.addEventListener('click', function(e){
 <script src="/sidebar.js?v=v5-wallet-sync-20261022b"></script>
   <script src="/i18n.js?v=20261021-global-six-language"></script>
 
-<script src="/track-score-analyzer.js?v=20261029-score-draft-v1"></script>
 <script src="/_shared/footer.js" defer></script>
 <script src="/tl-scenes.js?v=20261020l"></script>
 
