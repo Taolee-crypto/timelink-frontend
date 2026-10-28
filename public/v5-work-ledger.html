@@ -33,7 +33,7 @@ const sidebarGroups=[
  {title:'TL 방송국',scope:'individual',items:['TL 중앙방송센터','카페방송','인카방송']},
  {title:'커뮤니케이션',scope:'individual',items:['카페 월드','마이카 월드']},
  {title:'TL 경제',scope:'individual',items:['지갑','TL↔TLC 교환풀','경제원장·정산']},
- {title:'마이',scope:'individual',items:['내 프로필','내 라이브러리','TLC 채굴','미션','내 채널']},
+ {title:'마이',scope:'individual',items:['내 프로필','내 라이브러리','TLC 채굴','미션']},
  {title:'확장 개발',scope:'individual',items:['라디오 수신앱']}
 ];
 const categories=sidebarGroups.flatMap(g=>g.items);
@@ -57,7 +57,6 @@ const pageRoutes={
  '내 라이브러리':[['내 라이브러리','/dashboard.html?tab=content'],['내 파일','/renewal/files.html'],['내 음악','/renewal/music.html']],
  'TLC 채굴':[['TLC 채굴','/dashboard.html?tab=mining']],
  '미션':[['미션','/dashboard.html?tab=mission']],
- '내 채널':[['내 채널','/dashboard.html?tab=cafe']],
  '공통 인프라·운영':[['관리자 콘솔','/admin.html'],['개발 관리대장','/v5-work-ledger.html'],['커뮤니티 관리','/community-admin.html']]
 };
 // Page overview follows the visible sidebar order and labels.
@@ -65,16 +64,16 @@ const sidebarPageGroups=[
  ['기본 메뉴',[['TimeLink','/timelink.html'],['New Asset','/new-asset.html'],['Broadcast','/radio.html'],['World Network','/world-network.html'],['내 작품 올리기','/creator.html']]],
  ['활동 공간',[['나의 카페','/my-cafe.html'],['나의 차','/my-car.html']]],
  ['월드',[['스토어월드','/cafe-world.html'],['카월드','/my-car-world.html']]],
- ['계정과 활동',[['내 활동 요약','/dashboard.html'],['공유 마켓','/shareplace.html'],['내 작품 관리','/dashboard.html?tab=content'],['지갑','/wallet.html'],['내 정보','/my-profile.html'],['내 파일 관리','/renewal/files.html'],['내 음악','/renewal/music.html'],['정산 내역','/dashboard.html?tab=settlement'],['TLC 채굴','/dashboard.html?tab=mining'],['미션','/dashboard.html?tab=mission'],['내 채널','/dashboard.html?tab=cafe'],['TL / TLC 교환풀','/tl-tlc-pool.html']]],
+ ['계정과 활동',[['내 활동 요약','/dashboard.html'],['공유 마켓','/shareplace.html'],['내 작품 관리','/dashboard.html?tab=content'],['지갑','/wallet.html'],['내 정보','/my-profile.html'],['내 파일 관리','/renewal/files.html'],['내 음악','/renewal/music.html'],['정산 내역','/dashboard.html?tab=settlement'],['TLC 채굴','/dashboard.html?tab=mining'],['미션','/dashboard.html?tab=mission'],['TL / TLC 교환풀','/tl-tlc-pool.html']]],
  ['운영센터',[['관리자 콘솔','/admin.html'],['방송 운영','/tilo-admin.html'],['보상 관리','/reward-policy.html'],['개발 관리대장','/v5-work-ledger.html'],['커뮤니티 관리','/community-admin.html']]]
 ];
 const routeKey=path=>'TLV5-PAGE-'+Array.from(path).map(c=>c.codePointAt(0).toString(16)).join('-');
 
 const STAGE_WEIGHT={'미검증':0,'설계':20,'구현':55,'테스트':80,'운영확인':100,'보류':0};
 // 개발 완료(구현·테스트·운영확인)와 운영 검증 완료(운영확인)를 분리한다.
-const retiredIds=new Set(['TLV5-039','TLV5-054','TLV5-055','TLV5-NAV-SPONSOR','TLV5-NAV-ADS','TLV5-WORK-20261027-POLICY','TLV5-WORK-20261027-CONTRIBUTION']);
-const retiredCategories=new Set(['DJ센터','스폰서 센터','광고 시청']);
-const retiredRoutes=new Set(['/dj-center.html','/dj-guide.html','/advertiser.html','/ads.html','/cafe-radio.html']);
+const retiredIds=new Set(['TLV5-039','TLV5-054','TLV5-055','TLV5-NAV-SPONSOR','TLV5-NAV-ADS','TLV5-WORK-20261027-POLICY','TLV5-WORK-20261027-CONTRIBUTION','TLV5-NAV-CHANNELS']);
+const retiredCategories=new Set(['DJ센터','스폰서 센터','광고 시청','내 채널']);
+const retiredRoutes=new Set(['/dj-center.html','/dj-guide.html','/advertiser.html','/ads.html','/cafe-radio.html','/dashboard.html?tab=cafe']);
 const activePageIds=new Set(Object.entries(pageRoutes).filter(([category])=>!retiredCategories.has(category)).flatMap(([,routes])=>routes.filter(([,route])=>!retiredRoutes.has(route)).map(([,route])=>routeKey(route))));
 function isRetired(t){return (String(t.id||'').startsWith('TLV5-PAGE-')&&!activePageIds.has(t.id))||t.status==='폐기'||t.retired===true||/^(영업\s*(매니저|파트너)|DJ\s*(센터|방송)|광고주|광고\s*수익)/i.test(String(t.title||''))||retiredIds.has(t.id)||String(t.id||'').startsWith('TLV5-DJC-')||(retiredCategories.has(t.category)&&t.id!=='TLV5-056')||Array.from(retiredRoutes).some(route=>t.id===routeKey(route));}
 function activeTasks(tasks){return tasks.filter(t=>!isRetired(t));}
@@ -330,7 +329,6 @@ function migrateSidebarCategories20261024(){
   ['LIBRARY','내 라이브러리','내 음원·삭제·재생·잔액 연동 검증'],
   ['MINING','TLC 채굴','POC 기여도·채굴 화면·원장 연동 검증'],
   ['MISSION','미션','미션 목록·참여·보상 검증'],
-  ['CHANNELS','내 채널','내 카페·인카 채널 목록과 권한 검증'],
   ['WALLET','지갑','지갑 TL 잔액·충전·거래내역 검증'],
   ['POOL','TL↔TLC 교환풀','교환풀 호가·교환·원장 정합성 검증']
  ];
