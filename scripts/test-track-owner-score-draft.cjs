@@ -31,7 +31,7 @@ const html=fs.readFileSync(path.join(__dirname,'../public/track.html'),'utf8');
 const player=fs.readFileSync(path.join(__dirname,'../public/tl3-v5-player.js'),'utf8');
 assert.ok(html.includes("id=\"generateV5ScoreDraftBtn\""));
 assert.ok(html.includes("id=\"v5ScoreDerivativesRights\""));
-assert.ok(html.includes("_v5ScoreOwnerAllowed=false; // Retired"));
+assert.ok(html.includes("_v5ScoreOwnerAllowed=result.can_generate===true&&result.analysis_ready===true&&!!result.source_sha256;"));
 assert.ok(html.includes("onVerifiedScoreAudio:_v5ScoreOwnerAllowed&&_v5ScoreAnalysisPending"));
 assert.ok(html.includes("track-score-worker-v5.js"));
 assert.ok(html.includes("/api/v1/scores/v5/'+encodeURIComponent(SHARE_ID)+'/draft"));
