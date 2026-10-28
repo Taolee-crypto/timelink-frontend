@@ -91,7 +91,17 @@
         return request(API+'/api/v1/tl3/v5/resolve/'+encodeURIComponent(raw)+'?by=share_id',{headers:auth()});
       }
     }
-    return request(API+'/api/v1/tl3/v5/resolve/'+encodeURIComponent(raw)+'?by=share_id',{headers:auth()});
+    // TRACK URLs historically contain a numeric file ID as well as numeric
+    // share IDs. Try the persisted share ID FIRST to avoid changing another
+    // song's identity. If it does not exist, resolve a numeric file ID in V5.
+    // Never downgrade to V3/V4 or retry for auth/server/network errors.
+    try{
+      return await request(API+'/api/v1/tl3/v5/resolve/'+encodeURIComponent(raw)+'?by=share_id',{headers:auth()});
+    }catch(shareLookupError){
+      if(!shareLookupError||shareLookupError.status!==404||!/^([1-9]\d*)$/.test(raw)||
+        !Number.isSafeInteger(Number(raw)))throw shareLookupError;
+      return request(API+'/api/v1/tl3/v5/resolve/'+encodeURIComponent(raw)+'?by=file_id',{headers:auth()});
+    }
   }
   async function canPlay(id){
     try{const r=await resolve(id);return Number(r.version)===5;}
