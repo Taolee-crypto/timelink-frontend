@@ -17,7 +17,7 @@ assert.ok(!fs.existsSync(path.join(__dirname,'../public/track-score-analyzer.js'
 // Do not charge via unverified, non-atomic V3 score payment; not yet V5 TLD.
 assert.ok(html.includes("alert('V5 TLD 악보 사용·과금은 준비 중입니다."));
 assert.ok(html.includes("alert('정식 V5 TLD 악보가 발행된 후"));
-assert.ok(html.includes("if(button)button.hidden=true"));
+assert.ok(html.includes("button.hidden=true;button.disabled=true"),'purchase controls must be both hidden and disabled');
 assert.ok(ledger.includes("'TLV5-TRACK-SCORE-LOCAL-20261029'"));
 const retired=releases.tasks.find(t=>t.id==='TLV5-TRACK-SCORE-LOCAL-20261029');
 assert.ok(retired && retired.title.includes('폐기'));
