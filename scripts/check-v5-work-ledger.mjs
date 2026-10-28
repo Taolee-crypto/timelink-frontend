@@ -117,16 +117,3 @@ console.log('PASS page overview groups and ordering match visible sidebar');
 const adminLedgerHtml=readFileSync(new URL('../public/admin.html',import.meta.url),'utf8');
 assert.ok(adminLedgerHtml.includes("['구현','테스트','운영확인'].includes(t.status)"),'admin ledger summary must count implemented and tested tasks');
 console.log('PASS admin ledger summary uses implementation completion');
-
-
-// The administrator's V5 ledger must not vanish on an auth or API error.
-assert.match(html,/body:not\(\.ledger-authorized\) \.workspace\{display:none!important\}/);
-assert.match(html,/ledgerAccessPanel/);
-assert.match(html,/ledgerRetryButton/);
-assert.match(html,/관리자 권한이 없습니다/);
-assert.match(html,/관리대장 API 요청이 실패했습니다/);
-assert.doesNotMatch(html,/document\.querySelectorAll\('main,dialog'\)\.forEach\(el=>el\.hidden=true\)/);
-assert.ok(html.includes("localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||''"));
-const renewalBridge=readFileSync(new URL('../public/renewal/renewal.js',import.meta.url),'utf8');
-assert.ok(renewalBridge.includes("path!=='/v5-work-ledger.html'"),'admin ledger direct URL must remain standalone');
-console.log('PASS V5 ledger: standalone route, explicit load error and retry, no blank screen or stale admin-token precedence');

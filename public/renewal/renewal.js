@@ -22,7 +22,7 @@ var css=document.createElement('link');css.rel='stylesheet';css.href='/renewal/r
 if(PLAYER){document.documentElement.classList.add('tl-player-document');}
 else if(EMBEDDED&&!HOST){document.documentElement.classList.add('tl-embedded');}
 // The application host is persistent; individual document URLs still load their original files.
-else if(!HOST&&!authPaths.test(path)&&path!=='/v5-work-ledger.html'&&params.get('standalone')!=='1'){
+else if(!HOST&&!authPaths.test(path)&&params.get('standalone')!=='1'){
  var dest=path+location.search+location.hash;location.replace('/index.html?view='+encodeURIComponent(dest));return;
 }
 function image(name,alt){return '<img src="/images/renewal/'+name+'.jpg" alt="'+esc(alt)+'" loading="lazy" decoding="async">';}
