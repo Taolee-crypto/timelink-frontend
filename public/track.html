@@ -1277,7 +1277,7 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
   const measures = [];
   let currentMeasure = [], position = 0, eventCursor = 0;
   const allowedTicks = [16,8,4,2,1];
-  function writeSpan(kind, duration, midi, chordSym){
+  function writeSpan(kind, duration, midi, chordSym, lyric){
     let remaining = duration, first = true;
     while(remaining>0){
       if(position>=MEASURE_TICKS){
@@ -1290,6 +1290,7 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
       currentMeasure.push({
         type:kind,duration:dur,midi,
         chordSym:first?chordSym:null,
+        lyric:first?lyric:null,
         tieStop:kind==='note'&&!first,
         tieStart:kind==='note'&&hasMore
       });
@@ -1307,7 +1308,8 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
       const chord=scoreData.chords.find(c=>ev.s>=c.s&&ev.s<c.e);
       if(chord)chordSym=String(chord.sym||'').slice(0,30);
     }
-    writeSpan('note',durationTicks,ev.m+transpose,chordSym);
+    const lyric=typeof ev.lyric==='string'?ev.lyric:(typeof ev.text==='string'?ev.text:'');
+    writeSpan('note',durationTicks,ev.m+transpose,chordSym,lyric);
     eventCursor=startTick+durationTicks;
   }
   if(currentMeasure.length)measures.push(currentMeasure);
@@ -1384,6 +1386,7 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
         xml.push('        </pitch>');
         xml.push('        <duration>' + item.duration + '</duration>');
         xml.push('        <type>' + ticksToType(item.duration, DIVISIONS) + '</type>');
+        if(item.lyric)xml.push('        <lyric number="1"><syllabic>single</syllabic><text>'+escapeXml(item.lyric.slice(0,120))+'</text></lyric>');
         if(item.tieStop)xml.push('        <tie type="stop"/>');
         if(item.tieStart)xml.push('        <tie type="start"/>');
         if(item.tieStop||item.tieStart){
