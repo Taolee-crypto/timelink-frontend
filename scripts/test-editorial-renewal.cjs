@@ -22,7 +22,7 @@ async function main(){
   assert.equal(await page.locator('body>.site-footer').count(),0,'Host must not repeat the frame footer');
   assert.equal(await frame().locator('footer').count(),1);
   const footer=frame().locator('.site-footer');
-  assert.match(await footer.textContent(),/주식회사 틸로/);assert.match(await footer.textContent(),/틸로코리아/);assert.doesNotMatch(await footer.textContent(),/씨엠피|1 TL = 1원/);
+  assert.match(await footer.textContent(),/틸로그룹.*TILO Group/);assert.match(await footer.textContent(),/틸로코리아/);assert.doesNotMatch(await footer.textContent(),/씨엠피|1 TL = 1원/);
   for(const href of await footer.locator('a').evaluateAll(links=>links.map(a=>a.getAttribute('href'))))assert.ok(fs.existsSync(path.join(root,href)),href);
   // Old pages may complete a legacy footer render after the common script.
   await footer.evaluate(el=>el.innerHTML='<p>obsolete footer</p>');await footer.getByRole('link',{name:/TimeLink.*by TILO/}).waitFor();
