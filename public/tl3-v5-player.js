@@ -206,6 +206,7 @@
     }
     const blobUrl=URL.createObjectURL(new Blob([decoded.mp3],{type:'audio/mpeg'}));
     let stopped=false,meterTimer=null,billableMs=0,lastTime=null,meterQueued=0,lastBilled=0,meterQueue=Promise.resolve(),meterFailed=false,buffering=false;
+    let endMeterFinalized=false,completedByAudibleTime=false;
     // The media clock is the billing source. Sample it both on a short
     // interval and on timeupdate so throttled browser timers cannot suppress
     // whole-second settlements. Pause/buffering boundaries flush only the
@@ -257,7 +258,30 @@
     const onSeeking=()=>{lastTime=null;};
     const onSeeked=()=>{lastTime=Number(audio.currentTime)||0;};
     const onTimeUpdate=()=>sample(false);
-    const onEnded=()=>{sample(true);if(pre.billing_mode==='time_free'){publishProgress(false);queueMeter(billableMs/1000,false);}else{billableMs=totalMs;publishProgress(true);queueMeter(Math.ceil(totalMs/1000),true);}};
+    function finishMeterForEnded(){
+      if(endMeterFinalized)return;
+      endMeterFinalized=true;
+      // The playhead reaching the end (including after a seek) is NOT proof
+      // that the whole song was heard. Charge only accumulated audible time.
+      sample(true);
+      if(pre.billing_mode==='time_free'){
+        publishProgress(false);
+        queueMeter(billableMs/1000,false);
+        return;
+      }
+      // A genuine full listen may lose at most one final media-clock tick.
+      // Never turn a near-end seek into a full-duration TL settlement.
+      completedByAudibleTime=totalMs>0 && billableMs>=totalMs-125;
+      if(completedByAudibleTime){
+        billableMs=totalMs;
+        publishProgress(true);
+        queueMeter(Math.ceil(totalMs/1000),true);
+      }else{
+        publishProgress(false);
+        queueMeter(billableMs/1000,false);
+      }
+    }
+    const onEnded=()=>finishMeterForEnded();
     audio.addEventListener('playing',onPlaying);
     audio.addEventListener('pause',onPause);
     audio.addEventListener('waiting',onBuffering);
@@ -291,8 +315,7 @@
       })).catch(err=>console.warn('[V5 SCORE] owner draft analysis failed',err));
     }
     audio._tl3End=async function(){
-      sample(true);
-      if(audio.ended){if(pre.billing_mode==='time_free'){publishProgress(false);queueMeter(billableMs/1000,false);}else{billableMs=totalMs;publishProgress(true);queueMeter(Math.ceil(totalMs/1000),true);}}
+      finishMeterForEnded();
       if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}
       await meterQueue;
       return lastBilled;
@@ -305,7 +328,7 @@
       if(!nonBillable&&!meterFailed&&billableMs>0)queueMeter(Number((billableMs/1000).toFixed(3)),false);
       const closingMeter=meterQueue;
       audio._tl3StopPromise=closingMeter.then(async()=>{
-        if(nonBillable||meterFailed||(audio.ended&&pre.billing_mode!=='time_free'))return;
+        if(nonBillable||meterFailed||(completedByAudibleTime&&pre.billing_mode!=='time_free'))return;
         const response=await fetch(API+'/api/v1/tl3/play/stop/'+encodeURIComponent(fileId),{
           method:'POST',headers:Object.assign({'Content-Type':'application/json'},auth()),
           body:JSON.stringify({session_id:sessionId})
