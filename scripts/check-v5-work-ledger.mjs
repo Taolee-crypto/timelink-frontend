@@ -103,9 +103,9 @@ assert.equal(scopeFixture.find(t=>t.id==='TLV5-003').note,'수동 정책 메모'
 assert.equal(scopeFixture.find(t=>t.id==='TLV5-004').status,'미검증');
 assert.equal(scopeFixture.find(t=>t.id==='TLV5-004').history[0].detail,'수동 보류');
 assert.equal(runInContext('alignStoreRoleTasks()',scopeContext),false,'Scope migration must be idempotent');
-assert.ok(script.includes('state=d.state;\\n  const beforePageSync=JSON.stringify(state);\\n  alignStoreRoleTasks();'),
+assert.ok(/state=d\\.state;\\s*const beforePageSync=JSON\\.stringify\\(state\\);\\s*alignStoreRoleTasks\\(\\);/.test(script),
  'Reloading authoritative D1 ledger must reassign store-only tasks before calculating progress');
-assert.ok(script.includes('migrateSidebarCategories20261024();\\nalignStoreRoleTasks();'),
+assert.ok(/migrateSidebarCategories20261024\\(\\);\\s*alignStoreRoleTasks\\(\\);/.test(script),
  'Initial local ledger must match the same store-only scope');
 console.log('PASS common member 4/4 after account-type-neutral scope fix; store roles stay in My Cafe with all manual evidence');
 
