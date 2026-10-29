@@ -1468,7 +1468,7 @@ async function createNewPlaylist(){
 function shareTrack(){ document.getElementById('shareModal').classList.add('open'); }
 function closeShareModal(){ document.getElementById('shareModal').classList.remove('open'); }
 async function shareKakao(){
-  // Do not open the obsolete KAKAO_APP_KEY placeholder; use the device share
+  // Do not open an unconfigured Kakao app URL; use the device share
   // sheet (KakaoTalk is available on supported devices), otherwise copy link.
   if(navigator.share){
     try{await navigator.share({title:(_share&&_share.title)||'TimeLink 음악',url:location.href});return;}
@@ -1478,7 +1478,18 @@ async function shareKakao(){
 }
 function shareX(){ window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent(_share?.title||'TimeLink')+'&url='+encodeURIComponent(location.href), '_blank'); }
 function shareFacebook(){ window.open('https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href), '_blank'); }
-function copyLink(){ navigator.clipboard.writeText(location.href).then(()=>{ let msg=document.getElementById('copyMsg'); if(msg){ msg.style.display='block'; setTimeout(()=>{ msg.style.display='none'; },2000); } }); }
+async function copyLink(){
+  const url=location.href;
+  try{
+    if(!navigator.clipboard||!navigator.clipboard.writeText)throw new Error('복사 권한 없음');
+    await navigator.clipboard.writeText(url);
+    const msg=document.getElementById('copyMsg');
+    if(msg){msg.style.display='block';setTimeout(()=>{msg.style.display='none';},2000);}
+  }catch(error){
+    // Browsers without clipboard permission can still copy the exact link.
+    window.prompt('음악 공유 링크를 복사해 주세요.',url);
+  }
+}
 
 // ==================== TL PLAYER ====================
 let _tlAudio=null, _tlPlaying=false, _tlInterval=null, _tlCurrentTL=0, _tlMaxTL=0, _tlElapsed=0, _tlFree=false;
