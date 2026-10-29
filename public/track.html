@@ -1733,34 +1733,48 @@ async function playTrack(){
   } else if(_useTl3V5 && window.TL3V5Player && typeof TL3V5Player.playStream === 'function'){
     console.log('[PLAY] TL3 V5 whole-container Player 시작:', SHARE_ID);
     TL3V5Player.playStream(RAW_SHARE_ID || SHARE_ID, _tlAudio, {
-      onBillingMode:function(info){if(['subscription','time_free'].includes(info.billing_mode)){_tlSubscription={mode:info.billing_mode,remainingMs:Math.max(0,Number(info.remaining_included_ms)||0),chargedTL:0};updatePlayerTLDisplay();}},
+      onBillingMode:function(info){
+        if(_tlAudio!==playerAudio)return;
+        if(['subscription','time_free'].includes(info.billing_mode)){_tlSubscription={mode:info.billing_mode,remainingMs:Math.max(0,Number(info.remaining_included_ms)||0),chargedTL:0};updatePlayerTLDisplay();}
+      },
       onProgress: function(progress){
-        if(!_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;
+        // Ignore asynchronous callbacks belonging to a stopped or replaced audio element.
+        if(_tlAudio!==playerAudio || !_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;
         _tlSessionSettledSeconds=Math.max(_tlSessionSettledSeconds,Number(progress.billed_seconds)||0);
         updatePlayerTLDisplay();
       },
       onMeter: function(info){
-        if(!_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;
+        if(_tlAudio!==playerAudio || !_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;
         if(info.wallet_tl!=null){
           const reportedWallet=Number(info.wallet_tl);
           if(Number.isFinite(reportedWallet)&&reportedWallet>=0)_myFileTL=reportedWallet;
           else console.warn('[TRACK TL V5] invalid meter wallet balance ignored');
         }
         if(['subscription','time_free'].includes(info.billing_mode) && _tlSubscription){_tlSubscription.chargedTL=Math.max(0,Number(info.charged_tl)||0);if(info.subscription_remaining_ms!==undefined)_tlSubscription.remainingMs=Math.max(0,Number(info.subscription_remaining_ms)||0);if(info.time_free_remaining_ms!==undefined)_tlSubscription.remainingMs=Math.max(0,Number(info.time_free_remaining_ms)||0);}
-        _tlSessionSettledSeconds=Math.max(_tlSessionSettledSeconds,Number(info.billed_seconds||info.charged_tl)||0);
-        if(info.billing_mode!=='time_free'){
-          _tlCurrentTL=Math.max(0,Number(info.asset_tl ?? (songRequiredTL()-_tlSessionSettledSeconds))||0);
-          _trackTL=_tlCurrentTL;
+        const confirmedSeconds=Number(info.billed_seconds ?? info.charged_tl);
+        if(Number.isFinite(confirmedSeconds)&&confirmedSeconds>=0)
+          _tlSessionSettledSeconds=Math.max(_tlSessionSettledSeconds,confirmedSeconds);
+        // Never invent a track TL balance from elapsed seconds. The server
+        // may reserve, refund or split prepaid pools independently.
+        if(info.asset_tl!==undefined && info.asset_tl!==null){
+          const confirmedAssetTL=Number(info.asset_tl);
+          if(Number.isFinite(confirmedAssetTL)&&confirmedAssetTL>=0){
+            _tlCurrentTL=confirmedAssetTL;
+            _trackTL=confirmedAssetTL;
+          }else console.warn('[TRACK TL V5] invalid meter asset balance ignored');
         }
         updatePlayerTLDisplay();
         console.log('[TRACK TL V5] elapsed playback settlement:',info.delta_tl,'TL; total:',_tlSessionSettledSeconds,'wallet:',_myFileTL);
       },
       onStopSettlement: function(info){
+        // A previous session's stop may finish after a new song has started.
+        // Always reconcile the wallet, but never overwrite the new player banner.
+        const showStopStatus=(!_tlAudio || _tlAudio===playerAudio);
         // The V5 stop request has committed; refresh the canonical wallet rather
         // than guessing which TL_P/TL_A/TL_B bucket received the refund.
-        if(['subscription','time_free'].includes(info.billing_mode)){const status=document.getElementById('v5StopRefundStatus');if(status){status.textContent=info.billing_mode==='time_free'?'TIME FREE 재생 종료 · 사용시간 반영 완료 · TL 차감·보상 없음':'구독 재생 종료 · 사용시간 정산 완료';status.style.display='block';}updateMyTLFromServer().catch(console.warn);return;}
+        if(['subscription','time_free'].includes(info.billing_mode)){const status=showStopStatus?document.getElementById('v5StopRefundStatus'):null;if(status){status.textContent=info.billing_mode==='time_free'?'TIME FREE 재생 종료 · 사용시간 반영 완료 · TL 차감·보상 없음':'구독 재생 종료 · 사용시간 정산 완료';status.style.display='block';}updateMyTLFromServer().catch(console.warn);return;}
         const refunded=Math.max(0,Number(info.refunded_tl)||0);
-        const status=document.getElementById('v5StopRefundStatus');
+        const status=showStopStatus?document.getElementById('v5StopRefundStatus'):null;
         if(status){
           status.textContent='중도 종료 정산 완료 · 잔여 '+formatTLInteger(refunded)+' 반환 · 지갑 동기화 중';
           status.style.display='block';
@@ -1773,7 +1787,7 @@ async function playTrack(){
         });
       },
       onInsufficient: function(info){
-        if(!_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;
+        if(_tlAudio!==playerAudio || !_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;
         if(info.wallet_tl!=null){
           const reportedWallet=Number(info.wallet_tl);
           if(Number.isFinite(reportedWallet)&&reportedWallet>=0)_myFileTL=reportedWallet;
@@ -1785,6 +1799,12 @@ async function playTrack(){
       },
       onError:function(err){
         console.error('[TRACK TL3 V5]',err);
+        if(_tlAudio!==playerAudio){
+          // A late refund/meter error from a previous session must never
+          // stop a new song; refresh the canonical wallet instead.
+          updateMyTLFromServer().catch(function(error){console.warn('[TRACK TL V5] stale settlement wallet refresh failed',error);});
+          return;
+        }
         stopPlay();
         alert('V5 재생을 중지했습니다: '+(err&&err.message?err.message:err));
       }
