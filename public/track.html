@@ -1245,12 +1245,32 @@ async function generateV5ScoreDraft(){
     });
     const data=await response.json().catch(()=>({}));
     if(!response.ok||data.ok!==true)throw Error(v5ScoreErrorMessage(data,'보컬 채보 작업을 접수하지 못했습니다.'));
-    v5ScoreStatus('보컬 채보가 접수됐습니다. 진행 상태를 자동 확인합니다. 작업 번호: '+data.file_id);\n    startV5ScorePolling();
+    v5ScoreStatus('보컬 채보가 접수됐습니다. 진행 상태를 자동 확인합니다. 작업 번호: '+data.file_id);
+    startV5ScorePolling();
   }catch(error){v5ScoreStatus('자동 채보 요청 실패: '+(error?.message||String(error)));}
   finally{_v5ScoreAnalyzing=false;if(button)button.disabled=false;}
 }
 
-let _v5ScorePollTimer=null;\nfunction startV5ScorePolling(){\n  if(_v5ScorePollTimer)clearInterval(_v5ScorePollTimer);\n  let checks=0;\n  _v5ScorePollTimer=setInterval(async()=>{\n    if(++checks>120||!document.getElementById('scoreModal')?.classList.contains('open')){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;return;}\n    try{\n      const response=await fetch(API+'/api/v1/scores/v5/'+encodeURIComponent(SHARE_ID),{headers:{'Accept':'application/json',...(getTok()?{'Authorization':'Bearer '+getTok()}:{})},cache:'no-store'});\n      if(!response.ok)return;\n      const data=await response.json();\n      if(data.has_score===true&&data.score?.melody?.length){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;await loadScore();return;}\n      const status=String(data.job_status||'');\n      if(status==='failed'){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;v5ScoreStatus('보컬 채보 실패: '+(data.job_error_code||'원인을 확인해 주세요.'));return;}\n      if(status==='running')v5ScoreStatus('보컬 분리 및 멜로디 채보 중입니다.');\n      if(status==='queued')v5ScoreStatus('보컬 채보 대기 중입니다.');\n    }catch(_){/* transient connection issue: retry */}\n  },10000);\n}\nfunction closeScoreModal(){\n  if(_v5ScorePollTimer){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;}
+let _v5ScorePollTimer=null;
+function startV5ScorePolling(){
+  if(_v5ScorePollTimer)clearInterval(_v5ScorePollTimer);
+  let checks=0;
+  _v5ScorePollTimer=setInterval(async()=>{
+    if(++checks>120||!document.getElementById('scoreModal')?.classList.contains('open')){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;return;}
+    try{
+      const response=await fetch(API+'/api/v1/scores/v5/'+encodeURIComponent(SHARE_ID),{headers:{'Accept':'application/json',...(getTok()?{'Authorization':'Bearer '+getTok()}:{})},cache:'no-store'});
+      if(!response.ok)return;
+      const data=await response.json();
+      if(data.has_score===true&&data.score?.melody?.length){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;await loadScore();return;}
+      const status=String(data.job_status||'');
+      if(status==='failed'){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;v5ScoreStatus('보컬 채보 실패: '+(data.job_error_code||'원인을 확인해 주세요.'));return;}
+      if(status==='running')v5ScoreStatus('보컬 분리 및 멜로디 채보 중입니다.');
+      if(status==='queued')v5ScoreStatus('보컬 채보 대기 중입니다.');
+    }catch(_){/* transient connection issue: retry */}
+  },10000);
+}
+function closeScoreModal(){
+  if(_v5ScorePollTimer){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;}
   const modal = document.getElementById("scoreModal");
   if(modal) modal.classList.remove("open");
 }
