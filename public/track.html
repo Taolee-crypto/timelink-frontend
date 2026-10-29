@@ -780,7 +780,36 @@ async function saveTrackInfo(){
   try{
     const res=await fetch(API+'/api/shares/'+encodeURIComponent(SHARE_ID),{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getTok()},body:JSON.stringify(payload)});
     const data=await res.json().catch(()=>({}));if(!res.ok||data.ok===false)throw new Error(data.error||'곡 정보 저장에 실패했습니다.');
-    _share=Object.assign({},_share,payload);renderPlainLyrics(_share);renderCopyright(_share);closeTrackInfoEditor();alert('곡 정보가 저장되었습니다.');
+    // The PATCH endpoint may accept a V5 lyric update while refusing or ignoring
+    // other creator metadata. Never promote unconfirmed form fields to local truth.
+    const confirmed=await fetch(API+'/api/shares/'+encodeURIComponent(SHARE_ID),{
+      headers:{'Authorization':'Bearer '+getTok(),'Accept':'application/json'},cache:'no-store'
+    });
+    const canonical=await confirmed.json().catch(()=>({}));
+    if(!confirmed.ok||!canonical||!canonical.id)throw new Error('저장 요청 후 서버의 최종 곡 정보를 확인하지 못했습니다. 새로고침 후 확인해 주세요.');
+    const before=_share;
+    const missing=Object.keys(payload).filter(function(key){
+      return String(payload[key])!==String(before[key]??'') &&
+        String(canonical[key]??'')!==String(payload[key]);
+    });
+    _share=Object.assign({},_share,canonical);
+    renderPlainLyrics(_share);
+    renderCopyright(_share);
+    const categoryEl=document.querySelector('.track-meta .track-category');
+    const artistEl=document.querySelector('.track-meta .track-artist');
+    const uploaderEl=document.querySelector('.track-meta .track-uploader');
+    if(categoryEl)categoryEl.textContent='#'+String(_share.category||'Music');
+    if(artistEl)artistEl.textContent=String(_share.artist||'')+(_share.album?' · '+_share.album:'');
+    if(uploaderEl)uploaderEl.textContent='가수: '+String(_share.artist||'—')+
+      ' · 작곡: '+String(_share.composer||'—')+' · 작사: '+String(_share.lyricist||'—')+
+      ' · 공유: '+(_share.created_at?new Date(_share.created_at).toLocaleDateString('ko-KR'):'—');
+    if(missing.length){
+      const labels={artist:'가수',album:'앨범',composer:'작곡',lyricist:'작사',producer:'프로듀서',arranger:'편곡',category:'장르',lyrics:'가사'};
+      const err=document.getElementById('trackInfoEditError');
+      if(err){err.textContent='서버에 반영되지 않은 항목: '+missing.map(k=>labels[k]||k).join(', ')+'. 가사 등 저장된 항목은 반영했으며 권리자 정보는 정식 권리 확인 후 수정해야 합니다.';err.style.display='block';}
+      return;
+    }
+    closeTrackInfoEditor();alert('곡 정보 저장과 서버 반영을 확인했습니다.');
   }catch(e){const err=document.getElementById('trackInfoEditError');if(err){err.textContent=e.message||'저장 실패';err.style.display='block';}else alert(e.message||'저장 실패');}
   finally{if(btn){btn.disabled=false;btn.textContent='저장';}}
 }
