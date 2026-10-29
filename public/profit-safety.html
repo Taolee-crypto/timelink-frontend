@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TILO Group · 수익 안전 관리</title>
+<link rel="stylesheet" href="/apple-theme.css">
+<link rel="stylesheet" href="/wallet-design-system.css">
+<style>
+:root{color-scheme:dark}body{background:#0d0d12;color:#f4f4f7;font-family:Pretendard,system-ui,sans-serif;margin:0}
+main{max-width:1120px;margin:auto;padding:38px 20px 100px}
+h1{font-size:clamp(25px,3vw,38px);letter-spacing:-.045em;margin:16px 0}
+h2{font-size:19px;letter-spacing:-.02em}
+p{line-height:1.75;color:#bbb8c8}
+a{color:#bb9cff}
+section{background:#18181f;border:1px solid #34313d;border-radius:17px;padding:24px;margin-top:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+label{display:block;font-size:13px;color:#d2cfdf}
+input{width:100%;background:#111117;color:#fff;border:1px solid #52495b;border-radius:10px;padding:12px;margin-top:7px;box-sizing:border-box;font-size:15px}
+button{background:#8b5cf6;color:white;border:0;border-radius:10px;padding:12px 18px;margin-top:14px;font-weight:700;cursor:pointer}
+button:disabled{opacity:.55;cursor:not-allowed}
+.muted{color:#a5a1b1;font-size:13px}
+#status,#result,#history{white-space:pre-wrap;line-height:1.8}
+.good{color:#a2e2bf}.warn{color:#ffbd88}
+small{display:block;color:#b3abbf;margin-top:8px}
+</style>
+</head><body><main>
+<nav><a href="/admin.html">관리자 콘솔</a> · <a href="/reward-policy.html">보상 규칙 수동 관리</a></nav>
+<h1>수익 안전 관리</h1>
+<p>틸로그룹(TimeLink V5) · 현재는 <strong>관리자 수동 승인 단계</strong>입니다. 실측 매출·권리 비용·환불·은행 정산이 충분히 검증되기 전에는 어떤 보상율도 자동 변경하지 않습니다.</p>
+<p id="status" role="status">관리자 권한 및 서버 상태 확인 중…</p>
+<section aria-labelledby="readinessTitle"><h2 id="readinessTitle">운영 준비 상태</h2><p id="readiness">검증 중</p><p class="muted">수익성 시나리오는 실제 회계 매출·입금액으로 인정하지 않습니다. 자동 최적화는 비활성입니다.</p></section>
+<section aria-labelledby="simTitle">
+<h2 id="simTitle">수익성·보상 부담 시뮬레이션</h2>
+<p>추정된 월간 원화 금액을 입력하세요. 입력한 수치는 검증된 실적이 아니라 검토를 위한 가정입니다.</p>
+<form id="forecast"><div class="grid">
+<label>월 결제 유입 가정 (원)<input type="number" min="0" max="1000000000000" step="1" name="gross_krw" required value="100000"></label>
+<label>환불 비용 (원)<input type="number" min="0" max="1000000000000" step="1" name="refund_krw" required value="5000"></label>
+<label>결제 수수료 (원)<input type="number" min="0" max="1000000000000" step="1" name="pg_fees_krw" required value="2000"></label>
+<label>권리자 지급 비용 (원)<input type="number" min="0" max="1000000000000" step="1" name="rights_krw" required value="70000"></label>
+<label>서버·스트리밍 비용 (원)<input type="number" min="0" max="1000000000000" step="1" name="infrastructure_krw" required value="4000"></label>
+<label>마케팅 비용 (원)<input type="number" min="0" max="1000000000000" step="1" name="marketing_krw" required value="2000"></label>
+<label>기타 비용 (원)<input type="number" min="0" max="1000000000000" step="1" name="other_krw" required value="1000"></label>
+<label>예상 TL_B 상환 비용 (원)<input type="number" min="0" max="1000000000000" step="1" name="tl_b_expected_redemption_krw" required value="1000"></label>
+<label>TLC 지급 대비 비용 (원)<input type="number" min="0" max="1000000000000" step="1" name="tlc_reserve_krw" required value="1000"></label>
+</div><button id="simulate" type="submit" disabled>위험 분석 실행</button></form>
+<p id="result" aria-live="polite" class="muted">서버 보상·경제원장에는 어떠한 변화도 적용되지 않습니다.</p>
+</section>
+<section aria-labelledby="limitsTitle"><h2 id="limitsTitle">관리자 수동 안전 한도</h2>
+<form id="limits"><div class="grid">
+<label>최소 공헌이익률 (기준점 · 1만분율)<input name="min_margin_bps" type="number" min="0" max="10000" step="1" required></label>
+<label>매출 대비 최대 혜택 비용 (%)<input name="max_benefits_percent" type="number" min="0" max="100" step="any" required></label>
+<label>월 보상 책임 최대액 (원)<input name="monthly_liability_ceiling_krw" type="number" min="0" max="1000000000000" step="1" required></label>
+</div><button id="save" type="submit" disabled>관리자 승인·한도 저장</button><small>안전 한도 설정만 변경합니다. 기존 회원 보상 정책·TLC·TL 잔액을 자동 변경하지 않습니다.</small></form>
+<h2>안전 한도 변경 이력</h2><div id="history" class="muted">조회 중</div>
+</section>
+</main>
+<script>
+'use strict';
+const API='https://api.timelink.digital/api/admin/profit-safety';
+const token=localStorage.getItem('tl_adm_token')||localStorage.getItem('tl_token')||'';
+const headers={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
+let version=null;
+const byId=id=>document.getElementById(id);
+async function api(path='',method='GET',body){
+ const resp=await fetch(API+path,{method,headers,body:body?JSON.stringify(body):undefined,cache:'no-store'});
+ const obj=await resp.json().catch(()=>({}));
+ if(!resp.ok||obj.ok===false)throw Error(obj.code||obj.error||('HTTP '+resp.status));
+ return obj;
+}
+function readNumbers(form){const entries=[...new FormData(form).entries()];const out={};for(const [key,v] of entries){const n=Number(v);if(v===''||!Number.isSafeInteger(n)||n<0||n>1000000000000)throw Error('0 이상의 정수 금액을 입력하세요: '+key);out[key]=n;}return out;}
+function renderHistory(rows){const el=byId('history');el.replaceChildren();if(!rows.length){el.textContent='기록된 변경 이력이 없습니다.';return}for(const r of rows){const p=document.createElement('p');p.textContent='버전 '+r.version+' · 관리자 '+r.updated_by+' · '+r.updated_at+' · 수동 변경';el.appendChild(p);}}
+async function load(){
+ byId('save').disabled=true;byId('simulate').disabled=true;
+ try{
+  const status=await api();
+  version=status.version;
+  byId('status').textContent='수동 관리 · 안전 규칙 버전 '+version+' · 자동 최적화 비활성';
+  const v=status.verification||{};
+  byId('readiness').textContent='은행 입금 대사 '+(v.bank_settlement_verified?'확인':'미확인')+
+    ' · 환불 정산 '+(v.refund_totals_verified?'확인':'미확인')+
+    ' · 권리비·서버 비용 실측 검증 대기';
+  for(const [name,value] of Object.entries(status.limits||{})){
+    const field=byId('limits').elements.namedItem(name);if(field)field.value=String(value);
+  }
+  const h=await api('/history');renderHistory(h.history||[]);
+  byId('save').disabled=false;byId('simulate').disabled=false;
+ }catch(e){byId('status').textContent='접근 또는 연결 실패: '+e.message;}
+}
+byId('forecast').addEventListener('submit',async e=>{
+ e.preventDefault();const btn=byId('simulate');btn.disabled=true;
+ try{
+  const scenario=readNumbers(byId('forecast'));
+  const r=await api('/simulate','POST',{expected_version:version,scenario});
+  byId('result').className=r.assessment==='blocked'?'warn':'good';
+  byId('result').textContent='예상 공헌이익 '+r.contribution_krw.toLocaleString('ko-KR')+'원 · 이익률 '+(r.estimated_margin_percent??'판정 불가')+
+    '% · 혜택 비용 '+r.incentive_krw.toLocaleString('ko-KR')+'원 · 결과 '+r.assessment+
+    (r.alerts.length?' · 경고: '+r.alerts.join(', '):'')+'\n검토용 시나리오이며 실제 재무 증빙은 아닙니다.';
+ }catch(error){byId('result').textContent='분석 실패: '+error.message;}
+ finally{btn.disabled=false;}
+});
+byId('limits').addEventListener('submit',async e=>{
+ e.preventDefault();const btn=byId('save');btn.disabled=true;
+ try{
+  const form=byId('limits'),limits={};
+  for(const [key,v] of new FormData(form).entries()){const n=Number(v);if(v===''||!Number.isFinite(n)||n<0)throw Error('한도 값 확인: '+key);limits[key]=n;}
+  if(!confirm('관리자 수동 안전 한도를 승인하고 변경 이력을 저장합니까?'))return;
+  await api('/limits','POST',{mode:'manual',expected_version:version,limits});
+  await load();
+ }catch(error){byId('status').textContent='저장 실패: '+error.message+'. 기존 정책은 변경되지 않았습니다.';}
+ finally{btn.disabled=false;}
+});
+load();
+</script></body></html>
