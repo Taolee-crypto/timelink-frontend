@@ -1565,6 +1565,7 @@ function updatePlayerTLDisplay(){
   if(bar) bar.style.width=(required>0?Math.max(0,Math.min(100,_tlSessionSettledSeconds/required*100)):0)+'%';
 }
 
+let _tlV5PlayRequestSequence=0;
 async function playTrack(){
   // Unlock WebAudio inside the Play gesture, before wallet/API awaits.
   if(window.TL3LPChain && typeof window.TL3LPChain.unlock === 'function'){
@@ -1577,6 +1578,7 @@ async function playTrack(){
   _tlFree = isFreeMp3(_share);
   
   if(_tlPlaying){ togglePlay(); return; }
+  const playRequest=++_tlV5PlayRequestSequence;
 
   // 새 재생 세션을 시작한다. 실제 소리가 시작되기 전에는 횟수를 예약하지 않는다.
   _tlPlayCountReserved=false;
@@ -1591,8 +1593,10 @@ async function playTrack(){
     }
     try {
       _useTl3V5 = await TL3V5Player.canPlay(RAW_SHARE_ID || SHARE_ID);
+      if(playRequest!==_tlV5PlayRequestSequence)return;
       if(!_useTl3V5) throw new Error('V5 곡 연결 정보를 찾지 못했습니다. 재자산화하지 말고 곡 ID 및 재생 권한을 확인해 주세요.');
     } catch(e){
+      if(playRequest!==_tlV5PlayRequestSequence)return;
       console.error('[PLAY] TL3 V5 판별 실패:',e);
       alert('TL3 V5 자산 확인 실패: '+(e.message||e));
       stopPlay();
@@ -1787,6 +1791,7 @@ async function playTrack(){
     }).then(function(result){
       console.log('[PLAY] TL3 V5 컨테이너 재생 연결됨:',result&&result.sessionId);
     }).catch(function(e){
+      if(_tlAudio!==playerAudio || (e&&e.code==='V5_START_CANCELLED'))return;
       console.error('[PLAY] TL3 V5 시작 실패:',e);
       if(window._hidePlayLoading) window._hidePlayLoading(false);
       alert('TL3 V5 재생 실패: '+(e&&e.message?e.message:e));
@@ -1856,6 +1861,8 @@ function togglePlay(){
 }
 
 function stopPlay(){
+  // Invalidate a still-pending V5 lookup as well as an in-flight download.
+  ++_tlV5PlayRequestSequence;
   // Record the original caller before changing state; this identifies who
   // requested cancellation while the V4 pipeline is still downloading.
   console.trace('[PLAY] stopPlay 호출 경로');
@@ -1863,6 +1870,9 @@ function stopPlay(){
   // Stop state first so media events cannot restore the playing UI.
   const audio = _tlAudio || window._tlAudio || null;
   if(audio)window.__tlPendingStopAudio=audio;
+  if(audio&&typeof audio._tl3Stop!=='function'&&typeof audio._tl3CancelStartup==='function'){
+    try{audio._tl3CancelStartup();}catch(e){console.warn('[PLAY] V5 startup cancellation failed',e);}
+  }
   _tlPlaying = false;
   _tlPlayCountReserved=false;
   updatePlayerTLDisplay();
