@@ -69,6 +69,47 @@ assert.equal(manualMember.state.tasks.find(t=>t.id==='TLV5-004').status,'미검�
 assert.equal(manualMember.state.tasks.find(t=>t.id==='TLV5-004').note,'관리자 확인 대기');
 console.log('PASS TLV5-004 evidence imports only to untouched seed, never overrides manual verification');
 
+// The ordinary registration form does not define business, owner or staff account types.
+// Ownership and staff approval are tasks under My Cafe instead of member registration.
+const signupHtml=readFileSync(new URL('../public/signup.html',import.meta.url),'utf8');
+const storeSetup=readFileSync(new URL('../public/cafe-channel.html',import.meta.url),'utf8');
+const staffPage=readFileSync(new URL('../public/cafe-staff.html',import.meta.url),'utf8');
+assert.ok(signupHtml.includes("body: JSON.stringify({email: email, password: pw, username: username, marketing: agree3})"),
+ 'Signup must stay account-type neutral');
+assert.ok(!/name\\s*=\\s*["'](?:role|account_type|business_type|staff_role)["']/i.test(signupHtml),
+ 'Owner/staff selection must never be part of member signup');
+assert.ok(storeSetup.includes('aria-label="매장 개설 진행 단계"'));
+assert.ok(staffPage.includes('일반 TimeLink 회원으로 로그인한 후'));
+
+const scopeFixture=[
+ {id:'TLV5-001',category:'회원·인증',title:'필수 약관',status:'운영확인'},
+ {id:'TLV5-002',category:'회원·인증',title:'이메일 인증',status:'운영확인'},
+ {id:'TLV5-003',category:'회원·인증',title:'개인·사업자 계정 전환',status:'구현',note:'수동 정책 메모',history:[{detail:'기존 검증'}]},
+ {id:'TLV5-004',category:'회원·인증',title:'직원 계정과 대표 승인',status:'미검증',note:'관리자 검증 대기',history:[{detail:'수동 보류'}]},
+ {id:'TLV5-005',category:'회원·인증',title:'다국어 번역',status:'구현'},
+ {id:'TLV5-RENEWAL-20261024-LOGOUT',category:'회원·인증',title:'로그아웃',status:'테스트'}
+];
+const scopeContext=createContext({state:{tasks:scopeFixture,events:[]}});
+const scopeSource=script.slice(script.indexOf('function alignStoreRoleTasks(){'),script.indexOf('const RELEASE_CATEGORY_ALIASES='));
+assert.ok(scopeSource.includes('function alignStoreRoleTasks()'));
+runInContext(scopeSource,scopeContext);
+assert.equal(runInContext('alignStoreRoleTasks()',scopeContext),true);
+const memberOnly=scopeFixture.filter(t=>t.category==='회원·인증');
+assert.equal(memberOnly.length,4,'Member scope must contain only universal registration and authentication');
+assert.equal(memberOnly.filter(t=>['구현','테스트','운영확인'].includes(t.status)).length,4,'All 4 existing universal member tasks are implemented');
+assert.equal(scopeFixture.find(t=>t.id==='TLV5-003').category,'카페방송');
+assert.equal(scopeFixture.find(t=>t.id==='TLV5-004').category,'카페방송');
+assert.equal(scopeFixture.find(t=>t.id==='TLV5-003').note,'수동 정책 메모');
+assert.equal(scopeFixture.find(t=>t.id==='TLV5-004').status,'미검증');
+assert.equal(scopeFixture.find(t=>t.id==='TLV5-004').history[0].detail,'수동 보류');
+assert.equal(runInContext('alignStoreRoleTasks()',scopeContext),false,'Scope migration must be idempotent');
+assert.ok(script.includes('state=d.state;\\n  const beforePageSync=JSON.stringify(state);\\n  alignStoreRoleTasks();'),
+ 'Reloading authoritative D1 ledger must reassign store-only tasks before calculating progress');
+assert.ok(script.includes('migrateSidebarCategories20261024();\\nalignStoreRoleTasks();'),
+ 'Initial local ledger must match the same store-only scope');
+console.log('PASS common member 4/4 after account-type-neutral scope fix; store roles stay in My Cafe with all manual evidence');
+
+
 
 const retireContext=createContext({pageRoutes,routeKey:path=>'TLV5-PAGE-'+Array.from(path).map(c=>c.codePointAt(0).toString(16)).join('-'),STAGE_WEIGHT:{'미검증':0,'설계':20,'구현':55,'테스트':80,'운영확인':100,'보류':0}});
 runInContext(script.slice(startRetire,endRetire),retireContext);
