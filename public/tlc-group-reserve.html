@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>틸로그룹 · TLC 장기준비금 지갑</title><link rel="stylesheet" href="/apple-theme.css"><link rel="stylesheet" href="/wallet-design-system.css">
+<style>
+body{margin:0;background:#101015;color:#f5f3f7;font-family:system-ui,'Noto Sans KR',sans-serif}
+main{max-width:930px;padding:34px 22px 80px;margin:auto}
+h1{font-size:32px;letter-spacing:-.04em}
+a{color:#c5a6ff}
+.panel{border:1px solid #34323f;background:#1a1a23;border-radius:20px;padding:24px;margin:16px 0}
+.muted{color:#b6b0c4;line-height:1.65}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.amount{font-size:clamp(24px,5vw,37px);font-weight:800;letter-spacing:-.04em;margin:8px 0}
+label{font-size:13px;color:#c7c0d6}
+button{border:0;border-radius:12px;padding:12px 18px;background:#7962b8;color:white;font-weight:600;cursor:pointer}
+</style></head><body><main>
+<p><a href="/admin.html">관리자 콘솔</a> · <a href="/reward-policy.html">채굴 보상 정책</a></p>
+<h1>틸로그룹 TLC 장기준비금</h1>
+<p class="muted">TILO Group · 회원 기여로 채굴된 총 TLC 중 회사 배분 50%를 적립합니다. 단순 회사 매출·운영비 계정이 아니며, 보통 사용 가능 잔액과 분리된 잠금 준비금입니다.</p>
+<p id="status" role="status" class="muted">관리자 권한 및 그룹 지갑 원장을 확인 중입니다.</p>
+<section class="grid" aria-label="회사 TLC 지갑">
+<div class="panel"><label>그룹 잠금 TLC 잔액</label><div class="amount" id="locked">—</div><span class="muted">V3 원장 held_atoms</span></div>
+<div class="panel"><label>일반 사용 가능 TLC</label><div class="amount" id="available">—</div><span class="muted">회사 준비금은 일반 지급용이 아닙니다</span></div>
+<div class="panel"><label>50:50 채굴 기록</label><div class="amount" id="events">—</div><span class="muted">기존 단독 채굴은 소급 분배하지 않습니다</span></div>
+</section>
+<div class="panel"><h2>보존·전환 정책</h2>
+<p class="muted">이 지갑은 개발 단계 내부 원장 계정입니다. 회사의 시장 매도·자동 이체·금 전환·외부 블록체인 전송 기능은 활성화되어 있지 않습니다. 금으로 전환하는 경우 추후 별도 운영자 승인과 자산·회계·법률 검증 절차가 필요합니다.</p>
+<p id="audit" class="muted">채굴 원장 기록을 조회합니다.</p>
+<button type="button" id="reload">그룹 지갑 새로고침</button></div>
+</main><script>
+'use strict';
+const money=v=>Number(v||0).toLocaleString('ko-KR',{maximumFractionDigits:9});
+async function load(){
+ const btn=document.getElementById('reload');btn.disabled=true;
+ try{
+ const token=localStorage.getItem('tl_adm_token')||localStorage.getItem('tl_token')||'';
+ if(!token)throw Error('관리자 로그인이 필요합니다.');
+ const r=await fetch('https://api.timelink.digital/api/admin/tlc-group-reserve',{
+  headers:{Authorization:'Bearer '+token},cache:'no-store',signal:AbortSignal.timeout(15000)});
+ const d=await r.json();
+ if(!r.ok||!d.ok)throw Error(d.code||d.error||'그룹 지갑 조회 실패');
+ document.getElementById('locked').textContent=money(d.locked_tlc)+' TLC';
+ document.getElementById('available').textContent=money(d.available_tlc)+' TLC';
+ document.getElementById('events').textContent=String(d.mining_events||0)+'건';
+ document.getElementById('audit').textContent='그룹 채굴 누적 '+money(d.minted_to_group_tlc)+' TLC · 회사 준비금 잠금 '+(d.transfer_allowed?'해제 상태':'유지')+' · 과거 소급 재분배 없음';
+ document.getElementById('status').textContent='확인 완료 · 운영 원장 조회 · 외부 TON 발행 아님';
+ }catch(err){document.getElementById('status').textContent='조회 실패: '+String(err.message||err);}
+ finally{btn.disabled=false;}
+}
+document.getElementById('reload').addEventListener('click',load);
+load();
+</script></body></html>
