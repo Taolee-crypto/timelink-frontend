@@ -292,7 +292,7 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
     <a href="shareplace.html" class="tb-action" title="홈">🏠</a>
     <a href="radio.html" class="tb-action" title="방송국">📻</a>
     <a href="creator.html" class="tb-action" title="크리에이터">🎨</a>
-    <a href="ads.html" class="tb-action" title="광고">📺</a>
+    <a href="/my-profile.html" class="tb-action" title="내 프로필">👤</a>
     <div class="tb-action" onclick="openPwModal()" title="비밀번호 변경" style="font-size:11px;font-weight:700;cursor:pointer">PW</div>
     <div class="tb-action logout" onclick="doLogout()" title="로그아웃">↩</div>
   </div>
@@ -382,7 +382,7 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
         <a href="creator.html" class="qb-btn">📤 파일 업로드</a>
         <a href="radio.html" class="qb-btn">📻 방송 청취</a>
         <a href="shareplace.html" class="qb-btn">🎵 SharePlace</a>
-        <a href="cafe-radio.html" class="qb-btn">☕ 카페방송</a>
+        <a href="/my-cafe.html" class="qb-btn">☕ 나의 카페</a>
       </div>
     </details>
     </div>
@@ -602,7 +602,7 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
 var API = 'https://api.timelink.digital';
 async function fetchServerBalance(){
   var token=localStorage.getItem('tl_token')||'';
-  if(!token)return;
+  if(!token)return false;
   try{
     var response=await fetch(API+'/api/eco/wallet',{
       headers:{'Authorization':'Bearer '+token,'Accept':'application/json'},
@@ -610,15 +610,37 @@ async function fetchServerBalance(){
     });
     if(!response.ok)throw new Error('V5 경제원장 HTTP '+response.status);
     var data=await response.json();
-    var value=data&&data.wallet&&data.wallet.tl_total;
-    if(value==null||!Number.isFinite(Number(value))||Number(value)<0)throw new Error('V5 경제원장 잔액 응답 오류');
-    applyDashboardV5Balance(value);
-    window.dispatchEvent(new CustomEvent('tl-balance-updated',{detail:{tl:Number(value)}}));
+    if(token!==localStorage.getItem('tl_token'))return false;
+    if(!data||!data.wallet)throw new Error('V5 경제원장 지갑 데이터 없음');
+    applyDashboardV5Wallet(data.wallet);
+    window.dispatchEvent(new CustomEvent('tl-balance-updated',{detail:{tl:Number(data.wallet.tl_total)}}));
+    return true;
   }catch(error){
     console.warn('[DASHBOARD V5 wallet]',error);
-    ['tbTl','homeTl','walletTl'].forEach(function(id){if(g(id))g(id).textContent='조회 실패';});
+    window.__tlV5Wallet=null;
+    ['tbTl','homeTl','walletTl','tbTlc','homeTlc','walletTlc','miningTlc','tbPoc','homePoc'].forEach(function(id){
+      if(g(id))g(id).textContent='조회 실패';
+    });
+    return false;
   }
 }
+// The authenticated /api/eco/wallet ledger is the source of TL_P, TLC and POC.
+// Cached localStorage user balances are never promoted to financial facts.
+function applyDashboardV5Wallet(wallet){
+  ['tl_total','tl_p','tlc','poc_index'].forEach(function(key){
+    if(wallet[key]===undefined||wallet[key]===null||!Number.isFinite(Number(wallet[key]))||Number(wallet[key])<0)
+      throw new Error('V5 경제원장 잔액 응답 오류: '+key);
+  });
+  window.__tlV5Wallet={
+    tl_total:Number(wallet.tl_total),tl_p:Number(wallet.tl_p),
+    tlc:Number(wallet.tlc),poc_index:Number(wallet.poc_index)
+  };
+  applyDashboardV5Balance(wallet.tl_total);
+  ['tbTlc','homeTlc'].forEach(function(id){if(g(id))g(id).textContent=Number(wallet.tlc).toFixed(4);});
+  ['walletTlc','miningTlc'].forEach(function(id){if(g(id))g(id).textContent=Number(wallet.tlc).toFixed(4);});
+  ['tbPoc','homePoc'].forEach(function(id){if(g(id))g(id).textContent=Number(wallet.poc_index).toFixed(2);});
+}
+
 // Synchronize all dashboard TL views with the sidebar's authoritative V5 wallet response.
 function applyDashboardV5Balance(value){
   if(value==null||!Number.isFinite(Number(value))||Number(value)<0)return;
@@ -666,25 +688,26 @@ function renderUser(){
   if(!_user) return;
   var name = _user.username || _user.email || '사용자';
   var tlTotal = getTotalTL();
-  var tlc = Number(_user.tlc || 0);
-  var poc = parseFloat(localStorage.getItem('tl_poc_today') || '0');
+  var serverWallet=window.__tlV5Wallet||null;
+  var tlc=serverWallet?serverWallet.tlc:null;
+  var poc=serverWallet?serverWallet.poc_index:null;
   function st(id, val){ var el = document.getElementById(id); if(el) el.textContent = val; }
 
   st('tbName', name);
   st('tbTl', tlTotal==null?'조회 중...':fmt(tlTotal));
-  st('tbTlc', fmt(tlc));
-  st('tbPoc', poc.toFixed(1));
+  st('tbTlc', tlc==null?'조회 중...':tlc.toFixed(4));
+  st('tbPoc', poc==null?'조회 중...':poc.toFixed(2));
 
   st('sbName', name);
   st('sbEmail', _user.email || '');
   st('sbType', _user.role || 'personal');
 
   st('homeTl', tlTotal==null?'조회 중...':fmt(tlTotal));
-  st('homeTlc', fmt(tlc));
-  st('homePoc', poc.toFixed(1));
+  st('homeTlc', tlc==null?'조회 중...':tlc.toFixed(4));
+  st('homePoc', poc==null?'조회 중...':poc.toFixed(2));
 
   st('walletTl', tlTotal==null?'조회 중...':fmt(tlTotal));
-  st('walletTlc', Number(tlc).toFixed(2));
+  st('walletTlc', tlc==null?'조회 중...':tlc.toFixed(4));
 }
 
 function getTotalTL(){
@@ -1032,11 +1055,9 @@ async function calcMining(){
       }
       throw new Error(mined.error||'TLC 채굴 실패');
     }
-    _user.tlc=Number(mined.tlc_total||0);
-    localStorage.setItem('tl_user',JSON.stringify(_user));
-    g('miningTlc').textContent=_user.tlc.toFixed(4);
-    if(g('tbTlc'))g('tbTlc').textContent=fmt(_user.tlc);
-    if(g('walletTlc'))g('walletTlc').textContent=_user.tlc.toFixed(4);
+    // The mining receipt is not a wallet balance. Reload the authoritative
+    // V5 wallet after posting, without copying minted tokens into localStorage.
+    if(!await fetchServerBalance())toast('채굴은 접수됐습니다. 지갑 잔액을 다시 확인해 주세요.','info');
     g('miningAvailable').textContent='0.0000';
     if(g('miningSplitPreview'))g('miningSplitPreview').textContent=
       '금일 총 '+Number(mined.gross_mined||0).toFixed(4)+' TLC 채굴 완료. 개인 지갑 '+
@@ -1055,7 +1076,8 @@ async function calcMining(){
 // TL 교환
 // ═══════════════════════════════════════════
 async function doExchangeTL(){
-  var tlP = (_user && _user.tl_p) || 0;
+  if(!await fetchServerBalance()){toast('지갑 확인에 실패했습니다. 잠시 후 다시 시도해 주세요.','error');return;}
+  var tlP=Number(window.__tlV5Wallet&&window.__tlV5Wallet.tl_p||0);
   if(tlP < 1000){ toast('구매TL 최소 1,000TL부터 교환 가능합니다', 'error'); return; }
   var amt = prompt('교환할 구매TL 금액을 입력하세요\n현재: ' + fmt(tlP) + ' TL\n(최소 1,000 TL, 수수료 5%)', '1000');
   if(!amt) return;
@@ -1074,12 +1096,7 @@ async function doExchangeTL(){
     if(!r.ok) throw new Error(d.error || '교환 실패');
     toast('교환 신청 완료', 'success');
     sessionStorage.removeItem(retryKey);
-    var balanceResponse=await fetch(API+'/api/eco/wallet',{headers:{Authorization:'Bearer '+_token}});
-    var balanceData=await balanceResponse.json();
-    if(!balanceResponse.ok||!balanceData.wallet)throw Error('신청은 접수되었습니다. 잔액을 새로고침해 주세요.');
-    Object.assign(_user,balanceData.wallet);
-    localStorage.setItem('tl_user', JSON.stringify(_user));
-    renderUser();
+    if(!await fetchServerBalance())toast('신청은 접수됐습니다. 지갑 표시를 다시 확인해 주세요.','info');
   }catch(e){
     toast('교환 오류: ' + e.message, 'error');
   }
