@@ -31,7 +31,7 @@ function makeAudio(){
 function makeHarness({resolveWait=null,containerWait=null}={}){
   const audio=makeAudio(),stats={preflights:0,containers:0,unwrapped:0,decoded:0,revoked:0},key=new Uint8Array(32).fill(33);
   const ctx={
-    global:{},Blob,URL:{
+    API:'https://api.timelink.digital',global:{},Blob,URL:{
       createObjectURL(){return 'blob:fixture';},
       revokeObjectURL(){stats.revoked++;}
     },
