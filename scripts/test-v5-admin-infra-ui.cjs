@@ -2,7 +2,7 @@
 const fs=require('node:fs'),assert=require('node:assert/strict'),vm=require('node:vm');
 const admin=fs.readFileSync('public/admin.html','utf8');
 const ledger=fs.readFileSync('public/v5-work-ledger.html','utf8');
-const from=admin.indexOf('async function quickApprove('),to=admin.indexOf('async function loadAll(){',from);
+const from=admin.indexOf('function disabledWithdrawalAction('),to=admin.indexOf('async function loadAll(){',from);
 assert.ok(from>0&&to>from,'withdrawal handler boundaries');
 const actions=admin.slice(from,to);
 assert.doesNotMatch(actions,/UPDATE\s+users|UPDATE\s+tlc_withdrawals|DELETE\s+tlc_withdrawals/i);
