@@ -13,7 +13,7 @@ assert.ok(admin.includes('href="/v5-work-ledger.html"'));
 assert.ok(admin.includes('관리자 SQL 콘솔은 조회 전용'));
 assert.ok(ledger.includes('const workLedgerAPI='),'server-ledger is missing');
 assert.ok(ledger.includes('loadServerWorkLedger'),'ledger API should load server data');
-assert.ok(ledger.includes('saveServerWorkLedger'),'server ledger must have authorized save path');
+assert.ok(ledger.includes("method:'POST'")&&ledger.includes('expected_version:serverVersion'),'server ledger must have version-gated save path');
 assert.ok(ledger.includes('alignStoreRoleTasks'),'ledger must preserve category alignment');
 assert.ok(community.includes('/api/v5/community/moderation/reports'),'community API path');
 assert.ok(community.includes('Authorization:')&&community.includes('Bearer '),'moderation auth missing');
