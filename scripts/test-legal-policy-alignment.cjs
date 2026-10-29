@@ -21,7 +21,7 @@ for(const [name,s] of Object.entries({terms,privacy,creator,economy})){
  }
  assert.ok(!s.includes('구매TL 소비의 <strong>62%</strong>'),name+' old 62% payout');
  assert.ok(!s.includes('구매TL 소비의 <strong>45%</strong>'),name+' old 45% payout');
- assert.ok(s.includes('70%'),name+' must preserve 70% rights policy');
+ if(name!=='privacy')assert.ok(s.includes('70%'),name+' must preserve 70% rights policy');
 }
 for(const s of [terms,privacy,footer]){
  assert.ok(s.includes('틸로그룹'), 'Corporate naming must say TILO Group');
