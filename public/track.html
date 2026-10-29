@@ -1139,18 +1139,20 @@ function renderV5Wallet(wallet){
   if(breakdown)breakdown.textContent='TL_P '+formatTLInteger(p)+' · TL_A '+formatTLInteger(a)+' · TL_B '+formatTLInteger(b);
 }
 async function updateMyTLFromServer(){
-  try{
-    const h={'Authorization':'Bearer '+getTok()};
-    const wr=await fetch(API+'/api/eco/wallet',{headers:h});
-    const w=await wr.json();
-    if(!wr.ok) throw new Error(w.error||'TL 조회 실패');
-    _myFileTL=Number(w.wallet?.tl_total);
-    if(!w.wallet || w.wallet.tl_total == null || !Number.isFinite(_myFileTL)) throw new Error('V5 경제원장 잔액 필드 누락');
-    updateUIAfterCharge(_myFileTL);
-    renderV5Wallet(w.wallet);
-    updatePlayerTLDisplay();
-    return _myFileTL;
-  }catch(e){console.warn('[TRACK wallet sync]',e);return _myFileTL;}
+  const token=getTok();
+  if(!token)throw new Error('지갑 조회 전에 로그인이 필요합니다.');
+  const wr=await fetch(API+'/api/eco/wallet',{headers:{'Authorization':'Bearer '+token},cache:'no-store'});
+  const w=await wr.json().catch(()=>({}));
+  if(!wr.ok)throw new Error(w.error||'TL 조회 실패');
+  const next=w.wallet?.tl_total==null?NaN:Number(w.wallet.tl_total);
+  if(!Number.isFinite(next)||next<0)throw new Error('V5 경제원장 잔액 필드 누락 또는 잘못된 값');
+  if(getTok()!==token)throw new Error('조회 중 계정이 변경되어 이전 지갑 응답을 폐기했습니다.');
+  // Only verified wallet responses can publish a balance or unlock charge UI.
+  _myFileTL=next;
+  updateUIAfterCharge(next);
+  renderV5Wallet(w.wallet);
+  updatePlayerTLDisplay();
+  return next;
 }
 
 async function updateTrackTLFromServer(){
@@ -1161,12 +1163,13 @@ async function updateTrackTLFromServer(){
     });
     const d=await r.json();
     if(!r.ok || d.ok!==true) throw new Error(d.error||'곡별 TL 조회 실패');
-    _trackTL=Number(d.tl_balance||0);
-    _tlCurrentTL=_trackTL;
-    updatePlayerTLDisplay();
+    const next=d.tl_balance==null?NaN:Number(d.tl_balance);
+    if(!Number.isFinite(next)||next<0)throw new Error('곡별 TL 잔액 응답이 올바르지 않습니다.');
+    _trackTL=next;
+    _tlCurrentTL=next;
     updatePlayerTLDisplay();
     renderTrackChargeBalances();
-    return _trackTL;
+    return next;
   }catch(e){
     console.warn('[TRACK file TL sync]',e);
     throw e;
@@ -1208,13 +1211,19 @@ async function doDirectCharge(){
     });
     const d=await r.json();
     if(!r.ok || d.ok!==true) throw new Error(d.error||'곡별 충전에 실패했습니다.');
-    _trackTL=Number(d.tl_balance||0);
-    _tlCurrentTL=_trackTL;
-    if(Number.isFinite(Number(d.user_tl))) _myFileTL=Number(d.user_tl);
-    updatePlayerTLDisplay();
+    // The charge is already committed. Never display unverified response
+    // balances or tell the member to retry if the subsequent read fails.
+    let refreshFailed=false;
+    try {
+      await Promise.all([updateMyTLFromServer(),updateTrackTLFromServer()]);
+    } catch(syncError) {
+      refreshFailed=true;
+      console.warn('[TRACK post-charge canonical readback]',syncError);
+    }
     renderTrackChargeBalances();
     closeChargeModal();
-    alert('이 곡에 '+count+'회분 ('+formatTLInteger(d.amount||amount)+')을 충전했습니다.');
+    alert('이 곡에 '+count+'회분 ('+formatTLInteger(d.amount||amount)+')을 충전했습니다.'+
+      (refreshFailed?' 잔액 재확인이 완료되지 않았습니다. 다시 충전하지 말고 화면을 새로고침해 확인해 주세요.':''));
   } catch(e){ alert(e.message||'곡별 충전 오류'); }
   finally { if(btn) btn.disabled=false; }
 }
@@ -1639,7 +1648,11 @@ async function playTrack(){
       },
       onMeter: function(info){
         if(!_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;
-        if(info.wallet_tl!==undefined)_myFileTL=Math.max(0,Number(info.wallet_tl)||0);
+        if(info.wallet_tl!=null){
+          const reportedWallet=Number(info.wallet_tl);
+          if(Number.isFinite(reportedWallet)&&reportedWallet>=0)_myFileTL=reportedWallet;
+          else console.warn('[TRACK TL V5] invalid meter wallet balance ignored');
+        }
         if(['subscription','time_free'].includes(info.billing_mode) && _tlSubscription){_tlSubscription.chargedTL=Math.max(0,Number(info.charged_tl)||0);if(info.subscription_remaining_ms!==undefined)_tlSubscription.remainingMs=Math.max(0,Number(info.subscription_remaining_ms)||0);if(info.time_free_remaining_ms!==undefined)_tlSubscription.remainingMs=Math.max(0,Number(info.time_free_remaining_ms)||0);}
         _tlSessionSettledSeconds=Math.max(_tlSessionSettledSeconds,Number(info.billed_seconds||info.charged_tl)||0);
         if(info.billing_mode!=='time_free'){
@@ -1668,7 +1681,11 @@ async function playTrack(){
       },
       onInsufficient: function(info){
         if(!_share || (String(_share.id)!==String(SHARE_ID) && String(_share.id)!==String(RAW_SHARE_ID))) return;
-        if(info.wallet_tl!==undefined)_myFileTL=Math.max(0,Number(info.wallet_tl)||0);
+        if(info.wallet_tl!=null){
+          const reportedWallet=Number(info.wallet_tl);
+          if(Number.isFinite(reportedWallet)&&reportedWallet>=0)_myFileTL=reportedWallet;
+          else console.warn('[TRACK TL V5] invalid meter wallet balance ignored');
+        }
         updatePlayerTLDisplay();
         stopPlay();
         alert(info.billing_mode==='time_free'?'TIME FREE 시간을 모두 사용했습니다. 시간 이용권을 구매하면 계속 들을 수 있습니다.':'보유 TL이 부족하여 재생을 중지했습니다. 실제 재생된 시간만 정산했습니다.');
