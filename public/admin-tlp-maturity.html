@@ -33,6 +33,20 @@ footer{font-size:12px;color:#95a2bb;margin-top:28px}
 <main>
 <header><div><div class="eyebrow">TILO ADMIN · ECONOMY LEDGER</div><h1>구매 TL_P 만기 심사</h1><small>구매 건별 법적 환급권 확인 → TL_B 전환 · 관리자 통제</small></div><a href="/admin.html">관리자 홈으로 돌아가기</a></header>
 <div class="warn">구매 TL_P는 법정 환불·선불 잔액 환급권이 종료된 후 남은 구매분만 TL_B로 전환할 수 있습니다. <strong>창작자 정산 TL_P는 전환 대상이 아닙니다.</strong> TL_A는 현재 광고 기능 미운영 상태로 유지합니다. 자동 전환은 기본 비활성입니다.</div>
+<section class="panel" aria-labelledby="legacyTitle">
+<h2 id="legacyTitle">0. 기존 구매 이력 검증·안전 이관</h2>
+<p class="muted">기존 결제 영수증과 TL 이중분개 원장을 대조합니다. 구매 기록 이관은 TL을 충전·사용·전환하지 않습니다. 실결제 구분이 확인되지 않은 거래는 <strong>미확인(unknown)</strong>으로 격리하며, 시험거래는 시험거래로 유지합니다.</p>
+<p class="line"><button id="loadLegacyBtn" type="button" class="secondary">이관 대기 구매 거래 조회</button><span class="muted">최대 20건 · 원장 읽기 전용</span></p>
+<div id="legacyStatus" class="status" role="status" aria-live="polite">운영 이력은 자동으로 이관하지 않습니다. 관리자 확인 후 처리합니다.</div>
+<div id="legacyRows" style="display:grid;gap:10px;margin-top:14px"></div>
+<div style="margin-top:16px">
+<label>이관할 거래키<input id="legacyKey" type="text" readonly autocomplete="off" placeholder="위 조회 목록에서 확인된 거래를 선택"></label>
+<label style="margin-top:12px">원장 일치성 증빙 SHA-256<input id="legacyEvidence" type="text" readonly autocomplete="off" placeholder="원장·영수증 대조 결과"></label>
+<label style="margin-top:12px">관리자 이관 검토 의견<textarea id="legacyNote" minlength="20" maxlength="1000" placeholder="원 결제 영수증 및 이중분개 일치, 미확인·시험 구분 처리 근거를 상세히 작성"></textarea></label>
+<label class="check" style="margin-top:14px"><input id="legacyConfirm" type="checkbox">이관은 구매 출처 기록만 만들며, 미확인 구매를 실결제 승인이나 TL_B 만기 전환 대상으로 취급하지 않음을 확인했습니다.</label>
+<p><button id="legacyImportBtn" type="button" disabled>선택 거래의 구매 이력만 이관</button></p>
+</div>
+</section>
 <section class="panel" aria-labelledby="lookupTitle">
 <h2 id="lookupTitle">1. 구매 건별 원장 조회</h2>
 <div class="grid">
@@ -78,6 +92,7 @@ footer{font-size:12px;color:#95a2bb;margin-top:28px}
 const API='https://api.timelink.digital/api/admin/v5/purchased-tl';
 const el=id=>document.getElementById(id);
 let preview=null,busy=false;
+let legacyCandidate=null;
 const fmt=atoms=>Number.isFinite(Number(atoms))?(Number(atoms)/10000).toLocaleString('ko-KR',{maximumFractionDigits:4})+' TL':'—';
 const token=()=>localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'';
 const user=()=>String(el('userId').value||'').trim();
@@ -88,6 +103,12 @@ const status=(id,message,isError=false)=>{const node=el(id);node.className='stat
 function reset(){
  preview=null;el('previewMetrics').style.display='none';el('reviewBtn').disabled=true;el('convertBtn').disabled=true;
  status('previewStatus','구매 거래를 다시 조회해 주세요.');
+}
+function syncLegacyControls(){
+ el('legacyImportBtn').disabled=busy||!legacyCandidate||!legacyCandidate.eligible||
+  el('legacyKey').value!==legacyCandidate.paymentKey||
+  el('legacyEvidence').value!==legacyCandidate.evidenceSha256||
+  !el('legacyConfirm').checked||el('legacyNote').value.trim().length<20;
 }
 function syncControls(){
  el('reviewBtn').disabled=busy||!preview||!matchScope();
@@ -102,6 +123,68 @@ async function api(method,path,body){
  const data=await response.json().catch(()=>({}));
  if(!response.ok||data.ok===false)throw Error(String(data.error||('HTTP '+response.status)));
  return data;
+}
+async function loadLegacy(){
+ busy=true;syncLegacyControls();
+ status('legacyStatus','기존 결제 영수증 및 TL 원장을 확인하고 있습니다.');
+ legacyCandidate=null;
+ el('legacyKey').value='';el('legacyEvidence').value='';
+ const root=el('legacyRows');root.textContent='';
+ try{
+  const result=await api('GET','/legacy-candidates?limit=20');
+  if(!Array.isArray(result.candidates))throw Error('과거 결제 조회 형식이 올바르지 않습니다.');
+  for(const candidate of result.candidates){
+   const item=document.createElement('div');
+   item.className='metric';
+   const text=document.createElement('p');
+   const label=String(candidate.paymentKey||'거래 확인 불가');
+   text.textContent=label+' · '+(candidate.eligible?'원장·영수증 일치':'이관 보류')+
+    (candidate.eligible?' · '+fmt(candidate.paidAtoms)+' (TL_P)':' · '+String(candidate.reason||'검증 불가'))+
+    (candidate.eligible?' · 결제 유형 '+String(candidate.paymentMode||'unknown'):'');
+   item.appendChild(text);
+   if(candidate.eligible){
+    const pick=document.createElement('button');pick.type='button';pick.className='secondary';
+    pick.textContent='이 거래의 증빙 선택';
+    pick.addEventListener('click',()=>{
+     legacyCandidate=candidate;
+     el('legacyKey').value=String(candidate.paymentKey);
+     el('legacyEvidence').value=String(candidate.evidenceSha256);
+     el('legacyConfirm').checked=false;
+     status('legacyStatus','선택 거래: '+label+'\n이관 시 '+String(candidate.paymentMode)+' 분류를 보존합니다. 법적 만기 심사는 자동 승인되지 않습니다.');
+     syncLegacyControls();
+    });
+    item.appendChild(pick);
+   }
+   root.appendChild(item);
+  }
+  if(!result.candidates.length)status('legacyStatus','이관 대기 중인 구매 거래가 없습니다.');
+  else status('legacyStatus','총 '+result.candidates.length+'건을 읽었습니다. 원장과 영수증이 일치한 거래만 선택하세요.');
+ }catch(e){
+  status('legacyStatus','기존 구매 조회 실패: '+String(e.message||e),true);
+ }finally{busy=false;syncLegacyControls();}
+}
+async function importLegacy(){
+ if(!legacyCandidate||!legacyCandidate.eligible||el('legacyKey').value!==legacyCandidate.paymentKey||
+    el('legacyEvidence').value!==legacyCandidate.evidenceSha256||
+    !el('legacyConfirm').checked||el('legacyNote').value.trim().length<20)return;
+ busy=true;syncLegacyControls();
+ status('legacyStatus','원장 증빙과 거래 잔액 변경 여부를 검증하며 이관 중입니다.');
+ try{
+  const result=await api('POST','/legacy-import/'+encodeURIComponent(legacyCandidate.paymentKey),{
+   confirmation:'IMPORT_UNVERIFIED_PURCHASE_LOT',
+   evidence_sha256:legacyCandidate.evidenceSha256,
+   review_note:el('legacyNote').value.trim()
+  });
+  if(result.ledgerBalancesChanged!==false||result.conversionEligible!==false)
+   throw Error('안전 이관 응답 확인 실패');
+  status('legacyStatus','구매 이력 이관 완료 · 거래 분류 '+String(result.paymentMode)+
+   ' · 고객 TL 잔액 변경 없음 · 법정 만기 자동 전환 금지');
+  el('legacyConfirm').checked=false;
+  legacyCandidate=null;
+  el('legacyKey').value='';el('legacyEvidence').value='';
+  el('legacyRows').textContent='';
+ }catch(e){status('legacyStatus','이관 거부: '+String(e.message||e),true);}
+ finally{busy=false;syncLegacyControls();}
 }
 async function runPreview(){
  if(!matchScope()){status('previewStatus','회원 번호와 v5-payment:... 거래키를 정확히 입력해 주세요.',true);return;}
@@ -153,6 +236,10 @@ async function runConvert(){
  }catch(e){status('actionStatus','전환 실행 거부: '+String(e.message||e)+'\n서버의 자동/수동 전환 기능이 비활성 상태이거나 만기·잔액 조건이 달라졌을 수 있습니다.',true);}
  finally{busy=false;syncControls();}
 }
+el('loadLegacyBtn').addEventListener('click',loadLegacy);
+el('legacyImportBtn').addEventListener('click',importLegacy);
+el('legacyNote').addEventListener('input',syncLegacyControls);
+el('legacyConfirm').addEventListener('change',syncLegacyControls);
 el('previewBtn').addEventListener('click',runPreview);
 el('reviewBtn').addEventListener('click',runReview);
 el('convertBtn').addEventListener('click',runConvert);
