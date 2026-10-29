@@ -9,10 +9,17 @@ new vm.Script(js,{filename:'admin-tlp-maturity.html'});
 assert.doesNotMatch(js,/innerHTML\s*=/,'receipt text must never render as raw HTML');
 const nodes=new Map(),calls=[],responses=[];
 function createNode(){
- return {value:'',textContent:'',className:'',style:{display:'none'},disabled:false,
+ let contents='';
+ const node={value:'',className:'',style:{display:'none'},disabled:false,
   checked:false,children:[],callbacks:{},
-  appendChild(node){this.children.push(node);return node;},
+  appendChild(child){this.children.push(child);return child;},
   addEventListener(event,callback){this.callbacks[event]=callback}};
+ // Setting element.textContent clears existing child nodes in real browsers.
+ Object.defineProperty(node,'textContent',{
+  get(){return contents;},
+  set(value){contents=String(value);this.children=[];}
+ });
+ return node;
 }
 function el(id){if(!nodes.has(id))nodes.set(id,createNode());return nodes.get(id);}
 const ctx=vm.createContext({
