@@ -784,7 +784,10 @@ function closeTrackInfoEditor(){document.getElementById('trackInfoModal')?.class
 async function saveTrackInfo(){
   if(!_share||String(_currentUserId)!==String(_share.user_id)){alert('본인의 곡 정보만 수정할 수 있습니다.');return;}
   const val=id=>document.getElementById(id)?.value||'';
-  const payload={artist:val('editTrackArtist').trim(),album:val('editTrackAlbum').trim(),composer:val('editTrackComposer').trim(),lyricist:val('editTrackLyricist').trim(),producer:val('editTrackProducer').trim(),arranger:val('editTrackArranger').trim(),category:val('editTrackCategory').trim(),lyrics:val('editTrackLyrics')};
+  const payload={artist:val('editTrackArtist').trim(),album:val('editTrackAlbum').trim(),producer:val('editTrackProducer').trim(),category:val('editTrackCategory').trim(),lyrics:val('editTrackLyrics')};
+  // Composer, lyricist and arranger belong to verified royalty contributors.
+  // Do not send these unchanged display fields through the owner-only PATCH.
+  // This also prevents an unrelated lyric edit from failing with a rights conflict.
   const btn=document.getElementById('saveTrackInfoBtn');if(btn){btn.disabled=true;btn.textContent='저장 중...';}
   try{
     const res=await fetch(API+'/api/shares/'+encodeURIComponent(SHARE_ID),{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getTok()},body:JSON.stringify(payload)});
