@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TL_P 구매 만기 심사 | TILO ADMIN</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;background:#080c17;color:#eaf0ff}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 85% 0,rgba(100,75,220,.17),transparent 48%),#080c17}
+main{max-width:1100px;margin:auto;padding:24px clamp(14px,4vw,42px) 65px}
+a{color:#ad9efa}header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:24px}
+small,.muted{color:#a6afc4}.eyebrow{letter-spacing:.14em;font-size:11px;color:#a997ff;font-weight:800}
+h1{font-size:clamp(24px,3vw,36px);letter-spacing:-.04em;margin:12px 0}h2{font-size:18px;margin:0 0 16px}
+p{line-height:1.7}.panel{border:1px solid #2a3250;background:rgba(16,23,42,.92);border-radius:17px;padding:22px;margin:18px 0}
+label{display:flex;flex-direction:column;gap:8px;font-size:13px;color:#d6deee;font-weight:650}
+input,textarea,select{width:100%;font:inherit;border:1px solid #354160;background:#0d1426;border-radius:9px;color:#fff;padding:11px;min-height:43px}
+input:focus,textarea:focus,select:focus{outline:2px solid #9889e8;outline-offset:1px}textarea{min-height:94px;resize:vertical}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.line{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+button{font:inherit;min-height:44px;padding:10px 18px;border-radius:9px;border:1px solid #6053b4;color:#fff;background:#5344b7;cursor:pointer;font-weight:700}
+button.secondary{background:#1b263e;border-color:#334364}button.danger{background:#7d3342;border-color:#b65968}
+button:disabled{opacity:.43;cursor:not-allowed}.check{display:flex;flex-direction:row;align-items:start;font-weight:500;line-height:1.6;gap:10px}
+.check input{width:20px;min-height:20px;flex:0 0 20px;margin:2px 0 0;accent-color:#9c88ff}
+.metric{background:#111b30;border-radius:9px;padding:12px;overflow-wrap:anywhere}.metric b{display:block;font-size:18px;margin-top:6px}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.warn{padding:12px 14px;background:#32291f;border:1px solid #73613d;border-radius:9px;color:#f5d49a;font-size:13px}
+.status{padding:13px;border-radius:8px;background:#142034;color:#d3e3f5;white-space:pre-wrap;overflow-wrap:anywhere}
+.status.error{background:#321f2a;color:#ffb8c3}.status.success{background:#12322b;color:#a7efd1}
+footer{font-size:12px;color:#95a2bb;margin-top:28px}
+@media(max-width:640px){.grid,.metrics{grid-template-columns:1fr}.panel{padding:16px}main{padding:16px 12px 40px}}
+</style>
+</head>
+<body>
+<main>
+<header><div><div class="eyebrow">TILO ADMIN · ECONOMY LEDGER</div><h1>구매 TL_P 만기 심사</h1><small>구매 건별 법적 환급권 확인 → TL_B 전환 · 관리자 통제</small></div><a href="/admin.html">관리자 홈으로 돌아가기</a></header>
+<div class="warn">구매 TL_P는 법정 환불·선불 잔액 환급권이 종료된 후 남은 구매분만 TL_B로 전환할 수 있습니다. **창작자 정산 TL_P는 전환 대상이 아닙니다.** TL_A는 현재 광고 기능 미운영 상태로 유지합니다. 자동 전환은 기본 비활성입니다.</div>
+<section class="panel" aria-labelledby="lookupTitle">
+<h2 id="lookupTitle">1. 구매 건별 원장 조회</h2>
+<div class="grid">
+<label>회원 번호<input id="userId" type="number" min="1" step="1" autocomplete="off" placeholder="회원 ID"></label>
+<label>구매 거래키<input id="paymentKey" type="text" maxlength="180" autocomplete="off" placeholder="v5-payment:toss:..."></label>
+</div>
+<p class="line"><button id="previewBtn" type="button">구매 잔액과 전환 가능 여부 조회</button><span class="muted">실제 원장에서만 읽습니다. 잔액을 바꾸지 않습니다.</span></p>
+<div id="previewStatus" class="status" role="status" aria-live="polite">회원 번호와 구매 거래키를 입력하고 조회해 주세요.</div>
+<div id="previewMetrics" class="metrics" style="display:none;margin-top:14px">
+<div class="metric">미사용 구매분<b id="remainingDisplay">—</b></div>
+<div class="metric">지갑에 남은 구매분<b id="walletDisplay">—</b></div>
+<div class="metric">곡별 풀에 있는 구매분<b id="poolDisplay">—</b></div>
+</div>
+</section>
+<section class="panel" aria-labelledby="reviewTitle">
+<h2 id="reviewTitle">2. 법적 환급권 종료 심사</h2>
+<p class="muted">고객별·거래별 법적 근거와 모든 적용 환급권을 확인합니다. 조회에 실패한 거래는 승인할 수 없습니다. 단순히 결제 후 7일이 지났다는 이유로 승인하지 않습니다.</p>
+<div class="grid">
+<label>적용 국가<select id="country"><option value="KR">대한민국 (KR)</option><option value="JP">일본 (JP)</option><option value="US">미국 (US)</option><option value="CN">중국 (CN)</option><option value="TH">태국 (TH)</option><option value="VN">베트남 (VN)</option></select></label>
+<label>모든 환불·잔액 환급권의 종료 일시<input id="refundDeadline" type="datetime-local"></label>
+</div>
+<div class="grid" style="margin-top:14px">
+<label>법률 검토 증빙 SHA-256<input id="evidenceHash" autocomplete="off" maxlength="64" pattern="[a-fA-F0-9]{64}" placeholder="64자리 증빙 문서 지문"></label>
+<label>법적 근거 및 검토 대상<textarea id="legalBasis" maxlength="1000" placeholder="적용 법률·구매 방식·잔액 환급권 등"></textarea></label>
+</div>
+<label style="margin-top:14px">관리자 심사 의견<textarea id="reviewNote" maxlength="2000" placeholder="미사용 구매분 귀속, 분쟁 여부, 환급권 검토 경과"></textarea></label>
+<label class="check" style="margin-top:15px"><input id="legalConfirm" type="checkbox">해당 거래의 청약철회뿐 아니라 적용되는 선불 잔액 환급권과 분쟁 여부까지 실제 증빙을 통해 확인했습니다.</label>
+<p><button id="reviewBtn" type="button" disabled>법적 만기 심사 승인 (잔액 이동 없음)</button></p>
+</section>
+<section class="panel" aria-labelledby="convertTitle">
+<h2 id="convertTitle">3. 승인된 미사용 TL_P의 TL_B 전환</h2>
+<p class="muted">서버는 관리자 인증, 승인 이력, 구매 출처, 만기 도래, 지갑 원장 버전, 중복 처리 여부를 다시 확인합니다. 고객의 곡별 TL_P 풀에 구매분이 남아 있으면 전환을 보류합니다.</p>
+<label>확인용 구매 거래키 재입력<input id="conversionKeyConfirm" type="text" autocomplete="off" maxlength="180" placeholder="상단 구매 거래키와 완전히 일치해야 합니다"></label>
+<label class="check" style="margin-top:15px"><input id="convertConfirm" type="checkbox">실제 법적 환급권이 종료되었고, 조회한 구매분만 TL_B로 전환하는 것에 동의합니다. 원장에 변경이 기록됩니다.</label>
+<p><button id="convertBtn" type="button" class="danger" disabled>검증된 구매분만 전환 실행</button></p>
+<div id="actionStatus" class="status" role="status" aria-live="polite">관리자 심사 및 명시적 확인이 필요합니다. 서버의 전환 기능은 기본적으로 꺼져 있습니다.</div>
+</section>
+<footer>개발관리대장 · 경제원장·정산 · TL_P 구매분 만기 전환. 이 화면은 TL3 암호 키·TLC 발행·광고 보상과 무관합니다.</footer>
+</main>
+<script>
+(function(){
+'use strict';
+const API='https://api.timelink.digital/api/admin/v5/purchased-tl';
+const el=id=>document.getElementById(id);
+let preview=null,busy=false;
+const fmt=atoms=>Number.isFinite(Number(atoms))?(Number(atoms)/10000).toLocaleString('ko-KR',{maximumFractionDigits:4})+' TL':'—';
+const token=()=>localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'';
+const user=()=>String(el('userId').value||'').trim();
+const key=()=>String(el('paymentKey').value||'').trim();
+const encodedPath=()=>encodeURIComponent(user())+'/'+encodeURIComponent(key());
+const matchScope=()=>/^[0-9]{1,15}$/.test(user())&&/^v5-payment:[A-Za-z0-9:_-]{1,160}$/.test(key());
+const status=(id,message,isError=false)=>{const node=el(id);node.className='status'+(isError?' error':'');node.textContent=String(message);};
+function reset(){
+ preview=null;el('previewMetrics').style.display='none';el('reviewBtn').disabled=true;el('convertBtn').disabled=true;
+ status('previewStatus','구매 거래를 다시 조회해 주세요.');
+}
+function syncControls(){
+ el('reviewBtn').disabled=busy||!preview||!matchScope();
+ el('convertBtn').disabled=busy||!preview||!preview.eligible||key()!==el('conversionKeyConfirm').value.trim()||
+  !el('convertConfirm').checked;
+}
+async function api(method,path,body){
+ if(!token())throw Error('관리자 로그인 정보가 없습니다. 관리자 홈에서 다시 로그인해 주세요.');
+ const response=await fetch(API+path,{method,cache:'no-store',headers:{
+  Authorization:'Bearer '+token(),Accept:'application/json',...(body?{'Content-Type':'application/json'}:{})
+ },...(body?{body:JSON.stringify(body)}:{})});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok||data.ok===false)throw Error(String(data.error||('HTTP '+response.status)));
+ return data;
+}
+async function runPreview(){
+ if(!matchScope()){status('previewStatus','회원 번호와 v5-payment:... 거래키를 정확히 입력해 주세요.',true);return;}
+ busy=true;syncControls();status('previewStatus','실제 경제원장의 출처를 확인 중입니다.');
+ try{
+  const d=await api('GET','/preview/'+encodedPath());
+  if(d.userId!==user()||d.paymentKey!==key())throw Error('거래 조회 범위가 일치하지 않습니다.');
+  preview=d;
+  el('remainingDisplay').textContent=fmt(d.remainingPurchasedAtoms);
+  el('walletDisplay').textContent=fmt(d.walletPurchasedAtoms);
+  el('poolDisplay').textContent=fmt(d.remainingPurchasedAtoms-d.walletPurchasedAtoms);
+  el('previewMetrics').style.display='grid';
+  status('previewStatus','전환 판정: '+String(d.decision)+'\n원장 조회: '+Number(d.ledgerRowsChecked||0).toLocaleString('ko-KR')+'행 · 구매 출처: '+String(d.sourcePolicy)+'\n현재 전환 '+(d.eligible?'가능(관리자 확인 후)':'보류')+' · 표시 금액은 실제 원장 조회값입니다.');
+ }catch(e){reset();status('previewStatus',e.message||e,true);}
+ finally{busy=false;syncControls();}
+}
+async function runReview(){
+ if(!preview||!matchScope()||!el('legalConfirm').checked){status('actionStatus','법적 환급권 확인과 구매 건 조회가 필요합니다.',true);return;}
+ const date=new Date(el('refundDeadline').value),deadline=date.getTime();
+ const digest=el('evidenceHash').value.trim().toLowerCase();
+ const legal=el('legalBasis').value.trim(),note=el('reviewNote').value.trim();
+ if(!Number.isSafeInteger(deadline)||deadline<=0||!/^[a-f0-9]{64}$/.test(digest)||legal.length<20||note.length<20){
+  status('actionStatus','날짜, 64자리 증빙 지문, 충분한 법률 근거와 검토 의견을 입력하세요.',true);return;
+ }
+ busy=true;syncControls();status('actionStatus','서버에 법적 검토 증빙과 관리자 승인 이력을 기록 중입니다.');
+ try{
+  const d=await api('POST','/review/'+encodedPath(),{
+   confirmation:'I_VERIFIED_ALL_REFUND_RIGHTS',refund_deadline_ms:deadline,country:el('country').value,
+   legal_basis:legal,evidence_sha256:digest,review_note:note
+  });
+  status('actionStatus','심사 승인 완료. 미사용 구매분 '+fmt(d.remainingPurchasedAtoms)+' · 지갑 잔액은 변하지 않았습니다. 전환 가능 여부를 다시 조회하세요.');
+  await runPreview();
+ }catch(e){status('actionStatus','심사 실패: '+String(e.message||e),true);}
+ finally{busy=false;syncControls();}
+}
+async function runConvert(){
+ if(!preview||!preview.eligible||!matchScope()||!el('convertConfirm').checked||
+    el('conversionKeyConfirm').value.trim()!==key())return;
+ busy=true;syncControls();status('actionStatus','서버의 관리자 승인과 원장 잔액을 재검증 중입니다.');
+ try{
+  const d=await api('POST','/convert/'+encodedPath(),{
+   confirmation:'CONVERT_REVIEWED_TL_P_TO_TL_B',
+   expected_remaining_atoms:preview.remainingPurchasedAtoms
+  });
+  status('actionStatus','전환 완료: '+fmt(d.convertedAtoms)+' · 거래 번호 '+String(d.transactionId)+' · TL_A는 변경되지 않았습니다.');
+  el('convertConfirm').checked=false;
+  el('conversionKeyConfirm').value='';
+  await runPreview();
+ }catch(e){status('actionStatus','전환 실행 거부: '+String(e.message||e)+'\n서버의 자동/수동 전환 기능이 비활성 상태이거나 만기·잔액 조건이 달라졌을 수 있습니다.',true);}
+ finally{busy=false;syncControls();}
+}
+el('previewBtn').addEventListener('click',runPreview);
+el('reviewBtn').addEventListener('click',runReview);
+el('convertBtn').addEventListener('click',runConvert);
+for(const id of ['userId','paymentKey'])el(id).addEventListener('input',reset);
+for(const id of ['conversionKeyConfirm','convertConfirm'])el(id).addEventListener('input',syncControls);
+el('legalConfirm').addEventListener('change',syncControls);
+syncControls();
+})();
+</script>
+</body></html>
