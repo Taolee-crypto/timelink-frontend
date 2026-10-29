@@ -167,3 +167,30 @@ const summarySource=adminLedgerHtml.slice(adminLedgerHtml.indexOf('/* V5 관리�
 await runInContext(summarySource,createContext({document:{getElementById:()=>summaryElement},ADMIN_API:'https://fixture.invalid',getAdminToken:()=> 'fixture',fetch:async()=>({ok:true,json:async()=>({ok:true,version:1,state:{tasks:summaryCases}})})}));
 assert.equal(summaryElement.textContent,'서버 개발 완료 '+expectedDone+'/'+summaryCurrent.length+' ('+Math.round(expectedDone/summaryCurrent.length*100)+'%) · 운영확인 '+expectedVerified+'/'+summaryCurrent.length+' · 버전 1','admin summary and full ledger must exclude the same retired tasks');
 console.log('PASS actual admin summary/full-ledger completion parity including retired scores and My Channels');
+
+// Run the actual summary DOM rendering, not only its filter helpers.
+const renderStart=script.indexOf('function render(){');
+const summaryEnd=script.indexOf(' renderNavigation();',renderStart);
+assert.ok(renderStart>=0&&summaryEnd>renderStart);
+function assertSummaryCards(tasks,expected){
+ const elements=new Map();
+ const element=id=>{if(!elements.has(id))elements.set(id,{value:'',textContent:'',style:{},querySelector:()=>({textContent:''})});return elements.get(id)};
+ const ctx=createContext({$:element,state:{tasks},activeTasks:ts=>ts.filter(t=>t.retired!==true),isDevelopmentComplete:t=>!!t&&['구현','테스트','운영확인'].includes(t.status),categoryLabel:x=>x,escapeHtml:x=>String(x)});
+ runInContext(script.slice(renderStart,summaryEnd)+'}\nrender();',ctx);
+ const total=Number(element('total').textContent),done=Number(element('done').textContent),pending=Number(element('active').textContent);
+ assert.equal(total,expected.total,'cards must count current functional tasks only');
+ assert.equal(done,expected.done,'completion card must use the percentage numerator');
+ assert.equal(pending,total-done,'remaining tasks must complement completed tasks');
+ assert.equal(element('percent').textContent,(total?Math.round(done/total*100):0)+'%');
+ assert.equal(element('progressFill').style.width,element('percent').textContent);
+ assert.ok(element('developmentSummary').textContent.includes('개발 완료 '+done+'/'+total+'건'));
+ assert.ok(element('developmentSummary').textContent.includes('미완료 '+pending+'건'));
+}
+const screenshotTasks=[
+ ...Array.from({length:132},(_,i)=>({id:'feature-'+i,category:'공통 인프라·운영',status:i<4?'운영확인':i<68?'구현':i<118?'미검증':'설계'})),
+ ...Array.from({length:24},(_,i)=>({id:'TLV5-PAGE-'+i,category:'공통 인프라·운영',status:'미검증'})),
+ ...Array.from({length:10},(_,i)=>({id:'future-'+i,category:'라디오 수신앱',status:'설계'}))];
+assertSummaryCards(screenshotTasks,{total:132,done:68});
+assertSummaryCards([{id:'a',status:'구현'},{id:'b',status:'설계'},{id:'c',status:'보류'},{id:'TLV5-PAGE-d',status:'운영확인'},{id:'future',category:'라디오 수신앱',status:'구현'},{id:'retired',retired:true,status:'테스트'}],{total:3,done:1});
+assertSummaryCards([],{total:0,done:0});
+console.log('PASS actual summary cards: same denominator, completed + remaining = total, screenshot 68/132 = 52%, empty state');
