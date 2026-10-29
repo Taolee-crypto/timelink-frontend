@@ -9,14 +9,14 @@ const end=html.indexOf('    }).then(function(result){',begin);
 assert.ok(begin>0&&end>begin,'V5 playback callback object must be found');
 const objectCode=html.slice(html.indexOf('{',begin),end+'    }'.length);
 const currentAudio={id:'old'},status={textContent:'',style:{display:'none'}};
-let alerts=[],stops=0,refreshes=0,updates=0,warnings=[];
+let alerts=[],stops=0,refreshes=0,updates=0,warnings=[],delayedRefresh=null;
 const ctx=vm.createContext({
  playerAudio:currentAudio,_tlAudio:currentAudio,
  _share:{id:'42'},SHARE_ID:'42',RAW_SHARE_ID:'42',
  _tlSubscription:null,_tlSessionSettledSeconds:0,
  _tlCurrentTL:10,_trackTL:10,_myFileTL:100,
  updatePlayerTLDisplay(){updates++;},
- updateMyTLFromServer(){refreshes++;return Promise.resolve(100);},
+ updateMyTLFromServer(){refreshes++;return delayedRefresh||Promise.resolve(100);},
  stopPlay(){stops++;},
  formatTLInteger:value=>String(value),
  document:{getElementById:()=>status},
@@ -71,4 +71,22 @@ assert.equal(ctx._tlSubscription.mode,'time_free');
 callbacks.onInsufficient({billing_mode:'time_free'});
 assert.equal(stops,1,'active session insufficient must stop current audio');
 assert.equal(alerts.length,1,'active session insufficient must inform user');
-console.log('PASS TRACK V5 old session callback isolation, verified asset balance and real stop settlement');
+(async()=>{
+  // Previous stop begins when no player is mounted; a new song starts while
+  // the canonical wallet request is still pending. Late readback cannot
+  // change the new song's completion banner.
+  let releaseRefresh;
+  delayedRefresh=new Promise(resolve=>{releaseRefresh=resolve;});
+  ctx._tlAudio=null;
+  status.textContent='';
+  callbacks.onStopSettlement({refunded_tl:11});
+  assert.match(status.textContent,/동기화 중/,'previous track stop posts an interim status');
+  const oldStatus=status.textContent;
+  ctx._tlAudio=newAudio;
+  releaseRefresh();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(status.textContent,oldStatus,'old refund readback must not replace the new track status');
+  delayedRefresh=null;
+  console.log('PASS TRACK V5 old session callback isolation, verified asset balance, late refund banner and real stop settlement');
+})().catch(e=>{console.error(e);process.exitCode=1;});
