@@ -71,7 +71,7 @@ const routeKey=path=>'TLV5-PAGE-'+Array.from(path).map(c=>c.codePointAt(0).toStr
 
 const STAGE_WEIGHT={'미검증':0,'설계':20,'구현':55,'테스트':80,'운영확인':100,'보류':0};
 // 개발 완료(구현·테스트·운영확인)와 운영 검증 완료(운영확인)를 분리한다.
-const retiredIds=new Set(['TLV5-039','TLV5-054','TLV5-055','TLV5-NAV-SPONSOR','TLV5-NAV-ADS','TLV5-WORK-20261027-POLICY','TLV5-WORK-20261027-CONTRIBUTION','TLV5-NAV-CHANNELS','TLV5-TRACK-SCORE-LOCAL-20261029']);
+const retiredIds=new Set(['TLV5-039','TLV5-054','TLV5-055','TLV5-NAV-SPONSOR','TLV5-NAV-ADS','TLV5-WORK-20261027-POLICY','TLV5-WORK-20261027-CONTRIBUTION','TLV5-NAV-CHANNELS','TLV5-TRACK-SCORE-LOCAL-20261029','TLV5-FEATURE-TRACK-SCORE','TLV5-TRACK-TLD-SERVICE-20261029','TLV5-TRACK-AUTO-SCORE-OWNER-20261029','TLV5-TRACK-SCORE-VIEWER-20261029','TLV5-VOCAL-GATE-20261029']);
 const retiredCategories=new Set(['DJ센터','스폰서 센터','광고 시청','내 채널']);
 const retiredRoutes=new Set(['/dj-center.html','/dj-guide.html','/advertiser.html','/ads.html','/cafe-radio.html','/dashboard.html?tab=cafe']);
 const activePageIds=new Set(Object.entries(pageRoutes).filter(([category])=>!retiredCategories.has(category)).flatMap(([,routes])=>routes.filter(([,route])=>!retiredRoutes.has(route)).map(([,route])=>routeKey(route))));
@@ -252,7 +252,6 @@ function migrateTrackFeatures20261024(){
   ['PLAY','공유 마켓','트랙 · 음원 재생 및 연속 재생','실제 음원 출력·중단·버퍼링·연속재생을 운영 환경에서 검증.'],
   ['LYRICS','공유 마켓','트랙 · 가사 보기','가사 표시·수정 후 반영·모바일 화면을 검증.'],
   ['METADATA','공유 마켓','트랙 · 곡 정보 보기·수정','가수·작곡·작사·곡 정보의 표시와 저장 권한을 검증.'],
-  ['SCORE','공유 마켓','트랙 · 악보 보기','미완성으로 확인된 기능. 악보 모달·악보 데이터 로드·MusicXML 변환·OSMD 렌더링·인쇄/다운로드·데이터 부재 안내·모바일 화면을 실제 곡으로 검증하고 수정해야 함.'],
   ['WALLET','공유 마켓','트랙 · TL 재생 과금·잔액 동기화','초당 1TL 및 실제 청취 시간·곡 카드·지갑·V5 경제원장 일치 검증.'],
   ['SOCIAL','공유 마켓','트랙 · 댓글·좋아요·공유','트랙별 댓글·좋아요·공유의 계정 권한과 저장 검증.']
  ];
@@ -261,15 +260,12 @@ function migrateTrackFeatures20261024(){
   const id='TLV5-FEATURE-TRACK-'+code;
   const current=state.tasks.find(t=>t.id===id);
   if(current){
-   if(code==='SCORE'&&!current.history?.length&&current.status==='운영확인'){
-    // Never silently downgrade a manually verified item.
-   }
    continue;
   }
-  state.tasks.push({id,category,title,status:'미검증',priority:code==='SCORE'?'높음':'보통',note,history:[]});
+  state.tasks.push({id,category,title,status:'미검증',priority:'보통',note,history:[]});
   added++;
  }
- if(added||changed){addEvent('공유플레이스 → 트랙 기능별 개발 점검','트랙 하위 기능 '+added+'개를 독립 검증 항목으로 등록. 악보 보기는 미완성·우선 점검 대상으로 지정했습니다. 기존 기록 보존.','기능별 점검');save();}
+ if(added||changed){addEvent('공유플레이스 → 트랙 기능별 개발 점검','트랙 하위 기능 '+added+'개를 독립 검증 항목으로 등록. 폐기된 악보 서비스는 활성 점검·완료율에서 제외했습니다. 기존 기록 보존.','기능별 점검');save();}
 }
 function migrateLinkedPages20261024(){
  let added=0;
