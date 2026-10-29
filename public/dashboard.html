@@ -490,7 +490,7 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
             <div style="font-size:20px;font-weight:700;color:var(--orange)" id="miningIndex2">0.00</div>
           </div>
           <div>
-            <div style="font-size:10px;color:var(--t3);margin-bottom:4px">오늘 채굴 가능</div>
+            <div style="font-size:10px;color:var(--t3);margin-bottom:4px">오늘 내 지갑 수령 가능</div>
             <div style="font-size:20px;font-weight:700;color:var(--teal)" id="miningAvailable">0.00</div>
           </div>
           <div>
@@ -498,7 +498,13 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
             <div style="font-size:20px;font-weight:700" id="miningMonthSpent">0</div>
           </div>
         </div>
-        <button class="tl-btn tl-btn-primary" style="width:100%;padding:12px;font-weight:700" onclick="calcMining()" id="mineBtn">POC 계산 후 TLC 채굴</button>
+        <p style="font-size:12px;line-height:1.75;color:var(--t2);margin:0 0 12px">
+          1회 총 채굴량을 <strong>회원 지갑 50% · 틸로그룹 장기잠금 준비금 50%</strong>로 나눕니다.
+          <span id="miningSplitPreview" aria-live="polite">총 채굴량 및 회사 몫을 채굴 전에 확인할 수 있습니다.</span>
+          회사 몫은 일반 운영비로 사용하지 않고 잠금 잔액에 적립합니다.
+          개발 단계의 내부 TLC 원장이며 블록체인 발행이나 금 보유를 뜻하지 않습니다.
+        </p>
+        <button class="tl-btn tl-btn-primary" style="width:100%;padding:12px;font-weight:700" onclick="calcMining()" id="mineBtn">POC 계산 후 TLC 공동 채굴</button>
       </div>
 
       <div class="sec">
@@ -948,8 +954,9 @@ async function loadMiningHistory(){
       var dt = new Date(row.created_at).toLocaleDateString('ko-KR');
       return '<div class="mh-item">' +
         '<div class="mh-date">' + dt + '</div>' +
-        '<div class="mh-desc">TLC 채굴</div>' +
-        '<div class="mh-tlc">+' + Number(row.tlc_mined).toFixed(4) + ' TLC</div>' +
+        '<div class="mh-desc">'+(row.split_policy==='tilo-group-5050-v1'?'공동 채굴 · 회원 50% · 그룹 50%':'기존 채굴 · 당시 회원 수령분')+'</div>' +
+        '<div class="mh-tlc">내 지갑 +'+Number(row.tlc_mined).toFixed(4)+' TLC'+
+        (row.split_policy==='tilo-group-5050-v1'?' · 그룹 잠금 +'+Number(row.group_mined||0).toFixed(4)+' TLC':'')+'</div>' +
         '<div class="mh-poc">POC ' + Number(row.poc_index).toFixed(2) + '</div>' +
       '</div>';
     }).join('');
@@ -981,7 +988,12 @@ async function calcMining(){
     g('miningPoc').textContent = poc.toFixed(2);
     g('miningIndex').textContent = poc.toFixed(2);
     g('miningIndex2').textContent = poc.toFixed(2);
-    g('miningAvailable').textContent = mineable.toFixed(4);
+    var memberPossible=Number(pocData.tlc_mining && pocData.tlc_mining.member_daily_max||0);
+    var groupPossible=Number(pocData.tlc_mining && pocData.tlc_mining.group_daily_max||0);
+    g('miningAvailable').textContent=memberPossible.toFixed(4);
+    if(g('miningSplitPreview'))g('miningSplitPreview').textContent=
+      '예상 총 '+mineable.toFixed(4)+' TLC · 내 지갑 '+memberPossible.toFixed(4)+
+      ' TLC · 틸로그룹 '+groupPossible.toFixed(4)+' TLC.';
 
     if(bd.content !== undefined){
       g('pocCreation').textContent = Number(bd.content).toFixed(2);
@@ -1025,7 +1037,12 @@ async function calcMining(){
     if(g('tbTlc'))g('tbTlc').textContent=fmt(_user.tlc);
     if(g('walletTlc'))g('walletTlc').textContent=_user.tlc.toFixed(4);
     g('miningAvailable').textContent='0.0000';
-    toast('채굴 완료: '+Number(mined.mined).toFixed(4)+' TLC (개발 단계 내부 원장)', 'success');
+    if(g('miningSplitPreview'))g('miningSplitPreview').textContent=
+      '금일 총 '+Number(mined.gross_mined||0).toFixed(4)+' TLC 채굴 완료. 개인 지갑 '+
+      Number(mined.member_mined||mined.mined||0).toFixed(4)+' TLC · 그룹 잠금 '+
+      Number(mined.group_mined||0).toFixed(4)+' TLC.';
+    toast('채굴 완료 · 내 지갑 +'+Number(mined.member_mined||mined.mined||0).toFixed(4)+
+      ' TLC / 틸로그룹 잠금 +'+Number(mined.group_mined||0).toFixed(4)+' TLC', 'success');
     loadMiningHistory();
   }catch(e){
     toast('채굴 오류: ' + e.message, 'error');

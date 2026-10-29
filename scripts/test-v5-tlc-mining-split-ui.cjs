@@ -1,0 +1,26 @@
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const dashboard=fs.readFileSync('public/dashboard.html','utf8');
+const admin=fs.readFileSync('public/admin.html','utf8');
+const reserve=fs.readFileSync('public/tlc-group-reserve.html','utf8');
+assert.ok(dashboard.includes('회원 지갑 50% · 틸로그룹 장기잠금 준비금 50%'));
+assert.ok(dashboard.includes('tlc_mining && pocData.tlc_mining.member_daily_max'));
+assert.ok(dashboard.includes('mined.group_mined'));
+assert.ok(dashboard.includes("row.split_policy==='tilo-group-5050-v1'"));
+assert.ok(dashboard.includes('기존 채굴 · 당시 회원 수령분'));
+assert.ok(admin.includes('href="/tlc-group-reserve.html"'));
+assert.ok(reserve.includes('고정 최대 발행량이 없습니다'));
+assert.ok(reserve.includes('1차 생태계 가치 · 2차 금 준비자산'));
+assert.ok(reserve.includes('소각 또는 제3자 영구 잠금 증빙'));
+assert.ok(reserve.includes("d.gold_custody_verified"));
+assert.ok(reserve.includes('금 보유는 TLC의 고정가격이나 금 상환을 보증하는 것이 아닙니다'));
+
+assert.ok(reserve.includes("admin/tlc-group-reserve"));
+assert.ok(reserve.includes('cumulative_v3_mined_tlc'));
+assert.ok(reserve.includes('locked_tlc'));
+assert.ok(reserve.includes('available_tlc'));
+assert.ok(!reserve.includes('innerHTML='));
+const match=reserve.match(/<script>([\s\S]*?)<\/script>/);
+assert.ok(match);
+new vm.Script(match[1],{filename:'tlc-group-reserve-inline.js'});
+console.log('PASS TLC split UI: personal 50%, TILO Group locked 50%, uncapped issuance, admin-only read-only reserve and legacy history');

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>틸로그룹 · TLC 장기준비금 지갑</title><link rel="stylesheet" href="/apple-theme.css"><link rel="stylesheet" href="/wallet-design-system.css">
+<style>
+body{margin:0;background:#101015;color:#f5f3f7;font-family:system-ui,'Noto Sans KR',sans-serif}
+main{max-width:930px;padding:34px 22px 80px;margin:auto}
+h1{font-size:32px;letter-spacing:-.04em}
+a{color:#c5a6ff}
+.panel{border:1px solid #34323f;background:#1a1a23;border-radius:20px;padding:24px;margin:16px 0}
+.muted{color:#b6b0c4;line-height:1.65}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.amount{font-size:clamp(24px,5vw,37px);font-weight:800;letter-spacing:-.04em;margin:8px 0}
+label{font-size:13px;color:#c7c0d6}
+button{border:0;border-radius:12px;padding:12px 18px;background:#7962b8;color:white;font-weight:600;cursor:pointer}
+</style></head><body><main>
+<p><a href="/admin.html">관리자 콘솔</a> · <a href="/reward-policy.html">채굴 보상 정책</a></p>
+<h1>틸로그룹 TLC 장기준비금</h1>
+<p class="muted">TILO Group · TLC는 미리 정한 고정 최대 발행량이 없습니다. 검증된 기여가 생길 때마다 채굴량을 계산하고 그 절반을 회원에게, 나머지 절반을 그룹에 적립합니다. 회사 몫은 운영비가 아닌 별도의 잠금 준비금입니다.</p>
+<p id="status" role="status" class="muted">관리자 권한 및 그룹 지갑 원장을 확인 중입니다.</p>
+<section class="grid" aria-label="회사 TLC 지갑">
+<div class="panel"><label>그룹 잠금 TLC 잔액</label><div class="amount" id="locked">—</div><span class="muted">V3 원장 held_atoms</span></div>
+<div class="panel"><label>일반 사용 가능 TLC</label><div class="amount" id="available">—</div><span class="muted">회사 준비금은 일반 지급용이 아닙니다</span></div>
+<div class="panel"><label>50:50 채굴 기록</label><div class="amount" id="events">—</div><span class="muted">기존 단독 채굴은 소급 분배하지 않습니다</span></div>
+<div class="panel"><label>V3 누적 채굴 총량</label><div class="amount" id="gross">—</div><span class="muted">고정 발행 한도 아님 · 기존 이관 전 기록 등은 별도</span></div>
+</section>
+<div class="panel"><h2>1차 생태계 가치 · 2차 금 준비자산</h2>
+<p class="muted"><strong>1차:</strong> 회원에게 지급된 채굴분 50%가 TimeLink 생태계에서 활용·교환되며 유통 기반을 형성합니다. 회사에 배분한 50%는 잠금 준비금으로 누적합니다.</p>
+<p class="muted"><strong>2차:</strong> 회사 준비금의 일부를 향후 적법하고 검증된 방식으로 금으로 점진적 전환하여 별도 실물/할당형 금 준비자산으로 보유하는 것이 목표입니다. 금 수탁·매입 및 소유권 증빙은 아직 확인되지 않았습니다.</p>
+<p class="muted" id="goldStatus" role="status">금 보유·전환: 운영자 증빙 전, 현재 전환 기능 비활성</p>
+<p class="muted">회사 TLC를 제3자에게 판매해 금을 사면 해당 TLC가 다시 유통될 수 있습니다. 회사 지분의 비유통 원칙을 유지하려면 전환분 TLC의 검증된 소각 또는 제3자 영구 잠금 증빙이 필요합니다. 금 보유는 TLC의 고정가격이나 금 상환을 보증하는 것이 아닙니다.</p>
+<p class="muted">현재는 개발 단계 내부 원장만 연결되며, 회사 일반 매도·자동 이체·금 전환·외부 블록체인 전송 기능은 활성화되어 있지 않습니다. 금 거래는 별도 승인·수탁·회계·규제 검증 후 구현합니다.</p>
+<p id="audit" class="muted">채굴 원장 기록을 조회합니다.</p>
+<button type="button" id="reload">그룹 지갑 새로고침</button></div>
+</main><script>
+'use strict';
+const money=v=>Number(v||0).toLocaleString('ko-KR',{maximumFractionDigits:9});
+async function load(){
+ const btn=document.getElementById('reload');btn.disabled=true;
+ try{
+ const token=localStorage.getItem('tl_adm_token')||localStorage.getItem('tl_token')||'';
+ if(!token)throw Error('관리자 로그인이 필요합니다.');
+ const r=await fetch('https://api.timelink.digital/api/admin/tlc-group-reserve',{
+  headers:{Authorization:'Bearer '+token},cache:'no-store',signal:AbortSignal.timeout(15000)});
+ const d=await r.json();
+ if(!r.ok||!d.ok)throw Error(d.code||d.error||'그룹 지갑 조회 실패');
+ document.getElementById('locked').textContent=money(d.locked_tlc)+' TLC';
+ document.getElementById('available').textContent=money(d.available_tlc)+' TLC';
+ document.getElementById('events').textContent=String(d.mining_events||0)+'건';
+ document.getElementById('gross').textContent=money(d.cumulative_v3_mined_tlc)+' TLC';
+ document.getElementById('goldStatus').textContent=d.gold_custody_verified?'금 수탁 증빙 확인됨':'금 전환 전 · 검증된 금 보관 증빙 없음 · 자동 전환 비활성';
+ document.getElementById('audit').textContent='그룹 채굴 누적 '+money(d.minted_to_group_tlc)+' TLC · 회사 준비금 잠금 '+(d.transfer_allowed?'해제 상태':'유지')+' · 과거 소급 재분배 없음';
+ document.getElementById('status').textContent='확인 완료 · 운영 원장 조회 · 외부 TON 발행 아님';
+ }catch(err){document.getElementById('status').textContent='조회 실패: '+String(err.message||err);}
+ finally{btn.disabled=false;}
+}
+document.getElementById('reload').addEventListener('click',load);
+load();
+</script></body></html>
