@@ -79,7 +79,7 @@ async function loadOwnStoreChannels(){
 }
 document.getElementById('storePaymentClose').addEventListener('click',()=>storePayDialog.close());
 storePayButton.addEventListener('click',async()=>{
- if(!storePaySelection||!storePayChannel.value)return;
+ if(storePayButton.disabled||!storePaySelection||!storePayChannel.value)return;
  storePayButton.disabled=true;
  storePayNotice.textContent='기존 토스 결제 서비스에 주문을 연결하고 있습니다.';
  try{
@@ -124,14 +124,27 @@ checkoutButton.addEventListener('click',async()=>{
   const summary='구매 시간 '+(quote.seconds/3600).toLocaleString('ko-KR')+'시간 · 기준 '+won(quote.nominalKrw)+' · 예상 결제금액 '+won(quote.amountKrw);
   checkoutStatus.textContent=summary;
   document.getElementById('storePaymentSummary').textContent=summary;
-  storePayNotice.textContent='토스 테스트 결제 승인 후 선택한 매장에 방송 시간이 충전됩니다.';
-  storePayButton.disabled=false;
+  const available=quote.checkoutMode==='test'&&quote.testCheckoutEnabled===true&&quote.checkoutEnabled===true;
+  storePayNotice.textContent=available
+    ?'토스 테스트 결제 승인 후 선택한 매장에 방송 시간이 충전됩니다. 실제 카드 청구는 진행되지 않습니다.'
+    :'실제 결제는 아직 제공되지 않습니다. 현재는 가격 검토만 가능하며, 사업자·음원 이용권·정산 조건 승인 후 출시됩니다.';
+  storePayButton.disabled=!available;
+  if(!available)checkoutStatus.textContent+=' · 결제 준비 중 (실제 청구 없음)';
+  quoteEl.textContent=summary+' · '+(available?'토스 테스트 결제만 가능':'실제 청구 불가');
   storePayDialog.showModal();
  }catch(error){checkoutStatus.textContent=storePaymentError(error?.message);}
  finally{checkoutButton.disabled=false;}
 });
-const areaTiers=[{factor:1,discount:0,weight:.3},{factor:1.2,discount:10,weight:.35},{factor:1.5,discount:15,weight:.4},{factor:2,discount:20,weight:.45},{factor:3,discount:25,weight:.5}];
 const areaEl=document.getElementById('storeArea'),periodEl=document.getElementById('storePeriod'),quoteEl=document.getElementById('storeQuote');
-function quote(){const idx=Number(areaEl.value);if(idx===5){quoteEl.textContent='500㎡ 이상은 방송 이용 조건과 권리 비용을 검토해 별도 견적을 제공합니다.';return;}const t=areaTiers[idx],base=7900*t.factor,monthly=Math.round(base*(1-t.discount/100)/100)*100,annual=Math.round(monthly*12*.9/100)*100,isYear=periodEl.value==='year';quoteEl.textContent='기준가 '+won(Math.round(isYear?base*12:base))+' → 규모 할인 '+t.discount+'%'+(isYear?' · 연간 추가 10%':'')+' → 예상 '+(isYear?'연':'월')+' 결제액 '+won(isYear?annual:monthly)+' · 방송 정산 가중치 '+t.weight.toFixed(2)+' (검토안)';}
-areaEl.addEventListener('change',quote);periodEl.addEventListener('change',quote);quote();
+function quote(){
+  if(Number(areaEl.value)===5){
+    quoteEl.textContent='500㎡ 이상은 별도 계약·권리 비용 심사가 필요합니다.';
+    return;
+  }
+  quoteEl.textContent='예상 요금은 구매 시간·매장 면적·기간에 따라 서버에서 계산합니다. 아래의 금액 확인을 눌러 확정된 테스트 견적을 확인하세요.';
+}
+areaEl.addEventListener('change',quote);
+periodEl.addEventListener('change',quote);
+document.getElementById('storePurchaseHours')?.addEventListener('input',quote);
+quote();
 </script><script src="/sidebar.js?v=20261029-account-navigation-v2"></script></body></html>
