@@ -1,0 +1,21 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const share=fs.readFileSync('public/shareplace.html','utf8');
+const from=share.indexOf('function contentKind(s){'),to=share.indexOf('function openShareAsset(id){',from);
+assert.ok(from>=0&&to>from,'content kind helper boundary missing');
+const ctx=vm.createContext({});
+vm.runInContext(share.slice(from,to),ctx);
+const sealed={id:'sh_123',file_type:'audio/tl3',content_kind:'tl3',stream_url:null,preview_url:null,player_version:5,spine_v5_status:'sealed'};
+const notPublished={id:'missing',content_kind:'other',stream_url:null,preview_url:null};
+assert.equal(ctx.contentKind(sealed),'tl3');
+assert.equal(ctx.hasTrackPlaybackRoute(sealed),true,'published TL3 must navigate to Track without exposing raw stream');
+assert.equal(ctx.hasTrackPlaybackRoute({file_type:'audio/tl3'}),true,'legacy sealed TL3 has a track route');
+assert.equal(ctx.hasTrackPlaybackRoute(notPublished),false);
+assert.equal(ctx.hasTrackPlaybackRoute({stream_url:'/api/stream/id',file_type:'audio/mp3'}),true);
+assert.equal((share.match(/var hasUrl=hasTrackPlaybackRoute\(s\);/g)||[]).length,2,'grid and list cards must agree');
+assert.ok(!share.includes('var hasUrl=!!(s.stream_url||s.preview_url);'));
+assert.ok(share.includes("location.href='track.html?id='+encodeURIComponent(String(s.share_id||s.id))"));
+assert.ok(share.includes("counter.textContent='검색 결과 0곡'"),'no results should not retain last total');
+assert.ok(share.includes("! /^(?:연결 오류|요청 시간 초과)/".replace('! ',''))||share.includes("!/^(?:연결 오류|요청 시간 초과)/"),'a load error must not be replaced by empty-result count');
+for(const m of share.matchAll(/<script(?:\s+[^>]*)?>([\s\S]*?)<\/script>/g)){if(m[1].trim())new vm.Script(m[1],{filename:'SharePlace inline JS'});}
+console.log('PASS Shared Market: V5 TL3 without direct URL still shows track-entry play; grid/list parity; search zero state; connection error survives');
