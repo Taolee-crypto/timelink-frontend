@@ -9,12 +9,12 @@
   if(!document.getElementById('tl-footer-style')){const css=document.createElement('link');css.id='tl-footer-style';css.rel='stylesheet';css.href='/_shared/footer.css?v=20261027b';document.head.append(css);}
   const language=window.TLUI?.lang||localStorage.getItem('tl_lang')||'ko';
   const words={
-   ko:['창작활동이 경제활동이 되는 곳.','둘러보기','참여와 비즈니스','TimeLink 소개','공유플레이스','작품 등록','나의 방송','스토어 비즈니스','영업 매니저','광고주 센터','TimeLink 이야기','이용과 가치','플레이어 다운로드','이용약관','개인정보처리방침','창작자 정책','이용·보상 정책','맨 위로','한국 법인'],
-   en:['Where creative activity becomes economic activity.','Explore','Create & partner','About TimeLink','SharePlace','Upload your work','My broadcast','Store business','Sales managers','Advertiser center','Our story','Use & value','Download player','Terms of service','Privacy policy','Creator policy','Economy policy','Back to top','Korean subsidiary'],
-   ja:['創作活動が経済活動になる場所。','見つける','創作とビジネス','TimeLinkについて','共有マーケット','作品を登録','自分の放送','店舗ビジネス','営業マネージャー','広告主センター','私たちの物語','利用と価値','プレーヤーをダウンロード','利用規約','プライバシーポリシー','クリエイターポリシー','経済ポリシー','トップへ','韓国法人'],
-   zh:['让创作活动成为经济活动。','探索','创作与合作','关于TimeLink','共享市场','上传作品','我的广播','商店业务','销售经理','广告主中心','我们的故事','使用与价值','下载播放器','服务条款','隐私政策','创作者政策','经济政策','返回顶部','韩国子公司'],
-   th:['พื้นที่ที่การสร้างสรรค์กลายเป็นกิจกรรมทางเศรษฐกิจ','สำรวจ','สร้างสรรค์และธุรกิจ','เกี่ยวกับ TimeLink','ตลาดผลงาน','อัปโหลดผลงาน','การออกอากาศของฉัน','ธุรกิจร้านค้า','ผู้จัดการฝ่ายขาย','ศูนย์ผู้ลงโฆษณา','เรื่องราวของเรา','การใช้งานและคุณค่า','ดาวน์โหลดเครื่องเล่น','เงื่อนไขบริการ','นโยบายความเป็นส่วนตัว','นโยบายผู้สร้าง','นโยบายเศรษฐกิจ','กลับด้านบน','บริษัทในเกาหลี'],
-   vi:['Nơi hoạt động sáng tạo trở thành hoạt động kinh tế.','Khám phá','Sáng tạo và hợp tác','Về TimeLink','Chợ chia sẻ','Đăng tác phẩm','Phát thanh của tôi','Kinh doanh cửa hàng','Quản lý kinh doanh','Trung tâm quảng cáo','Câu chuyện của chúng tôi','Sử dụng và giá trị','Tải trình phát','Điều khoản dịch vụ','Chính sách riêng tư','Chính sách nhà sáng tạo','Chính sách kinh tế','Về đầu trang','Công ty tại Hàn Quốc']
+   ko:['창작활동이 경제활동이 되는 곳.','둘러보기','참여와 비즈니스','TimeLink 소개','공유플레이스','작품 등록','나의 방송','스토어 비즈니스','참여 안내','회원 추천','TimeLink 이야기','이용과 가치','플레이어 다운로드','이용약관','개인정보처리방침','창작자 정책','이용·보상 정책','맨 위로','한국 법인'],
+   en:['Where creative activity becomes economic activity.','Explore','Create & partner','About TimeLink','SharePlace','Upload your work','My broadcast','Store business','Participation','Member referrals','Our story','Use & value','Download player','Terms of service','Privacy policy','Creator policy','Economy policy','Back to top','Korean subsidiary'],
+   ja:['創作活動が経済活動になる場所。','見つける','創作とビジネス','TimeLinkについて','共有マーケット','作品を登録','自分の放送','店舗ビジネス','参加案内','会員紹介','私たちの物語','利用と価値','プレーヤーをダウンロード','利用規約','プライバシーポリシー','クリエイターポリシー','経済ポリシー','トップへ','韓国法人'],
+   zh:['让创作活动成为经济活动。','探索','创作与合作','关于TimeLink','共享市场','上传作品','我的广播','商店业务','参与指南','会员推荐','我们的故事','使用与价值','下载播放器','服务条款','隐私政策','创作者政策','经济政策','返回顶部','韩国子公司'],
+   th:['พื้นที่ที่การสร้างสรรค์กลายเป็นกิจกรรมทางเศรษฐกิจ','สำรวจ','สร้างสรรค์และธุรกิจ','เกี่ยวกับ TimeLink','ตลาดผลงาน','อัปโหลดผลงาน','การออกอากาศของฉัน','ธุรกิจร้านค้า','การมีส่วนร่วม','แนะนำสมาชิก','เรื่องราวของเรา','การใช้งานและคุณค่า','ดาวน์โหลดเครื่องเล่น','เงื่อนไขบริการ','นโยบายความเป็นส่วนตัว','นโยบายผู้สร้าง','นโยบายเศรษฐกิจ','กลับด้านบน','บริษัทในเกาหลี'],
+   vi:['Nơi hoạt động sáng tạo trở thành hoạt động kinh tế.','Khám phá','Sáng tạo và hợp tác','Về TimeLink','Chợ chia sẻ','Đăng tác phẩm','Phát thanh của tôi','Kinh doanh cửa hàng','Tham gia','Giới thiệu thành viên','Câu chuyện của chúng tôi','Sử dụng và giá trị','Tải trình phát','Điều khoản dịch vụ','Chính sách riêng tư','Chính sách nhà sáng tạo','Chính sách kinh tế','Về đầu trang','Công ty tại Hàn Quốc']
   };const t=words[language]||words.ko;
   const link=(href,text)=>{const a=document.createElement('a');a.href=href;a.textContent=text;return a;};
   const element=(tag,className,text)=>{const el=document.createElement(tag);el.className=className;if(text)el.textContent=text;return el;};
@@ -22,7 +22,7 @@
   const logo=link('/timelink.html','TimeLink');logo.className='site-footer-logo';logo.append(element('span','','by TILO'));brand.append(logo,element('p','site-footer-tagline',t[0]));grid.append(brand);
   const groups=[
    [t[1],[['/new-asset.html','New Asset'],['/shareplace.html',t[4]],['/radio.html','Broadcast'],['/world-network.html','World Network']]],
-   [t[2],[['/creator.html',t[5]],['/b2b.html',t[7]],['/advertiser.html',t[9]]]],
+   [t[2],[['/creator.html',t[5]],['/b2b.html',t[7]],['/member-referrals.html',t[9]]]],
    [t[3],[['/timelink-story.html',t[10]],['/timelink-economy.html',t[11]],['/download.html',t[12]]]]
   ];
   for(const [title,links] of groups){const nav=element('nav','site-footer-links');nav.setAttribute('aria-label',title);nav.append(element('p','site-footer-label',title));for(const [href,text] of links)nav.append(link(href,text));grid.append(nav);}
