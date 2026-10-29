@@ -16,4 +16,9 @@ assert.match(html,/localStorage\.getItem\('tl_token'\)/,'Use signed-in V5 token'
 assert.match(receipt,/\/api\/payment\/v5\/commercial-time\/toss\/confirm/,'Confirm provider result server side');
 assert.match(receipt,/\/api\/payment\/v5\/commercial-time\/balance/,'Display credited store balance');
 assert.match(receipt,/history\.replaceState/,'Remove sensitive payment return parameters');
-console.log('Store payment: quote, store ownership, Toss SDK, server confirmation, ledger balance checks passed');
+assert.match(html,/quote\.checkoutMode==='test'&&quote\.testCheckoutEnabled===true&&quote\.checkoutEnabled===true/,'Checkout must obey server test-mode availability');
+assert.match(html,/storePayButton\.disabled=!available/,'Unavailable checkout must not be clickable');
+assert.match(html,/if\(storePayButton\.disabled\|\|!storePaySelection/,'Click handler must recheck availability');
+assert.doesNotMatch(html,/base=7900\*t\.factor/,'Client must not show prices inconsistent with server');
+assert.match(html,/quoteEl\.textContent=summary/,'Server quote must replace local price approximation');
+console.log('PASS store payment: quote, store owner, server checkout mode, Toss SDK, receipt and non-duplicated price');
