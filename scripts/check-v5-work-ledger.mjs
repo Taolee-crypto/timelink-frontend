@@ -149,3 +149,21 @@ assert.ok(!dashboard.includes("onclick=\"switchTab('cafe')\""));
 assert.ok(!dashboard.includes("loadCafeTab()"));
 assert.ok(dashboard.includes("if(name==='cafe'){location.replace('/my-cafe.html');return;}"));
 console.log('PASS My Channels removed from navigation, dashboard and active progress; history preserved');
+
+// Execute the admin summary with the same historical tasks as the full ledger.
+// Menu equality alone does not prove that their completion denominators agree.
+const summaryCases=[...releases.tasks,...sample,
+ {id:'TLV5-NAV-CHANNELS',category:'내 채널',status:'구현'},
+ {id:'legacy-channels',category:'내 채널',status:'미검증'},
+ {id:'TLV5-056',category:'DJ센터',title:'사업자 통계',status:'구현'},
+ {id:'future-app',category:'라디오 수신앱',status:'설계'},
+ {id:routeKey('/my-cafe.html'),category:'카페방송',status:'운영확인'}];
+retireContext.summaryCases=summaryCases;
+const summaryCurrent=runInContext("activeTasks(summaryCases).filter(t=>!String(t.id||'').startsWith('TLV5-PAGE-')&&t.category!=='라디오 수신앱')",retireContext);
+const expectedDone=summaryCurrent.filter(t=>['구현','테스트','운영확인'].includes(t.status)).length;
+const expectedVerified=summaryCurrent.filter(t=>t.status==='운영확인').length;
+const summaryElement={textContent:''};
+const summarySource=adminLedgerHtml.slice(adminLedgerHtml.indexOf('/* V5 관리대장 요약'),adminLedgerHtml.indexOf('</script>',adminLedgerHtml.indexOf('/* V5 관리대장 요약')));
+await runInContext(summarySource,createContext({document:{getElementById:()=>summaryElement},ADMIN_API:'https://fixture.invalid',getAdminToken:()=> 'fixture',fetch:async()=>({ok:true,json:async()=>({ok:true,version:1,state:{tasks:summaryCases}})})}));
+assert.equal(summaryElement.textContent,'서버 개발 완료 '+expectedDone+'/'+summaryCurrent.length+' ('+Math.round(expectedDone/summaryCurrent.length*100)+'%) · 운영확인 '+expectedVerified+'/'+summaryCurrent.length+' · 버전 1','admin summary and full ledger must exclude the same retired tasks');
+console.log('PASS actual admin summary/full-ledger completion parity including retired scores and My Channels');
