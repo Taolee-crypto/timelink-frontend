@@ -48,5 +48,6 @@ const ctx={_v5ScoreAnalysisPending:true,v5ScoreStatus:x=>message=x};
 vm.runInNewContext(html.slice(begin,end),ctx);
 ctx.generateV5ScoreDraft();
 assert.equal(ctx._v5ScoreAnalysisPending,false);
-assert.match(message,/보컬 분리/);
+assert.match(message,/보컬 채보/);
+assert.match(message,/원본 MP3를 다시 올리지 마세요/);
 console.log('PASS retired button does not invoke playback, worker, upload or billing');
