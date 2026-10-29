@@ -33,17 +33,18 @@ function auditSidebarSources(dir){
     if(ent.isDirectory()){auditSidebarSources(filename);continue;}
     if(!filename.endsWith('.html'))continue;
     const source=fs.readFileSync(filename,'utf8');
-    for(const match of source.matchAll(/src=["'](\\/sidebar\\.js(?:\\?[^"']*)?)["']/g)){
+    for(const match of source.matchAll(/src=["'](\/sidebar\.js(?:\?[^"']*)?)["']/g)){
       assert.equal(match[1],'/sidebar.js?v='+revision,
         'Stale global sidebar URL in '+filename);
     }
   }
 }
 auditSidebarSources('public');
-assert.match(fs.readFileSync('public/index.html','utf8'),
-  /src="\\/sidebar\\.js\\?v=20261029-account-navigation-v2"/,
-  'Main host must request the current sidebar revision');
-assert.match(fs.readFileSync('public/_headers','utf8'),/\\/sidebar\\.js[\\s\\S]*?Cache-Control: no-cache/,
+const rootIndex=fs.readFileSync('public/index.html','utf8');
+assert.ok(rootIndex.includes('src="/sidebar.js?v='+revision+'"'),
+  'Main host must request current sidebar revision');
+const headers=fs.readFileSync('public/_headers','utf8');
+assert.ok(headers.includes('/sidebar.js') && headers.includes('Cache-Control: no-cache'),
   'Sidebar caching must revalidate');
 
 console.log('PASS duplicate My Files menu removed; My Works, source files, New Asset and ledger remain consistent');
