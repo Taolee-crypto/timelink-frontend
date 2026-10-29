@@ -1,0 +1,18 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict'),vm=require('node:vm');
+const ui=fs.readFileSync('public/profit-safety.html','utf8');
+const rewards=fs.readFileSync('public/reward-policy.html','utf8');
+assert.ok(rewards.includes('href="/profit-safety.html"'),'Reward policy must link to risk simulator');
+assert.ok(ui.includes('admin/profit-safety'),'Simulator must use the protected admin API');
+assert.ok(ui.includes('자동 최적화 비활성'),'Never suggest automatic tuning is active');
+assert.ok(ui.includes("api('/simulate','POST'"),'Simulation must go through server');
+assert.ok(ui.includes("api('/limits','POST'"),'Only administrator can adjust safety thresholds');
+assert.ok(ui.includes("mode:'manual'"),'Manual-only mode remains explicit');
+assert.ok(ui.includes("expected_version:version"),'Avoid stale overwrites');
+assert.ok(!ui.includes("api('/reward-policy'"),'Risk simulator must never change actual reward policy');
+assert.ok(!ui.includes('innerHTML'),'No untrusted financial data as HTML');
+assert.ok(ui.includes('textContent'),'Risk output must be safe text');
+const scripts=ui.match(/<script>([\s\S]*?)<\/script>/);
+assert.ok(scripts,'Inline simulator logic missing');
+new vm.Script(scripts[1],{filename:'profit-safety-ui.js'});
+console.log('PASS manual profit safety UI: protected endpoints, scenario only, versioned controls, no automatic reward changes');
