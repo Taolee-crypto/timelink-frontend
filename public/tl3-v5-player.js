@@ -360,15 +360,6 @@
       if(error&&error.code==='V5_START_CANCELLED')throw error;
       throw new Error('음원 재생을 시작하지 못했습니다: '+(error&&error.message||error));
     }
-    // Optional, explicitly creator-authorized score drafting on the TRACK view.
-    // Neither keys nor MP3 are uploaded: only the owner-side analyzer receives
-    // the already-licensed clear audio in browser memory after playback starts.
-    if(typeof opts.onVerifiedScoreAudio==='function'){
-      Promise.resolve().then(()=>opts.onVerifiedScoreAudio(decoded.mp3,{
-        file_id:fileId,share_id:shareId,source_sha256:String(manifest.source_sha256||''),
-        duration_ms:totalMs
-      })).catch(err=>console.warn('[V5 SCORE] owner draft analysis failed',err));
-    }
     audio._tl3End=async function(){
       finishMeterForEnded();
       if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}

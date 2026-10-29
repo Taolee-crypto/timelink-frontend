@@ -2,6 +2,9 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const html=fs.readFileSync('public/track.html','utf8');
+const player=fs.readFileSync('public/tl3-v5-player.js','utf8');
+assert.ok(!player.includes('onVerifiedScoreAudio'),'retired score hook must not receive licensed decoded MP3 bytes');
+assert.ok(!player.includes('[V5 SCORE]'),'retired score analyzer cannot be invoked from playback');
 const blocked=[
   'id="scoreBtn"','id="scoreModal"','id="generateV5ScoreDraftBtn"',
   'function loadScore(','function scoreDataToMusicXml(',
