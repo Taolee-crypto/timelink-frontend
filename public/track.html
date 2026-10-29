@@ -1140,6 +1140,13 @@ async function loadScore(){
     _v5ScoreFileId=Number(result.file_id)||0;
     _v5ScoreSourceSha=String(result.source_sha256||'');
     if(actions)actions.hidden=!_v5ScoreOwnerAllowed;
+    const jobState=String(result.job_status||'not_requested');
+    const stateText={queued:'보컬 악보 분석 대기 중입니다.',running:'보컬 분리 및 음표 추출을 진행하고 있습니다.',completed:'보컬 채보 작업이 완료됐습니다.',failed:'보컬 채보에 실패했습니다.'};
+    if(stateText[jobState])v5ScoreStatus(stateText[jobState]+(jobState==='failed'&&result.job_error_code?' 오류: '+result.job_error_code:''));
+    else v5ScoreStatus(result.analysis_ready?'보컬 채보를 요청할 수 있습니다.':'보컬 분석 서버가 아직 연결되지 않았습니다.');
+    const generateButton=document.getElementById('generateV5ScoreDraftBtn');
+    if(generateButton)generateButton.disabled=jobState==='queued'||jobState==='running';
+
     if(result.has_score===true&&result.score&&Array.isArray(result.score.melody)&&result.score.melody.length&&['draft','published'].includes(result.score_status)){
       _scoreData=result.score;
       if(draftNotice)draftNotice.hidden=result.score_status!=='draft';
@@ -1238,12 +1245,12 @@ async function generateV5ScoreDraft(){
     });
     const data=await response.json().catch(()=>({}));
     if(!response.ok||data.ok!==true)throw Error(v5ScoreErrorMessage(data,'보컬 채보 작업을 접수하지 못했습니다.'));
-    v5ScoreStatus('채보 작업이 접수되었습니다. 분석 결과가 저장되면 악보보기를 다시 열어 확인할 수 있습니다. 작업 번호: '+data.file_id);
+    v5ScoreStatus('보컬 채보가 접수됐습니다. 진행 상태를 자동 확인합니다. 작업 번호: '+data.file_id);\n    startV5ScorePolling();
   }catch(error){v5ScoreStatus('자동 채보 요청 실패: '+(error?.message||String(error)));}
   finally{_v5ScoreAnalyzing=false;if(button)button.disabled=false;}
 }
 
-function closeScoreModal(){
+let _v5ScorePollTimer=null;\nfunction startV5ScorePolling(){\n  if(_v5ScorePollTimer)clearInterval(_v5ScorePollTimer);\n  let checks=0;\n  _v5ScorePollTimer=setInterval(async()=>{\n    if(++checks>120||!document.getElementById('scoreModal')?.classList.contains('open')){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;return;}\n    try{\n      const response=await fetch(API+'/api/v1/scores/v5/'+encodeURIComponent(SHARE_ID),{headers:{'Accept':'application/json',...(getTok()?{'Authorization':'Bearer '+getTok()}:{})},cache:'no-store'});\n      if(!response.ok)return;\n      const data=await response.json();\n      if(data.has_score===true&&data.score?.melody?.length){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;await loadScore();return;}\n      const status=String(data.job_status||'');\n      if(status==='failed'){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;v5ScoreStatus('보컬 채보 실패: '+(data.job_error_code||'원인을 확인해 주세요.'));return;}\n      if(status==='running')v5ScoreStatus('보컬 분리 및 멜로디 채보 중입니다.');\n      if(status==='queued')v5ScoreStatus('보컬 채보 대기 중입니다.');\n    }catch(_){/* transient connection issue: retry */}\n  },10000);\n}\nfunction closeScoreModal(){\n  if(_v5ScorePollTimer){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;}
   const modal = document.getElementById("scoreModal");
   if(modal) modal.classList.remove("open");
 }
