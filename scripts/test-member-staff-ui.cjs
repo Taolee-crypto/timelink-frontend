@@ -10,7 +10,7 @@ assert.match(html,/id="ownerWorkspace"/);
 assert.match(html,/id="staffList"/);
 assert.match(html,/id="issueInvite"/);
 assert.match(html,/\/cafe\/staff-manager\.js/);
-assert.match(entry,/id="staffManage"[^>]*class="[^"]*hidden"/);
+assert.match(entry,/<a[^>]*class="[^"]*hidden"[^>]*id="staffManage"/);
 assert.match(entry,/getElementById\('staffManage'\)\.classList\.remove\('hidden'\)/);
 new vm.Script(script,{filename:'staff-manager.js'});
 
