@@ -750,7 +750,7 @@ body.tl-admin-console>.admin-main{display:flex!important;flex-direction:column!i
         <div class="sql-result" id="sqlResult"></div>
       </div>
       <div style="margin-top:8px;font-size:9px;color:var(--rose);font-family:var(--mono);padding:0 4px">
-        ⚠ UPDATE/DELETE는 되돌릴 수 없습니다. SQL 엔드포인트 없으면 wrangler 명령어가 클립보드에 복사됩니다.
+        관리자 SQL 콘솔은 조회 전용입니다. 실제 데이터 변경은 검증된 관리자 전용 기능에서만 수행됩니다.
       </div>
     </div>
 
@@ -797,9 +797,9 @@ body.tl-admin-console>.admin-main{display:flex!important;flex-direction:column!i
               <div style="font-size:10px;color:var(--t3);margin-bottom:4px">TX Hash (완료 후 입력)</div>
               <input id="manualTxHash" placeholder="tx hash (선택)" style="width:100%;padding:8px 12px;background:var(--bg3);border:1px solid var(--bd2);color:var(--t1);border-radius:6px;font-size:12px;font-family:var(--mono);outline:none;box-sizing:border-box">
             </div>
-            <button class="btn btn-g" onclick="approveWithdrawal()" style="padding:9px 20px">✅ 승인 처리</button>
+            <button class="btn btn-g" type="button" disabled aria-disabled="true" style="padding:9px 20px;opacity:.5;cursor:not-allowed">원장 검증 후 사용</button>
           </div>
-          <div id="tonMintStatus" style="margin-top:10px;font-size:11px;color:var(--t3);font-family:var(--mono)"></div>
+          <div id="tonMintStatus" role="status" style="margin-top:10px;font-size:11px;color:var(--amber);font-family:var(--mono)">출금 상태 변경·TLC 반환은 승인된 지급 원장과 실제 체인 전송 확인 API가 마련되기 전까지 비활성화됩니다.</div>
         </div>
       </div>
     </div>
@@ -1206,7 +1206,7 @@ async function loadTonWithdrawals(){
       var statusColor = w.status==='pending' ? 'var(--amber)' : w.status==='done' ? 'var(--g)' : w.status==='processing' ? 'var(--purple)' : 'var(--rose)';
       var addrShort = w.ton_address ? w.ton_address.slice(0,8)+'...'+w.ton_address.slice(-6) : '-';
       var txShort = w.tx_hash ? w.tx_hash.slice(0,10)+'...' : '-';
-      var btns = w.status==='pending' ? '<button class="btn btn-g btn-xs" onclick="quickApprove('+w.id+')">승인</button> <button class="btn btn-xs" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#F87171" onclick="rejectWithdrawal('+w.id+')">거절</button>' : '';
+      var btns = w.status==='pending' ? '<span style="color:var(--amber)">지급 원장 검증 대기</span>' : '';
       return '<tr>'+
         '<td style="font-family:var(--mono)">#'+w.id+'</td>'+
         '<td>'+( w.username||w.email||w.user_id)+'</td>'+
@@ -1221,57 +1221,20 @@ async function loadTonWithdrawals(){
   }catch(e){ console.error(e); }
 }
 
-async function quickApprove(id){
-  document.getElementById('manualWdId').value = id;
-  await approveWithdrawal();
+// TLC withdrawal cannot be completed by arbitrary SQL or a manually typed
+// transaction hash. The approved payout/chain ledger pathway is not deployed.
+// Explicitly block execution until a verified payout API exists.
+function disabledWithdrawalAction(){
+ const status=document.getElementById('tonMintStatus');
+ if(status){
+   status.style.color='var(--rose)';
+   status.textContent='TLC 출금 실행 비활성: 체인 증빙·지급 원장 검증 전에는 승인·거절·잔액 반환 불가';
+ }
+ toast('출금 지급 원장 검증 기능이 준비되지 않았습니다. 임의 변경하지 않습니다.','r');
 }
-
-async function approveWithdrawal(){
-  var id = document.getElementById('manualWdId').value;
-  var txHash = document.getElementById('manualTxHash').value.trim();
-  var status = document.getElementById('tonMintStatus');
-  if(!id){ toast('출금 ID 입력하세요','r'); return; }
-  status.textContent = '처리 중...';
-  try{
-    // TX Hash 있으면 직접 done으로 처리
-    var sql = txHash
-      ? "UPDATE tlc_withdrawals SET status='done', tx_hash='"+txHash+"', processed_at=datetime('now') WHERE id="+id
-      : "UPDATE tlc_withdrawals SET status='processing', processed_at=datetime('now') WHERE id="+id;
-    var r = await fetch(ADMIN_API+'/api/admin/sql',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'')},
-      body: JSON.stringify({sql})
-    });
-    var d = await r.json();
-    if(d.success){
-      status.style.color='var(--g)';
-      status.textContent = txHash ? '✅ #'+id+' 완료 처리됨 (TX: '+txHash+')' : '✅ #'+id+' processing 상태로 변경됨';
-      toast('출금 처리 완료!','g');
-      document.getElementById('manualWdId').value='';
-      document.getElementById('manualTxHash').value='';
-      loadTonWithdrawals();
-    } else {
-      status.style.color='var(--rose)';
-      status.textContent = '❌ 오류: '+(d.error||'실패');
-    }
-  }catch(e){ status.textContent='❌ '+e.message; }
-}
-
-async function rejectWithdrawal(id){
-  if(!confirm('#'+id+' 출금을 거절하시겠습니까? TLC가 반환됩니다.')) return;
-  try{
-    // TLC 반환 + 상태 변경
-    var wdR = await fetch(ADMIN_API+'/api/admin/sql',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'')},body:JSON.stringify({sql:"SELECT user_id, tlc_amount FROM tlc_withdrawals WHERE id="+id})});
-    var wd = await wdR.json();
-    var row = (wd.results||[])[0];
-    if(row){
-      await fetch(ADMIN_API+'/api/admin/sql',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'')},body:JSON.stringify({sql:"UPDATE users SET tlc_balance=COALESCE(tlc_balance,0)+"+row.tlc_amount+", tlc=COALESCE(tlc,0)+"+row.tlc_amount+" WHERE id="+row.user_id})});
-      await fetch(ADMIN_API+'/api/admin/sql',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('tl_token')||localStorage.getItem('tl_adm_token')||'')},body:JSON.stringify({sql:"UPDATE tlc_withdrawals SET status='rejected', processed_at=datetime('now') WHERE id="+id})});
-    }
-    toast('거절 완료 — TLC 반환됨','g');
-    loadTonWithdrawals();
-  }catch(e){ toast('오류: '+e.message,'r'); }
-}
+async function quickApprove(_id){disabledWithdrawalAction();}
+async function approveWithdrawal(){disabledWithdrawalAction();}
+async function rejectWithdrawal(_id){disabledWithdrawalAction();}
 
 async function loadAll(){
   await Promise.all([loadShares(),loadUsers(),loadPendingTL3()]);
