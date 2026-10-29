@@ -41,13 +41,9 @@ assert.ok(player.includes("if(typeof opts.onVerifiedScoreAudio==='function')"));
 assert.ok(player.indexOf("opts.onVerifiedScoreAudio(decoded.mp3")>player.indexOf("await audio.play()"));
 console.log('PASS TRACK V5 licensed playback owner-only draft worker, actual pitched audio -> notes, no extra MP3 upload');
 
-const begin=html.indexOf('async function generateV5ScoreDraft(){');
-const end=html.indexOf('function closeScoreModal()',begin);
-let message='';
-const ctx={_v5ScoreAnalysisPending:true,v5ScoreStatus:x=>message=x};
-vm.runInNewContext(html.slice(begin,end),ctx);
-ctx.generateV5ScoreDraft();
-assert.equal(ctx._v5ScoreAnalysisPending,false);
-assert.match(message,/보컬 채보/);
-assert.match(message,/원본 MP3를 다시 올리지 마세요/);
-console.log('PASS retired button does not invoke playback, worker, upload or billing');
+// The button now submits a rights-checked server job, not the retired local audio analyzer.
+assert.ok(html.includes("+'/generate'"));
+assert.ok(html.includes("body:JSON.stringify({rights_confirmed:true})"));
+assert.ok(html.includes("if(!_v5ScoreOwnerAllowed||!getTok())"));
+assert.ok(html.includes("자동 채보 요청 실패:"));
+console.log('PASS V5 score button submits authorized job and reports backend errors');
