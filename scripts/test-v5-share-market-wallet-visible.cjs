@@ -66,5 +66,9 @@ assert.ok(!html.includes('await loadMyTL();'),'unbounded whole-catalog balance f
  assert.equal(calls,20,'cached balances must not be fetched again during render');
  await cardCtx.loadMyTL(list,true);
  assert.equal(calls,40,'forced bfcache refresh revalidates only visible page');
- console.log('PASS SharePlace server-wallet truth, auth race, fail-closed, max-20 cards / max-4 concurrency');
+ const secondPage=Array.from({length:20},(_,i)=>({id:'other'+i}));
+ await Promise.all([cardCtx.loadMyTL(list,true),cardCtx.loadMyTL(secondPage,true)]);
+ assert.equal(calls,80,'two simultaneous page batches should each be limited to 20');
+ assert.ok(maxInflight<=4,'rapid page changes must not exceed the global four-request cap');
+ console.log('PASS SharePlace server-wallet truth, auth race, fail-closed, max-20 cards / global max-4 concurrency');
 })().catch(e=>{console.error(e);process.exitCode=1;});
