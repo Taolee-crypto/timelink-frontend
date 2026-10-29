@@ -1,0 +1,26 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict'),vm=require('node:vm');
+const admin=fs.readFileSync('public/admin.html','utf8');
+const ledger=fs.readFileSync('public/v5-work-ledger.html','utf8');
+const from=admin.indexOf('function disabledWithdrawalAction('),to=admin.indexOf('async function loadAll(){',from);
+assert.ok(from>0&&to>from,'withdrawal handler boundaries');
+const actions=admin.slice(from,to);
+assert.doesNotMatch(actions,/UPDATE\s+users|UPDATE\s+tlc_withdrawals|DELETE\s+tlc_withdrawals/i);
+assert.doesNotMatch(actions,/\/api\/admin\/sql/,'manual withdrawal actions must not bypass finance ledger');
+assert.ok(admin.includes('id="manualWdId" type="number" disabled'));
+assert.ok(admin.includes('id="manualTxHash" disabled'));
+assert.ok(admin.includes('원장 검증 후 사용'));
+assert.ok(admin.includes("['all','pending','processing','done','rejected'].includes(filter)"));
+assert.ok(admin.includes("esc(String(w.username||w.email||w.user_id))"));
+assert.ok(admin.includes('출금 상태 변경·TLC 반환은 승인된 지급 원장'));
+const status={style:{},textContent:''},toasts=[];
+const ctx={document:{getElementById(){return status}},toast:(t)=>toasts.push(t)};
+vm.createContext(ctx);vm.runInContext(actions,ctx);
+(async()=>{
+ await ctx.approveWithdrawal();await ctx.rejectWithdrawal(123);await ctx.quickApprove(1);
+ assert.equal(toasts.length,3);
+ assert.ok(status.textContent.includes('비활성'));
+ assert.ok(ledger.includes("const workLedgerAPI='https://api.timelink.digital/api/admin/v5-work-ledger'"));
+ assert.ok(admin.includes("'/api/admin/finance/ledger-integrity'"));
+ console.log('PASS infrastructure UI: no unsafe SQL withdrawals, display blocked payout, escaped untrusted queue and protected admin/ledger navigation');
+})().catch(e=>{console.error(e);process.exitCode=1});
