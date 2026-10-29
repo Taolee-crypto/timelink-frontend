@@ -314,7 +314,7 @@ window.addEventListener('resize',()=>requestAnimationFrame(()=>{if(typeof fitTra
   <div class="modal" style="max-width:640px;max-height:88vh;overflow:auto">
     <div class="modal-hdr"><span class="modal-title">🎵 곡 정보 수정</span><button class="modal-close" onclick="closeTrackInfoEditor()">✕</button></div>
     <div class="tl-lyric-editor">
-      <div style="font-size:11px;color:rgba(245,245,247,.45)">곡명은 최초 등록 정보로 유지됩니다. 아래 항목은 창작자 본인이 수정할 수 있으며 TL은 차감되지 않습니다.</div>
+      <div style="font-size:11px;color:rgba(245,245,247,.45)">곡명과 봉인 음원 정보는 변경되지 않습니다. 본인의 가수·앨범·프로듀서·장르·가사 정보는 저장할 수 있으며 TL은 차감되지 않습니다.</div><div id="trackInfoRightsNotice" role="note" style="display:none;padding:11px 13px;border:1px solid rgba(245,166,35,.28);background:rgba(245,166,35,.07);border-radius:9px;color:#e8c589;font-size:12px">작곡·작사·편곡은 공동 권리자 지분 및 본인확인에 연결된 정보로, 이 화면에서 변경할 수 없습니다. 권리자 정보 변경은 크리에이터의 권리 확인 절차에서 처리합니다.</div>
       <label>곡명 (변경 불가)<input id="editTrackTitle" disabled></label>
       <div class="tl-edit-grid">
         <label>가수 / 아티스트<input id="editTrackArtist" maxlength="200"></label>
@@ -768,6 +768,13 @@ function openTrackInfoEditor(){
   if(!_share||String(_currentUserId)!==String(_share.user_id)){alert('본인의 곡 정보만 수정할 수 있습니다.');return;}
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v==null?'':String(v);};
   set('editTrackTitle',_share.title);set('editTrackArtist',_share.artist);set('editTrackAlbum',_share.album);set('editTrackComposer',_share.composer);set('editTrackLyricist',_share.lyricist);set('editTrackProducer',_share.producer);set('editTrackArranger',_share.arranger);set('editTrackCategory',_share.category);set('editGenreFamily','');set('editGenreRegion','');set('editTrackLyrics',_share.lyrics);
+  const sealedV5=Number(_share.player_version)===5 || _share.spine_v5_status==='sealed';
+  for(const name of ['Composer','Lyricist','Arranger']){
+    const input=document.getElementById('editTrack'+name);
+    if(input){input.disabled=sealedV5;input.title=sealedV5?'권리 확인 후 변경 가능한 항목입니다.':'';}
+  }
+  const notice=document.getElementById('trackInfoRightsNotice');
+  if(notice)notice.style.display=sealedV5?'block':'none';
   const err=document.getElementById('trackInfoEditError');if(err)err.style.display='none';
   document.getElementById('trackInfoModal').classList.add('open');
 }
