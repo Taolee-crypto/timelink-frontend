@@ -74,8 +74,8 @@ console.log('PASS TLV5-004 evidence imports only to untouched seed, never overri
 const signupHtml=readFileSync(new URL('../public/signup.html',import.meta.url),'utf8');
 const storeSetup=readFileSync(new URL('../public/cafe-channel.html',import.meta.url),'utf8');
 const staffPage=readFileSync(new URL('../public/cafe-staff.html',import.meta.url),'utf8');
-assert.ok(signupHtml.includes("body: JSON.stringify({email: email, password: pw, username: username, marketing: agree3})"),
- 'Signup must stay account-type neutral');
+assert.ok(signupHtml.includes("body: JSON.stringify({email: email, password: pw, username: username, marketing: agree3, consent_terms: agree1, consent_privacy: agree2, age_14_confirmed: agree1})"),
+ 'Signup must stay account-type neutral while sending mandatory consent evidence');
 assert.ok(!/name\\s*=\\s*["'](?:role|account_type|business_type|staff_role)["']/i.test(signupHtml),
  'Owner/staff selection must never be part of member signup');
 assert.ok(storeSetup.includes('aria-label="매장 개설 진행 단계"'));
