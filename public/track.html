@@ -1099,7 +1099,7 @@ function renderUnissuedV5Score(container, details){
   heading.textContent='이 곡의 TLD 악보는 아직 발행되지 않았습니다';
   heading.style.cssText='font-size:17px;color:#f5d17b;margin:0 0 9px;';
   const info=document.createElement('p');
-  info.textContent=title+' · 보컬 분리 채보 서비스 연결을 준비 중입니다. 현재 자동 채보를 시작할 수 없습니다.';
+  info.textContent=title+' · '+(details?.analysis_ready ? '보컬 채보 서버가 준비됐습니다. 창작자는 악보 생성 작업을 요청할 수 있습니다.' : '보컬 분석 서버가 아직 연결되지 않았습니다. 운영 배포가 필요합니다.');
   info.style.cssText='font-size:13px;color:#cbd5e1;margin:0 0 10px;';
   const note=document.createElement('p');
   note.textContent='음원을 다시 올릴 필요가 없습니다. 미발행 악보에 대한 TL 결제도 발생하지 않습니다.';
@@ -1222,8 +1222,25 @@ async function scoreDraftFromLicensedMp3(mp3,information){
   finally{if(audioContext)await audioContext.close().catch(()=>{});_v5ScoreAnalyzing=false;if(button)button.disabled=false;}
 }
 async function generateV5ScoreDraft(){
-  _v5ScoreAnalysisPending=false;
-  v5ScoreStatus('기존 TL3 음원의 보컬 채보는 서버 분석 서비스가 활성화된 후 사용할 수 있습니다. 원본 MP3를 다시 올리지 마세요.');
+  if(_v5ScoreAnalyzing)return;
+  if(!_v5ScoreOwnerAllowed||!getTok()){
+    v5ScoreStatus('자동 채보는 권리 확인된 창작자에게만 제공됩니다. 보컬 분석 서버 연결 상태도 확인해 주세요.');
+    return;
+  }
+  _v5ScoreAnalyzing=true;
+  const button=document.getElementById('generateV5ScoreDraftBtn');
+  if(button)button.disabled=true;
+  try{
+    v5ScoreStatus('보컬 채보 작업을 서버에 접수하고 있습니다.');
+    const response=await fetch(API+'/api/v1/scores/v5/'+encodeURIComponent(SHARE_ID)+'/generate',{
+      method:'POST',headers:{'Authorization':'Bearer '+getTok(),'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({rights_confirmed:true}),cache:'no-store'
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||data.ok!==true)throw Error(v5ScoreErrorMessage(data,'보컬 채보 작업을 접수하지 못했습니다.'));
+    v5ScoreStatus('채보 작업이 접수되었습니다. 분석 결과가 저장되면 악보보기를 다시 열어 확인할 수 있습니다. 작업 번호: '+data.file_id);
+  }catch(error){v5ScoreStatus('자동 채보 요청 실패: '+(error?.message||String(error)));}
+  finally{_v5ScoreAnalyzing=false;if(button)button.disabled=false;}
 }
 
 function closeScoreModal(){
