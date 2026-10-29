@@ -458,24 +458,49 @@ var _myFileTL = {};
   if(tb){
     var el = document.createElement('div');
     el.style.cssText = 'display:flex;align-items:center;gap:8px;margin-left:auto;font-size:12px;font-family:var(--fm)';
-    el.innerHTML = '<span style="color:var(--t3)">⏱</span><span style="color:var(--mint);font-weight:700" id="sp-tl-bal">'+((_user.tl_p||0)+(_user.tl_a||0)+(_user.tl_b||0)).toLocaleString()+' TL</span><span style="width:1px;height:16px;background:var(--bd)"></span><span style="color:var(--purple);font-weight:700">'+Number(_user.tlc||0).toFixed(0)+' TLC</span><button onclick="doLogout()" style="margin-left:8px;padding:5px 12px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:11px;cursor:pointer">↩ 로그아웃</button>';
+    el.innerHTML = '<span style="color:var(--t3)">⏱</span><span style="color:var(--mint);font-weight:700" id="sp-tl-bal">'+'조회 중'+' TL</span><span style="width:1px;height:16px;background:var(--bd)"></span><span style="color:var(--purple);font-weight:700">'+'조회 중'+' TLC</span><button onclick="doLogout()" style="margin-left:8px;padding:5px 12px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-size:11px;cursor:pointer">↩ 로그아웃</button>';
     tb.appendChild(el);
   }
 })();
 function doLogout(){ localStorage.removeItem('tl_token'); localStorage.removeItem('tl_user'); location.href='login.html'; }
-function getTotalTL(){
-  if(!_user) return 0;
-  // 백엔드와 동일하게 tl_p/tl_a/tl_b를 합산하되, 구버전 세션의 tl_balance/tl도 보존한다.
-  var p=Number(_user.tl_p);
-  if(!Number.isFinite(p)) p=Number(_user.tl);
-  if(!Number.isFinite(p)) p=Number(_user.tl_balance);
-  if(!Number.isFinite(p)) p=0;
-  var a=Number(_user.tl_a);
-  if(!Number.isFinite(a)) a=0;
-  var b=Number(_user.tl_b);
-  if(!Number.isFinite(b)) b=0;
-  return p+a+b;
+// The authenticated V5 wallet, not a cached tl_user object, is the only balance source.
+var _shareplaceWalletTL=null;
+var _shareplaceWalletRequest=0;
+function getTotalTL(){return Number.isFinite(_shareplaceWalletTL)?_shareplaceWalletTL:0;}
+async function loadShareplaceWallet(){
+  var request=++_shareplaceWalletRequest;
+  var token=localStorage.getItem('tl_token')||'';
+  var tlEl=document.getElementById('sp-tl-bal'),tlcEl=document.getElementById('sp-tlc-bal');
+  _shareplaceWalletTL=null;
+  if(tlEl)tlEl.textContent=token?'조회 중':'로그인 필요';
+  if(tlcEl)tlcEl.textContent=token?'조회 중':'로그인 필요';
+  if(!token)return false;
+  try{
+    var r=await fetch(API_BASE+'/api/eco/wallet',{
+      headers:{Authorization:'Bearer '+token,Accept:'application/json'},cache:'no-store'
+    });
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var d=await r.json(),wallet=d&&d.wallet;
+    if(!wallet||!['tl_total','tlc'].every(function(k){
+      return wallet[k]!==null&&wallet[k]!==undefined&&Number.isFinite(Number(wallet[k]))&&Number(wallet[k])>=0;
+    }))throw new Error('V5 지갑 응답 불완전');
+    if(request!==_shareplaceWalletRequest||token!==localStorage.getItem('tl_token'))return false;
+    _shareplaceWalletTL=Number(wallet.tl_total);
+    if(tlEl)tlEl.textContent=_shareplaceWalletTL.toLocaleString()+' TL';
+    if(tlcEl)tlcEl.textContent=Number(wallet.tlc).toFixed(4)+' TLC';
+    return true;
+  }catch(err){
+    if(request===_shareplaceWalletRequest&&token===localStorage.getItem('tl_token')){
+      _shareplaceWalletTL=null;
+      if(tlEl)tlEl.textContent='잔액 확인 실패';
+      if(tlcEl)tlcEl.textContent='잔액 확인 실패';
+    }
+    console.warn('[SharePlace wallet]',err);
+    return false;
+  }
 }
+window.addEventListener('focus',function(){if(_token)loadShareplaceWallet();});
+window.addEventListener('pageshow',function(e){if(e.persisted&&_token)loadShareplaceWallet();});
 
 // ==================== API ====================
 function isType(s,t){
@@ -592,11 +617,6 @@ async function loadShares(){
     if(sc) sc.innerHTML=(e&&e.name==='AbortError'?'요청 시간 초과':'연결 오류')+' <button onclick="loadShares()" style="margin-left:8px;padding:3px 10px;border-radius:6px;border:1px solid var(--purple);background:transparent;color:var(--purple);font-size:11px;cursor:pointer">🔄 재시도</button>';
     applyFilter();
   }
-  // TL 잔액 조회 실패가 자산 목록 표시를 막지 않도록 별도로 처리한다.
-  if(_token){
-    try{ await loadMyTL(); }
-    catch(e){ console.warn('[SharePlace] 내 TL 잔액 조회 실패',e); }
-  }
 }
 
 // ⭐ 모든 TL3 곡카드의 잔여 TL은 동일한 자산 잔액 API로 조회한다.
@@ -622,30 +642,47 @@ function updateShareCardTL(shareId, balance){
   }
 }
 
-async function loadMyTL(){
-  var tl3Songs = _allShares.filter(function(s){ return contentKind(s) === 'tl3'; });
-  if (!tl3Songs.length) return;
-  await Promise.all(tl3Songs.map(async function(s){
-    // 카드에 표시할 값은 음원 전체 TL 풀이 아니라 로그인 사용자가 해당 곡에 보유한 TL이다.
-    var key = String(s.id);
-    try {
-      var r = await fetch(API_BASE + '/api/shares/' + encodeURIComponent(key) + '/my-tl', {
-        headers: { 'Authorization': 'Bearer ' + (_token || '') },
-        cache: 'no-store'
-      });
-      var d = await r.json().catch(function(){ return {}; });
-      if (!r.ok || !d || d.ok !== true) throw new Error((d && d.error) || ('HTTP ' + r.status));
-      var balance = Number(d.tl_balance);
-      if (Number.isFinite(balance) && balance >= 0) _myFileTL[key] = balance;
-    } catch(e) {
-      // 실패 응답을 0으로 덮어쓰지 않는다.
-      console.warn('[SharePlace] 곡별 보유 TL 조회 실패:', key, e && e.message ? e.message : e);
+// Query only the currently visible 20 cards, at most four requests at a time.
+// The complete catalog remains paged for discovery, but never fans out wallet calls.
+var _visibleShareCards=[];
+var _myTLInFlight=Object.create(null);
+async function loadMyTL(visible,force){
+  var token=localStorage.getItem('tl_token')||'';
+  if(!token||token!==_token)return;
+  var items=(visible||_visibleShareCards).filter(function(s){return contentKind(s)==='tl3';});
+  var pending=items.filter(function(s){
+    var key=String(s.id);
+    return (force||!Object.prototype.hasOwnProperty.call(_myFileTL,key))&&!_myTLInFlight[key];
+  });
+  var next=0;
+  async function worker(){
+    while(next<pending.length){
+      var s=pending[next++],key=String(s.id);
+      if(!key||_myTLInFlight[key])continue;
+      var job=(async function(){
+        try{
+          var r=await fetch(API_BASE+'/api/shares/'+encodeURIComponent(key)+'/my-tl',{
+            headers:{Authorization:'Bearer '+token},cache:'no-store'
+          });
+          var d=await r.json().catch(function(){return {};});
+          if(!r.ok||!d||d.ok!==true)throw new Error((d&&d.error)||('HTTP '+r.status));
+          var value=Number(d.tl_balance);
+          if(!Number.isFinite(value)||value<0)throw new Error('곡별 잔액 응답 오류');
+          if(token!==localStorage.getItem('tl_token'))return;
+          _myFileTL[key]=value;
+          updateShareCardTL(key,value);
+        }catch(e){
+          console.warn('[SharePlace] 곡별 보유 TL 조회 실패:',key,e&&e.message?e.message:e);
+        }
+      })();
+      _myTLInFlight[key]=job;
+      try{await job;}finally{if(_myTLInFlight[key]===job)delete _myTLInFlight[key];}
     }
-  }));
-  applyFilter();
+  }
+  await Promise.all(Array.from({length:Math.min(4,pending.length)},worker));
 }
 // Track에서 돌아왔을 때 브라우저 BFCache에 남은 카드 잔액을 서버의 최신 곡별 잔액으로 동기화한다.
-window.addEventListener('pageshow', function(event){ if(event.persisted && _token) loadMyTL(); });
+window.addEventListener('pageshow', function(event){ if(event.persisted && _token) loadMyTL(_visibleShareCards,true); });
 
 function updateCounts(){
   var s=_allShares;
@@ -664,7 +701,9 @@ function applyFilter(){
   var total=list.length; _lastTotal=total;
   var start=(_curPage-1)*_perPage, end=start+_perPage;
   var paged=list.slice(start,end);
+  _visibleShareCards=paged;
   renderShares(paged,total);
+  if(_token)void loadMyTL(paged,false);
 }
 function syncBrowseURL(){var u=new URL(location.href);for(var pair of [['q',_search],['genre',_genre==='all'?'':_genre],['sort',_tab]]){if(pair[1])u.searchParams.set(pair[0],pair[1]);else u.searchParams.delete(pair[0]);}history.replaceState(null,'',u.pathname+u.search+u.hash);if(parent!==window)parent.postMessage({type:'tl:route-loaded',href:u.pathname+u.search+u.hash,title:document.title},location.origin);}
 function onSearch(v){ _search=v.trim(); _curPage=1; syncBrowseURL();applyFilter(); }
@@ -1042,6 +1081,7 @@ async function chargeTL(shareId,title){
     location.href='track.html?id='+encodeURIComponent(String(target.share_id||target.id))+'&charge=1';
     return;
   }
+  if(!await loadShareplaceWallet()){alert('지갑 잔액을 확인할 수 없습니다. 다시 시도해 주세요.');return;}
   var amtStr=prompt('⚡ "'+title+'" TL 충전\n현재 잔액: '+getTotalTL().toLocaleString()+' TL\n충전할 TL을 입력하세요:','100');
   if(!amtStr) return;
   var amt=parseInt(amtStr);
@@ -1058,7 +1098,7 @@ async function chargeTL(shareId,title){
     _user.tl_a=Number(d.tl_a||0);
     _user.tl_b=Number(d.tl_b||0);
     localStorage.setItem('tl_user',JSON.stringify(_user));
-    var balEl=document.getElementById('sp-tl-bal'); if(balEl) balEl.textContent=getTotalTL().toLocaleString()+' TL';
+    await loadShareplaceWallet();
     alert('✅ '+amt.toLocaleString()+' TL 충전 완료!\n현재 "'+title+'" TL: '+_myFileTL[String(shareId)].toLocaleString()+' TL');
     applyFilter();
   }catch(err){ alert('충전 실패: '+err.message); }
@@ -1124,8 +1164,7 @@ async function requestVirtualCharge(){
       _user.tl_p=Number(d.tl_p||0);
       localStorage.setItem('tl_user',JSON.stringify(_user));
     }
-    var balEl=document.getElementById('sp-tl-bal');
-    if(balEl) balEl.textContent=Number(d.tl_balance||0).toLocaleString()+' TL';
+    await loadShareplaceWallet();
     closeTossPay();
     alert('✅ '+Number(d.total_tl||0).toLocaleString()+' TL 충전 완료!\n'+
       (Number(d.bonus_tl||0)>0 ? '보너스 '+Number(d.bonus_tl).toLocaleString()+' TL 포함\n' : '')+
@@ -1187,6 +1226,7 @@ function toggleSbDropdown(id){ var el=document.getElementById(id); if(el) el.cla
 // Company/legal footer is rendered by the shared TILO Group site component.
 // Do not duplicate legacy corporate details, DJ or advertising links here.
 // ==================== INIT ====================
+loadShareplaceWallet();
 loadShares();
 
 // ⭐ #charge 앵커 처리 (track.html 등에서 'TL 충전'으로 왔을 때)
