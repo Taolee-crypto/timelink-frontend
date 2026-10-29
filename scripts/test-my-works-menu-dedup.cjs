@@ -24,4 +24,26 @@ assert.ok(!account.some(a=>a[1]==='/renewal/files.html'),'Ledger must match side
 assert.ok(ledger.includes("'/renewal/files.html']);"),'Legacy page must be excluded from progress metrics');
 assert.ok(files.includes('<title>내 파일 관리 — TimeLink</title>'), 'Historical files page remains for direct non-menu use');
 assert.ok(newAsset.includes('href="/renewal/files.html"'),'Specialized document/video/image entry points are intentionally preserved');
+// A deployed bundle must not keep requesting an old sidebar URL after
+// changing menu contents. Test every direct page, not just sidebar source.
+const revision='20261029-account-navigation-v2';
+function auditSidebarSources(dir){
+  for(const ent of fs.readdirSync(dir,{withFileTypes:true})){
+    const filename=path.join(dir,ent.name);
+    if(ent.isDirectory()){auditSidebarSources(filename);continue;}
+    if(!filename.endsWith('.html'))continue;
+    const source=fs.readFileSync(filename,'utf8');
+    for(const match of source.matchAll(/src=["'](\\/sidebar\\.js(?:\\?[^"']*)?)["']/g)){
+      assert.equal(match[1],'/sidebar.js?v='+revision,
+        'Stale global sidebar URL in '+filename);
+    }
+  }
+}
+auditSidebarSources('public');
+assert.match(fs.readFileSync('public/index.html','utf8'),
+  /src="\\/sidebar\\.js\\?v=20261029-account-navigation-v2"/,
+  'Main host must request the current sidebar revision');
+assert.match(fs.readFileSync('public/_headers','utf8'),/\\/sidebar\\.js[\\s\\S]*?Cache-Control: no-cache/,
+  'Sidebar caching must revalidate');
+
 console.log('PASS duplicate My Files menu removed; My Works, source files, New Asset and ledger remain consistent');
