@@ -518,6 +518,11 @@ function contentKind(s){
   return 'unverified';
 }
 function isPublishedTLAsset(s){ return contentKind(s)==='tl3'; }
+// A published TL3 asset plays through track.html + an authenticated TL3
+// resolve/license flow. The public catalog must NOT expose raw stream_url.
+function hasTrackPlaybackRoute(s){
+  return contentKind(s)==='tl3'||Boolean(s&& (s.stream_url||s.preview_url));
+}
 function isFreeMp3(s){ return false; }
 function isTL3(s){ return contentKind(s)==='tl3'; }
 function openShareAsset(id){
@@ -692,6 +697,9 @@ function renderPager(total){
 function renderShares(list,total){
   var g=document.getElementById('fileGrid');
   if(!list.length){
+    var counter=document.getElementById('sortCount');
+    if(counter&&!/^(?:연결 오류|요청 시간 초과)/.test(counter.textContent||''))
+      counter.textContent='검색 결과 0곡';
     updateShareUploadVisibility(0);
     g.innerHTML='<div style="text-align:center;padding:80px 20px;color:var(--t3);font-size:14px">🎵 등록된 음악이 없습니다</div>';
     renderPager(0);
@@ -716,7 +724,7 @@ function renderGridView(list,g){
   var bgs=['linear-gradient(135deg,#1a1060,#0d3050)','linear-gradient(135deg,#0d3020,#102830)','linear-gradient(135deg,#200a40,#0a0820)'];
   g.innerHTML=list.slice(0,40).map(function(s,i){
     var ftype=detectType(s);
-    var hasUrl=!!(s.stream_url||s.preview_url);
+    var hasUrl=hasTrackPlaybackRoute(s);
     var kind=contentKind(s), isTl3=kind==='tl3';
     var myTL=_myFileTL[String(s.id)]||0;
     var requiredTL=Math.max(0,Number(s.file_tl||s.price_tl||s.duration_sec||s.duration)||0);
@@ -764,7 +772,7 @@ function renderListView(list,g){
   g.innerHTML=list.slice(0,30).map(function(s){
     var ftype=detectType(s);
     var tc={audio:'audio',video:'video',image:'image',doc:'doc',collection:'etc'}[ftype]||'audio';
-    var hasUrl=!!(s.stream_url||s.preview_url);
+    var hasUrl=hasTrackPlaybackRoute(s);
     var kind=contentKind(s), isMp3=kind==='mp3', isTl3=kind==='tl3';
     var myTL=_myFileTL[String(s.id)]||0;
     var requiredTL=Math.max(0,Number(s.file_tl||s.price_tl||s.duration_sec||s.duration)||0);
