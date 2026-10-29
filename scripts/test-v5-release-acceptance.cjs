@@ -31,7 +31,7 @@ let tested=0;
 for(const [title,source] of expected){
   const actual=paths(group(title));
   const fromSidebar=menuPaths(source);
-  assert.deepEqual(actual,fromSidebar,'sidebar/ledger route/order mismatch: '+title);
+  assert.equal(JSON.stringify(actual),JSON.stringify(fromSidebar),'sidebar/ledger route/order mismatch: '+title);
   tested+=actual.length;
 }
 // Protected operational links appear only after server-side admin access is granted.
@@ -41,7 +41,7 @@ assert.ok(pos>0,'Admin menu must be gated by the authorized settings request');
 const tail=sidebar.slice(pos,sidebar.indexOf(".map(link).join('');nav.appendChild(d)",pos));
 const adminLinks=[...tail.matchAll(/\['(\/[^']+\.html(?:\?[^']*)?)','[^']+'/g)].map(x=>x[1]);
 assert.equal(adminLinks.length,5,'Expected five protected operations links');
-assert.deepEqual(paths(group('운영센터')),adminLinks,'Admin sidebar/ledger parity');
+assert.equal(JSON.stringify(paths(group('운영센터'))),JSON.stringify(adminLinks),'Admin sidebar/ledger parity');
 tested+=adminLinks.length;
 const flat=groups.flatMap(g=>g[1].map(x=>({title:g[0],label:x[0],route:x[1]})));
 assert.equal(tested,24,'Unexpected V5 menu surface change; review and update this gate');
