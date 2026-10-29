@@ -1344,17 +1344,22 @@ function openAdsPageFromTrack(){
 let _likeRequestBusy=false;
 async function toggleLike(){
   if(_likeRequestBusy)return;
-  if(!getTok()){ alert('로그인이 필요합니다'); location.href='/login.html'; return; }
+  const token=getTok();
+  if(!token){ alert('로그인이 필요합니다'); location.href='/login.html'; return; }
+  if(!_VALID_SHARE_ID){alert('이 곡은 좋아요 기능을 사용할 수 없습니다.');return;}
   _likeRequestBusy=true;
   const likeButton=document.getElementById('likeBtn');
   if(likeButton)likeButton.disabled=true;
   try{
     const method = _myLiked?'DELETE':'POST';
-    const r = await fetch(API+'/api/social/like/'+encodeURIComponent(SOCIAL_SHARE_ID),{method,headers:{'Authorization':'Bearer '+getTok()}});
+    const r = await fetch(API+'/api/social/like/'+encodeURIComponent(SOCIAL_SHARE_ID),{method,headers:{'Authorization':'Bearer '+token}});
     const d = await r.json();
     if(!r.ok || d.ok!==true){ alert(d.error||'좋아요 처리에 실패했습니다'); return; }
-    _myLiked=!!d.liked;
-    const count=Number(d.likes||0);
+    if(getTok()!==token)return; // Never show the previous member's LIKE state.
+    const count=Number(d.likes);
+    if(!Number.isSafeInteger(count)||count<0 || typeof d.liked!=='boolean')
+      throw new Error('좋아요 서버 응답이 올바르지 않습니다.');
+    _myLiked=d.liked;
     const btn=document.getElementById('likeBtn');
     if(btn){btn.className='btn-icon'+(_myLiked?' liked':'');btn.innerHTML=(_myLiked?'♥ ':'♡ ')+'<span id="likeCount">'+count+'</span>';}
     const sl=document.getElementById('statLikes');if(sl)sl.textContent=count;
@@ -1415,7 +1420,9 @@ async function loadComments(){
   }
 }
 
+let _commentSubmitBusy=false;
 async function submitComment(){
+  if(_commentSubmitBusy)return;
   const input=document.getElementById('commentInput');
   if(!input)return;
   const content=input.value.trim();
@@ -1423,6 +1430,9 @@ async function submitComment(){
   const token=getTok();
   if(!token){alert('댓글을 작성하려면 로그인해야 합니다.');return;}
   if(!_VALID_SHARE_ID){alert('이 음악은 댓글 기능을 사용할 수 없습니다.');return;}
+  const submitButton=document.getElementById('commentSubmit');
+  _commentSubmitBusy=true;
+  if(submitButton)submitButton.disabled=true;
   try{
     const r=await fetch(API+'/api/social/comment/'+encodeURIComponent(SOCIAL_SHARE_ID),{
       method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
@@ -1430,6 +1440,10 @@ async function submitComment(){
     });
     const d=await r.json().catch(()=>({}));
     if(!r.ok||d.ok!==true)throw new Error(d.error||'댓글 저장 실패');
+    if(getTok()!==token){
+      alert('댓글은 저장됐지만 계정이 변경되어 화면을 갱신하지 않았습니다.');
+      return;
+    }
     input.value='';
     await loadComments();
     // The social ledger, not an optimistic +1, owns the total comment count.
@@ -1443,6 +1457,7 @@ async function submitComment(){
       }
     }catch(err){console.warn('[TRACK comment count refresh]',err);}
   }catch(err){alert('댓글 처리 오류: '+(err.message||err));}
+  finally{_commentSubmitBusy=false;if(submitButton)submitButton.disabled=false;}
 }
 
 async function reportComment(id){
@@ -1479,21 +1494,29 @@ async function createNewPlaylist(){
   if(d.ok)await addToPlaylist(d.playlist_id);else alert(d.error||'오류');
 }
 
+function shareTrackUrl(){
+  // Never distribute charging, preview or tracking query parameters.
+  // The canonical asset ID is sufficient for public social links.
+  if(!_VALID_SHARE_ID)return location.origin+'/shareplace.html';
+  const url=new URL('/track.html',location.origin);
+  url.searchParams.set('id',SOCIAL_SHARE_ID);
+  return url.toString();
+}
 function shareTrack(){ document.getElementById('shareModal').classList.add('open'); }
 function closeShareModal(){ document.getElementById('shareModal').classList.remove('open'); }
 async function shareKakao(){
   // Do not open an unconfigured Kakao app URL; use the device share
   // sheet (KakaoTalk is available on supported devices), otherwise copy link.
   if(navigator.share){
-    try{await navigator.share({title:(_share&&_share.title)||'TimeLink 음악',url:location.href});return;}
+    try{await navigator.share({title:(_share&&_share.title)||'TimeLink 음악',url:shareTrackUrl()});return;}
     catch(err){if(err&&err.name==='AbortError')return;}
   }
   copyLink();
 }
-function shareX(){ window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent(_share?.title||'TimeLink')+'&url='+encodeURIComponent(location.href), '_blank'); }
-function shareFacebook(){ window.open('https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href), '_blank'); }
+function shareX(){ window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent(_share?.title||'TimeLink')+'&url='+encodeURIComponent(shareTrackUrl()), '_blank'); }
+function shareFacebook(){ window.open('https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(shareTrackUrl()), '_blank'); }
 async function copyLink(){
-  const url=location.href;
+  const url=shareTrackUrl();
   try{
     if(!navigator.clipboard||!navigator.clipboard.writeText)throw new Error('복사 권한 없음');
     await navigator.clipboard.writeText(url);
