@@ -45,11 +45,11 @@ async function main(){
   const editor=frame().locator('#trackInfoModal');assert.equal(await editor.evaluate(el=>el.classList.contains('open')),true);
   for(const field of ['Composer','Lyricist','Arranger'])assert.equal(await frame().locator('#editTrack'+field).isDisabled(),true,'V5 verified rights must be immutable: '+field);
   assert.equal(await frame().locator('#trackInfoRightsNotice').isVisible(),true);
-  const newLyrics='새로 저장한 가사\\n<script>window.__lyricXss=1</script>';
+  const newLyrics='새로 저장한 가사\n<script>window.__lyricXss=1</script>';
   await frame().locator('#editTrackLyrics').fill(newLyrics);
   await frame().locator('#saveTrackInfoBtn').click();
   await frame().locator('#trackInfoModal').waitFor({state:'hidden'});
-  await frame().locator('#lyricsBox').getByText('<script>window.__lyricXss=1</script>',{exact:false}).waitFor();
+  await frame().locator('#lyricsBox').waitFor();
   assert.equal(await frame().locator('#lyricsBox').textContent(),newLyrics,'stored lyrics must render exactly without optimistic mismatch');
   assert.equal(await frame().locator('#lyricsBox script').count(),0,'lyrics must never execute markup');
   assert.equal(await frame().evaluate(()=>window.__lyricXss===undefined),true);
@@ -59,7 +59,7 @@ async function main(){
   trackPatchFails=true;
   await frame().locator('#editTrackLyrics').fill('저장 실패 가사');
   await frame().locator('#saveTrackInfoBtn').click();
-  await frame().locator('#trackInfoEditError').getByText('권리자 확인이 필요합니다.').waitFor();
+  await frame().locator('#trackInfoEditError').waitFor({state:'visible'});assert.match(await frame().locator('#trackInfoEditError').textContent(),/권리자 확인이 필요합니다/);
   assert.equal(await editor.evaluate(el=>el.classList.contains('open')),true,'failed save cannot close editor');
   assert.equal(await frame().locator('#lyricsBox').textContent(),newLyrics,'failed save must preserve committed lyrics');
   trackPatchFails=false;
@@ -69,10 +69,18 @@ async function main(){
   await page.screenshot({path:'test-results/modules-creator-desktop.png',fullPage:true});await open('/radio.html');assert.equal(await frame().locator('#country option').count(),6);await frame().locator('#country').selectOption('JP');assert.equal(await frame().locator('#country').inputValue(),'JP');await page.screenshot({path:'test-results/modules-radio-desktop.png',fullPage:true});
   await page.setViewportSize({width:390,height:844});
   for(const route of ['/wallet.html','/track.html?id=10','/creator.html','/radio.html','/shareplace.html']){
-   await open(route);const content=page.frames().find(f=>f.url().includes(new URL(route,origin).pathname));await content.evaluate(()=>document.fonts.ready);if(route.includes('track'))await frame().locator('#lyricsBox').waitFor();if(route.includes('wallet'))await frame().getByText('현재 계정의 지갑 잔액입니다.',{exact:true}).waitFor();
+   await open(route);const content=page.frames().find(f=>f.url().includes(new URL(route,origin).pathname));await content.evaluate(()=>document.fonts.ready);if(route.includes('track')){
+    await frame().locator('#lyricsBox').waitFor();
+    assert.equal(await frame().locator('#lyricsBox').textContent(),newLyrics,'mobile lyrics must show the committed text');
+    await frame().locator('#editTrackInfoBtn').click();
+    assert.equal(await frame().locator('#editTrackLyrics').inputValue(),newLyrics,'mobile editor must preload saved lyrics');
+    const fit=await frame().locator('#trackInfoModal .modal').evaluate(el=>{const r=el.getBoundingClientRect();return r.left>=-1&&r.right<=innerWidth+1&&r.width<=innerWidth+1;});
+    assert.equal(fit,true,'mobile edit form must remain within viewport');
+    await frame().locator('#trackInfoModal .tl-edit-actions').getByRole('button',{name:'취소'}).click();
+   }if(route.includes('wallet'))await frame().getByText('현재 계정의 지갑 잔액입니다.',{exact:true}).waitFor();
    const overflow=await content.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+1);assert.equal(overflow,false,route+' horizontal overflow');await page.screenshot({path:'test-results/modules-'+route.split('/').pop().split('.')[0]+'-mobile.png',fullPage:true});
   }
-  console.log('PASS module screens: actual wallet balances and unit precision, paged history/text safety/failure clearing/read-only calls, track lyrics/dialog focus and Escape, creator keyboard file chooser/labels, country controls, five mobile layouts; no payment or audio initiated.');
+  console.log('PASS module screens: ledger-only wallet, track lyrics PATCH canonical readback, rights lock, rejected save, safe markup, mobile track editing, focus/escape, creator form, five mobile layouts; no payment or audio initiated.');
  }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
 }
 main().catch(e=>{console.error(e);process.exitCode=1});
