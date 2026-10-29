@@ -718,27 +718,49 @@ function switchTab(name){
 // 내 콘텐츠 (삭제 기능 포함)
 // ═══════════════════════════════════════════
 async function loadShares(){
+  // Never derive a private library from the public SharePlace catalogue.
+  // /api/shares/my enforces account identity on the server, and also returns
+  // unshared/private files missing from the public market.
   try{
-    var r = await fetch(API + '/api/shares');
-    var d = await r.json();
-    var shares = Array.isArray(d) ? d : (d.shares || []);
+    var token=localStorage.getItem('tl_token')||_token||'';
+    if(!token)throw new Error('로그인 후 내 작품을 확인할 수 있습니다.');
+    var myFiles=[],fileInventory=[],offset=0,limit=200,pages=0;
+    while(pages<25){
+      var r=await fetch(API+'/api/shares/my?limit='+limit+'&offset='+offset,{
+        headers:{Authorization:'Bearer '+token},cache:'no-store'
+      });
+      var d=await r.json().catch(function(){return {};});
+      if(!r.ok||!d||!Array.isArray(d.shares)||!Array.isArray(d.files))
+        throw new Error(d.error||'내 작품 조회에 실패했습니다. ('+r.status+')');
+      if(token!==(localStorage.getItem('tl_token')||_token||''))
+        throw new Error('로그인 계정이 변경되었습니다. 다시 조회하세요.');
+      myFiles.push.apply(myFiles,d.shares);
+      fileInventory.push.apply(fileInventory,d.files);
+      pages++;
+      if(d.shares.length<limit&&d.files.length<limit)break;
+      offset+=limit;
+    }
+    if(pages===25&&myFiles.length+fileInventory.length>=25*limit){
+      console.warn('[DASHBOARD] 개인 파일 페이지네이션 상한, 추가 목록은 전체 보관함에서 확인 필요');
+    }
+    g('homeFiles').textContent=fileInventory.length||myFiles.length;
+    g('cntFiles').textContent=fileInventory.length||myFiles.length;
 
-    var myFiles = shares.filter(function(s){ return String(s.user_id) === String(_user.id); });
-
-    g('homeFiles').textContent = myFiles.length;
-    g('cntFiles').textContent = myFiles.length;
-
-    var totalPulse = myFiles.reduce(function(acc, s){ return acc + (s.pulse||0); }, 0);
-    g('cntPulse').textContent = fmt(totalPulse);
+    var totalPulse=myFiles.reduce(function(acc,record){return acc+Number(record.pulse||0);},0);
+    g('cntPulse').textContent=fmt(totalPulse);
     if(window.TimeLinkCreatorEarnings)window.TimeLinkCreatorEarnings.refresh();
-    g('cntPlays').textContent = myFiles.every(function(s){return Number.isFinite(Number(s.play_count))&&s.play_count!=null;}) ? fmt(myFiles.reduce(function(acc,s){return acc+Number(s.play_count);},0)) : '집계 확인 필요';
+    g('cntPlays').textContent=fileInventory.every(function(record){
+      return record.play_count!=null&&Number.isFinite(Number(record.play_count));
+    }) ? fmt(fileInventory.reduce(function(acc,record){return acc+Number(record.play_count);},0)) : '집계 확인 필요';
 
-    var tl3Files = myFiles.filter(function(s){ return String(s.content_kind||'').toLowerCase() === 'tl3'; });
-    g('cntTl3').textContent = tl3Files.length + '개';
+    var tl3Files=myFiles.filter(function(record){
+      return String(record.content_kind||'').toLowerCase()==='tl3'||String(record.file_type||'').toLowerCase()==='audio/tl3';
+    });
+    g('cntTl3').textContent=tl3Files.length+'개';
 
     function renderFileItem(s){
       return '<div class="file-item">' +
-        '<input type="checkbox" class="file-select-cb" data-id="' + s.id + '" title="선택" style="width:16px;height:16px;cursor:pointer;accent-color:#FF453A;flex-shrink:0">' +
+        '<input type="checkbox" class="file-select-cb" data-id="' + esc(s.id) + '" title="선택" style="width:16px;height:16px;cursor:pointer;accent-color:#FF453A;flex-shrink:0">' +
         '<label style="font-size:11px;display:flex;align-items:center;gap:4px;color:#C4B5FD"><input type="checkbox" class="premium-select-cb" data-id="'+esc(s.id)+'" data-file-id="'+esc(s.file_id||s.tl_file_id||'')+'" onchange="updatePremiumTotal()" style="accent-color:#a78bfa"> 홍보</label>' +
         '<div class="file-icon">🔒</div>' +
         '<div class="file-info">' +
@@ -761,14 +783,16 @@ async function loadShares(){
     }
 
     if(tl3Files.length){
-      g('myTl3List').innerHTML = tl3Files.map(function(s){ return renderFileItem(s, true); }).join('');
-    } else {
-      g('myTl3List').innerHTML = '<div class="empty"><div class="empty-icon">🔒</div><div class="empty-text">TL3 파일이 없습니다.</div></div>';
+      g('myTl3List').innerHTML=tl3Files.map(renderFileItem).join('');
+    }else{
+      g('myTl3List').innerHTML='<div class="empty"><div class="empty-icon">🔒</div><div class="empty-text">공유된 TL3 작품이 없습니다. 비공개 원본은 내 보관함에서 관리할 수 있습니다.</div></div>';
     }
-
-
-  }catch(e){
-    console.warn('shares 로드 실패:', e);
+  }catch(error){
+    console.warn('[DASHBOARD] 내 작품 원장 조회 실패:',error);
+    ['homeFiles','cntFiles','cntPulse','cntPlays','cntTl3'].forEach(function(id){
+      var el=g(id);if(el)el.textContent='조회 실패';
+    });
+    if(g('myTl3List'))g('myTl3List').innerHTML='<p class="empty" role="alert">내 작품 목록을 불러오지 못했습니다. 로그인 상태와 네트워크를 확인해 주세요.</p>';
   }
 }
 
@@ -896,43 +920,20 @@ async function deleteMyFile(id, title){
 // ═══════════════════════════════════════════
 // 미션
 // ═══════════════════════════════════════════
-var _missions = {
-  daily: [
-    {icon:'🎧',title:'오늘 30분 청취',desc:'SharePlace에서 음악을 30분 이상 청취',reward:'+500 TL',cur:18,max:30,unit:'분',done:false},
-    {icon:'🚗',title:'인카방송 주행',desc:'인카방송을 켜고 10km 이상 주행',reward:'+2.0 POC',cur:6,max:10,unit:'km',done:false},
-    {icon:'📤',title:'콘텐츠 업로드',desc:'오늘 새 파일을 1개 업로드',reward:'+1,000 TL',cur:0,max:1,unit:'개',done:false},
-    {icon:'☕',title:'카페방송 청취',desc:'카페 채널에서 20분 이상 청취',reward:'+1.5 POC',cur:20,max:20,unit:'분',done:true}
-  ],
-  weekly: [
-    {icon:'🏆',title:'주간 100 POC',desc:'이번 주 POC 100점 이상',reward:'+10 TLC',cur:42,max:100,unit:'POC',done:false},
-    {icon:'🎵',title:'5곡 업로드',desc:'이번 주 5개 이상 파일 업로드',reward:'+5,000 TL',cur:1,max:5,unit:'개',done:false},
-    {icon:'🚗',title:'100km 주행',desc:'인카방송으로 100km 주행',reward:'+20 TLC',cur:32,max:100,unit:'km',done:false}
-  ],
-  special: [
-    {icon:'🌟',title:'첫 카페 채널 개설',desc:'카페 채널을 처음으로 개설',reward:'+10,000 TL',cur:0,max:1,unit:'개',done:false},
-    {icon:'💎',title:'TLC 100 달성',desc:'TLC 100개 이상 보유',reward:'+50 TLC',cur:0,max:100,unit:'TLC',done:false}
-  ]
-};
-
-function loadMissions(type, el){
+// A mission must come from an authenticated backend entitlement and be settled
+// by a verified server receipt. The former fixed examples invented TL/TLC/POC
+// balances and completion percentages, so never display them as active offers.
+function loadMissions(type,el){
   if(el){
-    document.querySelectorAll('.mtab').forEach(function(e){ e.classList.remove('active'); });
+    document.querySelectorAll('.mtab').forEach(function(tab){tab.classList.remove('active')});
     el.classList.add('active');
   }
-  var list = _missions[type] || [];
-  g('missionGrid').innerHTML = list.map(function(m){
-    var pct = Math.min(100, Math.round((m.cur/m.max)*100));
-    return '<div class="mission-card">' +
-      '<div class="mc-top">' +
-        '<div class="mc-icon">' + m.icon + '</div>' +
-        '<div class="mc-info"><div class="mc-title">' + m.title + '</div><div class="mc-desc">' + m.desc + '</div></div>' +
-        '<div class="mc-reward">' + m.reward + '</div>' +
-      '</div>' +
-      '<div class="mc-prog"><div class="mc-prog-fill" style="width:' + pct + '%' + (m.done ? ';background:var(--green)' : '') + '"></div></div>' +
-      '<div class="mc-prog-label"><span>' + m.cur + '/' + m.max + ' ' + m.unit + '</span><span>' + pct + '%</span></div>' +
-      (m.done ? '<div class="mc-done">✓ 완료!</div>' : '') +
-    '</div>';
-  }).join('');
+  var box=g('missionGrid');if(!box)return;
+  box.innerHTML='<div class="mission-card" role="status" style="grid-column:1/-1">'+
+    '<div class="mc-top"><div class="mc-info">'+
+    '<div class="mc-title">미션 혜택 운영 준비 중</div>'+
+    '<div class="mc-desc">현재 승인된 미션·지급 조건이 없습니다. 금액·진행률·완료 보상은 서버 검증 후 제공됩니다.</div>'+
+    '</div></div></div>';
 }
 
 // ═══════════════════════════════════════════
