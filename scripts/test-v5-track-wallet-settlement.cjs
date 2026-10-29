@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync('public/track.html','utf8');
 function section(a,b){const i=html.indexOf(a),j=html.indexOf(b,i+a.length);assert.ok(i>=0&&j>i,'missing '+a);return html.slice(i,j);}
-const walletSrc=section('function renderV5Wallet(wallet){','function updateUIAfterCharge(newBalance){');
+const walletSrc=section('let _v5WalletReadSequence=0, _v5TrackReadSequence=0;','function updateUIAfterCharge(newBalance){');
 const els={myTLDisplay:{textContent:''},myTLBreakdown:{textContent:''}};
 let currentToken='accountA',walletCalls=0,trackCalls=0,updated=0;
 let walletReply={ok:true,json:async()=>({wallet:{tl_total:15000,tl_p:14000,tl_a:1000,tl_b:0}})};
