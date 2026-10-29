@@ -40,6 +40,17 @@ for (const [view,renderer] of [['grid','renderGridView'],['list','renderListView
   assert.ok(!markup.includes('onclick="openShareAsset('),'card ID must not become inline JS');
   assert.ok(!markup.includes('onclick="tlPlayCard('),'play ID must not become inline JS');
   assert.ok(!markup.includes('onclick="event.stopPropagation();chargeTL('),'title must not become inline JS');
+  assert.ok(markup.includes('곡 TL 잔액 조회 중 · TIME FREE 별도'),'unknown balance must remain unverified, not show zero plays');
+  assert.ok(markup.includes('playable'),'TIME FREE route must stay playable before per-track TL lookup');
+  assert.ok(!markup.includes('0회 가능'),'zero balance must not deny TIME FREE playback');
+  ctx._myFileTL[asset.id]=0;
+  ctx[renderer]([asset],container);
+  assert.ok(container.innerHTML.includes('곡 TL 잔액 0 TL · TIME FREE 별도'),'verified zero balance must display as zero, not block TIME FREE');
+  assert.ok(container.innerHTML.includes('playable'),'zero track TL cannot disable authorized TIME FREE navigation');
+  ctx._myFileTL[asset.id]=7200;
+  ctx[renderer]([asset],container);
+  assert.ok(container.innerHTML.includes('곡 TL 잔액 7,200 TL'),'server-returned balance must appear without invented play counts');
+  delete ctx._myFileTL[asset.id];
 
   const card={getAttribute:key=>key==='data-share-card'?asset.id:null,hasAttribute:key=>key==='data-share-card'};
   const play={getAttribute:key=>key==='data-share-action'?'play':key==='data-sid'?asset.id:null};
