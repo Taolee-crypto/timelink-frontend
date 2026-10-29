@@ -780,7 +780,7 @@ async function saveTrackInfo(){
   try{
     const res=await fetch(API+'/api/shares/'+encodeURIComponent(SHARE_ID),{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getTok()},body:JSON.stringify(payload)});
     const data=await res.json().catch(()=>({}));if(!res.ok||data.ok===false)throw new Error(data.error||'곡 정보 저장에 실패했습니다.');
-    _share=Object.assign({},_share,payload);renderCopyright(_share);closeTrackInfoEditor();alert('곡 정보가 저장되었습니다.');
+    _share=Object.assign({},_share,payload);renderPlainLyrics(_share);renderCopyright(_share);closeTrackInfoEditor();alert('곡 정보가 저장되었습니다.');
   }catch(e){const err=document.getElementById('trackInfoEditError');if(err){err.textContent=e.message||'저장 실패';err.style.display='block';}else alert(e.message||'저장 실패');}
   finally{if(btn){btn.disabled=false;btn.textContent='저장';}}
 }
@@ -1467,7 +1467,9 @@ async function playTrack(){
   }
 
   const fileUrl = _share.stream_url || _share.file_url;
-  if(!fileUrl){ alert('재생 파일이 없습니다'); return; }
+  // Encrypted V5 assets intentionally omit public stream_url/file_url. The
+  // authenticated playStream() resolves its own licensed playback source.
+  if(!_useTl3V5 && !fileUrl){ alert('재생 파일이 없습니다'); return; }
 
   window._tlCurrentTL = _tlFree ? 0 : Math.max(0,Number(_tlCurrentTL)||0);
   window._tlMaxTL = _tlFree ? 0 : songRequiredTL();
