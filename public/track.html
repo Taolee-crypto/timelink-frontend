@@ -1096,13 +1096,28 @@ function renderUnissuedV5Score(container, details){
   const symbol=document.createElement('div');
   symbol.textContent='🎼';symbol.style.cssText='font-size:38px;margin-bottom:8px;';
   const heading=document.createElement('h3');
-  heading.textContent='이 곡의 TLD 악보는 아직 발행되지 않았습니다';
+  const jobState=String(details?.job_status||'not_requested');
+  heading.textContent=(jobState==='queued'||jobState==='running')
+    ?'이 곡의 보컬 악보를 분석하고 있습니다'
+    :jobState==='failed'
+      ?'보컬 악보 분석에 실패했습니다'
+      :'이 곡의 TLD 악보는 아직 발행되지 않았습니다';
   heading.style.cssText='font-size:17px;color:#f5d17b;margin:0 0 9px;';
   const info=document.createElement('p');
-  info.textContent=title+' · '+(details?.analysis_ready ? '보컬 채보 서버가 준비됐습니다. 창작자는 악보 생성 작업을 요청할 수 있습니다.' : '보컬 분석 서버가 아직 연결되지 않았습니다. 운영 배포가 필요합니다.');
+  info.textContent=title+' · '+(jobState==='queued'
+    ?'채보 요청이 접수됐습니다. 보컬 분석 작업을 기다리는 중입니다.'
+    :jobState==='running'
+      ?'실제 보컬 음원에서 음높이와 가사 위치를 분석 중입니다. 창을 닫아도 서버 작업은 계속됩니다.'
+      :jobState==='failed'
+        ?'분석 작업이 중단됐습니다. 코드: '+String(details?.job_error_code||'VOCAL_ANALYSIS_FAILED')
+        :details?.analysis_ready
+          ?'보컬 채보 서버가 준비됐습니다. 권리 확인된 창작자는 악보 생성을 요청할 수 있습니다.'
+          :'보컬 분석 서버가 아직 연결되지 않았습니다. 운영 배포가 필요합니다.');
   info.style.cssText='font-size:13px;color:#cbd5e1;margin:0 0 10px;';
   const note=document.createElement('p');
-  note.textContent='음원을 다시 올릴 필요가 없습니다. 미발행 악보에 대한 TL 결제도 발생하지 않습니다.';
+  note.textContent=(jobState==='queued'||jobState==='running')
+    ?'이 화면은 TLD 발행 여부와 관계없이 분석 진행 상태를 표시합니다. 완료 후 비공개 초안이 나타나며 TL은 차감되지 않습니다.'
+    :'음원을 다시 올릴 필요가 없습니다. 미발행 악보에 대한 TL 결제도 발생하지 않습니다.';
   note.style.cssText='font-size:12px;color:#9faec7;margin:0;';
   wrap.append(symbol,heading,info,note);container.append(wrap);
 }
@@ -1159,6 +1174,13 @@ async function loadScore(){
         draftNotice.textContent='보컬 악보 초안 · 검수 전 · TLD 미발행 (TL 차감 없음)'
           +(snapped?' · 인접 보컬 음표에 표시한 가사 '+snapped+'개 (배치 검수 필요)':'')
           +(missing?' · 음표에 미배치된 가사 '+missing+'개':'');
+        const pitch=result.score.pitch_quality;
+        if(pitch&&typeof pitch==='object'){
+          draftNotice.textContent+=' · 보컬 음정 교차검증 '+(Number(pitch.f0_confirmed)||0)+'개'
+            +' · 옥타브 오차 보정 '+(Number(pitch.octave_corrected)||0)+'개'
+            +' · 음정 재검토 '+(Number(pitch.pitch_review_notes)||0)+'개';
+        }
+        if(!result.score.bpm)draftNotice.textContent+=' · 박자·템포 미확정(임시 표기)';
       }
       if(transpose){transpose.hidden=false;transpose.setAttribute('aria-hidden','false');}
       await renderScoreOSMD(_scoreData,0);
@@ -1273,7 +1295,7 @@ function startV5ScorePolling(){
       const data=await response.json();
       if(data.has_score===true&&data.score?.melody?.length){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;await loadScore();return;}
       const status=String(data.job_status||'');
-      if(status==='failed'){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;v5ScoreStatus('보컬 채보 실패: '+(data.job_error_code||'원인을 확인해 주세요.'));return;}
+      if(status==='failed'){clearInterval(_v5ScorePollTimer);_v5ScorePollTimer=null;v5ScoreStatus('보컬 채보 실패: '+(data.job_error_code||'원인을 확인해 주세요.'));const container=document.getElementById('scoreContainer');if(container)renderUnissuedV5Score(container,data);return;}
       if(status==='running')v5ScoreStatus('보컬 분리 및 멜로디 채보 중입니다.');
       if(status==='queued')v5ScoreStatus('보컬 채보 대기 중입니다.');
     }catch(_){/* transient connection issue: retry */}
