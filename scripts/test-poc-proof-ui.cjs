@@ -1,0 +1,14 @@
+'use strict';
+const fs=require('node:fs');
+const assert=require('node:assert/strict');
+const vm=require('node:vm');
+const html=fs.readFileSync('public/dashboard.html','utf8');
+assert.ok(html.includes('기여도 추정치 확인'),'Dashboard must show honest contribution preview');
+assert.ok(html.includes('신규 TLC 발행 검증 중'),'Dashboard must disclose issuance gate');
+assert.ok(html.includes('preview_only')||html.includes('read-only estimate'),'Dashboard must not claim preview is settlement proof');
+assert.ok(!html.includes("API + '/api/eco/mine-tlc'"),'Retired direct TLC issuance must not be triggered by the dashboard');
+assert.ok(html.includes("API + '/api/eco/activity'"),'Owner preview must still fetch a server-side summary');
+const script=html.match(/async function calcMining\(\)\{[\s\S]*?\n\}\n/);
+assert.ok(script,'Dashboard must retain a readable preview action');
+new vm.Script(script[0],{filename:'dashboard-mine-preview.js'});
+console.log('PASS POC preview: no direct mint call, legacy activity safely read-only, payout status disclosed');
