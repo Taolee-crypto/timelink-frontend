@@ -626,19 +626,18 @@ function updateShareCardTL(shareId, balance){
   var share=_allShares.find(function(s){ return String(s.id)===key; });
   var card=document.getElementById('card-'+key);
   if(!share || !card) return;
-  var required=Math.max(0,Number(share.file_tl||share.price_tl||share.duration_sec||share.duration)||0);
-  var remaining=Math.max(0,Number(balance)||0);
-  var plays=required>0?Math.floor((remaining+1e-9)/required):0;
-  var color=plays>0?'var(--teal)':'var(--orange)';
-  var label=required>0?'⚡ '+required.toLocaleString()+' TL/회 · '+plays.toLocaleString()+'회 가능':'⚡ 재생 정보 확인 중';
+  // A zero track TL balance is not a playback entitlement decision:
+  // TIME FREE and subscriptions are checked by Track's licensed player.
+  var label=shareCardTLText(balance);
+  var color='var(--t2)';
   var gridPrice=card.querySelector('.fc-price');
   if(gridPrice){ gridPrice.textContent=label; gridPrice.style.color=color; }
   var listPrice=card.querySelector('.fl-price');
   if(listPrice){ listPrice.textContent=label; listPrice.style.color=color; }
   var playButton=card.querySelector('.fc-play, .fl-play');
   if(playButton && !playButton.classList.contains('playing')){
-    playButton.classList.toggle('playable',plays>0);
-    playButton.classList.toggle('need-charge',plays<=0);
+    playButton.classList.toggle('playable',hasTrackPlaybackRoute(share));
+    playButton.classList.remove('need-charge');
   }
 }
 
@@ -776,6 +775,13 @@ function updateShareUploadVisibility(total){
   if(empty) empty.style.display='none';
 }
 // Delegate untrusted catalog IDs through DOM attributes, never inline JavaScript.
+// This is a track-pool balance, not an estimated number of playable listens.
+// A TIME FREE entitlement can allow playback even when the balance is zero.
+function shareCardTLText(balance){
+  if(balance===null||balance===undefined||!Number.isFinite(Number(balance))||Number(balance)<0)
+    return '⚡ 곡 TL 잔액 조회 중 · TIME FREE 별도';
+  return '⚡ 곡 TL 잔액 '+Math.floor(Number(balance)).toLocaleString()+' TL · TIME FREE 별도';
+}
 function bindShareCardEvents(container){
   container.onclick=function(ev){
     var action=ev.target.closest('[data-share-action]');
@@ -807,11 +813,10 @@ function renderGridView(list,g){
     var ftype=detectType(s);
     var hasUrl=hasTrackPlaybackRoute(s);
     var kind=contentKind(s), isTl3=kind==='tl3';
-    var myTL=_myFileTL[String(s.id)]||0;
-    var requiredTL=Math.max(0,Number(s.file_tl||s.price_tl||s.duration_sec||s.duration)||0);
-    var playableCount=requiredTL>0?Math.floor((myTL+1e-9)/requiredTL):0;
+    var myTL=Object.prototype.hasOwnProperty.call(_myFileTL,String(s.id))?_myFileTL[String(s.id)]:null;
+    var walletLabel=shareCardTLText(myTL);
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
-    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':playableCount>0?'playable':'need-charge');
+    var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':'playable');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     var dur=s.duration?(Math.floor(s.duration/60)+':'+String(s.duration%60).padStart(2,'0')):'--:--';
     return '<div class="file-card" role="link" tabindex="0" id="card-'+escH(s.id)+'" data-share-card="'+escH(s.id)+'" style="cursor:pointer">'+
@@ -827,7 +832,7 @@ function renderGridView(list,g){
         '</div>'+
         '<div class="fc-artist">'+escH(s.artist||s.username||'')+'</div>'+
         '<div class="fc-meta">'+
-          '<span class="fc-price" style="color:'+(playableCount>0?'var(--teal)':'var(--orange)')+'">⚡ '+(requiredTL>0?requiredTL.toLocaleString()+' TL/회 · '+playableCount.toLocaleString()+'회 가능':'재생 정보 확인 중')+'</span>'+
+          '<span class="fc-price" style="color:var(--t2)">'+walletLabel+'</span>'+
           (_tlShareId===s.id && _tlPlaying && _tlElapsed>0 ? '<span style="color:var(--orange);font-size:10px;margin-left:4px">▶️'+_tlElapsed+'초</span>' : '')+
         '</div>'+
       '</div>'+
@@ -855,11 +860,10 @@ function renderListView(list,g){
     var tc={audio:'audio',video:'video',image:'image',doc:'doc',collection:'etc'}[ftype]||'audio';
     var hasUrl=hasTrackPlaybackRoute(s);
     var kind=contentKind(s), isMp3=kind==='mp3', isTl3=kind==='tl3';
-    var myTL=_myFileTL[String(s.id)]||0;
-    var requiredTL=Math.max(0,Number(s.file_tl||s.price_tl||s.duration_sec||s.duration)||0);
-    var playableCount=requiredTL>0?Math.floor((myTL+1e-9)/requiredTL):0;
+    var myTL=Object.prototype.hasOwnProperty.call(_myFileTL,String(s.id))?_myFileTL[String(s.id)]:null;
+    var walletLabel=shareCardTLText(myTL);
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
-    var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':playableCount>0?'playable':'need-charge');
+    var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':'playable');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     return '<div class="fl-item" role="link" tabindex="0" id="card-'+escH(s.id)+'" data-share-card="'+escH(s.id)+'" style="cursor:pointer">'+
       '<button class="'+btnClass+'" data-sid="'+escH(s.id)+'" data-share-action="play" aria-label="곡 재생" style="flex-shrink:0">'+
@@ -872,7 +876,7 @@ function renderListView(list,g){
       '<span>'+new Date(s.created_at||0).toLocaleDateString('ko-KR')+'</span></div></div>'+
       '<div class="fl-type-badge '+tc+'">'+({tl3:'TL3',tl4:'TL4',tld:'TLD',tlj:'TLJ'}[kind]||typeLabel(ftype))+'</div>'+
       '<div class="fl-right"><div class="fl-pulse">🔥 '+Number(s.pulse||0).toLocaleString()+'</div>'+
-      '<div class="fl-price" style="color:'+(playableCount>0?'var(--teal)':'var(--orange)')+'">⚡ '+(requiredTL>0?requiredTL.toLocaleString()+' TL/회 · '+playableCount.toLocaleString()+'회 가능':'재생 정보 확인 중')+'</div>'+
+      '<div class="fl-price" style="color:var(--t2)">'+walletLabel+'</div>'+
       (_tlShareId===s.id && _tlPlaying && _tlElapsed>0 ? '<div style="font-size:11px;color:var(--orange);margin-top:2px">▶️ '+_tlElapsed+'초 재생 ('+_tlElapsed+' TL)</div>' : '')+
       '<div class="fl-actions"><button class="fl-btn fl-btn-charge" data-sid="'+escH(s.id)+'" data-share-action="charge">TL 충전</button></div></div></div>';
   }).join('');
