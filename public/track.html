@@ -1129,6 +1129,8 @@ function handlePlayClick(){
   else {alert('사용자 지갑 TL 또는 음원 잔여 TL이 부족합니다. 지갑을 확인해 주세요.');chargeTL();}
 }
 
+// Discard late wallet/track responses after another read or account change.
+let _v5WalletReadSequence=0, _v5TrackReadSequence=0;
 function renderV5Wallet(wallet){
   if(!wallet)return;
   var p=Number(wallet.tl_p||0),a=Number(wallet.tl_a||0),b=Number(wallet.tl_b||0);
@@ -1146,12 +1148,14 @@ function renderV5Wallet(wallet){
 async function updateMyTLFromServer(){
   const token=getTok();
   if(!token)throw new Error('지갑 조회 전에 로그인이 필요합니다.');
+  const requestId=++_v5WalletReadSequence;
   const wr=await fetch(API+'/api/eco/wallet',{headers:{'Authorization':'Bearer '+token},cache:'no-store'});
   const w=await wr.json().catch(()=>({}));
   if(!wr.ok)throw new Error(w.error||'TL 조회 실패');
   const next=w.wallet?.tl_total==null?NaN:Number(w.wallet.tl_total);
   if(!Number.isFinite(next)||next<0)throw new Error('V5 경제원장 잔액 필드 누락 또는 잘못된 값');
   if(getTok()!==token)throw new Error('조회 중 계정이 변경되어 이전 지갑 응답을 폐기했습니다.');
+  if(requestId!==_v5WalletReadSequence)throw new Error('더 최신 지갑 조회가 있어 이전 응답을 폐기했습니다.');
   // Only verified wallet responses can publish a balance or unlock charge UI.
   _myFileTL=next;
   updateUIAfterCharge(next);
@@ -1161,15 +1165,22 @@ async function updateMyTLFromServer(){
 }
 
 async function updateTrackTLFromServer(){
-  if(!getTok() || !window.SHARE_ID) return _trackTL;
+  const token=getTok();
+  const shareId=String(window.SHARE_ID||'');
+  if(!token || !shareId) return _trackTL;
+  const requestId=++_v5TrackReadSequence;
   try{
-    const r=await fetch(API+'/api/shares/'+encodeURIComponent(window.SHARE_ID)+'/my-tl',{
-      headers:{'Authorization':'Bearer '+getTok()}
+    const r=await fetch(API+'/api/shares/'+encodeURIComponent(shareId)+'/my-tl',{
+      headers:{'Authorization':'Bearer '+token},cache:'no-store'
     });
     const d=await r.json();
     if(!r.ok || d.ok!==true) throw new Error(d.error||'곡별 TL 조회 실패');
     const next=d.tl_balance==null?NaN:Number(d.tl_balance);
     if(!Number.isFinite(next)||next<0)throw new Error('곡별 TL 잔액 응답이 올바르지 않습니다.');
+    if(getTok()!==token || String(window.SHARE_ID||'')!==shareId)
+      throw new Error('조회 중 계정 또는 곡이 변경되어 이전 곡별 TL 응답을 폐기했습니다.');
+    if(requestId!==_v5TrackReadSequence)
+      throw new Error('더 최신 곡별 TL 조회가 있어 이전 응답을 폐기했습니다.');
     _trackTL=next;
     _tlCurrentTL=next;
     updatePlayerTLDisplay();
