@@ -31,7 +31,6 @@ var sections = [
   ['/dashboard.html?tab=content','space','history'],
   ['/wallet.html','generic','wallet'],
   ['/my-profile.html','space','My Info','내 정보'],
-  ['/renewal/files.html','generic','files'],
   ['/renewal/music.html','generic','music'],
   ['/dashboard.html?tab=settlement','generic','settlement'],
   ['/dashboard.html?tab=mining','generic','mining'],
