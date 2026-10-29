@@ -7,7 +7,8 @@ const blocked=[
   'function loadScore(','function scoreDataToMusicXml(',
   'function generateV5ScoreDraft(','/api/v1/scores/v5/',
   'track-score-worker-v5.js','opensheetmusicdisplay@',
-  'vexflow@','🎼 악보 보기'
+  'vexflow@','🎼 악보 보기','_v5Score','scoreDraftFromLicensedMp3',
+  'onVerifiedScoreAudio:'
 ];
 for(const target of blocked)assert.ok(!html.includes(target),'Retired score still present: '+target);
 assert.ok(!fs.existsSync('public/track-score-worker-v5.js'));
