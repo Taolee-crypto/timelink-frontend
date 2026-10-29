@@ -551,7 +551,9 @@ const RAW_SHARE_ID = new URLSearchParams(location.search).get('id');
 // file id understood by GET /api/shares/:id and its TL3 release fallback.
 const SHARE_ID = RAW_SHARE_ID && /^tl3_\d+$/.test(RAW_SHARE_ID) ? RAW_SHARE_ID.slice(4) : RAW_SHARE_ID;
 window.SHARE_ID = SHARE_ID;
-const _VALID_SHARE_ID = SHARE_ID && /^sh_/.test(SHARE_ID);
+// A sealed TL3 V5 release may use sh_<id>, tl3_<file_id>, or numeric file_id.
+const SOCIAL_SHARE_ID = RAW_SHARE_ID && /^tl3_\d+$/.test(RAW_SHARE_ID) ? RAW_SHARE_ID : SHARE_ID;
+const _VALID_SHARE_ID = !!(SOCIAL_SHARE_ID && /^(?:sh_[A-Za-z0-9_-]+|tl3_\d+|\d+)$/.test(SOCIAL_SHARE_ID));
 let _share = null, _myLiked = false, _myFollowing = false;
 let _myFileTL = 0;  // 공통 사용자 지갑 TL
 let _trackTL = 0;   // 현재 곡에 충전된 사용자별 TL
@@ -833,7 +835,7 @@ async function loadTrack(){
     let stats = { my_like: false, likes: 0, comments: 0 };
     try {
       if (_VALID_SHARE_ID) {
-        const statsR = await fetch(API+'/api/social/stats/'+SHARE_ID,{headers:authHeaders});
+        const statsR = await fetch(API+'/api/social/stats/'+encodeURIComponent(SOCIAL_SHARE_ID),{headers:authHeaders});
         if (statsR.ok) stats = await statsR.json();
       }
     } catch(e){ /* silent */ }
@@ -1325,11 +1327,16 @@ function openAdsPageFromTrack(){
   window.location.href = url;
 }
 
+let _likeRequestBusy=false;
 async function toggleLike(){
+  if(_likeRequestBusy)return;
   if(!getTok()){ alert('로그인이 필요합니다'); location.href='/login.html'; return; }
+  _likeRequestBusy=true;
+  const likeButton=document.getElementById('likeBtn');
+  if(likeButton)likeButton.disabled=true;
   try{
     const method = _myLiked?'DELETE':'POST';
-    const r = await fetch(API+'/api/social/like/'+SHARE_ID,{method,headers:{'Authorization':'Bearer '+getTok()}});
+    const r = await fetch(API+'/api/social/like/'+encodeURIComponent(SOCIAL_SHARE_ID),{method,headers:{'Authorization':'Bearer '+getTok()}});
     const d = await r.json();
     if(!r.ok || d.ok!==true){ alert(d.error||'좋아요 처리에 실패했습니다'); return; }
     _myLiked=!!d.liked;
@@ -1338,6 +1345,7 @@ async function toggleLike(){
     if(btn){btn.className='btn-icon'+(_myLiked?' liked':'');btn.innerHTML=(_myLiked?'♥ ':'♡ ')+'<span id="likeCount">'+count+'</span>';}
     const sl=document.getElementById('statLikes');if(sl)sl.textContent=count;
   }catch(e){ alert('좋아요 처리 오류: '+e.message); }
+  finally{_likeRequestBusy=false;if(likeButton)likeButton.disabled=false;}
 }
 
 async function checkFollowStatus(artistId){
@@ -1364,38 +1372,63 @@ async function toggleFollow(artistId){
 
 async function loadComments(){
   const list=document.getElementById('commentList');
-  if(!list) return;
-  let d = { comments: [] };
-  try {
-    if (_VALID_SHARE_ID) {
-      const r=await fetch(API+'/api/social/comments/'+SHARE_ID);
-      if (r.ok) d = await r.json();
-    }
-  } catch(e){ /* silent */ }
-  if(!d.comments||!d.comments.length){list.innerHTML='<div class="empty-comment">🎵 첫 댓글을 남겨보세요!</div>';return;}
-  list.innerHTML=d.comments.map(c=>`
-    <div class="comment-item">
-      <div class="avatar">${(c.username||'?')[0].toUpperCase()}</div>
-      <div class="comment-body">
-        <div class="comment-name">${escH(c.username)}</div>
-        <div class="comment-text">${escH(c.content)}</div>
-        <div class="comment-footer"><span class="comment-time">${new Date(c.created_at).toLocaleDateString('ko')}</span><button class="comment-report" onclick="reportComment(${c.id})">신고</button></div>
-      </div>
-    </div>
-  `).join('');
+  if(!list)return;
+  if(!_VALID_SHARE_ID){list.textContent='이 음악의 댓글 연결 정보가 없습니다.';return;}
+  try{
+    const r=await fetch(API+'/api/social/comments/'+encodeURIComponent(SOCIAL_SHARE_ID));
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok||!Array.isArray(data.comments))throw new Error(data.error||'댓글 조회 실패');
+    if(!data.comments.length){list.innerHTML='<div class="empty-comment">🎵 첫 댓글을 남겨보세요!</div>';return;}
+    list.innerHTML=data.comments.map(function(comment){
+      const name=String(comment.username||'?');
+      const commentId=Number(comment.id);
+      const reportButton=Number.isSafeInteger(commentId)&&commentId>0
+        ? '<button class="comment-report" data-report-id="'+commentId+'">신고</button>':'';
+      const time=comment.created_at?new Date(comment.created_at):null;
+      return '<div class="comment-item"><div class="avatar">'+escH(name[0].toUpperCase())+'</div>'+
+        '<div class="comment-body"><div class="comment-name">'+escH(name)+'</div>'+
+        '<div class="comment-text">'+escH(String(comment.content||''))+'</div>'+
+        '<div class="comment-footer"><span class="comment-time">'+(time&&Number.isFinite(time.getTime())?time.toLocaleDateString('ko'):'')+
+        '</span>'+reportButton+'</div></div></div>';
+    }).join('');
+    list.onclick=function(ev){
+      const button=ev.target.closest('[data-report-id]');
+      if(button&&list.contains(button))reportComment(Number(button.getAttribute('data-report-id')));
+    };
+  }catch(error){
+    console.warn('[TRACK comments]',error);
+    list.textContent='댓글을 불러오지 못했습니다. 새로고침하여 다시 확인해 주세요.';
+  }
 }
 
 async function submitComment(){
   const input=document.getElementById('commentInput');
+  if(!input)return;
   const content=input.value.trim();
-  if(content.length<10){alert('10자 이상 입력해주세요');return;}
-  const r=await fetch(API+'/api/social/comment/'+SHARE_ID,{
-    method:'POST',headers:{'Authorization':'Bearer '+getTok(),'Content-Type':'application/json'},
-    body:JSON.stringify({content})
-  });
-  const d=await r.json();
-  if(d.ok){input.value='';loadComments();const sc=document.getElementById('statComments');if(sc)sc.textContent=Number(sc.textContent||0)+1;}
-  else alert(d.error||'오류');
+  if(content.length<10){alert('10자 이상 입력해 주세요');return;}
+  const token=getTok();
+  if(!token){alert('댓글을 작성하려면 로그인해야 합니다.');return;}
+  if(!_VALID_SHARE_ID){alert('이 음악은 댓글 기능을 사용할 수 없습니다.');return;}
+  try{
+    const r=await fetch(API+'/api/social/comment/'+encodeURIComponent(SOCIAL_SHARE_ID),{
+      method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({content})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||d.ok!==true)throw new Error(d.error||'댓글 저장 실패');
+    input.value='';
+    await loadComments();
+    // The social ledger, not an optimistic +1, owns the total comment count.
+    try{
+      const statsRes=await fetch(API+'/api/social/stats/'+encodeURIComponent(SOCIAL_SHARE_ID),
+        {headers:{'Authorization':'Bearer '+token}});
+      const stats=await statsRes.json();
+      const count=Number(stats.comments);
+      if(statsRes.ok&&Number.isSafeInteger(count)&&count>=0){
+        const total=document.getElementById('statComments');if(total)total.textContent=String(count);
+      }
+    }catch(err){console.warn('[TRACK comment count refresh]',err);}
+  }catch(err){alert('댓글 처리 오류: '+(err.message||err));}
 }
 
 async function reportComment(id){
@@ -1434,10 +1467,29 @@ async function createNewPlaylist(){
 
 function shareTrack(){ document.getElementById('shareModal').classList.add('open'); }
 function closeShareModal(){ document.getElementById('shareModal').classList.remove('open'); }
-function shareKakao(){ window.open('https://sharer.kakao.com/talk/friends/picker/link?app_key=KAKAO_APP_KEY&url='+encodeURIComponent(location.href), '_blank'); }
+async function shareKakao(){
+  // Do not open an unconfigured Kakao app URL; use the device share
+  // sheet (KakaoTalk is available on supported devices), otherwise copy link.
+  if(navigator.share){
+    try{await navigator.share({title:(_share&&_share.title)||'TimeLink 음악',url:location.href});return;}
+    catch(err){if(err&&err.name==='AbortError')return;}
+  }
+  copyLink();
+}
 function shareX(){ window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent(_share?.title||'TimeLink')+'&url='+encodeURIComponent(location.href), '_blank'); }
 function shareFacebook(){ window.open('https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href), '_blank'); }
-function copyLink(){ navigator.clipboard.writeText(location.href).then(()=>{ let msg=document.getElementById('copyMsg'); if(msg){ msg.style.display='block'; setTimeout(()=>{ msg.style.display='none'; },2000); } }); }
+async function copyLink(){
+  const url=location.href;
+  try{
+    if(!navigator.clipboard||!navigator.clipboard.writeText)throw new Error('복사 권한 없음');
+    await navigator.clipboard.writeText(url);
+    const msg=document.getElementById('copyMsg');
+    if(msg){msg.style.display='block';setTimeout(()=>{msg.style.display='none';},2000);}
+  }catch(error){
+    // Browsers without clipboard permission can still copy the exact link.
+    window.prompt('음악 공유 링크를 복사해 주세요.',url);
+  }
+}
 
 // ==================== TL PLAYER ====================
 let _tlAudio=null, _tlPlaying=false, _tlInterval=null, _tlCurrentTL=0, _tlMaxTL=0, _tlElapsed=0, _tlFree=false;
