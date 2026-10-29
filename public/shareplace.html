@@ -775,9 +775,33 @@ function updateShareUploadVisibility(total){
   if(btn) btn.style.display=hasFiles?'inline-block':'none';
   if(empty) empty.style.display='none';
 }
+// Delegate untrusted catalog IDs through DOM attributes, never inline JavaScript.
+function bindShareCardEvents(container){
+  container.onclick=function(ev){
+    var action=ev.target.closest('[data-share-action]');
+    if(action&&container.contains(action)){
+      ev.stopPropagation();
+      var id=action.getAttribute('data-sid');
+      if(action.getAttribute('data-share-action')==='play')tlPlayCard(action);
+      else if(action.getAttribute('data-share-action')==='charge'){
+        var share=_allShares.find(function(item){return String(item.id)===id;});
+        if(share)chargeTL(id,share.title||'');
+      }
+      return;
+    }
+    var card=ev.target.closest('[data-share-card]');
+    if(card&&container.contains(card))openShareAsset(card.getAttribute('data-share-card'));
+  };
+  container.onkeydown=function(ev){
+    if((ev.key==='Enter'||ev.key===' ')&&ev.target.hasAttribute('data-share-card')){
+      ev.preventDefault();
+      openShareAsset(ev.target.getAttribute('data-share-card'));
+    }
+  };
+}
 function renderGridView(list,g){
   updateShareUploadVisibility(list.length);
-  g.className='file-grid';g.onkeydown=function(e){if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('file-card')){e.preventDefault();e.target.click();}};
+  g.className='file-grid';bindShareCardEvents(g);
   var bgs=['linear-gradient(135deg,#1a1060,#0d3050)','linear-gradient(135deg,#0d3020,#102830)','linear-gradient(135deg,#200a40,#0a0820)'];
   g.innerHTML=list.slice(0,40).map(function(s,i){
     var ftype=detectType(s);
@@ -790,11 +814,11 @@ function renderGridView(list,g){
     var btnClass='fc-play '+(isPlaying?'playing':!hasUrl?'no-file':playableCount>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
     var dur=s.duration?(Math.floor(s.duration/60)+':'+String(s.duration%60).padStart(2,'0')):'--:--';
-    return '<div class="file-card" role="link" tabindex="0" id="card-'+s.id+'" onclick="openShareAsset(\''+s.id+'\')" style="cursor:pointer">'+
+    return '<div class="file-card" role="link" tabindex="0" id="card-'+escH(s.id)+'" data-share-card="'+escH(s.id)+'" style="cursor:pointer">'+
       '<div class="file-thumb" style="background:'+bgs[i%bgs.length]+';position:relative">'+
         (s.cover_url?'<img src="'+escH(s.cover_url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.onerror=null;this.src=\'/images/renewal/vinyl-collection-card.jpg\';this.alt=\'대표 이미지\'">':'')+
         (s.cover_url?'':'<img loading="lazy" src="/images/renewal/vinyl-collection-card.jpg" alt="앨범 이미지 미등록 대표 사진" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><small class="tl-cover-note">대표 이미지</small>')+
-        '<button class="'+btnClass+'" data-sid="'+s.id+'" onclick="tlPlayCard(this);event.stopPropagation()" style="z-index:2">'+btnIcon+'</button>'+
+        '<button class="'+btnClass+'" data-sid="'+escH(s.id)+'" data-share-action="play" aria-label="곡 재생" style="z-index:2">'+btnIcon+'</button>'+
       '</div>'+
       '<div class="fc-body">'+
         '<div style="display:flex;align-items:center;gap:6px;min-width:0">'+
@@ -825,7 +849,7 @@ function viewCert(ev, el){
 }
 
 function renderListView(list,g){
-  g.className='file-list-view';
+  g.className='file-list-view';bindShareCardEvents(g);
   g.innerHTML=list.slice(0,30).map(function(s){
     var ftype=detectType(s);
     var tc={audio:'audio',video:'video',image:'image',doc:'doc',collection:'etc'}[ftype]||'audio';
@@ -837,8 +861,8 @@ function renderListView(list,g){
     var isPlaying=(_tlShareId===s.id&&_tlPlaying);
     var btnClass='fl-play '+(isPlaying?'playing':!hasUrl?'no-file':playableCount>0?'playable':'need-charge');
     var btnIcon=isPlaying?'⏸':!hasUrl?'✕':'▶';
-    return '<div class="fl-item" role="link" tabindex="0" id="card-'+s.id+'" onclick="openShareAsset(\''+s.id+'\')" style="cursor:pointer">'+
-      '<button class="'+btnClass+'" data-sid="'+s.id+'" onclick="tlPlayCard(this);event.stopPropagation()" style="flex-shrink:0">'+
+    return '<div class="fl-item" role="link" tabindex="0" id="card-'+escH(s.id)+'" data-share-card="'+escH(s.id)+'" style="cursor:pointer">'+
+      '<button class="'+btnClass+'" data-sid="'+escH(s.id)+'" data-share-action="play" aria-label="곡 재생" style="flex-shrink:0">'+
       (s.cover_url?'<img src="'+escH(s.cover_url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.onerror=null;this.src=\'/images/renewal/vinyl-collection-card.jpg\';this.alt=\'대표 이미지\'">':'')+
       '<span style="position:relative;z-index:1">'+btnIcon+'</span></button>'+
       '<div class="fl-info"><div class="fl-title">'+escH(s.title||'Untitled')+
@@ -850,7 +874,7 @@ function renderListView(list,g){
       '<div class="fl-right"><div class="fl-pulse">🔥 '+Number(s.pulse||0).toLocaleString()+'</div>'+
       '<div class="fl-price" style="color:'+(playableCount>0?'var(--teal)':'var(--orange)')+'">⚡ '+(requiredTL>0?requiredTL.toLocaleString()+' TL/회 · '+playableCount.toLocaleString()+'회 가능':'재생 정보 확인 중')+'</div>'+
       (_tlShareId===s.id && _tlPlaying && _tlElapsed>0 ? '<div style="font-size:11px;color:var(--orange);margin-top:2px">▶️ '+_tlElapsed+'초 재생 ('+_tlElapsed+' TL)</div>' : '')+
-      '<div class="fl-actions"><button class="fl-btn fl-btn-charge" onclick="event.stopPropagation();chargeTL(\''+s.id+'\',\''+escH(s.title)+'\')">TL 충전</button></div></div></div>';
+      '<div class="fl-actions"><button class="fl-btn fl-btn-charge" data-sid="'+escH(s.id)+'" data-share-action="charge">TL 충전</button></div></div></div>';
   }).join('');
 }
 
