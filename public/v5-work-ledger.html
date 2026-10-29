@@ -163,7 +163,16 @@ async function mergeDevelopmentReleases(){
   if(RELEASE_CATEGORY_ALIASES[task.category])task.category=RELEASE_CATEGORY_ALIASES[task.category];
  }
  for(const task of valid){
-  if(!isRetired(task)&&!state.tasks.some(t=>t.id===task.id))state.tasks.push(clone(task));
+  if(isRetired(task))continue;
+  const existing=state.tasks.find(t=>t.id===task.id);
+  if(!existing){state.tasks.push(clone(task));continue;}
+  // Audit-backed TLV5-004 was historically unverified with no evidence.
+  // Advance only that untouched seed. Preserve every manual edit and review.
+  if(task.id==='TLV5-004'&&existing.status==='미검증'&&
+     !existing.updated&&!String(existing.note||'').trim()&&
+     (!Array.isArray(existing.history)||existing.history.length===0)){
+   existing.status='테스트';existing.note=task.note;existing.history=clone(task.history);
+  }
  }
  for(const event of releases.events){
   if(!event?.id||!event?.title){releaseImportWarnings.push('변경 기록 ID/제목 누락');continue;}

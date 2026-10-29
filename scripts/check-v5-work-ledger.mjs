@@ -44,6 +44,32 @@ assert.ok(script.includes("!String(t.id||'').startsWith('TLV5-PAGE-')&&t.categor
 assert.ok(script.includes("['구현','테스트','운영확인'].includes(t.status)"));
 console.log('PASS development progress: server-first merge, manual edits retained, repeat-safe releases and progress bar');
 
+// Reviewed member evidence may advance only a pristine unverified historical row.
+// A human-edited status or note must never be overwritten by release import.
+const createMemberContext=(staff)=> {
+ const ctx=createContext({
+  pageRoutes,state:{tasks:[staff],events:[]},
+  categories:[...new Set(releases.tasks.map(t=>t.category))],
+  STAGE_WEIGHT:{'미검증':0,'설계':20,'구현':55,'테스트':80,'운영확인':100,'보류':0},
+  routeKey,clone:o=>JSON.parse(JSON.stringify(o)),
+  fetch:async()=>({ok:true,json:async()=>releases})
+ });
+ runInContext(script.slice(startRetire,endRetire),ctx);
+ runInContext(merge,ctx);
+ return ctx;
+};
+const freshMember=createMemberContext({id:'TLV5-004',category:'회원·인증',title:'직원 계정과 대표 승인',status:'미검증',note:'',history:[]});
+await runInContext('mergeDevelopmentReleases()',freshMember);
+assert.equal(freshMember.state.tasks.find(t=>t.id==='TLV5-004').status,'테스트');
+assert.ok(freshMember.state.tasks.find(t=>t.id==='TLV5-004').note.includes('/pull/468'));
+assert.equal(await runInContext('mergeDevelopmentReleases()',freshMember),false);
+const manualMember=createMemberContext({id:'TLV5-004',category:'회원·인증',title:'직원 계정과 대표 승인',status:'미검증',note:'관리자 확인 대기',history:[]});
+await runInContext('mergeDevelopmentReleases()',manualMember);
+assert.equal(manualMember.state.tasks.find(t=>t.id==='TLV5-004').status,'미검증');
+assert.equal(manualMember.state.tasks.find(t=>t.id==='TLV5-004').note,'관리자 확인 대기');
+console.log('PASS TLV5-004 evidence imports only to untouched seed, never overrides manual verification');
+
+
 const retireContext=createContext({pageRoutes,routeKey:path=>'TLV5-PAGE-'+Array.from(path).map(c=>c.codePointAt(0).toString(16)).join('-'),STAGE_WEIGHT:{'미검증':0,'설계':20,'구현':55,'테스트':80,'운영확인':100,'보류':0}});
 runInContext(script.slice(startRetire,endRetire),retireContext);
 const sample=[
