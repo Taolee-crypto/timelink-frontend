@@ -45,5 +45,6 @@ console.log('PASS TRACK V5 licensed playback owner-only draft worker, actual pit
 assert.ok(html.includes("+'/generate'"));
 assert.ok(html.includes("body:JSON.stringify({rights_confirmed:true})"));
 assert.ok(html.includes("if(!_v5ScoreOwnerAllowed||!getTok())"));
+assert.ok(html.includes("if((jobState==='queued'||jobState==='running')&&!_v5ScorePollTimer)startV5ScorePolling();"));
 assert.ok(html.includes("자동 채보 요청 실패:"));
 console.log('PASS V5 score button submits authorized job and reports backend errors');
