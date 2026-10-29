@@ -16,6 +16,14 @@ assert.ok(reserve.includes("d.gold_custody_verified"));
 assert.ok(reserve.includes('금 보유는 TLC의 고정가격이나 금 상환을 보증하는 것이 아닙니다'));
 
 assert.ok(reserve.includes("admin/tlc-group-reserve"));
+assert.ok(reserve.includes('admin/tlc-issuance-audit'));
+assert.ok(reserve.includes('id="issuanceAudit"'));
+assert.ok(reserve.includes('id="issuanceEvidence"'));
+assert.ok(reserve.includes('audit.invalid_split_count'));
+assert.ok(reserve.includes('audit.nonmining_issuance_entries'));
+assert.ok(reserve.includes('audit.admin_regular_mining_credits'));
+assert.ok(reserve.includes('audit.reserve_matches_mining'));
+
 assert.ok(reserve.includes('cumulative_v3_mined_tlc'));
 assert.ok(reserve.includes('locked_tlc'));
 assert.ok(reserve.includes('available_tlc'));

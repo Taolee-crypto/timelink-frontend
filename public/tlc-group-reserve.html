@@ -22,6 +22,11 @@ button{border:0;border-radius:12px;padding:12px 18px;background:#7962b8;color:wh
 <div class="panel"><label>50:50 채굴 기록</label><div class="amount" id="events">—</div><span class="muted">기존 단독 채굴은 소급 분배하지 않습니다</span></div>
 <div class="panel"><label>V3 누적 채굴 총량</label><div class="amount" id="gross">—</div><span class="muted">고정 발행 한도 아님 · 기존 이관 전 기록 등은 별도</span></div>
 </section>
+<div class="panel"><h2>채굴·발행 무결성 검사</h2>
+<p class="muted">관리자와 창립자도 일반 회원과 동일한 기여에 따른 TLC 채굴만 가능합니다. V3 경제원장의 실제 발행·적립 기록을 대조합니다. 과거 원장·외부 블록체인 전체를 보증하는 검사는 아닙니다.</p>
+<p id="issuanceAudit" role="status" class="muted">발행 영수증 검증 중입니다.</p>
+<p id="issuanceEvidence" class="muted">실제 원장 검사가 필요합니다.</p>
+</div>
 <div class="panel"><h2>1차 생태계 가치 · 2차 금 준비자산</h2>
 <p class="muted"><strong>1차:</strong> 회원에게 지급된 채굴분 50%가 TimeLink 생태계에서 활용·교환되며 유통 기반을 형성합니다. 회사에 배분한 50%는 잠금 준비금으로 누적합니다.</p>
 <p class="muted"><strong>2차:</strong> 회사 준비금의 일부를 향후 적법하고 검증된 방식으로 금으로 점진적 전환하여 별도 실물/할당형 금 준비자산으로 보유하는 것이 목표입니다. 금 수탁·매입 및 소유권 증빙은 아직 확인되지 않았습니다.</p>
@@ -48,7 +53,19 @@ async function load(){
  document.getElementById('gross').textContent=money(d.cumulative_v3_mined_tlc)+' TLC';
  document.getElementById('goldStatus').textContent=d.gold_custody_verified?'금 수탁 증빙 확인됨':'금 전환 전 · 검증된 금 보관 증빙 없음 · 자동 전환 비활성';
  document.getElementById('audit').textContent='그룹 채굴 누적 '+money(d.minted_to_group_tlc)+' TLC · 회사 준비금 잠금 '+(d.transfer_allowed?'해제 상태':'유지')+' · 과거 소급 재분배 없음';
- document.getElementById('status').textContent='확인 완료 · 운영 원장 조회 · 외부 TON 발행 아님';
+ const auditRes=await fetch('https://api.timelink.digital/api/admin/tlc-issuance-audit',{
+   headers:{Authorization:'Bearer '+token},cache:'no-store',signal:AbortSignal.timeout(15000)});
+ const audit=await auditRes.json().catch(()=>({}));
+ if(!auditRes.ok||!audit.ok)throw Error(audit.code||audit.error||'TLC 원장 감사 실패');
+ document.getElementById('issuanceAudit').textContent=
+  audit.anomaly_free?'채굴 원장 무결성 검사 통과 · 창립자 특별 채굴 발행 없음(검사한 V3 범위)':
+  '원장 점검 필요 · 발행·배분·잠금 수량 차이 발견';
+ document.getElementById('issuanceEvidence').textContent=
+  '50:50 채굴 영수증 '+Number(audit.checked_split_receipts||0).toLocaleString('ko-KR')+'건 · 배분 오류 '+
+   Number(audit.invalid_split_count||0)+'건 · 예외 발행 검토 '+Number(audit.nonmining_issuance_entries||0)+
+   '건 · 준비금 잠금 일치 '+(audit.reserve_matches_mining?'예':'아니오')+
+   ' · 일반 채굴한 관리자 기록 '+Number(audit.admin_regular_mining_credits||0)+'건';
+ document.getElementById('status').textContent='확인 완료 · V3 운영 원장 조회 · 외부 TON 발행 아님';
  }catch(err){document.getElementById('status').textContent='조회 실패: '+String(err.message||err);}
  finally{btn.disabled=false;}
 }
