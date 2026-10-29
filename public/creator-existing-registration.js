@@ -35,7 +35,7 @@ async function refreshHistory(){
  const t=token();
  if(!t){status('기존 발매 음원 신청과 내역 확인은 회원 로그인 후 사용할 수 있습니다.');return;}
  try{
-  const response=await fetch(API+'/api/v5/music/discovery/',{headers:{Authorization:'Bearer '+t},cache:'no-store'});
+  const response=await fetch(API+'/api/v5/music-discovery/',{headers:{Authorization:'Bearer '+t},cache:'no-store'});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||data.ok!==true||!Array.isArray(data.registrations))throw Error(data.error||'신청 목록 조회 실패');
   if(token()!==t)throw Error('조회 중 로그인 계정이 변경됐습니다.');
@@ -78,7 +78,7 @@ async function submitExistingReview(){
     rights_role:role,isrc:isrc||null,evidence_url:evidence||null,
     acknowledgement:'pending_manual_verification'
    }));
-   const response=await fetch(API+'/api/v5/music/discovery/',{
+   const response=await fetch(API+'/api/v5/music-discovery/',{
     method:'POST',headers:{Authorization:'Bearer '+t},body:form
    });
    const data=await response.json().catch(()=>({}));
