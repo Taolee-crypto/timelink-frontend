@@ -436,6 +436,26 @@ async function doSignup(){
   }
 }
 
+// Referral code is not part of registration credentials or account type.
+// Only the authenticated, email-verified member can attach the invitation.
+async function claimVerifiedSignupReferral(token){
+  var ref=new URLSearchParams(location.search).get('ref')||'';
+  ref=ref.trim().toUpperCase();
+  if(!/^TILO-[A-F0-9]{24}$/.test(ref))return;
+  try{
+    var response=await fetch(API+'/api/v5/referrals/claim',{
+      method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({code:ref}),signal:AbortSignal.timeout(5000)
+    });
+    var outcome=await response.json().catch(function(){return {}});
+    if(response.ok&&outcome.ok){
+      sessionStorage.removeItem('tl_referral_pending_code');
+      toast('추천 관계가 등록되었습니다. 가입 기여가 확인되면 보상에 반영됩니다.','success');
+    }else if(outcome.code!=='ALREADY_CLAIMED'){
+      sessionStorage.setItem('tl_referral_pending_code',ref);
+    }
+  }catch(_){sessionStorage.setItem('tl_referral_pending_code',ref);}
+}
 async function doVerify(){
   var code = document.getElementById('verifyCode').value.trim();
   if(!code || code.length !== 6){ toast(signupText('signup.error.code.six'),'error'); return; }
@@ -467,6 +487,7 @@ async function doVerify(){
     if(lr.ok && ld.token && ld.user){
       localStorage.setItem('tl_token', ld.token);
       localStorage.setItem('tl_user', JSON.stringify(ld.user));
+      await claimVerifiedSignupReferral(ld.token);
       toast(signupText('signup.toast.complete'),'success');
       setTimeout(function(){ var rd=new URLSearchParams(location.search).get('redirect')||''; location.href=/^[a-z0-9_-]+\.html(?:\?[a-z0-9_=&%-]*)?$/i.test(rd)?rd:'shareplace.html'; }, 800);
     } else {
