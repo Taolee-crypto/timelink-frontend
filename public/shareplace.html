@@ -646,40 +646,58 @@ function updateShareCardTL(shareId, balance){
 // The complete catalog remains paged for discovery, but never fans out wallet calls.
 var _visibleShareCards=[];
 var _myTLInFlight=Object.create(null);
+var _myTLActive=0;
+var _myTLQueue=[];
+function scheduleMyTLRequest(job){
+  return new Promise(function(resolve){
+    function run(){
+      _myTLActive++;
+      Promise.resolve().then(job).catch(function(e){
+        console.warn('[SharePlace] 곡별 TL 조회 오류',e);
+      }).then(resolve).finally(function(){
+        _myTLActive--;
+        var next=_myTLQueue.shift();
+        if(next)next();
+      });
+    }
+    if(_myTLActive<4)run();
+    else _myTLQueue.push(run);
+  });
+}
 async function loadMyTL(visible,force){
   var token=localStorage.getItem('tl_token')||'';
   if(!token||token!==_token)return;
-  var items=(visible||_visibleShareCards).slice(0,Math.min(20,_perPage)).filter(function(s){return contentKind(s)==='tl3';});
-  var pending=items.filter(function(s){
+  var items=(visible||_visibleShareCards).slice(0,Math.min(20,_perPage)).filter(function(s){
+    return contentKind(s)==='tl3';
+  });
+  var requests=items.filter(function(s){
     var key=String(s.id);
     return (force||!Object.prototype.hasOwnProperty.call(_myFileTL,key))&&!_myTLInFlight[key];
+  }).map(function(s){
+    var key=String(s.id);
+    var promise=scheduleMyTLRequest(async function(){
+      // A page switch or account switch must not fetch someone else's balance.
+      if(token!==localStorage.getItem('tl_token'))return;
+      try{
+        var r=await fetch(API_BASE+'/api/shares/'+encodeURIComponent(key)+'/my-tl',{
+          headers:{Authorization:'Bearer '+token},cache:'no-store'
+        });
+        var d=await r.json().catch(function(){return {};});
+        if(!r.ok||!d||d.ok!==true)throw new Error((d&&d.error)||('HTTP '+r.status));
+        var value=Number(d.tl_balance);
+        if(!Number.isFinite(value)||value<0)throw new Error('곡별 잔액 응답 오류');
+        if(token!==localStorage.getItem('tl_token'))return;
+        _myFileTL[key]=value;
+        updateShareCardTL(key,value);
+      }catch(e){
+        console.warn('[SharePlace] 곡별 보유 TL 조회 실패:',key,e&&e.message?e.message:e);
+      }
+    });
+    _myTLInFlight[key]=promise;
+    promise.finally(function(){if(_myTLInFlight[key]===promise)delete _myTLInFlight[key];});
+    return promise;
   });
-  var next=0;
-  async function worker(){
-    while(next<pending.length){
-      var s=pending[next++],key=String(s.id);
-      if(!key||_myTLInFlight[key])continue;
-      var job=(async function(){
-        try{
-          var r=await fetch(API_BASE+'/api/shares/'+encodeURIComponent(key)+'/my-tl',{
-            headers:{Authorization:'Bearer '+token},cache:'no-store'
-          });
-          var d=await r.json().catch(function(){return {};});
-          if(!r.ok||!d||d.ok!==true)throw new Error((d&&d.error)||('HTTP '+r.status));
-          var value=Number(d.tl_balance);
-          if(!Number.isFinite(value)||value<0)throw new Error('곡별 잔액 응답 오류');
-          if(token!==localStorage.getItem('tl_token'))return;
-          _myFileTL[key]=value;
-          updateShareCardTL(key,value);
-        }catch(e){
-          console.warn('[SharePlace] 곡별 보유 TL 조회 실패:',key,e&&e.message?e.message:e);
-        }
-      })();
-      _myTLInFlight[key]=job;
-      try{await job;}finally{if(_myTLInFlight[key]===job)delete _myTLInFlight[key];}
-    }
-  }
-  await Promise.all(Array.from({length:Math.min(4,pending.length)},worker));
+  await Promise.all(requests);
 }
 // Track에서 돌아왔을 때 브라우저 BFCache에 남은 카드 잔액을 서버의 최신 곡별 잔액으로 동기화한다.
 window.addEventListener('pageshow', function(event){ if(event.persisted && _token) loadMyTL(_visibleShareCards,true); });
