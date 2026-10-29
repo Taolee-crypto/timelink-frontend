@@ -1152,7 +1152,14 @@ async function loadScore(){
 
     if(result.has_score===true&&result.score&&Array.isArray(result.score.melody)&&result.score.melody.length&&['draft','published'].includes(result.score_status)){
       _scoreData=result.score;
-      if(draftNotice)draftNotice.hidden=result.score_status!=='draft';
+      if(draftNotice){
+        draftNotice.hidden=result.score_status!=='draft';
+        const snapped=Number(result.score.lyrics_alignment?.note_display_snap_count)||0;
+        const missing=Number(result.score.lyrics_alignment?.note_display_unattached_count)||0;
+        draftNotice.textContent='보컬 악보 초안 · 검수 전 · TLD 미발행 (TL 차감 없음)'
+          +(snapped?' · 인접 보컬 음표에 표시한 가사 '+snapped+'개 (배치 검수 필요)':'')
+          +(missing?' · 음표에 미배치된 가사 '+missing+'개':'');
+      }
       if(transpose){transpose.hidden=false;transpose.setAttribute('aria-hidden','false');}
       await renderScoreOSMD(_scoreData,0);
     }else{
