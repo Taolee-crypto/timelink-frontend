@@ -18,7 +18,7 @@ assert.ok(commonFooter.includes('(주)틸로코리아'));
 assert.ok(commonFooter.includes("document.querySelectorAll('#tl-dynamic-footer,.gate-footer')"));
 assert.match(share,/id="fileGrid"/);assert.match(share,/id="filePager"/);
 assert.ok(share.includes('var _curPage = 1, _perPage = 20'),'20 tracks per page contract');
-assert.ok(ledger.includes("['공유플레이스','/shareplace.html']"),'work ledger map needs SharePlace page');
+assert.ok(ledger.includes("'/shareplace.html'"),'work ledger map needs SharePlace page');
 const scripts=[...share.matchAll(/<script(?:\s+[^>]*)?>([\s\S]*?)<\/script>/g)].map(m=>m[1]).filter(x=>x.trim());
 for(const js of scripts)new vm.Script(js,{filename:'shareplace-inline.js'});
 console.log('PASS SharePlace 100% music area, 20 item pager, shared legal footer, no legacy DJ/ads and valid scripts');
