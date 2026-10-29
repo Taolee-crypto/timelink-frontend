@@ -52,7 +52,7 @@ async function main(){
   await frame().locator('#lyricsBox').waitFor();
   assert.equal(await frame().locator('#lyricsBox').textContent(),newLyrics,'stored lyrics must render exactly without optimistic mismatch');
   assert.equal(await frame().locator('#lyricsBox script').count(),0,'lyrics must never execute markup');
-  assert.equal(await frame().evaluate(()=>window.__lyricXss===undefined),true);
+  assert.equal(await frame().locator('body').evaluate(()=>window.__lyricXss===undefined),true);
   assert.equal(trackPatches.length,1);
   for(const key of ['composer','lyricist','arranger'])assert.equal(Object.hasOwn(trackPatches[0],key),false,'owner-only patch cannot alter verified rights '+key);
   await editTrack.click();
