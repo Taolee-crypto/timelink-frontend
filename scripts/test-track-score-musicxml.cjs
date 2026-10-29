@@ -22,7 +22,7 @@ for(const measure of measures){
  const durations=[...measure[1].matchAll(/<duration>(\d+)<\/duration>/g)].map(m=>Number(m[1]));
  const total=durations.reduce((a,b)=>a+b,0);
  assert.ok(total<=16&&total>0,'4/4 measure must never overrun: '+total);
- assert.ok(durations.every(x=>[1,2,4,8,16].includes(x)),'only standard note lengths');
+ assert.ok(durations.every(x=>[1,2,3,4,6,8,12,16].includes(x)),'standard and dotted note lengths');
 }
 assert.ok(measures[0][1].includes('<duration>16</duration>'));
 assert.ok(xml.includes('<step>C</step>')&&xml.includes('<step>D</step>'));
