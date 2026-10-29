@@ -442,7 +442,7 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
       <div class="poc-formula">
         <div class="poc-formula-title">▸ 기존 POC (Proof of Contribution) 산식 · 검토용</div>
         <div class="poc-formula-eq">
-          기여도 추정치 = <span>서버 활동 내역</span> × <span>관리자 정책 가중치</span><br>
+          개발단계 TLC 채굴 = <span>월간 구매 TL 실적</span> × <span>POC 기여지수</span> × <span>관리자 설정 비율</span><br>
           <span style="font-size:11px;color:rgba(255,255,255,.4)">POC 지수 = 창작(2.0) + TL소비(1.5) + 청취(1.0) + 업로드(0.5) ≤ 5.0</span>
         </div>
       </div>
@@ -483,14 +483,14 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
       </div>
 
       <div class="poc-factor" style="grid-column:1/-1;background:rgba(255,159,10,.04);border-color:rgba(255,159,10,.15);padding:20px;margin-bottom:20px">
-        <div class="poc-factor-label" style="color:var(--orange);font-size:12px;font-weight:600;margin-bottom:12px">⛏️ 기여도 확인 · 신규 TLC 발행 검증 중</div>
+        <div class="poc-factor-label" style="color:var(--orange);font-size:12px;font-weight:600;margin-bottom:12px">⛏️ TLC 채굴 · 개발 단계</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
           <div>
             <div style="font-size:10px;color:var(--t3);margin-bottom:4px">POC 지수</div>
             <div style="font-size:20px;font-weight:700;color:var(--orange)" id="miningIndex2">0.00</div>
           </div>
           <div>
-            <div style="font-size:10px;color:var(--t3);margin-bottom:4px">신규 지급 대기</div>
+            <div style="font-size:10px;color:var(--t3);margin-bottom:4px">오늘 채굴 가능</div>
             <div style="font-size:20px;font-weight:700;color:var(--teal)" id="miningAvailable">0.00</div>
           </div>
           <div>
@@ -498,7 +498,7 @@ body{background:#0A0A0A;color:#F5F5F7;font-family:'Pretendard','Inter','-apple-s
             <div style="font-size:20px;font-weight:700" id="miningMonthSpent">0</div>
           </div>
         </div>
-        <button class="tl-btn tl-btn-primary" style="width:100%;padding:12px;font-weight:700" onclick="calcMining()" id="mineBtn">기여도 추정치 확인</button>
+        <button class="tl-btn tl-btn-primary" style="width:100%;padding:12px;font-weight:700" onclick="calcMining()" id="mineBtn">POC 계산 후 TLC 채굴</button>
       </div>
 
       <div class="sec">
@@ -962,7 +962,7 @@ async function loadMiningHistory(){
 async function calcMining(){
   if(!_user) return;
   var btn = g('mineBtn');
-  if(btn){ btn.disabled = true; btn.textContent = '기여도 확인 중...'; }
+  if(btn){ btn.disabled = true; btn.textContent = 'POC 계산 중...'; }
   try{
     // 현재 백엔드가 제공하는 POC 계산 계약은 /activity이며,
     // 이 호출은 빈 활동값으로 현재 누적 실적을 다시 계산한다.
@@ -975,13 +975,13 @@ async function calcMining(){
     if(!pocRes.ok || !pocData.ok) throw new Error(pocData.error || 'POC 계산 실패');
 
     var poc = Number(pocData.poc_index || 0);
-    var mineable = 0; // Financial issuance requires verified V3 payout evidence.
+    var mineable = Number(pocData.tlc_mining && pocData.tlc_mining.daily_max || 0);
     var bd = pocData.poc_components || {};
 
     g('miningPoc').textContent = poc.toFixed(2);
     g('miningIndex').textContent = poc.toFixed(2);
     g('miningIndex2').textContent = poc.toFixed(2);
-    g('miningAvailable').textContent = '검증 중';
+    g('miningAvailable').textContent = mineable.toFixed(4);
 
     if(bd.content !== undefined){
       g('pocCreation').textContent = Number(bd.content).toFixed(2);
@@ -1000,13 +1000,37 @@ async function calcMining(){
       g('pocUploadBar').style.width = Math.min(100, Number(bd.upload)/0.5*100) + '%';
     }
 
-    // Legacy /activity supplies a read-only estimate, not a payout proof.
-    // Do not call the retired direct-mint endpoint from the dashboard.
-    toast('기여도 추정치를 확인했습니다. TLC 신규 지급은 검증된 경제원장 정산이 연결될 때까지 중단됩니다.', 'info');
+    if(mineable<=0){
+      toast('오늘 채굴 가능한 TLC가 없습니다. 이미 채굴했다면 다음 날 다시 이용할 수 있습니다.', 'info');
+      return;
+    }
+    btn.textContent='TLC 채굴 처리 중...';
+    var mineRes=await fetch(API + '/api/eco/mine-tlc',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+_token},
+      body:JSON.stringify({})
+    });
+    var mined=await mineRes.json().catch(function(){return {}});
+    if(!mineRes.ok||!mined.ok){
+      if(mined.code==='ALREADY_MINED_TODAY'){
+        g('miningAvailable').textContent='0.0000';
+        toast('오늘 채굴은 이미 완료되었습니다.', 'info');
+        return;
+      }
+      throw new Error(mined.error||'TLC 채굴 실패');
+    }
+    _user.tlc=Number(mined.tlc_total||0);
+    localStorage.setItem('tl_user',JSON.stringify(_user));
+    g('miningTlc').textContent=_user.tlc.toFixed(4);
+    if(g('tbTlc'))g('tbTlc').textContent=fmt(_user.tlc);
+    if(g('walletTlc'))g('walletTlc').textContent=_user.tlc.toFixed(4);
+    g('miningAvailable').textContent='0.0000';
+    toast('채굴 완료: '+Number(mined.mined).toFixed(4)+' TLC (개발 단계 내부 원장)', 'success');
+    loadMiningHistory();
   }catch(e){
     toast('채굴 오류: ' + e.message, 'error');
   }finally{
-    if(btn){ btn.disabled = false; btn.textContent = '기여도 추정치 확인'; }
+    if(btn){ btn.disabled = false; btn.textContent = 'POC 계산 후 TLC 채굴'; }
   }
 }
 // ═══════════════════════════════════════════
