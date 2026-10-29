@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync('public/track.html','utf8');
 function section(a,b){const i=html.indexOf(a),j=html.indexOf(b,i+a.length);assert.ok(i>=0&&j>i,'missing '+a);return html.slice(i,j);}
-const walletSrc=section('function renderV5Wallet(wallet){','function updateUIAfterCharge(newBalance){');
+const walletSrc=section('let _v5WalletReadSequence=0, _v5TrackReadSequence=0;','function updateUIAfterCharge(newBalance){');
 const els={myTLDisplay:{textContent:''},myTLBreakdown:{textContent:''}};
 let currentToken='accountA',walletCalls=0,trackCalls=0,updated=0;
 let walletReply={ok:true,json:async()=>({wallet:{tl_total:15000,tl_p:14000,tl_a:1000,tl_b:0}})};
@@ -47,6 +47,37 @@ vm.runInContext(walletSrc,ctx);
  ctx.fetch=async()=>({ok:true,json:async()=>({ok:true,tl_balance:'invalid'})});
  await assert.rejects(ctx.updateTrackTLFromServer(),/올바르지 않습니다/);
  assert.equal(ctx._trackTL,7200,'malformed track response cannot overwrite credited TL');
+
+ // A delayed track-pool response belongs to the account that requested it.
+ let finishTrack;
+ ctx.fetch=()=>new Promise(resolve=>{finishTrack=resolve;});
+ const oldTrack=ctx.updateTrackTLFromServer();
+ currentToken='accountC';
+ finishTrack({ok:true,json:async()=>({ok:true,tl_balance:999999})});
+ await assert.rejects(oldTrack,/계정 또는 곡이 변경/);
+ assert.equal(ctx._trackTL,7200,'old-account track balance must never be published');
+
+ // A newer track read wins even if an older request returns last.
+ const pendingTrack=[];
+ ctx.fetch=()=>new Promise(resolve=>pendingTrack.push(resolve));
+ const staleTrack=ctx.updateTrackTLFromServer();
+ const freshTrack=ctx.updateTrackTLFromServer();
+ pendingTrack[1]({ok:true,json:async()=>({ok:true,tl_balance:4900})});
+ assert.equal(await freshTrack,4900);
+ pendingTrack[0]({ok:true,json:async()=>({ok:true,tl_balance:880000})});
+ await assert.rejects(staleTrack,/최신 곡별 TL 조회/);
+ assert.equal(ctx._trackTL,4900,'late older track response must not overwrite the fresh balance');
+
+ // The same sequence rule applies to the global V5 wallet.
+ const pendingWallet=[];
+ ctx.fetch=()=>new Promise(resolve=>pendingWallet.push(resolve));
+ const staleWallet=ctx.updateMyTLFromServer();
+ const freshWallet=ctx.updateMyTLFromServer();
+ pendingWallet[1]({ok:true,json:async()=>({wallet:{tl_total:800,tl_p:500,tl_a:300,tl_b:0}})});
+ assert.equal(await freshWallet,800);
+ pendingWallet[0]({ok:true,json:async()=>({wallet:{tl_total:880000,tl_p:880000,tl_a:0,tl_b:0}})});
+ await assert.rejects(staleWallet,/최신 지갑 조회/);
+ assert.equal(ctx._myFileTL,800,'late older global-wallet response must not overwrite the fresh balance');
 
  const directSrc=section('async function doDirectCharge(){','function selectChargePkg(el){');
  let posted=0,close=0,alarms=[],syncs=0;
