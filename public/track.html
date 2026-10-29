@@ -1316,6 +1316,30 @@ function closeScoreModal(){
 // ★ OSMD 기반 악보 렌더링 (A4 자동 맞춤, 조옮김, 페이지 넘김)
 // ═══════════════════════════════════════════════════════════════
 
+// A TLD score is structured notation, not a dump of raw pitch samples.
+// Keep original sound pitches in ScoreData; these are display-only engraving choices.
+function scoreVocalNotationProfile(notes){
+  const pitches=notes.map(n=>Number(n.m)).filter(Number.isFinite).sort((a,b)=>a-b);
+  if(!pitches.length)return {clef:'treble',median:60};
+  const median=pitches[Math.floor(pitches.length/2)];
+  return {clef:median<52?'bass':median<61?'tenor':'treble',median};
+}
+function scoreVocalEngravingEvents(raw){
+  const events=raw.filter(n=>Number.isFinite(n.s)&&Number.isFinite(n.d)&&Number.isInteger(n.m)&&
+    n.s>=0&&n.d>0&&n.m>=21&&n.m<=108).map(n=>({...n})).sort((a,b)=>a.s-b.s);
+  const output=[];
+  for(const note of events){
+    const prev=output[output.length-1];
+    // Avoid notation flicker from split sustained notes. Preserve every
+    // distinct syllable, every pitch change, and the original sound score.
+    const hasOwnText=!!String(note.lyric||note.text||'').trim();
+    if(prev&&prev.m===note.m&&!hasOwnText&&note.s>=prev.s&&
+      note.s<=prev.s+prev.d+0.10){
+      prev.d=Math.max(prev.d,note.s+note.d-prev.s);
+    }else output.push(note);
+  }
+  return output;
+}
 // ScoreData → MusicXML 문자열 변환
 function scoreDataToMusicXml(scoreData, transpose, shareInfo){
   if(!scoreData || !scoreData.melody || !scoreData.melody.length){
@@ -1343,11 +1367,16 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
   const fifths = keyToFifths(tonic, mode);
 
   // ── 박자 ──
-  const timeSig = scoreData.time_signature || "4/4";
+  const specified=String(scoreData.time_signature||'');
+  const validSignature=/^(2|3|4|6|9|12)\/(2|4|8)$/.test(specified);
+  const timeSig = validSignature?specified:"4/4";
   const [beats, beatType] = timeSig.split("/").map(Number);
 
-  // ── 템포 ──
-  const bpm = Math.round(scoreData.bpm || 120);
+  // The MusicXML tick conversion needs a reference tempo, but do not PRINT
+  // an invented 120 BPM as a measured fact. Creator must review actual beat.
+  const verifiedTempo=Number.isFinite(Number(scoreData.bpm))&&
+    Number(scoreData.bpm)>=40&&Number(scoreData.bpm)<=220;
+  const bpm=verifiedTempo?Math.round(Number(scoreData.bpm)):120;
 
   // ── divisions: 4분음표당 tick (MusicXML 표준: 1 = 4분음표)
   const DIVISIONS = 4;   // 16분음표 = 1 tick
@@ -1357,7 +1386,7 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
   const MEASURE_TICKS = Math.max(1, Math.round(beats * DIVISIONS * 4 / beatType));
   const measures = [];
   let currentMeasure = [], position = 0, eventCursor = 0;
-  const allowedTicks = [16,8,4,2,1];
+  const allowedTicks = [16,12,8,6,4,3,2,1]; // ordinary and dotted notation
   function writeSpan(kind, duration, midi, chordSym, lyric){
     let remaining = duration, first = true;
     while(remaining>0){
@@ -1378,12 +1407,22 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
       position+=dur;remaining-=dur;first=false;
     }
   }
-  const melody = scoreData.melody.slice().filter(e=>Number.isFinite(e.s)&&Number.isFinite(e.d)&&Number.isInteger(e.m)&&e.d>0).sort((a,b)=>a.s-b.s);
-  for(const ev of melody){
-    let startTick=Math.max(0,Math.round(ev.s*(bpm/60)*DIVISIONS));
-    if(startTick<eventCursor)startTick=eventCursor;  // 단선율 중첩 음표는 이어서 정렬
+  const melody = scoreVocalEngravingEvents(scoreData.melody);
+  const notation=scoreVocalNotationProfile(melody);
+  for(let i=0;i<melody.length;i++){
+    const ev=melody[i],next=melody[i+1];
+    // Prefer quarter/eighth notes. Use 16th notes only where two
+    // *different actual pitches* occur within an eighth-note window.
+    const onsetSpacing=next?(next.s-ev.s)*(bpm/60)*DIVISIONS:Infinity;
+    const grid=onsetSpacing<1.5&&next.m!==ev.m?1:2;
+    let startTick=Math.max(0,Math.round(ev.s*(bpm/60)*DIVISIONS/grid)*grid);
+    if(startTick<eventCursor)startTick=eventCursor;
     if(startTick>eventCursor)writeSpan('rest',startTick-eventCursor);
-    const durationTicks=Math.max(1,Math.round(ev.d*(bpm/60)*DIVISIONS));
+    let durationTicks=Math.max(grid,Math.round(ev.d*(bpm/60)*DIVISIONS/grid)*grid);
+    if(next){
+      const nextRawTick=Math.round(next.s*(bpm/60)*DIVISIONS/grid)*grid;
+      durationTicks=Math.max(1,Math.min(durationTicks,Math.max(1,nextRawTick-startTick)));
+    }
     let chordSym=null;
     if(scoreData.chords&&scoreData.chords.length){
       const chord=scoreData.chords.find(c=>Number.isFinite(Number(c.s))&&ev.s>=Number(c.s)&&ev.s<(Number.isFinite(Number(c.e))?Number(c.e):Infinity));
@@ -1432,12 +1471,16 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
       xml.push('        <divisions>' + DIVISIONS + '</divisions>');
       xml.push('        <key><fifths>' + fifths + '</fifths><mode>' + mode + '</mode></key>');
       xml.push('        <time><beats>' + beats + '</beats><beat-type>' + beatType + '</beat-type></time>');
-      xml.push('        <clef><sign>G</sign><line>2</line></clef>');
+      if(notation.clef==='bass')xml.push('        <clef><sign>F</sign><line>4</line></clef>');
+      else if(notation.clef==='tenor')xml.push('        <clef><sign>G</sign><line>2</line><clef-octave-change>-1</clef-octave-change></clef>');
+      else xml.push('        <clef><sign>G</sign><line>2</line></clef>');
       xml.push('      </attributes>');
-      xml.push('      <direction placement="above">');
-      xml.push('        <direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>' + bpm + '</per-minute></metronome></direction-type>');
-      xml.push('        <sound tempo="' + bpm + '"/>');
-      xml.push('      </direction>');
+      if(verifiedTempo){
+        xml.push('      <direction placement="above">');
+        xml.push('        <direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>' + bpm + '</per-minute></metronome></direction-type>');
+        xml.push('        <sound tempo="' + bpm + '"/>');
+        xml.push('      </direction>');
+      }
     }
 
     // 마디 내 요소
@@ -1447,6 +1490,7 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
         xml.push('        <rest/>');
         xml.push('        <duration>' + item.duration + '</duration>');
         xml.push('        <type>' + ticksToType(item.duration, DIVISIONS) + '</type>');
+        if([3,6,12].includes(item.duration))xml.push('        <dot/>');
         xml.push('      </note>');
       } else if(item.type === "note"){
         // 코드 심볼 (harmony)
@@ -1473,6 +1517,7 @@ function scoreDataToMusicXml(scoreData, transpose, shareInfo){
         xml.push('        </pitch>');
         xml.push('        <duration>' + item.duration + '</duration>');
         xml.push('        <type>' + ticksToType(item.duration, DIVISIONS) + '</type>');
+        if([3,6,12].includes(item.duration))xml.push('        <dot/>');
         if(item.lyric)xml.push('        <lyric number="1"><syllabic>single</syllabic><text>'+escapeXml(item.lyric.slice(0,120))+'</text></lyric>');
         if(item.tieStop)xml.push('        <tie type="stop"/>');
         if(item.tieStart)xml.push('        <tie type="start"/>');
@@ -1562,7 +1607,7 @@ async function renderScoreOSMD(scoreData, transpose){
   // A notation sheet needs a light surface even after the dark status view.
   container.style.cssText='background:#fefefe;color:#111827;padding:20px;border-radius:12px;min-height:200px;overflow-x:auto;color-scheme:light;';
   const sheet=document.createElement('div');
-  sheet.setAttribute('aria-label','악보 오선지');
+  sheet.setAttribute('aria-label','A4 악보 오선지 (TLD 비공개 채보 검수)');
   container.replaceChildren(sheet);
 
   // 1. ScoreData → MusicXML
