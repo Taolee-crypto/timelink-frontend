@@ -11,6 +11,7 @@ assert.ok(referral.includes('data.rewards||[]')||referral.includes('(data.reward
 assert.ok(referral.includes("'/settle','POST'"),'Authenticated server-side milestone verification must be available');
 assert.ok(referral.includes('history.replaceChildren()'),'Old receipt display cleared before rerender');
 assert.ok(referral.includes('entry.textContent='),'Reward metadata must be rendered without unsafe HTML');
-const matches=referral.matchAll(/<script(?:\\s+[^>]*)?>([\\s\\S]*?)<\\/script>/g);
-for(const match of matches){if(match[1].trim())new vm.Script(match[1],{filename:'member-referrals-inline.js'});}
+const inline=referral.split('<script>')[1]?.split('</script>')[0]||'';
+assert.ok(inline.trim(),'Referral inline script missing');
+new vm.Script(inline,{filename:'member-referrals-inline.js'});
 console.log('PASS referral UI: authenticated post-signup claim, retry, actual receipts, no account type changes');
