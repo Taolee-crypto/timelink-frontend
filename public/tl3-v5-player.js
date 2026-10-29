@@ -145,7 +145,17 @@
   async function playStream(id,audio,opts){
     opts=opts||{};
     const onError=opts.onError||function(){},onReady=opts.onReady||function(){};
+    // Install cancellation BEFORE the first network await. Otherwise a user
+    // may stop the player while an old encrypted download later resumes sound.
+    let startupCancelled=false,rejectStartupWait=null;
+    const startupError=()=>{const e=new Error('재생 준비가 취소되었습니다.');e.code='V5_START_CANCELLED';return e;};
+    const ensureStartupActive=()=>{if(startupCancelled)throw startupError();};
+    audio._tl3CancelStartup=function(){
+      startupCancelled=true;
+      if(rejectStartupWait)rejectStartupWait();
+    };
     const data=await resolve(id);
+    ensureStartupActive();
     if(Number(data.version)!==5)throw new Error('TL3 V5 자산이 아닙니다.');
     const fileId=Number(data.file_id),shareId=String(data.share_id);
     let sessionId=String(opts.sessionId||sid());
@@ -157,29 +167,35 @@
     const pre=nonBillable?{can_play:true}:await request(API+'/api/v1/tl3/play/preflight/'+encodeURIComponent(fileId),{
       method:'POST',headers:auth()
     });
+    ensureStartupActive();
     if(!pre.can_play)throw new Error('TL이 부족하여 TL3 V5를 재생할 수 없습니다.');
     if(pre.billing_mode==='time_free'){sessionId='tf_'+sessionId.replace(/^(tf_|sub_)/,'');if(sessionId.length>100)throw new Error('TIME FREE 재생 세션이 너무 깁니다.');}
     if(pre.billing_mode==='subscription'){sessionId='sub_'+sessionId.replace(/^sub_/,'');if(sessionId.length>100)throw new Error('구독 재생 세션이 너무 깁니다.');}
     if(opts.onBillingMode)opts.onBillingMode(pre);
     const contentKey=await unwrapAssetKey(fileId,shareId,sessionId,broadcastCountry,djStationId);
-    const response=await fetch(API+'/api/v1/tl3/v5/container/'+encodeURIComponent(fileId)+'?session_id='+encodeURIComponent(sessionId),{headers:auth(),cache:'no-store'});
-    if(!response.ok)throw new Error('TL3 V5 컨테이너 다운로드 실패 (HTTP '+response.status+')');
-    const container=new Uint8Array(await response.arrayBuffer());
-    // Bind the downloaded file container to the immutable server-side V5 release
-    // manifest before handing it to the existing authenticated decryptor.
-    const expectedContainerHash=String(data.container_sha256||'').toLowerCase();
-    if(!/^[a-f0-9]{64}$/.test(expectedContainerHash)){
+    let decoded;
+    try{
+      ensureStartupActive();
+      const response=await fetch(API+'/api/v1/tl3/v5/container/'+encodeURIComponent(fileId)+'?session_id='+encodeURIComponent(sessionId),{headers:auth(),cache:'no-store'});
+      ensureStartupActive();
+      if(!response.ok)throw new Error('TL3 V5 컨테이너 다운로드 실패 (HTTP '+response.status+')');
+      const container=new Uint8Array(await response.arrayBuffer());
+      ensureStartupActive();
+      // Bind the downloaded container to the immutable V5 release manifest.
+      const expectedContainerHash=String(data.container_sha256||'').toLowerCase();
+      if(!/^[a-f0-9]{64}$/.test(expectedContainerHash))
+        throw new Error('TL3 V5 파일 컨테이너의 인증 지문이 없습니다.');
+      const actualContainerHash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes(container))))
+        .map(v=>v.toString(16).padStart(2,'0')).join('');
+      ensureStartupActive();
+      if(actualContainerHash!==expectedContainerHash)
+        throw new Error('TL3 V5 파일 컨테이너의 서버 인증 지문이 일치하지 않습니다.');
+      decoded=await decryptContainer(container,contentKey,fileId,shareId);
+      ensureStartupActive();
+    }finally{
+      // Never retain a license key across an aborted network/decrypt step.
       contentKey.fill(0);
-      throw new Error('TL3 V5 파일 컨테이너의 인증 지문이 없습니다.');
     }
-    const actualContainerHash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes(container))))
-      .map(v=>v.toString(16).padStart(2,'0')).join('');
-    if(actualContainerHash!==expectedContainerHash){
-      contentKey.fill(0);
-      throw new Error('TL3 V5 파일 컨테이너의 서버 인증 지문이 일치하지 않습니다.');
-    }
-    const decoded=await decryptContainer(container,contentKey,fileId,shareId);
-    contentKey.fill(0);
     const manifest=decoded.manifest,totalMs=Number(manifest.duration_ms);
     let lpController=null;
     // Creator LP license is automatic; legacy V5 assets used lp_* field names.
@@ -203,6 +219,10 @@
           }else console.warn('[TL3V5][LP] LP processing unavailable');
         }catch(e){console.warn('[TL3V5][LP] automatic initialization failed; native audio retained',e);}
       }else console.warn('[TL3V5][LP] LP processing engine missing');
+    }
+    if(startupCancelled){
+      if(lpController&&lpController.stop)await lpController.stop().catch(()=>{});
+      throw startupError();
     }
     const blobUrl=URL.createObjectURL(new Blob([decoded.mp3],{type:'audio/mpeg'}));
     let stopped=false,meterTimer=null,billableMs=0,lastTime=null,meterQueued=0,lastBilled=0,meterQueue=Promise.resolve(),meterFailed=false,buffering=false;
@@ -290,21 +310,56 @@
     audio.addEventListener('seeked',onSeeked);
     audio.addEventListener('timeupdate',onTimeUpdate);
     audio.addEventListener('ended',onEnded);
-    audio.preload='auto';
-    audio.src=blobUrl;
-    audio.load();
-    const canplay=await new Promise((resolve,reject)=>{
-      const ok=()=>{cleanup();resolve(true);},fail=()=>{cleanup();reject(new Error('복호화된 MP3를 브라우저가 읽지 못했습니다.'));};
-      const cleanup=()=>{audio.removeEventListener('canplay',ok);audio.removeEventListener('error',fail);};
-      audio.addEventListener('canplay',ok,{once:true});audio.addEventListener('error',fail,{once:true});
-      if(audio.readyState>=2)ok();
-    });
-    if(broadcastCountry&&opts.broadcastStartAt){
-      const started=Date.parse(opts.broadcastStartAt);
-      if(Number.isFinite(started))audio.currentTime=Math.max(0,Math.min((totalMs-1000)/1000,(Date.now()-started)/1000));
+    try{
+      ensureStartupActive();
+      audio.preload='auto';
+      audio.src=blobUrl;
+      audio.load();
+      await new Promise((resolve,reject)=>{
+        const cleanup=()=>{
+          audio.removeEventListener('canplay',ok);
+          audio.removeEventListener('error',fail);
+          if(rejectStartupWait===cancel)rejectStartupWait=null;
+        };
+        const ok=()=>{cleanup();resolve(true);};
+        const fail=()=>{cleanup();reject(new Error('복호화된 MP3를 브라우저가 읽지 못했습니다.'));};
+        const cancel=()=>{cleanup();reject(startupError());};
+        rejectStartupWait=cancel;
+        audio.addEventListener('canplay',ok,{once:true});
+        audio.addEventListener('error',fail,{once:true});
+        if(startupCancelled)cancel();
+        else if(audio.readyState>=2)ok();
+      });
+      ensureStartupActive();
+      if(broadcastCountry&&opts.broadcastStartAt){
+        const started=Date.parse(opts.broadcastStartAt);
+        if(Number.isFinite(started))audio.currentTime=Math.max(0,Math.min((totalMs-1000)/1000,(Date.now()-started)/1000));
+      }
+      if(djStationId&&Number.isFinite(Number(opts.startOffsetSeconds)))
+        audio.currentTime=Math.max(0,Math.min(totalMs/1000-.1,Number(opts.startOffsetSeconds)));
+      await audio.play();
+      ensureStartupActive();
+      audio._tl3CancelStartup=null;
+    }catch(error){
+      // An abandoned startup cannot own media, listeners or decrypted bytes.
+      if(meterTimer!==null){clearInterval(meterTimer);meterTimer=null;}
+      try{audio.pause();audio.removeAttribute('src');audio.load();}catch(_){}
+      try{
+        audio.removeEventListener('playing',onPlaying);
+        audio.removeEventListener('pause',onPause);
+        audio.removeEventListener('waiting',onBuffering);
+        audio.removeEventListener('stalled',onBuffering);
+        audio.removeEventListener('seeking',onSeeking);
+        audio.removeEventListener('seeked',onSeeked);
+        audio.removeEventListener('timeupdate',onTimeUpdate);
+        audio.removeEventListener('ended',onEnded);
+      }catch(_){}
+      if(lpController&&lpController.stop)lpController.stop().catch(()=>{});
+      URL.revokeObjectURL(blobUrl);
+      audio._tl3CancelStartup=null;
+      if(error&&error.code==='V5_START_CANCELLED')throw error;
+      throw new Error('음원 재생을 시작하지 못했습니다: '+(error&&error.message||error));
     }
-    if(djStationId&&Number.isFinite(Number(opts.startOffsetSeconds)))audio.currentTime=Math.max(0,Math.min(totalMs/1000-.1,Number(opts.startOffsetSeconds)));
-    try{await audio.play();}catch(e){throw new Error('음원 재생을 시작하지 못했습니다: '+(e&&e.message||e));}
     // Optional, explicitly creator-authorized score drafting on the TRACK view.
     // Neither keys nor MP3 are uploaded: only the owner-side analyzer receives
     // the already-licensed clear audio in browser memory after playback starts.
