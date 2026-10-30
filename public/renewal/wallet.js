@@ -27,7 +27,7 @@
    const item=document.createElement('article');item.className='wallet-history-row';const copy=document.createElement('div'),title=document.createElement('strong'),meta=document.createElement('span'),value=document.createElement('span');
    title.textContent=String(row.description||'플랫폼 이용 기록');meta.textContent=date(row.created_at);copy.append(title,meta);
    const unit=String(row.asset_code||''),scale=unit==='TL'?10000:unit==='TLC'?1e9:null;
-   if(scale&&numeric(row.amount_atoms)){const n=Number(row.amount_atoms)/scale;value.textContent=(n>0?'+':'')+format(n,unit==='TLC'?9:4)+' '+unit;value.className='wallet-entry-value '+(n>0?'positive':'negative');}
+   if(scale&&numeric(row.amount_atoms)&&Number.isSafeInteger(Number(row.amount_atoms))){const n=Number(row.amount_atoms)/scale;value.textContent=(n>0?'+':'')+format(n,unit==='TLC'?9:4)+' '+unit;value.className='wallet-entry-value '+(n>0?'positive':'negative');}
    else{value.textContent='금액 확인 필요';value.className='wallet-entry-value';}
    item.append(copy,value);fragment.append(item);
   }list.replaceChildren(fragment);$('walletHistoryCount').textContent=entries.length+'건';
