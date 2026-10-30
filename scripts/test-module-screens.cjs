@@ -96,23 +96,31 @@ async function main(){
     return route.fulfill({status:404,contentType:'application/json',body:'{"error":"fixture missing"}'});
   });
   try{
-    await guest.goto(origin+'/track.html?id=10',{waitUntil:'domcontentloaded',timeout:30000});
+    await guest.goto(origin+'/track.html?id=10&standalone=1',{waitUntil:'domcontentloaded',timeout:30000});
     await guest.locator('#mainWrap .track-title').getByText('화면 검수용 음악').waitFor();
     assert.equal(await guest.locator('#myTLDisplay').textContent(),'💰 내 지갑 TL: 로그인 후 확인');
     assert.match(await guest.locator('#lyricsBox').textContent(),/첫 번째 가사/);
     assert.equal(await guest.locator('#editTrackInfoBtn').count(),0,'a guest must not receive owner editing tools');
     assert.equal(guestWalletRequests,0,'public track must not request private TL wallet without an auth token');
+    // The actual sidebar-hosted route is also public; its earlier bridge
+    // redirected every logged-out TRACK visitor to /login.html.
+    await guest.goto(origin+'/?view='+encodeURIComponent('/track.html?id=10'),{waitUntil:'domcontentloaded',timeout:30000});
+    await guest.frameLocator('#tl-content').locator('.track-title').getByText('화면 검수용 음악').waitFor();
+    assert.equal(await guest.frameLocator('#tl-content').locator('#myTLDisplay').textContent(),'💰 내 지갑 TL: 로그인 후 확인');
+    assert.equal(guestWalletRequests,0,'sidebar bridge must not force private wallet lookups');
+    await guest.goto(origin+'/track.html?id=10&standalone=1',{waitUntil:'domcontentloaded',timeout:30000});
+    await guest.locator('#mainWrap .track-title').waitFor();
     assert.equal(guestWrites,0,'public read-only track render must not mutate any account');
     await guest.locator('#playBtn').click();
     await guest.waitForURL(/\/login\.html/,{timeout:15000});
     assert.equal(guestWrites,0,'logged-out play must redirect before licensing or metering');
-    await guest.goto(origin+'/track.html?id=10',{waitUntil:'domcontentloaded',timeout:30000});
+    await guest.goto(origin+'/track.html?id=10&standalone=1',{waitUntil:'domcontentloaded',timeout:30000});
     await guest.locator('#mainWrap .track-title').waitFor();
     await guest.locator('#chargeBtn').click();
     await guest.waitForURL(/\/login\.html/,{timeout:15000});
     assert.equal(guestWalletRequests,0,'charge must not expose private balance during guest view');
     assert.equal(guestWrites,0,'logged-out charge must never post a wallet transaction');
-    await guest.goto(origin+'/track.html?id=999',{waitUntil:'domcontentloaded',timeout:30000});
+    await guest.goto(origin+'/track.html?id=999&standalone=1',{waitUntil:'domcontentloaded',timeout:30000});
     await guest.locator('#mainWrap .loading').getByText('불러오기 실패:',{exact:false}).waitFor();
     assert.equal(await guest.locator('#mainWrap img').count(),0,'untrusted server error may not insert HTML into track page');
     assert.equal(await guest.evaluate(()=>window.__fakeXss===undefined),true);
