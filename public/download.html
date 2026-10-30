@@ -132,28 +132,28 @@ body::before{background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(139,92,
 
   <!-- 다운로드 버튼 -->
   <div class="dl-group">
-    <a href="#" id="dlWin"
+    <a href="https://github.com/Taolee-crypto/timelink-app/releases/download/v1.1.3/TimeLink-Player-Setup-1.1.3.exe" id="dlWin"
        class="dl-btn win" onclick="trackDownload('win')">
       <span class="dl-os-icon">🪟</span>
       <div class="dl-info">
         <div class="dl-os">Windows</div>
-        <div class="dl-size" id="dlWinSize">불러오는 중...</div>
+        <div class="dl-size" id="dlWinSize">v1.1.3 · Windows 설치 파일</div>
       </div>
     </a>
-    <a href="#" id="dlMac"
+    <a href="https://github.com/Taolee-crypto/timelink-app/releases/download/v1.1.3/TimeLink-Player-1.1.3-arm64.dmg" id="dlMac"
        class="dl-btn mac" onclick="trackDownload('mac')">
       <span class="dl-os-icon">🍎</span>
       <div class="dl-info">
         <div class="dl-os">macOS</div>
-        <div class="dl-size" id="dlMacSize">불러오는 중...</div>
+        <div class="dl-size" id="dlMacSize">v1.1.3 · macOS Apple Silicon 설치 파일</div>
       </div>
     </a>
-    <a href="#" id="dlLinux"
+    <a href="https://github.com/Taolee-crypto/timelink-app/releases/download/v1.1.3/TimeLink-Player-1.1.3.AppImage" id="dlLinux"
        class="dl-btn linux" onclick="trackDownload('linux')">
       <span class="dl-os-icon">🐧</span>
       <div class="dl-info">
         <div class="dl-os">Linux</div>
-        <div class="dl-size" id="dlLinuxSize">불러오는 중...</div>
+        <div class="dl-size" id="dlLinuxSize">v1.1.3 · Linux 설치 파일</div>
       </div>
     </a>
     <a href="https://github.com/Taolee-crypto/timelink-app-android/releases/download/v1.1.0/TimeLink-v1.1.0.apk"
@@ -252,65 +252,69 @@ body::before{background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(139,92,
 
 <script>
 var REPO = 'Taolee-crypto/timelink-app';
-var RELEASE_TAG = 'v1.1.4';
-var API = 'https://api.github.com/repos/'+REPO+'/releases/tags/'+RELEASE_TAG;
+var API = 'https://api.github.com/repos/'+REPO+'/releases/latest';
 var OFFICIAL_RELEASES = 'https://github.com/'+REPO+'/releases';
-var BUILD_STATUS = 'https://github.com/'+REPO+'/actions/workflows/build.yml';
-
-function unavailableDownload(link,size,platform){
+var RELEASE_BASE = OFFICIAL_RELEASES+'/download/';
+var FALLBACK_TAG = 'v1.1.3';
+var NEW_TAG = 'v1.1.4';
+// These three files were already published in the established v1.1.3 Release.
+// Never turn a working OS button off merely because GitHub's API is unavailable.
+var PLATFORMS = [
+  {id:'dlWin',size:'dlWinSize',label:'Windows',fallback:'TimeLink-Player-Setup-1.1.3.exe',re:/^TimeLink-Player-Setup-1\.1\.4\.exe$/i},
+  {id:'dlMac',size:'dlMacSize',label:'macOS (Apple Silicon)',fallback:'TimeLink-Player-1.1.3-arm64.dmg',re:/^TimeLink-Player-1\.1\.4-.*\.dmg$/i},
+  {id:'dlLinux',size:'dlLinuxSize',label:'Linux',fallback:'TimeLink-Player-1.1.3.AppImage',re:/^TimeLink-Player-1\.1\.4\.AppImage$/i}
+];
+function chooseDownload(item,tag,name,url){
+  var link=document.getElementById(item.id),size=document.getElementById(item.size);
   if(link){
-    link.href='';
-    link.ariaDisabled='true';
-    link.title='v1.1.4 '+platform+' 설치본 정식 게시 전';
-    link.style.opacity='.55';
-    link.style.cursor='not-allowed';
-    link.onclick=function(event){event.preventDefault();};
+    link.href=url;
+    link.ariaDisabled='false';
+    link.title=tag+' · '+name;
+    link.style.opacity='';
+    link.style.cursor='pointer';
+    link.onclick=function(){trackDownload(item.id==='dlWin'?'win':item.id==='dlMac'?'mac':'linux');};
   }
-  if(size)size.textContent='v1.1.4 정식 설치본 준비 중 · 아직 다운로드 불가';
+  if(size)size.textContent=name+' · '+tag+' · '+item.label;
 }
-function publishedDownload(link,size,asset,platform){
-  if(!link||!asset||!/^https:\/\/github\.com\/Taolee-crypto\/timelink-app\/releases\/download\/v1\.1\.4\//.test(String(asset.browser_download_url||'')))return false;
-  link.href=asset.browser_download_url;
-  link.ariaDisabled='false';
-  link.title='';
-  link.style.opacity='';
-  link.style.cursor='';
-  link.onclick=function(){trackDownload(platform);};
-  if(size)size.textContent=asset.name+' · '+platform;
-  return true;
+function validReleaseAsset(asset,tag,item){
+  if(!asset||typeof asset.name!=='string'||!item.re.test(asset.name)||asset.state!=='uploaded')return false;
+  var base=RELEASE_BASE+tag+'/';
+  return typeof asset.browser_download_url==='string' &&
+    asset.browser_download_url===base+encodeURIComponent(asset.name);
 }
 async function loadLatest(){
-  var assets=[];
+  var release=null;
+  // Immediate working fallback, even if the API fails, is rate-limited or times out.
+  PLATFORMS.forEach(function(item){
+    chooseDownload(item,FALLBACK_TAG,item.fallback,RELEASE_BASE+FALLBACK_TAG+'/'+item.fallback);
+  });
   try{
     var response=await fetch(API,{headers:{'Accept':'application/vnd.github+json'},cache:'no-store'});
     if(response.ok){
-      var release=await response.json();
-      if(release.tag_name===RELEASE_TAG&&!release.draft&&!release.prerelease)
-        assets=Array.isArray(release.assets)?release.assets.filter(function(x){return x.state==='uploaded'&&x.browser_download_url;}):[];
+      var found=await response.json();
+      if(found && (found.tag_name===NEW_TAG||found.tag_name===FALLBACK_TAG) && !found.draft && !found.prerelease)
+        release=found;
     }
   }catch(e){}
-  var targets=[
-    ['dlWin','dlWinSize',/^TimeLink-Player-Setup-1\.1\.4\.exe$/i,'Windows'],
-    ['dlMac','dlMacSize',/^TimeLink-Player-1\.1\.4-.*\.dmg$/i,'mac'],
-    ['dlLinux','dlLinuxSize',/^TimeLink-Player-1\.1\.4\.AppImage$/i,'linux']
-  ];
-  var published=0,winName='',macName='';
-  targets.forEach(function(item){
-    var link=document.getElementById(item[0]),size=document.getElementById(item[1]);
-    var asset=assets.find(function(x){return item[2].test(String(x.name||''));});
-    unavailableDownload(link,size,item[3]);
-    if(asset&&publishedDownload(link,size,asset,item[3])){
-      published++;
-      if(item[0]==='dlWin')winName=asset.name;
-      if(item[0]==='dlMac')macName=asset.name;
+  var newest=0,winName='',macName='';
+  PLATFORMS.forEach(function(item){
+    var name=item.fallback,tag=FALLBACK_TAG;
+    if(release && release.tag_name===NEW_TAG && Array.isArray(release.assets)){
+      var asset=release.assets.find(function(x){return validReleaseAsset(x,NEW_TAG,item);});
+      if(asset){
+        name=asset.name;tag=NEW_TAG;newest++;
+        chooseDownload(item,tag,name,asset.browser_download_url);
+      }
     }
+    if(item.id==='dlWin')winName=name;
+    if(item.id==='dlMac')macName=name;
   });
   var version=document.getElementById('verNum'),date=document.getElementById('verDate');
-  if(version)version.textContent='v1.1.4';
-  if(date)date.textContent=published===3?'전체 운영체제 배포 완료':published?'일부 운영체제 배포 완료':'정식 설치본 검증·게시 전';
+  if(version)version.textContent=newest===3?'v1.1.4':newest?'v1.1.3 / v1.1.4':'v1.1.3';
+  if(date)date.textContent=newest===3?'세 운영체제 v1.1.4 게시 완료':newest?'v1.1.4 일부 게시 · 나머지 v1.1.3 제공':'기존 설치본 제공 · v1.1.4 배포 확인 중';
   var gw=document.getElementById('guideWinFile'),gm=document.getElementById('guideMacFile');
-  if(gw)gw.textContent=winName||'v1.1.4 Windows 설치본 미게시';
-  if(gm)gm.textContent=macName||'v1.1.4 macOS 설치본 미게시';
+  if(gw)gw.textContent=winName;
+  if(gm)gm.textContent=macName;
 }
 
 var ua = navigator.userAgent, target = ua.includes('Win') ? 'win' : ua.includes('Mac') ? 'mac' : 'linux';
