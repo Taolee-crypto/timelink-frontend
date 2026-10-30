@@ -555,7 +555,7 @@ window.SHARE_ID = SHARE_ID;
 const SOCIAL_SHARE_ID = RAW_SHARE_ID && /^tl3_\d+$/.test(RAW_SHARE_ID) ? RAW_SHARE_ID : SHARE_ID;
 const _VALID_SHARE_ID = !!(SOCIAL_SHARE_ID && /^(?:sh_[A-Za-z0-9_-]+|tl3_\d+|\d+)$/.test(SOCIAL_SHARE_ID));
 let _share = null, _myLiked = false, _myFollowing = false;
-let _myFileTL = 0;  // 공통 사용자 지갑 TL
+let _myFileTL = null;  // 미인증/미조회는 0TL과 구분한다.
 let _trackTL = 0;   // 현재 곡에 충전된 사용자별 TL
 let _assetTL = 0, _assetInitialTL = 0;
 let _chargeAmount = 10000;
@@ -565,7 +565,7 @@ function getTok(){ return localStorage.getItem('tl_token')||''; }
 // ⭐ 현재 로그인 사용자 ID
 var _currentUserId = (function(){
   try{
-    var u = JSON.parse(localStorage.getItem('tl_user')||'null');
+    var u = getTok()?JSON.parse(localStorage.getItem('tl_user')||'null'):null;
     return u ? u.id : null;
   }catch(e){ return null; }
 })();
@@ -832,9 +832,11 @@ async function loadTrack(){
   if(!SHARE_ID){ document.getElementById('mainWrap').innerHTML='<div class="loading">잘못된 접근</div>'; return; }
   
   try {
-    const authHeaders={'Authorization':'Bearer '+getTok()};
+    const token=getTok();
+    const authHeaders=token?{'Authorization':'Bearer '+token}:{};
     const sr = await fetch(API+'/api/shares/'+SHARE_ID);
-    const s = await sr.json();
+    const s = await sr.json().catch(()=>({}));
+    if(!sr.ok)throw new Error(s.error||'트랙 정보를 찾을 수 없습니다.');
     let stats = { my_like: false, likes: 0, comments: 0 };
     try {
       if (_VALID_SHARE_ID) {
@@ -842,18 +844,24 @@ async function loadTrack(){
         if (statsR.ok) stats = await statsR.json();
       }
     } catch(e){ /* silent */ }
-    const walletR = await fetch(API+'/api/eco/wallet',{headers:authHeaders});
-    const walletData = await walletR.json();
-    if(!sr.ok) throw new Error(s.error||'트랙 정보를 찾을 수 없습니다.');
-    if(!walletR.ok) throw new Error(walletData.error||'공통 지갑 조회 실패');
+    // 공개된 트랙의 정보·가사·권리 정보는 로그인 전에도 볼 수 있다.
+    // 회원 전용 지갑은 토큰 없이 조회하지 않으며 401을 0 TL로 위장하지 않는다.
+    let walletData=null;
+    if(token){
+      const walletR=await fetch(API+'/api/eco/wallet',{headers:authHeaders,cache:'no-store'});
+      const walletResponse=await walletR.json().catch(()=>({}));
+      if(!walletR.ok)throw new Error(walletResponse.error||'공통 지갑 조회 실패');
+      walletData=walletResponse;
+    }
     if(contentKind(s)!=='tl3'){
       document.getElementById('mainWrap').innerHTML='<div class="loading">이 페이지는 검증된 TL3 음악 자산 전용입니다. SharePlace에서 공개된 TL3 트랙을 선택해 주세요.</div>';
       return;
     }
     
     // 공통 사용자 지갑과 음원 자체 TL 풀을 각각 서버에서 조회
-    _myFileTL=Number(walletData.wallet?.tl_total);
-    if(!walletData.wallet || walletData.wallet.tl_total == null || !Number.isFinite(_myFileTL)) throw new Error('V5 경제원장 잔액 필드가 없습니다. 0TL로 표시하지 않습니다.');
+    _myFileTL=walletData?Number(walletData.wallet?.tl_total):null;
+    if(token&&(!walletData?.wallet||walletData.wallet.tl_total==null||!Number.isFinite(_myFileTL)||_myFileTL<0))
+      throw new Error('V5 경제원장 잔액 필드가 없습니다. 0TL로 표시하지 않습니다.');
     // 1곡 필요 TL은 자산의 잔여량이 아니라 실제 재생시간(초)을 기준으로 산정한다.
     // duration 메타가 없을 때만 기존 file_tl 값을 보조값으로 사용한다.
     _assetInitialTL=Number(s.duration_sec||s.duration||s.file_tl||0);
@@ -865,8 +873,8 @@ async function loadTrack(){
     
     document.title = (s.title||'곡') + ' - TimeLink';
     renderPage(s, stats, _myFileTL, requiredTL);
-    renderV5Wallet(walletData.wallet);
-    if(new URLSearchParams(location.search).get('charge')==='1') setTimeout(function(){ chargeTL(); },250);
+    if(walletData)renderV5Wallet(walletData.wallet);
+    if(token&&new URLSearchParams(location.search).get('charge')==='1')setTimeout(function(){chargeTL();},250);
     loadComments();
     renderCopyright(s);
     if(s.user_id) checkFollowStatus(s.user_id);
@@ -918,7 +926,12 @@ async function loadTrack(){
   })();
   } catch(e){ 
     console.error('Load error:', e);
-    document.getElementById('mainWrap').innerHTML='<div class="loading">불러오기 실패: ' + e.message + '</div>'; 
+    const main=document.getElementById('mainWrap');
+    main.replaceChildren();
+    const message=document.createElement('div');
+    message.className='loading';
+    message.textContent='불러오기 실패: '+String(e?.message||e);
+    main.appendChild(message); 
   }
 }
 
@@ -932,7 +945,7 @@ function isSegmentBilledTL3(s){ return contentKind(s)==='tl3'; }
 
 function renderPage(s, stats, myFileTL, requiredTL){
   const isFree = isFreeMp3(s);
-  const needCharge = !isFree && myFileTL < 1;
+  const needCharge = !isFree && (!Number.isFinite(myFileTL)||myFileTL < 1);
   const canPlay = contentKind(s)==='tl3' || (!isFree && !!(s.stream_url||s.file_url) && !needCharge);
   
   const ftype = s.category_type||'audio';
@@ -953,7 +966,7 @@ function renderPage(s, stats, myFileTL, requiredTL){
         <div class="track-artist">${escH(s.artist||'')}${s.album?' · <span style="color:var(--t3)">'+escH(s.album)+'</span>':''}</div>
         <div class="track-uploader">가수: ${escH(s.artist||'—')} · 작곡: ${escH(s.composer || s.asset_composer || '—')} · 작사: ${escH(s.lyricist || s.asset_lyricist || '—')} · 공유: ${s.created_at ? new Date(s.created_at).toLocaleDateString('ko-KR') : '—'}</div>
         <div class="track-tl required">${isFree ? '🎵 무료 MP3 · TILO (TLC) 보상' : '⚡ 재생에 필요한 TL량: '}<span id="reqTLText" style="color:#F5A623;font-weight:700">계산 중...</span><span id="durText" style="font-size:12px;color:var(--t3);font-weight:400">/ ${fmtTime(s.duration)}</span></div>
-        <div class="track-tl my" id="myTLDisplay">💰 내 지갑 TL: ${formatTLInteger(myFileTL)}</div>\n        <div class="track-tl my" id="myTLBreakdown" style="font-size:12px;opacity:.85">TL_P · TL_A · TL_B 잔액 조회 중</div>
+        <div class="track-tl my" id="myTLDisplay">💰 내 지갑 TL: ${Number.isFinite(myFileTL)?formatTLInteger(myFileTL):'로그인 후 확인'}</div>\n        <div class="track-tl my" id="myTLBreakdown" style="font-size:12px;opacity:.85">${Number.isFinite(myFileTL)?'TL_P · TL_A · TL_B 잔액 조회 중':'TL_P · TL_A · TL_B: 로그인 후 확인'}</div>
       </div>
 
       <div class="actions">
@@ -1295,6 +1308,7 @@ function updateTrackChargeQuote(){
 }
 
 function chargeTL(){
+  if(!getTok()){alert('TL 충전은 로그인 후 이용할 수 있습니다.');location.href='/login.html';return;}
   // 네트워크 조회를 기다리지 않고 기존 충전 모달부터 즉시 연다.
   const modal=document.getElementById('chargeModal');
   if(!modal){ console.error('[TRACK charge] chargeModal not found'); return; }
@@ -1555,10 +1569,10 @@ function updatePlayerTLDisplay(){
   var wholePlays=required>0?Math.floor((Math.max(0,Number(_tlCurrentTL)||0)+1e-9)/required):0;
   if(trackBalanceVal) trackBalanceVal.textContent=_tlFree?'FREE':(required>0?Math.max(0,wholePlays-(_tlPlayCountReserved?1:0))+'회':'—');
   if(trackBalanceVal && _tlSubscription) trackBalanceVal.textContent=Math.floor(_tlSubscription.remainingMs/60000)+'분 '+Math.floor(_tlSubscription.remainingMs%60000/1000)+'초';
-  if(walletVal) walletVal.textContent=formatTLInteger(_myFileTL);
+  if(walletVal) walletVal.textContent=Number.isFinite(_myFileTL)?formatTLInteger(_myFileTL):'로그인 후 확인';
   var pageWallet=document.getElementById('myTLDisplay');
-  if(pageWallet) pageWallet.textContent='💰 내 지갑 TL: '+formatTLInteger(_myFileTL);
-  if(Number.isFinite(Number(_myFileTL))){
+  if(pageWallet) pageWallet.textContent='💰 내 지갑 TL: '+(Number.isFinite(_myFileTL)?formatTLInteger(_myFileTL):'로그인 후 확인');
+  if(Number.isFinite(_myFileTL)){
     window.__tlV5WalletBalance=Number(_myFileTL);
     window.dispatchEvent(new CustomEvent('tl-balance-updated',{detail:{tl:_myFileTL}}));
   }
@@ -1567,6 +1581,7 @@ function updatePlayerTLDisplay(){
 
 let _tlV5PlayRequestSequence=0;
 async function playTrack(){
+  if(!getTok()){alert('음악 재생은 로그인 후 이용할 수 있습니다.');location.href='/login.html';return;}
   // Unlock WebAudio inside the Play gesture, before wallet/API awaits.
   if(window.TL3LPChain && typeof window.TL3LPChain.unlock === 'function'){
     try { window.TL3LPChain.unlock().catch(function(error){ console.warn('[TL3-AUDIO] AudioContext unlock pending:', error); }); }
