@@ -177,6 +177,7 @@ async function doLogin() {
   var email = document.getElementById('email').value.trim();
   var pw = document.getElementById('pw').value;
   var btn = document.getElementById('login-btn');
+  if(btn.disabled)return false;
   if(!email || !pw){ toast(tr('login.error.required'),'error'); return; }
   btn.disabled = true;
   btn.innerHTML = '<div class="spin"></div>';
@@ -198,7 +199,7 @@ async function doLogin() {
         var rd = new URLSearchParams(location.search).get('redirect');
         var target='/dashboard.html';try{var u=new URL(rd||target,location.origin);if(u.origin===location.origin&&u.pathname.startsWith('/')&&!u.pathname.startsWith('//'))target=u.pathname+u.search+u.hash;}catch(e){}location.href=target;
       }, 600);
-      return;
+      return true;
     }
 
     var msg = (d && (d.error || d.message)) || (r.status === 401 ? tr('login.error.credentials') : ('로그인 실패 (' + r.status + ')'));
@@ -210,10 +211,11 @@ async function doLogin() {
 
   btn.disabled = false;
   btn.textContent = tr('login.submit');
+  return false;
 }
 
 // ── TON Wallet 연결 ──
-function onTonConnected(addr) {
+function onTonConnected(addr,skipRemote) {
   var short = addr.slice(0,6) + '...' + addr.slice(-4);
   var btn = document.getElementById('ton-btn');
   var txt = document.getElementById('ton-btn-text');
@@ -222,7 +224,7 @@ function onTonConnected(addr) {
   toast(tr('login.ton.connected'), 'success');
   localStorage.setItem('tl_ton_address', addr);
   var token = localStorage.getItem('tl_token');
-  if (token) {
+  if (token && !skipRemote) {
     fetch(API + '/api/ton/connect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -256,7 +258,10 @@ async function doTonConnect() {
 // 로그인 성공 후 TON 주소 자동 저장
 var _origDoLogin = doLogin;
 doLogin = async function() {
-  await _origDoLogin.apply(this, arguments);
+  // A rejected login must not reconnect a previously stored TON address
+  // using a token left from an earlier user's session.
+  var succeeded=await _origDoLogin.apply(this, arguments);
+  if(!succeeded)return false;
   var token = localStorage.getItem('tl_token');
   var tonAddr = localStorage.getItem('tl_ton_address');
   if (token && tonAddr) {
@@ -266,11 +271,12 @@ doLogin = async function() {
       body: JSON.stringify({ ton_address: tonAddr })
     }).catch(function(){});
   }
+  return true;
 };
 
-// TON 연결 상태 복원
+// Merely restoring a wallet label must not issue an account mutation API.
 if (localStorage.getItem('tl_ton_address')) {
-  onTonConnected(localStorage.getItem('tl_ton_address'));
+  onTonConnected(localStorage.getItem('tl_ton_address'),true);
 }
 </script>
 </body>
