@@ -29,7 +29,16 @@ async function verifyRelease(tag,assets,ready){
 }
 (async()=>{
  await verifyRelease('v1.1.2',expected.map(x=>x.replace('1.1.3','1.1.2')),false);
- await verifyRelease('v1.1.3',expected.slice(0,2),false);
+ const partial=elements();
+ {
+  const context=vm.createContext({document:{getElementById:key=>partial[key]},fetch:async()=>({ok:true,json:async()=>({tag_name:'v1.1.3',assets:expected.slice(0,2).map(name=>({name}))})})});
+  vm.runInContext(script+'\nthis.runRelease=loadLatest;',context);
+  await context.runRelease();
+  assert.equal(partial.dlWin.href,'https://github.com/Taolee-crypto/timelink-app/releases/download/v1.1.3/'+expected[0]);
+  assert.equal(partial.dlMac.href,'https://github.com/Taolee-crypto/timelink-app/releases/download/v1.1.3/'+expected[1]);
+  assert.equal(partial.dlLinux.href,'https://github.com/Taolee-crypto/timelink-app/releases');
+  assert.match(partial.dlLinuxSize.textContent,/미게시/);
+ }
  await verifyRelease('v1.1.3',expected,true);
- console.log('PASS official TimeLink Player V5 download: old claims removed, 1.1.3 complete assets only, older releases safely blocked');
+ console.log('PASS official TimeLink Player V5 download: old claims removed, 1.1.3 independent verified platform assets, older releases safely blocked');
 })().catch(error=>{console.error(error);process.exitCode=1});
