@@ -35,7 +35,7 @@ async function main(){
    return route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
   });
   const origin='http://127.0.0.1:'+server.address().port,frame=()=>page.frameLocator(activeFrame);let activeFrame='#tl-content';
-  const open=async route=>{activeFrame=route==='/radio.html'?'#tl-radio-content':'#tl-content';await page.goto(origin+'/?view='+encodeURIComponent(route),{waitUntil:'domcontentloaded',timeout:30000});await frame().locator('.module-context').waitFor();};
+  const open=async route=>{activeFrame=route==='/radio.html'?'#tl-radio-content':'#tl-content';await page.goto(origin+'/?view='+encodeURIComponent(route),{waitUntil:'domcontentloaded',timeout:30000});await frame().locator(route==='/creator-policy.html'?'h1':'.module-context').waitFor();};
   fs.mkdirSync('test-results',{recursive:true});
   await open('/wallet.html');await frame().getByText('현재 계정의 지갑 잔액입니다.',{exact:true}).waitFor();assert.equal(await frame().locator('h1').count(),1);assert.equal(await frame().locator('#walletTl').textContent(),'333');assert.equal(await frame().locator('#walletPaid').textContent(),'123 TL');assert.equal(await frame().locator('#walletTlc').textContent(),'1.25');assert.match(await frame().locator('#walletTimeFree').textContent(),/1시간 0분 0초/);assert.equal(await frame().locator('.wallet-history-row').count(),50);assert.equal(await frame().locator('.wallet-history-row b').count(),0);assert.equal(await frame().locator('.wallet-entry-value').first().textContent(),'+2 TL');
   await frame().getByRole('button',{name:'이전 기록 더 보기'}).click();await frame().getByText('53건',{exact:true}).waitFor();assert.equal(writes.length,0,'Wallet must not mutate financial state');await frame().locator('.wallet-heading').evaluate(el=>el.scrollIntoView({block:'start'}));await page.screenshot({path:'test-results/modules-wallet-desktop.png',fullPage:true});
@@ -68,7 +68,7 @@ async function main(){
   await open('/creator.html');const drop=frame().locator('#panel1 #audioDrop');await drop.getByText('MP3 파일을 여기에 놓거나 클릭',{exact:false}).waitFor();assert.equal(await drop.getAttribute('role'),'button');const [chooser]=await Promise.all([page.waitForEvent('filechooser'),drop.press('Enter')]);await chooser.setFiles([]);assert.equal(await frame().locator('#panel1 #title').evaluate(el=>document.getElementById(el.getAttribute('aria-labelledby'))?.textContent.includes('제목')),true);
   await page.screenshot({path:'test-results/modules-creator-desktop.png',fullPage:true});await open('/radio.html');assert.equal(await frame().locator('#country option').count(),6);await frame().locator('#country').selectOption('JP');assert.equal(await frame().locator('#country').inputValue(),'JP');await page.screenshot({path:'test-results/modules-radio-desktop.png',fullPage:true});
   await page.setViewportSize({width:390,height:844});
-  for(const route of ['/wallet.html','/track.html?id=10','/creator.html','/radio.html','/shareplace.html']){
+  for(const route of ['/wallet.html','/track.html?id=10','/creator.html','/creator-policy.html','/radio.html','/shareplace.html']){
    await open(route);const content=page.frames().find(f=>f.url().includes(new URL(route,origin).pathname));await content.evaluate(()=>document.fonts.ready);if(route.includes('track')){
     await frame().locator('#lyricsBox').waitFor();
     assert.equal(await frame().locator('#lyricsBox').textContent(),newLyrics,'mobile lyrics must show the committed text');
@@ -77,7 +77,13 @@ async function main(){
     const fit=await frame().locator('#trackInfoModal .modal').evaluate(el=>{const r=el.getBoundingClientRect();return r.left>=-1&&r.right<=innerWidth+1&&r.width<=innerWidth+1;});
     assert.equal(fit,true,'mobile edit form must remain within viewport');
     await frame().locator('#trackInfoModal .tl-edit-actions').getByRole('button',{name:'취소'}).click();
-   }if(route.includes('wallet'))await frame().getByText('현재 계정의 지갑 잔액입니다.',{exact:true}).waitFor();
+   }if(route==='/creator-policy.html'){
+    await frame().getByRole('heading',{name:'크리에이터 정책'}).waitFor();
+    const back=frame().getByRole('link',{name:'← 크리에이터 스튜디오'});
+    assert.equal(await back.getAttribute('href'),'/creator.html');
+    await frame().getByText('창작자에게 현금성 정산으로 지급된 TL_P는 구매자의 환불기간에 따른 전환 대상이 아닙니다.',{exact:false}).waitFor();
+   }
+   if(route.includes('wallet'))await frame().getByText('현재 계정의 지갑 잔액입니다.',{exact:true}).waitFor();
    const overflow=await content.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+1);assert.equal(overflow,false,route+' horizontal overflow');await page.screenshot({path:'test-results/modules-'+route.split('/').pop().split('.')[0]+'-mobile.png',fullPage:true});
   }
   // TRACK detail is a public read-only page. Guests must not call the
@@ -126,7 +132,7 @@ async function main(){
     assert.equal(await guest.evaluate(()=>window.__fakeXss===undefined),true);
     assert.equal(guestWalletRequests,0,'missing share must not hit wallet service');
   }finally{await guest.close();}
-  console.log('PASS module screens: ledger-only wallet, track lyrics PATCH canonical readback, rights lock, rejected save, safe markup, mobile track editing, focus/escape, creator form, five mobile layouts; no payment or audio initiated; guest track read-only and login gates verified.');
+  console.log('PASS module screens: ledger-only wallet, track lyrics PATCH canonical readback, rights lock, rejected save, safe markup, mobile track editing, focus/escape, creator form, six mobile layouts including creator policy; no payment or audio initiated; guest track read-only and login gates verified.');
  }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
 }
 main().catch(e=>{console.error(e);process.exitCode=1});
