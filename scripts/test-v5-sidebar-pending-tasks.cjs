@@ -1,0 +1,12 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const html=fs.readFileSync('public/v5-work-ledger.html','utf8');
+assert.match(html,/const pending=activeTasks\(tasks\)\.filter\(t=>!isDevelopmentComplete\(t\)\)/);
+assert.match(html,/pending\.map\(t=>t\.title\)/);
+assert.match(html,/escapeHtml\(remaining\|\|/);
+assert.match(html,/미완료 '\+pending\.length\+'건/);
+const tasks=[{id:'a',title:'실제 미완료',status:'미검증'},{id:'b',title:'폐기한 악보',status:'보류',retired:true},{id:'c',title:'완료 작업',status:'구현'}];
+const pending=tasks.filter(x=>!x.retired&&!['구현','테스트','운영확인'].includes(x.status));
+assert.deepEqual(pending.map(x=>x.title),['실제 미완료']);
+console.log('PASS pending task names are visible without including retired tasks');
