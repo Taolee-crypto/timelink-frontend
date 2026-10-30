@@ -402,7 +402,11 @@ function render(){
 
  if(detail){
   const groups=sidebarPageGroups.map(([group,items])=>[group,items.map(([label,route])=>({label,route,category:categories.find(c=>(pageRoutes[c]||[]).some(([,path])=>path===route))})).filter(x=>x.category&&(!cat||x.category===cat)&&(scope==='all'||scopeFor(x.category)===scope)&&!retiredRoutes.has(x.route)&&!state.tasks.some(t=>t.id===routeKey(x.route)&&isRetired(t)))]).filter(([,items])=>items.length);
+
+  detail.innerHTML='<h2>메뉴별 연결 페이지 현황</h2><p>페이지 구현률과 기능 개발 완료율은 별도 집계입니다. 운영검증은 실제 E2E 확인 건수입니다.</p>'+groups.map(([group,items])=>{const tasks=items.map(x=>state.tasks.find(t=>t.id===routeKey(x.route)));const done=tasks.filter(t=>t&&t.status==='운영확인').length;const progress=Math.round(tasks.filter(isDevelopmentComplete).length/items.length*100);return '<div class="page-summary"><strong>'+escapeHtml(group)+'</strong> · 페이지 검증 '+done+'/'+items.length+' · 페이지 구현률 '+progress+'% (운영검증 별도)'+items.map(x=>pageDetails(x.category,x.route,x.label)).join('')+'</div>';}).join('');
+
   detail.innerHTML='<h2>메뉴별 연결 페이지 현황</h2><p>페이지 구현률·기능 완료율·운영검증은 별도 집계입니다.</p>'+groups.map(([group,items])=>{const tasks=items.map(x=>state.tasks.find(t=>t.id===routeKey(x.route)));const done=tasks.filter(t=>t&&t.status==='운영확인').length;const progress=Math.round(tasks.filter(isDevelopmentComplete).length/items.length*100);return '<div class="page-summary"><strong>'+escapeHtml(group)+'</strong> · 페이지 검증 '+done+'/'+items.length+' · 페이지 구현률 '+progress+'% (운영검증 별도)'+items.map(x=>pageDetails(x.category,x.route,x.label)).join('')+'</div>';}).join('');
+
  }
 
  const list=state.tasks.filter(t=>(($('showRetired').checked ? isRetired(t) : !isRetired(t)))&&(scope==='all'||scopeFor(t.category)===scope)&&(!cat||t.category===cat)&&(!st||t.status===st)&&(!q||[t.title,t.note,t.category,...(t.history||[]).map(h=>h.detail)].join(' ').toLowerCase().includes(q)));
