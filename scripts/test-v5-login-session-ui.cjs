@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const loginHtml=fs.readFileSync('public/login.html','utf8');
-const loginCode=loginHtml.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+const loginCode=loginHtml.match(/<script data-cfasync="false">([\s\S]*?)<\/script>/)?.[1];
 assert.ok(loginCode);
 new vm.Script(loginCode,{filename:'public/login.html'});
 assert.match(loginCode,/if\(!succeeded\)return false/);
@@ -20,7 +20,7 @@ const ctx=vm.createContext({
  return {ok:r.ok,status:r.status||200,async json(){return r.data||{}}};},
  setTimeout(fn){scheduled.push(fn)},console:{warn(){}}
 });
-vm.runInContext(loginCode,ctx);
+(async()=>{vm.runInContext(loginCode,ctx);
 assert.equal(calls.length,0,'displaying stored TON wallet never sends mutation');
 responses.push({ok:false,status:401,data:{error:'invalid'}});let r=await ctx.doLogin();
 assert.equal(r,false);
@@ -34,3 +34,4 @@ assert.equal(calls.length,3,'successful login may associate stored TON address o
 assert.match(calls[2].url,/\/api\/ton\/connect$/);
 assert.equal(calls[2].opts.headers.Authorization,'Bearer new-member-token');
 console.log('PASS email login: invalid credentials do not bind old wallet, stored wallet read only, successful session binds new token once');
+})().catch(e=>{console.error(e);process.exitCode=1});
