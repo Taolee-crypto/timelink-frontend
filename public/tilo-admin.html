@@ -4,6 +4,7 @@
 </style><link rel="stylesheet" href="/renewal/renewal.css?v=20261024r2"></head><body><main><nav><a href="/admin.html">← 관리자 콘솔</a><a href="/tl-broadcast.html">일반 중앙방송국 화면</a><a href="/v5-work-ledger.html">V5 개발대장</a></nav>
 <h1>📡 TILO 중앙방송 관리실</h1><p>관리자 전용 운영 화면입니다. 중앙방송의 청취 페이지와 분리하여 국가별 운영 현황·편성·권한·정산·장애를 관리합니다.</p>
 <section class="panel"><h2>관리자 인증</h2><p id="auth-status" role="status">관리자 권한을 확인하는 중…</p><a class="link" href="/login.html?redirect=%2Ftilo-admin.html">관리자 로그인</a><button id="refresh">방송국 상태 새로고침</button><p><small>관리자 권한은 서버에서 확인합니다. 이 페이지는 권한 검사 없이 방송 제어 요청을 실행하지 않습니다.</small></p></section>
+<section class="panel"><h2>중앙방송 할인계수</h2><p>초기 0.3(70% 할인). 변경은 앞으로의 정산에 적용하기 위한 설정이며 현재 정산 엔진 연동은 검증 전입니다.</p><label for="discount-bps">할인계수 (0~1)</label> <input id="discount-bps" type="number" min="0" max="1" step="0.01" value="0.3"> <label for="discount-reason">변경 사유</label> <input id="discount-reason" maxlength="500" placeholder="변경 사유를 8자 이상 입력"><button id="discount-save" disabled>할인계수 저장</button><p id="discount-status" role="status">관리자 인증 후 조회합니다.</p></section>
 <section class="panel"><h2>국가별 방송국 현황</h2><div id="stations" class="grid" aria-live="polite"></div></section>
 <section class="panel"><h2>운영 관리 항목</h2><div class="grid">
 <div class="country"><strong>🎼 편성곡·방송 권리</strong><p>국가별 승인된 V5 TL3 음원과 제외 사유를 점검합니다.</p><span class="tag">권한 있는 조회 지원</span></div>
@@ -20,6 +21,33 @@ const API='https://api.timelink.digital';
 const countries={KR:'대한민국',JP:'일본',US:'미국',CN:'중국',TH:'태국',VN:'베트남'};
 const auth=document.getElementById('auth-status'),stations=document.getElementById('stations'),refresh=document.getElementById('refresh');
 const token=()=>localStorage.getItem('tl_adm_token')||localStorage.getItem('tl_token')||'';
+let discountRevision=0;
+const discountInput=document.getElementById('discount-bps'),discountReason=document.getElementById('discount-reason'),discountSave=document.getElementById('discount-save'),discountStatus=document.getElementById('discount-status');
+async function loadDiscount(){
+  discountSave.disabled=true;
+  if(!token())return;
+  try{
+    const response=await fetch(API+'/api/admin/central-broadcast/discount',{headers:{Authorization:'Bearer '+token()},cache:'no-store'});
+    const data=await response.json();
+    if(!response.ok||!data.ok)throw new Error(data.error||'할인계수 조회 실패');
+    discountRevision=data.revision;
+    discountInput.value=String(data.discount_coefficient_bps/10000);
+    discountStatus.textContent='현재 할인계수 '+discountInput.value+' · 수정번호 '+discountRevision+' · 정산 연동 검증 전';
+    discountSave.disabled=false;
+  }catch(e){discountStatus.textContent=String(e.message||e);}
+}
+discountSave.addEventListener('click',async()=>{
+  const coefficient=Number(discountInput.value),reason=discountReason.value.trim();
+  if(!Number.isFinite(coefficient)||coefficient<0||coefficient>1||reason.length<8){discountStatus.textContent='0~1 범위의 할인계수와 8자 이상의 변경 사유가 필요합니다.';return;}
+  discountSave.disabled=true;
+  try{
+    const response=await fetch(API+'/api/admin/central-broadcast/discount',{method:'PUT',headers:{Authorization:'Bearer '+token(),'Content-Type':'application/json'},body:JSON.stringify({coefficient_bps:Math.round(coefficient*10000),expected_revision:discountRevision,reason})});
+    const data=await response.json();
+    if(!response.ok||!data.ok)throw new Error(data.error||'저장 실패');
+    discountRevision=data.revision;discountStatus.textContent='설정 저장 완료 · 정산 엔진 적용은 검증 전';discountReason.value='';
+  }catch(e){discountStatus.textContent=String(e.message||e);}
+  finally{discountSave.disabled=false;}
+});
 const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function load(){
 refresh.disabled=true;stations.textContent='국가별 상태 조회 중…';
@@ -39,6 +67,6 @@ auth.className=denied?'error':entries.some(e=>e.data)?'ok':'muted';
 stations.innerHTML=entries.map(e=>'<article class="country"><strong>'+escapeHtml(e.name)+' ('+e.country+')</strong><p>'+(e.error?'<span class="error">'+escapeHtml(e.error)+'</span>':'<span class="ok">서버 조회 성공</span>')+'</p>'+(e.data?'<p>서비스: '+(e.data.service_enabled?'활성':'비활성')+'<br>방송 가능 곡: '+(Array.isArray(e.data.granted_file_ids)?e.data.granted_file_ids.length:'정보 없음')+'</p><a class="link" href="/tl-broadcast.html">방송국 보기</a>':'')+'</article>').join('');
 refresh.disabled=false;
 }
-refresh.addEventListener('click',load);load();
+refresh.addEventListener('click',()=>{load();loadDiscount();});load();loadDiscount();
 })();
 </script></body></html>
