@@ -1,0 +1,32 @@
+name: V5 member login session regression
+on:
+  pull_request:
+    paths:
+      - 'public/login.html'
+      - 'public/signup.html'
+      - 'scripts/test-v5-login-session-ui.cjs'
+      - 'scripts/test-v5-signup-consent-ui.cjs'
+      - '.github/workflows/v5-member-login.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'public/login.html'
+      - 'public/signup.html'
+      - 'scripts/test-v5-login-session-ui.cjs'
+      - '.github/workflows/v5-member-login.yml'
+permissions:
+  contents: read
+jobs:
+  member-login:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check scripts/test-v5-login-session-ui.cjs
+      - name: Prevent failed login attaching another user's TON wallet
+        run: node scripts/test-v5-login-session-ui.cjs
+      - name: Verify initial registration and email confirmation
+        run: node scripts/test-v5-signup-consent-ui.cjs
