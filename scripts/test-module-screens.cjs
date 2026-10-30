@@ -80,7 +80,45 @@ async function main(){
    }if(route.includes('wallet'))await frame().getByText('현재 계정의 지갑 잔액입니다.',{exact:true}).waitFor();
    const overflow=await content.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+1);assert.equal(overflow,false,route+' horizontal overflow');await page.screenshot({path:'test-results/modules-'+route.split('/').pop().split('.')[0]+'-mobile.png',fullPage:true});
   }
-  console.log('PASS module screens: ledger-only wallet, track lyrics PATCH canonical readback, rights lock, rejected save, safe markup, mobile track editing, focus/escape, creator form, five mobile layouts; no payment or audio initiated.');
+  // TRACK detail is a public read-only page. Guests must not call the
+  // private wallet endpoint, mistake an unknown balance for 0 TL or start
+  // protected TL3 playback and purchase without an authenticated account.
+  const guest=await browser.newPage({locale:'ko-KR',viewport:{width:390,height:844}});
+  let guestWalletRequests=0,guestWrites=0;
+  await guest.route('https://api.timelink.digital/**',route=>{
+    const u=new URL(route.request().url()),method=route.request().method();
+    if(u.pathname==='/api/eco/wallet'){guestWalletRequests++;return route.fulfill({status:401,contentType:'application/json',body:'{"error":"AUTH_REQUIRED"}'});}
+    if(method!=='GET')guestWrites++;
+    if(u.pathname==='/api/shares/999')return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({error:'<img src=x onerror=window.__fakeXss=1>'})});
+    if(u.pathname==='/api/shares/10')return route.fulfill({contentType:'application/json',body:JSON.stringify(track)});
+    if(u.pathname.includes('/social/stats/'))return route.fulfill({contentType:'application/json',body:JSON.stringify({likes:1,comments:0,my_like:false})});
+    if(u.pathname.includes('/social/comments/'))return route.fulfill({contentType:'application/json',body:JSON.stringify({comments:[]})});
+    return route.fulfill({status:404,contentType:'application/json',body:'{"error":"fixture missing"}'});
+  });
+  try{
+    await guest.goto(origin+'/track.html?id=10',{waitUntil:'domcontentloaded',timeout:30000});
+    await guest.locator('#mainWrap .track-title').getByText('화면 검수용 음악').waitFor();
+    assert.equal(await guest.locator('#myTLDisplay').textContent(),'💰 내 지갑 TL: 로그인 후 확인');
+    assert.match(await guest.locator('#lyricsBox').textContent(),/첫 번째 가사/);
+    assert.equal(await guest.locator('#editTrackInfoBtn').count(),0,'a guest must not receive owner editing tools');
+    assert.equal(guestWalletRequests,0,'public track must not request private TL wallet without an auth token');
+    assert.equal(guestWrites,0,'public read-only track render must not mutate any account');
+    await guest.locator('#playBtn').click();
+    await guest.waitForURL(/\/login\.html/,{timeout:15000});
+    assert.equal(guestWrites,0,'logged-out play must redirect before licensing or metering');
+    await guest.goto(origin+'/track.html?id=10',{waitUntil:'domcontentloaded',timeout:30000});
+    await guest.locator('#mainWrap .track-title').waitFor();
+    await guest.locator('#chargeBtn').click();
+    await guest.waitForURL(/\/login\.html/,{timeout:15000});
+    assert.equal(guestWalletRequests,0,'charge must not expose private balance during guest view');
+    assert.equal(guestWrites,0,'logged-out charge must never post a wallet transaction');
+    await guest.goto(origin+'/track.html?id=999',{waitUntil:'domcontentloaded',timeout:30000});
+    await guest.locator('#mainWrap .loading').getByText('불러오기 실패:',{exact:false}).waitFor();
+    assert.equal(await guest.locator('#mainWrap img').count(),0,'untrusted server error may not insert HTML into track page');
+    assert.equal(await guest.evaluate(()=>window.__fakeXss===undefined),true);
+    assert.equal(guestWalletRequests,0,'missing share must not hit wallet service');
+  }finally{await guest.close();}
+  console.log('PASS module screens: ledger-only wallet, track lyrics PATCH canonical readback, rights lock, rejected save, safe markup, mobile track editing, focus/escape, creator form, five mobile layouts; no payment or audio initiated; guest track read-only and login gates verified.');
  }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
 }
 main().catch(e=>{console.error(e);process.exitCode=1});
