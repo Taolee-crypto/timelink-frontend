@@ -462,6 +462,7 @@ async function doVerify(){
   if(!code || code.length !== 6){ toast(signupText('signup.error.code.six'),'error'); return; }
 
   var btn = document.getElementById('verifyBtn');
+  if(btn.disabled)return;
   btn.disabled = true;
   btn.innerHTML = '<div class="spin"></div>';
 
@@ -502,18 +503,22 @@ async function doVerify(){
   }
 }
 
+var _resendingCode=false;
 async function resendCode(){
-  if(!_signupData) return;
+  if(!_signupData || _resendingCode)return;
+  _resendingCode=true;
   try{
-    await fetch(API + '/api/auth/resend', {
+    var response=await fetch(API + '/api/auth/resend', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({email: _signupData.email})
     });
+    var result=await response.json().catch(function(){return {}});
+    if(!response.ok || result.ok===false)throw new Error(result.error||signupText('signup.error.resend'));
     toast(signupText('signup.toast.code.resent'),'success');
   }catch(e){
-    toast(signupText('signup.error.resend'),'error');
-  }
+    toast((e&&e.message)||signupText('signup.error.resend'),'error');
+  }finally{_resendingCode=false;}
 }
 
 // 인증 코드 자동 입력 (6자리 입력 시)
