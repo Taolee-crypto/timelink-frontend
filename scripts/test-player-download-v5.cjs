@@ -18,18 +18,27 @@ async function verifyRelease(tag,assets,ready){
  vm.runInContext(script+'\nthis.runRelease=loadLatest;',context);
  await context.runRelease();
  const url='https://github.com/Taolee-crypto/timelink-app/releases';
- if(ready){
-  assert.deepEqual([nodes.dlWin.href,nodes.dlMac.href,nodes.dlLinux.href],expected.map(n=>url+'/download/v1.1.3/'+n));
-  assert.equal(nodes.verNum.textContent,'v1.1.3');
-  assert.match(nodes.guideWinFile.textContent,/1\.1\.3/);
- }else{
-  for(const n of ['dlWin','dlMac','dlLinux'])assert.equal(nodes[n].href,url,'no link to old or nonexistent binary');
-  assert.match(nodes.verNum.textContent,/출시 확인 중/);
- }
+ assert.deepEqual([nodes.dlWin.href,nodes.dlMac.href,nodes.dlLinux.href],expected.map(n=>url+'/download/v1.1.3/'+n),'official v1.1.3 installers must remain available during older/partial release discovery');
+ assert.equal(nodes.verNum.textContent,'v1.1.3');
+ assert.match(nodes.guideWinFile.textContent,/1\.1\.3/);
+ assert.equal(nodes.verDate.textContent,ready?'공식 최신 릴리스':'공식 검증 빌드 · 최신 확인 불가');
 }
 (async()=>{
  await verifyRelease('v1.1.2',expected.map(x=>x.replace('1.1.3','1.1.2')),false);
  await verifyRelease('v1.1.3',expected.slice(0,2),false);
  await verifyRelease('v1.1.3',expected,true);
- console.log('PASS official TimeLink Player V5 download: old claims removed, 1.1.3 complete assets only, older releases safely blocked');
+ // GitHub API may be temporarily blocked, timed out, or rate-limited.
+ for(const failure of [async()=>{throw Error('API unavailable');},async()=>({ok:false,status:403})]){
+  const nodes=elements();
+  const ctx=vm.createContext({document:{getElementById:k=>nodes[k]},fetch:failure});
+  vm.runInContext(script+'\nthis.runRelease=loadLatest;',ctx);
+  await ctx.runRelease();
+  assert.equal(nodes.dlWin.href,'https://github.com/Taolee-crypto/timelink-app/releases/download/v1.1.3/'+expected[0]);
+  assert.equal(nodes.verNum.textContent,'v1.1.3');
+ }
+ assert.ok(page.includes('구형 v1.1.0에서 ‘헤더 크기 오류’'),'visible upgrade notice required');
+ assert.match(page,/href="https:\/\/github.com\/Taolee-crypto\/timelink-app\/releases\/download\/v1\.1\.3\/TimeLink-Player-Setup-1\.1\.3\.exe" id="dlWin"/,
+  'Windows download must work before async network response');
+ assert.ok(page.includes('포맷 <span>TLNK · TL3 V5'),'protected V5 format label required');
+ console.log('PASS official TimeLink Player V5 download: legacy v1.1.0 upgrade path, official v1.1.3 complete assets and safe network fallback');
 })().catch(error=>{console.error(error);process.exitCode=1});
