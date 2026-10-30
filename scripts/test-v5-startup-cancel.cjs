@@ -93,7 +93,7 @@ async function flushUntil(condition,label){
   const V5={canPlay:()=>lookup.promise};
   const trackContext={window:{TL3V5Player:V5},TL3V5Player:V5,
     _share:{id:42,file_type:'audio/tl3'},_assetInitialTL:180,_tlPlaying:false,
-    _tlPlayCountReserved:false,contentKind:()=> 'tl3',isFreeMp3:()=>false,
+    _tlPlayCountReserved:false,contentKind:()=> 'tl3',isFreeMp3:()=>false,getTok:()=> 'fixture-auth-token',
     RAW_SHARE_ID:'42',SHARE_ID:'42',updatePlayerTLDisplay(){},Audio:function(){created++;},
     alert(){assert.fail('cancelled preflight should not alert');},console:{warn(){},error(){}}
   };
