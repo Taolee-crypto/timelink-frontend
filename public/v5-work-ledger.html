@@ -106,7 +106,9 @@ function renderNavigation(){
  const group=g=>'<div class="nav-group"><h2>'+escapeHtml(g.title)+'</h2>'+
   g.items.filter(c=>!retiredCategories.has(c)).map(c=>{
    const tasks=state.tasks.filter(t=>t.category===c),m=metrics(tasks);
-   return '<button data-nav-category="'+escapeHtml(c)+'" class="'+($('category').value===c?'selected':'')+
+   const pending=activeTasks(tasks).filter(t=>!isDevelopmentComplete(t));
+   const pendingHint=pending.length?'미완료: '+pending.map(t=>t.title).join(', '):'현행 기능 개발 항목 모두 구현 이상';
+   return '<button data-nav-category="'+escapeHtml(c)+'" title="'+escapeHtml(pendingHint)+'" class="'+($('category').value===c?'selected':'')+
     '"><span>'+escapeHtml(categoryLabel(c))+'</span><small>개발 완료율 '+m.progress+'% · '+m.done+'/'+m.total+'</small></button>';
   }).join('')+'</div>';
  $('workNavButtons').innerHTML='<button data-nav-scope="all" class="'+(scope==='all'&&!$('category').value?'selected':'')+
@@ -116,7 +118,7 @@ function renderNavigation(){
  $('categoryCards').innerHTML=visible.map(c=>{
   const tasks=state.tasks.filter(t=>t.category===c),m=metrics(tasks);
   return '<button class="category-card" data-card-category="'+escapeHtml(c)+'"><strong>'+
-   escapeHtml(categoryLabel(c))+'</strong><span>작업 개발 완료율 '+m.progress+'% · 페이지 개발 완료율 '+pageMetrics(c).progress+'% ('+pageMetrics(c).done+'/'+pageMetrics(c).total+
+   escapeHtml(categoryLabel(c))+'</strong><span>작업 개발 완료율 '+m.progress+'% · 페이지 구현률 '+pageMetrics(c).progress+'% · 운영검증 '+pageMetrics(c).done+'/'+pageMetrics(c).total+
    ')</span><div class="mini"><i style="width:'+m.progress+'%"></i></div></button>';
  }).join('');
 }
@@ -397,7 +399,7 @@ function render(){
 
  if(detail){
   const groups=sidebarPageGroups.map(([group,items])=>[group,items.map(([label,route])=>({label,route,category:categories.find(c=>(pageRoutes[c]||[]).some(([,path])=>path===route))})).filter(x=>x.category&&(!cat||x.category===cat)&&(scope==='all'||scopeFor(x.category)===scope)&&!retiredRoutes.has(x.route)&&!state.tasks.some(t=>t.id===routeKey(x.route)&&isRetired(t)))]).filter(([,items])=>items.length);
-  detail.innerHTML='<h2>메뉴별 연결 페이지 완성도</h2>'+groups.map(([group,items])=>{const tasks=items.map(x=>state.tasks.find(t=>t.id===routeKey(x.route)));const done=tasks.filter(t=>t&&t.status==='운영확인').length;const progress=Math.round(tasks.filter(isDevelopmentComplete).length/items.length*100);return '<div class="page-summary"><strong>'+escapeHtml(group)+'</strong> · 페이지 검증 '+done+'/'+items.length+' · 개발 완료율 '+progress+'%'+items.map(x=>pageDetails(x.category,x.route,x.label)).join('')+'</div>';}).join('');
+  detail.innerHTML='<h2>메뉴별 연결 페이지 현황</h2><p>페이지 구현률·기능 완료율·운영검증은 별도 집계입니다.</p>'+groups.map(([group,items])=>{const tasks=items.map(x=>state.tasks.find(t=>t.id===routeKey(x.route)));const done=tasks.filter(t=>t&&t.status==='운영확인').length;const progress=Math.round(tasks.filter(isDevelopmentComplete).length/items.length*100);return '<div class="page-summary"><strong>'+escapeHtml(group)+'</strong> · 페이지 검증 '+done+'/'+items.length+' · 페이지 구현률 '+progress+'% (운영검증 별도)'+items.map(x=>pageDetails(x.category,x.route,x.label)).join('')+'</div>';}).join('');
  }
 
  const list=state.tasks.filter(t=>(($('showRetired').checked ? isRetired(t) : !isRetired(t)))&&(scope==='all'||scopeFor(t.category)===scope)&&(!cat||t.category===cat)&&(!st||t.status===st)&&(!q||[t.title,t.note,t.category,...(t.history||[]).map(h=>h.detail)].join(' ').toLowerCase().includes(q)));
