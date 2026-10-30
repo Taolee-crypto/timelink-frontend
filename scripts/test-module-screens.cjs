@@ -99,7 +99,7 @@ async function main(){
     await guest.goto(origin+'/track.html?id=10&standalone=1',{waitUntil:'domcontentloaded',timeout:30000});
     await guest.locator('#mainWrap .track-title').getByText('화면 검수용 음악').waitFor();
     assert.equal(await guest.locator('#myTLDisplay').textContent(),'💰 내 지갑 TL: 로그인 후 확인');
-    assert.match(await guest.locator('#lyricsBox').textContent(),/첫 번째 가사/);
+    assert.equal(await guest.locator('#lyricsBox').textContent(),newLyrics,'guest must see last server-saved canonical lyrics');
     assert.equal(await guest.locator('#editTrackInfoBtn').count(),0,'a guest must not receive owner editing tools');
     assert.equal(guestWalletRequests,0,'public track must not request private TL wallet without an auth token');
     // The actual sidebar-hosted route is also public; its earlier bridge
