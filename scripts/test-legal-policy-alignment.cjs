@@ -38,6 +38,10 @@ for(const [name,s] of Object.entries({terms,privacy})){
  assert.ok(keys.length>=3,name+' should expose editable disclosure placeholders');
  for(const key of keys){const parts=key.split('.');let v=config;for(const part of parts)v=v?.[part];assert.ok(v!==undefined,name+' missing config field '+key);}
 }
+assert.ok(creator.includes('href="/creator.html" class="back"'),'Creator policy must return to creator studio');
+assert.ok(creator.includes('창작자에게 현금성 정산으로 지급된 TL_P는 구매자의 환불기간에 따른 전환 대상이 아닙니다.'),'Purchased TL_P maturity must never convert creator royalty TL_P');
+assert.ok(creator.includes('법적 환급권이 종료된 뒤'),'Purchaser TL_P maturity must not imply an arbitrary 7-day expiry');
+assert.ok(read('creator.html').includes('href="/creator-policy.html"'),'Creator rights intake must link to rights/settlement policy');
 assert.ok(!footer.includes("['/advertiser.html'"),'Retired advertiser link forbidden');
 assert.ok(footer.includes("['/member-referrals.html'"),'Actual member invite route remains');
 assert.ok(!footer.includes("['/sales-manager.html'"),'Retired sales manager link forbidden');
