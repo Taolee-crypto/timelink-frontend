@@ -1,0 +1,48 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const source=fs.readFileSync('public/tilo-dj-voice.js','utf8');
+const ctx={Intl,Date,window:{}};
+vm.runInNewContext(source,ctx);
+const p=ctx.window.TILODjVoice;
+assert.ok(p);
+const locale={KR:'ko-KR',JP:'ja-JP',US:'en-US',CN:'zh-CN',TH:'th-TH',VN:'vi-VN'};
+const now=new Date('2026-10-31T01:00:00Z');
+for(const [country,lang] of Object.entries(locale)){
+  const x=p.policy(country,now,null,[]);
+  assert.equal(x.locale,lang);
+  assert.ok(x.rate>=0.8&&x.rate<=1.1);
+  assert.equal(x.voice,null);
+  assert.ok(['morning','day','evening','night'].includes(x.period));
+}
+assert.equal(p.localPeriod('KR',new Date('2026-10-31T00:30:00Z')),'morning');
+assert.equal(p.localPeriod('US',new Date('2026-10-31T00:30:00Z')),'evening');
+assert.equal(p.localPeriod('KR',new Date('2026-10-31T16:30:00Z')),'night');
+assert.equal(p.localPeriod('JP',new Date('2026-10-31T08:30:00Z')),'day');
+const fresh={source:'Open-Meteo',weather_code:61,observed_at:'2026-10-31T00:50:00Z'};
+const wet=p.policy('KR',now,fresh,[]);
+assert.equal(wet.weather_applied,true);
+assert.ok(wet.rate<p.policy('KR',now,null,[]).rate);
+assert.equal(p.policy('KR',now,{...fresh,observed_at:'2026-10-30T01:00:00Z'},[]).weather_applied,false);
+assert.equal(p.policy('KR',now,{...fresh,source:'unknown'},[]).weather_applied,false);
+assert.equal(p.policy('KR',now,{...fresh,weather_code:0},[]).weather_applied,false);
+assert.equal(p.policy('KR',now,{source:'OpenWeatherMap',weather_code:502,observed_at:fresh.observed_at},[]).weather_applied,true);
+assert.equal(p.policy('KR',now,{source:'OpenWeatherMap',weather_code:800,observed_at:fresh.observed_at},[]).weather_applied,false);
+assert.equal(p.policy('KR',now,{...fresh,observed_at:'2026-11-01T08:00:00Z'},[]).weather_applied,false);
+const voices=[{name:'Other',lang:'en-US',localService:true},{name:'Korean exact',lang:'ko-KR',localService:true},{name:'Korean generic',lang:'ko',localService:false}];
+assert.equal(p.selectVoice(voices,'ko-KR').name,'Korean exact');
+assert.equal(p.selectVoice(voices,'ja-JP'),null);
+assert.throws(()=>p.policy('XX',now,null,[]),/Unsupported/);
+assert.throws(()=>p.localPeriod('KR',new Date('invalid')),/Invalid/);
+const html=fs.readFileSync('public/radio.html','utf8');
+assert.match(html,/src="\/tilo-dj-voice\.js/);
+assert.match(html,/const tiloVoicePolicy=window\.TILODjVoice/);
+assert.match(html,/data\.country===country&&data\.locale===countrySession\[country\]\.lang/);
+assert.match(html,/tiloPreparedWeather=data\.voice_context\|\|null/);
+assert.match(html,/tiloVoicePolicy\?\.policy\(country,new Date\(\),observedWeather/);
+assert.match(html,/utterance\.lang=countrySession\[country\]\.lang/);
+assert.match(html,/if\(!completed&&tiloSpeech===utterance\)window\.speechSynthesis\.cancel\(\)/);
+for(const chunk of [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)])
+ if(chunk[1].trim())new vm.Script(chunk[1]);
+console.log('PASS six-country TILO local-time voice, observed-weather-only adaptation, region voice fallback, no overlapping DJ commentary');
