@@ -1336,15 +1336,13 @@ function stopPoc(){
 function reportIncar(){
   if(!_user||!_user.id||_pocReportSec<=0) return;
   var _tk=localStorage.getItem('tl_token')||'';
-  // 신 POC 알고리즘
+  // 서버 검증 POC 재계산 요청 (실제 차량 2.5배 인증은 별도 구현 필요)
   fetch(API+'/api/eco/activity',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+_tk},
-    body:JSON.stringify({
-      seconds:_pocReportSec, tl_p_spent:_pocReportTL,
-      mode:'listen', listen_minutes:_pocReportSec/60, share_id:_curShareId||null
-    })
-  }).then(function(r){return r.json();}).then(function(d){
+    body:'{}' // 서버가 검증한 활동만 POC 계산. 클라이언트 청취시간은 증빙으로 제출하지 않음.
+  }).then(function(r){if(!r.ok)throw Error('POC_RECALC_FAILED');return r.json();}).then(function(d){
+    if(d.ok===false)return;
     if(d.poc_index){ _user.poc_index=d.poc_index; localStorage.setItem('tl_user',JSON.stringify(_user));
       if(g('sbPocIdx')) g('sbPocIdx').textContent=d.poc_index.toFixed(2); }
   }).catch(function(){});
