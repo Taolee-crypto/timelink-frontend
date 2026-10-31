@@ -5,7 +5,7 @@ const required={
  'TLV5-WORK-20261028-STORE-PRICE':'구현',
  'TLV5-WORK-20261028-STORE-CHECKOUT':'설계',
  'TLV5-WORK-20261028-MEMBER-REFERRAL':'구현',
- 'TLV5-WORK-20261028-REFERRAL-REWARD':'설계'
+ 'TLV5-WORK-20261028-REFERRAL-REWARD':'테스트'
 };
 for(const [id,status] of Object.entries(required)){
  const matches=ledger.tasks.filter(t=>t.id===id);
