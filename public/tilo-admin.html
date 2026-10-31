@@ -66,6 +66,13 @@ const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 
 const operationsStatus=document.getElementById('tilo-operations-status');
 const operationsGrid=document.getElementById('tilo-operations');
+const operationalBlockerLabel={
+ SERVICE_DISABLED:'중앙방송 서비스 비활성',
+ BROADCAST_SERVICE_CREDENTIAL_MISSING:'방송 서버 인증키 미설정',
+ NO_APPROVED_COUNTRY_BROADCAST_TRACKS:'국가별 이용허락·서비스 승인을 모두 갖춘 음원 없음',
+ NO_RECENT_VERIFIED_AIRTIME:'최근 실제 송출 검증 기록 없음',
+ INDEPENDENT_AUDIO_PLAYOUT_NOT_VERIFIED:'브라우저와 독립된 송출 서버 미검증'
+};
 const operationCondition={
  SERVICE_DISABLED:'운영자 서비스 비활성',
  NO_COUNTRY_RIGHTS:'국가별 방송 권리 승인 없음',
@@ -184,6 +191,7 @@ async function loadTiloOperations(){
     throw Error(data.error||'국가별 운영 조회 실패 (HTTP '+response.status+')');
   operationsStatus.textContent='DB 조회 시각 '+String(data.server_time||'')+
    ' · 서버 독립 음원 송출 '+(data.actual_server_audio_stream?'검증 연결':'미구축 / 브라우저 수신 방식')+
+   ' · 방송 서버 인증키 '+(data.broadcaster_credential_configured?'설정됨':'미설정')+
    ' · 권리 없는 재생 후보를 승인곡으로 계산하지 않습니다.';
   for(const item of data.countries){
    const country=String(item.country||''),title=countries[country]||country;
@@ -201,9 +209,13 @@ async function loadTiloOperations(){
    const evidence=document.createElement('p');
    evidence.textContent='검증 송출 '+count+'건 / '+(Math.round(ms/1000*100)/100)+'초 · 마지막 '+(item.last_verified_airtime_end_at||'기록 없음');
    const settle=document.createElement('p');settle.textContent='정산 대기 '+pending+'건 · 승인 미지급 '+approved+'건 · 원장 게시 '+posted+'건';
+   const blockers=document.createElement('p');
+   const issues=Array.isArray(item.operational_blockers)?item.operational_blockers:[];
+   blockers.textContent=issues.length?'가동 전 해결 항목: '+issues.map(x=>operationalBlockerLabel[x]||String(x)).join(' · '):
+     '가동 장애가 보고되지 않았지만 실송출·정산은 독립적으로 검증해야 합니다.';
    const mark=document.createElement('span');mark.className='tag';mark.textContent=operationCondition[item.condition]||'점검 필요';
    const link=document.createElement('a');link.className='link';link.href='/radio.html';link.textContent='청취 화면';
-   card.append(heading,p,detail,evidence,settle,mark,link);operationsGrid.append(card);
+   card.append(heading,p,detail,evidence,settle,blockers,mark,link);operationsGrid.append(card);
   }
  }catch(e){
   operationsStatus.textContent='운영 상태 조회 실패: '+String(e?.message||e)+' · 상태를 임의로 정상 표시하지 않습니다.';
