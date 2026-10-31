@@ -109,6 +109,8 @@ function renderSongs(){
  const show=tracks.map((x,i)=>({...x,i})).filter(x=>(!g||String(x.genre||'').toLowerCase()===g)&&(!q||(String(x.title||'')+' '+String(x.artist||'')).toLocaleLowerCase().includes(q)));
  list.replaceChildren();
  let toolbar=$('playlistToolbar');if(!toolbar){toolbar=document.createElement('div');toolbar.id='playlistToolbar';toolbar.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:12px 0';toolbar.innerHTML='<button type="button" id="selectAllSongs" class="secondary">전체 선택</button><button type="button" id="clearAllSongs" class="secondary">전체 해제</button><strong id="selectionCount" aria-live="polite"></strong><button type="button" id="playSelectedSongs">▶ 선택곡 전체 재생</button>';list.before(toolbar);$('selectAllSongs').onclick=()=>{for(const x of show)chosen.add(trackKey(x));saveSelection();renderSongs()};$('clearAllSongs').onclick=()=>{chosen.clear();saveSelection();renderSongs()};$('playSelectedSongs').onclick=()=>{const next=selectedQueue();if(!next.length){report('재생할 음악을 체크해 주세요.');return;}queue=next;queuePosition=0;queueActive=true;void playIndex(queue[0]).catch(e=>{queueActive=false;report(e.message)})};}
+ // Refresh the visible-selection handler after every search/genre render.
+ $('selectAllSongs').onclick=()=>{for(const x of show)chosen.add(trackKey(x));saveSelection();renderSongs()};
  updateCount();
  if(!show.length){const p=document.createElement('p');p.textContent=tracks.length?'검색 조건에 맞는 음악이 없습니다.':'현재 선택 국가에서 편성 가능한 기존 타임링크 음악이 없습니다.';list.append(p);return}
  for(const x of show){
