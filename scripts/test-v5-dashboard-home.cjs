@@ -56,7 +56,7 @@ vm.runInContext(src,context);
     assert.ok(html.includes('href="'+route+'"')||html.includes("href='"+route+"'"),'missing dashboard route '+route);
   assert.match(html,/fetchServerBalance\(\);loadDashboardDiscovery\(\)/);
   assert.match(html,/loadShares\(\)/);
-  assert.match(portal,/창작활동이 경제활동이 되는 곳\./);
+  assert.match(portal,/창작활동이(?:<br>)?경제활동이 되는 곳\./);
   for(const route of ['/new-asset.html','/radio.html','/world-network.html','/download.html'])
     assert.ok(portal.includes('href="'+route+'"')||portal.includes("href='"+route+"'"),'missing TimeLink portal route '+route);
   console.log('PASS dashboard home: real TL3 discovery, safe card route, retry state, wallet/content startup and major entry routes');
