@@ -7,14 +7,15 @@
  const $=id=>document.getElementById(id),refresh=$('walletRefresh'),more=$('walletHistoryMore');
  let generation=0,offset=0,entries=[],historyBusy=false,historyRun=0;
  const numeric=value=>value!==null&&value!==undefined&&value!==''&&typeof value!=='boolean'&&Number.isFinite(Number(value));
- const format=(value,digits=4)=>Number(value).toLocaleString('ko-KR',{maximumFractionDigits:digits});
+ const format=(value,digits=0)=>Number(value).toLocaleString('ko-KR',{maximumFractionDigits:digits});
  function amount(value){if(!numeric(value)||Number(value)<0)throw Error('INVALID_BALANCE');return Number(value);}
+ function wholeTL(value){const n=amount(value);if(!Number.isSafeInteger(n))throw Error('TL_NOT_INTEGER');return n;}
  function clearBalances(){for(const id of ['walletTl','walletTlc','walletPaid','walletAd','walletBonus'])$(id).textContent='—';}
  async function read(path){const r=await fetch(API+path,{headers:{Authorization:'Bearer '+token,Accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(12000)});const d=await r.json();if(!r.ok||d.ok===false)throw Error(r.status===401?'AUTH_REQUIRED':'READ_FAILED');return d;}
  function wallet(data){
   const w=data.wallet;if(!w)throw Error('MISSING_WALLET');
-  const values={total:amount(w.tl_total),paid:amount(w.tl_p),ad:amount(w.tl_a),bonus:amount(w.tl_b),tlc:amount(w.tlc)};
-  if(Math.abs(values.total-values.paid-values.ad-values.bonus)>.00011)throw Error('BALANCE_MISMATCH');
+  const values={total:wholeTL(w.tl_total),paid:wholeTL(w.tl_p),ad:wholeTL(w.tl_a),bonus:wholeTL(w.tl_b),tlc:amount(w.tlc)};
+  if(values.total!==values.paid+values.ad+values.bonus)throw Error('BALANCE_MISMATCH');
   $('walletTl').textContent=format(values.total);$('walletTlc').textContent=format(values.tlc,9);
   $('walletPaid').textContent=format(values.paid)+' TL';$('walletAd').textContent=format(values.ad)+' TL';$('walletBonus').textContent=format(values.bonus)+' TL';
   window.dispatchEvent(new CustomEvent('tl-balance-updated',{detail:{tl:values.total}}));
@@ -28,7 +29,7 @@
    const item=document.createElement('article');item.className='wallet-history-row';const copy=document.createElement('div'),title=document.createElement('strong'),meta=document.createElement('span'),value=document.createElement('span');
    title.textContent=String(row.description||'플랫폼 이용 기록');meta.textContent=date(row.created_at);copy.append(title,meta);
    const unit=String(row.asset_code||''),scale=unit==='TL'?10000:unit==='TLC'?1e9:null;
-   if(scale&&numeric(row.amount_atoms)&&Number.isSafeInteger(Number(row.amount_atoms))){const n=Number(row.amount_atoms)/scale;value.textContent=(n>0?'+':'')+format(n,unit==='TLC'?9:4)+' '+unit;value.className='wallet-entry-value '+(n>0?'positive':'negative');}
+   if(scale&&numeric(row.amount_atoms)&&Number.isSafeInteger(Number(row.amount_atoms))){const atoms=Number(row.amount_atoms),n=atoms/scale;value.textContent=unit==='TL'&&atoms%10000!==0?'TL 정수 단위 확인 필요':(n>0?'+':'')+format(n,unit==='TLC'?9:0)+' '+unit;value.className='wallet-entry-value '+(n>0?'positive':'negative');}
    else{value.textContent='금액 확인 필요';value.className='wallet-entry-value';}
    item.append(copy,value);fragment.append(item);
   }list.replaceChildren(fragment);$('walletHistoryCount').textContent=entries.length+'건';
