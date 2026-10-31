@@ -10,9 +10,9 @@
 <script src="/tl3-v5-player.js?v=tilo-priority-20261025"></script><script src="/tilo-dj-voice.js?v=20261031-r1"></script><script>
 const broadcastAudio=document.getElementById('tilo-broadcast-audio');
 
-// Reuse the exact TRACK V5 playback engine. Its playStream method performs
-// personal wallet preflight and billing, so never invoke it for free radio.
-// A separately authorized broadcast session must supply audio to this element.
+// Personal radio listening uses the regular V5 audible-time settlement:
+ // valid TIME FREE first, otherwise user-funded TL at 1 TL per second.
+ // Platform broadcaster service accounts use separate, secret-gated flows.
 const sharedV5Player=window.TL3V5Player;
 if(!sharedV5Player||typeof sharedV5Player.playStream!=='function'){
   console.error('[TILO] TRACK TL3 V5 player library unavailable');
@@ -38,7 +38,7 @@ function showTiloAdminAuth(message,needsLogin){
   if(tiloAdminMessage)tiloAdminMessage.textContent=message;
   if(tiloAdminLink)tiloAdminLink.style.display=needsLogin?'inline-block':'none';
 }
-showTiloAdminAuth(localStorage.getItem('tl_token')?'회원 로그인 상태 · 방송 연결 후 청취할 수 있습니다.':'방송을 청취하려면 회원 로그인이 필요합니다.',!localStorage.getItem('tl_token'));
+showTiloAdminAuth(localStorage.getItem('tl_token')?'회원 로그인 상태 · TIME FREE 우선 사용, 없으면 청취 1초당 1TL이 차감됩니다.':'회원 로그인 후 청취할 수 있습니다. TIME FREE가 없으면 1초당 1TL이 차감됩니다.',!localStorage.getItem('tl_token'));
 
 const enabledCountries=Object.keys(names);
 const countrySession={KR:{lang:'ko-KR',name:'TILO Korea'},JP:{lang:'ja-JP',name:'TILO Japan'},US:{lang:'en-US',name:'TILO USA'},CN:{lang:'zh-CN',name:'TILO China'},TH:{lang:'th-TH',name:'TILO Thailand'},VN:{lang:'vi-VN',name:'TILO Vietnam'}};
@@ -187,11 +187,15 @@ async function nextTiloTrack(generation,country,broadcastStartAt=null){
   try{
     if(typeof broadcastAudio._tl3Stop==='function')await broadcastAudio._tl3Stop();
     if(tiloCompletedSongs%3===2)void prepareTiloEditorial(generation,country);
+    let listenerBilling='청취 1초당 1TL';
     await sharedV5Player.playStream('tl3_'+fileId,broadcastAudio,{
-      broadcastCountry:country,
+      personalRadioListening:true,
       broadcastStartAt,
+      onBillingMode:pre=>{listenerBilling=pre?.billing_mode==='time_free'?'TIME FREE 사용 중':pre?.billing_mode==='subscription'?'구독 청취 정산 중':'청취 1초당 1TL';},
+      onFunding:({amount})=>{if(generation===stationGeneration)status.textContent=countrySession[country].name+' · 방송 청취를 위한 '+amount+'TL 예치 중 (실제 청취 초만 차감)';},
+      onInsufficient:()=>{if(generation===stationGeneration){status.textContent='청취 TL이 부족합니다. TIME FREE 또는 TL을 충전해 주세요.';void stopTilo();}},
       onError:e=>{if(generation===stationGeneration){status.textContent='방송 재생 오류: '+String(e?.message||e);scheduleTiloRecovery(generation,country);}},
-      onReady:()=>{if(generation===stationGeneration){clearTiloRecovery();tiloRecoveryAttempts=0;broadcastAudio.hidden=false;status.textContent=countrySession[country].name+' · V5 방송 재생 중 (개인 TL 차감 없음)';publishTiloTrack(fileId,country);rememberTilo(country,'track','V5 track '+fileId,{fileId});}}
+      onReady:()=>{if(generation===stationGeneration){clearTiloRecovery();tiloRecoveryAttempts=0;broadcastAudio.hidden=false;status.textContent=countrySession[country].name+' · V5 방송 재생 중 ('+listenerBilling+')';publishTiloTrack(fileId,country);rememberTilo(country,'track','V5 track '+fileId,{fileId});}}
     });
   }catch(e){if(generation===stationGeneration){status.textContent='방송 재생 실패: '+String(e?.message||e);scheduleTiloRecovery(generation,country);}}
 }
