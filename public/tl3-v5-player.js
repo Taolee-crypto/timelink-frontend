@@ -177,7 +177,7 @@
     // a browser pause or use the broadcaster's nonbillable country flag.
     if(personalRadio&&pre.billing_mode!=='time_free'&&!pre.can_play&&pre.code==='TRACK_TL_INSUFFICIENT'){
       const wallet=Number(pre.wallet_tl||0),asset=Number(pre.asset_tl||0),need=Number(pre.required_tl||0);
-      const amount=Math.max(0,Math.min(Math.ceil(wallet+1e-8),Math.ceil(need-asset-1e-8)));
+      const amount=Math.max(0,Math.min(Math.floor(wallet+1e-8),Math.ceil(need-asset-1e-8)));
       if(amount>0&&wallet+1e-8>=amount){
         if(opts.onFunding)opts.onFunding({amount,remainingWallet:wallet});
         const charged=await request(API+'/api/shares/'+encodeURIComponent(shareId)+'/charge',{
