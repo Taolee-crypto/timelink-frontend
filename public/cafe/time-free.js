@@ -13,7 +13,7 @@
   return d;
  }
  async function owned(id){
-  if(!/^cafe_[a-z0-9]{8,32}$/i.test(id))throw Error('올바른 매장을 선택해 주세요.');
+  if(typeof id!=='string'||id.length<1||id.length>120||/[?&/#\s]/.test(id))throw Error('올바른 매장을 선택해 주세요.');
   const d=await get('/api/cafe/my-channels');
   const store=(Array.isArray(d.channels)?d.channels:[]).find(c=>c.channel_id===id&&c.status==='active');
   if(!store)throw Error('본인이 개설한 활성 매장에서만 음악을 틀 수 있습니다.');
