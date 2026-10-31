@@ -10,7 +10,7 @@ assert.match(existing,/pending_manual_verification/);
 assert.match(existing,/공개·재생·정산 승인이 아닙니다/);
 assert.match(existing,/\/api\/v5\/music-discovery\//);
 assert.ok(!existing.includes('/api/v1/tl3/v5/publish'),'existing-release intake must not auto publish');
-for(const path of ['/creator-existing-registration.js','/creator-contributor-form.js'])
+for(const path of ['/creator-existing-registration.js','/creator-contributors.js'])
  assert.ok(html.includes(path),'Creator module missing '+path);
 for(const id of [
  'TLV5-014','TLV5-RIGHTS-01','TLV5-RIGHTS-02','TLV5-RIGHTS-06','TLV5-NAV-CREATOR',
