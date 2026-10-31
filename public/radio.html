@@ -418,12 +418,26 @@ if(storeScheduleId){
 const radioTracks=new Map();let radioLiveId=null;
 function renderRadioTrack(){
  const song=radioTracks.get(radioLiveId);
- document.getElementById('selection-title').textContent=radioLiveId?(song?.title||'방송곡 #'+radioLiveId):'음악을 만날 준비가 됐나요?';
- document.getElementById('selection-meta').textContent=radioLiveId?(song?.artist||'아티스트 정보 확인 중'):'국가를 선택하고 방송을 연결하세요.';
+ const trackTitle=radioLiveId?(song?.title||'곡 정보 확인 중'):'방송 대기 중';
+ const artist=radioLiveId?(song?.artist||'가수 정보 확인 중'):'—';
+ document.getElementById('selection-title').textContent=radioLiveId?trackTitle:'음악을 만날 준비가 됐나요?';
+ document.getElementById('selection-meta').textContent=radioLiveId?artist:'국가를 선택하고 방송을 연결하세요.';
+ notifyCafeTrack();
+}
+function notifyCafeTrack(){
+ if(!cafeTimeFreeMode||window.parent===window)return;
+ const song=radioTracks.get(radioLiveId);
+ const audible=!!radioLiveId&&!broadcastAudio.paused&&!broadcastAudio.ended;
+ window.parent.postMessage({
+  type:'tilo:cafe-now-playing',file_id:radioLiveId||null,country:joinedCountry||select.value,
+  title:radioLiveId?String(song?.title||'곡 정보 확인 중').slice(0,180):'방송 대기 중',
+  artist:radioLiveId?String(song?.artist||'가수 정보 확인 중').slice(0,180):'—',
+  playing:audible
+ },location.origin);
 }
 window.addEventListener('tilo:live-track',event=>{const id=Number(event.detail?.fileId);radioLiveId=Number.isSafeInteger(id)&&id>0?id:null;renderRadioTrack();});
 function renderAudioState(){const live=!broadcastAudio.paused&&!broadcastAudio.ended&&broadcastAudio.readyState>=2;const badge=document.getElementById('radio-live-state');badge.dataset.active=String(live);badge.textContent=live?'ON AIR · 재생 중':joinedCountry?'연결됨 · 음악 대기':'연결 대기';}
-['playing','pause','waiting','ended','emptied','error'].forEach(name=>broadcastAudio.addEventListener(name,renderAudioState));
+['playing','pause','waiting','ended','emptied','error'].forEach(name=>broadcastAudio.addEventListener(name,()=>{renderAudioState();notifyCafeTrack();}));
 new MutationObserver(renderAudioState).observe(stationJoin,{attributes:true,attributeFilter:['aria-pressed']});
 async function loadBroadcastInventory(){
  const message=document.getElementById('broadcast-playlist-status'),list=document.getElementById('broadcast-playlist');
