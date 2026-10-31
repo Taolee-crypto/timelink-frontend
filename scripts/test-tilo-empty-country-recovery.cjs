@@ -1,0 +1,30 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const radio=fs.readFileSync('public/radio.html','utf8');
+const admin=fs.readFileSync('public/tilo-admin.html','utf8');
+for(const html of [radio,admin]){
+ const inline=[...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map(x=>x[1]).filter(Boolean);
+ assert.ok(inline.length,'inline script missing');
+ for(const script of inline)new vm.Script(script);
+}
+assert.match(radio,/id="tilo-rights-setup"[^>]*hidden/,'radio rights link must start hidden');
+assert.match(radio,/if\(!data\.service_enabled\)\{/);
+assert.match(radio,/toggleTiloRightsSetup\(country,true\)/);
+assert.match(radio,/\/tilo-admin\.html\?country=/);
+assert.match(radio,/const requestedRadioCountry=new URLSearchParams\(location\.search\)\.get\('country'\)/);
+assert.match(radio,/Object\.prototype\.hasOwnProperty\.call\(names,requestedRadioCountry\)/);
+assert.match(admin,/id="tilo-rights-select-all"/);
+assert.match(admin,/id="tilo-rights-return"/);
+assert.match(admin,/rightsStartCountry=new URLSearchParams\(location\.search\)\.get\('country'\)/);
+assert.match(admin,/\['KR','JP','US','CN','TH','VN'\]\.includes\(rightsStartCountry\)/);
+assert.match(admin,/const approvable=data\.tracks\.filter\(t=>t\.can_grant===true&&!t\.eligible\)/);
+assert.match(admin,/selectAllRightsButton\.addEventListener\('click'/);
+assert.match(admin,/rightsCheckboxes\.push\(\{id,choose\}\)/);
+assert.match(admin,/if\(!window\.confirm\(/,'grants need explicit territorial rights consent');
+assert.match(admin,/rights_confirmed:true/);
+assert.match(admin,/showRadioReturn\(country\)/);
+assert.match(admin,/\/radio\.html\?country=/);
+assert.doesNotMatch(admin,/fetch\([^)]*grants\/bulk[^\n]+\)\s*;?\s*\/\/\s*automatic/i);
+console.log('PASS: missing station rights guide, country-aware admin recovery, owner-only selection, explicit rights consent and return');
