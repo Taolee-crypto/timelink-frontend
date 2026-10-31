@@ -190,6 +190,14 @@ async function mergeDevelopmentReleases(){
   if(isRetired(task))continue;
   const existing=state.tasks.find(t=>t.id===task.id);
   if(!existing){state.tasks.push(clone(task));continue;}
+  // Wallet development completion is confirmed by source and JS behavior checks.
+  // Reconcile stale local snapshots for these two exact tasks; preserve operational review.
+  if(['TLV5-WALLET-20261031-LABEL-SESSION','TLV5-WALLET-20261031-HISTORY-RACE'].includes(task.id)
+     &&task.status==='테스트'&&existing.status!=='운영확인'&&existing.status!=='보류'){
+    existing.status='테스트';
+    existing.note=task.note;
+    existing.history=clone(Array.isArray(task.history)?task.history:[]);
+  }
   // Audit-backed TLV5-004 was historically unverified with no evidence.
   // Advance only that untouched seed. Preserve every manual edit and review.
   if(task.id==='TLV5-004'&&existing.status==='미검증'&&
