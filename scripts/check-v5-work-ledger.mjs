@@ -43,7 +43,7 @@ assert.ok(script.indexOf('try{releaseChanged=await mergeDevelopmentReleases();}'
 // Page and future-radio exclusions are applied in two composed functions.
 assert.ok(script.includes("function currentScopeTasks(tasks){return activeTasks(tasks).filter(t=>!isFutureTilo(t)&&t.category!=='라디오 수신앱');}"));
 assert.ok(script.includes("function platformTasks(tasks){return currentScopeTasks(tasks).filter(t=>!String(t.id||'').startsWith('TLV5-PAGE-'));}"));
-assert.ok(script.includes("['구현','테스트','운영확인'].includes(t.status)"));
+assert.ok(script.includes("function isDevelopmentComplete(t){return ['구현','테스트','운영확인'].includes(t&&t.status)}"));
 console.log('PASS development progress: server-first merge, manual edits retained, repeat-safe releases and progress bar');
 
 // Reviewed member evidence may advance only a pristine unverified historical row.
