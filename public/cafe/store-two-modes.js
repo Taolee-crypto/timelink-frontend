@@ -26,9 +26,7 @@ function receivePlayback(data){
 }
 if(statusChannel)statusChannel.onmessage=e=>receivePlayback(e.data);
 window.addEventListener('storage',e=>{if(e.key===playerChannel&&e.newValue){try{receivePlayback(JSON.parse(e.newValue));}catch{}}});
-// Keep the store receiver in a dedicated window: a normal page navigation
-// destroys audio and the TL3 TIME FREE session tied to its document.
-const playerWindowMode=new URLSearchParams(location.search).get('player_window')==='1';
+// A separate player window can retain playback across page navigation.
 function openPersistentPlayer(targetMode){
  if(playerWindowMode)return false;
  const store=picker.value;
@@ -256,8 +254,16 @@ audio.addEventListener('ended',()=>{
  void (async()=>{try{const next=selectedQueue();if(!next.length){queueActive=false;await closeAudio();return;}const pos=next.indexOf(selected);queue=next;queuePosition=pos<0?0:(pos+1)%next.length;await playIndex(queue[queuePosition]);}catch(e){queueActive=false;report('연속 재생 중지 · '+e.message);await closeAudio();}finally{transitioning=false}})();
 });
 stop.addEventListener('click',()=>{queueActive=false;cancelRecovery();void closeAudio().catch(e=>report(e.message))});
-$('centralMode').addEventListener('click',()=>{if(!openPersistentPlayer('central'))void openCentral()});
-$('manualMode').addEventListener('click',()=>{if(!openPersistentPlayer('manual'))void openManual()});
+$('centralMode').addEventListener('click',()=>{void openCentral()});
+$('manualMode').addEventListener('click',()=>{void openManual()});
+// Optional separate playback window, without replacing the original in-page controls.
+if(!playerWindowMode){
+ const btn=document.createElement('button');
+ btn.type='button';btn.className='secondary';
+ btn.textContent='↗ 다른 페이지에서도 음악 계속 듣기';
+ btn.addEventListener('click',()=>{openPersistentPlayer(mode==='central'?'central':'manual')});
+ $('manualMode').parentElement.append(btn);
+}
 $('closeCentral').addEventListener('click',()=>{stopCentral();report('TILO 중앙방송이 중지되었습니다.');});
 picker.addEventListener('change',async()=>{try{queueActive=false;cancelRecovery();chosen.clear();stopCentral();await closeAudio();tracks=[];selected=-1;panel.hidden=true;mode='idle';showSong('재생 대기 중','—','새 매장을 선택했습니다.');localStorage.setItem('tilo_store_channel',picker.value);await refreshAccess()}catch(e){report(e.message)}});
 search.addEventListener('input',renderSongs);
