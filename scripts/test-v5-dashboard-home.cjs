@@ -1,6 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync('public/dashboard.html','utf8');
+const portal=fs.readFileSync('public/timelink.html','utf8');
 
 function part(from,to){
   const i=html.indexOf(from),j=html.indexOf(to,i+from.length);
@@ -55,5 +56,8 @@ vm.runInContext(src,context);
     assert.ok(html.includes('href="'+route+'"')||html.includes("href='"+route+"'"),'missing dashboard route '+route);
   assert.match(html,/fetchServerBalance\(\);loadDashboardDiscovery\(\)/);
   assert.match(html,/loadShares\(\)/);
+  assert.match(portal,/창작활동이(?:<br>)?경제활동이 되는 곳\./);
+  for(const route of ['/new-asset.html','/radio.html','/world-network.html','/download.html'])
+    assert.ok(portal.includes('href="'+route+'"')||portal.includes("href='"+route+"'"),'missing TimeLink portal route '+route);
   console.log('PASS dashboard home: real TL3 discovery, safe card route, retry state, wallet/content startup and major entry routes');
 })().catch(e=>{console.error(e);process.exitCode=1});
