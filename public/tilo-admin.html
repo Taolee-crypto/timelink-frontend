@@ -7,12 +7,12 @@
 <section class="panel"><h2>중앙방송 할인계수</h2><p>초기 0.3(70% 할인). 변경은 앞으로의 정산에 적용하기 위한 설정이며 현재 정산 엔진 연동은 검증 전입니다.</p><label for="discount-bps">할인계수 (0~1)</label> <input id="discount-bps" type="number" min="0" max="1" step="0.01" value="0.3"> <label for="discount-reason">변경 사유</label> <input id="discount-reason" maxlength="500" placeholder="변경 사유를 8자 이상 입력"><button id="discount-save" disabled>할인계수 저장</button><p id="discount-status" role="status">관리자 인증 후 조회합니다.</p></section>
 <section class="panel"><h2>국가별 방송국 현황</h2><div id="stations" class="grid" aria-live="polite"></div></section>
 <section class="panel" aria-labelledby="tilo-operations-heading"><h2 id="tilo-operations-heading">실제 방송 운영·권리·정산 진단</h2>
-<p>재생 가능한 곡과 <strong>국가별 방송 이용허락</strong>은 서로 다릅니다. 서버 편성표와 브라우저 청취는 독립적인 24시간 실송출 증거가 아닙니다.</p>
+<p><strong>홍보 예산이 확보된 곡 우선 편성 · 일반 공유 TL3 V5 음원 자동 보충</strong>이 중앙방송의 기본 정책입니다. 별도 관리자 국가별 승인 등록은 방송 시작의 필수 조건이 아닙니다. 단, 명시적 권리 철회·만료와 보류곡은 제외합니다. 편성표는 실제 독립 서버 송출의 증거가 아닙니다.</p>
 <div id="tilo-operations-status" role="status">관리자 로그인 후 운영 근거를 확인합니다.</div>
 <div id="tilo-operations" class="grid" aria-live="polite"></div>
 </section>
-<section class="panel" aria-labelledby="tilo-rights-heading"><h2 id="tilo-rights-heading">국가별 V5 방송 이용허락 심사</h2>
-<p>본인 소유이며 권리 선언이 확인된 TL3 V5 음원만 이곳에서 승인할 수 있습니다. 타인의 음원은 별도의 국가별 이용허락이 없으면 승인되지 않습니다. 승인 전 해당 국가의 방송 이용권리를 직접 확인하세요.</p>
+<section class="panel" aria-labelledby="tilo-rights-heading"><h2 id="tilo-rights-heading">국가별 추가 권리 기록 (선택 사항)</h2>
+<p>기존 공개·봉인·권리 선언이 확인된 TL3 V5 음원은 일반 편성 및 실제 예산이 있는 홍보 우선 편성 대상입니다. <strong>여기서 곡을 추가로 승인할 필요는 없습니다.</strong> 국가별 권리 계약을 별도로 기록해야 하는 예외적인 경우에만 사용하세요. 명시적으로 철회·만료된 권리나 분쟁 보류는 방송에서 제외됩니다.</p>
 <label for="tilo-rights-country">심사 국가</label>
 <select id="tilo-rights-country"><option value="KR">대한민국</option><option value="JP">일본</option><option value="US">미국</option><option value="CN">중국</option><option value="TH">태국</option><option value="VN">베트남</option></select>
 <button id="tilo-rights-refresh" type="button">방송권리 후보 확인</button>
@@ -71,7 +71,8 @@ const operationsGrid=document.getElementById('tilo-operations');
 const operationalBlockerLabel={
  SERVICE_DISABLED:'중앙방송 서비스 비활성',
  BROADCAST_SERVICE_CREDENTIAL_MISSING:'방송 서버 인증키 미설정',
- NO_APPROVED_COUNTRY_BROADCAST_TRACKS:'국가별 이용허락·서비스 승인을 모두 갖춘 음원 없음',
+ NO_APPROVED_COUNTRY_BROADCAST_TRACKS:'방송 후보 없음 (봉인·권리 선언 확인 필요)',
+ NO_RIGHTS_DECLARED_V5_STATION_TRACKS:'공개·봉인·권리 선언 완료된 방송 후보 없음',
  NO_RECENT_VERIFIED_AIRTIME:'최근 실제 송출 검증 기록 없음',
  INDEPENDENT_AUDIO_PLAYOUT_NOT_VERIFIED:'브라우저와 독립된 송출 서버 미검증'
 };
@@ -100,8 +101,8 @@ function showRadioReturn(country){
 }
 
 const rightsReasons={
- COUNTRY_BROADCAST_RIGHTS_MISSING:'해당 국가 방송 이용허락 미등록',
- COUNTRY_SERVICE_GRANT_MISSING:'TILO 방송 서비스 승인 미등록',
+ COUNTRY_BROADCAST_RIGHTS_MISSING:'별도 국가별 권리 등록 없음 (방송 필수 조건 아님)',
+ COUNTRY_SERVICE_GRANT_MISSING:'별도 방송 서비스 승인 없음 (방송 필수 조건 아님)',
  BROADCAST_RIGHTS_BLOCKED:'이용허락 철회·만료',
  SHAREPLACE_RELEASE_RIGHTS_MISSING:'원음원 권리 선언 미확인',
  V5_NOT_SEALED:'V5 봉인 미완료',
@@ -122,8 +123,8 @@ async function loadTiloRights(){
   const data=await r.json().catch(()=>({}));
   if(!r.ok||!data.ok||!Array.isArray(data.tracks))throw Error(data.error||'방송권리 감사 조회 실패');
   const approvable=data.tracks.filter(t=>t.can_grant===true&&!t.eligible);
-  rightsStatus.textContent=country+' · 후보 '+Number(data.total||0)+'곡 · 방송 승인 '+Number(data.eligible||0)+
-   '곡 · 내 소유 승인 가능 '+approvable.length+'곡. 먼저 모두 선택한 뒤 방송 권리 확인 후 승인하세요.';
+  rightsStatus.textContent=country+' · 공개 후보 '+Number(data.total||0)+'곡 · 별도 권리·서비스 기록 '+Number(data.eligible||0)+
+   '곡 · 필요시 추가 기록 가능 '+approvable.length+'곡. 방송을 시작하기 위해 이 작업을 할 필요는 없습니다.';
   selectAllRightsButton.disabled=approvable.length===0;
   for(const track of data.tracks){
    const card=document.createElement('article');card.className='country';
@@ -221,16 +222,17 @@ async function loadTiloOperations(){
   operationsStatus.textContent='DB 조회 시각 '+String(data.server_time||'')+
    ' · 서버 독립 음원 송출 '+(data.actual_server_audio_stream?'검증 연결':'미구축 / 브라우저 수신 방식')+
    ' · 방송 서버 인증키 '+(data.broadcaster_credential_configured?'설정됨':'미설정')+
-   ' · 권리 없는 재생 후보를 승인곡으로 계산하지 않습니다.';
+   ' · 홍보 우선 편성과 일반곡 보충은 별도 관리자 승인 없이 원래 정책대로 적용됩니다.';
   for(const item of data.countries){
    const country=String(item.country||''),title=countries[country]||country;
    const card=document.createElement('article');card.className='country';
    const heading=document.createElement('strong');heading.textContent=title+' ('+country+')';
    const p=document.createElement('p');
    const total=Number(item.receiver_candidate_tracks||0),licensed=Number(item.explicit_country_licensed_tracks||0);
+   const promoted=Number(item.promotion_eligible_tracks||0),ordinary=Number(item.ordinary_fallback_tracks||0);
    const count=Number(item.verified_airtime_events||0),ms=Number(item.verified_audible_ms||0);
    const pending=Number(item.pending_settlements||0),approved=Number(item.approved_unposted_settlements||0),posted=Number(item.posted_settlements||0);
-   p.textContent='서비스 '+(item.service_enabled?'활성':'비활성')+' · 수신 후보 '+total+'곡 · 국가별 권리 승인 '+licensed+'곡';
+   p.textContent='서비스 '+(item.service_enabled?'활성':'비활성')+' · 편성 '+total+'곡 · 홍보예산 확보 '+promoted+'곡 우선 · 일반곡 '+ordinary+'곡 보충 · 별도 국가권리 기록 '+licensed+'곡 (필수 아님)';
    const detail=document.createElement('p');
    const slot=item.receiver_clock_slot;
    detail.textContent='서버 편성 기준 '+(slot?String(slot.title||'곡 #'+slot.fileId)+' ('+Math.floor(Number(slot.positionMs||0)/1000)+'초 경과)':'편성 없음')+
