@@ -194,6 +194,18 @@ async function mergeDevelopmentReleases(){
      (!Array.isArray(existing.history)||existing.history.length===0)){
    existing.status='테스트';existing.note=task.note;existing.history=clone(task.history);
   }
+  // Reviewed repository evidence may advance untouched auto-generated
+  // navigation/page rows. Manual edits, holds and administrator reviews always win.
+  const generatedNavNote='플랫폼 sidebar.js 실제 메뉴 기준 신규 검증 항목. 기능 완료 여부는 별도 확인 필요.';
+  const generatedPageNote='연결 페이지의 화면·API·권한·데이터·모바일·실서비스 E2E 검증 후 운영확인으로 변경. 코드 존재만으로 완료 처리 금지.';
+  const untouchedGenerated=!existing.updated&&
+    ((String(existing.id||'').startsWith('TLV5-NAV-')&&String(existing.note||'')===generatedNavNote)||
+     (String(existing.id||'').startsWith('TLV5-PAGE-')&&String(existing.note||'')===generatedPageNote));
+  if(task.release_evidence===true&&untouchedGenerated&&existing.status!=='보류'&&
+     STAGE_WEIGHT[task.status]>STAGE_WEIGHT[existing.status]){
+    existing.status=task.status;existing.note=task.note;
+    existing.history=clone(Array.isArray(task.history)?task.history:[]);
+  }
  }
  for(const event of releases.events){
   if(!event?.id||!event?.title){releaseImportWarnings.push('변경 기록 ID/제목 누락');continue;}
