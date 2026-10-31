@@ -413,6 +413,17 @@ function render(){
  $('pendingEvidence').querySelector('summary').textContent='완료율 미반영 작업 '+pending.length+'건 · 항목별 확인';
  $('pendingEvidenceItems').innerHTML=pending.length?pending.map(t=>'<div style="padding:7px 0;border-bottom:1px solid #343447"><strong>'+escapeHtml(t.id)+'</strong> · '+escapeHtml(t.status)+' · '+escapeHtml(categoryLabel(t.category))+'<div>'+escapeHtml(t.title)+'</div><button type="button" data-pending-edit="'+escapeHtml(t.id)+'">근거 확인·상태 정정</button></div>').join(''):'<p>현재 집계 대상에서 미완료로 분류된 작업이 없습니다.</p>';
  $('percent').textContent=pct+'%';$('progressFill').style.width=pct+'%';
+ const releasePanel=$('tiloReleaseScope'),showTilo=cat==='TL 중앙방송센터';releasePanel.hidden=!showTilo;
+ if(showTilo){
+  const currentTilo=currentScopeTasks(state.tasks.filter(t=>t.category==='TL 중앙방송센터'));
+  const achieved=currentTilo.filter(isDevelopmentComplete).length;
+  const futureTilo=active.filter(isFutureTilo);
+  releasePanel.innerHTML='<h2>중앙방송 1차 확정 개발범위 · 음악 + 메신저</h2>'+
+   '<p><strong style="font-size:26px;color:#e2ddff">'+(currentTilo.length?Math.round(100*achieved/currentTilo.length):0)+'%</strong> · 현행 범위 구현·테스트 '+achieved+'/'+currentTilo.length+'건</p>'+
+   '<p>1차 구현 이상 달성률입니다. 모든 기기·24시간 서버 송출·경제원장 실지급의 운영검증 완료를 의미하지 않습니다.</p>'+
+   '<p>기존 방송·메신저 코드는 보존. 작업의 기존 상태와 근거는 그대로 둡니다. 2차 과제 '+futureTilo.length+'건은 현행 분모에서만 분리되었습니다.</p>'+
+   '<p><a href="/docs/tilo-central-broadcast-roadmap-20261031.html" target="_blank" rel="noopener">향후 중앙방송 개발계획 · 단계별 완료 조건 보기 ↗</a></p>';
+ }
  renderNavigation();
  const detail=$('pageTree');
 
@@ -429,7 +440,7 @@ function render(){
  if($('sort').value==='updated')list.sort((a,b)=>String(b.updated||'').localeCompare(String(a.updated||'')));
  else list.sort((a,b)=>categories.indexOf(a.category)-categories.indexOf(b.category)||a.id.localeCompare(b.id));
  $('filtered').textContent='('+list.length+'건)';
- $('tasks').innerHTML=list.length?list.map(t=>'<div class="task"><input type="checkbox" data-check="'+escapeHtml(t.id)+'" aria-label="'+escapeHtml(t.title)+' 완료 검증" '+(t.status==='운영확인'?'checked':'')+(isRetired(t)?' disabled':'')+'><div><strong>'+escapeHtml(t.title)+'</strong><small><span class="pill">'+escapeHtml(categoryLabel(t.category))+'</span><span class="pill">'+escapeHtml(t.status)+'</span>'+escapeHtml(t.id)+' · '+escapeHtml(t.priority)+(t.updated?' · '+escapeHtml(t.updated.slice(0,16)):'')+'</small>'+(t.note?'<p>'+escapeHtml(t.note)+'</p>':'')+'</div>'+(isRetired(t)?'<span class="pill">폐기 이력</span>':'<button data-edit="'+escapeHtml(t.id)+'">수정</button>')+'</div>').join(''):'<div class="empty">검색 결과가 없습니다.</div>';
+ $('tasks').innerHTML=list.length?list.map(t=>'<div class="task"><input type="checkbox" data-check="'+escapeHtml(t.id)+'" aria-label="'+escapeHtml(t.title)+' 완료 검증" '+(t.status==='운영확인'?'checked':'')+(isRetired(t)?' disabled':'')+'><div><strong>'+escapeHtml(t.title)+'</strong><small><span class="pill">'+escapeHtml(categoryLabel(t.category))+'</span><span class="pill">'+escapeHtml(t.status)+'</span>'+(isFutureTilo(t)?'<span class="pill">향후 2차 · 현행 분모 제외</span>':'')+escapeHtml(t.id)+' · '+escapeHtml(t.priority)+(t.updated?' · '+escapeHtml(t.updated.slice(0,16)):'')+'</small>'+(t.note?'<p>'+escapeHtml(t.note)+'</p>':'')+'</div>'+(isRetired(t)?'<span class="pill">폐기 이력</span>':'<button data-edit="'+escapeHtml(t.id)+'">수정</button>')+'</div>').join(''):'<div class="empty">검색 결과가 없습니다.</div>';
  $('events').innerHTML=state.events.length?state.events.slice(0,250).map(e=>'<article class="event"><time>'+escapeHtml(e.at.slice(0,16).replace('T',' '))+' · '+escapeHtml(e.type||'변경')+'</time><strong>'+escapeHtml(e.title)+'</strong><p>'+escapeHtml(e.detail)+'</p></article>').join(''):'<div class="empty">아직 기록이 없습니다.</div>';
 }
 $('pendingEvidenceItems').addEventListener('click',e=>{const button=e.target.closest('[data-pending-edit]');if(!button)return;openEdit(button.dataset.pendingEdit);});
