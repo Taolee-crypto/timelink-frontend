@@ -75,15 +75,15 @@ async function loadWorld(reset=true){
  $('worldLoadMore').disabled=true;
  try{
   const q=new URLSearchParams({kind:'all',page:String(nextPage),q:$('worldSearch').value.trim(),country:chosenCountry});
-  const r=await fetch(API+'/api/sales/world?'+q,{cache:'no-store'}),d=await r.json();
+  const r=await fetch(API+'/api/sales/world?'+q,{cache:'no-store'});if(!r.ok)throw Error('스토어 목록 조회 실패 (HTTP '+r.status+')');const d=await r.json();
   if(sequence!==loadSeq)return;
   if(!r.ok||!d.ok||!Array.isArray(d.channels))throw Error(d.error||'Unable to load stores');
   const seen=new Set(stores.map(x=>x.channel_id));
   for(const c of d.channels){if(c&&c.channel_id&&!seen.has(c.channel_id)){stores.push(c);seen.add(c.channel_id);}}
   total=Number(d.total||0);nextPage=Number(d.page||1)+1;hasMore=d.has_more===true;
   renderFilters();render();
- }catch(error){if(sequence===loadSeq){grid.innerHTML='<div class="error">'+esc(error.message)+'</div>';$('worldInfo').textContent='서버 연결을 확인해주세요.'}}
- finally{if(sequence===loadSeq){loading=false;$('worldLoadMore').disabled=false;}}
+ }catch(error){if(sequence===loadSeq){grid.innerHTML='<div class="error" role="alert">'+esc(error.message)+' <button type="button" id="worldRetry">다시 시도</button></div>';$('worldInfo').textContent='서버 연결을 확인해주세요.';document.getElementById('worldRetry').addEventListener('click',()=>loadWorld(true))}}
+ finally{if(sequence===loadSeq){loading=false;$('worldLoadMore').disabled=!hasMore;}}
 }
 let searchTimer;
 $('worldSearch').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>loadWorld(true),280)});
