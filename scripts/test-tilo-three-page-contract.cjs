@@ -34,7 +34,7 @@ assert.match(admin,/track\.can_grant===true/);
 assert.match(admin,/broadcaster_credential_configured/);
 assert.match(admin,/operational_blockers/);
 assert.match(admin,/window\.confirm\(/);
-assert.match(admin,/@media/); // compact administrator layout must remain responsive
+assert.match(admin,/grid-template-columns:repeat\\(auto-fit,minmax\\(260px,1fr\\)\\)/); // flexible mobile layout
 assert.match(sidebar,/\['\/tilo-admin\.html','radio','broadcastOps'\]/);
 const script=admin.match(/<script>([\s\S]*?)<\/script><\/body>/i)?.[1];
 assert.ok(script,'admin page inline application');
