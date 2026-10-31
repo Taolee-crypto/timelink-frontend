@@ -5,7 +5,7 @@
  if(!token){location.replace('/login.html?redirect=%2Fwallet.html');return;}
  window.addEventListener('storage',event=>{if(event.key==='tl_token'&&event.newValue!==token){generation++;clearBalances();$('walletTimeFree').textContent='—';$('walletHistory').replaceChildren();$('walletStatus').textContent='계정이 변경되었습니다. 새로고침하여 다시 로그인해 주세요.';refresh.disabled=true;more.hidden=true;}});
  const $=id=>document.getElementById(id),refresh=$('walletRefresh'),more=$('walletHistoryMore');
- let generation=0,offset=0,entries=[],historyBusy=false;
+ let generation=0,offset=0,entries=[],historyBusy=false,historyRun=0;
  const numeric=value=>value!==null&&value!==undefined&&value!==''&&typeof value!=='boolean'&&Number.isFinite(Number(value));
  const format=(value,digits=4)=>Number(value).toLocaleString('ko-KR',{maximumFractionDigits:digits});
  function amount(value){if(!numeric(value)||Number(value)<0)throw Error('INVALID_BALANCE');return Number(value);}
@@ -34,23 +34,23 @@
   }list.replaceChildren(fragment);$('walletHistoryCount').textContent=entries.length+'건';
  }
  async function loadHistory(run,reset){
-  if(historyBusy&&!reset)return;historyBusy=true;more.disabled=true;
+  if(historyBusy&&!reset)return;const request=++historyRun;historyBusy=true;more.disabled=true;
   const start=reset?0:offset;
   try{
-   const data=await read('/api/v3/economy/history?limit=50&offset='+start);if(run!==generation||localStorage.getItem('tl_token')!==token)return;
+   const data=await read('/api/v3/economy/history?limit=50&offset='+start);if(run!==generation||request!==historyRun||localStorage.getItem('tl_token')!==token)return;
    if(!Array.isArray(data.entries))throw Error('INVALID_HISTORY');
    if(reset)entries=[];const seen=new Set(entries.map(e=>String(e.entry_id)));for(const row of data.entries)if(!seen.has(String(row.entry_id))){entries.push(row);seen.add(String(row.entry_id));}
    offset=start+data.entries.length;renderHistory();more.hidden=data.entries.length<50;
-  }catch(_){if(run!==generation)return;if(reset){entries=[];$('walletHistory').replaceChildren(Object.assign(document.createElement('p'),{className:'module-status',textContent:'이용 기록을 불러오지 못했습니다. 새로고침으로 다시 확인해 주세요.'}));$('walletHistoryCount').textContent='';}else $('walletHistoryCount').textContent='이전 기록을 불러오지 못했습니다. 다시 시도해 주세요.';}
-  finally{if(run===generation){historyBusy=false;more.disabled=false;}}
+  }catch(_){if(run!==generation||request!==historyRun||localStorage.getItem('tl_token')!==token)return;if(reset){entries=[];$('walletHistory').replaceChildren(Object.assign(document.createElement('p'),{className:'module-status',textContent:'이용 기록을 불러오지 못했습니다. 새로고침으로 다시 확인해 주세요.'}));$('walletHistoryCount').textContent='';}else $('walletHistoryCount').textContent='이전 기록을 불러오지 못했습니다. 다시 시도해 주세요.';}
+  finally{if(run===generation&&request===historyRun){historyBusy=false;more.disabled=false;}}
  }
  async function load(){
-  const run=++generation;refresh.disabled=true;refresh.setAttribute('aria-busy','true');$('walletStatus').textContent='지갑을 불러오는 중입니다.';clearBalances();$('walletTimeFree').textContent='—';$('walletHistory').replaceChildren(Object.assign(document.createElement('p'),{className:'module-status',textContent:'이용 기록을 불러오는 중입니다.'}));more.hidden=true;
+  const run=++generation;historyRun++;historyBusy=false;offset=0;entries=[];refresh.disabled=true;refresh.setAttribute('aria-busy','true');$('walletStatus').textContent='지갑을 불러오는 중입니다.';clearBalances();$('walletTimeFree').textContent='—';$('walletHistory').replaceChildren(Object.assign(document.createElement('p'),{className:'module-status',textContent:'이용 기록을 불러오는 중입니다.'}));more.hidden=true;
   await Promise.allSettled([
-   read('/api/eco/wallet').then(data=>{if(run!==generation||localStorage.getItem('tl_token')!==token)return;wallet(data);$('walletStatus').textContent='현재 계정의 지갑 잔액입니다.';}).catch(()=>{if(run!==generation)return;clearBalances();$('walletStatus').textContent='지갑을 불러오지 못했습니다. 로그인 상태를 확인하고 다시 조회해 주세요.';}),
-   read('/api/payment/v5/shareplace-time/status').then(data=>{if(run===generation&&localStorage.getItem('tl_token')===token)timeFree(data);}).catch(()=>{if(run===generation)$('walletTimeFree').textContent='조회 필요';}),
+   read('/api/eco/wallet').then(data=>{if(run!==generation||localStorage.getItem('tl_token')!==token)return;wallet(data);$('walletStatus').textContent='현재 계정의 지갑 잔액입니다.';}).catch(()=>{if(run!==generation||localStorage.getItem('tl_token')!==token)return;clearBalances();$('walletStatus').textContent='지갑을 불러오지 못했습니다. 로그인 상태를 확인하고 다시 조회해 주세요.';}),
+   read('/api/payment/v5/shareplace-time/status').then(data=>{if(run===generation&&localStorage.getItem('tl_token')===token)timeFree(data);}).catch(()=>{if(run===generation&&localStorage.getItem('tl_token')===token)$('walletTimeFree').textContent='조회 필요';}),
    loadHistory(run,true),
-  ]);if(run===generation){refresh.disabled=false;refresh.removeAttribute('aria-busy');}
+  ]);if(run===generation&&localStorage.getItem('tl_token')===token){refresh.disabled=false;refresh.removeAttribute('aria-busy');}
  }
  refresh.onclick=load;more.onclick=()=>loadHistory(generation,false);load();
 })();
