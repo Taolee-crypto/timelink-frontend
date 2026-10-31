@@ -13,6 +13,7 @@ let recoveryFailures=0,recoveryTimer=null;
 function cancelRecovery(){if(recoveryTimer!==null)clearTimeout(recoveryTimer);recoveryTimer=null;recoveryFailures=0;}
 function recoverTrack(failedIndex){
  if(!queueActive||!playing||mode!=='manual'||selected!==failedIndex||recoveryTimer!==null)return;
+ if(loading){recoveryTimer=setTimeout(()=>{recoveryTimer=null;recoverTrack(failedIndex)},350);return;}
  const next=selectedQueue();
  if(next.length<2||++recoveryFailures>=next.length){queueActive=false;report('선택곡 재생 오류 · 자동 재생을 중단했습니다. 음악 이용권과 파일 상태를 확인해 주세요.');return;}
  recoveryTimer=setTimeout(()=>{
