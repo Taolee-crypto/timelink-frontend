@@ -16,6 +16,7 @@
 <label for="tilo-rights-country">심사 국가</label>
 <select id="tilo-rights-country"><option value="KR">대한민국</option><option value="JP">일본</option><option value="US">미국</option><option value="CN">중국</option><option value="TH">태국</option><option value="VN">베트남</option></select>
 <button id="tilo-rights-refresh" type="button">방송권리 후보 확인</button>
+<button id="tilo-rights-bulk" type="button" disabled>선택한 내 음원 국가별 일괄 승인</button>
 <p id="tilo-rights-status" role="status">국가를 선택해 승인 가능한 음원을 확인하세요.</p>
 <div class="grid" id="tilo-rights-list" aria-live="polite"></div>
 </section>
@@ -77,6 +78,9 @@ const rightsCountry=document.getElementById('tilo-rights-country');
 const rightsRefresh=document.getElementById('tilo-rights-refresh');
 const rightsStatus=document.getElementById('tilo-rights-status');
 const rightsList=document.getElementById('tilo-rights-list');
+const bulkButton=document.getElementById('tilo-rights-bulk');
+const selectedRights=new Set();
+
 const rightsReasons={
  COUNTRY_BROADCAST_RIGHTS_MISSING:'해당 국가 방송 이용허락 미등록',
  COUNTRY_SERVICE_GRANT_MISSING:'TILO 방송 서비스 승인 미등록',
@@ -88,7 +92,7 @@ const rightsReasons={
  FILE_TYPE_NOT_TL3:'TL3 파일 아님'
 };
 async function loadTiloRights(){
- rightsList.replaceChildren();
+ rightsList.replaceChildren();selectedRights.clear();bulkButton.disabled=true;
  const country=rightsCountry.value;
  if(!token()){rightsStatus.textContent='관리자 로그인 후 이용하세요.';return;}
  rightsRefresh.disabled=true;rightsStatus.textContent='실제 권리 보유·서비스 승인 상태 조회 중…';
@@ -107,6 +111,14 @@ async function loadTiloRights(){
     (Array.isArray(track.reasons)?track.reasons.map(s=>rightsReasons[s]||s).join(' · '):'권리 검증 필요');
    card.append(name,detail);
    if(track.can_grant===true&&!track.eligible){
+    const id=Number(track.file_id);
+    const label=document.createElement('label');
+    label.style.display='flex';label.style.alignItems='center';label.style.gap='8px';
+    const choose=document.createElement('input');choose.type='checkbox';choose.value=String(id);
+    choose.addEventListener('change',()=>{if(choose.checked)selectedRights.add(id);
+      else selectedRights.delete(id);bulkButton.disabled=selectedRights.size===0;});
+    label.append(choose,document.createTextNode('선택해서 일괄 승인'));
+    card.append(label);
     const button=document.createElement('button');button.type='button';
     button.textContent='본인 소유권 확인 후 국가별 방송 승인';
     button.addEventListener('click',async()=>{
@@ -134,6 +146,28 @@ async function loadTiloRights(){
  }catch(e){rightsStatus.textContent='권리 심사 조회 실패: '+String(e?.message||e);}
  finally{rightsRefresh.disabled=false;}
 }
+bulkButton.addEventListener('click',async()=>{
+ const country=rightsCountry.value;
+ const ids=[...selectedRights];
+ if(!ids.length||ids.length>60){rightsStatus.textContent='한 국가에서 승인 가능한 내 음원을 1~60곡 선택하세요.';return;}
+ if(!window.confirm(country+' 국가에 대해 본인이 방송 이용허락 권리를 보유한 '+ids.length+
+   '곡을 TILO 중앙방송에 사용하도록 승인하시겠습니까?')){
+  return;
+ }
+ bulkButton.disabled=true;
+ try{
+  const response=await fetch(API+'/api/admin/central-broadcast/stations/'+encodeURIComponent(country)+'/grants/bulk',{
+   method:'POST',headers:{Authorization:'Bearer '+token(),'Content-Type':'application/json'},
+   body:JSON.stringify({file_ids:ids,rights_confirmed:true})
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok||!result.ok)throw Error(result.error||'일괄 승인 실패');
+  rightsStatus.textContent=country+' · 내 음원 '+Number(result.authorized||0)+'곡 일괄 승인 · 감사기록 '+String(result.audit_event_id||'');
+  await Promise.all([loadTiloOperations(),load()]);
+  await loadTiloRights();
+ }catch(e){rightsStatus.textContent='일괄 승인 실패: '+String(e?.message||e);}
+ finally{bulkButton.disabled=selectedRights.size===0;}
+});
 rightsRefresh.addEventListener('click',loadTiloRights);
 rightsCountry.addEventListener('change',loadTiloRights);
 
