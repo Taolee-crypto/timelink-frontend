@@ -3,6 +3,7 @@
  'use strict';
  const API='https://api.timelink.digital',token=localStorage.getItem('tl_token');
  if(!token){location.replace('/login.html?redirect=%2Fwallet.html');return;}
+ window.addEventListener('storage',event=>{if(event.key==='tl_token'&&event.newValue!==token){generation++;clearBalances();$('walletTimeFree').textContent='—';$('walletHistory').replaceChildren();$('walletStatus').textContent='계정이 변경되었습니다. 새로고침하여 다시 로그인해 주세요.';refresh.disabled=true;more.hidden=true;}});
  const $=id=>document.getElementById(id),refresh=$('walletRefresh'),more=$('walletHistoryMore');
  let generation=0,offset=0,entries=[],historyBusy=false;
  const numeric=value=>value!==null&&value!==undefined&&value!==''&&typeof value!=='boolean'&&Number.isFinite(Number(value));
