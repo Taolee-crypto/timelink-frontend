@@ -69,6 +69,41 @@ assert.equal(manualMember.state.tasks.find(t=>t.id==='TLV5-004').status,'미검�
 assert.equal(manualMember.state.tasks.find(t=>t.id==='TLV5-004').note,'관리자 확인 대기');
 console.log('PASS TLV5-004 evidence imports only to untouched seed, never overrides manual verification');
 
+// Reviewed release evidence may advance untouched generated navigation/page rows,
+// but a manual note, hold or updated timestamp must remain authoritative.
+const makeGeneratedEvidenceContext=tasks=>{
+ const ctx=createContext({
+  pageRoutes,state:{tasks,events:[]},
+  categories:[...new Set(releases.tasks.map(t=>t.category))],
+  STAGE_WEIGHT:{'미검증':0,'설계':20,'구현':55,'테스트':80,'운영확인':100,'보류':0},
+  routeKey,clone:o=>JSON.parse(JSON.stringify(o)),
+  fetch:async()=>({ok:true,json:async()=>releases})
+ });
+ runInContext(script.slice(startRetire,endRetire),ctx);runInContext(merge,ctx);return ctx;
+};
+const generatedNavNote='플랫폼 sidebar.js 실제 메뉴 기준 신규 검증 항목. 기능 완료 여부는 별도 확인 필요.';
+const generatedPageNote='연결 페이지의 화면·API·권한·데이터·모바일·실서비스 E2E 검증 후 운영확인으로 변경. 코드 존재만으로 완료 처리 금지.';
+const dashPageId=routeKey('/dashboard.html');
+const dashboardEvidence=makeGeneratedEvidenceContext([
+ {id:'TLV5-NAV-DASH',category:'대시보드',title:'대시보드 주요 지표·진입 동선 검증',status:'미검증',note:generatedNavNote,history:[]},
+ {id:dashPageId,category:'대시보드',title:'페이지 검증',status:'미검증',note:generatedPageNote,history:[]}
+]);
+await runInContext('mergeDevelopmentReleases()',dashboardEvidence);
+assert.equal(dashboardEvidence.state.tasks.find(t=>t.id==='TLV5-NAV-DASH').status,'테스트');
+assert.equal(dashboardEvidence.state.tasks.find(t=>t.id===dashPageId).status,'테스트');
+const heldEvidence=makeGeneratedEvidenceContext([
+ {id:'TLV5-NAV-DASH',category:'대시보드',title:'대시보드 주요 지표·진입 동선 검증',status:'보류',note:generatedNavNote,history:[{detail:'관리자 보류'}]}
+]);
+await runInContext('mergeDevelopmentReleases()',heldEvidence);
+assert.equal(heldEvidence.state.tasks.find(t=>t.id==='TLV5-NAV-DASH').status,'보류');
+const manualEvidence=makeGeneratedEvidenceContext([
+ {id:dashPageId,category:'대시보드',title:'페이지 검증',status:'미검증',note:'운영 점검 대기',history:[]}
+]);
+await runInContext('mergeDevelopmentReleases()',manualEvidence);
+assert.equal(manualEvidence.state.tasks.find(t=>t.id===dashPageId).status,'미검증');
+console.log('PASS reviewed release evidence advances only untouched generated nav/page rows');
+
+
 // The ordinary registration form does not define business, owner or staff account types.
 // Ownership and staff approval are tasks under My Cafe instead of member registration.
 const signupHtml=readFileSync(new URL('../public/signup.html',import.meta.url),'utf8');
