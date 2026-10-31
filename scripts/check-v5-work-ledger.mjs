@@ -40,7 +40,9 @@ assert.ok(!context.state.tasks.some(t=>t.id==='TLV5-WORK-20261027-POLICY'));
 assert.equal(await runInContext('mergeDevelopmentReleases()',context),false);
 assert.equal(context.state.events.length,releases.events.length);
 assert.ok(script.indexOf('try{releaseChanged=await mergeDevelopmentReleases();}')>script.indexOf('state=d.state;'));
-assert.ok(script.includes("!String(t.id||'').startsWith('TLV5-PAGE-')&&t.category!=='라디오 수신앱'"));
+// Page and future-radio exclusions are applied in two composed functions.
+assert.ok(script.includes("function currentScopeTasks(tasks){return activeTasks(tasks).filter(t=>!isFutureTilo(t)&&t.category!=='라디오 수신앱');}"));
+assert.ok(script.includes("function platformTasks(tasks){return currentScopeTasks(tasks).filter(t=>!String(t.id||'').startsWith('TLV5-PAGE-'));}"));
 assert.ok(script.includes("['구현','테스트','운영확인'].includes(t.status)"));
 console.log('PASS development progress: server-first merge, manual edits retained, repeat-safe releases and progress bar');
 
