@@ -6,11 +6,16 @@
 <section class="panel"><h2>관리자 인증</h2><p id="auth-status" role="status">관리자 권한을 확인하는 중…</p><a class="link" href="/login.html?redirect=%2Ftilo-admin.html">관리자 로그인</a><button id="refresh">방송국 상태 새로고침</button><p><small>관리자 권한은 서버에서 확인합니다. 이 페이지는 권한 검사 없이 방송 제어 요청을 실행하지 않습니다.</small></p></section>
 <section class="panel"><h2>중앙방송 할인계수</h2><p>초기 0.3(70% 할인). 변경은 앞으로의 정산에 적용하기 위한 설정이며 현재 정산 엔진 연동은 검증 전입니다.</p><label for="discount-bps">할인계수 (0~1)</label> <input id="discount-bps" type="number" min="0" max="1" step="0.01" value="0.3"> <label for="discount-reason">변경 사유</label> <input id="discount-reason" maxlength="500" placeholder="변경 사유를 8자 이상 입력"><button id="discount-save" disabled>할인계수 저장</button><p id="discount-status" role="status">관리자 인증 후 조회합니다.</p></section>
 <section class="panel"><h2>국가별 방송국 현황</h2><div id="stations" class="grid" aria-live="polite"></div></section>
+<section class="panel" aria-labelledby="tilo-operations-heading"><h2 id="tilo-operations-heading">실제 방송 운영·권리·정산 진단</h2>
+<p>재생 가능한 곡과 <strong>국가별 방송 이용허락</strong>은 서로 다릅니다. 서버 편성표와 브라우저 청취는 독립적인 24시간 실송출 증거가 아닙니다.</p>
+<div id="tilo-operations-status" role="status">관리자 로그인 후 운영 근거를 확인합니다.</div>
+<div id="tilo-operations" class="grid" aria-live="polite"></div>
+</section>
 <section class="panel"><h2>운영 관리 항목</h2><div class="grid">
 <div class="country"><strong>🎼 편성곡·방송 권리</strong><p>국가별 승인된 V5 TL3 음원과 제외 사유를 점검합니다.</p><span class="tag">권한 있는 조회 지원</span></div>
 <div class="country"><strong>🎙 TILO AI DJ</strong><p>국가·언어·시간대·날씨별 DJ 편성 및 발화 설정</p><span class="tag">관리 API 연동 예정</span></div>
-<div class="country"><strong>🕒 24시간 송출</strong><p>브라우저와 무관한 서버 측 송출 상태·재시작·장애 복구</p><span class="tag">서버 기능 검증 필요</span></div>
-<div class="country"><strong>💰 V5 경제원장·정산</strong><p>실제 방송 시간 × 0.3 TL, 권리자 70%·플랫폼 30% 정산 검증</p><span class="tag">원장 연동 예정</span></div>
+<div class="country"><strong>🕒 24시간 송출</strong><p>방송 편성표와 수신기 재생은 연결돼 있으나 독립적인 서버 송출·장애 복구는 실검증 전입니다.</p><span class="tag">실송출 증빙 필요</span></div>
+<div class="country"><strong>💰 V5 경제원장·정산</strong><p>검증 송출시간 × 관리자 할인계수, 권리자 70%·플랫폼 30% 기준. 지급 완료는 원장 거래로 별도 검증합니다.</p><span class="tag">실송출·원장 지급 미검증</span></div>
 <div class="country"><strong>📰 뉴스·날씨</strong><p>국가별 뉴스 소스와 날씨 데이터 점검</p><span class="tag">관리 기능 예정</span></div>
 <div class="country"><strong>🛡 권한·감사 기록</strong><p>관리자 역할, 변경 승인, 방송 제어 이력 관리</p><span class="tag">관리 기능 예정</span></div>
 </div></section>
@@ -49,6 +54,56 @@ discountSave.addEventListener('click',async()=>{
   finally{discountSave.disabled=false;}
 });
 const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const operationsStatus=document.getElementById('tilo-operations-status');
+const operationsGrid=document.getElementById('tilo-operations');
+const operationCondition={
+ SERVICE_DISABLED:'운영자 서비스 비활성',
+ NO_COUNTRY_RIGHTS:'국가별 방송 권리 승인 없음',
+ NO_RECEIVER_TRACKS:'수신 재생 후보 없음',
+ NO_VERIFIED_AIRTIME:'검증된 송출 기록 없음',
+ VERIFIED_AIRTIME_STALE:'최근 송출 증빙 없음',
+ VERIFIED_AIRTIME_RECENT:'최근 검증 송출 기록 있음 (서버 실방송 증명 아님)'
+};
+async function loadTiloOperations(){
+ operationsGrid.replaceChildren();
+ if(!token()){operationsStatus.textContent='관리자 로그인 후 실제 운영 상태를 조회할 수 있습니다.';return;}
+ operationsStatus.textContent='국가별 운영 DB 근거 확인 중…';
+ try{
+  const response=await fetch(API+'/api/admin/central-broadcast/operations',{
+   headers:{Authorization:'Bearer '+token()},cache:'no-store',signal:AbortSignal.timeout(15000)
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok||!Array.isArray(data.countries))
+    throw Error(data.error||'국가별 운영 조회 실패 (HTTP '+response.status+')');
+  operationsStatus.textContent='DB 조회 시각 '+String(data.server_time||'')+
+   ' · 서버 독립 음원 송출 '+(data.actual_server_audio_stream?'검증 연결':'미구축 / 브라우저 수신 방식')+
+   ' · 권리 없는 재생 후보를 승인곡으로 계산하지 않습니다.';
+  for(const item of data.countries){
+   const country=String(item.country||''),title=countries[country]||country;
+   const card=document.createElement('article');card.className='country';
+   const heading=document.createElement('strong');heading.textContent=title+' ('+country+')';
+   const p=document.createElement('p');
+   const total=Number(item.receiver_candidate_tracks||0),licensed=Number(item.explicit_country_licensed_tracks||0);
+   const count=Number(item.verified_airtime_events||0),ms=Number(item.verified_audible_ms||0);
+   const pending=Number(item.pending_settlements||0),approved=Number(item.approved_unposted_settlements||0),posted=Number(item.posted_settlements||0);
+   p.textContent='서비스 '+(item.service_enabled?'활성':'비활성')+' · 수신 후보 '+total+'곡 · 국가별 권리 승인 '+licensed+'곡';
+   const detail=document.createElement('p');
+   const slot=item.receiver_clock_slot;
+   detail.textContent='서버 편성 기준 '+(slot?String(slot.title||'곡 #'+slot.fileId)+' ('+Math.floor(Number(slot.positionMs||0)/1000)+'초 경과)':'편성 없음')+
+     ' · 실제 음원 송출 서버 '+(item.server_audio_stream?'연결':'미구축');
+   const evidence=document.createElement('p');
+   evidence.textContent='검증 송출 '+count+'건 / '+(Math.round(ms/1000*100)/100)+'초 · 마지막 '+(item.last_verified_airtime_end_at||'기록 없음');
+   const settle=document.createElement('p');settle.textContent='정산 대기 '+pending+'건 · 승인 미지급 '+approved+'건 · 원장 게시 '+posted+'건';
+   const mark=document.createElement('span');mark.className='tag';mark.textContent=operationCondition[item.condition]||'점검 필요';
+   const link=document.createElement('a');link.className='link';link.href='/radio.html';link.textContent='청취 화면';
+   card.append(heading,p,detail,evidence,settle,mark,link);operationsGrid.append(card);
+  }
+ }catch(e){
+  operationsStatus.textContent='운영 상태 조회 실패: '+String(e?.message||e)+' · 상태를 임의로 정상 표시하지 않습니다.';
+ }
+}
+
 async function load(){
 refresh.disabled=true;stations.textContent='국가별 상태 조회 중…';
 if(!token()){auth.textContent='로그인이 필요합니다. 관리자 계정으로 로그인하세요.';stations.textContent='관리자 인증 후 조회할 수 있습니다.';refresh.disabled=false;return;}
@@ -67,6 +122,6 @@ auth.className=denied?'error':entries.some(e=>e.data)?'ok':'muted';
 stations.innerHTML=entries.map(e=>'<article class="country"><strong>'+escapeHtml(e.name)+' ('+e.country+')</strong><p>'+(e.error?'<span class="error">'+escapeHtml(e.error)+'</span>':'<span class="ok">서버 조회 성공</span>')+'</p>'+(e.data?'<p>서비스: '+(e.data.service_enabled?'활성':'비활성')+'<br>방송 가능 곡: '+(Array.isArray(e.data.granted_file_ids)?e.data.granted_file_ids.length:'정보 없음')+'</p><a class="link" href="/tl-broadcast.html">방송국 보기</a>':'')+'</article>').join('');
 refresh.disabled=false;
 }
-refresh.addEventListener('click',()=>{load();loadDiscount();});load();loadDiscount();
+refresh.addEventListener('click',()=>{load();loadDiscount();loadTiloOperations();});load();loadDiscount();loadTiloOperations();
 })();
 </script></body></html>
