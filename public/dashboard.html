@@ -668,6 +668,74 @@ function toast(msg, t){
   setTimeout(function(){ el.remove(); }, 3200);
 }
 
+var _dashboardCatalogRun=0;
+function dashboardCoverURL(raw){
+  if(typeof raw!=='string'||!raw.trim())return '';
+  try{
+    var url=new URL(raw,location.origin);
+    return /^https?:$/.test(url.protocol)?url.href:'';
+  }catch(_){return '';}
+}
+function dashboardCatalogState(message,retry){
+  var box=g('tlHomeMusic');if(!box)return;
+  var state=document.createElement('div');state.className='tl-message';
+  var text=document.createElement('span');text.textContent=message;state.appendChild(text);
+  if(retry){
+    var button=document.createElement('button');button.type='button';button.textContent='다시 불러오기';
+    button.addEventListener('click',loadDashboardDiscovery);state.appendChild(button);
+    var link=document.createElement('a');link.href='/shareplace.html';link.textContent='공유플레이스 열기';state.appendChild(link);
+  }
+  box.replaceChildren(state);
+}
+function isDashboardTL3(row){
+  if(!row||!(row.id||row.share_id))return false;
+  return [row.content_kind,row.file_type,row.release_mode].some(function(value){
+    value=String(value||'').toLowerCase();return value==='tl3'||value==='audio/tl3';
+  });
+}
+async function loadDashboardDiscovery(){
+  var box=g('tlHomeMusic');if(!box)return false;
+  var run=++_dashboardCatalogRun;box.setAttribute('aria-busy','true');
+  dashboardCatalogState('공개 음악을 불러오는 중입니다.',false);
+  var controller=typeof AbortController==='function'?new AbortController():null;
+  var timer=controller?setTimeout(function(){controller.abort();},12000):null;
+  try{
+    var options={cache:'no-store'};if(controller)options.signal=controller.signal;
+    var response=await fetch(API+'/api/shares?limit=24&offset=0',options);
+    if(!response.ok&&(response.status===404||response.status===405))
+      response=await fetch(API+'/api/v1/shareplace?limit=24&offset=0',options);
+    if(!response.ok)throw new Error('공개 음악 조회 실패 ('+response.status+')');
+    var data=await response.json();
+    var rows=Array.isArray(data)?data:(Array.isArray(data.shares)?data.shares:(Array.isArray(data.items)?data.items:(Array.isArray(data.data)?data.data:[])));
+    rows=rows.filter(isDashboardTL3).sort(function(a,b){
+      return (Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0);
+    }).slice(0,8);
+    if(run!==_dashboardCatalogRun)return false;
+    if(!rows.length){dashboardCatalogState('아직 공개된 TL3 음악이 없습니다.',false);return true;}
+    var cards=rows.map(function(row){
+      var card=document.createElement('a');card.className='tl-music-card';
+      card.href='/track.html?id='+encodeURIComponent(String(row.share_id||row.id));
+      var wrap=document.createElement('div');wrap.className='tl-music-image';
+      var image=document.createElement('img'),fallback='/images/renewal/vinyl-collection-card.jpg';
+      var cover=dashboardCoverURL(row.cover_url||row.artwork_url||row.cover_image||'');
+      image.src=cover||fallback;image.alt=String(row.title||'음악')+(cover?' 앨범 커버':' 대표 이미지');
+      image.loading='lazy';image.decoding='async';image.width=320;image.height=320;
+      image.onerror=function(){image.onerror=null;image.src=fallback;image.alt='앨범 커버 대신 표시하는 대표 이미지';};
+      wrap.appendChild(image);
+      var title=document.createElement('strong');title.textContent=String(row.title||'제목 없음');
+      var artist=document.createElement('span');artist.textContent=String(row.artist||row.creator_name||'아티스트 미등록');
+      card.append(wrap,title,artist);return card;
+    });
+    box.replaceChildren.apply(box,cards);return true;
+  }catch(error){
+    if(run===_dashboardCatalogRun)dashboardCatalogState(error&&error.name==='AbortError'?'음악 조회 시간이 초과되었습니다.':'음악을 불러오지 못했습니다.',true);
+    return false;
+  }finally{
+    if(timer)clearTimeout(timer);
+    if(run===_dashboardCatalogRun)box.setAttribute('aria-busy','false');
+  }
+}
+
 // ═══════════════════════════════════════════
 // 초기화
 // ═══════════════════════════════════════════
@@ -1166,7 +1234,7 @@ async function submitPwChange(){
 // ═══════════════════════════════════════════
 // 시작 (DOMContentLoaded)
 // ═══════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', function(){ fetchServerBalance(); });
+document.addEventListener('DOMContentLoaded', function(){ fetchServerBalance();loadDashboardDiscovery(); });
 window.addEventListener('focus',fetchServerBalance);
 document.addEventListener('visibilitychange',function(){if(!document.hidden)fetchServerBalance();});
 document.addEventListener('DOMContentLoaded', function(){
