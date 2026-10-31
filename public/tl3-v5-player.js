@@ -161,14 +161,41 @@
     let sessionId=String(opts.sessionId||sid());
     const broadcastCountry=String(opts.broadcastCountry||'').toUpperCase();
     const djStationId=Number(opts.djStationId||0);
+    const personalRadio=opts.personalRadioListening===true;
+    if(personalRadio&&(broadcastCountry||djStationId))
+      throw new Error('개인 라디오 청취는 무료 방송사업자·DJ 모니터 라이선스를 사용할 수 없습니다.');
     if(djStationId&&(!Number.isSafeInteger(djStationId)||djStationId<=0))throw new Error('Invalid DJ station');
     const nonBillable=!!broadcastCountry||djStationId>0;
     if(broadcastCountry && !['KR','JP','US','CN','TH','VN'].includes(broadcastCountry))throw new Error('Invalid broadcast country');
-    const pre=nonBillable?{can_play:true}:await request(API+'/api/v1/tl3/play/preflight/'+encodeURIComponent(fileId),{
+    let pre=nonBillable?{can_play:true}:await request(API+'/api/v1/tl3/play/preflight/'+encodeURIComponent(fileId),{
       method:'POST',headers:auth()
     });
     ensureStartupActive();
-    if(!pre.can_play)throw new Error('TL이 부족하여 TL3 V5를 재생할 수 없습니다.');
+    // An explicit user click to start personal TILO radio authorizes ordinary
+    // wallet-to-track pre-funding. Unheard TL stays in the user's pool (and
+    // is returned by the existing early-stop settlement); never charge for
+    // a browser pause or use the broadcaster's nonbillable country flag.
+    if(personalRadio&&pre.billing_mode!=='time_free'&&!pre.can_play&&pre.code==='TRACK_TL_INSUFFICIENT'){
+      const wallet=Number(pre.wallet_tl||0),asset=Number(pre.asset_tl||0),need=Number(pre.required_tl||0);
+      const amount=Math.max(0,Math.min(Math.ceil(wallet+1e-8),Math.ceil(need-asset-1e-8)));
+      if(amount>0&&wallet+1e-8>=amount){
+        if(opts.onFunding)opts.onFunding({amount,remainingWallet:wallet});
+        const charged=await request(API+'/api/shares/'+encodeURIComponent(shareId)+'/charge',{
+          method:'POST',headers:Object.assign({'Content-Type':'application/json','Idempotency-Key':'radio:'+sessionId},auth()),
+          body:JSON.stringify({amount})
+        });
+        if(!charged.ok)throw new Error('방송 재생 TL 사전 충전 실패');
+        pre=await request(API+'/api/v1/tl3/play/preflight/'+encodeURIComponent(fileId),{
+          method:'POST',headers:auth()
+        });
+      }
+    }
+    ensureStartupActive();
+    // A member may listen only while there is prepaid TL (or TIME FREE).
+    // For insufficient full-song balance, the existing metering endpoint
+    // stops exactly when the available funded TL is exhausted.
+    if(!pre.can_play&&!(personalRadio&&pre.code==='TRACK_TL_INSUFFICIENT'&&Number(pre.asset_tl||0)>=1))
+      throw new Error('개인 청취 TL이 부족합니다. TIME FREE를 구매하거나 TL을 충전해 주세요.');
     if(pre.billing_mode==='time_free'){sessionId='tf_'+sessionId.replace(/^(tf_|sub_)/,'');if(sessionId.length>100)throw new Error('TIME FREE 재생 세션이 너무 깁니다.');}
     if(pre.billing_mode==='subscription'){sessionId='sub_'+sessionId.replace(/^sub_/,'');if(sessionId.length>100)throw new Error('구독 재생 세션이 너무 깁니다.');}
     if(opts.onBillingMode)opts.onBillingMode(pre);
