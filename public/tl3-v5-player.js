@@ -171,6 +171,10 @@
       method:'POST',headers:auth()
     });
     ensureStartupActive();
+    // A cafe may play only from a purchased TIME FREE pass, regardless of
+    // central-vs-manual choice. Never silently spend TL or subscriptions.
+    if(opts.requireTimeFree===true&&pre.billing_mode!=='time_free')
+      throw new Error('카페 음악은 TIME FREE 구매가 필요합니다. TL 자동 차감으로 대체하지 않습니다.');
     // An explicit user click to start personal TILO radio authorizes ordinary
     // wallet-to-track pre-funding. Unheard TL stays in the user's pool (and
     // is returned by the existing early-stop settlement); never charge for

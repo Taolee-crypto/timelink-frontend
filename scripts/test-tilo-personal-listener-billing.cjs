@@ -20,7 +20,9 @@ assert.equal(quote({billing_mode:'track_pool',can_play:false,required_tl:235,wal
 assert.throws(()=>quote({billing_mode:'track_pool',can_play:false,required_tl:60,wallet_tl:-10,asset_tl:0}),/INVALID/);
 const radio=fs.readFileSync('public/radio.html','utf8'),engine=fs.readFileSync('public/tl3-v5-player.js','utf8');
 assert.match(radio,/src="\/tilo-listener-billing\.js/);
-assert.match(radio,/personalRadioListening:true/);
+assert.match(radio,/personalRadioListening:!cafeTimeFreeMode/);
+assert.match(radio,/requireTimeFree:cafeTimeFreeMode/);
+assert.match(engine,/opts\.requireTimeFree===true&&pre\.billing_mode!=='time_free'/);
 assert.doesNotMatch(radio,/broadcastCountry:country/,'Personal radio must never impersonate free broadcaster');
 assert.doesNotMatch(radio,/개인 TL 차감 없는 방송 청취|청취자 TL 차감 없음/);
 assert.match(radio,/TIME FREE 우선/);
