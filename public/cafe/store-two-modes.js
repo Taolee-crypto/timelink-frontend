@@ -123,7 +123,7 @@ function renderSongs(){
  const q=search.value.toLocaleLowerCase().trim(),g=genre.value;
  const show=tracks.map((x,i)=>({...x,i})).filter(x=>(!g||String(x.genre||'').toLowerCase()===g)&&(!q||(String(x.title||'')+' '+String(x.artist||'')).toLocaleLowerCase().includes(q)));
  list.replaceChildren();
- let toolbar=$('playlistToolbar');if(!toolbar){toolbar=document.createElement('div');toolbar.id='playlistToolbar';toolbar.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:12px 0';toolbar.innerHTML='<button type="button" id="selectAllSongs" class="secondary">전체 선택</button><button type="button" id="clearAllSongs" class="secondary">전체 해제</button><strong id="selectionCount" aria-live="polite"></strong><button type="button" id="playSelectedSongs">▶ 선택곡 전체 재생</button>';list.before(toolbar);$('selectAllSongs').onclick=()=>{for(const x of show)chosen.add(trackKey(x));saveSelection();renderSongs()};$('clearAllSongs').onclick=()=>{chosen.clear();saveSelection();renderSongs()};$('playSelectedSongs').onclick=()=>{const next=selectedQueue();if(!next.length){report('재생할 음악을 체크해 주세요.');return;}queue=next;queuePosition=0;queueActive=true;void playIndex(queue[0]).catch(e=>{queueActive=false;report(e.message)})};}
+ let toolbar=$('playlistToolbar');if(!toolbar){toolbar=document.createElement('div');toolbar.id='playlistToolbar';toolbar.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:12px 0';toolbar.innerHTML='<button type="button" id="selectAllSongs" class="secondary">전체 선택</button><button type="button" id="clearAllSongs" class="secondary">전체 해제</button><strong id="selectionCount" aria-live="polite"></strong><button type="button" id="playSelectedSongs">▶ 선택곡 전체 재생</button>';list.before(toolbar);$('selectAllSongs').onclick=()=>{for(const x of show)chosen.add(trackKey(x));saveSelection();renderSongs()};$('clearAllSongs').onclick=()=>{chosen.clear();saveSelection();renderSongs()};$('playSelectedSongs').onclick=()=>{cancelRecovery();const next=selectedQueue();if(!next.length){report('재생할 음악을 체크해 주세요.');return;}queue=next;queuePosition=0;queueActive=true;void playIndex(queue[0]).catch(e=>{queueActive=false;report(e.message)})};}
  // Refresh the visible-selection handler after every search/genre render.
  $('selectAllSongs').onclick=()=>{for(const x of show)chosen.add(trackKey(x));saveSelection();renderSongs()};
  updateCount();
@@ -154,6 +154,7 @@ async function loadSongs(){
 async function openManual(){
  try{
   await authorize();
+  queueActive=false;cancelRecovery();await closeAudio();
   stopCentral();
   mode='manual';
   showSong('직접 선택 대기 중','—','사장님이 곡을 선택하세요.');
@@ -190,7 +191,7 @@ async function playIndex(i){
   // Never unlock personal wallet billing or private broadcaster free mode.
   await window.TL3V5Player.playStream('tl3_'+x.file_id,audio,{
     requireTimeFree:true,
-    onReady:()=>{recoveryFailures=0;showSong(x.title,x.artist,'직접 선택 · TIME FREE 재생 중');now.textContent='TIME FREE 재생 중 · '+text(x.title||'곡',95)+' · '+text(x.artist||'가수 정보 없음',95);},
+    onReady:()=>{showSong(x.title,x.artist,'직접 선택 · TIME FREE 재생 중');now.textContent='TIME FREE 재생 중 · '+text(x.title||'곡',95)+' · '+text(x.artist||'가수 정보 없음',95);},
     onError:err=>{if(selected!==i||!playing)return;now.textContent='재생 오류 · '+text(err?.message||err,140);currentMode.textContent='음악 재생 오류';recoverTrack(i);},
     onInsufficient:()=>{queueActive=false;cancelRecovery();now.textContent='TIME FREE 시간이 모두 사용되었습니다. 추가 구매 후 계속할 수 있습니다.';currentMode.textContent='TIME FREE 시간 소진';void closeAudio();},
     onBillingMode:pre=>{if(pre.billing_mode!=='time_free')throw Error('TIME FREE 외의 과금 방식은 사용할 수 없습니다.');}
@@ -210,6 +211,8 @@ audio.addEventListener('pause',()=>{
 });
 audio.addEventListener('ended',()=>{
  if(!playing||!queueActive||transitioning)return;
+ // Only a fully finished track clears consecutive playback failures.
+ recoveryFailures=0;
  transitioning=true;
  void (async()=>{try{const next=selectedQueue();if(!next.length){queueActive=false;await closeAudio();return;}const pos=next.indexOf(selected);queue=next;queuePosition=pos<0?0:(pos+1)%next.length;await playIndex(queue[queuePosition]);}catch(e){queueActive=false;report('연속 재생 중지 · '+e.message);await closeAudio();}finally{transitioning=false}})();
 });
