@@ -17,6 +17,11 @@ assert.ok(html.includes("var RELEASE_TAG = 'v1.1.8';"));
 assert.ok(html.includes('LOVE CODE 상호 인식'));
 assert.ok(html.includes('파일 TL 실시간 차감'));
 assert.ok(html.includes('Player 내부 재생'));
+assert.ok(html.includes('Windows 버전 다운로드'));
+assert.ok(html.includes('Mac 버전 다운로드'));
+assert.ok(html.includes('Linux 버전 다운로드'));
+assert.ok(html.includes('Ubuntu / Debian 버전 다운로드'));
+assert.ok(html.includes('Android 버전 다운로드'));
 assert.ok(html.includes('실제 청취 1초당 1 TL'));
 assert.ok(html.includes('다운로드된 휴대형 TL3의 Player 재생은 계정 로그인에 묶이지 않습니다.'));
 for(const stale of [
