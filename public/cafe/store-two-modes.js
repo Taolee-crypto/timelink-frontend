@@ -6,6 +6,26 @@ const picker=$('storePicker'),status=$('accessState'),remaining=$('timeRemaining
 const centralPanel=$('centralPanel'),centralHost=$('centralHost');
 const currentTitle=$('nowPlayingTitle'),currentArtist=$('nowPlayingArtist'),currentMode=$('nowPlayingMode');
 let radioFrame=null,mode='idle';
+const playerChannel='tilo_cafe_now_playing_v1';
+const playerWindowMode=new URLSearchParams(location.search).get('player_window')==='1';
+let statusChannel=null;
+try{statusChannel=new BroadcastChannel(playerChannel);}catch{}
+function publishPlayback(title,artist,kind,active=true){
+ if(!playerWindowMode)return;
+ const data={type:'cafe-playback',title,artist,kind,active,store:picker.value,at:Date.now()};
+ try{localStorage.setItem(playerChannel,JSON.stringify(data));}catch{}
+ try{statusChannel?.postMessage(data);}catch{}
+}
+function receivePlayback(data){
+ if(!data||data.type!=='cafe-playback'||playerWindowMode)return;
+ if(data.store&&picker.value&&data.store!==picker.value)return;
+ if(Date.now()-Number(data.at)>120000)return;
+ currentTitle.textContent=text(data.title||'재생 대기 중',180);
+ currentArtist.textContent=text(data.artist||'가수 정보 대기',180);
+ currentMode.textContent=text(data.kind||'음악 재생 대기',120);
+}
+if(statusChannel)statusChannel.onmessage=e=>receivePlayback(e.data);
+window.addEventListener('storage',e=>{if(e.key===playerChannel&&e.newValue){try{receivePlayback(JSON.parse(e.newValue));}catch{}}});
 // Keep the store receiver in a dedicated window: a normal page navigation
 // destroys audio and the TL3 TIME FREE session tied to its document.
 const playerWindowMode=new URLSearchParams(location.search).get('player_window')==='1';
@@ -54,6 +74,7 @@ function showSong(title,artist,kind){
  currentTitle.textContent=text(title||'재생 대기 중',180);
  currentArtist.textContent=text(artist||'가수 정보 대기',180);
  currentMode.textContent=text(kind||'음악 재생 대기',120);
+ publishPlayback(title,artist,kind,!/대기|중지|오류/.test(String(kind)));
 }
 function stopCentral(){
  if(!radioFrame)return;
@@ -101,6 +122,7 @@ async function listStores(){
   if(!stores.length){report('사업자번호로 개설한 활성 매장이 없습니다. 나의 카페에서 먼저 매장을 개설해 주세요.');remaining.textContent='매장 없음';picker.replaceChildren(new Option('개설된 매장 없음',''));return}
   localStorage.setItem('tilo_store_channel',picker.value);
   await refreshAccess();
+  if(!playerWindowMode){try{receivePlayback(JSON.parse(localStorage.getItem(playerChannel)||'null'));}catch{}}
   const requestedMode=new URLSearchParams(location.search).get('mode');
   if(requestedMode==='manual')await openManual();
   if(requestedMode==='central')await openCentral();
