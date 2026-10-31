@@ -242,6 +242,7 @@ body::before{background:radial-gradient(ellipse 70% 50% at 10% 20%,rgba(139,92,2
         <div style="margin-top:7px;color:var(--t3);font-size:11px;line-height:1.6" data-i18n="ch.biz.notice">현재는 사업자등록번호의 형식만 확인합니다. 국세청 실시간 인증은 완료되지 않았습니다.</div>
       </div>
     </div>
+    <div class="form-row one"><label class="cafe-business-confirm" style="display:flex;gap:10px;align-items:start;color:#e5ddd7;font-size:13px"><input id="businessOwnerAttestation" type="checkbox" required style="margin-top:3px;accent-color:#a78bfa">본인은 실제 사업자이거나 해당 사업자를 대신하여 이 개별 매장을 개설할 정당한 권한이 있습니다. 사업자번호는 형식 확인만 진행하며 공식 사업자 실재 인증은 아직 완료되지 않았음을 이해합니다.</label></div>
     <div class="form-row one">
       <div class="form-group">
         <label class="form-label" data-i18n="ch.intro">소개글</label>
@@ -574,6 +575,7 @@ function validateWizardStep(step){
   if(step===1){
     var name=g('cafeName').value.trim(), id=g('channelId').value.trim().toLowerCase(), biz=g('bizNo').value.replace(/\D/g,'');
     if(!name){toast(window.TLi18n.t('ch.toast.no.cafe'),'e');g('cafeName').focus();return false;}
+    if(!g('businessOwnerAttestation').checked){toast('사업자 개설 권한 확인이 필요합니다.','e');return false;}
     if((g('storeCountry').value==='KR'&&biz.length!==10)||!g('bizNo').value.trim()){toast(window.TLi18n.t('ch.toast.biz.format'),'e');g('bizNo').focus();return false;}
   }
   if(step===2&&!g('cafeAddr').value.trim()){toast(window.TLi18n.t('ch.toast.address.required'),'e');g('cafeAddr').focus();return false;}
@@ -605,8 +607,10 @@ async function submitChannel(){
   btn.disabled=true; btn.textContent=window.TLi18n.t('ch.processing');
 
   try{
+    if(!g('businessOwnerAttestation').checked){toast('사업자 또는 정당한 개설 권한 여부를 확인해 주세요.','e');return;}
     var body = {
       channel_id: '',
+      business_owner_attested:true,
       name: name,
       country: g('storeCountry').value,
       store_kind:g('storeKind').value,
