@@ -9,6 +9,21 @@ let radioFrame=null,mode='idle';
 const search=$('songSearch'),genre=$('genreFilter'),list=$('songList'),audio=$('cafeAudio'),now=$('nowPlaying'),stop=$('stopSong');
 let stores=[],tracks=[],selected=-1,requestId=0,stopping=null,playing=false,loading=false;
 let queue=[],queuePosition=-1,queueActive=false,transitioning=false;
+let recoveryFailures=0,recoveryTimer=null;
+function cancelRecovery(){if(recoveryTimer!==null)clearTimeout(recoveryTimer);recoveryTimer=null;recoveryFailures=0;}
+function recoverTrack(failedIndex){
+ if(!queueActive||!playing||mode!=='manual'||selected!==failedIndex||recoveryTimer!==null)return;
+ if(loading){recoveryTimer=setTimeout(()=>{recoveryTimer=null;recoverTrack(failedIndex)},350);return;}
+ const next=selectedQueue();
+ if(next.length<2||++recoveryFailures>=next.length){queueActive=false;report('선택곡 재생 오류 · 자동 재생을 중단했습니다. 음악 이용권과 파일 상태를 확인해 주세요.');return;}
+ recoveryTimer=setTimeout(()=>{
+  recoveryTimer=null;
+  if(!queueActive||!playing||mode!=='manual'||selected!==failedIndex)return;
+  if(loading){recoverTrack(failedIndex);return;}
+  const pos=next.indexOf(failedIndex),target=next[(pos+1)%next.length];
+  void playIndex(target).catch(e=>{queueActive=false;report('연속 재생 중지 · '+e.message)});
+ },350);
+}
 const chosen=new Set();
 const queueKey=()=> 'tilo_cafe_playlist_v1_'+picker.value;
 const trackKey=x=>String(x.file_id);
@@ -85,7 +100,7 @@ async function openCentral(){
   const store=await authorize();
   if(!['KR','JP','US','CN','TH','VN'].includes(String(store.country||'KR').toUpperCase()))
    throw Error('아직 이 매장 국가의 TILO 중앙방송이 준비되지 않았습니다.');
-  queueActive=false;await closeAudio();
+  queueActive=false;cancelRecovery();await closeAudio();
   panel.hidden=true;
   stopCentral();
   mode='central';
@@ -175,9 +190,9 @@ async function playIndex(i){
   // Never unlock personal wallet billing or private broadcaster free mode.
   await window.TL3V5Player.playStream('tl3_'+x.file_id,audio,{
     requireTimeFree:true,
-    onReady:()=>{showSong(x.title,x.artist,'직접 선택 · TIME FREE 재생 중');now.textContent='TIME FREE 재생 중 · '+text(x.title||'곡',95)+' · '+text(x.artist||'가수 정보 없음',95);},
-    onError:err=>{now.textContent='재생 오류 · '+text(err?.message||err,140);currentMode.textContent='음악 재생 오류';},
-    onInsufficient:()=>{now.textContent='TIME FREE 시간이 모두 사용되었습니다. 추가 구매 후 계속할 수 있습니다.';currentMode.textContent='TIME FREE 시간 소진';void closeAudio();},
+    onReady:()=>{recoveryFailures=0;showSong(x.title,x.artist,'직접 선택 · TIME FREE 재생 중');now.textContent='TIME FREE 재생 중 · '+text(x.title||'곡',95)+' · '+text(x.artist||'가수 정보 없음',95);},
+    onError:err=>{if(selected!==i||!playing)return;now.textContent='재생 오류 · '+text(err?.message||err,140);currentMode.textContent='음악 재생 오류';recoverTrack(i);},
+    onInsufficient:()=>{queueActive=false;cancelRecovery();now.textContent='TIME FREE 시간이 모두 사용되었습니다. 추가 구매 후 계속할 수 있습니다.';currentMode.textContent='TIME FREE 시간 소진';void closeAudio();},
     onBillingMode:pre=>{if(pre.billing_mode!=='time_free')throw Error('TIME FREE 외의 과금 방식은 사용할 수 없습니다.');}
   });
  }catch(e){playing=false;stop.disabled=true;now.textContent=e.message;report(e.message);throw e}
@@ -198,14 +213,14 @@ audio.addEventListener('ended',()=>{
  transitioning=true;
  void (async()=>{try{const next=selectedQueue();if(!next.length){queueActive=false;await closeAudio();return;}const pos=next.indexOf(selected);queue=next;queuePosition=pos<0?0:(pos+1)%next.length;await playIndex(queue[queuePosition]);}catch(e){queueActive=false;report('연속 재생 중지 · '+e.message);await closeAudio();}finally{transitioning=false}})();
 });
-stop.addEventListener('click',()=>{queueActive=false;void closeAudio().catch(e=>report(e.message))});
+stop.addEventListener('click',()=>{queueActive=false;cancelRecovery();void closeAudio().catch(e=>report(e.message))});
 $('centralMode').addEventListener('click',()=>{void openCentral()});
 $('manualMode').addEventListener('click',()=>{void openManual()});
 $('closeCentral').addEventListener('click',()=>{stopCentral();report('TILO 중앙방송이 중지되었습니다.');});
-picker.addEventListener('change',async()=>{try{queueActive=false;chosen.clear();stopCentral();await closeAudio();tracks=[];selected=-1;panel.hidden=true;mode='idle';showSong('재생 대기 중','—','새 매장을 선택했습니다.');localStorage.setItem('tilo_store_channel',picker.value);await refreshAccess()}catch(e){report(e.message)}});
+picker.addEventListener('change',async()=>{try{queueActive=false;cancelRecovery();chosen.clear();stopCentral();await closeAudio();tracks=[];selected=-1;panel.hidden=true;mode='idle';showSong('재생 대기 중','—','새 매장을 선택했습니다.');localStorage.setItem('tilo_store_channel',picker.value);await refreshAccess()}catch(e){report(e.message)}});
 search.addEventListener('input',renderSongs);
 genre.addEventListener('change',renderSongs);
 window.addEventListener('focus',()=>{if(!playing)void refreshAccess()});
-window.addEventListener('pagehide',()=>{stopCentral();audio._tl3CancelStartup?.();if(typeof audio._tl3Stop==='function')void audio._tl3Stop()});
+window.addEventListener('pagehide',()=>{queueActive=false;cancelRecovery();stopCentral();audio._tl3CancelStartup?.();if(typeof audio._tl3Stop==='function')void audio._tl3Stop()});
 void listStores();
 })();
