@@ -38,7 +38,9 @@ for(const file of ['public/radio.html','public/cafe-channel.html']){
   if(match[1].trim())new vm.Script(match[1],{filename:file});
 }
 const signup=fs.readFileSync('public/cafe-channel.html','utf8');
-assert.match(signup,/id="businessOwnerAttestation"/);
-assert.match(signup,/business_owner_attested:true/);
-assert.match(signup,/businessOwnerAttestation'\)\.checked/);
+assert.match(signup,/function cafeBusinessNumberValid\(country,value\)/);
+for(const code of ['KR','US','JP','CN','GB'])assert.match(signup,new RegExp("case '"+code+"'"));
+assert.doesNotMatch(signup,/businessOwnerAttestation|business_owner_attested:true/,'Do not require extra owner checkbox during format-only testing');
+assert.match(signup,/국가별 사업자번호 형식·길이/);
+assert.match(signup,/공식 사업자 진위 API 연결 전/);
 console.log('PASS TILO personal radio uses TIME FREE then wallet TL 1/sec; no free broadcast bypass; business owner attestation');
