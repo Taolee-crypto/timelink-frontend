@@ -49,7 +49,8 @@ async function fetchOwnStores(){
  const rows=(Array.isArray(list.channels)?list.channels:[]).filter(x=>x.status==='active'&&x.channel_id);
  channel.replaceChildren();
  for(const x of rows){const opt=new Option(x.name||x.channel_id,x.channel_id);channel.add(opt)}
- const prev=localStorage.getItem('tilo_store_channel');
+ const requested=new URLSearchParams(location.search).get('channel_id');
+ const prev=requested&&rows.some(x=>x.channel_id===requested)?requested:localStorage.getItem('tilo_store_channel');
  if(prev&&rows.some(x=>x.channel_id===prev))channel.value=prev;
  if(!rows.length){message('사업자 등록된 내 매장을 먼저 개설해주세요.');start.disabled=true;return false}
  channel.addEventListener('change',()=>{localStorage.setItem('tilo_store_channel',channel.value);refreshMusic().catch(showError)});
