@@ -7,8 +7,15 @@
 <div class="radio-now"><img src="/images/renewal/vinyl-collection-card.jpg" alt="" width="76" height="76"><div><small id="selection-tag">NOW PLAYING</small><strong id="selection-title">음악을 만날 준비가 됐나요?</strong><p id="selection-meta">국가를 선택하고 방송을 연결하세요.</p></div></div>
 <button type="button" class="radio-connect" id="country-station-join">▶ TILO Korea 방송 재생</button><audio id="tilo-broadcast-audio" hidden controls preload="none" aria-label="TILO 방송 음량 및 재생 조절"></audio><div class="radio-status" id="station-status" role="status" aria-live="polite">방송 연결 대기</div><p class="radio-muted" id="tilo-promotion-lineup" aria-live="polite">홍보 신청곡 우선 편성 · 일반곡 자동 보충</p><div class="radio-auth" id="tilo-admin-login-panel"><span id="tilo-admin-login-message"></span><a id="tilo-admin-login-link" href="/login.html?redirect=%2Fradio.html">회원 로그인하기 →</a></div></div></section><aside class="radio-listeners" aria-label="실시간 방송 청취 회원"><span class="radio-eyebrow">LIVE LISTENERS</span><h2>함께 듣는 회원</h2><div class="radio-listeners-count" id="radio-listeners-country">전 세계 TILO 회원</div><div class="radio-listeners-feed" id="radio-listeners-feed"><div class="radio-listeners-status" id="tilo-chat-status">회원 연결 중…</div><div class="tilo-chat-members" id="tilo-chat-members"></div></div><span class="radio-eyebrow">GLOBAL CHAT</span><div class="tilo-chat-messages" id="tilo-chat-messages" role="log" aria-label="글로벌 채팅 메시지"></div><form class="tilo-chat-form" id="tilo-chat-form"><input id="tilo-chat-input" maxlength="500" placeholder="전 세계 회원에게 메시지" aria-label="채팅 메시지" required><button type="submit">전송</button></form><p class="radio-muted">모든 국가의 회원이 함께 대화합니다.</p></aside></div>
 <div class="radio-bottom"><section class="radio-card"><span class="radio-eyebrow">MUSIC LIBRARY</span><h2>방송 음원 둘러보기</h2><p class="radio-muted" id="broadcast-playlist-status">방송 음원 목록 확인 중…</p><div class="radio-list" id="broadcast-playlist"></div><p class="radio-muted">공개 음원 목록입니다. 실제 청취 가능 여부는 선택 국가의 이용허락에 따라 달라집니다.</p></section><section class="radio-card"><span class="radio-eyebrow">KEEP LISTENING</span><h2>어디서든 이어지는 음악</h2><p class="radio-muted">방송을 연결한 뒤 다른 화면을 둘러봐도 청취가 이어집니다. DJ 안내는 브라우저 음성합성을 사용합니다.</p><div class="radio-links"><a href="/cafe-channel.html"><img src="/images/renewal/cafe-interior-card.jpg" alt="" loading="lazy"><span>카페에서 듣기 ↗</span></a><a href="/incar-channel.html"><img src="/images/renewal/car-interior-card.jpg" alt="" loading="lazy"><span>드라이브와 함께 ↗</span></a></div></section></div></main>
-<script src="/tilo-listener-billing.js?v=20261031"></script><script src="/tl3-v5-player.js?v=tilo-priority-20261025"></script><script src="/tilo-dj-voice.js?v=20261031-r1"></script><script>
+<script src="/tilo-listener-billing.js?v=20261031"></script><script src="/cafe/time-free.js?v=20261031"></script><script src="/tl3-v5-player.js?v=cafe-timefree-20261031"></script><script src="/tilo-dj-voice.js?v=20261031-r1"></script><script>
 const broadcastAudio=document.getElementById('tilo-broadcast-audio');
+const cafeTimeFreeId=new URLSearchParams(location.search).get('cafe_channel')||'';
+const cafeTimeFreeMode=!!cafeTimeFreeId;
+if(cafeTimeFreeMode){
+ const p=document.createElement('p');p.className='radio-muted';
+ p.textContent='나의 카페 · TILO 중앙방송(홍보곡 우선). TIME FREE 구매 후 실제 청취시간만 사용합니다. 개인 TL 자동차감 없음.';
+ document.querySelector('.radio-heading')?.append(p);
+}
 
 // Personal radio listening uses the regular V5 audible-time settlement:
  // valid TIME FREE first, otherwise user-funded TL at 1 TL per second.
@@ -189,15 +196,16 @@ async function nextTiloTrack(generation,country,broadcastStartAt=null){
     if(tiloCompletedSongs%3===2)void prepareTiloEditorial(generation,country);
     let listenerBilling='청취 1초당 1TL';
     await sharedV5Player.playStream('tl3_'+fileId,broadcastAudio,{
-      personalRadioListening:true,
+      personalRadioListening:!cafeTimeFreeMode,
+      requireTimeFree:cafeTimeFreeMode,
       broadcastStartAt,
       onBillingMode:pre=>{listenerBilling=pre?.billing_mode==='time_free'?'TIME FREE 사용 중':pre?.billing_mode==='subscription'?'구독 청취 정산 중':'청취 1초당 1TL';},
       onFunding:({amount})=>{if(generation===stationGeneration)status.textContent=countrySession[country].name+' · 방송 청취를 위한 '+amount+'TL 예치 중 (실제 청취 초만 차감)';},
       onInsufficient:()=>{if(generation===stationGeneration){status.textContent='청취 TL이 부족합니다. TIME FREE 또는 TL을 충전해 주세요.';void stopTilo();}},
-      onError:e=>{if(generation===stationGeneration){const msg=String(e?.message||e);status.textContent='방송 재생 오류: '+msg;if(/TL이 부족|TL을 충전|TIME FREE.*구매|INSUFFICIENT/.test(msg)){stationPlaying=false;clearTiloRecovery();}else scheduleTiloRecovery(generation,country);}},
-      onReady:()=>{if(generation===stationGeneration){clearTiloRecovery();tiloRecoveryAttempts=0;broadcastAudio.hidden=false;status.textContent=countrySession[country].name+' · V5 방송 재생 중 ('+listenerBilling+')';publishTiloTrack(fileId,country);rememberTilo(country,'track','V5 track '+fileId,{fileId});}}
+      onError:e=>{if(generation===stationGeneration){const msg=String(e?.message||e);status.textContent='방송 재생 오류: '+msg;if(/TL이 부족|TL을 충전|TIME FREE.*구매|TIME FREE.*필요|INSUFFICIENT/.test(msg)){stationPlaying=false;clearTiloRecovery();}else scheduleTiloRecovery(generation,country);}},
+      onReady:()=>{if(generation===stationGeneration){clearTiloRecovery();tiloRecoveryAttempts=0;broadcastAudio.hidden=false;status.textContent=countrySession[country].name+' · V5 방송 재생 중 ('+(cafeTimeFreeMode?'카페 TIME FREE':listenerBilling)+')';publishTiloTrack(fileId,country);rememberTilo(country,'track','V5 track '+fileId,{fileId});}}
     });
-  }catch(e){if(generation===stationGeneration){status.textContent='방송 재생 실패: '+String(e?.message||e);scheduleTiloRecovery(generation,country);}}
+  }catch(e){if(generation===stationGeneration){const msg=String(e?.message||e);status.textContent='방송 재생 실패: '+msg;if(cafeTimeFreeMode&&/TIME FREE|본인이 개설한|매장을 선택/.test(msg)){stationPlaying=false;clearTiloRecovery();}else scheduleTiloRecovery(generation,country);}}
 }
 // Prepare AI decisions while music is playing, never at the song boundary.
 let tiloCompletedSongs=0;
@@ -285,6 +293,7 @@ stationJoin.addEventListener('click',async()=>{
     if(!sharedV5Player)throw Error('TRACK V5 플레이어가 로드되지 않았습니다.');
     const token=localStorage.getItem('tl_token')||'';
     if(!token)throw Error('방송을 청취하려면 회원 로그인이 필요합니다.');
+    if(cafeTimeFreeMode)await window.TiloCafeTimeFree.requireTime(cafeTimeFreeId);
     const response=await fetch('https://api.timelink.digital/api/v5/central-broadcast/stations/'+encodeURIComponent(country),{cache:'no-store',signal:AbortSignal.timeout(15000)});
     const data=await response.json();
     if(!response.ok||!data.ok)throw Error(data.error||'방송국 조회 실패');
@@ -294,7 +303,7 @@ stationJoin.addEventListener('click',async()=>{
     if(!tracks.length)
       throw Error('현재 편성 가능한 음원이 없습니다. 홍보 주문이나 별도 관리자 승인 구매를 요구하지 않습니다.');
     const promoted=Number(data.promoted_count||0),ordinary=Number(data.ordinary_count||0);
-    tiloPromotionLineup.textContent='홍보 예산 확보곡 '+promoted+'곡 우선 편성 · 일반 보충곡 '+ordinary+'곡 · TIME FREE 우선 · 일반 청취 1초당 1TL';
+    tiloPromotionLineup.textContent='홍보 예산 확보곡 '+promoted+'곡 우선 편성 · 일반 보충곡 '+ordinary+'곡 · '+(cafeTimeFreeMode?'카페 TIME FREE 전용':'TIME FREE 우선 · 일반 청취 1초당 1TL');
     const serverSlot=data.slot&&tracks.includes(data.slot.fileId)?data.slot:null;
     if(generation!==stationGeneration)return;
     joinedCountry=country;stationTracks=tracks;stationPlaying=true;
