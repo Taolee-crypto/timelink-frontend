@@ -42,6 +42,11 @@ assert.match(html,/data\.country===country&&data\.locale===countrySession\[count
 assert.match(html,/tiloPreparedWeather=data\.voice_context\|\|null/);
 assert.match(html,/tiloVoicePolicy\?\.policy\(country,new Date\(\),observedWeather/);
 assert.match(html,/utterance\.lang=countrySession\[country\]\.lang/);
+assert.match(html,/const kind=plan\?'editorial':'opening'/,'country-local fallback only when editorial absent');
+assert.match(html,/plan\?plan\.commentary:tiloOpening\(country\)/);
+assert.match(html,/plan&&plan\.speak_now!==true/,'explicit editorial silence must be respected');
+assert.match(html,/rememberTilo\(country,kind,words\)/);
+
 assert.match(html,/if\(!completed&&tiloSpeech===utterance\)window\.speechSynthesis\.cancel\(\)/);
 for(const chunk of [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)])
  if(chunk[1].trim())new vm.Script(chunk[1]);
