@@ -40,8 +40,10 @@ assert.ok(!context.state.tasks.some(t=>t.id==='TLV5-WORK-20261027-POLICY'));
 assert.equal(await runInContext('mergeDevelopmentReleases()',context),false);
 assert.equal(context.state.events.length,releases.events.length);
 assert.ok(script.indexOf('try{releaseChanged=await mergeDevelopmentReleases();}')>script.indexOf('state=d.state;'));
-assert.ok(script.includes("!String(t.id||'').startsWith('TLV5-PAGE-')&&t.category!=='라디오 수신앱'"));
-assert.ok(script.includes("['구현','테스트','운영확인'].includes(t.status)"));
+// Page and future-radio exclusions are applied in two composed functions.
+assert.ok(script.includes("function currentScopeTasks(tasks){return activeTasks(tasks).filter(t=>!isFutureTilo(t)&&t.category!=='라디오 수신앱');}"));
+assert.ok(script.includes("function platformTasks(tasks){return currentScopeTasks(tasks).filter(t=>!String(t.id||'').startsWith('TLV5-PAGE-'));}"));
+assert.ok(script.includes("function isDevelopmentComplete(t){return ['구현','테스트','운영확인'].includes(t&&t.status)}"));
 console.log('PASS development progress: server-first merge, manual edits retained, repeat-safe releases and progress bar');
 
 // Reviewed member evidence may advance only a pristine unverified historical row.
@@ -277,7 +279,7 @@ assert.ok(renderStart>=0&&summaryEnd>renderStart);
 function assertSummaryCards(tasks,expected){
  const elements=new Map();
  const element=id=>{if(!elements.has(id))elements.set(id,{value:'',textContent:'',style:{},querySelector:()=>({textContent:''})});return elements.get(id)};
- const ctx=createContext({$:element,state:{tasks},activeTasks:ts=>ts.filter(t=>t.retired!==true),currentScopeTasks:ts=>ts.filter(t=>t.retired!==true&&!(t.category==='TL 중앙방송센터'&&t.delivery_phase==='future')),isFutureTilo:t=>t.category==='TL 중앙방송센터'&&t.delivery_phase==='future',isDevelopmentComplete:t=>!!t&&['구현','테스트','운영확인'].includes(t.status),categoryLabel:x=>x,escapeHtml:x=>String(x)});
+ const ctx=createContext({$:element,state:{tasks},STAGE_WEIGHT:{'미검증':0,'설계':20,'구현':55,'테스트':80,'운영확인':100,'보류':0},metrics:ts=>{const current=ts.filter(t=>t.retired!==true&&t.category!=='라디오 수신앱'&&!(t.category==='TL 중앙방송센터'&&t.delivery_phase==='future')&&!String(t.id||'').startsWith('TLV5-PAGE-'));return {total:current.length,done:current.filter(t=>['구현','테스트','운영확인'].includes(t.status)).length}},activeTasks:ts=>ts.filter(t=>t.retired!==true),currentScopeTasks:ts=>ts.filter(t=>t.retired!==true&&!(t.category==='TL 중앙방송센터'&&t.delivery_phase==='future')&&t.category!=='라디오 수신앱'),platformTasks:ts=>ts.filter(t=>t.retired!==true&&!(t.category==='TL 중앙방송센터'&&t.delivery_phase==='future')&&t.category!=='라디오 수신앱'&&!String(t.id||'').startsWith('TLV5-PAGE-')),isFutureTilo:t=>t.category==='TL 중앙방송센터'&&t.delivery_phase==='future',isDevelopmentComplete:t=>!!t&&['구현','테스트','운영확인'].includes(t.status),categoryLabel:x=>x,escapeHtml:x=>String(x)});
  runInContext(script.slice(renderStart,summaryEnd)+'}\nrender();',ctx);
  const total=Number(element('total').textContent),done=Number(element('done').textContent),pending=Number(element('active').textContent);
  assert.equal(total,expected.total,'cards must count current functional tasks only');
