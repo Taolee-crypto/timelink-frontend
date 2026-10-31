@@ -7,7 +7,7 @@
 <div class="radio-now"><img src="/images/renewal/vinyl-collection-card.jpg" alt="" width="76" height="76"><div><small id="selection-tag">NOW PLAYING</small><strong id="selection-title">음악을 만날 준비가 됐나요?</strong><p id="selection-meta">국가를 선택하고 방송을 연결하세요.</p></div></div>
 <button type="button" class="radio-connect" id="country-station-join">▶ TILO Korea 방송 재생</button><audio id="tilo-broadcast-audio" hidden controls preload="none" aria-label="TILO 방송 음량 및 재생 조절"></audio><div class="radio-status" id="station-status" role="status" aria-live="polite">방송 연결 대기</div><p class="radio-muted" id="tilo-promotion-lineup" aria-live="polite">홍보 신청곡 우선 편성 · 일반곡 자동 보충</p><div class="radio-auth" id="tilo-admin-login-panel"><span id="tilo-admin-login-message"></span><a id="tilo-admin-login-link" href="/login.html?redirect=%2Fradio.html">회원 로그인하기 →</a></div></div></section><aside class="radio-listeners" aria-label="실시간 방송 청취 회원"><span class="radio-eyebrow">LIVE LISTENERS</span><h2>함께 듣는 회원</h2><div class="radio-listeners-count" id="radio-listeners-country">전 세계 TILO 회원</div><div class="radio-listeners-feed" id="radio-listeners-feed"><div class="radio-listeners-status" id="tilo-chat-status">회원 연결 중…</div><div class="tilo-chat-members" id="tilo-chat-members"></div></div><span class="radio-eyebrow">GLOBAL CHAT</span><div class="tilo-chat-messages" id="tilo-chat-messages" role="log" aria-label="글로벌 채팅 메시지"></div><form class="tilo-chat-form" id="tilo-chat-form"><input id="tilo-chat-input" maxlength="500" placeholder="전 세계 회원에게 메시지" aria-label="채팅 메시지" required><button type="submit">전송</button></form><p class="radio-muted">모든 국가의 회원이 함께 대화합니다.</p></aside></div>
 <div class="radio-bottom"><section class="radio-card"><span class="radio-eyebrow">MUSIC LIBRARY</span><h2>방송 음원 둘러보기</h2><p class="radio-muted" id="broadcast-playlist-status">방송 음원 목록 확인 중…</p><div class="radio-list" id="broadcast-playlist"></div><p class="radio-muted">공개 음원 목록입니다. 실제 청취 가능 여부는 선택 국가의 이용허락에 따라 달라집니다.</p></section><section class="radio-card"><span class="radio-eyebrow">KEEP LISTENING</span><h2>어디서든 이어지는 음악</h2><p class="radio-muted">방송을 연결한 뒤 다른 화면을 둘러봐도 청취가 이어집니다. DJ 안내는 브라우저 음성합성을 사용합니다.</p><div class="radio-links"><a href="/cafe-channel.html"><img src="/images/renewal/cafe-interior-card.jpg" alt="" loading="lazy"><span>카페에서 듣기 ↗</span></a><a href="/incar-channel.html"><img src="/images/renewal/car-interior-card.jpg" alt="" loading="lazy"><span>드라이브와 함께 ↗</span></a></div></section></div></main>
-<script src="/tl3-v5-player.js?v=tilo-priority-20261025"></script><script>
+<script src="/tl3-v5-player.js?v=tilo-priority-20261025"></script><script src="/tilo-dj-voice.js?v=20261031-r1"></script><script>
 const broadcastAudio=document.getElementById('tilo-broadcast-audio');
 
 // Reuse the exact TRACK V5 playback engine. Its playStream method performs
@@ -42,6 +42,7 @@ showTiloAdminAuth(localStorage.getItem('tl_token')?'회원 로그인 상태 · �
 
 const enabledCountries=Object.keys(names);
 const countrySession={KR:{lang:'ko-KR',name:'TILO Korea'},JP:{lang:'ja-JP',name:'TILO Japan'},US:{lang:'en-US',name:'TILO USA'},CN:{lang:'zh-CN',name:'TILO China'},TH:{lang:'th-TH',name:'TILO Thailand'},VN:{lang:'vi-VN',name:'TILO Vietnam'}};
+const tiloVoicePolicy=window.TILODjVoice;
 let joinedCountry=null;
 function renderCountryStation(preserveStatus=false){
   const c=select.value;
@@ -108,17 +109,16 @@ const tiloVoiceProfiles={
 };
 const tiloVoiceAdapters={
   browser:{
-    speak({text,locale,onStart}){
+    speak({text,locale,onStart,country,weather}){
       if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')
         return Promise.reject(new Error('이 브라우저에서 기계음 테스트를 지원하지 않습니다.'));
       return new Promise((resolve,reject)=>{
         const utterance=new SpeechSynthesisUtterance(text);
         utterance.lang=locale;
-        utterance.rate=0.92;
-        utterance.pitch=1.03;
-        const voices=window.speechSynthesis.getVoices();
-        const localVoices=voices.filter(v=>v.lang.toLowerCase().startsWith(locale.slice(0,2).toLowerCase()));
-        utterance.voice=localVoices.find(v=>/natural|neural|premium|enhanced|online/i.test(v.name))||localVoices.find(v=>v.lang.toLowerCase()===locale.toLowerCase())||localVoices[0]||null;
+        const settings=tiloVoicePolicy?.policy(country||'KR',new Date(),weather,window.speechSynthesis.getVoices());
+        utterance.rate=settings?.rate||0.94;
+        utterance.pitch=settings?.pitch||0.98;
+        if(settings?.voice)utterance.voice=settings.voice;
         utterance.onstart=onStart;
         utterance.onend=()=>resolve();
         utterance.onerror=e=>reject(new Error('음성합성 실패: '+(e.error||'unknown')));
@@ -141,6 +141,7 @@ async function speakTilo(generation,country,text=tiloInterlude[country]){
     await adapter.speak({
       text,
       locale:countrySession[country].lang,
+      country,weather:tiloPreparedWeather,
       onStart:()=>{if(generation===stationGeneration)status.textContent=countrySession[country].name+' · TILO 진행 멘트 중 (다음 곡 일시정지)';}
     });
     if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)rememberTilo(country,text===tiloInterlude[country]?'interlude':'opening',text);
@@ -197,10 +198,11 @@ async function nextTiloTrack(generation,country,broadcastStartAt=null){
 // Prepare AI decisions while music is playing, never at the song boundary.
 let tiloCompletedSongs=0;
 let tiloPrepared=null;
+let tiloPreparedWeather=null;
 let tiloSpeech=null;
 function cancelTiloSpeech(){
   if('speechSynthesis' in window)window.speechSynthesis.cancel();
-  tiloSpeech=null;tiloPrepared=null;
+  tiloSpeech=null;tiloPrepared=null;tiloPreparedWeather=null;
 }
 async function prepareTiloEditorial(generation,country){
   try{
@@ -215,38 +217,53 @@ async function prepareTiloEditorial(generation,country){
     }finally{clearTimeout(timeout);}
     if(!response.ok) return;
     const data=await response.json();
-    if(generation===stationGeneration&&joinedCountry===country&&data.ok)tiloPrepared=data.plan;
+    if(generation===stationGeneration&&joinedCountry===country&&data.ok&&data.country===country&&data.locale===countrySession[country].lang){
+      tiloPrepared=data.plan;
+      // Only the server's observed weather may influence regional voice settings.
+      tiloPreparedWeather=data.voice_context||null;
+    }
   }catch(_){/* Never block the broadcast for editorial requests. */}
 }
 async function tiloBetweenSongs(generation,country){
   if(generation!==stationGeneration||!stationPlaying||joinedCountry!==country)return;
   tiloCompletedSongs++;
   const plan=tiloPrepared;
-  tiloPrepared=null;
+  const observedWeather=tiloPreparedWeather;
+  tiloPrepared=null;tiloPreparedWeather=null;
   // No blocking network request at track end.
-  if(tiloCompletedSongs%3!==0||!plan?.speak_now){
+  // A verified editorial plan may intentionally request silence: honor it.
+  // When the AI/provider is unavailable, use ONLY our own country-local
+  // greetings, never invented headlines or weather observations.
+  if(tiloCompletedSongs%3!==0||(plan&&plan.speak_now!==true)){
     await nextTiloTrack(generation,country);return;
   }
-  const words=String(plan.commentary||'').trim().slice(0,220);
-  if(recentTiloText(country,'editorial').includes(words)){await nextTiloTrack(generation,country);return;}
+  const kind=plan?'editorial':'opening';
+  const words=String(plan?plan.commentary:tiloOpening(country)).trim().slice(0,220);
+  if(recentTiloText(country,kind).includes(words)){await nextTiloTrack(generation,country);return;}
   if(!words||!('speechSynthesis' in window)){
     await nextTiloTrack(generation,country);return;
   }
   const utterance=new SpeechSynthesisUtterance(words);
   tiloSpeech=utterance;
   utterance.lang=countrySession[country].lang;
-  utterance.rate=1;
+  const voice=tiloVoicePolicy?.policy(country,new Date(),observedWeather,window.speechSynthesis.getVoices());
+  utterance.rate=voice?.rate||0.94;
+  utterance.pitch=voice?.pitch||0.98;
+  if(voice?.voice)utterance.voice=voice.voice;
   let completed=false;
   const continueMusic=()=>{
     if(completed)return;completed=true;tiloSpeech=null;
     if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)nextTiloTrack(generation,country);
   };
-  utterance.onend=()=>{rememberTilo(country,'editorial',words);continueMusic();};
+  utterance.onend=()=>{rememberTilo(country,kind,words);continueMusic();};
   utterance.onerror=continueMusic;
   status.textContent=countrySession[country].name+' · TILO AI DJ 멘트 중';
   window.speechSynthesis.speak(utterance);
   // Speech synthesis may be suspended in a hidden tab; never let it stall the station.
-  setTimeout(continueMusic,Math.min(9000,Math.max(3500,words.length*75)));
+  setTimeout(()=>{
+    if(!completed&&tiloSpeech===utterance)window.speechSynthesis.cancel();
+    continueMusic();
+  },Math.min(9000,Math.max(3500,words.length*75)));
 }
 broadcastAudio.addEventListener('ended',()=>{
   if(stationPlaying&&joinedCountry)tiloBetweenSongs(stationGeneration,joinedCountry);
