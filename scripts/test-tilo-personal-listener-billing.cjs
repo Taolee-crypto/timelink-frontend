@@ -1,0 +1,44 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict'),vm=require('node:vm');
+const source=fs.readFileSync('public/tilo-listener-billing.js','utf8');
+const ctx={window:{},Number,Math};vm.runInNewContext(source,ctx,{filename:'tilo-listener-billing.js'});
+const quote=ctx.window.TILOListenerBilling.funding;
+const free=quote({billing_mode:'time_free',can_play:true,time_free_remaining_ms:60000});
+assert.equal(free.amount,0);assert.equal(free.mode,'time_free');assert.equal(free.canListen,true);
+const sub=quote({billing_mode:'subscription',can_play:true});
+assert.equal(sub.amount,0);assert.equal(sub.mode,'subscription');
+const funded=quote({billing_mode:'track_pool',can_play:false,required_tl:235,wallet_tl:1000,asset_tl:0});
+assert.equal(funded.amount,235);assert.equal(funded.rate_tl_per_second,1);
+const partial=quote({billing_mode:'track_pool',can_play:false,required_tl:235,wallet_tl:5.9,asset_tl:0});
+assert.equal(partial.amount,5,'Never overdraw the user wallet to fund playback');
+assert.equal(partial.canListen,true,'Allow partial playback only while paid TL remains');
+const already=quote({billing_mode:'track_pool',can_play:true,required_tl:235,wallet_tl:0,asset_tl:250});
+assert.equal(already.amount,0);
+const absent=quote({billing_mode:'track_pool',can_play:false,required_tl:235,wallet_tl:0,asset_tl:0});
+assert.equal(absent.canListen,false);
+assert.equal(quote({billing_mode:'track_pool',can_play:false,required_tl:235,wallet_tl:0,asset_tl:4}).amount,0);
+assert.throws(()=>quote({billing_mode:'track_pool',can_play:false,required_tl:60,wallet_tl:-10,asset_tl:0}),/INVALID/);
+const radio=fs.readFileSync('public/radio.html','utf8'),engine=fs.readFileSync('public/tl3-v5-player.js','utf8');
+assert.match(radio,/src="\/tilo-listener-billing\.js/);
+assert.match(radio,/personalRadioListening:true/);
+assert.doesNotMatch(radio,/broadcastCountry:country/,'Personal radio must never impersonate free broadcaster');
+assert.doesNotMatch(radio,/개인 TL 차감 없는 방송 청취|청취자 TL 차감 없음/);
+assert.match(radio,/TIME FREE 우선/);
+assert.match(radio,/청취 1초당 1TL/);
+assert.match(engine,/if\(personalRadio&&\(broadcastCountry\|\|djStationId\)\)/);
+assert.match(engine,/global\.TILOListenerBilling\.funding\(pre\)/);
+assert.match(engine,/api\/shares\/'\+encodeURIComponent\(shareId\)\+'\/charge/);
+assert.match(engine,/Idempotency-Key':'radio:'\+sessionId/);
+assert.match(engine,/api\/v1\/tl3\/play\/meter/);
+assert.match(engine,/api\/v1\/tl3\/play\/stop/);
+assert.match(engine,/if\(!nonBillable && target>meterQueued\)queueMeter/);
+for(const file of ['public/radio.html','public/cafe-channel.html']){
+ const html=fs.readFileSync(file,'utf8');
+ for(const match of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi))
+  if(match[1].trim())new vm.Script(match[1],{filename:file});
+}
+const signup=fs.readFileSync('public/cafe-channel.html','utf8');
+assert.match(signup,/id="businessOwnerAttestation"/);
+assert.match(signup,/business_owner_attested:true/);
+assert.match(signup,/businessOwnerAttestation'\)\.checked/);
+console.log('PASS TILO personal radio uses TIME FREE then wallet TL 1/sec; no free broadcast bypass; business owner attestation');
