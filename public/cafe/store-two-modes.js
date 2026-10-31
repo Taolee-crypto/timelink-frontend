@@ -172,6 +172,16 @@ async function playIndex(i){
  }catch(e){playing=false;stop.disabled=true;now.textContent=e.message;report(e.message);throw e}
  finally{loading=false;void refreshAccess()}
 }
+audio.addEventListener('playing',()=>{
+ if(mode==='manual'&&playing&&tracks[selected]){
+  const x=tracks[selected];showSong(x.title,x.artist,'직접 선택 · TIME FREE 재생 중');
+ }
+});
+audio.addEventListener('pause',()=>{
+ if(mode==='manual'&&playing&&tracks[selected]&&!audio.ended){
+  const x=tracks[selected];showSong(x.title,x.artist,'직접 선택 · 일시정지');
+ }
+});
 audio.addEventListener('ended',()=>{
  if(!playing)return;
  const next=selected+1;
