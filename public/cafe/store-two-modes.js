@@ -8,6 +8,14 @@ const currentTitle=$('nowPlayingTitle'),currentArtist=$('nowPlayingArtist'),curr
 let radioFrame=null,mode='idle';
 const search=$('songSearch'),genre=$('genreFilter'),list=$('songList'),audio=$('cafeAudio'),now=$('nowPlaying'),stop=$('stopSong');
 let stores=[],tracks=[],selected=-1,requestId=0,stopping=null,playing=false,loading=false;
+let queue=[],queuePosition=-1,queueActive=false,transitioning=false;
+const chosen=new Set();
+const queueKey=()=> 'tilo_cafe_playlist_v1_'+picker.value;
+const trackKey=x=>String(x.file_id);
+function saveSelection(){try{localStorage.setItem(queueKey(),JSON.stringify([...chosen]));}catch{}}
+function restoreSelection(){chosen.clear();try{const saved=JSON.parse(localStorage.getItem(queueKey())||'[]');if(Array.isArray(saved))for(const id of saved)chosen.add(String(id));}catch{} }
+function updateCount(){const el=$('selectionCount');if(el)el.textContent=chosen.size+'곡 선택';}
+function selectedQueue(){return tracks.map((x,i)=>({x,i})).filter(({x})=>chosen.has(trackKey(x))).map(({i})=>i);}
 const text=(v,max=130)=>typeof v==='string'?v.slice(0,max):String(v??'').slice(0,max);
 function report(msg){status.textContent=msg;}
 function showSong(title,artist,kind){
@@ -77,7 +85,7 @@ async function openCentral(){
   const store=await authorize();
   if(!['KR','JP','US','CN','TH','VN'].includes(String(store.country||'KR').toUpperCase()))
    throw Error('아직 이 매장 국가의 TILO 중앙방송이 준비되지 않았습니다.');
-  await closeAudio();
+  queueActive=false;await closeAudio();
   panel.hidden=true;
   stopCentral();
   mode='central';
@@ -100,6 +108,8 @@ function renderSongs(){
  const q=search.value.toLocaleLowerCase().trim(),g=genre.value;
  const show=tracks.map((x,i)=>({...x,i})).filter(x=>(!g||String(x.genre||'').toLowerCase()===g)&&(!q||(String(x.title||'')+' '+String(x.artist||'')).toLocaleLowerCase().includes(q)));
  list.replaceChildren();
+ let toolbar=$('playlistToolbar');if(!toolbar){toolbar=document.createElement('div');toolbar.id='playlistToolbar';toolbar.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:12px 0';toolbar.innerHTML='<button type="button" id="selectAllSongs" class="secondary">전체 선택</button><button type="button" id="clearAllSongs" class="secondary">전체 해제</button><strong id="selectionCount" aria-live="polite"></strong><button type="button" id="playSelectedSongs">▶ 선택곡 전체 재생</button>';list.before(toolbar);$('selectAllSongs').onclick=()=>{for(const x of show)chosen.add(trackKey(x));saveSelection();renderSongs()};$('clearAllSongs').onclick=()=>{chosen.clear();saveSelection();renderSongs()};$('playSelectedSongs').onclick=()=>{const next=selectedQueue();if(!next.length){report('재생할 음악을 체크해 주세요.');return;}queue=next;queuePosition=0;queueActive=true;void playIndex(queue[0]).catch(e=>{queueActive=false;report(e.message)})};}
+ updateCount();
  if(!show.length){const p=document.createElement('p');p.textContent=tracks.length?'검색 조건에 맞는 음악이 없습니다.':'현재 선택 국가에서 편성 가능한 기존 타임링크 음악이 없습니다.';list.append(p);return}
  for(const x of show){
   const row=document.createElement('div');row.className='song';
@@ -107,9 +117,8 @@ function renderSongs(){
   title.textContent=text(x.title||'이름 없는 음악',160);
   meta.textContent=text(x.artist||'아티스트 미등록',90)+' · '+text(x.genre||'기타',55)+(x.is_promoted?' · 홍보 신청곡':'');
   desc.append(title,meta);
-  const button=document.createElement('button');button.type='button';button.textContent='▶ 이 곡 재생';
-  button.onclick=()=>playIndex(x.i).catch(e=>report('음악 재생 실패 · '+e.message));
-  row.append(desc,button);list.append(row);
+  const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=chosen.has(trackKey(x));checkbox.setAttribute('aria-label',text(x.title||'음악',100)+' 선택');checkbox.onchange=()=>{if(checkbox.checked)chosen.add(trackKey(x));else chosen.delete(trackKey(x));saveSelection();updateCount()};
+  row.style.gridTemplateColumns='auto 1fr';row.append(checkbox,desc);list.append(row);
  }
 }
 async function loadSongs(){
@@ -122,7 +131,7 @@ async function loadSongs(){
  const all=[...new Set(tracks.map(x=>String(x.genre||'').trim().toLowerCase()).filter(Boolean))].sort();
  genre.replaceChildren(new Option('전체 장르',''));
  for(const g of all)genre.add(new Option(g,g));
- renderSongs();
+ restoreSelection();renderSongs();
  report('매장 국가 '+country+' · 기존 TILO 방송 편성곡 '+tracks.length+'개 중 직접 선택할 수 있습니다. TIME FREE로만 재생합니다.');
 }
 async function openManual(){
@@ -183,16 +192,15 @@ audio.addEventListener('pause',()=>{
  }
 });
 audio.addEventListener('ended',()=>{
- if(!playing)return;
- const next=selected+1;
- if(next<tracks.length)void playIndex(next).catch(()=>{});
- else{void closeAudio();now.textContent='선택한 음악 목록 재생이 종료됐습니다.';}
+ if(!playing||!queueActive||transitioning)return;
+ transitioning=true;
+ void (async()=>{try{const next=selectedQueue();if(!next.length){queueActive=false;await closeAudio();return;}const pos=next.indexOf(selected);queue=next;queuePosition=pos<0?0:(pos+1)%next.length;await playIndex(queue[queuePosition]);}catch(e){queueActive=false;report('연속 재생 중지 · '+e.message);await closeAudio();}finally{transitioning=false}})();
 });
-stop.addEventListener('click',()=>{void closeAudio().catch(e=>report(e.message))});
+stop.addEventListener('click',()=>{queueActive=false;void closeAudio().catch(e=>report(e.message))});
 $('centralMode').addEventListener('click',()=>{void openCentral()});
 $('manualMode').addEventListener('click',()=>{void openManual()});
 $('closeCentral').addEventListener('click',()=>{stopCentral();report('TILO 중앙방송이 중지되었습니다.');});
-picker.addEventListener('change',async()=>{try{stopCentral();await closeAudio();tracks=[];selected=-1;panel.hidden=true;mode='idle';showSong('재생 대기 중','—','새 매장을 선택했습니다.');localStorage.setItem('tilo_store_channel',picker.value);await refreshAccess()}catch(e){report(e.message)}});
+picker.addEventListener('change',async()=>{try{queueActive=false;chosen.clear();stopCentral();await closeAudio();tracks=[];selected=-1;panel.hidden=true;mode='idle';showSong('재생 대기 중','—','새 매장을 선택했습니다.');localStorage.setItem('tilo_store_channel',picker.value);await refreshAccess()}catch(e){report(e.message)}});
 search.addEventListener('input',renderSongs);
 genre.addEventListener('change',renderSongs);
 window.addEventListener('focus',()=>{if(!playing)void refreshAccess()});
