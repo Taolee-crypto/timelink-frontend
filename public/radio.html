@@ -231,11 +231,15 @@ async function tiloBetweenSongs(generation,country){
   const observedWeather=tiloPreparedWeather;
   tiloPrepared=null;tiloPreparedWeather=null;
   // No blocking network request at track end.
-  if(tiloCompletedSongs%3!==0||!plan?.speak_now){
+  // A verified editorial plan may intentionally request silence: honor it.
+  // When the AI/provider is unavailable, use ONLY our own country-local
+  // greetings, never invented headlines or weather observations.
+  if(tiloCompletedSongs%3!==0||(plan&&plan.speak_now!==true)){
     await nextTiloTrack(generation,country);return;
   }
-  const words=String(plan.commentary||'').trim().slice(0,220);
-  if(recentTiloText(country,'editorial').includes(words)){await nextTiloTrack(generation,country);return;}
+  const kind=plan?'editorial':'opening';
+  const words=String(plan?plan.commentary:tiloOpening(country)).trim().slice(0,220);
+  if(recentTiloText(country,kind).includes(words)){await nextTiloTrack(generation,country);return;}
   if(!words||!('speechSynthesis' in window)){
     await nextTiloTrack(generation,country);return;
   }
@@ -251,7 +255,7 @@ async function tiloBetweenSongs(generation,country){
     if(completed)return;completed=true;tiloSpeech=null;
     if(generation===stationGeneration&&stationPlaying&&joinedCountry===country)nextTiloTrack(generation,country);
   };
-  utterance.onend=()=>{rememberTilo(country,'editorial',words);continueMusic();};
+  utterance.onend=()=>{rememberTilo(country,kind,words);continueMusic();};
   utterance.onerror=continueMusic;
   status.textContent=countrySession[country].name+' · TILO AI DJ 멘트 중';
   window.speechSynthesis.speak(utterance);
