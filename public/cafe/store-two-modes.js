@@ -30,7 +30,9 @@ const trackKey=x=>String(x.file_id);
 function saveSelection(){try{localStorage.setItem(queueKey(),JSON.stringify([...chosen]));}catch{}}
 function restoreSelection(){chosen.clear();try{const saved=JSON.parse(localStorage.getItem(queueKey())||'[]');if(Array.isArray(saved))for(const id of saved)chosen.add(String(id));}catch{} }
 function updateCount(){const el=$('selectionCount');if(el)el.textContent=chosen.size+'곡 선택';}
-function selectedQueue(){return tracks.map((x,i)=>({x,i})).filter(({x})=>chosen.has(trackKey(x))).map(({i})=>i);}
+function selectedQueue(){return [...chosen].map(id=>tracks.findIndex(x=>trackKey(x)===id)).filter(i=>i>=0);}
+function moveSong(id,delta){const ids=[...chosen],i=ids.indexOf(id),j=i+delta;if(i<0||j<0||j>=ids.length)return;[ids[i],ids[j]]=[ids[j],ids[i]];chosen.clear();ids.forEach(x=>chosen.add(x));saveSelection();renderSongs();}
+function renderQueue(){const host=$('selectedPlaylist');if(!host)return;host.replaceChildren();const ids=selectedQueue();for(let pos=0;pos<ids.length;pos++){const x=tracks[ids[pos]],row=document.createElement('div');row.className='playlist-item';const label=document.createElement('span');label.textContent=(pos+1)+'. '+text(x.title||'음악',100)+' · '+text(x.artist||'',60);row.append(label);for(const [symbol,delta,name] of [['▲',-1,'위로'],['▼',1,'아래로']]){const btn=document.createElement('button');btn.type='button';btn.className='secondary';btn.textContent=symbol;btn.title=name;btn.setAttribute('aria-label',text(x.title,80)+' '+name);btn.disabled=pos+delta<0||pos+delta>=ids.length;btn.onclick=()=>moveSong(trackKey(x),delta);row.append(btn);}host.append(row);}const play=$('playSelectedSongs');if(play)play.disabled=!ids.length;}
 const text=(v,max=130)=>typeof v==='string'?v.slice(0,max):String(v??'').slice(0,max);
 function report(msg){status.textContent=msg;}
 function showSong(title,artist,kind){
@@ -126,7 +128,7 @@ function renderSongs(){
  let toolbar=$('playlistToolbar');if(!toolbar){toolbar=document.createElement('div');toolbar.id='playlistToolbar';toolbar.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:12px 0';toolbar.innerHTML='<button type="button" id="selectAllSongs" class="secondary">전체 선택</button><button type="button" id="clearAllSongs" class="secondary">전체 해제</button><strong id="selectionCount" aria-live="polite"></strong><button type="button" id="playSelectedSongs">▶ 선택곡 전체 재생</button>';list.before(toolbar);$('selectAllSongs').onclick=()=>{for(const x of show)chosen.add(trackKey(x));saveSelection();renderSongs()};$('clearAllSongs').onclick=()=>{chosen.clear();saveSelection();renderSongs()};$('playSelectedSongs').onclick=()=>{cancelRecovery();const next=selectedQueue();if(!next.length){report('재생할 음악을 체크해 주세요.');return;}queue=next;queuePosition=0;queueActive=true;void playIndex(queue[0]).catch(e=>{queueActive=false;report(e.message)})};}
  // Refresh the visible-selection handler after every search/genre render.
  $('selectAllSongs').onclick=()=>{for(const x of show)chosen.add(trackKey(x));saveSelection();renderSongs()};
- updateCount();
+ updateCount();renderQueue();
  if(!show.length){const p=document.createElement('p');p.textContent=tracks.length?'검색 조건에 맞는 음악이 없습니다.':'현재 선택 국가에서 편성 가능한 기존 타임링크 음악이 없습니다.';list.append(p);return}
  for(const x of show){
   const row=document.createElement('div');row.className='song';
@@ -134,7 +136,7 @@ function renderSongs(){
   title.textContent=text(x.title||'이름 없는 음악',160);
   meta.textContent=text(x.artist||'아티스트 미등록',90)+' · '+text(x.genre||'기타',55)+(x.is_promoted?' · 홍보 신청곡':'');
   desc.append(title,meta);
-  const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=chosen.has(trackKey(x));checkbox.setAttribute('aria-label',text(x.title||'음악',100)+' 선택');checkbox.onchange=()=>{if(checkbox.checked)chosen.add(trackKey(x));else chosen.delete(trackKey(x));saveSelection();updateCount()};
+  const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=chosen.has(trackKey(x));checkbox.setAttribute('aria-label',text(x.title||'음악',100)+' 선택');checkbox.onchange=()=>{if(checkbox.checked)chosen.add(trackKey(x));else chosen.delete(trackKey(x));saveSelection();updateCount();renderQueue()};
   row.style.gridTemplateColumns='auto 1fr';row.append(checkbox,desc);list.append(row);
  }
 }
@@ -148,7 +150,7 @@ async function loadSongs(){
  const all=[...new Set(tracks.map(x=>String(x.genre||'').trim().toLowerCase()).filter(Boolean))].sort();
  genre.replaceChildren(new Option('전체 장르',''));
  for(const g of all)genre.add(new Option(g,g));
- restoreSelection();renderSongs();
+ restoreSelection();for(const id of [...chosen])if(!tracks.some(x=>trackKey(x)===id))chosen.delete(id);renderSongs();
  report('매장 국가 '+country+' · 기존 TILO 방송 편성곡 '+tracks.length+'개 중 직접 선택할 수 있습니다. TIME FREE로만 재생합니다.');
 }
 async function openManual(){
