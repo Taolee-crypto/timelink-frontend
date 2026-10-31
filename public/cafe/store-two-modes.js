@@ -3,10 +3,38 @@
 const $=id=>document.getElementById(id),gate=window.TiloCafeTimeFree;
 const API=window.TL3_API_BASE||'https://api.timelink.digital';
 const picker=$('storePicker'),status=$('accessState'),remaining=$('timeRemaining'),panel=$('manualPanel');
+const centralPanel=$('centralPanel'),centralHost=$('centralHost');
+const currentTitle=$('nowPlayingTitle'),currentArtist=$('nowPlayingArtist'),currentMode=$('nowPlayingMode');
+let radioFrame=null,mode='idle';
 const search=$('songSearch'),genre=$('genreFilter'),list=$('songList'),audio=$('cafeAudio'),now=$('nowPlaying'),stop=$('stopSong');
 let stores=[],tracks=[],selected=-1,requestId=0,stopping=null,playing=false,loading=false;
 const text=(v,max=130)=>typeof v==='string'?v.slice(0,max):String(v??'').slice(0,max);
 function report(msg){status.textContent=msg;}
+function showSong(title,artist,kind){
+ currentTitle.textContent=text(title||'재생 대기 중',180);
+ currentArtist.textContent=text(artist||'가수 정보 대기',180);
+ currentMode.textContent=text(kind||'음악 재생 대기',120);
+}
+function stopCentral(){
+ if(!radioFrame)return;
+ // Removing a same-origin radio receiver stops the audio, TIME FREE meter
+ // and song messages. The main TILO radio window/service is unaffected.
+ radioFrame.remove();
+ radioFrame=null;
+ centralPanel.hidden=true;
+ if(mode==='central'){mode='idle';showSong('재생 대기 중','가수 정보 대기','중앙방송 중지')}
+}
+window.addEventListener('message',event=>{
+ if(event.origin!==location.origin||!radioFrame||event.source!==radioFrame.contentWindow)return;
+ const d=event.data;
+ if(!d||d.type!=='tilo:cafe-now-playing'||mode!=='central')return;
+ const id=Number(d.file_id);
+ if(d.playing&&Number.isSafeInteger(id)&&id>0)
+  showSong(d.title,d.artist,'TILO 중앙방송 · 홍보곡 우선 편성');
+ else if(Number.isSafeInteger(id)&&id>0)
+  showSong(d.title,d.artist,'TILO 중앙방송 · 연결 중 / 일시정지');
+ else showSong('방송 대기 중','—','중앙방송을 연결해 주세요.');
+});
 function selectedStore(){const id=picker.value;const store=stores.find(x=>x.channel_id===id);if(!store)throw Error('개설된 내 매장을 선택해 주세요.');return store;}
 async function refreshAccess(){
  try{
@@ -33,7 +61,9 @@ async function listStores(){
   if(!stores.length){report('사업자번호로 개설한 활성 매장이 없습니다. 나의 카페에서 먼저 매장을 개설해 주세요.');remaining.textContent='매장 없음';picker.replaceChildren(new Option('개설된 매장 없음',''));return}
   localStorage.setItem('tilo_store_channel',picker.value);
   await refreshAccess();
-  if(new URLSearchParams(location.search).get('mode')==='manual')await openManual();
+  const requestedMode=new URLSearchParams(location.search).get('mode');
+  if(requestedMode==='manual')await openManual();
+  if(requestedMode==='central')await openCentral();
  }catch(e){picker.replaceChildren(new Option('매장 확인 실패',''));report(e.message);remaining.textContent='사용 불가'}
 }
 async function authorize(){
@@ -45,8 +75,26 @@ async function authorize(){
 async function openCentral(){
  try{
   const store=await authorize();
-  location.href='/radio.html?cafe_channel='+encodeURIComponent(store.channel_id);
- }catch(e){report(e.message)}
+  if(!['KR','JP','US','CN','TH','VN'].includes(String(store.country||'KR').toUpperCase()))
+   throw Error('아직 이 매장 국가의 TILO 중앙방송이 준비되지 않았습니다.');
+  await closeAudio();
+  panel.hidden=true;
+  stopCentral();
+  mode='central';
+  showSong('방송 연결 중','가수 정보 확인 중','TILO 중앙방송 · 홍보곡 우선');
+  centralPanel.hidden=false;
+  const frame=document.createElement('iframe');
+  frame.id='centralIframe';
+  frame.title='TILO 중앙방송 플레이어 및 메신저';
+  frame.allow='autoplay';
+  frame.loading='eager';
+  const country=String(store.country||'KR').toUpperCase();
+  frame.src='/radio.html?autojoin=1&cafe_channel='+encodeURIComponent(store.channel_id)+'&country='+country;
+  centralHost.replaceChildren(frame);
+  radioFrame=frame;
+  centralPanel.scrollIntoView({block:'start',behavior:'smooth'});
+  report('중앙방송 연결 중 · 재생 중인 곡명과 가수명을 상단에 표시합니다.');
+ }catch(e){report(e.message);showSong('재생 대기 중','—',e.message)}
 }
 function renderSongs(){
  const q=search.value.toLocaleLowerCase().trim(),g=genre.value;
@@ -80,6 +128,9 @@ async function loadSongs(){
 async function openManual(){
  try{
   await authorize();
+  stopCentral();
+  mode='manual';
+  showSong('직접 선택 대기 중','—','사장님이 곡을 선택하세요.');
   panel.hidden=false;
   panel.scrollIntoView({block:'start',behavior:'smooth'});
   await loadSongs();
@@ -93,6 +144,7 @@ async function closeAudio(){
   if(typeof audio._tl3Stop==='function')await audio._tl3Stop();
   else audio.pause();
   now.textContent='재생 중지 · 실제 청취시간만 정산됩니다.';
+  if(mode==='manual')showSong('재생 대기 중','—','직접 선택 재생 중지');
   stop.disabled=true;
  })();
  try{await stopping}finally{stopping=null}
@@ -105,14 +157,16 @@ async function playIndex(i){
   const x=tracks[i];if(!x)throw Error('선택한 곡을 찾을 수 없습니다.');
   await closeAudio();
   selected=i;playing=true;
+  mode='manual';
   stop.disabled=false;
-  now.textContent='TIME FREE 재생권 확인 중 · '+text(x.title,95);
+  showSong(x.title,x.artist,'직접 선택 · TIME FREE 재생권 확인 중');
+  now.textContent='TIME FREE 재생권 확인 중 · '+text(x.title,95)+' · '+text(x.artist||'가수 정보 없음',95);
   // Never unlock personal wallet billing or private broadcaster free mode.
   await window.TL3V5Player.playStream('tl3_'+x.file_id,audio,{
     requireTimeFree:true,
-    onReady:()=>{now.textContent='TIME FREE 재생 중 · '+text(x.title||'곡',95);},
-    onError:err=>{now.textContent='재생 오류 · '+text(err?.message||err,140);},
-    onInsufficient:()=>{now.textContent='TIME FREE 시간이 모두 사용되었습니다. 추가 구매 후 계속할 수 있습니다.';void closeAudio();},
+    onReady:()=>{showSong(x.title,x.artist,'직접 선택 · TIME FREE 재생 중');now.textContent='TIME FREE 재생 중 · '+text(x.title||'곡',95)+' · '+text(x.artist||'가수 정보 없음',95);},
+    onError:err=>{now.textContent='재생 오류 · '+text(err?.message||err,140);currentMode.textContent='음악 재생 오류';},
+    onInsufficient:()=>{now.textContent='TIME FREE 시간이 모두 사용되었습니다. 추가 구매 후 계속할 수 있습니다.';currentMode.textContent='TIME FREE 시간 소진';void closeAudio();},
     onBillingMode:pre=>{if(pre.billing_mode!=='time_free')throw Error('TIME FREE 외의 과금 방식은 사용할 수 없습니다.');}
   });
  }catch(e){playing=false;stop.disabled=true;now.textContent=e.message;report(e.message);throw e}
@@ -127,10 +181,11 @@ audio.addEventListener('ended',()=>{
 stop.addEventListener('click',()=>{void closeAudio().catch(e=>report(e.message))});
 $('centralMode').addEventListener('click',()=>{void openCentral()});
 $('manualMode').addEventListener('click',()=>{void openManual()});
-picker.addEventListener('change',async()=>{try{await closeAudio();tracks=[];selected=-1;panel.hidden=true;localStorage.setItem('tilo_store_channel',picker.value);await refreshAccess()}catch(e){report(e.message)}});
+$('closeCentral').addEventListener('click',()=>{stopCentral();report('TILO 중앙방송이 중지되었습니다.');});
+picker.addEventListener('change',async()=>{try{stopCentral();await closeAudio();tracks=[];selected=-1;panel.hidden=true;mode='idle';showSong('재생 대기 중','—','새 매장을 선택했습니다.');localStorage.setItem('tilo_store_channel',picker.value);await refreshAccess()}catch(e){report(e.message)}});
 search.addEventListener('input',renderSongs);
 genre.addEventListener('change',renderSongs);
 window.addEventListener('focus',()=>{if(!playing)void refreshAccess()});
-window.addEventListener('pagehide',()=>{audio._tl3CancelStartup?.();if(typeof audio._tl3Stop==='function')void audio._tl3Stop()});
+window.addEventListener('pagehide',()=>{stopCentral();audio._tl3CancelStartup?.();if(typeof audio._tl3Stop==='function')void audio._tl3Stop()});
 void listStores();
 })();
