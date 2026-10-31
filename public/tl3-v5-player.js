@@ -179,7 +179,7 @@
       if(!global.TILOListenerBilling||typeof global.TILOListenerBilling.funding!=='function')
         throw new Error('개인 TILO 청취 과금 정책 모듈이 없습니다. 무료 방송 모드로 대체하지 않습니다.');
       const quote=global.TILOListenerBilling.funding(pre);
-      if(pre.billing_mode==='track_pool'&&quote.amount>0){
+      if(quote.mode==='metered'&&quote.amount>0){
         if(opts.onFunding)opts.onFunding({amount:quote.amount,remainingWallet:Number(pre.wallet_tl||0)});
         await request(API+'/api/shares/'+encodeURIComponent(shareId)+'/charge',{
           method:'POST',headers:Object.assign({'Content-Type':'application/json','Idempotency-Key':'radio:'+sessionId},auth()),
