@@ -6,6 +6,21 @@ const picker=$('storePicker'),status=$('accessState'),remaining=$('timeRemaining
 const centralPanel=$('centralPanel'),centralHost=$('centralHost');
 const currentTitle=$('nowPlayingTitle'),currentArtist=$('nowPlayingArtist'),currentMode=$('nowPlayingMode');
 let radioFrame=null,mode='idle';
+// Keep the store receiver in a dedicated window: a normal page navigation
+// destroys audio and the TL3 TIME FREE session tied to its document.
+const playerWindowMode=new URLSearchParams(location.search).get('player_window')==='1';
+function openPersistentPlayer(targetMode){
+ if(playerWindowMode)return false;
+ const store=picker.value;
+ if(!store){report('먼저 매장을 선택해 주세요.');return true;}
+ const url='/store-music-programming.html?player_window=1&mode='+encodeURIComponent(targetMode)+'&channel_id='+encodeURIComponent(store);
+ const popup=window.open(url,'tilo_cafe_persistent_player','popup=yes,width=1060,height=850');
+ if(!popup){report('음악을 계속 재생하려면 브라우저의 팝업 허용이 필요합니다.');return true;}
+ popup.focus();
+ report('별도 매장 음악 플레이어를 열었습니다. 이 창에서 재생하면 다른 페이지로 이동해도 음악이 유지됩니다.');
+ return true;
+}
+
 const search=$('songSearch'),genre=$('genreFilter'),list=$('songList'),audio=$('cafeAudio'),now=$('nowPlaying'),stop=$('stopSong');
 let stores=[],tracks=[],selected=-1,requestId=0,stopping=null,playing=false,loading=false;
 let queue=[],queuePosition=-1,queueActive=false,transitioning=false;
@@ -219,8 +234,8 @@ audio.addEventListener('ended',()=>{
  void (async()=>{try{const next=selectedQueue();if(!next.length){queueActive=false;await closeAudio();return;}const pos=next.indexOf(selected);queue=next;queuePosition=pos<0?0:(pos+1)%next.length;await playIndex(queue[queuePosition]);}catch(e){queueActive=false;report('연속 재생 중지 · '+e.message);await closeAudio();}finally{transitioning=false}})();
 });
 stop.addEventListener('click',()=>{queueActive=false;cancelRecovery();void closeAudio().catch(e=>report(e.message))});
-$('centralMode').addEventListener('click',()=>{void openCentral()});
-$('manualMode').addEventListener('click',()=>{void openManual()});
+$('centralMode').addEventListener('click',()=>{if(!openPersistentPlayer('central'))void openCentral()});
+$('manualMode').addEventListener('click',()=>{if(!openPersistentPlayer('manual'))void openManual()});
 $('closeCentral').addEventListener('click',()=>{stopCentral();report('TILO 중앙방송이 중지되었습니다.');});
 picker.addEventListener('change',async()=>{try{queueActive=false;cancelRecovery();chosen.clear();stopCentral();await closeAudio();tracks=[];selected=-1;panel.hidden=true;mode='idle';showSong('재생 대기 중','—','새 매장을 선택했습니다.');localStorage.setItem('tilo_store_channel',picker.value);await refreshAccess()}catch(e){report(e.message)}});
 search.addEventListener('input',renderSongs);
