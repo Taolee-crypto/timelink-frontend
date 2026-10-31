@@ -189,12 +189,12 @@ body::before{background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(139,92,
     <div class="feat-card">
       <div class="feat-icon">🎵</div>
       <div class="feat-title">지원 범위 안내</div>
-      <div class="feat-desc">TL3 V5는 권한 확인 후 앱 내부 재생창을 엽니다.<br>구형 TLNK 파일은 V5 재등록 후 이용합니다.</div>
+      <div class="feat-desc">TL3 V5는 권한 확인 후 단일 플레이어 화면을 엽니다.<br>구형 TLNK 파일은 V5 재등록 후 이용합니다.</div>
     </div>
     <div class="feat-card">
       <div class="feat-icon">🖥️</div>
       <div class="feat-title">보호 파일 열기</div>
-      <div class="feat-desc">TimeLink TL 파일만 선택하거나 재생목록에 추가할 수 있습니다.<br>TL3 V5는 인증된 앱 내부 재생창과 연결되며 일반 오디오는 거부합니다.</div>
+      <div class="feat-desc">TimeLink TL 파일만 선택하거나 재생목록에 추가할 수 있습니다.<br>TL3 V5는 인증된 단일 플레이어 화면과 연결되며 일반 오디오는 거부합니다.</div>
     </div>
     <div class="feat-card">
       <div class="feat-icon">🌐</div>
@@ -237,7 +237,7 @@ body::before{background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(139,92,
         <div class="step-num">4</div>
         <div class="step-body">
           <div class="step-title">TL 파일 열기 → ▶ 재생</div>
-          <div class="step-desc">TL3 V5는 등록된 파일·LOVE CODE·권리·청취권을 검증한 뒤 앱 내부 보호 재생창에서 재생·정산합니다.</div>
+          <div class="step-desc">TL3 V5는 등록된 파일·LOVE CODE·권리·청취권을 검증한 뒤 단일 플레이어 화면에서 재생·정산합니다.</div>
         </div>
       </div>
     </div>
@@ -271,6 +271,37 @@ var PLATFORMS = [
   {id:'dlDeb',size:'dlDebSize',name:'TimeLink-Player-1.1.6.deb',label:'Ubuntu / Debian'}
 ];
 function loadLatest(){
+  // Use a complete, published official release only; never link to CI artifacts.
+  // On API failure retain the last known immutable installers (v1.1.6).
+  fetch('https://api.github.com/repos/'+REPO+'/releases/latest',{headers:{'Accept':'application/vnd.github+json'}})
+    .then(function(response){if(!response.ok)throw Error('release unavailable');return response.json();})
+    .then(function(release){
+      if(!release||!/^v\\d+\\.\\d+\\.\\d+$/.test(release.tag_name)||release.draft||release.prerelease)return;
+      var version=release.tag_name.slice(1);
+      var expected=[
+        'TimeLink-Player-Setup-'+version+'.exe',
+        'TimeLink-Player-'+version+'-arm64.dmg',
+        'TimeLink-Player-'+version+'.AppImage',
+        'TimeLink-Player-'+version+'.deb'
+      ];
+      var assets=expected.map(function(name){return (release.assets||[]).find(function(a){
+        return a.name===name&&a.state==='uploaded'&&a.size>1000000&&
+          typeof a.browser_download_url==='string'&&
+          a.browser_download_url.indexOf('https://github.com/'+REPO+'/releases/download/'+release.tag_name+'/')===0;
+      });});
+      if(assets.some(function(a){return !a;}))return;
+      PLATFORMS.forEach(function(item,i){
+        var link=document.getElementById(item.id),size=document.getElementById(item.size);
+        if(link){link.href=assets[i].browser_download_url;link.title=release.tag_name+' · '+expected[i];}
+        if(size)size.textContent=expected[i]+' · '+release.tag_name+' · '+item.label;
+      });
+      var ver=document.getElementById('verNum'),date=document.getElementById('verDate');
+      if(ver)ver.textContent=release.tag_name;
+      if(date)date.textContent=release.tag_name+' · 공식 설치 파일 4종';
+      var win=document.getElementById('guideWinFile'),mac=document.getElementById('guideMacFile');
+      if(win)win.textContent=expected[0];
+      if(mac)mac.textContent=expected[1];
+    }).catch(function(){/* Last verified immutable release stays downloadable. */});
   PLATFORMS.forEach(function(item){
     var link=document.getElementById(item.id),size=document.getElementById(item.size);
     if(link){
