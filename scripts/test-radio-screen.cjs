@@ -1,3 +1,4 @@
+require('./test-tilo-dj-regional-voice.cjs');
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync('public/radio.html','utf8');
 const code='//'+source.split('// Metadata follows the actual broadcast ID;')[1].split('</script>')[0];
