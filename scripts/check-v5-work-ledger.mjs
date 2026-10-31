@@ -279,7 +279,7 @@ assert.ok(renderStart>=0&&summaryEnd>renderStart);
 function assertSummaryCards(tasks,expected){
  const elements=new Map();
  const element=id=>{if(!elements.has(id))elements.set(id,{value:'',textContent:'',style:{},querySelector:()=>({textContent:''})});return elements.get(id)};
- const ctx=createContext({$:element,state:{tasks},activeTasks:ts=>ts.filter(t=>t.retired!==true),currentScopeTasks:ts=>ts.filter(t=>t.retired!==true&&!(t.category==='TL 중앙방송센터'&&t.delivery_phase==='future')),isFutureTilo:t=>t.category==='TL 중앙방송센터'&&t.delivery_phase==='future',isDevelopmentComplete:t=>!!t&&['구현','테스트','운영확인'].includes(t.status),categoryLabel:x=>x,escapeHtml:x=>String(x)});
+ const ctx=createContext({$:element,state:{tasks},activeTasks:ts=>ts.filter(t=>t.retired!==true),currentScopeTasks:ts=>ts.filter(t=>t.retired!==true&&!(t.category==='TL 중앙방송센터'&&t.delivery_phase==='future')&&t.category!=='라디오 수신앱'),platformTasks:ts=>ts.filter(t=>t.retired!==true&&!(t.category==='TL 중앙방송센터'&&t.delivery_phase==='future')&&t.category!=='라디오 수신앱'&&!String(t.id||'').startsWith('TLV5-PAGE-')),isFutureTilo:t=>t.category==='TL 중앙방송센터'&&t.delivery_phase==='future',isDevelopmentComplete:t=>!!t&&['구현','테스트','운영확인'].includes(t.status),categoryLabel:x=>x,escapeHtml:x=>String(x)});
  runInContext(script.slice(renderStart,summaryEnd)+'}\nrender();',ctx);
  const total=Number(element('total').textContent),done=Number(element('done').textContent),pending=Number(element('active').textContent);
  assert.equal(total,expected.total,'cards must count current functional tasks only');
