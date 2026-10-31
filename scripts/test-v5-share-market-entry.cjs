@@ -16,4 +16,4 @@ assert.match(market,/location\.href='track\.html\?id='/);
 assert.match(market,/function isPublishedTLAsset\(s\)/);
 assert.match(market,/return contentKind\(s\)==='tl3'/);
 assert.doesNotMatch(market,/href=["']\/renewal\/files\.html/);
-console.log('PASS SharePlace/New Asset: active work-manager routes, TL3-only catalogue, 20-card paging and track entry');
+console.log('PASS SharePlace/New Asset: specialized asset entry points retained, TL3-only catalogue, 20-card paging and track entry');
