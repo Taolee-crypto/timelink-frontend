@@ -12,7 +12,8 @@ for(const id of retired){
 }
 assert.match(ledger,/function activeTasks\(tasks\)\{return tasks\.filter\(t=>!isRetired\(t\)\);\}/);
 assert.match(ledger,/t\.retired===true/);
-assert.match(ledger,/function metrics\(tasks\)\{tasks=activeTasks\(tasks\)/);
+assert.match(ledger,/function metrics\(tasks\)\{tasks=currentScopeTasks\(tasks\)/);
+assert.match(ledger,/function currentScopeTasks\(tasks\)\{return activeTasks\(tasks\)\.filter\(t=>!isFutureTilo\(t\)\);\}/);
 const fixture=[...retired.map(id=>({id,category:'공유 마켓',retired:true,status:'보류'})),...Array.from({length:32},(_,i)=>({id:'active-'+i,retired:false,status:'구현'}))];
 const active=fixture.filter(t=>t.retired!==true);
 assert.equal(active.length,32);

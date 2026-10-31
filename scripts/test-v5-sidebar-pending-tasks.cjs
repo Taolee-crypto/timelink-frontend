@@ -2,7 +2,9 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const html=fs.readFileSync('public/v5-work-ledger.html','utf8');
-assert.match(html,/const pending=activeTasks\(tasks\)\.filter\(t=>!isDevelopmentComplete\(t\)\)/);
+assert.match(html,/const pending=currentScopeTasks\(tasks\)\.filter\(t=>!isDevelopmentComplete\(t\)\)/);
+assert.match(html,/function isFutureTilo\(t\)/);
+assert.match(html,/향후 2차 · 현행 분모 제외/);
 assert.match(html,/pending\.map\(t=>t\.title\)/);
 assert.match(html,/escapeHtml\(remaining\|\|/);
 assert.match(html,/미완료 '\+pending\.length\+'건/);
