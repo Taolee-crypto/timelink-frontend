@@ -16,8 +16,10 @@
 <label for="tilo-rights-country">심사 국가</label>
 <select id="tilo-rights-country"><option value="KR">대한민국</option><option value="JP">일본</option><option value="US">미국</option><option value="CN">중국</option><option value="TH">태국</option><option value="VN">베트남</option></select>
 <button id="tilo-rights-refresh" type="button">방송권리 후보 확인</button>
+<button id="tilo-rights-select-all" type="button" disabled>승인 가능한 내 음원 모두 선택</button>
 <button id="tilo-rights-bulk" type="button" disabled>선택한 내 음원 국가별 일괄 승인</button>
 <p id="tilo-rights-status" role="status">국가를 선택해 승인 가능한 음원을 확인하세요.</p>
+<a class="link" id="tilo-rights-return" href="/radio.html?country=KR" style="display:none">이 국가 방송 재생 화면으로 돌아가기</a>
 <div class="grid" id="tilo-rights-list" aria-live="polite"></div>
 </section>
 <section class="panel"><h2>운영 관리 항목</h2><div class="grid">
@@ -82,11 +84,20 @@ const operationCondition={
  VERIFIED_AIRTIME_RECENT:'최근 검증 송출 기록 있음 (서버 실방송 증명 아님)'
 };
 const rightsCountry=document.getElementById('tilo-rights-country');
+const rightsStartCountry=new URLSearchParams(location.search).get('country');
+if(['KR','JP','US','CN','TH','VN'].includes(rightsStartCountry))rightsCountry.value=rightsStartCountry;
 const rightsRefresh=document.getElementById('tilo-rights-refresh');
 const rightsStatus=document.getElementById('tilo-rights-status');
 const rightsList=document.getElementById('tilo-rights-list');
 const bulkButton=document.getElementById('tilo-rights-bulk');
+const selectAllRightsButton=document.getElementById('tilo-rights-select-all');
+const rightsReturn=document.getElementById('tilo-rights-return');
+const rightsCheckboxes=[];
 const selectedRights=new Set();
+function showRadioReturn(country){
+ rightsReturn.href='/radio.html?country='+encodeURIComponent(country);
+ rightsReturn.style.display='inline-block';
+}
 
 const rightsReasons={
  COUNTRY_BROADCAST_RIGHTS_MISSING:'해당 국가 방송 이용허락 미등록',
@@ -99,7 +110,8 @@ const rightsReasons={
  FILE_TYPE_NOT_TL3:'TL3 파일 아님'
 };
 async function loadTiloRights(){
- rightsList.replaceChildren();selectedRights.clear();bulkButton.disabled=true;
+ rightsList.replaceChildren();selectedRights.clear();rightsCheckboxes.length=0;
+ bulkButton.disabled=true;selectAllRightsButton.disabled=true;
  const country=rightsCountry.value;
  if(!token()){rightsStatus.textContent='관리자 로그인 후 이용하세요.';return;}
  rightsRefresh.disabled=true;rightsStatus.textContent='실제 권리 보유·서비스 승인 상태 조회 중…';
@@ -109,7 +121,10 @@ async function loadTiloRights(){
   });
   const data=await r.json().catch(()=>({}));
   if(!r.ok||!data.ok||!Array.isArray(data.tracks))throw Error(data.error||'방송권리 감사 조회 실패');
-  rightsStatus.textContent=country+' · 후보 '+Number(data.total||0)+'곡 · 권리와 서비스 승인을 모두 갖춘 곡 '+Number(data.eligible||0)+'곡';
+  const approvable=data.tracks.filter(t=>t.can_grant===true&&!t.eligible);
+  rightsStatus.textContent=country+' · 후보 '+Number(data.total||0)+'곡 · 방송 승인 '+Number(data.eligible||0)+
+   '곡 · 내 소유 승인 가능 '+approvable.length+'곡. 먼저 모두 선택한 뒤 방송 권리 확인 후 승인하세요.';
+  selectAllRightsButton.disabled=approvable.length===0;
   for(const track of data.tracks){
    const card=document.createElement('article');card.className='country';
    const name=document.createElement('strong');name.textContent=String(track.title||'음원')+' (#'+Number(track.file_id)+')';
@@ -126,6 +141,7 @@ async function loadTiloRights(){
       else selectedRights.delete(id);bulkButton.disabled=selectedRights.size===0;});
     label.append(choose,document.createTextNode('선택해서 일괄 승인'));
     card.append(label);
+    rightsCheckboxes.push({id,choose});
     const button=document.createElement('button');button.type='button';
     button.textContent='본인 소유권 확인 후 국가별 방송 승인';
     button.addEventListener('click',async()=>{
@@ -143,6 +159,8 @@ async function loadTiloRights(){
       rightsStatus.textContent='음원 #'+id+' · '+country+' 승인 완료 · 운영 권리 상태 재조회 중';
       await Promise.all([loadTiloOperations(),load()]);
       await loadTiloRights();
+      showRadioReturn(country);
+      rightsStatus.textContent=country+' · 음원 #'+id+' 방송 승인 완료. 라디오 화면에서 재생 버튼을 누르세요.';
      }catch(e){rightsStatus.textContent='승인 실패: '+String(e?.message||e);}
      finally{button.disabled=false;}
     });
@@ -153,6 +171,11 @@ async function loadTiloRights(){
  }catch(e){rightsStatus.textContent='권리 심사 조회 실패: '+String(e?.message||e);}
  finally{rightsRefresh.disabled=false;}
 }
+selectAllRightsButton.addEventListener('click',()=>{
+ for(const {id,choose} of rightsCheckboxes){choose.checked=true;selectedRights.add(id);}
+ bulkButton.disabled=selectedRights.size===0;
+ rightsStatus.textContent=rightsCountry.value+' · 승인 가능한 본인 소유 '+selectedRights.size+'곡 선택됨. 방송 이용허락을 확인한 뒤 승인 버튼을 누르세요.';
+});
 bulkButton.addEventListener('click',async()=>{
  const country=rightsCountry.value;
  const ids=[...selectedRights];
@@ -172,11 +195,17 @@ bulkButton.addEventListener('click',async()=>{
   rightsStatus.textContent=country+' · 내 음원 '+Number(result.authorized||0)+'곡 일괄 승인 · 감사기록 '+String(result.audit_event_id||'');
   await Promise.all([loadTiloOperations(),load()]);
   await loadTiloRights();
+  showRadioReturn(country);
+  rightsStatus.textContent=country+' · 내 음원 '+Number(result.authorized||0)+
+   '곡 방송 승인 완료. 라디오 화면으로 돌아가 재생 버튼을 누르세요.';
  }catch(e){rightsStatus.textContent='일괄 승인 실패: '+String(e?.message||e);}
  finally{bulkButton.disabled=selectedRights.size===0;}
 });
 rightsRefresh.addEventListener('click',loadTiloRights);
-rightsCountry.addEventListener('change',loadTiloRights);
+rightsCountry.addEventListener('change',()=>{
+  rightsReturn.style.display='none';
+  loadTiloRights();
+});
 
 async function loadTiloOperations(){
  operationsGrid.replaceChildren();
