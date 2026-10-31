@@ -175,25 +175,24 @@
     // wallet-to-track pre-funding. Unheard TL stays in the user's pool (and
     // is returned by the existing early-stop settlement); never charge for
     // a browser pause or use the broadcaster's nonbillable country flag.
-    if(personalRadio&&pre.billing_mode!=='time_free'&&!pre.can_play&&pre.code==='TRACK_TL_INSUFFICIENT'){
-      const wallet=Number(pre.wallet_tl||0),asset=Number(pre.asset_tl||0),need=Number(pre.required_tl||0);
-      const amount=Math.max(0,Math.min(Math.floor(wallet+1e-8),Math.ceil(need-asset-1e-8)));
-      if(amount>0&&wallet+1e-8>=amount){
-        if(opts.onFunding)opts.onFunding({amount,remainingWallet:wallet});
-        const charged=await request(API+'/api/shares/'+encodeURIComponent(shareId)+'/charge',{
+    if(personalRadio){
+      if(!global.TILOListenerBilling||typeof global.TILOListenerBilling.funding!=='function')
+        throw new Error('개인 TILO 청취 과금 정책 모듈이 없습니다. 무료 방송 모드로 대체하지 않습니다.');
+      const quote=global.TILOListenerBilling.funding(pre);
+      if(pre.billing_mode==='track_pool'&&quote.amount>0){
+        if(opts.onFunding)opts.onFunding({amount:quote.amount,remainingWallet:Number(pre.wallet_tl||0)});
+        await request(API+'/api/shares/'+encodeURIComponent(shareId)+'/charge',{
           method:'POST',headers:Object.assign({'Content-Type':'application/json','Idempotency-Key':'radio:'+sessionId},auth()),
-          body:JSON.stringify({amount})
+          body:JSON.stringify({amount:quote.amount})
         });
-        if(!charged.ok)throw new Error('방송 재생 TL 사전 충전 실패');
         pre=await request(API+'/api/v1/tl3/play/preflight/'+encodeURIComponent(fileId),{
           method:'POST',headers:auth()
         });
       }
     }
     ensureStartupActive();
-    // A member may listen only while there is prepaid TL (or TIME FREE).
-    // For insufficient full-song balance, the existing metering endpoint
-    // stops exactly when the available funded TL is exhausted.
+    // The V5 meter charges only audible playback and stops when the track TL
+    // pool is empty. No non-billable broadcaster-country license is requested.
     if(!pre.can_play&&!(personalRadio&&pre.code==='TRACK_TL_INSUFFICIENT'&&Number(pre.asset_tl||0)>=1))
       throw new Error('개인 청취 TL이 부족합니다. TIME FREE를 구매하거나 TL을 충전해 주세요.');
     if(pre.billing_mode==='time_free'){sessionId='tf_'+sessionId.replace(/^(tf_|sub_)/,'');if(sessionId.length>100)throw new Error('TIME FREE 재생 세션이 너무 깁니다.');}
